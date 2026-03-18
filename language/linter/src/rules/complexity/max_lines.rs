@@ -1,7 +1,7 @@
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of lines per file.
@@ -29,7 +29,7 @@ impl LintRule for MaxLines {
         MaxLines::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata, threshold, and active options
         let meta = self.meta();
         let max_lines = ctx.options.max_lines;

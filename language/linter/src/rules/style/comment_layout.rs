@@ -6,7 +6,7 @@ use crate::rules::common::{
     has_hyphen_separator, has_multiple_sentence_starts, is_directive_comment,
     is_non_prose_doc_line, is_separator_comment, parse_keyword_comment_with_options,
 };
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce comment layout conventions.
@@ -35,7 +35,7 @@ impl LintRule for CommentLayout {
         CommentLayout::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // check doc comments
@@ -242,7 +242,7 @@ fn known_comment_tag_label(tags: &[String]) -> String {
 
 /// Build a safe fix for lowercase keyword comments.
 fn uppercase_keyword_comment_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     annotation_span: Span,
     uppercase_keyword: &str,
 ) -> Option<LintFix> {

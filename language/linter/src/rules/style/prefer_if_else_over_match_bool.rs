@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Expression, MatchCase, Pattern, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest using if/else instead of match on booleans.
@@ -43,7 +43,7 @@ impl LintRule for PreferIfElseOverMatchBool {
         PreferIfElseOverMatchBool::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -99,7 +99,7 @@ impl LintRule for PreferIfElseOverMatchBool {
 
 /// Get the boolean literal value from a match case pattern, if it is one.
 fn get_case_pattern(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     case_id: ast::LocalNodeId<MatchCase>,
 ) -> Option<bool> {
     let case = ctx.tree.get(case_id);
@@ -136,7 +136,7 @@ fn get_case_pattern(
 
 /// Build a safe rewrite from `match bool` to `if/else` for expression arm bodies.
 fn prefer_if_else_over_match_bool_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     match_expression_id: ast::LocalNodeId<Expression>,
     value_expression_id: ast::LocalNodeId<Expression>,
     case_ids: &[ast::LocalNodeId<MatchCase>],
@@ -184,7 +184,7 @@ fn prefer_if_else_over_match_bool_fix(
 
 /// Return `(bool_value, body_expression)` for one simple boolean expression case.
 fn bool_expression_case_body(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     case_id: ast::LocalNodeId<MatchCase>,
 ) -> Option<(bool, ast::LocalNodeId<Expression>)> {
     let case = ctx.tree.get(case_id);

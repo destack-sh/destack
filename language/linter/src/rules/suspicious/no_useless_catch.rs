@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_is_unqualified_path_name;
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow catch clauses that only rethrow the caught error.
@@ -29,7 +29,7 @@ impl LintRule for NoUselessCatch {
         NoUselessCatch::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -95,7 +95,7 @@ impl LintRule for NoUselessCatch {
 
 /// Build one safe fix for a try-catch wrapper that only rethrows.
 fn no_useless_catch_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     try_id: ast::LocalNodeId<ast::Expression>,
     try_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<LintFix> {
@@ -128,7 +128,7 @@ fn no_useless_catch_fix(
 
 /// Get the binding name from a simple catch pattern.
 fn get_pattern_binding_name(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     pattern_id: ast::LocalNodeId<ast::Pattern>,
 ) -> Option<ast::StringId> {
     let pattern = ctx.tree.get(pattern_id);
@@ -140,7 +140,7 @@ fn get_pattern_binding_name(
 
 /// Check if an expression is `throw <name>` where name matches the given string id.
 fn is_throw_of_name(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expr_id: ast::LocalNodeId<ast::Expression>,
     name: ast::StringId,
 ) -> bool {

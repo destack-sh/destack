@@ -2,7 +2,7 @@ use destack_ast::{self as ast, UnaryOperator};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_statement_ancestor;
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `++` and `--` operators.
@@ -29,7 +29,7 @@ impl LintRule for NoPlusplus {
         NoPlusplus::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // inspect candidate expressions
@@ -98,7 +98,7 @@ impl LintRule for NoPlusplus {
 
 /// Return true when an update expression result is discarded.
 fn is_discarded_update_expression(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     node_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     // standalone statement position
@@ -112,7 +112,7 @@ fn is_discarded_update_expression(
 
 /// Return true when one expression is in a for-loop afterthought chain.
 fn expression_is_for_loop_afterthought(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     // start from the update expression

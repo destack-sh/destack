@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{declaration_at_allowed_root, declaration_expression};
-use crate::{LintDiagnostic, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow function declarations in nested blocks.
@@ -30,7 +30,7 @@ impl LintRule for NoInnerDeclarations {
         NoInnerDeclarations::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // inspect declarations for nested function definitions

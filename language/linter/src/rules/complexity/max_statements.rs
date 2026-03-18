@@ -8,7 +8,7 @@ use crate::rules::common::{
     CallableOwnerId, expression_starts_nested_declaration_scope,
     expression_unwrap_statement_syntax, for_each_callable_signature,
 };
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of statements per function.
@@ -35,7 +35,7 @@ impl LintRule for MaxStatements {
         MaxStatements::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
         let max_statements = ctx.options.max_statements;
@@ -115,7 +115,7 @@ fn count_callable_statements(
 
 /// Report one max-statements violation for a callable owner.
 fn report_statement_limit_violation<T: ast::Node>(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &'static crate::LintMeta,
     owner_id: ast::LocalNodeId<T>,
     body_id: ast::LocalNodeId<ast::Expression>,

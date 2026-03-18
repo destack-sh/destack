@@ -6,7 +6,7 @@ use crate::rules::common::{
     has_doc_terminal_punctuation, is_directive_comment, is_non_prose_doc_line,
     is_separator_comment, parse_keyword_comment_with_options,
 };
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce comment punctuation conventions.
@@ -35,7 +35,7 @@ impl LintRule for CommentPunctuation {
     }
 
     /// Check module AST annotations for punctuation consistency.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // inline comments should not end with periods
@@ -137,7 +137,7 @@ impl LintRule for CommentPunctuation {
 
 /// Build a safe fix that removes one trailing period from an inline comment.
 fn inline_comment_trailing_period_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     comment_span: Span,
 ) -> Option<LintFix> {
     let annotation_text = ctx.get_span_text(comment_span);

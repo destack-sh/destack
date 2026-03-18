@@ -5,7 +5,7 @@ use destack_ast::{
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_is_type_annotation;
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Warn on overly complex type expressions.
@@ -32,7 +32,7 @@ impl LintRule for NoComplexType {
         NoComplexType::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
         let max_type_complexity = ctx.options.max_type_complexity;
@@ -77,7 +77,7 @@ impl LintRule for NoComplexType {
 
 /// Return true when one type expression has a parent type expression.
 fn has_type_annotation_expression_parent(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     // resolve expression parent node

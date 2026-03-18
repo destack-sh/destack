@@ -4,7 +4,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{regex_pattern_info, regexp_global_qualifier_names};
-use crate::{LintDiagnostic, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
 
 /// The set of accepted JavaScript regular expression flags.
 const VALID_REGEX_FLAGS: [char; 8] = ['d', 'g', 'i', 'm', 's', 'u', 'v', 'y'];
@@ -34,7 +34,7 @@ impl LintRule for NoInvalidRegexp {
         NoInvalidRegexp::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
         let regexp_name = ctx.strings.intern("RegExp");
         let global_qualifier_names = regexp_global_qualifier_names(ctx.strings);
@@ -163,7 +163,7 @@ fn invalid_regex_flags(flags: &str) -> Option<String> {
 
 /// Return one parse error message if a pattern is invalid for all unknown constructor flag modes.
 fn unknown_flags_pattern_error_message(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     pattern_id: ast::StringId,
 ) -> Option<String> {
     let pattern_has_set_notation_syntax = {

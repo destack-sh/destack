@@ -2,7 +2,7 @@ use destack_ast::{self as ast, AssignOperator, BinaryOperator, Expression};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_is_optional_chain_target, expression_trailing_bang_span};
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow confusing non null assertions.
@@ -31,7 +31,7 @@ impl LintRule for NoConfusingNonNullAssertion {
         NoConfusingNonNullAssertion::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // inspect all expressions for source parity and Destack enhancement cases
@@ -158,7 +158,7 @@ fn confusing_operator_case(expression: &Expression) -> Option<ConfusingOperatorC
 
 /// Return true when one left operand ends with a non null assertion and is not parenthesized.
 fn has_confusing_non_null_left_operand(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     left_expression_id: ast::LocalNodeId<Expression>,
 ) -> bool {
     let left_expression = ctx.tree.get(left_expression_id);
@@ -171,7 +171,7 @@ fn has_confusing_non_null_left_operand(
 
 /// Build one fix for one source parity operator case.
 fn confusing_operator_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     left_expression_id: ast::LocalNodeId<Expression>,
     kind: ConfusingOperatorKind,
 ) -> Option<LintFix> {
@@ -200,7 +200,7 @@ fn confusing_operator_fix(
 
 /// Report one optional chain confusion diagnostic for `foo!?.bar` forms.
 fn report_optional_chain_confusion_before(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &'static crate::LintMeta,
     expression_id: ast::LocalNodeId<Expression>,
 ) {
@@ -234,7 +234,7 @@ fn report_optional_chain_confusion_before(
 
 /// Report one optional chain confusion diagnostic for `foo?.bar!` forms.
 fn report_optional_chain_confusion_after(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &'static crate::LintMeta,
     must_expression_id: ast::LocalNodeId<Expression>,
     optional_chain_id: ast::LocalNodeId<Expression>,
@@ -273,7 +273,7 @@ fn report_optional_chain_confusion_after(
 
 /// Build one safe fix by parenthesizing the non null expression before optional chaining.
 fn parenthesize_non_null_before_optional_chain_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<Expression>,
 ) -> Option<LintFix> {
     let expression_span = ctx.tree.get_span(expression_id);
@@ -292,7 +292,7 @@ fn parenthesize_non_null_before_optional_chain_fix(
 
 /// Build one safe fix by parenthesizing the optional chain before non null assertion.
 fn parenthesize_optional_chain_before_non_null_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     must_expression_id: ast::LocalNodeId<Expression>,
     optional_chain_id: ast::LocalNodeId<Expression>,
 ) -> Option<LintFix> {
@@ -312,7 +312,7 @@ fn parenthesize_optional_chain_before_non_null_fix(
 }
 
 fn is_optional_chain_target(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     node_id: ast::LocalNodeId<Expression>,
 ) -> bool {
     expression_is_optional_chain_target(ctx.tree, ctx.parents, node_id)
@@ -320,7 +320,7 @@ fn is_optional_chain_target(
 
 /// Return true when one expression is or contains optional chaining.
 fn is_optional_chain(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<Expression>,
 ) -> bool {
     let expression = ctx.tree.get(expression_id);

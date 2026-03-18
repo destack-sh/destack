@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Declaration, TypeKind};
 use destack_workspace::{LintSeverity, TypeDefinitionStyle};
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce consistent type definition style.
@@ -28,7 +28,7 @@ impl LintRule for ConsistentTypeDefinitions {
         ConsistentTypeDefinitions::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
         let preferred_style = ctx.options.type_definition_style;
 
@@ -128,7 +128,7 @@ fn is_object_type_expression(expr: &ast::Expression) -> bool {
 
 /// Build an unsafe interface to type alias rewrite.
 fn interface_to_type_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     declaration_id: ast::LocalNodeId<ast::Declaration>,
     descriptor: &ast::DeclarationDescriptor,
     generics: &ast::Generics,
@@ -167,7 +167,7 @@ fn interface_to_type_fix(
 
 /// Build an unsafe type alias to interface rewrite.
 fn type_to_interface_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     declaration_id: ast::LocalNodeId<ast::Declaration>,
     descriptor: &ast::DeclarationDescriptor,
     static_parameters: &Option<Vec<ast::LocalNodeId<ast::Parameter>>>,

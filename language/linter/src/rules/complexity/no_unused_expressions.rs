@@ -2,7 +2,7 @@ use destack_ast::{self as ast, UnaryOperator};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_has_side_effects, expression_unwrap_parenthesized_syntax};
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow statement expressions that have no effect.
@@ -28,7 +28,7 @@ impl LintRule for NoUnusedExpressions {
         NoUnusedExpressions::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata
         let meta = self.meta();
 
@@ -49,7 +49,7 @@ impl LintRule for NoUnusedExpressions {
 
 /// Check one root or block expression as a statement candidate.
 fn check_statement_candidate(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &'static crate::LintMeta,
     statement_expression_id: ast::LocalNodeId<ast::Expression>,
 ) {
@@ -92,7 +92,7 @@ fn check_statement_candidate(
 
 /// Return one inner expression id when an expression is statement like.
 fn statement_expression_inner_id(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
     // unwrap explicit statement wrappers
@@ -110,7 +110,7 @@ fn statement_expression_inner_id(
 
 /// Return true when one statement expression is in a directive prologue.
 fn expression_statement_is_directive(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     statement_expression_id: ast::LocalNodeId<ast::Expression>,
     inner_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
@@ -145,7 +145,7 @@ fn expression_statement_is_directive(
 
 /// Return true when all statement expressions in one prefix are directive literals.
 fn expression_prefix_is_all_directives(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     statement_prefix: &[ast::LocalNodeId<ast::Expression>],
 ) -> bool {
     // require every earlier statement to be a string literal statement
@@ -164,7 +164,7 @@ fn expression_prefix_is_all_directives(
 
 /// Return block id and statement index when one statement belongs to one block body.
 fn enclosing_block_statement_index(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     statement_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<(ast::LocalNodeId<ast::Block>, usize)> {
     // require a block parent for statement expressions
@@ -181,7 +181,7 @@ fn enclosing_block_statement_index(
 
 /// Return true when one block can host a directive prologue.
 fn block_is_directive_capable(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     block_id: ast::LocalNodeId<ast::Block>,
 ) -> bool {
     // resolve the parent expression for this block
@@ -247,7 +247,7 @@ fn block_is_directive_capable(
 
 /// Return true when one expression shape is disallowed as a statement expression.
 fn expression_is_disallowed_in_statement(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     // normalize parenthesized wrappers first

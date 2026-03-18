@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::is_fallthrough_comment;
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow fallthrough from one switch case to another.
@@ -31,7 +31,7 @@ impl LintRule for NoFallthrough {
     }
 
     /// Check module AST nodes for switch fallthrough cases.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // inspect candidate expressions
@@ -141,7 +141,7 @@ impl LintRule for NoFallthrough {
 
 /// Return true when comments between two switch cases declare intentional fallthrough.
 fn has_fallthrough_comment_between_cases(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     current_case_id: ast::LocalNodeId<ast::MatchCase>,
     next_case_id: ast::LocalNodeId<ast::MatchCase>,
 ) -> bool {
@@ -169,7 +169,7 @@ fn has_fallthrough_comment_between_cases(
 
 /// Build an unsafe fix by inserting `break;` at the end of a switch case.
 fn no_fallthrough_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     case_id: ast::LocalNodeId<ast::MatchCase>,
 ) -> Option<LintFix> {
     let case_span = ctx.tree.get_span(case_id);
@@ -188,7 +188,7 @@ fn no_fallthrough_fix(
 
 /// Check if an expression ends with a terminating statement.
 fn ends_with_terminating_statement(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let expression = ctx.tree.get(expression_id);
@@ -200,7 +200,7 @@ fn ends_with_terminating_statement(
 
 /// Check if an expression is a terminating statement.
 fn is_terminating_statement(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let expression = ctx.tree.get(expression_id);

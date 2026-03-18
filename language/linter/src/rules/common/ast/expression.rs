@@ -4,7 +4,7 @@ use destack_source::Span;
 use crate::rules::common::{
     span_has_comment_trivia, stable_hash_debug, stable_hash_token, stable_hash_token_hashed_value,
 };
-use crate::{ConstValue, LintModuleAstContext};
+use crate::{ConstValue, LintAstContext};
 
 /// Return the AST expression id with parenthesized nodes unwrapped.
 pub fn expression_unwrap_parenthesized_syntax(
@@ -174,7 +174,7 @@ pub fn expression_statement_span(
 
 /// Return the trailing non null assertion span when one expression text ends with `!`.
 pub fn expression_trailing_bang_span(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<Span> {
     // resolve one text slice for the expression span
@@ -198,7 +198,7 @@ pub fn expression_trailing_bang_span(
 
 /// Build one negated expression string while preserving precedence.
 pub fn expression_negated_source_text(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> String {
     // keep the original source text for replacement fidelity
@@ -841,7 +841,7 @@ pub fn const_value_f64(value: ConstValue) -> Option<f64> {
 
 /// Evaluate an expression as a numeric constant when possible.
 pub fn expression_numeric_value(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<f64> {
     // resolve direct constant values first
@@ -887,7 +887,7 @@ pub fn expression_numeric_value(
 
 /// Evaluate an expression as a signed numeric constant when possible.
 pub fn expression_numeric_sign(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<i8> {
     // resolve numeric value
@@ -911,7 +911,7 @@ pub fn expression_numeric_sign(
 /// Compares expressions by structure, ignoring parentheses.
 /// Handles paths, literals, and recursively compares binary/unary operations.
 pub fn expression_is_equal(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     left_id: ast::LocalNodeId<ast::Expression>,
     right_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
@@ -1210,7 +1210,7 @@ pub fn expression_is_equal(
 
 /// Check if two blocks have identical expressions.
 pub fn blocks_equal(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     left_id: ast::LocalNodeId<ast::Block>,
     right_id: ast::LocalNodeId<ast::Block>,
 ) -> bool {
@@ -1228,7 +1228,7 @@ pub fn blocks_equal(
 }
 
 /// Return whether two paths are equal.
-pub fn paths_equal(ctx: &LintModuleAstContext<'_>, left: &ast::Path, right: &ast::Path) -> bool {
+pub fn paths_equal(ctx: &LintAstContext<'_>, left: &ast::Path, right: &ast::Path) -> bool {
     if left.segments.len() != right.segments.len() {
         return false;
     }
@@ -1244,7 +1244,7 @@ pub fn paths_equal(ctx: &LintModuleAstContext<'_>, left: &ast::Path, right: &ast
 
 /// Return whether two string IDs refer to equal strings.
 pub fn string_ids_equal(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     left: ast::StringId,
     right: ast::StringId,
 ) -> bool {
@@ -1255,7 +1255,7 @@ pub fn string_ids_equal(
 
 /// Return whether two argument lists are equal.
 pub fn arguments_are_equal(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     left: &[ast::LocalNodeId<ast::Argument>],
     right: &[ast::LocalNodeId<ast::Argument>],
 ) -> bool {
@@ -1274,7 +1274,7 @@ pub fn arguments_are_equal(
 
 /// Return whether two arguments are structurally equal.
 pub fn argument_is_equal(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     left_id: ast::LocalNodeId<ast::Argument>,
     right_id: ast::LocalNodeId<ast::Argument>,
 ) -> bool {
@@ -1347,7 +1347,7 @@ pub fn argument_is_equal(
 /// or that need to distinguish between pure and impure expressions.
 /// #Cleanup: can expression_has_side_effects use NodeVisitor..?
 pub fn expression_has_side_effects(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let expr = ctx.tree.get(expr_id);
@@ -1520,10 +1520,7 @@ pub fn expression_is_literal(expression: &ast::Expression) -> bool {
 }
 
 /// Check if an expression is a constant expression (evaluates to a fixed value at compile time).
-pub fn expression_is_constant_expression(
-    ctx: &LintModuleAstContext<'_>,
-    expr: &ast::Expression,
-) -> bool {
+pub fn expression_is_constant_expression(ctx: &LintAstContext<'_>, expr: &ast::Expression) -> bool {
     match expr {
         ast::Expression::ScalarLiteral(_) => true,
         ast::Expression::Parenthesized { expression } => {
@@ -1541,7 +1538,7 @@ pub fn expression_is_constant_expression(
 /// Returns Some(true) for truthy constants, Some(false) for falsy constants, None otherwise.
 /// Handles booleans, integers, floats, null/undefined, parenthesized expressions, and unary not.
 pub fn expression_constant_to_bool(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expr: &ast::Expression,
 ) -> Option<bool> {
     match expr {
@@ -1571,7 +1568,7 @@ pub fn expression_constant_to_bool(
 
 /// Compare two expressions using a structural fallback signature.
 fn expression_signature_equal(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     left_id: ast::LocalNodeId<ast::Expression>,
     right_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
@@ -1582,7 +1579,7 @@ fn expression_signature_equal(
 
 /// Build a structural signature for one expression subtree.
 fn expression_signature(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Vec<u64> {
     expression_structural_signature(ctx.tree, ctx.strings, expression_id)

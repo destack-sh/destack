@@ -3,7 +3,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{regex_pattern_info, regexp_global_qualifier_names};
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow unnecessary escape characters in strings and regex literals.
@@ -32,7 +32,7 @@ impl LintRule for NoUselessEscape {
     }
 
     /// Check module AST nodes for useless escapes.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve metadata and source text once
         let meta = self.meta();
         let file = ctx.program.files.get(ctx.module.file_id);
@@ -111,7 +111,7 @@ const REGEX_CLASS_SET_RESERVED_DOUBLE_PUNCTUATOR: &[char] = &[
 
 /// Report useless escapes in one string or template literal node.
 fn report_string_literal_escapes(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &LintMeta,
     node_id: ast::LocalNodeId<ast::Expression>,
     literal_span: Span,
@@ -170,7 +170,7 @@ fn report_string_literal_escapes(
 
 /// Report useless escapes in one regex literal node.
 fn report_regex_escapes(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &LintMeta,
     node_id: ast::LocalNodeId<ast::Expression>,
     literal_span: Span,

@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_is_equal, expression_unwrap_parenthesized_syntax, span_has_comment_trivia,
 };
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer compound assignment operators.
@@ -30,7 +30,7 @@ impl LintRule for OperatorAssignment {
         OperatorAssignment::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // scan all assignment expressions
@@ -178,7 +178,7 @@ fn shorthand_assignment_operator(operator: BinaryOperator) -> Option<ShorthandAs
 
 /// Return true when one assignment target can be safely auto fixed.
 fn can_fix_assignment_target(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);

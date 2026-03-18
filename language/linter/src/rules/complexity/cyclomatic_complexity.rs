@@ -9,7 +9,7 @@ use crate::rules::common::{
     expression_starts_nested_declaration_scope, parameter_default_expression_id,
     pattern_field_default_expression_id,
 };
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit cyclomatic complexity of functions.
@@ -44,7 +44,7 @@ impl LintRule for CyclomaticComplexity {
         CyclomaticComplexity::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve one shared max-threshold and lint meta
         let meta = self.meta();
         let max_complexity = ctx.options.max_cyclomatic_complexity;
@@ -92,7 +92,7 @@ impl LintRule for CyclomaticComplexity {
 
 /// Report complexity when one callable body exceeds the configured maximum.
 fn report_body_complexity<T: ast::Node>(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &'static crate::LintMeta,
     owner_id: LocalNodeId<T>,
     body_expression_id: LocalNodeId<Expression>,

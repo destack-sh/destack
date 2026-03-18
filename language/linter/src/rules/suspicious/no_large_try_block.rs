@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow large try blocks.
@@ -30,7 +30,7 @@ impl LintRule for NoLargeTryBlock {
         NoLargeTryBlock::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
         let max_statements = ctx.options.max_try_block_statements;
 
@@ -68,7 +68,7 @@ impl LintRule for NoLargeTryBlock {
 
 /// Count statements in an expression.
 fn count_statements(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> usize {
     let expression = ctx.tree.get(expression_id);

@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow wildcard imports.
@@ -30,7 +30,7 @@ impl LintRule for NoWildcardImports {
         NoWildcardImports::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // inspect candidate expressions
@@ -73,7 +73,7 @@ impl LintRule for NoWildcardImports {
 
 /// Build an unsafe fix by removing one wildcard import item.
 fn no_wildcard_imports_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     import_expression_id: ast::LocalNodeId<ast::Expression>,
     items: &[ast::LocalNodeId<ast::DependencyItem>],
     wildcard_item_id: &ast::LocalNodeId<ast::DependencyItem>,
@@ -93,7 +93,7 @@ fn no_wildcard_imports_fix(
 
 /// Return a span that safely removes one import item from an import expression.
 fn import_item_removal_span(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     import_expression_id: ast::LocalNodeId<ast::Expression>,
     items: &[ast::LocalNodeId<ast::DependencyItem>],
     item_index: usize,

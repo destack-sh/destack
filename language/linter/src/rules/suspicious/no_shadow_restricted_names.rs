@@ -6,7 +6,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_is_unqualified_path_name;
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow shadowing of restricted or builtin names.
@@ -66,7 +66,7 @@ fn is_restricted_name(name: &str) -> bool {
 }
 
 /// Return true when one string id is `undefined`.
-fn name_is_undefined(ctx: &LintModuleAstContext<'_>, name: ast::StringId) -> bool {
+fn name_is_undefined(ctx: &LintAstContext<'_>, name: ast::StringId) -> bool {
     ctx.strings.get(name).as_ref() == "undefined"
 }
 
@@ -75,7 +75,7 @@ impl LintRule for NoShadowRestrictedNames {
         NoShadowRestrictedNames::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // check patterns (let/const bindings, function params, etc.)
@@ -199,7 +199,7 @@ impl LintRule for NoShadowRestrictedNames {
 
 /// Build one suggestion rename fix when declaration is file-local and unreferenced.
 fn no_shadow_restricted_names_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     declaration_span: Span,
     name: ast::StringId,
 ) -> Option<LintFix> {
@@ -226,7 +226,7 @@ fn no_shadow_restricted_names_fix(
 }
 
 /// Build one replacement name for restricted identifiers.
-fn restricted_name_replacement(ctx: &LintModuleAstContext<'_>, name: &str) -> String {
+fn restricted_name_replacement(ctx: &LintAstContext<'_>, name: &str) -> String {
     let base_name = format!("{name}Local");
     let base_name_id = ctx.strings.intern(&base_name);
     if !identifier_name_exists_in_ast(ctx, base_name_id) {
@@ -248,7 +248,7 @@ fn restricted_name_replacement(ctx: &LintModuleAstContext<'_>, name: &str) -> St
 }
 
 /// Return true when one unqualified path references this identifier.
-fn has_unqualified_path_reference(ctx: &LintModuleAstContext<'_>, name: ast::StringId) -> bool {
+fn has_unqualified_path_reference(ctx: &LintAstContext<'_>, name: ast::StringId) -> bool {
     for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
         if expression_is_unqualified_path_name(ctx.tree, expression_id, name) {
             return true;
@@ -259,7 +259,7 @@ fn has_unqualified_path_reference(ctx: &LintModuleAstContext<'_>, name: ast::Str
 }
 
 /// Return true when this identifier name is already present in declarations or paths.
-fn identifier_name_exists_in_ast(ctx: &LintModuleAstContext<'_>, name: ast::StringId) -> bool {
+fn identifier_name_exists_in_ast(ctx: &LintAstContext<'_>, name: ast::StringId) -> bool {
     for pattern_id in ctx.tree.iter_nodes::<ast::Pattern>() {
         let pattern = ctx.tree.get(pattern_id);
         if let ast::Pattern::Binding {
@@ -310,7 +310,7 @@ fn identifier_name_exists_in_ast(ctx: &LintModuleAstContext<'_>, name: ast::Stri
 
 /// Return true when one `undefined` binding follows ESLint safe-shadow semantics.
 fn binding_safely_shadows_undefined(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     pattern_id: ast::LocalNodeId<ast::Pattern>,
     name: ast::StringId,
 ) -> bool {
@@ -336,7 +336,7 @@ fn binding_safely_shadows_undefined(
 }
 
 /// Return true when one unqualified identifier has assignment-like writes.
-fn identifier_has_write_usage(ctx: &LintModuleAstContext<'_>, name: ast::StringId) -> bool {
+fn identifier_has_write_usage(ctx: &LintAstContext<'_>, name: ast::StringId) -> bool {
     for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
         let expression = ctx.tree.get(expression_id);
 
@@ -367,7 +367,7 @@ fn identifier_has_write_usage(ctx: &LintModuleAstContext<'_>, name: ast::StringI
 
 /// Return one unique identifier span in a declaration span.
 fn find_unique_identifier_span_in_span(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     search_span: Span,
     identifier: &str,
 ) -> Option<Span> {

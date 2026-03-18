@@ -2,7 +2,7 @@ use destack_ast::{self as ast, MatchCase};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::pattern_matches_all;
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest if-let over single-arm match.
@@ -28,7 +28,7 @@ impl LintRule for PreferIfLet {
         PreferIfLet::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -95,7 +95,7 @@ impl LintRule for PreferIfLet {
 
 /// Build a safe match-to-if-let rewrite.
 fn prefer_if_let_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     match_expression_id: ast::LocalNodeId<ast::Expression>,
     value_expression_id: ast::LocalNodeId<ast::Expression>,
     first_case: &MatchCase,
@@ -155,7 +155,7 @@ fn prefer_if_let_fix(
 
 /// Render one expression case body for use as an if branch body.
 fn expression_body_text(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<String> {
     let body_text = ctx
@@ -170,7 +170,7 @@ fn expression_body_text(
 
 /// Render one block case body for use as an if branch body.
 fn block_body_text(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     block_id: ast::LocalNodeId<ast::Block>,
 ) -> Option<String> {
     let body_text = ctx.get_span_text(ctx.tree.get_span(block_id)).to_string();

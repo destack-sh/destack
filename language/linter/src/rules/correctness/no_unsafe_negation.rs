@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow negation of the left operand of relational operators.
@@ -30,7 +30,7 @@ impl LintRule for NoUnsafeNegation {
     }
 
     /// Check module AST nodes for unsafe negation on relational operators.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // inspect candidate expressions
@@ -115,7 +115,7 @@ fn binary_operator_name(operator: &ast::BinaryOperator) -> &'static str {
 /// Get the inner expression if this is a logical not operation.
 /// Returns the inner expression ID, or None if not a negation.
 fn get_negated_inner(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
     let expression = ctx.tree.get(expression_id);

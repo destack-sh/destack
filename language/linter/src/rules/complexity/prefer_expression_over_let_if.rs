@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_is_unqualified_path_name, expression_unwrap_statement_syntax,
 };
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest expression syntax over let-if sequences.
@@ -27,7 +27,7 @@ declare_lint! {
 
 /// Get the binding name from a pattern if it's a simple identifier.
 fn get_binding_name(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     pattern_id: ast::LocalNodeId<Pattern>,
 ) -> Option<destack_core::StringId> {
     let pattern = ctx.tree.get(pattern_id);
@@ -43,7 +43,7 @@ fn get_binding_name(
 
 /// Check if an expression is an assignment to a specific variable.
 fn is_assignment_to(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expr_id: ast::LocalNodeId<ast::Expression>,
     target_name: destack_core::StringId,
 ) -> bool {
@@ -72,7 +72,7 @@ fn is_assignment_to(
 
 /// Check if an expression (which should be a block) contains only an assignment to the target.
 fn expr_is_simple_assignment(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expr_id: ast::LocalNodeId<ast::Expression>,
     target_name: destack_core::StringId,
 ) -> bool {
@@ -94,7 +94,7 @@ impl LintRule for PreferExpressionOverLetIf {
         PreferExpressionOverLetIf::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // look for blocks with potential let-if patterns
@@ -196,7 +196,7 @@ impl LintRule for PreferExpressionOverLetIf {
 /// Build one suggestion fix by rewriting let-if assignment chains to one if-expression init.
 #[allow(clippy::too_many_arguments)]
 fn prefer_expression_over_let_if_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     let_expression_id: ast::LocalNodeId<ast::Expression>,
     if_expression_id: ast::LocalNodeId<ast::Expression>,
     condition_expression_id: ast::LocalNodeId<ast::Expression>,
@@ -244,7 +244,7 @@ fn prefer_expression_over_let_if_fix(
 
 /// Return the assignment right-hand side text for one branch expression.
 fn assignment_value_text(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     branch_expression_id: ast::LocalNodeId<ast::Expression>,
     target_name: destack_core::StringId,
 ) -> Option<String> {

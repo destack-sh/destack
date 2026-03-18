@@ -1,7 +1,7 @@
 use destack_ast::{self as ast};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow magic numbers.
@@ -29,7 +29,7 @@ impl LintRule for NoMagicNumbers {
         NoMagicNumbers::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
         let allowed_numbers = &ctx.options.allowed_magic_numbers;
 
@@ -73,7 +73,7 @@ impl LintRule for NoMagicNumbers {
 
 /// Resolve one numeric literal value and the expression span that should be reported.
 fn numeric_literal_value_and_report_expression(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     literal_expression_id: ast::LocalNodeId<ast::Expression>,
     literal: &ast::ScalarLiteral,
 ) -> Option<(f64, ast::LocalNodeId<ast::Expression>)> {

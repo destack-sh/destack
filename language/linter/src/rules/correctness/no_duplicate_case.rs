@@ -5,7 +5,7 @@ use crate::rules::common::{
     ExpressionDuplicateTracker, expression_numeric_value, match_selector_expression_id,
 };
 use crate::{
-    ConstValue, LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint,
+    ConstValue, LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint,
 };
 
 declare_lint! {
@@ -35,7 +35,7 @@ impl LintRule for NoDuplicateCase {
     }
 
     /// Check module AST nodes for duplicate switch case selectors.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // inspect candidate expressions
@@ -146,7 +146,7 @@ fn number_const_value(value: ConstValue) -> Option<f64> {
 
 /// Build an unsafe fix that removes the duplicate switch case.
 fn duplicate_case_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     case_id: ast::LocalNodeId<ast::MatchCase>,
 ) -> Option<LintFix> {
     let case_span = ctx.tree.get_span(case_id);

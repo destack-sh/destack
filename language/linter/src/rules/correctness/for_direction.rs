@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_numeric_sign, expression_path_segments, expression_unwrap_parenthesized_syntax,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow for loops that go in the wrong direction.
@@ -50,7 +50,7 @@ impl LintRule for ForDirection {
     }
 
     /// Check module AST nodes for for-loop direction mismatches.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // walk expression nodes and inspect for loops
@@ -126,7 +126,7 @@ impl LintRule for ForDirection {
 
 /// Build an unsafe fix that flips increment direction for one loop update.
 fn build_for_direction_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     increment_id: ast::LocalNodeId<ast::Expression>,
     expected_direction: Direction,
 ) -> Option<LintFix> {
@@ -141,7 +141,7 @@ fn build_for_direction_fix(
 
 /// Render one increment expression with the expected direction.
 fn increment_with_expected_direction(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     increment_id: ast::LocalNodeId<ast::Expression>,
     expected_direction: Direction,
 ) -> Option<String> {
@@ -216,7 +216,7 @@ fn assign_operator_with_expected_direction(
 
 /// Determine counter expectations from the loop condition.
 fn condition_counter_expectations(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     condition_id: ast::LocalNodeId<ast::Expression>,
 ) -> Vec<CounterExpectation> {
     let condition_id = expression_unwrap_parenthesized_syntax(ctx.tree, condition_id);
@@ -263,7 +263,7 @@ fn condition_counter_expectations(
 
 /// Determine update direction for a specific counter.
 fn update_direction_for_counter(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     increment_id: ast::LocalNodeId<ast::Expression>,
     counter_segments: &[ast::StringId],
 ) -> Option<Direction> {
@@ -309,7 +309,7 @@ fn update_direction_for_counter(
 
 /// Determine assignment update direction using operator and step sign.
 fn assignment_direction(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     operator: ast::AssignOperator,
     right_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<Direction> {
@@ -345,7 +345,7 @@ fn direction_from_sign(sign: i8) -> Option<Direction> {
 
 /// Return true when an expression resolves to the target counter path.
 fn expression_matches_counter(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
     counter_segments: &[ast::StringId],
 ) -> bool {

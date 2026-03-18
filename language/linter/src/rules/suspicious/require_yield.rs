@@ -6,7 +6,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_starts_nested_declaration_scope;
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Require a `yield` keyword in generator functions.
@@ -33,7 +33,7 @@ impl LintRule for RequireYield {
         RequireYield::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
@@ -115,7 +115,7 @@ impl LintRule for RequireYield {
 
 /// Report one generator callable that has no own yield expression.
 fn report_missing_generator_yield<T: ast::Node>(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &crate::LintMeta,
     callable_id: ast::LocalNodeId<T>,
     body_expression_id: ast::LocalNodeId<ast::Expression>,
@@ -229,7 +229,7 @@ impl NodeVisitor for GeneratorYieldVisitor {
 
 /// Build an unsafe fix by removing one generator marker (`*`) from a callable signature.
 fn remove_generator_marker_fix<T: ast::Node>(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     declaration_id: ast::LocalNodeId<T>,
     body_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<LintFix> {

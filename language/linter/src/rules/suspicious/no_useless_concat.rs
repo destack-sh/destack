@@ -3,7 +3,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_unwrap_parenthesized_syntax;
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow unnecessary concatenation of string literals.
@@ -30,7 +30,7 @@ impl LintRule for NoUselessConcat {
         NoUselessConcat::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -93,7 +93,7 @@ impl LintRule for NoUselessConcat {
 
 /// Return the leftmost operand of a concat chain.
 fn concat_chain_left_operand(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> ast::LocalNodeId<ast::Expression> {
     let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
@@ -112,7 +112,7 @@ fn concat_chain_left_operand(
 
 /// Return the rightmost operand of a concat chain.
 fn concat_chain_right_operand(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> ast::LocalNodeId<ast::Expression> {
     let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
@@ -130,10 +130,7 @@ fn concat_chain_right_operand(
 }
 
 /// Check if an expression is a string literal.
-fn is_string_literal(
-    ctx: &LintModuleAstContext<'_>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
-) -> bool {
+fn is_string_literal(ctx: &LintAstContext<'_>, expr_id: ast::LocalNodeId<ast::Expression>) -> bool {
     let expr = ctx.tree.get(expr_id);
     match expr {
         ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(_)) => true,
@@ -144,7 +141,7 @@ fn is_string_literal(
 
 /// Return true when two expressions are on the same source line.
 fn expressions_share_line(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     left_id: ast::LocalNodeId<ast::Expression>,
     right_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
@@ -162,7 +159,7 @@ fn expressions_share_line(
 /// Get the content of a string literal (without quotes).
 /// Uses raw span text to preserve escape sequences.
 fn get_string_content(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> String {
     let expr = ctx.tree.get(expr_id);
@@ -187,7 +184,7 @@ fn get_string_content(
 
 /// Build one safe fix for direct literal-literal concatenation.
 fn no_useless_concat_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
     left_id: ast::LocalNodeId<ast::Expression>,
     right_id: ast::LocalNodeId<ast::Expression>,

@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, TypeLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow explicit `any` type annotations.
@@ -28,7 +28,7 @@ impl LintRule for NoExplicitAny {
         NoExplicitAny::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // inspect candidate expressions

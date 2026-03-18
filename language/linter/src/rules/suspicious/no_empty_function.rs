@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::block_is_empty_without_comment;
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow empty functions.
@@ -29,7 +29,7 @@ impl LintRule for NoEmptyFunction {
         NoEmptyFunction::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // inspect function declarations
@@ -62,7 +62,7 @@ impl LintRule for NoEmptyFunction {
 
 /// Report one empty function-like body from declarations or methods.
 fn report_empty_function_body(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &'static LintMeta,
     body_expression_id: ast::LocalNodeId<ast::Expression>,
 ) {
@@ -101,7 +101,7 @@ fn report_empty_function_body(
 
 /// Return one block id when a function body is empty and uncommented.
 fn empty_body_block_id(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     body_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ast::LocalNodeId<ast::Block>> {
     // require a block expression body
@@ -120,7 +120,7 @@ fn empty_body_block_id(
 
 /// Build a safe fix that annotates an empty function block.
 fn no_empty_function_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     block_id: ast::LocalNodeId<ast::Block>,
 ) -> Option<LintFix> {
     // replace the empty body with an explicit marker comment

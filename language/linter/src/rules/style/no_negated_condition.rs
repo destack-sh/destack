@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, IfKind, UnaryOperator};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow negated conditions in if-else and ternary expressions.
@@ -28,7 +28,7 @@ impl LintRule for NoNegatedCondition {
         NoNegatedCondition::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -86,7 +86,7 @@ impl LintRule for NoNegatedCondition {
 
 /// Return true when the expression kind and else branch should be checked.
 fn has_negated_condition_context(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     kind: IfKind,
     else_expression: Option<ast::LocalNodeId<ast::Expression>>,
 ) -> bool {
@@ -111,7 +111,7 @@ fn has_negated_condition_context(
 
 /// Return true when a condition expression is negated.
 fn is_negated_condition(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let expression = ctx.tree.get(expression_id);

@@ -3,7 +3,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::span_has_comment_trivia;
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow match guards that are always true or false.
@@ -33,7 +33,7 @@ impl LintRule for NoRedundantMatchGuard {
         NoRedundantMatchGuard::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::MatchCase>() {
@@ -87,7 +87,7 @@ impl LintRule for NoRedundantMatchGuard {
 
 /// Build a safe fix for one always true match guard.
 fn redundant_true_guard_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     pattern_id: ast::LocalNodeId<ast::Pattern>,
     guard_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<LintFix> {

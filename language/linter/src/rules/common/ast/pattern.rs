@@ -1,11 +1,11 @@
 use destack_ast as ast;
 
 use super::expression_is_equal;
-use crate::LintModuleAstContext;
+use crate::LintAstContext;
 
 /// Return the expression id when a selector is an expression pattern.
 pub fn match_selector_expression_id(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     selector: &ast::MatchSelector,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
     let pattern_id = selector.pattern_id()?;
@@ -37,7 +37,7 @@ pub fn pattern_field_default_expression_id(
 
 /// Return the expression id when a pattern wraps one expression pattern.
 pub fn pattern_expression_id(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     pattern_id: ast::LocalNodeId<ast::Pattern>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
     let pattern = ctx.tree.get(pattern_id);
@@ -62,7 +62,7 @@ pub fn pattern_expression_id(
 
 /// Return true when a pattern matches all values.
 pub fn pattern_matches_all(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     pattern_id: ast::LocalNodeId<ast::Pattern>,
 ) -> bool {
     let pattern = ctx.tree.get(pattern_id);
@@ -80,7 +80,7 @@ pub fn pattern_matches_all(
 
 /// Return true when one pattern is `_` or one underscore prefixed binding.
 pub fn pattern_is_underscore_binding_or_wildcard(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     pattern_id: ast::LocalNodeId<ast::Pattern>,
 ) -> bool {
     // resolve one pattern node
@@ -96,7 +96,7 @@ pub fn pattern_is_underscore_binding_or_wildcard(
 
 /// Return true when one pattern subsumes another pattern.
 pub fn pattern_subsumes(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     left_pattern_id: ast::LocalNodeId<ast::Pattern>,
     right_pattern_id: ast::LocalNodeId<ast::Pattern>,
 ) -> bool {

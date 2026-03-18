@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow negation in equality checks.
@@ -28,7 +28,7 @@ impl LintRule for NoNegationInEqualityCheck {
         NoNegationInEqualityCheck::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // inspect binary expressions for confusing negated equality
@@ -133,7 +133,7 @@ fn inverted_equality_operator(operator: ast::BinaryOperator) -> Option<ast::Bina
 }
 
 /// Return true when one replacement needs a leading space for lexical safety.
-fn needs_leading_fix_space(ctx: &LintModuleAstContext<'_>, start: u32) -> bool {
+fn needs_leading_fix_space(ctx: &LintAstContext<'_>, start: u32) -> bool {
     if start == 0 {
         return false;
     }

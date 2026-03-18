@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_unwrap_parenthesized_syntax, is_comparison_operator};
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow comparing to negative zero.
@@ -32,7 +32,7 @@ impl LintRule for NoCompareNegZero {
     }
 
     /// Check module AST nodes for comparisons against negative zero.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // walk binary expressions
@@ -100,7 +100,7 @@ impl LintRule for NoCompareNegZero {
 
 /// Create a fix for -0 comparison (equality operators only).
 fn make_neg_zero_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     left: ast::LocalNodeId<ast::Expression>,
     right: ast::LocalNodeId<ast::Expression>,
     operator: ast::BinaryOperator,
@@ -134,7 +134,7 @@ fn make_neg_zero_fix(
 
 /// Check if an expression is negative zero (-0).
 fn is_negative_zero(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     // normalize expression shape
@@ -155,7 +155,7 @@ fn is_negative_zero(
 
 /// Check if an expression is a zero literal (0 or 0.0).
 fn is_zero_literal(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     // normalize expression shape

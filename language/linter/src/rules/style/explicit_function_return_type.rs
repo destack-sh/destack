@@ -5,7 +5,7 @@ use destack_ast::{
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Require explicit return type annotations on functions.
@@ -32,7 +32,7 @@ impl LintRule for ExplicitFunctionReturnType {
         ExplicitFunctionReturnType::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
         let constructor_name = ctx.program.strings.intern("constructor");
 
@@ -140,7 +140,7 @@ impl LintRule for ExplicitFunctionReturnType {
 
 /// Return true when one signature should report a missing return type.
 fn signature_requires_explicit_return_type(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     signature: &ast::FunctionSignature,
     key: Option<&Key>,
     constructor_name: ast::StringId,
@@ -164,7 +164,7 @@ fn signature_requires_explicit_return_type(
 
 /// Return true when one method key is the constructor name.
 fn method_key_is_constructor(
-    _ctx: &LintModuleAstContext<'_>,
+    _ctx: &LintAstContext<'_>,
     key: Option<&Key>,
     constructor_name: ast::StringId,
 ) -> bool {
@@ -183,7 +183,7 @@ fn method_key_is_constructor(
 
 /// Report one missing return type diagnostic with one conservative fix.
 fn report_missing_return_type(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     severity: LintSeverity,
     function_span: Span,
     body_expression_id: Option<ast::LocalNodeId<ast::Expression>>,
@@ -212,7 +212,7 @@ fn report_missing_return_type(
 
 /// Build a safe fix by inserting a `: void` return annotation.
 fn explicit_function_return_type_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     function_span: Span,
     body_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<LintFix> {
@@ -234,7 +234,7 @@ fn explicit_function_return_type_fix(
 
 /// Return true when an expression contains a return in this function body.
 fn contains_return_expression(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let expression = ctx.tree.get(expression_id);

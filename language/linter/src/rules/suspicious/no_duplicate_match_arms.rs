@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     BlockDuplicateTracker, ExpressionDuplicateTracker, span_has_comment_trivia,
 };
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Warn on match arms with identical bodies.
@@ -32,7 +32,7 @@ impl LintRule for NoDuplicateMatchArms {
         NoDuplicateMatchArms::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -100,7 +100,7 @@ impl LintRule for NoDuplicateMatchArms {
 
 /// Build an unsafe fix that removes one duplicate match arm.
 fn duplicate_match_arm_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     case_id: ast::LocalNodeId<ast::MatchCase>,
 ) -> Option<LintFix> {
     let case_span = ctx.tree.get_span(case_id);

@@ -1,10 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use destack_source::{FileType, ModuleId, Span};
-use destack_workspace::ModuleGraphKey;
-
 use crate::rules::common::{find_cycle_path, strongly_connected_components};
 use crate::{LintDiagnostic, LintProgramDirContext, LintRule, declare_lint};
+use destack_source::{FileType, ModuleId, Span};
 
 declare_lint! {
     /// Disallow circular module dependencies.
@@ -40,8 +38,7 @@ impl LintRule for NoCircularDependency {
         }
 
         // resolve module graph for this profile
-        let graph_key = ModuleGraphKey::new(ctx.profile_id);
-        let Some(graph) = ctx.program.index.module_graphs.get(&graph_key) else {
+        let Some(graph) = ctx.program.artifacts.module_graph(ctx.profile_id) else {
             return;
         };
 

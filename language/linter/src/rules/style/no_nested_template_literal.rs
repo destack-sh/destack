@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow nested template literals.
@@ -29,7 +29,7 @@ impl LintRule for NoNestedTemplateLiteral {
         NoNestedTemplateLiteral::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -78,7 +78,7 @@ fn is_template_expression(expression: &ast::Expression) -> bool {
 
 /// Resolve the nearest parent template expression for one template node.
 fn template_parent_expression(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
     let mut current = expr_id.id;
@@ -102,7 +102,7 @@ fn template_parent_expression(
 
 /// Return true when nested and parent templates share one boundary line.
 fn is_same_line_nested_template(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     nested_template_id: ast::LocalNodeId<ast::Expression>,
     parent_template_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {

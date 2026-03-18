@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow template literal syntax in regular strings.
@@ -28,7 +28,7 @@ impl LintRule for NoTemplateCurlyInString {
         NoTemplateCurlyInString::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -144,7 +144,7 @@ fn is_escaped(source: &str, index: usize) -> bool {
 
 /// Build a fix to convert a regular string literal to a template literal.
 fn template_literal_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     span: destack_source::Span,
     literal_text: &str,
 ) -> Option<LintFix> {

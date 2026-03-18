@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_statement_ancestor;
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow sequence expressions (comma operator).
@@ -30,7 +30,7 @@ impl LintRule for NoSequences {
         NoSequences::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // inspect candidate expressions
@@ -72,7 +72,7 @@ impl LintRule for NoSequences {
 
 /// Build a safe fix for statement-level sequence expressions.
 fn no_sequences_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     sequence_expression_id: ast::LocalNodeId<ast::Expression>,
     sequence_expression: &ast::Expression,
 ) -> Option<LintFix> {
@@ -111,7 +111,7 @@ fn no_sequences_fix(
 
 /// Return true when one sequence expression appears in for init or increment.
 fn sequence_expression_is_for_part(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     sequence_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     // start from the sequence expression

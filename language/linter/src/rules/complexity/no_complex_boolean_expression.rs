@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_is_equal, expression_is_type_annotation, expression_unwrap_parenthesized_syntax,
 };
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest simplifying complex boolean expressions.
@@ -33,7 +33,7 @@ impl LintRule for NoComplexBooleanExpression {
         NoComplexBooleanExpression::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -151,7 +151,7 @@ impl LintRule for NoComplexBooleanExpression {
 
 /// Return whether `right` is the negation of `left`.
 fn is_negation_of(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     left_id: ast::LocalNodeId<Expression>,
     right_id: ast::LocalNodeId<Expression>,
 ) -> bool {

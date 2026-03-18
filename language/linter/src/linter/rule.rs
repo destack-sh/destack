@@ -2,9 +2,7 @@ use destack_dir::WellKnownSymbol;
 use destack_source::{DiagnosticSeverity, FileType};
 use destack_workspace::{LintCategory, LintSeverity};
 
-use super::{
-    LintModuleAstContext, LintModuleDirContext, LintProgramAstContext, LintProgramDirContext,
-};
+use super::{LintAstContext, LintModuleDirContext, LintProgramAstContext, LintProgramDirContext};
 
 /// The IR level at which a lint operates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -160,7 +158,7 @@ pub trait LintRule: Send + Sync {
     fn meta(&self) -> &'static LintMeta;
 
     /// Check a module at AST level (syntax patterns, no type info).
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, _ctx: &mut LintModuleAstContext<'a>) {}
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, _ctx: &mut LintAstContext<'a>) {}
 
     /// Check a module at DIR level (typed IR with symbols and types).
     fn check_module_dir<'a>(&self, _severity: LintSeverity, _ctx: &mut LintModuleDirContext<'a>) {}

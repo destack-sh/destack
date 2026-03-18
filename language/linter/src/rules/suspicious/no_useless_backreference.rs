@@ -1,5 +1,5 @@
 use crate::rules::common::{regex_pattern_info, regexp_global_qualifier_names};
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
@@ -28,7 +28,7 @@ impl LintRule for NoUselessBackreference {
         NoUselessBackreference::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
         let regexp_name = ctx.strings.intern("RegExp");
         let global_qualifier_names = regexp_global_qualifier_names(ctx.strings);

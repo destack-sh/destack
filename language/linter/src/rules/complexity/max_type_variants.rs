@@ -2,7 +2,7 @@ use destack_ast::{self as ast, BinaryOperator};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_is_type_annotation;
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of variants in a union type or enum.
@@ -29,7 +29,7 @@ impl LintRule for MaxTypeVariants {
         MaxTypeVariants::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
         let max_type_variants = ctx.options.max_type_variants;
@@ -86,7 +86,7 @@ impl LintRule for MaxTypeVariants {
 
 /// Return true when one union expression has an outer union parent.
 fn union_has_parent_union(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     // resolve expression parent
@@ -110,7 +110,7 @@ fn union_has_parent_union(
 
 /// Count flattened union variants for one union expression.
 fn count_union_variants(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> usize {
     let expression = ctx.tree.get(expression_id);
@@ -128,7 +128,7 @@ fn count_union_variants(
 
 /// Report one variant count overflow diagnostic.
 fn report_variant_overflow<T: ast::Node + Clone>(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &'static crate::LintMeta,
     owner_id: ast::LocalNodeId<T>,
     type_kind: &str,

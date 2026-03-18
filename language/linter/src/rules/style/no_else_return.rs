@@ -3,7 +3,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_is_else_if_branch;
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `else` blocks after `return` in `if` statements.
@@ -30,7 +30,7 @@ impl LintRule for NoElseReturn {
         NoElseReturn::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -89,7 +89,7 @@ impl LintRule for NoElseReturn {
 
 /// Return true when one expression is an else if branch.
 fn expression_is_else_if(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     matches!(
@@ -103,7 +103,7 @@ fn expression_is_else_if(
 
 /// Build a conservative no else return fix.
 fn no_else_return_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     if_expression_id: ast::LocalNodeId<ast::Expression>,
     then_expression_id: ast::LocalNodeId<ast::Expression>,
     else_expression_id: ast::LocalNodeId<ast::Expression>,
@@ -135,7 +135,7 @@ fn no_else_return_fix(
 
 /// Return true when one block contains binding declarations at top level.
 fn block_contains_binding_declaration(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     block_id: ast::LocalNodeId<ast::Block>,
 ) -> bool {
     let block = ctx.tree.get(block_id);
@@ -147,7 +147,7 @@ fn block_contains_binding_declaration(
 
 /// Return true when one expression declares bindings in local scope.
 fn expression_contains_binding_declaration(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let expr = ctx.tree.get(expr_id);
@@ -167,7 +167,7 @@ fn expression_contains_binding_declaration(
 
 /// Return the source text inside one block expression.
 fn block_inner_text(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     block_id: ast::LocalNodeId<ast::Block>,
 ) -> Option<String> {
     let block = ctx.tree.get(block_id);
@@ -184,10 +184,7 @@ fn block_inner_text(
     Some(ctx.get_span_text(block_content_span).to_string())
 }
 
-fn ends_with_return(
-    ctx: &LintModuleAstContext<'_>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
-) -> bool {
+fn ends_with_return(ctx: &LintAstContext<'_>, expr_id: ast::LocalNodeId<ast::Expression>) -> bool {
     let expr = ctx.tree.get(expr_id);
     match expr {
         ast::Expression::Return { .. } => true,

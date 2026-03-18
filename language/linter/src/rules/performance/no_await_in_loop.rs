@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `await` inside loops.
@@ -31,7 +31,7 @@ impl LintRule for NoAwaitInLoop {
         NoAwaitInLoop::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata for per-node severity
         let meta = self.meta();
 
@@ -168,11 +168,7 @@ fn await_loop_candidate_message(candidate: AwaitLoopCandidate) -> (&'static str,
 }
 
 /// Return true when parent traversal should stop for this await expression.
-fn is_boundary(
-    parent: &ast::Expression,
-    child_node_id: u32,
-    ctx: &LintModuleAstContext<'_>,
-) -> bool {
+fn is_boundary(parent: &ast::Expression, child_node_id: u32, ctx: &LintAstContext<'_>) -> bool {
     // do not report awaits within `for await (...)` loops
     if let ast::Expression::ForEach { asynchrony, .. } = parent
         && *asynchrony == ast::Asynchrony::Async

@@ -2,7 +2,7 @@ use destack_ast::{self as ast, Declaration, DependencyMode, Expression};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_unwrap_parenthesized_syntax;
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow anonymous default exports.
@@ -30,7 +30,7 @@ impl LintRule for NoAnonymousDefaultExport {
         NoAnonymousDefaultExport::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // check anonymous default export declarations (e.g., `export default function() {}`)
@@ -138,7 +138,7 @@ impl LintRule for NoAnonymousDefaultExport {
 
 /// Build an unsafe fix for anonymous default declaration exports.
 fn anonymous_default_declaration_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     declaration_id: ast::LocalNodeId<ast::Declaration>,
     declaration: &Declaration,
 ) -> Option<LintFix> {

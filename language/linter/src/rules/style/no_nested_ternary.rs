@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow nested ternary expressions.
@@ -29,7 +29,7 @@ impl LintRule for NoNestedTernary {
         NoNestedTernary::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -76,7 +76,7 @@ impl LintRule for NoNestedTernary {
 }
 
 /// Check if an expression is a ternary (possibly wrapped in parentheses).
-fn is_ternary(ctx: &LintModuleAstContext<'_>, expr_id: ast::LocalNodeId<ast::Expression>) -> bool {
+fn is_ternary(ctx: &LintAstContext<'_>, expr_id: ast::LocalNodeId<ast::Expression>) -> bool {
     let expr = ctx.tree.get(expr_id);
     match expr {
         ast::Expression::If {

@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Warn on single-element tuples that may be accidental.
@@ -28,7 +28,7 @@ impl LintRule for NoSingleElementTuple {
         NoSingleElementTuple::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -69,7 +69,7 @@ impl LintRule for NoSingleElementTuple {
 
 /// Build one safe fix by replacing a one-element tuple with its element.
 fn no_single_element_tuple_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     tuple_id: ast::LocalNodeId<ast::Expression>,
     element_id: ast::LocalNodeId<ast::Argument>,
 ) -> Option<LintFix> {

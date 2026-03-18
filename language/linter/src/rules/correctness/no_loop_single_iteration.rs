@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow loops that execute at most once.
@@ -47,7 +47,7 @@ impl LintRule for NoLoopSingleIteration {
     }
 
     /// Check module AST nodes for loops that always exit after one iteration.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // inspect candidate expressions
@@ -104,7 +104,7 @@ impl LintRule for NoLoopSingleIteration {
 
 /// Build one unsafe fix for trivial `loop` forms that immediately return or throw.
 fn no_loop_single_iteration_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     loop_expression_id: ast::LocalNodeId<ast::Expression>,
     loop_expression: &ast::Expression,
 ) -> Option<LintFix> {
@@ -147,7 +147,7 @@ fn no_loop_single_iteration_fix(
 
 /// Check if a block unconditionally exits (return, break, throw, continue).
 fn body_unconditionally_exits(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     body_id: ast::LocalNodeId<ast::Block>,
 ) -> bool {
     // compute flow outcomes for the loop body
@@ -191,7 +191,7 @@ const fn flow_continue_iteration() -> LoopFlow {
 }
 
 /// Evaluate block flow outcomes.
-fn block_flow(ctx: &LintModuleAstContext<'_>, body_id: ast::LocalNodeId<ast::Block>) -> LoopFlow {
+fn block_flow(ctx: &LintAstContext<'_>, body_id: ast::LocalNodeId<ast::Block>) -> LoopFlow {
     let block = ctx.tree.get(body_id);
     let mut reaches_next_statement = true;
     let mut reaches_next_iteration = false;
@@ -216,7 +216,7 @@ fn block_flow(ctx: &LintModuleAstContext<'_>, body_id: ast::LocalNodeId<ast::Blo
 
 /// Evaluate flow outcomes for one expression.
 fn expression_flow(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> LoopFlow {
     let expr = ctx.tree.get(expr_id);
@@ -266,7 +266,7 @@ fn expression_flow(
 
 /// Unwrap one statement wrapper and return the underlying expression.
 fn unwrap_statement_expression<'a>(
-    ctx: &'a LintModuleAstContext<'_>,
+    ctx: &'a LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> &'a ast::Expression {
     let expression = ctx.tree.get(expression_id);

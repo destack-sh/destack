@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow patterns that bind nothing useful.
@@ -28,7 +28,7 @@ impl LintRule for NoRedundantPattern {
         NoRedundantPattern::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // check let/const declarations with patterns that bind nothing
@@ -75,10 +75,7 @@ impl LintRule for NoRedundantPattern {
 }
 
 /// Check if a pattern binds any values (not just wildcards).
-fn binds_anything(
-    ctx: &LintModuleAstContext<'_>,
-    pattern_id: ast::LocalNodeId<ast::Pattern>,
-) -> bool {
+fn binds_anything(ctx: &LintAstContext<'_>, pattern_id: ast::LocalNodeId<ast::Pattern>) -> bool {
     let pattern = ctx.tree.get(pattern_id);
 
     match pattern {
@@ -116,7 +113,7 @@ fn binds_anything(
 
 /// Check if a pattern field binds anything.
 fn field_binds_anything(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     field_id: ast::LocalNodeId<ast::PatternField>,
 ) -> bool {
     let field = ctx.tree.get(field_id);

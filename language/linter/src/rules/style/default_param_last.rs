@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use destack_ast::{self as ast, Parameter};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce default parameters to be last.
@@ -31,7 +31,7 @@ impl LintRule for DefaultParamLast {
         DefaultParamLast::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // iterate over all parameters, deduplicate by parent to check each list once
@@ -84,7 +84,7 @@ impl LintRule for DefaultParamLast {
 }
 
 fn check_parameters(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &'static crate::LintMeta,
     parameters: &[ast::LocalNodeId<Parameter>],
 ) {

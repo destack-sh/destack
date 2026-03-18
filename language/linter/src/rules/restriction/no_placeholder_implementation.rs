@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{argument_value_expression_id, expression_path_segments};
-use crate::{LintDiagnostic, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow placeholder implementations.
@@ -40,7 +40,7 @@ impl LintRule for NoPlaceholderImplementation {
         NoPlaceholderImplementation::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // inspect candidate expressions
@@ -84,7 +84,7 @@ impl LintRule for NoPlaceholderImplementation {
 
 /// Return one lowercase placeholder message from a throw payload expression.
 fn extract_placeholder_message(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<String> {
     let expression = ctx.tree.get(expression_id);
@@ -139,7 +139,7 @@ fn extract_placeholder_message(
 
 /// Return true when one expression names one error constructor or helper.
 fn expression_is_error_constructor(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let Some(segments) = expression_path_segments(ctx.tree, expression_id) else {
