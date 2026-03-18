@@ -2,6 +2,7 @@ use crate::host::android::AndroidHostBindings;
 use crate::host::android::tests::{
     callback_test_lock, register_android_bindings, register_android_runtime,
 };
+use crate::host::core::registry::next_host_runtime_id;
 use crate::host::{
     AndroidHostIntentCallbacks, HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND,
     HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK, destack_host_android_intent_can_open_url,
@@ -74,8 +75,12 @@ unsafe extern "C" fn test_share_paths_callback(
 #[test]
 fn test_intent_callbacks_report_missing_runtime_registration() {
     let _lock = callback_test_lock().lock().unwrap();
+    let runtime_id = next_host_runtime_id().0;
     let status = unsafe {
-        destack_host_android_intent_open_url(41, NativeStringRef::from("https://example.com"))
+        destack_host_android_intent_open_url(
+            runtime_id,
+            NativeStringRef::from("https://example.com"),
+        )
     };
     assert_eq!(status, HOST_STATUS_NOT_FOUND);
 }

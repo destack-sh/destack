@@ -18,37 +18,41 @@ use crate::platform::os::{
     CalendarEventQuery, CalendarEventQueryVm, CalendarEventVm, CalendarParticipantStatus,
     CalendarRecurrenceFrequency, CalendarRecurrenceRule, CalendarRecurrenceRuleVm,
     CalendarRecurrenceWeekday, CalendarRecurrenceWeekdayVm, CalendarRelativeReminder,
-    CalendarRelativeReminderVm, CalendarReminder, CalendarReminderVm, ClipboardBinaryFormat,
-    Contact, ContactAddress, ContactAddressVm, ContactDraft, ContactDraftVm, ContactEmail,
-    ContactEmailVm, ContactName, ContactNameVm, ContactOrganization, ContactOrganizationVm,
-    ContactPage, ContactPageVm, ContactPhone, ContactPhoneVm, ContactQuery, ContactQueryVm,
-    ContactVm, CredentialAccessibility, CredentialAuthenticationMechanism,
+    CalendarRelativeReminderVm, CalendarReminder, CalendarReminderAnchor, CalendarReminderVm,
+    ClipboardBinaryFormat, Contact, ContactAddress, ContactAddressVm, ContactDraft, ContactDraftVm,
+    ContactEmail, ContactEmailVm, ContactName, ContactNameVm, ContactOrganization,
+    ContactOrganizationVm, ContactPage, ContactPageVm, ContactPhone, ContactPhoneVm, ContactQuery,
+    ContactQueryVm, ContactVm, CredentialAccessibility, CredentialAuthenticationMechanism,
     CredentialAuthenticationOptions, CredentialAuthenticationOptionsVm,
     CredentialAuthenticationPolicy, CredentialAuthenticationRequirement,
     CredentialAuthenticationResult, CredentialAuthenticationResultVm, CredentialQuery,
     CredentialQueryVm, CredentialRecord, CredentialRecordVm, CredentialWriteOptions,
-    CredentialWriteOptionsVm, DocumentAccess, DocumentDescriptor, DocumentDescriptorVm,
-    DocumentPickOptions, DocumentPickOptionsVm, HostIdentity, HostIdentityVm,
-    IntentCustomActionEvent, IntentCustomActionEventVm, IntentCustomActionPayload,
-    IntentCustomActionPayloadVm, IntentEvent, IntentEventMetadata, IntentEventMetadataVm,
-    IntentEventVm, IntentOpenFileEvent, IntentOpenFileEventVm, IntentOpenFilePayload,
-    IntentOpenFilePayloadVm, IntentOpenOptions, IntentOpenOptionsVm, IntentOpenUrlEvent,
-    IntentOpenUrlEventVm, IntentOpenUrlPayload, IntentOpenUrlPayloadVm, IntentShareFilesEvent,
-    IntentShareFilesEventVm, IntentShareFilesPayload, IntentShareFilesPayloadVm,
-    IntentShareTextEvent, IntentShareTextEventVm, IntentShareTextPayload, IntentShareTextPayloadVm,
-    LifecycleBackgroundEvent, LifecycleBackgroundEventVm, LifecycleEvent, LifecycleEventMetadata,
-    LifecycleEventMetadataVm, LifecycleEventVm, LifecycleForegroundEvent,
-    LifecycleForegroundEventVm, LifecycleLaunchEvent, LifecycleLaunchEventVm,
-    LifecycleLowMemoryEvent, LifecycleLowMemoryEventVm, LifecycleLowMemoryPayload,
-    LifecycleLowMemoryPayloadVm, LifecycleLowPowerModeChangedEvent,
+    CredentialWriteOptionsVm, DocumentAccess, DocumentAccessGrant, DocumentAccessGrantVm,
+    DocumentDescriptor, DocumentDescriptorVm, DocumentPickOptions, DocumentPickOptionsVm,
+    HostIdentity, HostIdentityVm, IntentCustomActionEvent, IntentCustomActionEventVm,
+    IntentCustomActionPayload, IntentCustomActionPayloadVm, IntentEvent, IntentEventMetadata,
+    IntentEventMetadataVm, IntentEventVm, IntentOpenFileEvent, IntentOpenFileEventVm,
+    IntentOpenFilePayload, IntentOpenFilePayloadVm, IntentOpenOptions, IntentOpenOptionsVm,
+    IntentOpenUrlEvent, IntentOpenUrlEventVm, IntentOpenUrlPayload, IntentOpenUrlPayloadVm,
+    IntentShareFilesEvent, IntentShareFilesEventVm, IntentShareFilesPayload,
+    IntentShareFilesPayloadVm, IntentShareTextEvent, IntentShareTextEventVm,
+    IntentShareTextPayload, IntentShareTextPayloadVm, LifecycleBackgroundEvent,
+    LifecycleBackgroundEventVm, LifecycleEvent, LifecycleEventMetadata, LifecycleEventMetadataVm,
+    LifecycleEventVm, LifecycleForegroundEvent, LifecycleForegroundEventVm, LifecycleLaunchEvent,
+    LifecycleLaunchEventVm, LifecycleLowMemoryEvent, LifecycleLowMemoryEventVm,
+    LifecycleLowMemoryPayload, LifecycleLowMemoryPayloadVm, LifecycleLowPowerModeChangedEvent,
     LifecycleLowPowerModeChangedEventVm, LifecycleLowPowerPayload, LifecycleLowPowerPayloadVm,
     LifecyclePauseEvent, LifecyclePauseEventVm, LifecycleResumeEvent, LifecycleResumeEventVm,
     LifecycleState, LifecycleTerminateEvent, LifecycleTerminateEventVm, LoadAverage, LoadAverageVm,
     LocationAccuracy, LocationSample, LocationSampleVm, LocationWatchOptions,
-    LocationWatchOptionsVm, MediaAssetDescriptor, MediaAssetDescriptorVm, MediaAssetKind,
-    MediaPage, MediaPageVm, MediaQuery, MediaQueryVm, MountEntry, MountEntryVm,
-    NetworkCellularGeneration, NetworkConnectionType, NetworkEvent, NetworkEventVm, NetworkState,
-    NetworkStateVm, NotificationAction, NotificationActionStyle, NotificationActionVm,
+    LocationWatchOptionsVm, MediaAddedEvent, MediaAddedEventVm, MediaAssetDescriptor,
+    MediaAssetDescriptorVm, MediaAssetKind, MediaAssetSummary, MediaAssetSummaryVm,
+    MediaDimensions, MediaDimensionsVm, MediaEvent, MediaEventMetadata, MediaEventMetadataVm,
+    MediaEventVm, MediaPage, MediaPageVm, MediaQuery, MediaQueryVm, MediaRemovedEvent,
+    MediaRemovedEventVm, MediaUpdatedEvent, MediaUpdatedEventVm, MediaWatchOptions,
+    MediaWatchOptionsVm, MountEntry, MountEntryVm, NetworkCellularGeneration,
+    NetworkConnectionType, NetworkEvent, NetworkEventVm, NetworkState, NetworkStateVm,
+    NotificationAction, NotificationActionStyle, NotificationActionVm,
     NotificationCalendarDateTrigger, NotificationCalendarDateTriggerVm,
     NotificationCalendarTrigger, NotificationCalendarTriggerVm, NotificationCategory,
     NotificationCategoryVm, NotificationDeliveredEvent, NotificationDeliveredEventVm,
@@ -137,8 +141,9 @@ impl<'call> OsHarnessContext<'call> {
     /// Submit final execution status for one scheduled task execution token.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host background scheduler completion APIs.
+    /// Android, Unix, and Windows.
+    /// Uses host background scheduler completion APIs on mobile and runtime-owned execution
+    /// bookkeeping on current desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -179,7 +184,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Close one opened event stream and release host callback routing resources.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host callback unregistration APIs.
     ///
     /// # Errors
@@ -209,8 +214,9 @@ impl<'call> OsHarnessContext<'call> {
     /// Open one event stream for task-ready and expiration callbacks.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host background scheduler callback bridges.
+    /// Android, Unix, and Windows.
+    /// Uses host background scheduler callback bridges on mobile and runtime-owned ingress for the
+    /// current desktop scheduler bridges.
     ///
     /// # Errors
     /// Returns ioWouldBlock, notSupported.
@@ -252,7 +258,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Wait for one queued background-task event from one opened event stream.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host background event queues.
     ///
     /// # Errors
@@ -299,7 +305,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Poll one queued background-task event from one opened event stream without waiting.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host nonblocking background event queue reads.
     ///
     /// # Errors
@@ -343,8 +349,9 @@ impl<'call> OsHarnessContext<'call> {
     /// Enumerate background-task registrations for this runtime identity.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host background scheduler registration queries.
+    /// Android, Unix, and Windows.
+    /// Uses host background scheduler registration queries on mobile and persisted scheduler
+    /// records on current desktop hosts.
     ///
     /// # Errors
     /// Returns ioWouldBlock, ioInvalidData, notSupported.
@@ -379,10 +386,12 @@ impl<'call> OsHarnessContext<'call> {
     /// Register one background task.
     ///
     /// Create or replace one background-task registration for this runtime identity.
+    /// Registrations are host persisted by definition.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host background scheduler registration APIs.
+    /// Android, Unix, and Windows.
+    /// Uses host background scheduler registration APIs on mobile and the current desktop
+    /// scheduler bridges on desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -413,8 +422,9 @@ impl<'call> OsHarnessContext<'call> {
     /// Read the current background-task scheduler status for this host runtime.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses BGTaskScheduler on Apple platforms, WorkManager or JobScheduler on Android, and host scheduler bridges on desktop platforms.
+    /// Android, Unix, and Windows.
+    /// Uses BGTaskScheduler on Apple platforms, WorkManager or JobScheduler on Android, and the
+    /// current desktop scheduler bridges plus persisted task records on desktop hosts.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -446,8 +456,9 @@ impl<'call> OsHarnessContext<'call> {
     /// Ask the host scheduler to trigger one registered task immediately for development validation where supported.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host developer test hooks where available.
+    /// Android, Unix, and Windows.
+    /// Uses host developer test hooks where available and runtime-controlled desktop scheduler
+    /// trigger flows on current desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -492,8 +503,9 @@ impl<'call> OsHarnessContext<'call> {
     /// Remove one background-task registration by identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host background scheduler unregistration APIs.
+    /// Android, Unix, and Windows.
+    /// Uses host background scheduler unregistration APIs on mobile and the current desktop
+    /// scheduler bridges plus persisted task cleanup on desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -524,7 +536,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Create one host calendar event and return its stable identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host calendar-write APIs where available.
     ///
     /// # Errors
@@ -567,7 +579,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Delete one existing host calendar event by identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host calendar-delete APIs where available.
     ///
     /// # Errors
@@ -599,7 +611,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Enumerate host calendar events over one selected UTC time range.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host calendar query APIs.
     ///
     /// # Errors
@@ -641,7 +653,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Read one host calendar event payload by stable identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host calendar read APIs.
     ///
     /// # Errors
@@ -683,7 +695,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Update one existing host calendar event by identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host calendar-write APIs where available.
     ///
     /// # Errors
@@ -718,7 +730,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Enumerate readable host calendars and return descriptor metadata.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses EventKit on Apple platforms, CalendarContract on Android, and calendar provider APIs on desktop hosts.
     ///
     /// # Errors
@@ -994,7 +1006,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Create one host contact record and return its stable identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host contact-write APIs where available.
     ///
     /// # Errors
@@ -1036,7 +1048,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Delete one existing host contact by identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host contact-delete APIs where available.
     ///
     /// # Errors
@@ -1068,7 +1080,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Return one page of host contacts with one selected field set.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses Contacts framework on Apple platforms, ContactsContract on Android, and address-book provider APIs on desktop hosts.
     ///
     /// # Errors
@@ -1106,7 +1118,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Read one host contact payload by stable identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host contact read APIs.
     ///
     /// # Errors
@@ -1144,7 +1156,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Return one page of host contacts matching one backend query string.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host contact search APIs where available.
     ///
     /// # Errors
@@ -1191,7 +1203,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Update one existing host contact by identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host contact-write APIs where available.
     ///
     /// # Errors
@@ -1455,13 +1467,190 @@ impl<'call> OsHarnessContext<'call> {
         }
     }
 
-    /// Close one opened document handle.
+    /// List persisted document-access grants.
     ///
-    /// Close one opened document-provider handle and release host resources.
+    /// Return all persisted document-access grants for the active runtime identity.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host descriptor close APIs.
+    /// Uses host document-grant persistence state.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_document_access_list(
+        &mut self,
+    ) -> RuntimeResult<HarnessValue<NativeArray<DocumentAccessGrant>, VmArray<DocumentAccessGrantVm>>>
+    {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_document_access_list(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeArray<DocumentAccessGrant>>::uninit();
+                unsafe {
+                    os_native::destack_os_document_access_list(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Open one persisted document-access grant.
+    ///
+    /// Open one persisted external-access grant by identifier with one selected access mode.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses persisted desktop grant state backed by local paths on current hosts, with future provider-specific reopen backends layered onto the same handle contract.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.control`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_document_access_open(
+        &mut self,
+        id: HarnessValue<NativeStringRef, vm::StringHandle>,
+        access: DocumentAccess,
+    ) -> RuntimeResult<resource::DocumentHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let id = id.into_vm("id")?;
+                let out =
+                    os_vm::destack_os_document_access_open(self.call_context, context, id, access)?;
+                Ok(out)
+            }
+            None => {
+                let id = id.into_native("id")?;
+                let mut out = std::mem::MaybeUninit::<resource::DocumentHandle>::uninit();
+                unsafe {
+                    os_native::destack_os_document_access_open(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        id,
+                        access,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Persist external document access for later reopen.
+    ///
+    /// Persist host-granted access for selected external documents and return durable grant descriptors.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host document-grant persistence where available and path-backed grant state on desktop hosts with direct local access.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.control`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_document_access_persist(
+        &mut self,
+        documents: HarnessValue<NativeArray<DocumentDescriptor>, VmArray<DocumentDescriptorVm>>,
+        access: DocumentAccess,
+    ) -> RuntimeResult<HarnessValue<NativeArray<DocumentAccessGrant>, VmArray<DocumentAccessGrantVm>>>
+    {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let documents = documents.into_vm("documents")?;
+                let out = os_vm::destack_os_document_access_persist(
+                    self.call_context,
+                    context,
+                    documents,
+                    access,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let documents = documents.into_native("documents")?;
+                let mut out = std::mem::MaybeUninit::<NativeArray<DocumentAccessGrant>>::uninit();
+                unsafe {
+                    os_native::destack_os_document_access_persist(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        documents,
+                        access,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Revoke persisted document-access grants.
+    ///
+    /// Revoke persisted document-access grants by identifier and return revoked grant count.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host document-grant persistence state.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.control`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_document_access_revoke(
+        &mut self,
+        ids: HarnessValue<NativeArray<NativeStringRef>, VmArray<vm::StringHandle>>,
+    ) -> RuntimeResult<u32> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let ids = ids.into_vm("ids")?;
+                let out =
+                    os_vm::destack_os_document_access_revoke(self.call_context, context, ids)?;
+                Ok(out)
+            }
+            None => {
+                let ids = ids.into_native("ids")?;
+                let mut out = std::mem::MaybeUninit::<u32>::uninit();
+                unsafe {
+                    os_native::destack_os_document_access_revoke(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        ids,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Close one opened document handle.
+    ///
+    /// Close one opened document handle and release host resources.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses local host file-handle close semantics on current desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1487,7 +1676,7 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host document-provider flush APIs.
+    /// Uses local host file flush semantics on current desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1507,13 +1696,56 @@ impl<'call> OsHarnessContext<'call> {
         }
     }
 
-    /// Open one document URI.
+    /// Import selected documents into app-owned storage.
     ///
-    /// Open one host document-provider URI from one prior picker result with one selected access mode.
+    /// Copy selected external documents into app-owned storage and return imported document descriptors.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host document-provider open APIs.
+    /// Uses host-local filesystem import after one prior picker or provider selection.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_document_import(
+        &mut self,
+        documents: HarnessValue<NativeArray<DocumentDescriptor>, VmArray<DocumentDescriptorVm>>,
+    ) -> RuntimeResult<HarnessValue<NativeArray<DocumentDescriptor>, VmArray<DocumentDescriptorVm>>>
+    {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let documents = documents.into_vm("documents")?;
+                let out = os_vm::destack_os_document_import(self.call_context, context, documents)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let documents = documents.into_native("documents")?;
+                let mut out = std::mem::MaybeUninit::<NativeArray<DocumentDescriptor>>::uninit();
+                unsafe {
+                    os_native::destack_os_document_import(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        documents,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Open one document URI.
+    ///
+    /// Open one document URI with one selected access mode.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses local `file://` URI opens on current desktop hosts, with future provider-backed backends layered onto the same handle contract.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1600,7 +1832,7 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host document-provider read APIs.
+    /// Uses local host file reads on current desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -1650,7 +1882,7 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host nonblocking document-provider read APIs.
+    /// Uses local host file reads on current desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1697,7 +1929,7 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host document-provider write APIs.
+    /// Uses local host file writes on current desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -2155,18 +2387,18 @@ impl<'call> OsHarnessContext<'call> {
     pub(crate) fn destack_os_intent_share_paths(
         &mut self,
         paths: HarnessValue<NativeArray<fs::OsPath>, VmArray<fs::OsPathVm>>,
-        mimetype: HarnessValue<Option<NativeStringRef>, Option<vm::StringHandle>>,
+        contenttype: HarnessValue<Option<NativeStringRef>, Option<vm::StringHandle>>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let paths = paths.into_vm("paths")?;
-                let mimetype = mimetype.into_vm("mimetype")?;
-                os_vm::destack_os_intent_share_paths(self.call_context, context, paths, mimetype)
+                let contenttype = contenttype.into_vm("contenttype")?;
+                os_vm::destack_os_intent_share_paths(self.call_context, context, paths, contenttype)
             }
             None => unsafe {
                 let paths = paths.into_native("paths")?;
-                let mimetype = mimetype.into_native("mimetype")?;
-                os_native::destack_os_intent_share_paths(self.call_context, paths, mimetype)
+                let contenttype = contenttype.into_native("contenttype")?;
+                os_native::destack_os_intent_share_paths(self.call_context, paths, contenttype)
             },
         }
     }
@@ -2190,18 +2422,18 @@ impl<'call> OsHarnessContext<'call> {
     pub(crate) fn destack_os_intent_share_text(
         &mut self,
         text: HarnessValue<NativeStringRef, vm::StringHandle>,
-        mimetype: HarnessValue<Option<NativeStringRef>, Option<vm::StringHandle>>,
+        contenttype: HarnessValue<Option<NativeStringRef>, Option<vm::StringHandle>>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let text = text.into_vm("text")?;
-                let mimetype = mimetype.into_vm("mimetype")?;
-                os_vm::destack_os_intent_share_text(self.call_context, context, text, mimetype)
+                let contenttype = contenttype.into_vm("contenttype")?;
+                os_vm::destack_os_intent_share_text(self.call_context, context, text, contenttype)
             }
             None => unsafe {
                 let text = text.into_native("text")?;
-                let mimetype = mimetype.into_native("mimetype")?;
-                os_native::destack_os_intent_share_text(self.call_context, text, mimetype)
+                let contenttype = contenttype.into_native("contenttype")?;
+                os_native::destack_os_intent_share_text(self.call_context, text, contenttype)
             },
         }
     }
@@ -2432,7 +2664,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Read one cached location sample from the host location service.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses CoreLocation on Apple platforms, FusedLocationProvider or LocationManager on Android, and Geolocator on Windows.
     ///
     /// # Errors
@@ -2467,7 +2699,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Read global host location-service availability before per-runtime authorization checks.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host location service-status APIs.
     ///
     /// # Errors
@@ -2503,7 +2735,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Close one location watch stream and release host subscription resources.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host location unsubscription APIs.
     ///
     /// # Errors
@@ -2533,7 +2765,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Open one location watch stream with one selected update policy.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host location subscription APIs.
     ///
     /// # Errors
@@ -2576,7 +2808,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Wait for one location sample from one opened location watch stream.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host location update queues.
     ///
     /// # Errors
@@ -2623,7 +2855,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Poll one location sample from one opened location watch stream without waiting.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses nonblocking host location update queue reads.
     ///
     /// # Errors
@@ -2664,8 +2896,9 @@ impl<'call> OsHarnessContext<'call> {
     /// Delete host media assets and return deleted asset count.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host media-library delete APIs.
+    /// Android, Unix, and Windows.
+    /// Uses host media-library delete APIs on mobile and filesystem-backed media-root deletion on
+    /// current desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -2697,13 +2930,53 @@ impl<'call> OsHarnessContext<'call> {
         }
     }
 
+    /// Describe one media asset.
+    ///
+    /// Return one richer host media asset descriptor by stable identifier.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    /// Uses host media-library detail APIs on mobile and filesystem-backed media descriptors on
+    /// current desktop hosts.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.media.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_media_describe(
+        &mut self,
+        id: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<HarnessValue<MediaAssetDescriptor, MediaAssetDescriptorVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let id = id.into_vm("id")?;
+                let out = os_vm::destack_os_media_describe(self.call_context, context, id)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let id = id.into_native("id")?;
+                let mut out = std::mem::MaybeUninit::<MediaAssetDescriptor>::uninit();
+                unsafe {
+                    os_native::destack_os_media_describe(self.call_context, out.as_mut_ptr(), id)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
     /// Import one file path into host media library.
     ///
     /// Import one file from one runtime-visible path and return one created media identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host media-library write APIs.
+    /// Android, Unix, and Windows.
+    /// Uses host media-library write APIs on mobile and current desktop media-root import flows on
+    /// desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -2747,8 +3020,9 @@ impl<'call> OsHarnessContext<'call> {
     /// Return one page of host media assets for one query.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses Photos framework on Apple platforms, MediaStore on Android, and host media-library bridges on desktop hosts.
+    /// Android, Unix, and Windows.
+    /// Uses Photos or related media providers on Apple platforms, MediaStore on Android, and the
+    /// current desktop media roots plus filesystem enumeration on desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -2780,37 +3054,158 @@ impl<'call> OsHarnessContext<'call> {
         }
     }
 
-    /// Read one media asset descriptor.
+    /// Close media watch stream.
     ///
-    /// Read one host media asset descriptor by stable identifier.
+    /// Close one media watch stream and release runtime watch state.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host media-library read APIs.
+    /// Android, Unix, and Windows.
+    /// Uses runtime watch state cleanup.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
     /// Requires `os.media.read`.
     ///
     /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_os_media_read(
+    /// External, recordable.
+    pub(crate) fn destack_os_media_watch_close(
         &mut self,
-        id: HarnessValue<NativeStringRef, vm::StringHandle>,
-    ) -> RuntimeResult<HarnessValue<MediaAssetDescriptor, MediaAssetDescriptorVm>> {
+        handle: resource::MediaWatchHandle,
+    ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let id = id.into_vm("id")?;
-                let out = os_vm::destack_os_media_read(self.call_context, context, id)?;
+                os_vm::destack_os_media_watch_close(self.call_context, context, handle)
+            }
+            None => unsafe { os_native::destack_os_media_watch_close(self.call_context, handle) },
+        }
+    }
+
+    /// Open media watch stream.
+    ///
+    /// Open one runtime-owned media watch stream and track add or update or remove events for one filtered asset set.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    /// Uses host media-list queries on mobile and filesystem-backed directory watchers plus
+    /// runtime watch state on current desktop hosts.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.media.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_media_watch_open(
+        &mut self,
+        options: HarnessValue<MediaWatchOptions, MediaWatchOptionsVm>,
+    ) -> RuntimeResult<resource::MediaWatchHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                let out = os_vm::destack_os_media_watch_open(self.call_context, context, options)?;
+                Ok(out)
+            }
+            None => {
+                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<resource::MediaWatchHandle>::uninit();
+                unsafe {
+                    os_native::destack_os_media_watch_open(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        options,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Wait for one media watch event.
+    ///
+    /// Wait for one queued media watch event from one opened watch stream.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    /// Uses runtime media watch state.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.media.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_media_watch_read(
+        &mut self,
+        handle: resource::MediaWatchHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<MediaEvent, MediaEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_media_watch_read(
+                    self.call_context,
+                    context,
+                    handle,
+                    timeoutns,
+                )?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let id = id.into_native("id")?;
-                let mut out = std::mem::MaybeUninit::<MediaAssetDescriptor>::uninit();
+                let mut out = std::mem::MaybeUninit::<MediaEvent>::uninit();
                 unsafe {
-                    os_native::destack_os_media_read(self.call_context, out.as_mut_ptr(), id)?;
+                    os_native::destack_os_media_watch_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Poll one media watch event without blocking.
+    ///
+    /// Poll one queued media watch event from one opened watch stream without waiting.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    /// Uses runtime media watch state.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.media.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_media_watch_try_read(
+        &mut self,
+        handle: resource::MediaWatchHandle,
+    ) -> RuntimeResult<HarnessValue<MediaEvent, MediaEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    os_vm::destack_os_media_watch_try_read(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<MediaEvent>::uninit();
+                unsafe {
+                    os_native::destack_os_media_watch_try_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
@@ -3045,7 +3440,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Cancel one previously posted host notification by identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host notification cancellation APIs.
     ///
     /// # Errors
@@ -3077,7 +3472,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Cancel all currently posted host notifications owned by this runtime context.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host notification cancellation APIs.
     ///
     /// # Errors
@@ -3100,7 +3495,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Enumerate registered host notification categories for this runtime context.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host notification category query APIs where available.
     ///
     /// # Errors
@@ -3140,8 +3535,9 @@ impl<'call> OsHarnessContext<'call> {
     /// Register host notification categories and actions for this runtime context.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host notification category registration APIs.
+    /// Android, Unix, and Windows.
+    /// Uses Android category registration, macOS notification categories, Windows toast action
+    /// metadata, and Unix freedesktop action validation where the host supports actions.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3175,7 +3571,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Close one opened event stream and release host callback routing resources.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host callback unregistration APIs.
     ///
     /// # Errors
@@ -3205,7 +3601,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Open one event stream for delivered, interacted, and dismissed notification events.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host notification callback bridges.
     ///
     /// # Errors
@@ -3248,7 +3644,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Wait for one queued notification event from one opened event stream.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host notification event queues.
     ///
     /// # Errors
@@ -3295,7 +3691,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Poll one queued notification event from one opened event stream without waiting.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host nonblocking notification event queue reads.
     ///
     /// # Errors
@@ -3339,8 +3735,10 @@ impl<'call> OsHarnessContext<'call> {
     /// Cancel one pending scheduled host notification by identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host scheduled-notification cancellation APIs.
+    /// Android, Unix, and Windows.
+    /// Uses Android pending-notification cancellation, macOS UserNotifications, Windows scheduled
+    /// toast cancellation, and Linux scheduler removal.
+    /// Other Unix hosts may return notSupported when they do not expose one defensible scheduler.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -3371,8 +3769,10 @@ impl<'call> OsHarnessContext<'call> {
     /// Cancel all pending scheduled notifications owned by this runtime context.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host scheduled-notification cancellation APIs.
+    /// Android, Unix, and Windows.
+    /// Uses Android pending-notification cancellation, macOS UserNotifications, Windows scheduled
+    /// toast cancellation, and Linux scheduler removal.
+    /// Other Unix hosts may return notSupported when they do not expose one defensible scheduler.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, notSupported.
@@ -3398,8 +3798,10 @@ impl<'call> OsHarnessContext<'call> {
     /// Enumerate pending notification requests owned by this runtime context.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host pending-notification query APIs.
+    /// Android, Unix, and Windows.
+    /// Uses Android pending-notification queries, macOS UserNotifications, Windows scheduled toast
+    /// queries, and Linux persisted scheduler state.
+    /// Other Unix hosts may return notSupported when they do not expose one defensible scheduler.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -3442,7 +3844,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Return current host notification permission state for this runtime context.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host notification authorization APIs.
     ///
     /// # Errors
@@ -3481,7 +3883,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Submit one host notification request and return one host notification identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host notification center APIs on each platform.
     ///
     /// # Errors
@@ -3523,7 +3925,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Request notification permission through host authorization flow and return resulting permission state.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host notification permission request APIs where supported.
     ///
     /// # Errors
@@ -3562,8 +3964,10 @@ impl<'call> OsHarnessContext<'call> {
     /// Schedule one host notification request for deferred delivery according to trigger policy.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host notification scheduling APIs on each platform.
+    /// Android, Unix, and Windows.
+    /// Uses Android notification scheduling, macOS UserNotifications, Windows toast scheduling,
+    /// and Linux systemd user timers where available.
+    /// Other Unix hosts may return notSupported when they do not expose one defensible scheduler.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.

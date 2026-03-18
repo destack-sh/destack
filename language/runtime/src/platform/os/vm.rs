@@ -6,20 +6,21 @@ use crate::platform::os::{
     CalendarEventQueryVm, CalendarEventVm, ClipboardBinaryFormat, ContactDraftVm, ContactPageVm,
     ContactQueryVm, ContactVm, CredentialAuthenticationOptionsVm, CredentialAuthenticationResultVm,
     CredentialQueryVm, CredentialRecordVm, CredentialWriteOptionsVm, DocumentAccess,
-    DocumentDescriptorVm, DocumentPickOptionsVm, HostIdentityVm, IntentEventVm,
-    IntentOpenOptionsVm, LifecycleEventVm, LifecycleState, LoadAverageVm, LocationSampleVm,
-    LocationWatchOptionsVm, MediaAssetDescriptorVm, MediaAssetKind, MediaPageVm, MediaQueryVm,
-    MountEntryVm, NetworkEventVm, NetworkStateVm, NotificationCategoryVm,
-    NotificationEventOpenOptionsVm, NotificationEventVm, NotificationPermissionState,
-    NotificationRequestVm, NotificationScheduledDescriptorVm, Permission, PermissionEntryVm,
-    PermissionState, PowerState, SystemSnapshotVm,
+    DocumentAccessGrantVm, DocumentDescriptorVm, DocumentPickOptionsVm, HostIdentityVm,
+    IntentEventVm, IntentOpenOptionsVm, LifecycleEventVm, LifecycleState, LoadAverageVm,
+    LocationSampleVm, LocationWatchOptionsVm, MediaAssetDescriptorVm, MediaAssetKind, MediaEventVm,
+    MediaPageVm, MediaQueryVm, MediaWatchOptionsVm, MountEntryVm, NetworkEventVm, NetworkStateVm,
+    NotificationCategoryVm, NotificationEventOpenOptionsVm, NotificationEventVm,
+    NotificationPermissionState, NotificationRequestVm, NotificationScheduledDescriptorVm,
+    Permission, PermissionEntryVm, PermissionState, PowerState, SystemSnapshotVm,
 };
-use crate::platform::{PlatformError, VmAbiCodec, VmArray, VmSlice, fs, resource};
+use crate::platform::{VmAbiCodec, VmArray, VmSlice, fs, resource};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
 use crate::platform::os::{
-    clipboard, core, credentials, document, host, info, intent, mount, network, power,
+    background, calendar, clipboard, contact, credentials, document, host, info, intent, lifecycle,
+    location, media, mount, network, notification, permission, power,
 };
 
 /// Report completion for one scheduled background-task execution.
@@ -39,16 +40,14 @@ use crate::platform::os::{
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_background_complete(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     executionid: vm::StringHandle,
     argument_result: BackgroundTaskResult,
 ) -> RuntimeResult<()> {
-    let _ = (executionid, argument_result);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.background.complete is not available in the VM yet",
-    ))
-    .boxed())
+    let execution_id = <vm::StringHandle as VmAbiCodec>::into_value(executionid, context)?;
+
+    background::complete(binding, execution_id.as_str(), argument_result)
 }
 
 /// Close one background-task event stream.
@@ -68,15 +67,11 @@ pub(crate) fn destack_os_background_complete(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_background_event_close(
-    _binding: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BackgroundEventHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.background.event.close is not available in the VM yet",
-    ))
-    .boxed())
+    background::event_close(binding, handle)
 }
 
 /// Open one background-task event stream.
@@ -96,15 +91,11 @@ pub(crate) fn destack_os_background_event_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_background_event_open(
-    _binding: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     options: BackgroundEventOpenOptionsVm,
 ) -> RuntimeResult<resource::BackgroundEventHandle> {
-    let _ = options;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.background.event.open is not available in the VM yet",
-    ))
-    .boxed())
+    background::event_open(binding, options)
 }
 
 /// Wait for one background-task event.
@@ -124,16 +115,14 @@ pub(crate) fn destack_os_background_event_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_background_event_read(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BackgroundEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<BackgroundEventVm> {
-    let _ = (handle, timeoutns);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.background.event.read is not available in the VM yet",
-    ))
-    .boxed())
+    let event = background::event_read(binding, handle, timeoutns)?;
+
+    background::event_vm(context, event)
 }
 
 /// Poll one background-task event without blocking.
@@ -153,15 +142,13 @@ pub(crate) fn destack_os_background_event_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_background_event_try_read(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BackgroundEventHandle,
 ) -> RuntimeResult<BackgroundEventVm> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.background.event.tryRead is not available in the VM yet",
-    ))
-    .boxed())
+    let event = background::event_try_read(binding, handle)?;
+
+    background::event_vm(context, event)
 }
 
 /// List background-task registrations.
@@ -181,13 +168,12 @@ pub(crate) fn destack_os_background_event_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_background_list(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmArray<BackgroundTaskDescriptorVm>> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.background.list is not available in the VM yet",
-    ))
-    .boxed())
+    let descriptors = background::list(binding)?;
+
+    background::list_vm(context, &descriptors)
 }
 
 /// Register one background task.
@@ -207,15 +193,13 @@ pub(crate) fn destack_os_background_list(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_background_register(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     options: BackgroundTaskOptionsVm,
 ) -> RuntimeResult<()> {
-    let _ = options;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.background.register is not available in the VM yet",
-    ))
-    .boxed())
+    let options = <BackgroundTaskOptionsVm as VmAbiCodec>::into_value(options, context)?;
+
+    background::register(binding, options)
 }
 
 /// Read background-task scheduler status.
@@ -235,13 +219,10 @@ pub(crate) fn destack_os_background_register(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_background_status(
-    _binding: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<BackgroundStatus> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.background.status is not available in the VM yet",
-    ))
-    .boxed())
+    background::status(binding)
 }
 
 /// Trigger one background task for testing.
@@ -261,15 +242,13 @@ pub(crate) fn destack_os_background_status(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_background_trigger_test(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     identifier: vm::StringHandle,
 ) -> RuntimeResult<bool> {
-    let _ = identifier;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.background.triggerTest is not available in the VM yet",
-    ))
-    .boxed())
+    let identifier = <vm::StringHandle as VmAbiCodec>::into_value(identifier, context)?;
+
+    background::trigger_test(binding, identifier.as_str())
 }
 
 /// Unregister one background task.
@@ -289,15 +268,13 @@ pub(crate) fn destack_os_background_trigger_test(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_background_unregister(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     identifier: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    let _ = identifier;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.background.unregister is not available in the VM yet",
-    ))
-    .boxed())
+    let identifier = <vm::StringHandle as VmAbiCodec>::into_value(identifier, context)?;
+
+    background::unregister(binding, identifier.as_str())
 }
 
 /// Create one calendar event.
@@ -317,15 +294,14 @@ pub(crate) fn destack_os_background_unregister(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_calendar_event_create(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     event: CalendarEventDraftVm,
 ) -> RuntimeResult<vm::StringHandle> {
-    let _ = event;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.calendar.eventCreate is not available in the VM yet",
-    ))
-    .boxed())
+    let event = event.into_value(context)?;
+    let id = calendar::event_create(binding, event)?;
+
+    calendar::id_vm(context, &id)
 }
 
 /// Delete one calendar event.
@@ -345,15 +321,13 @@ pub(crate) fn destack_os_calendar_event_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_calendar_event_delete(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    let _ = id;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.calendar.eventDelete is not available in the VM yet",
-    ))
-    .boxed())
+    let id = <vm::StringHandle as VmAbiCodec>::into_value(id, context)?;
+
+    calendar::event_delete(binding, id.as_str())
 }
 
 /// List host calendar events.
@@ -373,15 +347,14 @@ pub(crate) fn destack_os_calendar_event_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_calendar_event_list(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     query: CalendarEventQueryVm,
 ) -> RuntimeResult<VmArray<CalendarEventVm>> {
-    let _ = query;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.calendar.eventList is not available in the VM yet",
-    ))
-    .boxed())
+    let query = query.into_value(context)?;
+    let events = calendar::event_list(binding, query)?;
+
+    calendar::event_list_vm(context, &events)
 }
 
 /// Read one host calendar event.
@@ -401,15 +374,14 @@ pub(crate) fn destack_os_calendar_event_list(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_calendar_event_read(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<CalendarEventVm> {
-    let _ = id;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.calendar.eventRead is not available in the VM yet",
-    ))
-    .boxed())
+    let id = <vm::StringHandle as VmAbiCodec>::into_value(id, context)?;
+    let event = calendar::event_read(binding, id.as_str())?;
+
+    calendar::event_vm(context, event)
 }
 
 /// Update one calendar event.
@@ -429,16 +401,15 @@ pub(crate) fn destack_os_calendar_event_read(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_calendar_event_update(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
     event: CalendarEventDraftVm,
 ) -> RuntimeResult<()> {
-    let _ = (id, event);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.calendar.eventUpdate is not available in the VM yet",
-    ))
-    .boxed())
+    let id = <vm::StringHandle as VmAbiCodec>::into_value(id, context)?;
+    let event = event.into_value(context)?;
+
+    calendar::event_update(binding, id.as_str(), event)
 }
 
 /// List host calendars.
@@ -458,13 +429,12 @@ pub(crate) fn destack_os_calendar_event_update(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_calendar_list(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmArray<CalendarDescriptorVm>> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.calendar.list is not available in the VM yet",
-    ))
-    .boxed())
+    let descriptors = calendar::list(binding)?;
+
+    calendar::list_vm(context, &descriptors)
 }
 
 /// Clear clipboard payload.
@@ -660,15 +630,14 @@ pub(crate) fn destack_os_clipboard_write_text(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_contact_create(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     contact: ContactDraftVm,
 ) -> RuntimeResult<vm::StringHandle> {
-    let _ = contact;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.contact.create is not available in the VM yet",
-    ))
-    .boxed())
+    let contact = contact.into_value(context)?;
+    let id = contact::create(binding, contact)?;
+
+    contact::id_vm(context, &id)
 }
 
 /// Delete one contact.
@@ -688,15 +657,13 @@ pub(crate) fn destack_os_contact_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_contact_delete(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    let _ = id;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.contact.delete is not available in the VM yet",
-    ))
-    .boxed())
+    let id = <vm::StringHandle as VmAbiCodec>::into_value(id, context)?;
+
+    contact::delete(binding, id.as_str())
 }
 
 /// List contacts.
@@ -716,15 +683,14 @@ pub(crate) fn destack_os_contact_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_contact_list(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     query: ContactQueryVm,
 ) -> RuntimeResult<ContactPageVm> {
-    let _ = query;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.contact.list is not available in the VM yet",
-    ))
-    .boxed())
+    let query = query.into_value(context)?;
+    let page = contact::list(binding, query)?;
+
+    contact::page_vm(context, page)
 }
 
 /// Read one contact by identifier.
@@ -744,15 +710,14 @@ pub(crate) fn destack_os_contact_list(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_contact_read(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<ContactVm> {
-    let _ = id;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.contact.read is not available in the VM yet",
-    ))
-    .boxed())
+    let id = <vm::StringHandle as VmAbiCodec>::into_value(id, context)?;
+    let contact = contact::read(binding, id.as_str())?;
+
+    contact::contact_vm(context, contact)
 }
 
 /// Search contacts.
@@ -772,16 +737,16 @@ pub(crate) fn destack_os_contact_read(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_contact_search(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     querytext: vm::StringHandle,
     query: ContactQueryVm,
 ) -> RuntimeResult<ContactPageVm> {
-    let _ = (querytext, query);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.contact.search is not available in the VM yet",
-    ))
-    .boxed())
+    let query_text = <vm::StringHandle as VmAbiCodec>::into_value(querytext, context)?;
+    let query = query.into_value(context)?;
+    let page = contact::search(binding, query_text.as_str(), query)?;
+
+    contact::page_vm(context, page)
 }
 
 /// Update one contact.
@@ -801,16 +766,15 @@ pub(crate) fn destack_os_contact_search(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_contact_update(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
     contact: ContactDraftVm,
 ) -> RuntimeResult<()> {
-    let _ = (id, contact);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.contact.update is not available in the VM yet",
-    ))
-    .boxed())
+    let id = <vm::StringHandle as VmAbiCodec>::into_value(id, context)?;
+    let contact = contact.into_value(context)?;
+
+    contact::update(binding, id.as_str(), contact)
 }
 
 /// Request one host credential authentication challenge.
@@ -969,6 +933,51 @@ pub(crate) fn destack_os_document_close(
     document::close(binding, handle)
 }
 
+/// List persisted document-access grants.
+pub(crate) fn destack_os_document_access_list(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<VmArray<DocumentAccessGrantVm>> {
+    document::access_list_vm(binding, context)
+}
+
+/// Open one persisted document-access grant.
+pub(crate) fn destack_os_document_access_open(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    id: vm::StringHandle,
+    access: DocumentAccess,
+) -> RuntimeResult<resource::DocumentHandle> {
+    let id = context
+        .string_ref(id)
+        .map_err(|error| RuntimeError::from(error).boxed())?;
+
+    document::access_open(binding, id.as_str(), access)
+}
+
+/// Persist external document access for later reopen.
+pub(crate) fn destack_os_document_access_persist(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    documents: VmArray<DocumentDescriptorVm>,
+    access: DocumentAccess,
+) -> RuntimeResult<VmArray<DocumentAccessGrantVm>> {
+    let documents = documents.into_value(context)?;
+
+    document::access_persist_vm(binding, context, documents, access)
+}
+
+/// Revoke persisted document-access grants.
+pub(crate) fn destack_os_document_access_revoke(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    ids: VmArray<vm::StringHandle>,
+) -> RuntimeResult<u32> {
+    let ids = ids.into_value(context)?;
+
+    document::access_revoke(binding, ids)
+}
+
 /// Flush one opened document handle.
 ///
 /// Flush buffered outbound document bytes for one opened handle.
@@ -991,6 +1000,17 @@ pub(crate) fn destack_os_document_flush(
     handle: resource::DocumentHandle,
 ) -> RuntimeResult<()> {
     document::flush(binding, handle)
+}
+
+/// Import selected documents into app-owned storage.
+pub(crate) fn destack_os_document_import(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    documents: VmArray<DocumentDescriptorVm>,
+) -> RuntimeResult<VmArray<DocumentDescriptorVm>> {
+    let documents = documents.into_value(context)?;
+
+    document::import_vm(binding, context, documents)
 }
 
 /// Open one document URI.
@@ -1537,7 +1557,7 @@ pub(crate) fn destack_os_lifecycle_close(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::LifecycleEventHandle,
 ) -> RuntimeResult<()> {
-    core::lifecycle_close(binding, handle)
+    lifecycle::close(binding, handle)
 }
 
 /// Open lifecycle event stream.
@@ -1560,7 +1580,7 @@ pub(crate) fn destack_os_lifecycle_open(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<resource::LifecycleEventHandle> {
-    core::lifecycle_open(binding)
+    lifecycle::open(binding)
 }
 
 /// Wait for one lifecycle event.
@@ -1585,7 +1605,7 @@ pub(crate) fn destack_os_lifecycle_read(
     handle: resource::LifecycleEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<LifecycleEventVm> {
-    let event = core::lifecycle_read(binding, handle, timeoutns)?;
+    let event = lifecycle::read(binding, handle, timeoutns)?;
 
     LifecycleEventVm::from_value(context, event)
 }
@@ -1610,7 +1630,7 @@ pub(crate) fn destack_os_lifecycle_state(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<LifecycleState> {
-    core::lifecycle_state(binding)
+    lifecycle::state(binding)
 }
 
 /// Poll one lifecycle event without blocking.
@@ -1634,7 +1654,7 @@ pub(crate) fn destack_os_lifecycle_try_read(
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::LifecycleEventHandle,
 ) -> RuntimeResult<LifecycleEventVm> {
-    let event = core::lifecycle_try_read(binding, handle)?;
+    let event = lifecycle::try_read(binding, handle)?;
 
     LifecycleEventVm::from_value(context, event)
 }
@@ -1656,13 +1676,12 @@ pub(crate) fn destack_os_lifecycle_try_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_location_last_known(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<LocationSampleVm> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.location.lastKnown is not available in the VM yet",
-    ))
-    .boxed())
+    let sample = location::last_known(binding)?;
+
+    location::sample_vm(context, sample)
 }
 
 /// Read whether host location services are enabled.
@@ -1682,13 +1701,10 @@ pub(crate) fn destack_os_location_last_known(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_location_services_enabled(
-    _binding: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<bool> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.location.servicesEnabled is not available in the VM yet",
-    ))
-    .boxed())
+    location::services_enabled(binding)
 }
 
 /// Close location watch stream.
@@ -1708,15 +1724,11 @@ pub(crate) fn destack_os_location_services_enabled(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_location_watch_close(
-    _binding: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::LocationWatchHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.location.watchClose is not available in the VM yet",
-    ))
-    .boxed())
+    location::watch_close(binding, handle)
 }
 
 /// Open location watch stream.
@@ -1736,15 +1748,13 @@ pub(crate) fn destack_os_location_watch_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_location_watch_open(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     options: LocationWatchOptionsVm,
 ) -> RuntimeResult<resource::LocationWatchHandle> {
-    let _ = options;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.location.watchOpen is not available in the VM yet",
-    ))
-    .boxed())
+    let options = options.into_value(context)?;
+
+    location::watch_open(binding, options)
 }
 
 /// Wait for one location sample.
@@ -1764,16 +1774,14 @@ pub(crate) fn destack_os_location_watch_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_location_watch_read(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::LocationWatchHandle,
     timeoutns: u64,
 ) -> RuntimeResult<LocationSampleVm> {
-    let _ = (handle, timeoutns);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.location.watchRead is not available in the VM yet",
-    ))
-    .boxed())
+    let sample = location::watch_read(binding, handle, timeoutns)?;
+
+    location::sample_vm(context, sample)
 }
 
 /// Poll one location sample without blocking.
@@ -1793,15 +1801,13 @@ pub(crate) fn destack_os_location_watch_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_location_watch_try_read(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::LocationWatchHandle,
 ) -> RuntimeResult<LocationSampleVm> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.location.watchTryRead is not available in the VM yet",
-    ))
-    .boxed())
+    let sample = location::watch_try_read(binding, handle)?;
+
+    location::sample_vm(context, sample)
 }
 
 /// Delete media assets by identifier.
@@ -1821,15 +1827,13 @@ pub(crate) fn destack_os_location_watch_try_read(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_media_delete(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     ids: VmArray<vm::StringHandle>,
 ) -> RuntimeResult<u32> {
-    let _ = ids;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.media.delete is not available in the VM yet",
-    ))
-    .boxed())
+    let ids = ids.into_value(context)?;
+
+    media::delete(binding, ids)
 }
 
 /// Import one file path into host media library.
@@ -1849,16 +1853,15 @@ pub(crate) fn destack_os_media_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_media_import_path(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     path: fs::OsPathVm,
     kind: MediaAssetKind,
 ) -> RuntimeResult<vm::StringHandle> {
-    let _ = (path, kind);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.media.importPath is not available in the VM yet",
-    ))
-    .boxed())
+    let path = store_os_path_from_vm(binding, context, path)?;
+    let id = media::import_path(binding, path, kind)?;
+
+    media::id_vm(context, &id)
 }
 
 /// List media assets.
@@ -1878,20 +1881,19 @@ pub(crate) fn destack_os_media_import_path(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_media_list(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     query: MediaQueryVm,
 ) -> RuntimeResult<MediaPageVm> {
-    let _ = query;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.media.list is not available in the VM yet",
-    ))
-    .boxed())
+    let query = query.into_value(context)?;
+    let page = media::list(binding, query)?;
+
+    media::page_vm(context, page)
 }
 
-/// Read one media asset descriptor.
+/// Describe one media asset descriptor.
 ///
-/// Read one host media asset descriptor by stable identifier.
+/// Read one richer host media asset descriptor by stable identifier.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1905,16 +1907,118 @@ pub(crate) fn destack_os_media_list(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) fn destack_os_media_read(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+pub(crate) fn destack_os_media_describe(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<MediaAssetDescriptorVm> {
-    let _ = id;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.media.read is not available in the VM yet",
-    ))
-    .boxed())
+    let id = <vm::StringHandle as VmAbiCodec>::into_value(id, context)?;
+    let descriptor = media::describe(binding, id.as_str())?;
+
+    media::descriptor_vm(context, descriptor)
+}
+
+/// Close one media watch stream.
+///
+/// Close one opened media watch stream and release runtime watch resources.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses runtime media watch state.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.media.read`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_os_media_watch_close(
+    binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::MediaWatchHandle,
+) -> RuntimeResult<()> {
+    media::watch_close(binding, handle)
+}
+
+/// Open media watch stream.
+///
+/// Open one runtime-owned media watch stream and track add or update or remove events for one filtered asset set.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host media-list queries and runtime watch state.
+///
+/// # Errors
+/// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.media.read`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_os_media_watch_open(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    options: MediaWatchOptionsVm,
+) -> RuntimeResult<resource::MediaWatchHandle> {
+    let options = options.into_value(context)?;
+
+    media::watch_open(binding, options)
+}
+
+/// Wait for one media watch event.
+///
+/// Wait for one queued media watch event from one opened watch stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses runtime media watch state.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+///
+/// # Security
+/// Requires `os.media.read`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_os_media_watch_read(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::MediaWatchHandle,
+    timeoutns: u64,
+) -> RuntimeResult<MediaEventVm> {
+    let event = media::watch_read(binding, handle, timeoutns)?;
+
+    media::event_vm(context, event)
+}
+
+/// Poll one media watch event without blocking.
+///
+/// Poll one queued media watch event from one opened watch stream without waiting.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses runtime media watch state.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.media.read`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_os_media_watch_try_read(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::MediaWatchHandle,
+) -> RuntimeResult<MediaEventVm> {
+    let event = media::watch_try_read(binding, handle)?;
+
+    media::event_vm(context, event)
 }
 
 /// Mount one filesystem target.
@@ -2081,15 +2185,13 @@ pub(crate) fn destack_os_network_watch_try_read(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_cancel(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    let _ = id;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.notification.cancel is not available in the VM yet",
-    ))
-    .boxed())
+    let id = context.string_ref(id)?;
+
+    notification::cancel(binding, id.as_str())
 }
 
 /// Cancel all host notifications for this runtime context.
@@ -2109,13 +2211,10 @@ pub(crate) fn destack_os_notification_cancel(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_cancel_all(
-    _binding: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.notification.cancelAll is not available in the VM yet",
-    ))
-    .boxed())
+    notification::cancel_all(binding)
 }
 
 /// List notification categories.
@@ -2135,13 +2234,12 @@ pub(crate) fn destack_os_notification_cancel_all(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_notification_category_list(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmArray<NotificationCategoryVm>> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.notification.categoryList is not available in the VM yet",
-    ))
-    .boxed())
+    let values = notification::category_list(binding)?;
+
+    notification::category_list_vm(context, &values)
 }
 
 /// Register notification categories.
@@ -2161,15 +2259,13 @@ pub(crate) fn destack_os_notification_category_list(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_category_set(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     categories: VmArray<NotificationCategoryVm>,
 ) -> RuntimeResult<()> {
-    let _ = categories;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.notification.categorySet is not available in the VM yet",
-    ))
-    .boxed())
+    let categories = categories.into_value(context)?;
+
+    notification::category_set(binding, categories)
 }
 
 /// Close one notification event stream.
@@ -2189,15 +2285,11 @@ pub(crate) fn destack_os_notification_category_set(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_event_close(
-    _binding: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::NotificationEventHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.notification.event.close is not available in the VM yet",
-    ))
-    .boxed())
+    notification::event_close(binding, handle)
 }
 
 /// Open one notification event stream.
@@ -2217,15 +2309,13 @@ pub(crate) fn destack_os_notification_event_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_event_open(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     options: NotificationEventOpenOptionsVm,
 ) -> RuntimeResult<resource::NotificationEventHandle> {
-    let _ = options;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.notification.event.open is not available in the VM yet",
-    ))
-    .boxed())
+    let options = options.into_value(context)?;
+
+    notification::event_open(binding, options)
 }
 
 /// Wait for one notification event.
@@ -2245,16 +2335,14 @@ pub(crate) fn destack_os_notification_event_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_event_read(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::NotificationEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<NotificationEventVm> {
-    let _ = (handle, timeoutns);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.notification.event.read is not available in the VM yet",
-    ))
-    .boxed())
+    let event = notification::event_read(binding, handle, timeoutns)?;
+
+    notification::event_vm(context, event)
 }
 
 /// Poll one notification event without blocking.
@@ -2274,15 +2362,13 @@ pub(crate) fn destack_os_notification_event_read(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_event_try_read(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::NotificationEventHandle,
 ) -> RuntimeResult<NotificationEventVm> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.notification.event.tryRead is not available in the VM yet",
-    ))
-    .boxed())
+    let event = notification::event_try_read(binding, handle)?;
+
+    notification::event_vm(context, event)
 }
 
 /// Cancel pending scheduled notification.
@@ -2302,15 +2388,13 @@ pub(crate) fn destack_os_notification_event_try_read(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_pending_cancel(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    let _ = id;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.notification.pendingCancel is not available in the VM yet",
-    ))
-    .boxed())
+    let id = context.string_ref(id)?;
+
+    notification::pending_cancel(binding, id.as_str())
 }
 
 /// Cancel all pending scheduled notifications.
@@ -2330,13 +2414,10 @@ pub(crate) fn destack_os_notification_pending_cancel(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_pending_cancel_all(
-    _binding: &BindingCallContext,
+    binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.notification.pendingCancelAll is not available in the VM yet",
-    ))
-    .boxed())
+    notification::pending_cancel_all(binding)
 }
 
 /// List pending scheduled notifications.
@@ -2356,13 +2437,12 @@ pub(crate) fn destack_os_notification_pending_cancel_all(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_notification_pending_list(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmArray<NotificationScheduledDescriptorVm>> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.notification.pendingList is not available in the VM yet",
-    ))
-    .boxed())
+    let values = notification::pending_list(binding)?;
+
+    notification::pending_list_vm(context, &values)
 }
 
 /// Read host notification permission state.
@@ -2385,7 +2465,7 @@ pub(crate) fn destack_os_notification_permission_state(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<NotificationPermissionState> {
-    core::notification_permission_state(binding)
+    notification::permission_state(binding)
 }
 
 /// Post host notification.
@@ -2405,15 +2485,14 @@ pub(crate) fn destack_os_notification_permission_state(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_post(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     request: NotificationRequestVm,
 ) -> RuntimeResult<vm::StringHandle> {
-    let _ = request;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.notification.post is not available in the VM yet",
-    ))
-    .boxed())
+    let request = request.into_value(context)?;
+    let id = notification::post(binding, request)?;
+
+    notification::id_vm(context, &id)
 }
 
 /// Request host notification permission.
@@ -2436,7 +2515,7 @@ pub(crate) fn destack_os_notification_request_permission(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<NotificationPermissionState> {
-    core::notification_request_permission(binding)
+    notification::request_permission(binding)
 }
 
 /// Schedule host notification.
@@ -2456,15 +2535,14 @@ pub(crate) fn destack_os_notification_request_permission(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_notification_schedule(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     request: NotificationRequestVm,
 ) -> RuntimeResult<vm::StringHandle> {
-    let _ = request;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.notification.schedule is not available in the VM yet",
-    ))
-    .boxed())
+    let request = request.into_value(context)?;
+    let id = notification::schedule(binding, request)?;
+
+    notification::id_vm(context, &id)
 }
 
 /// Open host settings for runtime permissions.
@@ -2487,7 +2565,7 @@ pub(crate) fn destack_os_permission_open_settings(
     binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<()> {
-    core::permission_open_settings(binding)
+    permission::open_settings(binding)
 }
 
 /// Request one permission.
@@ -2511,7 +2589,7 @@ pub(crate) fn destack_os_permission_request(
     _context: &mut vm::ExternalCallContext<'_>,
     permission: Permission,
 ) -> RuntimeResult<PermissionState> {
-    core::permission_request(binding, permission)
+    permission::request(binding, permission)
 }
 
 /// Request multiple permissions.
@@ -2536,7 +2614,7 @@ pub(crate) fn destack_os_permission_request_many(
     permissions: VmArray<Permission>,
 ) -> RuntimeResult<VmArray<PermissionEntryVm>> {
     let permissions = permissions.read_values(context)?;
-    let values = core::permission_request_many(binding, permissions)?;
+    let values = permission::request_many(binding, permissions)?;
 
     VmArray::from_values(context, &values)
 }
@@ -2562,7 +2640,7 @@ pub(crate) fn destack_os_permission_state(
     _context: &mut vm::ExternalCallContext<'_>,
     permission: Permission,
 ) -> RuntimeResult<PermissionState> {
-    core::permission_state(binding, permission)
+    permission::state(binding, permission)
 }
 
 /// Read permission states.
@@ -2587,7 +2665,7 @@ pub(crate) fn destack_os_permission_state_many(
     permissions: VmArray<Permission>,
 ) -> RuntimeResult<VmArray<PermissionEntryVm>> {
     let permissions = permissions.read_values(context)?;
-    let values = core::permission_state_many(binding, &permissions)?;
+    let values = permission::state_many(binding, &permissions)?;
 
     VmArray::from_values(context, &values)
 }

@@ -13,24 +13,24 @@ export struct IntentOpenUrlPayload {
 export struct IntentOpenFilePayload {
     /// File target payload.
     path: OsPath;
-    /// MIME type when provided by host.
-    mimeType: string | void;
+    /// Normalized content type when provided by host.
+    contentType: string | void;
 }
 
 /// Share-text intent payload.
 export struct IntentShareTextPayload {
     /// Shared text payload.
     text: string;
-    /// MIME type when provided by host.
-    mimeType: string | void;
+    /// Normalized content type when provided by host.
+    contentType: string | void;
 }
 
 /// Share-files intent payload.
 export struct IntentShareFilesPayload {
     /// Shared file payloads.
     paths: Array<OsPath>;
-    /// MIME type when provided by host.
-    mimeType: string | void;
+    /// Normalized content type when provided by host.
+    contentType: string | void;
 }
 
 /// Custom-action intent payload.
@@ -43,8 +43,8 @@ export struct IntentCustomActionPayload {
     paths: Array<OsPath>;
     /// Text payload when provided by host.
     text: string | void;
-    /// MIME type when provided by host.
-    mimeType: string | void;
+    /// Normalized content type when provided by host.
+    contentType: string | void;
 }
 
 /// Shared metadata for all inbound intent events.
@@ -356,7 +356,7 @@ declare namespace os {
     })
     export function intentShareText(
         text: string,
-        mimeType: string | void,
+        contentType: string | void,
     ): Result<void, PlatformError>;
 
     /// Share file paths through host share routing.
@@ -387,6 +387,6 @@ declare namespace os {
     })
     export function intentSharePaths(
         paths: Array<OsPath>,
-        mimeType: string | void,
+        contentType: string | void,
     ): Result<void, PlatformError>;
 }

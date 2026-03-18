@@ -1,7 +1,9 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{invalid_argument, monotonic_now_ns};
 use crate::platform::fs::core as core_fs;
-use crate::platform::os::core::{self, IntentEventStream, IntentQueuedEvent, IntentQueuedPayload};
+use crate::platform::os::runtime::{
+    self, IntentEventStream, IntentQueuedEvent, IntentQueuedPayload,
+};
 use crate::platform::os::{
     IntentCustomActionEventValue, IntentCustomActionPayloadValue, IntentEventMetadataValue,
     IntentEventValue, IntentOpenFileEventValue, IntentOpenFilePayloadValue, IntentOpenOptions,
@@ -11,7 +13,7 @@ use crate::platform::os::{
 use crate::platform::{NativeAbiCodec, fs, resource};
 use crate::runtime::BindingCallContext;
 
-use crate::host::HostRequest;
+use crate::host::operation::intent as host_intent;
 
 /// Intent can-open-url binding name.
 pub(super) const INTENT_CAN_OPEN_URL_OPERATION: &str = "destack.os.intent.canOpenUrl";
@@ -62,20 +64,23 @@ fn validate_url(url: &str, operation: &'static str) -> RuntimeResult<String> {
     Ok(scheme.to_ascii_lowercase())
 }
 
-/// Validate one optional MIME type payload.
-fn validate_mime_type(mime_type: Option<&str>) -> RuntimeResult<()> {
-    let Some(mime_type) = mime_type else {
+/// Validate one optional content type payload.
+fn validate_content_type(content_type: Option<&str>) -> RuntimeResult<()> {
+    let Some(content_type) = content_type else {
         return Ok(());
     };
 
-    if mime_type.is_empty() {
-        return Err(invalid_argument("mimeType", "mimeType must not be empty"));
+    if content_type.is_empty() {
+        return Err(invalid_argument(
+            "contentType",
+            "contentType must not be empty",
+        ));
     }
 
-    if mime_type.contains('\0') {
+    if content_type.contains('\0') {
         return Err(invalid_argument(
-            "mimeType",
-            "mimeType must not contain nul bytes",
+            "contentType",
+            "contentType must not contain nul bytes",
         ));
     }
 
@@ -86,13 +91,9 @@ fn validate_mime_type(mime_type: Option<&str>) -> RuntimeResult<()> {
 pub(crate) fn can_open_url(binding: &BindingCallContext, url: &str) -> RuntimeResult<bool> {
     let _ = validate_url(url, INTENT_CAN_OPEN_URL_OPERATION)?;
 
-    let outcome = binding
+    binding
         .host()
-        .submit_request(HostRequest::OsIntentCanOpenUrl {
-            url: url.to_string(),
-        })?;
-
-    outcome.into_bool(INTENT_CAN_OPEN_URL_OPERATION)
+        .submit_operation(host_intent::can_open_url(url.to_string()))
 }
 
 /// Open one URL target through the host shell or host bridge.
@@ -101,47 +102,37 @@ pub(crate) fn open_url(binding: &BindingCallContext, url: &str) -> RuntimeResult
 
     binding
         .host()
-        .submit_request(HostRequest::OsIntentOpenUrl {
-            url: url.to_string(),
-        })?;
-
-    Ok(())
+        .submit_operation(host_intent::open_url(url.to_string()))
 }
 
 /// Open one host path target through the host shell or host bridge.
 pub(crate) fn open_path(binding: &BindingCallContext, path: fs::OsPath) -> RuntimeResult<()> {
     binding
         .host()
-        .submit_request(HostRequest::OsIntentOpenPath { path })?;
-
-    Ok(())
+        .submit_operation(host_intent::open_path(path))
 }
 
 /// Share one text payload through host share routing.
 pub(crate) fn share_text(
     binding: &BindingCallContext,
     text: &str,
-    mime_type: Option<&str>,
+    content_type: Option<&str>,
 ) -> RuntimeResult<()> {
-    validate_mime_type(mime_type)?;
+    validate_content_type(content_type)?;
 
-    binding
-        .host()
-        .submit_request(HostRequest::OsIntentShareText {
-            text: text.to_string(),
-            mime_type: mime_type.map(str::to_string),
-        })?;
-
-    Ok(())
+    binding.host().submit_operation(host_intent::share_text(
+        text.to_string(),
+        content_type.map(str::to_string),
+    ))
 }
 
 /// Share one path list through host share routing.
 pub(crate) fn share_paths(
     binding: &BindingCallContext,
     paths: Vec<fs::OsPath>,
-    mime_type: Option<&str>,
+    content_type: Option<&str>,
 ) -> RuntimeResult<()> {
-    validate_mime_type(mime_type)?;
+    validate_content_type(content_type)?;
 
     if paths.is_empty() {
         return Err(invalid_argument("paths", "paths must not be empty"));
@@ -158,14 +149,10 @@ pub(crate) fn share_paths(
         }
     }
 
-    binding
-        .host()
-        .submit_request(HostRequest::OsIntentSharePaths {
-            paths,
-            mime_type: mime_type.map(str::to_string),
-        })?;
-
-    Ok(())
+    binding.host().submit_operation(host_intent::share_paths(
+        paths,
+        content_type.map(str::to_string),
+    ))
 }
 
 /// Open one inbound intent stream.
@@ -173,7 +160,7 @@ pub(crate) fn open(
     binding: &BindingCallContext,
     options: IntentOpenOptions,
 ) -> RuntimeResult<resource::IntentHandle> {
-    core::intent_open(binding, options)
+    runtime::intent_open(binding, options)
 }
 
 /// Close one inbound intent stream.
@@ -181,7 +168,7 @@ pub(crate) fn close(
     binding: &BindingCallContext,
     handle: resource::IntentHandle,
 ) -> RuntimeResult<()> {
-    core::intent_close(binding, handle)
+    runtime::intent_close(binding, handle)
 }
 
 /// Read one queued intent event.
@@ -190,7 +177,7 @@ pub(crate) fn read_value(
     handle: resource::IntentHandle,
     timeout_ns: u64,
 ) -> RuntimeResult<IntentEventValue> {
-    let (stream, event) = core::intent_read(binding, handle, timeout_ns)?;
+    let (stream, event) = runtime::intent_read(binding, handle, timeout_ns)?;
 
     encode_intent_event_value(binding, &stream, event)
 }
@@ -200,7 +187,7 @@ pub(crate) fn try_read_value(
     binding: &BindingCallContext,
     handle: resource::IntentHandle,
 ) -> RuntimeResult<IntentEventValue> {
-    let (stream, event) = core::intent_try_read(binding, handle)?;
+    let (stream, event) = runtime::intent_try_read(binding, handle)?;
 
     encode_intent_event_value(binding, &stream, event)
 }
@@ -221,30 +208,33 @@ fn encode_intent_event_value(
                 payload: IntentOpenUrlPayloadValue { url },
             },
         )),
-        IntentQueuedPayload::OpenFile { path, mime_type } => {
-            let path = core::intent_path_from_utf8(binding, path);
+        IntentQueuedPayload::OpenFile { path, content_type } => {
+            let path = runtime::intent_path_from_utf8(binding, path);
             let path = unsafe { <fs::OsPath as NativeAbiCodec>::into_value(path)? };
 
             Ok(IntentEventValue::IntentOpenFileEvent(
                 IntentOpenFileEventValue {
                     kind: "openFile".to_string(),
                     metadata,
-                    payload: IntentOpenFilePayloadValue { path, mime_type },
+                    payload: IntentOpenFilePayloadValue { path, content_type },
                 },
             ))
         }
-        IntentQueuedPayload::ShareText { text, mime_type } => Ok(
+        IntentQueuedPayload::ShareText { text, content_type } => Ok(
             IntentEventValue::IntentShareTextEvent(IntentShareTextEventValue {
                 kind: "shareText".to_string(),
                 metadata,
-                payload: IntentShareTextPayloadValue { text, mime_type },
+                payload: IntentShareTextPayloadValue { text, content_type },
             }),
         ),
-        IntentQueuedPayload::ShareFiles { paths, mime_type } => {
+        IntentQueuedPayload::ShareFiles {
+            paths,
+            content_type,
+        } => {
             let mut encoded_paths = Vec::with_capacity(paths.len());
 
             for path in paths {
-                let path = core::intent_path_from_utf8(binding, path);
+                let path = runtime::intent_path_from_utf8(binding, path);
                 encoded_paths.push(unsafe { <fs::OsPath as NativeAbiCodec>::into_value(path)? });
             }
 
@@ -254,7 +244,7 @@ fn encode_intent_event_value(
                     metadata,
                     payload: IntentShareFilesPayloadValue {
                         paths: encoded_paths,
-                        mime_type,
+                        content_type,
                     },
                 },
             ))
@@ -264,12 +254,12 @@ fn encode_intent_event_value(
             url,
             paths,
             text,
-            mime_type,
+            content_type,
         } => {
             let mut encoded_paths = Vec::with_capacity(paths.len());
 
             for path in paths {
-                let path = core::intent_path_from_utf8(binding, path);
+                let path = runtime::intent_path_from_utf8(binding, path);
                 encoded_paths.push(unsafe { <fs::OsPath as NativeAbiCodec>::into_value(path)? });
             }
 
@@ -282,7 +272,7 @@ fn encode_intent_event_value(
                         url,
                         paths: encoded_paths,
                         text,
-                        mime_type,
+                        content_type,
                     },
                 },
             ))

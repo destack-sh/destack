@@ -175,11 +175,11 @@ fn test_location_sample() -> LocationSampleValue {
     LocationSampleValue {
         latitude_degrees: 47.3769,
         longitude_degrees: 8.5417,
-        altitude_meters: 408.0,
-        horizontal_accuracy_meters: 5.0,
-        vertical_accuracy_meters: 8.0,
-        speed_meters_per_second: 0.0,
-        heading_degrees: 0.0,
+        altitude_meters: Some(408.0),
+        horizontal_accuracy_meters: Some(5.0),
+        vertical_accuracy_meters: Some(8.0),
+        speed_meters_per_second: Some(0.0),
+        heading_degrees: Some(0.0),
         timestamp_unix_ns: 42,
     }
 }

@@ -34,15 +34,15 @@ export struct LocationSample {
     /// Longitude in degrees.
     longitudeDegrees: float64;
     /// Altitude in meters above mean sea level when available.
-    altitudeMeters: float64;
-    /// Horizontal accuracy radius in meters.
-    horizontalAccuracyMeters: float64;
+    altitudeMeters?: float64;
+    /// Horizontal accuracy radius in meters when available.
+    horizontalAccuracyMeters?: float64;
     /// Vertical accuracy in meters when available.
-    verticalAccuracyMeters: float64;
+    verticalAccuracyMeters?: float64;
     /// Speed in meters per second when available.
-    speedMetersPerSecond: float64;
+    speedMetersPerSecond?: float64;
     /// Heading in degrees when available.
-    headingDegrees: float64;
+    headingDegrees?: float64;
     /// UTC timestamp in nanoseconds.
     timestampUnixNs: uint64;
 }

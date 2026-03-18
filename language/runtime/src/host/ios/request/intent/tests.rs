@@ -1,7 +1,6 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::host::core::registry::HostRegistrationGuard;
+use crate::host::core::registry::{HostRegistrationGuard, next_host_runtime_id};
 use crate::host::core::{HostQueue, HostRuntimeRegistry};
 use crate::host::ios::unregister_ios_bindings;
 use crate::host::{
@@ -11,20 +10,11 @@ use crate::host::{
     destack_host_ios_intent_share_paths, destack_host_ios_intent_share_text,
     destack_host_ios_register_bindings,
 };
-use crate::runtime::world::RuntimeId;
 use crate::runtime::{NativeStringRef, NativeStringSlice};
-
-/// Shared runtime-id allocator for iOS host tests.
-static TEST_RUNTIME_ID_NEXT: AtomicU64 = AtomicU64::new(u64::MAX - 16_384);
-
-/// Allocate one unique runtime id for this test process.
-fn next_test_runtime_id() -> RuntimeId {
-    RuntimeId(TEST_RUNTIME_ID_NEXT.fetch_add(1, Ordering::Relaxed))
-}
 
 /// Register one temporary iOS host queue and keep registration state alive.
 pub(crate) fn register_ios_runtime() -> (Arc<HostQueue>, HostRegistrationGuard, u64) {
-    let runtime_id = next_test_runtime_id();
+    let runtime_id = next_host_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
     let registration = HostRuntimeRegistry::register_queue(
         Platform::IOS,
@@ -32,7 +22,7 @@ pub(crate) fn register_ios_runtime() -> (Arc<HostQueue>, HostRegistrationGuard, 
         Arc::downgrade(&queue),
         Some(unregister_ios_bindings),
     );
-    let runtime_id = registration.runtime_id().0;
+    let runtime_id = registration.host_runtime_id().0;
 
     (queue, registration, runtime_id)
 }
@@ -105,8 +95,9 @@ unsafe extern "C" fn test_share_paths_callback(
 
 #[test]
 fn test_intent_callbacks_report_missing_runtime_registration() {
+    let runtime_id = next_host_runtime_id().0;
     let status = unsafe {
-        destack_host_ios_intent_open_url(41, NativeStringRef::from("https://example.com"))
+        destack_host_ios_intent_open_url(runtime_id, NativeStringRef::from("https://example.com"))
     };
     assert_eq!(status, HOST_STATUS_NOT_FOUND);
 }
@@ -136,6 +127,7 @@ fn test_intent_callbacks_route_registered_handlers() {
                 share_text: Some(test_share_text_callback),
                 share_paths: Some(test_share_paths_callback),
             },
+            ..IosHostBindings::default()
         },
     );
     assert_eq!(status, HOST_STATUS_OK);
@@ -196,6 +188,7 @@ fn test_can_open_url_requires_one_output_pointer() {
                 can_open_url: Some(test_can_open_url_callback),
                 ..IosHostIntentCallbacks::default()
             },
+            ..IosHostBindings::default()
         },
     );
     assert_eq!(status, HOST_STATUS_OK);
