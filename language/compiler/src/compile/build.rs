@@ -11,6 +11,18 @@ pub enum BuildKey {
     Output(OutputKey),
 }
 
+impl BuildKey {
+    /// Create one build key for an artifact.
+    pub fn artifact(key: ArtifactKey) -> Self {
+        Self::Artifact(key)
+    }
+
+    /// Create one build key for an output.
+    pub fn output(key: OutputKey) -> Self {
+        Self::Output(key)
+    }
+}
+
 /// Dependency stamp for one build key.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BuildDependency {
@@ -42,6 +54,28 @@ impl BuildRequirement {
             dependency,
             error: None,
         }
+    }
+
+    /// Create one artifact build requirement.
+    pub fn artifact(
+        anchor: DiagnosticAnchor,
+        key: ArtifactKey,
+        dependency: ArtifactDependency,
+    ) -> Self {
+        Self::new(
+            anchor,
+            BuildKey::artifact(key),
+            BuildDependency::Artifact(dependency),
+        )
+    }
+
+    /// Create one output build requirement.
+    pub fn output(anchor: DiagnosticAnchor, key: OutputKey, dependency: OutputDependency) -> Self {
+        Self::new(
+            anchor,
+            BuildKey::output(key),
+            BuildDependency::Output(dependency),
+        )
     }
 
     /// Attach a fallback error to this requirement.

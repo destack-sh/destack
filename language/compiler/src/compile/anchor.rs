@@ -84,20 +84,21 @@ impl DiagnosticAnchor {
                 let module = module.as_ref();
                 let ast = program.artifacts.ast(anchored.module_id())?;
                 let profile_id = program.default_profile_id_for_module(anchored.module_id());
-                let mir = program
-                    .artifacts
-                    .mir_optimized(anchored.module_id(), profile_id, &anchored.target_id)
-                    .or_else(|| {
-                        program.artifacts.mir_base(
-                            anchored.module_id(),
-                            profile_id,
-                            &anchored.target_id,
-                        )
-                    })?;
-                let mir_tree = &mir.tree;
-
-                // get source DIR node from MIR
-                let dir_node_id = mir_tree.get_source(anchored.local_id().id)?;
+                let dir_node_id = if let Some(mir) = program.artifacts.mir_optimized(
+                    anchored.module_id(),
+                    profile_id,
+                    &anchored.target_id,
+                ) {
+                    mir.tree.get_source(anchored.local_id().id)?
+                } else if let Some(mir) = program.artifacts.mir_base(
+                    anchored.module_id(),
+                    profile_id,
+                    &anchored.target_id,
+                ) {
+                    mir.tree.get_source(anchored.local_id().id)?
+                } else {
+                    return None;
+                };
 
                 // look up span from base DIR
                 let dir = program.artifacts.dir_base(anchored.module_id())?;

@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
 use destack_resolver::Resolver;
-use destack_source::{DiagnosticCollector, DiagnosticSeverity, ModuleId, Uri};
-use destack_workspace::{ProfileId, Program, Session, Target};
+use destack_source::{DiagnosticCollector, DiagnosticSeverity, ModuleId, PackageId, Uri};
+use destack_workspace::{Program, Session, Target};
 use parking_lot::Mutex;
 
-use crate::analyze::InterfaceComponentGraphIndex;
+use crate::resolve::ModuleBindingTable;
 use crate::{
     BuildRequirementCollector, BuildRequirementSet, CacheRegistry, CompileDiagnostic,
-    CompilerEvent, CompilerOptions, CompilerStats, TaskError, TaskQueue, TaskWarning,
+    CompilerEvent, CompilerOptions, CompilerStats, ProfileId, TaskError, TaskQueue, TaskWarning,
 };
 use dashmap::DashMap;
 
@@ -41,12 +41,12 @@ pub struct Compiler {
     pub stats: Arc<CompilerStats>,
     /// Cache registry for compiler artifacts.
     pub cache: CacheRegistry,
+    /// Module binding tables cached per package and profile for one compiler instance.
+    pub(crate) module_binding_tables: DashMap<(PackageId, ProfileId), ModuleBindingTable>,
 
     /// Locks for serializing module creation per (URI, loader) pair.
     /// The loader salt distinguishes imports with non-default loaders.
     import_locks: DashMap<(Uri, Option<String>), Arc<Mutex<Option<ModuleId>>>>,
-    /// Cached interface component indexes by profile.
-    pub(crate) interface_component_indexes: DashMap<ProfileId, Arc<InterfaceComponentGraphIndex>>,
 }
 
 impl std::fmt::Debug for Compiler {
@@ -79,9 +79,9 @@ impl Compiler {
             comptime_target,
             queue: TaskQueue::new(),
             import_locks: DashMap::new(),
-            interface_component_indexes: DashMap::new(),
             stats: Arc::new(CompilerStats::new_with_timings(timings)),
             cache: CacheRegistry::new(),
+            module_binding_tables: DashMap::new(),
         };
 
         // load workspace index snapshot when available

@@ -1,6 +1,3 @@
-use std::path::PathBuf;
-use std::sync::Arc;
-
 use destack_builtin::LanguageSymbol;
 use destack_core::StringId;
 use destack_dir::{
@@ -9,7 +6,8 @@ use destack_dir::{
 };
 use destack_mir as mir;
 use destack_source::{FileType, ModuleId, ModuleStamp, PackageId, PackageStamp, ProfileStamp, Uri};
-use destack_workspace::{ModuleGraphStamp, ProfileId, Program, TargetId};
+use destack_workspace::{ProfileId, Program, TargetId};
+use std::path::PathBuf;
 
 use destack_query::format::{format_global_type, format_symbol_name, format_type};
 
@@ -19,11 +17,8 @@ pub trait DiagnosticFormat {
     fn diagnostic_fmt(&self, program: &Program) -> String;
 }
 
-/// Return the latest published DIR and profile that still contain one global type id.
-fn latest_dir_for_global_type_id(
-    program: &Program,
-    type_id: GlobalTypeId,
-) -> Option<(ProfileId, Arc<destack_workspace::ModuleDir>)> {
+/// Return the latest published profile order for one global type id lookup.
+fn profiles_for_global_type_id(program: &Program, type_id: GlobalTypeId) -> Vec<ProfileId> {
     let default_profile = program.default_profile_id_for_module(type_id.module_id);
     let mut profiles: Vec<_> = program
         .artifacts
@@ -34,43 +29,50 @@ fn latest_dir_for_global_type_id(
         profiles.push(default_profile);
     }
     profiles.sort_by_key(|profile| (u8::from(*profile != default_profile), profile.0));
+    profiles
+}
 
-    for profile in profiles {
-        let published_dirs = [
-            program.artifacts.dir_elaborated(type_id.module_id, profile),
-            program.artifacts.dir_analyzed(type_id.module_id, profile),
-            program.artifacts.dir_interface(type_id.module_id, profile),
-            program.artifacts.dir_declared(type_id.module_id, profile),
-        ];
-        for dir in published_dirs {
-            let Some(dir) = dir else {
-                continue;
-            };
-            if dir.types.get_type_maybe(type_id.local_id).is_some() {
-                return Some((profile, dir));
-            }
-        }
-    }
-
-    None
+/// Format one type from one published type table.
+fn format_published_global_type(
+    program: &Program,
+    types: &destack_dir::TypeTable,
+    type_id: GlobalTypeId,
+) -> Option<String> {
+    let ty = types.get_type_maybe(type_id.local_id)?;
+    Some(format_type(
+        ty,
+        &program.artifacts,
+        types,
+        &program.modules,
+        &program.strings,
+    ))
 }
 
 impl DiagnosticFormat for GlobalTypeId {
     /// Format one global type id from the latest published state that still contains it.
     fn diagnostic_fmt(&self, program: &Program) -> String {
         let default_profile = program.default_profile_id_for_module(self.module_id);
-        if let Some((_profile, dir)) = latest_dir_for_global_type_id(program, *self) {
-            let ty = dir
-                .types
-                .get_type_maybe(self.local_id)
-                .expect("latest type dir lookup must contain the requested type");
-            return format_type(
-                ty,
-                &program.artifacts,
-                &dir.types,
-                &program.modules,
-                &program.strings,
-            );
+        for profile in profiles_for_global_type_id(program, *self) {
+            if let Some(dir) = program.artifacts.dir_elaborated(self.module_id, profile)
+                && let Some(text) = format_published_global_type(program, &dir.types, *self)
+            {
+                return text;
+            }
+            if let Some(dir) = program.artifacts.dir_analyzed(self.module_id, profile)
+                && let Some(text) = format_published_global_type(program, &dir.types, *self)
+            {
+                return text;
+            }
+            if let Some(dir) = program.artifacts.dir_interface(self.module_id, profile)
+                && let Some(text) = format_published_global_type(program, &dir.types, *self)
+            {
+                return text;
+            }
+            if let Some(dir) = program.artifacts.dir_declared(self.module_id, profile)
+                && let Some(text) = format_published_global_type(program, &dir.types, *self)
+            {
+                return text;
+            }
         }
 
         // otherwise fall back to artifact-backed formatting
@@ -120,13 +122,6 @@ impl DiagnosticFormat for ModuleStamp {
     fn diagnostic_fmt(&self, program: &Program) -> String {
         let module = self.id.diagnostic_fmt(program);
         format!("{module}@{}", self.version)
-    }
-}
-
-impl DiagnosticFormat for ModuleGraphStamp {
-    fn diagnostic_fmt(&self, program: &Program) -> String {
-        let profile = self.profile_id.diagnostic_fmt(program);
-        format!("{profile}@{}", self.version)
     }
 }
 

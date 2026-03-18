@@ -4,9 +4,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use destack_source::{CacheHeader, CacheKind};
 use destack_workspace::{
-    CACHE_ENTRY_LIMIT_BYTES, CacheError, CacheLock, CachePolicy, CacheStore, CacheStoreKind,
-    CacheValidate, ModuleAstCacheEntry, ModuleDirCacheEntry, ModuleMirCacheEntry,
-    deserialize_cache_entry, serialize_cache_entry,
+    AstCacheEntry, CACHE_ENTRY_LIMIT_BYTES, CacheError, CacheLock, CachePolicy, CacheStore,
+    CacheStoreKind, CacheValidate, DirCacheEntry, MirBaseCacheEntry, deserialize_cache_entry,
+    serialize_cache_entry,
 };
 
 use super::context::BYTES_PER_MB;
@@ -242,7 +242,7 @@ impl CacheRegistry {
     /// Validate an AST cache entry against the context.
     pub(super) fn validate_ast_entry(
         &self,
-        entry: &ModuleAstCacheEntry,
+        entry: &AstCacheEntry,
         context: &CacheContext,
         options: &CacheOptions,
     ) -> Result<bool, CacheError> {
@@ -261,13 +261,16 @@ impl CacheRegistry {
     }
 
     /// Validate a DIR cache entry against the context for a specific stage.
-    pub(super) fn validate_dir_entry(
+    pub(super) fn validate_dir_entry<T>(
         &self,
-        entry: &ModuleDirCacheEntry,
+        entry: &DirCacheEntry<T>,
         context: &CacheContext,
         options: &CacheOptions,
         cache_kind: CacheKind,
-    ) -> Result<bool, CacheError> {
+    ) -> Result<bool, CacheError>
+    where
+        T: serde::Serialize,
+    {
         // compare headers first
         let expected = context.header(cache_kind, entry.header.module_id);
         if !self.header_matches(&expected, &entry.header) {
@@ -276,7 +279,7 @@ impl CacheRegistry {
 
         // validate payload when strict
         if options.is_disk_enabled() && options.validate == CacheValidate::Strict {
-            entry.validate()?;
+            entry.validate_for_kind(cache_kind)?;
         }
 
         Ok(true)
@@ -285,7 +288,7 @@ impl CacheRegistry {
     /// Validate a MIR cache entry against the context.
     pub(super) fn validate_mir_entry(
         &self,
-        entry: &ModuleMirCacheEntry,
+        entry: &MirBaseCacheEntry,
         context: &CacheContext,
         options: &CacheOptions,
     ) -> Result<bool, CacheError> {
@@ -384,6 +387,7 @@ impl CacheRegistry {
         let kind_dir = match key.cache_kind {
             CacheKind::Ast => "ast",
             CacheKind::DirBase => "dir-base",
+            CacheKind::DirPrepared => "dir-prepared",
             CacheKind::DirResolved => "dir-resolved",
             CacheKind::DirAnalyzed => "dir-analyzed",
             CacheKind::DirPatched => "dir-patched",

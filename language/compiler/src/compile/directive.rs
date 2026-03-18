@@ -295,24 +295,22 @@ impl Compiler {
                 let decorator_map = self.collect_well_known_decorators(profile_id);
 
                 // load the module and mir tree
-                let Some(mir) = self
-                    .program
-                    .artifacts
-                    .mir_optimized(anchored.module_id(), profile_id, &anchored.target_id)
-                    .or_else(|| {
-                        self.program.artifacts.mir_base(
-                            anchored.module_id(),
-                            profile_id,
-                            &anchored.target_id,
-                        )
-                    })
-                else {
-                    return Vec::new();
+                let source_id = if let Some(mir) = self.program.artifacts.mir_optimized(
+                    anchored.module_id(),
+                    profile_id,
+                    &anchored.target_id,
+                ) {
+                    mir.tree.get_source(anchored.local_id().id)
+                } else if let Some(mir) = self.program.artifacts.mir_base(
+                    anchored.module_id(),
+                    profile_id,
+                    &anchored.target_id,
+                ) {
+                    mir.tree.get_source(anchored.local_id().id)
+                } else {
+                    None
                 };
-
-                // resolve the source dir node
-                let mir_tree = &mir.tree;
-                let Some(source_id) = mir_tree.get_source(anchored.local_id().id) else {
+                let Some(source_id) = source_id else {
                     return Vec::new();
                 };
 

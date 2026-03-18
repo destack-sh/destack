@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::{StatsSnapshot, Task, TaskError, TaskId, TaskPhase, TaskSkipReason};
+use crate::{BuildKey, StatsSnapshot, TaskError, TaskId, TaskPhase};
 
 /// Event emitted by the compiler during compilation.
 #[derive(Debug, Clone)]
@@ -9,14 +9,14 @@ pub enum CompilerEvent {
     /// Task started processing.
     TaskStarted {
         task_id: TaskId,
-        task: Task,
+        build_key: BuildKey,
         phase: TaskPhase,
         description: String,
     },
     /// Task completed successfully.
     TaskCompleted {
         task_id: TaskId,
-        task: Task,
+        build_key: BuildKey,
         phase: TaskPhase,
         elapsed: Duration,
         description: String,
@@ -24,28 +24,27 @@ pub enum CompilerEvent {
     /// Task failed with an error.
     TaskFailed {
         task_id: TaskId,
-        task: Task,
+        build_key: BuildKey,
         phase: TaskPhase,
         error: TaskError,
     },
     /// Task was skipped.
     TaskSkipped {
         task_id: TaskId,
-        task: Task,
+        build_key: BuildKey,
         phase: TaskPhase,
-        reason: TaskSkipReason,
         description: String,
     },
     /// Task yielded waiting for one build requirement.
     TaskYielded {
         task_id: TaskId,
-        task: Task,
+        build_key: BuildKey,
         phase: TaskPhase,
     },
     /// Task was slow (exceeded threshold).
     TaskSlow {
         task_id: TaskId,
-        task: Task,
+        build_key: BuildKey,
         phase: TaskPhase,
         elapsed: Duration,
         description: String,

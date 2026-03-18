@@ -1,6 +1,6 @@
 use crate::{
     BuildDependency, BuildKey, BuildRequirement, BuildRequirementError, BuildRequirementSet,
-    Compiler, Task, TaskId, TaskStatus,
+    Compiler, TaskId, TaskStatus,
 };
 use destack_workspace::{ArtifactKey, OutputKey};
 
@@ -10,7 +10,7 @@ impl Compiler {
         &self,
         build_key: BuildKey,
     ) -> Result<(), BuildRequirementError> {
-        let anchor = Task::new(build_key.clone()).anchor();
+        let anchor = build_key.anchor();
         let requirement = BuildRequirement {
             anchor: anchor.clone(),
             key: build_key.clone(),
@@ -135,6 +135,9 @@ impl Compiler {
         }
 
         match artifact_key {
+            ArtifactKey::ModuleGraph { profile } => {
+                self.program.artifacts.module_graph(*profile).is_some()
+            }
             ArtifactKey::LanguageEnvironment { profile } => self
                 .program
                 .artifacts
