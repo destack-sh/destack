@@ -1,6 +1,8 @@
 /// Family of published semantic artifacts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ArtifactFamily {
+    /// Module dependency graph for one profile.
+    ModuleGraph,
     /// Language semantic environment for one profile.
     LanguageEnvironment,
     /// Intrinsic semantic environment for one profile.

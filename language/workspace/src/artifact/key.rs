@@ -7,6 +7,8 @@ use super::ArtifactFamily;
 /// Semantic artifact identity.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ArtifactKey {
+    /// Module dependency graph for one profile.
+    ModuleGraph { profile: ProfileId },
     /// Language semantic environment for one profile.
     LanguageEnvironment { profile: ProfileId },
     /// Intrinsic semantic environment for one profile.
@@ -67,6 +69,31 @@ pub enum ArtifactKey {
 }
 
 impl ArtifactKey {
+    /// Build one module graph artifact key.
+    pub fn module_graph(profile: ProfileId) -> Self {
+        Self::ModuleGraph { profile }
+    }
+
+    /// Build one language environment artifact key.
+    pub fn language_environment(profile: ProfileId) -> Self {
+        Self::LanguageEnvironment { profile }
+    }
+
+    /// Build one intrinsic environment artifact key.
+    pub fn intrinsic_environment(profile: ProfileId) -> Self {
+        Self::IntrinsicEnvironment { profile }
+    }
+
+    /// Build one lib environment artifact key.
+    pub fn lib_environment(profile: ProfileId) -> Self {
+        Self::LibEnvironment { profile }
+    }
+
+    /// Build one AST artifact key.
+    pub fn ast(module: ModuleId) -> Self {
+        Self::Ast { module }
+    }
+
     /// Build one base DIR artifact key.
     pub fn dir_base(module: ModuleId) -> Self {
         Self::DirBase { module }
@@ -107,9 +134,28 @@ impl ArtifactKey {
         Self::DirPatched { module, profile }
     }
 
+    /// Build one base MIR artifact key.
+    pub fn mir_base(module: ModuleId, profile: ProfileId, target: TargetId) -> Self {
+        Self::MirBase {
+            module,
+            profile,
+            target,
+        }
+    }
+
+    /// Build one optimized MIR artifact key.
+    pub fn mir_optimized(module: ModuleId, profile: ProfileId, target: TargetId) -> Self {
+        Self::MirOptimized {
+            module,
+            profile,
+            target,
+        }
+    }
+
     /// Return the artifact family for this key.
     pub fn family(&self) -> ArtifactFamily {
         match self {
+            Self::ModuleGraph { .. } => ArtifactFamily::ModuleGraph,
             Self::LanguageEnvironment { .. } => ArtifactFamily::LanguageEnvironment,
             Self::IntrinsicEnvironment { .. } => ArtifactFamily::IntrinsicEnvironment,
             Self::LibEnvironment { .. } => ArtifactFamily::LibEnvironment,
@@ -141,7 +187,8 @@ impl ArtifactKey {
             | Self::DirPatched { module, .. }
             | Self::MirBase { module, .. }
             | Self::MirOptimized { module, .. } => Some(*module),
-            Self::LanguageEnvironment { .. }
+            Self::ModuleGraph { .. }
+            | Self::LanguageEnvironment { .. }
             | Self::IntrinsicEnvironment { .. }
             | Self::LibEnvironment { .. } => None,
         }
@@ -150,7 +197,8 @@ impl ArtifactKey {
     /// Return the profile id encoded in this key when one exists.
     pub fn profile_id(&self) -> Option<ProfileId> {
         match self {
-            Self::LanguageEnvironment { profile }
+            Self::ModuleGraph { profile }
+            | Self::LanguageEnvironment { profile }
             | Self::IntrinsicEnvironment { profile }
             | Self::LibEnvironment { profile }
             | Self::DirPrepared { profile, .. }

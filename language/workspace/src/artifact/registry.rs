@@ -2,20 +2,238 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_dir::{GlobalSymbolId, WellKnownSymbol};
 use destack_source::ModuleId;
 
 use crate::{
-    ArtifactDependency, ArtifactKey, ModuleAst, ModuleDir, ModuleMir, ProfileId, TargetId,
+    ArtifactDependency, ArtifactKey, Ast, DirAnalyzed, DirBase, DirDeclared, DirElaborated,
+    DirInterface, DirPatched, DirPrepared, DirResolved, MirBase, MirOptimized, ModuleGraph,
+    ProfileId, TargetId,
 };
 
 use super::{IntrinsicEnvironment, LanguageEnvironment, LibEnvironment};
+
+/// One published artifact payload.
+#[derive(Debug, Clone)]
+pub enum ArtifactPayload {
+    /// One module graph payload.
+    ModuleGraph(Arc<ModuleGraph>),
+    /// One language environment payload.
+    LanguageEnvironment(Arc<LanguageEnvironment>),
+    /// One intrinsic environment payload.
+    IntrinsicEnvironment(Arc<IntrinsicEnvironment>),
+    /// One lib environment payload.
+    LibEnvironment(Arc<LibEnvironment>),
+    /// One AST payload.
+    Ast(Arc<Ast>),
+    /// One base DIR payload.
+    DirBase(Arc<DirBase>),
+    /// One prepared DIR payload.
+    DirPrepared(Arc<DirPrepared>),
+    /// One resolved DIR payload.
+    DirResolved(Arc<DirResolved>),
+    /// One declared DIR payload.
+    DirDeclared(Arc<DirDeclared>),
+    /// One interface DIR payload.
+    DirInterface(Arc<DirInterface>),
+    /// One analyzed DIR payload.
+    DirAnalyzed(Arc<DirAnalyzed>),
+    /// One elaborated DIR payload.
+    DirElaborated(Arc<DirElaborated>),
+    /// One patched DIR payload.
+    DirPatched(Arc<DirPatched>),
+    /// One base MIR payload.
+    MirBase(Arc<MirBase>),
+    /// One optimized MIR payload.
+    MirOptimized(Arc<MirOptimized>),
+}
+
+impl From<LanguageEnvironment> for ArtifactPayload {
+    fn from(value: LanguageEnvironment) -> Self {
+        Self::LanguageEnvironment(Arc::new(value))
+    }
+}
+
+impl From<ModuleGraph> for ArtifactPayload {
+    fn from(value: ModuleGraph) -> Self {
+        Self::ModuleGraph(Arc::new(value))
+    }
+}
+
+impl From<Arc<ModuleGraph>> for ArtifactPayload {
+    fn from(value: Arc<ModuleGraph>) -> Self {
+        Self::ModuleGraph(value)
+    }
+}
+
+impl From<Arc<LanguageEnvironment>> for ArtifactPayload {
+    fn from(value: Arc<LanguageEnvironment>) -> Self {
+        Self::LanguageEnvironment(value)
+    }
+}
+
+impl From<IntrinsicEnvironment> for ArtifactPayload {
+    fn from(value: IntrinsicEnvironment) -> Self {
+        Self::IntrinsicEnvironment(Arc::new(value))
+    }
+}
+
+impl From<Arc<IntrinsicEnvironment>> for ArtifactPayload {
+    fn from(value: Arc<IntrinsicEnvironment>) -> Self {
+        Self::IntrinsicEnvironment(value)
+    }
+}
+
+impl From<LibEnvironment> for ArtifactPayload {
+    fn from(value: LibEnvironment) -> Self {
+        Self::LibEnvironment(Arc::new(value))
+    }
+}
+
+impl From<Arc<LibEnvironment>> for ArtifactPayload {
+    fn from(value: Arc<LibEnvironment>) -> Self {
+        Self::LibEnvironment(value)
+    }
+}
+
+impl From<Ast> for ArtifactPayload {
+    fn from(value: Ast) -> Self {
+        Self::Ast(Arc::new(value))
+    }
+}
+
+impl From<Arc<Ast>> for ArtifactPayload {
+    fn from(value: Arc<Ast>) -> Self {
+        Self::Ast(value)
+    }
+}
+
+impl From<DirBase> for ArtifactPayload {
+    fn from(value: DirBase) -> Self {
+        Self::DirBase(Arc::new(value))
+    }
+}
+
+impl From<Arc<DirBase>> for ArtifactPayload {
+    fn from(value: Arc<DirBase>) -> Self {
+        Self::DirBase(value)
+    }
+}
+
+impl From<DirPrepared> for ArtifactPayload {
+    fn from(value: DirPrepared) -> Self {
+        Self::DirPrepared(Arc::new(value))
+    }
+}
+
+impl From<Arc<DirPrepared>> for ArtifactPayload {
+    fn from(value: Arc<DirPrepared>) -> Self {
+        Self::DirPrepared(value)
+    }
+}
+
+impl From<DirResolved> for ArtifactPayload {
+    fn from(value: DirResolved) -> Self {
+        Self::DirResolved(Arc::new(value))
+    }
+}
+
+impl From<Arc<DirResolved>> for ArtifactPayload {
+    fn from(value: Arc<DirResolved>) -> Self {
+        Self::DirResolved(value)
+    }
+}
+
+impl From<DirDeclared> for ArtifactPayload {
+    fn from(value: DirDeclared) -> Self {
+        Self::DirDeclared(Arc::new(value))
+    }
+}
+
+impl From<Arc<DirDeclared>> for ArtifactPayload {
+    fn from(value: Arc<DirDeclared>) -> Self {
+        Self::DirDeclared(value)
+    }
+}
+
+impl From<DirInterface> for ArtifactPayload {
+    fn from(value: DirInterface) -> Self {
+        Self::DirInterface(Arc::new(value))
+    }
+}
+
+impl From<Arc<DirInterface>> for ArtifactPayload {
+    fn from(value: Arc<DirInterface>) -> Self {
+        Self::DirInterface(value)
+    }
+}
+
+impl From<DirAnalyzed> for ArtifactPayload {
+    fn from(value: DirAnalyzed) -> Self {
+        Self::DirAnalyzed(Arc::new(value))
+    }
+}
+
+impl From<Arc<DirAnalyzed>> for ArtifactPayload {
+    fn from(value: Arc<DirAnalyzed>) -> Self {
+        Self::DirAnalyzed(value)
+    }
+}
+
+impl From<DirElaborated> for ArtifactPayload {
+    fn from(value: DirElaborated) -> Self {
+        Self::DirElaborated(Arc::new(value))
+    }
+}
+
+impl From<Arc<DirElaborated>> for ArtifactPayload {
+    fn from(value: Arc<DirElaborated>) -> Self {
+        Self::DirElaborated(value)
+    }
+}
+
+impl From<DirPatched> for ArtifactPayload {
+    fn from(value: DirPatched) -> Self {
+        Self::DirPatched(Arc::new(value))
+    }
+}
+
+impl From<Arc<DirPatched>> for ArtifactPayload {
+    fn from(value: Arc<DirPatched>) -> Self {
+        Self::DirPatched(value)
+    }
+}
+
+impl From<MirBase> for ArtifactPayload {
+    fn from(value: MirBase) -> Self {
+        Self::MirBase(Arc::new(value))
+    }
+}
+
+impl From<Arc<MirBase>> for ArtifactPayload {
+    fn from(value: Arc<MirBase>) -> Self {
+        Self::MirBase(value)
+    }
+}
+
+impl From<MirOptimized> for ArtifactPayload {
+    fn from(value: MirOptimized) -> Self {
+        Self::MirOptimized(Arc::new(value))
+    }
+}
+
+impl From<Arc<MirOptimized>> for ArtifactPayload {
+    fn from(value: Arc<MirOptimized>) -> Self {
+        Self::MirOptimized(value)
+    }
+}
 
 /// Registry of published semantic artifacts.
 #[derive(Debug, Default)]
 pub struct ArtifactRegistry {
     /// Dependency stamps by artifact key.
     dependencies: DashMap<ArtifactKey, ArtifactDependency>,
+    /// Module dependency graphs by profile.
+    module_graphs: DashMap<ProfileId, Arc<ModuleGraph>>,
     /// Language environments by profile.
     language_environments: DashMap<ProfileId, Arc<LanguageEnvironment>>,
     /// Intrinsic environments by profile.
@@ -23,81 +241,35 @@ pub struct ArtifactRegistry {
     /// Lib environments by profile.
     lib_environments: DashMap<ProfileId, Arc<LibEnvironment>>,
     /// AST artifacts by module.
-    asts: DashMap<ModuleId, Arc<ModuleAst>>,
+    asts: DashMap<ModuleId, Arc<Ast>>,
     /// Base DIR artifacts by module.
-    dir_bases: DashMap<ModuleId, Arc<ModuleDir>>,
+    dir_bases: DashMap<ModuleId, Arc<DirBase>>,
     /// Prepared DIR artifacts by module and profile.
-    dir_prepared: DashMap<(ModuleId, ProfileId), Arc<ModuleDir>>,
+    dir_prepared: DashMap<(ModuleId, ProfileId), Arc<DirPrepared>>,
     /// Resolved DIR artifacts by module and profile.
-    dir_resolved: DashMap<(ModuleId, ProfileId), Arc<ModuleDir>>,
+    dir_resolved: DashMap<(ModuleId, ProfileId), Arc<DirResolved>>,
     /// Declared DIR artifacts by module and profile.
-    dir_declared: DashMap<(ModuleId, ProfileId), Arc<ModuleDir>>,
+    dir_declared: DashMap<(ModuleId, ProfileId), Arc<DirDeclared>>,
     /// Interface DIR artifacts by module and profile.
-    dir_interface: DashMap<(ModuleId, ProfileId), Arc<ModuleDir>>,
+    dir_interface: DashMap<(ModuleId, ProfileId), Arc<DirInterface>>,
     /// Analyzed DIR artifacts by module and profile.
-    dir_analyzed: DashMap<(ModuleId, ProfileId), Arc<ModuleDir>>,
+    dir_analyzed: DashMap<(ModuleId, ProfileId), Arc<DirAnalyzed>>,
     /// Elaborated DIR artifacts by module and profile.
-    dir_elaborated: DashMap<(ModuleId, ProfileId), Arc<ModuleDir>>,
+    dir_elaborated: DashMap<(ModuleId, ProfileId), Arc<DirElaborated>>,
     /// Patched DIR artifacts by module and profile.
-    dir_patched: DashMap<(ModuleId, ProfileId), Arc<ModuleDir>>,
+    dir_patched: DashMap<(ModuleId, ProfileId), Arc<DirPatched>>,
     /// Base MIR artifacts by module, profile, and target.
-    mir_bases: DashMap<(ModuleId, ProfileId, TargetId), Arc<ModuleMir>>,
+    mir_bases: DashMap<(ModuleId, ProfileId, TargetId), Arc<MirBase>>,
     /// Optimized MIR artifacts by module, profile, and target.
-    mir_optimized: DashMap<(ModuleId, ProfileId, TargetId), Arc<ModuleMir>>,
+    mir_optimized: DashMap<(ModuleId, ProfileId, TargetId), Arc<MirOptimized>>,
 }
 
 impl ArtifactRegistry {
-    /// FUGU #Cleanup: typed exact reads are fine, but publication and invalidation should collapse away from this set/remove helper forest.
-
-    /// Get one shared artifact payload from a map.
-    fn get_shared<K, V>(&self, entries: &DashMap<K, Arc<V>>, key: &K) -> Option<Arc<V>>
-    where
-        K: Eq + std::hash::Hash,
-    {
-        entries.get(key).map(|entry| entry.value().clone())
-    }
-
-    /// Insert one shared artifact payload into a map.
-    fn set_shared<K, V>(
-        &self,
-        entries: &DashMap<K, Arc<V>>,
-        key: K,
-        value: impl Into<Arc<V>>,
-    ) -> Arc<V>
-    where
-        K: Eq + std::hash::Hash,
-    {
-        let value = value.into();
-        entries.insert(key, value.clone());
-        value
-    }
-
-    /// Remove one shared artifact payload from a map.
-    fn remove_shared<K, V>(&self, entries: &DashMap<K, Arc<V>>, key: &K)
-    where
-        K: Eq + std::hash::Hash,
-    {
-        entries.remove(key);
-    }
-
-    /// Remove one shared artifact payload and its dependency stamp.
-    fn remove_shared_with_dependency<K, V>(
-        &self,
-        entries: &DashMap<K, Arc<V>>,
-        key: &K,
-        artifact_key: ArtifactKey,
-    ) where
-        K: Eq + std::hash::Hash,
-    {
-        self.remove_shared(entries, key);
-        self.remove_dependency(&artifact_key);
-    }
-
     /// Collect profile ids from one module/profile map.
-    fn collect_profile_ids(
+    fn collect_profile_ids<T>(
         &self,
         profiles: &mut HashSet<ProfileId>,
-        entries: &DashMap<(ModuleId, ProfileId), Arc<ModuleDir>>,
+        entries: &DashMap<(ModuleId, ProfileId), Arc<T>>,
         module: ModuleId,
     ) {
         for entry in entries.iter() {
@@ -109,10 +281,10 @@ impl ArtifactRegistry {
     }
 
     /// Collect module ids from one module/profile map.
-    fn collect_module_ids(
+    fn collect_module_ids<T>(
         &self,
         modules: &mut HashSet<ModuleId>,
-        entries: &DashMap<(ModuleId, ProfileId), Arc<ModuleDir>>,
+        entries: &DashMap<(ModuleId, ProfileId), Arc<T>>,
         profiles: &HashSet<ProfileId>,
     ) {
         for entry in entries.iter() {
@@ -127,6 +299,7 @@ impl ArtifactRegistry {
     pub fn new() -> Self {
         Self {
             dependencies: DashMap::new(),
+            module_graphs: DashMap::new(),
             language_environments: DashMap::new(),
             intrinsic_environments: DashMap::new(),
             lib_environments: DashMap::new(),
@@ -156,306 +329,241 @@ impl ArtifactRegistry {
         self.dependencies.insert(key, dependency);
     }
 
-    /// Remove one dependency stamp for one artifact key.
-    pub fn remove_dependency(&self, key: &ArtifactKey) {
+    /// Invalidate one published artifact and its dependency stamp.
+    pub fn invalidate(&self, key: &ArtifactKey) {
+        match key {
+            ArtifactKey::ModuleGraph { profile } => {
+                self.module_graphs.remove(profile);
+            }
+            ArtifactKey::LanguageEnvironment { profile } => {
+                self.language_environments.remove(profile);
+            }
+            ArtifactKey::IntrinsicEnvironment { profile } => {
+                self.intrinsic_environments.remove(profile);
+            }
+            ArtifactKey::LibEnvironment { profile } => {
+                self.lib_environments.remove(profile);
+            }
+            ArtifactKey::Ast { module } => {
+                self.asts.remove(module);
+            }
+            ArtifactKey::DirBase { module } => {
+                self.dir_bases.remove(module);
+            }
+            ArtifactKey::DirPrepared { module, profile } => {
+                self.dir_prepared.remove(&(*module, *profile));
+            }
+            ArtifactKey::DirResolved { module, profile } => {
+                self.dir_resolved.remove(&(*module, *profile));
+            }
+            ArtifactKey::DirDeclared { module, profile } => {
+                self.dir_declared.remove(&(*module, *profile));
+            }
+            ArtifactKey::DirInterface { module, profile } => {
+                self.dir_interface.remove(&(*module, *profile));
+            }
+            ArtifactKey::DirAnalyzed { module, profile } => {
+                self.dir_analyzed.remove(&(*module, *profile));
+            }
+            ArtifactKey::DirElaborated { module, profile } => {
+                self.dir_elaborated.remove(&(*module, *profile));
+            }
+            ArtifactKey::DirPatched { module, profile } => {
+                self.dir_patched.remove(&(*module, *profile));
+            }
+            ArtifactKey::MirBase {
+                module,
+                profile,
+                target,
+            } => {
+                self.mir_bases.remove(&(*module, *profile, target.clone()));
+            }
+            ArtifactKey::MirOptimized {
+                module,
+                profile,
+                target,
+            } => {
+                self.mir_optimized
+                    .remove(&(*module, *profile, target.clone()));
+            }
+        }
+
         self.dependencies.remove(key);
+    }
+
+    /// Publish one semantic artifact at one exact key.
+    pub fn publish(&self, key: ArtifactKey, artifact: impl Into<ArtifactPayload>) {
+        let artifact = artifact.into();
+
+        match (key, artifact) {
+            (ArtifactKey::ModuleGraph { profile }, ArtifactPayload::ModuleGraph(module_graph)) => {
+                self.module_graphs.insert(profile, module_graph);
+            }
+            (
+                ArtifactKey::LanguageEnvironment { profile },
+                ArtifactPayload::LanguageEnvironment(environment),
+            ) => {
+                self.language_environments.insert(profile, environment);
+            }
+            (
+                ArtifactKey::IntrinsicEnvironment { profile },
+                ArtifactPayload::IntrinsicEnvironment(environment),
+            ) => {
+                self.intrinsic_environments.insert(profile, environment);
+            }
+            (
+                ArtifactKey::LibEnvironment { profile },
+                ArtifactPayload::LibEnvironment(environment),
+            ) => {
+                self.lib_environments.insert(profile, environment);
+            }
+            (ArtifactKey::Ast { module }, ArtifactPayload::Ast(ast)) => {
+                self.asts.insert(module, ast);
+            }
+            (ArtifactKey::DirBase { module }, ArtifactPayload::DirBase(dir)) => {
+                self.dir_bases.insert(module, dir);
+            }
+            (ArtifactKey::DirPrepared { module, profile }, ArtifactPayload::DirPrepared(dir)) => {
+                self.dir_prepared.insert((module, profile), dir);
+            }
+            (ArtifactKey::DirResolved { module, profile }, ArtifactPayload::DirResolved(dir)) => {
+                self.dir_resolved.insert((module, profile), dir);
+            }
+            (ArtifactKey::DirDeclared { module, profile }, ArtifactPayload::DirDeclared(dir)) => {
+                self.dir_declared.insert((module, profile), dir);
+            }
+            (ArtifactKey::DirInterface { module, profile }, ArtifactPayload::DirInterface(dir)) => {
+                self.dir_interface.insert((module, profile), dir);
+            }
+            (ArtifactKey::DirAnalyzed { module, profile }, ArtifactPayload::DirAnalyzed(dir)) => {
+                self.dir_analyzed.insert((module, profile), dir);
+            }
+            (
+                ArtifactKey::DirElaborated { module, profile },
+                ArtifactPayload::DirElaborated(dir),
+            ) => {
+                self.dir_elaborated.insert((module, profile), dir);
+            }
+            (ArtifactKey::DirPatched { module, profile }, ArtifactPayload::DirPatched(dir)) => {
+                self.dir_patched.insert((module, profile), dir);
+            }
+            (
+                ArtifactKey::MirBase {
+                    module,
+                    profile,
+                    target,
+                },
+                ArtifactPayload::MirBase(mir),
+            ) => {
+                self.mir_bases.insert((module, profile, target), mir);
+            }
+            (
+                ArtifactKey::MirOptimized {
+                    module,
+                    profile,
+                    target,
+                },
+                ArtifactPayload::MirOptimized(mir),
+            ) => {
+                self.mir_optimized.insert((module, profile, target), mir);
+            }
+            (key, artifact) => {
+                panic!("artifact payload did not match key: key={key:?} artifact={artifact:?}");
+            }
+        }
+    }
+
+    /// Get one language environment.
+    pub fn module_graph(&self, profile: ProfileId) -> Option<Arc<ModuleGraph>> {
+        self.module_graphs
+            .get(&profile)
+            .map(|entry| entry.value().clone())
     }
 
     /// Get one language environment.
     pub fn language_environment(&self, profile: ProfileId) -> Option<Arc<LanguageEnvironment>> {
-        self.get_shared(&self.language_environments, &profile)
-    }
-
-    /// Insert one language environment.
-    pub fn set_language_environment(
-        &self,
-        profile: ProfileId,
-        environment: LanguageEnvironment,
-    ) -> Arc<LanguageEnvironment> {
-        self.set_shared(&self.language_environments, profile, environment)
-    }
-
-    /// Remove one language environment.
-    pub fn remove_language_environment(&self, profile: ProfileId) {
-        self.remove_shared_with_dependency(
-            &self.language_environments,
-            &profile,
-            ArtifactKey::LanguageEnvironment { profile },
-        );
+        self.language_environments
+            .get(&profile)
+            .map(|entry| entry.value().clone())
     }
 
     /// Get one intrinsic environment.
     pub fn intrinsic_environment(&self, profile: ProfileId) -> Option<Arc<IntrinsicEnvironment>> {
-        self.get_shared(&self.intrinsic_environments, &profile)
-    }
-
-    /// Insert one intrinsic environment.
-    pub fn set_intrinsic_environment(
-        &self,
-        profile: ProfileId,
-        environment: IntrinsicEnvironment,
-    ) -> Arc<IntrinsicEnvironment> {
-        self.set_shared(&self.intrinsic_environments, profile, environment)
-    }
-
-    /// Remove one intrinsic environment.
-    pub fn remove_intrinsic_environment(&self, profile: ProfileId) {
-        self.remove_shared_with_dependency(
-            &self.intrinsic_environments,
-            &profile,
-            ArtifactKey::IntrinsicEnvironment { profile },
-        );
+        self.intrinsic_environments
+            .get(&profile)
+            .map(|entry| entry.value().clone())
     }
 
     /// Get one lib environment.
     pub fn lib_environment(&self, profile: ProfileId) -> Option<Arc<LibEnvironment>> {
-        self.get_shared(&self.lib_environments, &profile)
-    }
-
-    /// Insert one lib environment.
-    pub fn set_lib_environment(
-        &self,
-        profile: ProfileId,
-        environment: LibEnvironment,
-    ) -> Arc<LibEnvironment> {
-        self.set_shared(&self.lib_environments, profile, environment)
-    }
-
-    /// Remove one lib environment.
-    pub fn remove_lib_environment(&self, profile: ProfileId) {
-        self.remove_shared_with_dependency(
-            &self.lib_environments,
-            &profile,
-            ArtifactKey::LibEnvironment { profile },
-        );
-    }
-
-    /// Return the first available well-known type symbol from any profile environment.
-    pub fn first_well_known_type_symbol(
-        &self,
-        well_known: WellKnownSymbol,
-    ) -> Option<GlobalSymbolId> {
-        for environment in self.lib_environments.iter() {
-            if let Some(symbol_id) = environment
-                .value()
-                .well_known_symbols
-                .get_type_symbol(well_known)
-            {
-                return Some(symbol_id);
-            }
-        }
-
-        None
+        self.lib_environments
+            .get(&profile)
+            .map(|entry| entry.value().clone())
     }
 
     /// Get one AST artifact.
-    pub fn ast(&self, module: ModuleId) -> Option<Arc<ModuleAst>> {
-        self.get_shared(&self.asts, &module)
-    }
-
-    /// Get one DIR artifact for one exact key.
-    pub fn dir(&self, key: &ArtifactKey) -> Option<Arc<ModuleDir>> {
-        match key {
-            ArtifactKey::DirBase { module } => self.dir_base(*module),
-            ArtifactKey::DirPrepared { module, profile } => self.dir_prepared(*module, *profile),
-            ArtifactKey::DirResolved { module, profile } => self.dir_resolved(*module, *profile),
-            ArtifactKey::DirDeclared { module, profile } => self.dir_declared(*module, *profile),
-            ArtifactKey::DirInterface { module, profile } => self.dir_interface(*module, *profile),
-            ArtifactKey::DirAnalyzed { module, profile } => self.dir_analyzed(*module, *profile),
-            ArtifactKey::DirElaborated { module, profile } => {
-                self.dir_elaborated(*module, *profile)
-            }
-            ArtifactKey::DirPatched { module, profile } => self.dir_patched(*module, *profile),
-            _ => None,
-        }
-    }
-
-    /// Insert one AST artifact.
-    pub fn set_ast(&self, module: ModuleId, ast: impl Into<Arc<ModuleAst>>) -> Arc<ModuleAst> {
-        self.set_shared(&self.asts, module, ast)
-    }
-
-    /// Remove one AST artifact.
-    pub fn remove_ast(&self, module: ModuleId) {
-        self.remove_shared_with_dependency(&self.asts, &module, ArtifactKey::Ast { module });
+    pub fn ast(&self, module: ModuleId) -> Option<Arc<Ast>> {
+        self.asts.get(&module).map(|entry| entry.value().clone())
     }
 
     /// Get one base DIR artifact.
-    pub fn dir_base(&self, module: ModuleId) -> Option<Arc<ModuleDir>> {
-        self.get_shared(&self.dir_bases, &module)
-    }
-
-    /// Insert one base DIR artifact.
-    pub fn set_dir_base(&self, module: ModuleId, dir: impl Into<Arc<ModuleDir>>) -> Arc<ModuleDir> {
-        self.set_shared(&self.dir_bases, module, dir)
+    pub fn dir_base(&self, module: ModuleId) -> Option<Arc<DirBase>> {
+        self.dir_bases
+            .get(&module)
+            .map(|entry| entry.value().clone())
     }
 
     /// Get one prepared DIR artifact.
-    pub fn dir_prepared(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<ModuleDir>> {
-        self.get_shared(&self.dir_prepared, &(module, profile))
-    }
-
-    /// Insert one prepared DIR artifact.
-    pub fn set_dir_prepared(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-        dir: impl Into<Arc<ModuleDir>>,
-    ) -> Arc<ModuleDir> {
-        self.set_shared(&self.dir_prepared, (module, profile), dir)
-    }
-
-    /// Remove one prepared DIR artifact.
-    pub fn remove_dir_prepared(&self, module: ModuleId, profile: ProfileId) {
-        self.remove_shared_with_dependency(
-            &self.dir_prepared,
-            &(module, profile),
-            ArtifactKey::DirPrepared { module, profile },
-        );
+    pub fn dir_prepared(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<DirPrepared>> {
+        self.dir_prepared
+            .get(&(module, profile))
+            .map(|entry| entry.value().clone())
     }
 
     /// Get one resolved DIR artifact.
-    pub fn dir_resolved(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<ModuleDir>> {
-        self.get_shared(&self.dir_resolved, &(module, profile))
-    }
-
-    /// Insert one resolved DIR artifact.
-    pub fn set_dir_resolved(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-        dir: impl Into<Arc<ModuleDir>>,
-    ) -> Arc<ModuleDir> {
-        self.set_shared(&self.dir_resolved, (module, profile), dir)
-    }
-
-    /// Remove one resolved DIR artifact.
-    pub fn remove_dir_resolved(&self, module: ModuleId, profile: ProfileId) {
-        self.remove_shared_with_dependency(
-            &self.dir_resolved,
-            &(module, profile),
-            ArtifactKey::DirResolved { module, profile },
-        );
+    pub fn dir_resolved(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<DirResolved>> {
+        self.dir_resolved
+            .get(&(module, profile))
+            .map(|entry| entry.value().clone())
     }
 
     /// Get one declared DIR artifact.
-    pub fn dir_declared(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<ModuleDir>> {
-        self.get_shared(&self.dir_declared, &(module, profile))
-    }
-
-    /// Insert one declared DIR artifact.
-    pub fn set_dir_declared(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-        dir: impl Into<Arc<ModuleDir>>,
-    ) -> Arc<ModuleDir> {
-        self.set_shared(&self.dir_declared, (module, profile), dir)
-    }
-
-    /// Remove one declared DIR artifact.
-    pub fn remove_dir_declared(&self, module: ModuleId, profile: ProfileId) {
-        self.remove_shared_with_dependency(
-            &self.dir_declared,
-            &(module, profile),
-            ArtifactKey::DirDeclared { module, profile },
-        );
+    pub fn dir_declared(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<DirDeclared>> {
+        self.dir_declared
+            .get(&(module, profile))
+            .map(|entry| entry.value().clone())
     }
 
     /// Get one interface DIR artifact.
-    pub fn dir_interface(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<ModuleDir>> {
-        self.get_shared(&self.dir_interface, &(module, profile))
-    }
-
-    /// Insert one interface DIR artifact.
-    pub fn set_dir_interface(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-        dir: impl Into<Arc<ModuleDir>>,
-    ) -> Arc<ModuleDir> {
-        self.set_shared(&self.dir_interface, (module, profile), dir)
-    }
-
-    /// Remove one interface DIR artifact.
-    pub fn remove_dir_interface(&self, module: ModuleId, profile: ProfileId) {
-        self.remove_shared_with_dependency(
-            &self.dir_interface,
-            &(module, profile),
-            ArtifactKey::DirInterface { module, profile },
-        );
+    pub fn dir_interface(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<DirInterface>> {
+        self.dir_interface
+            .get(&(module, profile))
+            .map(|entry| entry.value().clone())
     }
 
     /// Get one analyzed DIR artifact.
-    pub fn dir_analyzed(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<ModuleDir>> {
-        self.get_shared(&self.dir_analyzed, &(module, profile))
-    }
-
-    /// Insert one analyzed DIR artifact.
-    pub fn set_dir_analyzed(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-        dir: impl Into<Arc<ModuleDir>>,
-    ) -> Arc<ModuleDir> {
-        self.set_shared(&self.dir_analyzed, (module, profile), dir)
-    }
-
-    /// Remove one analyzed DIR artifact.
-    pub fn remove_dir_analyzed(&self, module: ModuleId, profile: ProfileId) {
-        self.remove_shared_with_dependency(
-            &self.dir_analyzed,
-            &(module, profile),
-            ArtifactKey::DirAnalyzed { module, profile },
-        );
+    pub fn dir_analyzed(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<DirAnalyzed>> {
+        self.dir_analyzed
+            .get(&(module, profile))
+            .map(|entry| entry.value().clone())
     }
 
     /// Get one elaborated DIR artifact.
-    pub fn dir_elaborated(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<ModuleDir>> {
-        self.get_shared(&self.dir_elaborated, &(module, profile))
-    }
-
-    /// Insert one elaborated DIR artifact.
-    pub fn set_dir_elaborated(
+    pub fn dir_elaborated(
         &self,
         module: ModuleId,
         profile: ProfileId,
-        dir: impl Into<Arc<ModuleDir>>,
-    ) -> Arc<ModuleDir> {
-        self.set_shared(&self.dir_elaborated, (module, profile), dir)
-    }
-
-    /// Remove one elaborated DIR artifact.
-    pub fn remove_dir_elaborated(&self, module: ModuleId, profile: ProfileId) {
-        self.remove_shared_with_dependency(
-            &self.dir_elaborated,
-            &(module, profile),
-            ArtifactKey::DirElaborated { module, profile },
-        );
+    ) -> Option<Arc<DirElaborated>> {
+        self.dir_elaborated
+            .get(&(module, profile))
+            .map(|entry| entry.value().clone())
     }
 
     /// Get one patched DIR artifact.
-    pub fn dir_patched(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<ModuleDir>> {
-        self.get_shared(&self.dir_patched, &(module, profile))
-    }
-
-    /// Insert one patched DIR artifact.
-    pub fn set_dir_patched(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-        dir: impl Into<Arc<ModuleDir>>,
-    ) -> Arc<ModuleDir> {
-        self.set_shared(&self.dir_patched, (module, profile), dir)
-    }
-
-    /// Remove one patched DIR artifact.
-    pub fn remove_dir_patched(&self, module: ModuleId, profile: ProfileId) {
-        self.remove_shared_with_dependency(
-            &self.dir_patched,
-            &(module, profile),
-            ArtifactKey::DirPatched { module, profile },
-        );
+    pub fn dir_patched(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<DirPatched>> {
+        self.dir_patched
+            .get(&(module, profile))
+            .map(|entry| entry.value().clone())
     }
 
     /// Get one base MIR artifact.
@@ -464,32 +572,10 @@ impl ArtifactRegistry {
         module: ModuleId,
         profile: ProfileId,
         target: &TargetId,
-    ) -> Option<Arc<ModuleMir>> {
-        self.get_shared(&self.mir_bases, &(module, profile, target.clone()))
-    }
-
-    /// Insert one base MIR artifact.
-    pub fn set_mir_base(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-        target: TargetId,
-        mir: impl Into<Arc<ModuleMir>>,
-    ) -> Arc<ModuleMir> {
-        self.set_shared(&self.mir_bases, (module, profile, target), mir)
-    }
-
-    /// Remove one base MIR artifact.
-    pub fn remove_mir_base(&self, module: ModuleId, profile: ProfileId, target: &TargetId) {
-        self.remove_shared_with_dependency(
-            &self.mir_bases,
-            &(module, profile, target.clone()),
-            ArtifactKey::MirBase {
-                module,
-                profile,
-                target: target.clone(),
-            },
-        );
+    ) -> Option<Arc<MirBase>> {
+        self.mir_bases
+            .get(&(module, profile, target.clone()))
+            .map(|entry| entry.value().clone())
     }
 
     /// Get one optimized MIR artifact.
@@ -498,36 +584,14 @@ impl ArtifactRegistry {
         module: ModuleId,
         profile: ProfileId,
         target: &TargetId,
-    ) -> Option<Arc<ModuleMir>> {
-        self.get_shared(&self.mir_optimized, &(module, profile, target.clone()))
-    }
-
-    /// Insert one optimized MIR artifact.
-    pub fn set_mir_optimized(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-        target: TargetId,
-        mir: impl Into<Arc<ModuleMir>>,
-    ) -> Arc<ModuleMir> {
-        self.set_shared(&self.mir_optimized, (module, profile, target), mir)
-    }
-
-    /// Remove one optimized MIR artifact.
-    pub fn remove_mir_optimized(&self, module: ModuleId, profile: ProfileId, target: &TargetId) {
-        self.remove_shared_with_dependency(
-            &self.mir_optimized,
-            &(module, profile, target.clone()),
-            ArtifactKey::MirOptimized {
-                module,
-                profile,
-                target: target.clone(),
-            },
-        );
+    ) -> Option<Arc<MirOptimized>> {
+        self.mir_optimized
+            .get(&(module, profile, target.clone()))
+            .map(|entry| entry.value().clone())
     }
 
     /// Return all target ids with MIR products for one module and profile.
-    pub fn target_ids_for_mir(&self, module: ModuleId, profile: ProfileId) -> Vec<TargetId> {
+    pub(crate) fn target_ids_for_mir(&self, module: ModuleId, profile: ProfileId) -> Vec<TargetId> {
         let mut targets = Vec::new();
 
         for entry in self.mir_bases.iter() {
@@ -609,24 +673,6 @@ impl ArtifactRegistry {
         }
 
         modules
-    }
-
-    /// Remove all published module artifacts for the provided profiles.
-    pub fn remove_module_profiles(&self, module: ModuleId, profiles: &HashSet<ProfileId>) {
-        for profile in profiles {
-            self.remove_dir_prepared(module, *profile);
-            self.remove_dir_resolved(module, *profile);
-            self.remove_dir_declared(module, *profile);
-            self.remove_dir_interface(module, *profile);
-            self.remove_dir_analyzed(module, *profile);
-            self.remove_dir_elaborated(module, *profile);
-            self.remove_dir_patched(module, *profile);
-
-            for target in self.target_ids_for_mir(module, *profile) {
-                self.remove_mir_base(module, *profile, &target);
-                self.remove_mir_optimized(module, *profile, &target);
-            }
-        }
     }
 
     /// Clear all semantic artifacts.

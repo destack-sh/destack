@@ -1,92 +1,42 @@
+use std::sync::Arc;
+
 use destack_core::StringId;
 use destack_dir::{self as dir};
 use destack_source::{ModuleId, ModuleVersion};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
-use crate::{ImportEdgeKind, ImportMeta, Loader, ProfileId};
+use crate::{ImportEdgeKind, Loader, ProfileId};
 
-/// Mutable import-time DIR state for one module snapshot.
-/// FUGU #Architecture: this is still a broad mutable import working set and should shrink toward narrower phase-local tables.
-#[derive(Debug)]
-#[allow(clippy::type_complexity)]
-pub struct ImportDir {
-    /// The profile id this is targeting, if any.
-    pub profile_id: Option<ProfileId>,
-    /// The id of the Module.
-    pub id: ModuleId,
-    /// The version of the Module.
-    pub version: ModuleVersion,
+/// The module-binding export table keyed by the owning declaration node.
+pub type ModuleBindingExportTable = IndexMap<dir::LocalNodeIdAny, dir::ModuleBindingExports>;
 
-    /// The main DIR node tree of the Module.
-    pub tree: dir::NodeTree,
-    /// The symbol side table of the Module.
-    pub symbols: dir::SymbolTable,
-    /// The type side table of the Module.
-    pub types: dir::TypeTable,
-    /// The capture side table of the Module.
-    pub captures: dir::CaptureTable,
-    /// The top-level expressions of the Module.
-    pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
-    /// Stable fallback node for diagnostics and synthetic types.
-    pub anchor_node: dir::LocalNodeIdAny,
+/// The resolved module-import table keyed by module-relative import identity.
+pub type ImportedModuleTable =
+    IndexMap<(Option<ModuleId>, StringId, ImportEdgeKind, Option<Loader>), dir::ModuleResolution>;
 
-    /// Metadata exposed via import.meta.
-    pub import_meta: Option<ImportMeta>,
-    /// The symbol of the Module namespace.
-    pub namespace_symbol: dir::LocalSymbolId,
-    /// The scope of the Module.
-    pub namespace_scope: dir::LocalScopeId,
-    /// The scope for global augmentations within this module.
-    pub global_augmentation_scope: dir::LocalScopeId,
-    /// The symbol of the Module default.
-    pub default_symbol: dir::LocalSymbolId,
-    /// The symbol of the Module export assignment.
-    pub export_assignment_symbol: dir::LocalSymbolId,
-    /// Export assignment item (`export = ...`) when present.
-    pub export_assignment: Option<dir::LocalNodeId<dir::DependencyItem>>,
-    /// Namespace exports: modules whose exports are re-exported via `export * from "..."`.
-    pub namespace_exports: Vec<dir::NamespaceExport>,
-    /// Module bindings (e.g., `declare module "foo"`).
-    pub module_bindings: Vec<dir::ModuleBinding>,
-    /// Export tables for module bindings.
-    pub module_binding_exports: IndexMap<dir::LocalNodeIdAny, dir::ModuleBindingExports>,
-    /// Resolved import specifiers to module ids.
-    pub imported_modules: IndexMap<
-        (Option<ModuleId>, StringId, ImportEdgeKind, Option<Loader>),
-        dir::ModuleResolution,
-    >,
-    /// Exported symbols by key (space, name).
-    pub exported_symbols: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>,
-}
+/// The exported-symbol table keyed by symbol space and static key.
+pub type ExportedSymbolTable = IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>;
 
-/// Immutable published DIR artifact data.
+/// The bound base DIR for one module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(clippy::type_complexity)]
-pub struct ModuleDir {
+pub struct DirBase {
     /// The profile id this is targeting, if any.
     pub profile_id: Option<ProfileId>,
     /// The id of the Module.
     pub id: ModuleId,
     /// The version of the Module.
     pub version: ModuleVersion,
-
     /// The main DIR node tree of the Module.
     pub tree: Arc<dir::NodeTree>,
     /// The symbol side table of the Module.
     pub symbols: Arc<dir::SymbolTable>,
-    /// The type side table of the Module (includes types, instances, resolutions).
+    /// The type side table of the Module.
     pub types: Arc<dir::TypeTable>,
-    /// The capture side table of the Module.
-    pub captures: Arc<dir::CaptureTable>,
     /// The top-level expressions of the Module.
     pub roots: Arc<Vec<dir::LocalNodeId<dir::Expression>>>,
     /// Stable fallback node for diagnostics and synthetic types.
     pub anchor_node: dir::LocalNodeIdAny,
-
-    /// Metadata exposed via import.meta.
-    pub import_meta: Option<ImportMeta>,
     /// The symbol of the Module namespace.
     pub namespace_symbol: dir::LocalSymbolId,
     /// The scope of the Module.
@@ -97,27 +47,11 @@ pub struct ModuleDir {
     pub default_symbol: dir::LocalSymbolId,
     /// The symbol of the Module export assignment.
     pub export_assignment_symbol: dir::LocalSymbolId,
-    /// Export assignment item (`export = ...`) when present.
-    pub export_assignment: Option<dir::LocalNodeId<dir::DependencyItem>>,
-    /// Namespace exports: modules whose exports are re-exported via `export * from "..."`.
-    pub namespace_exports: Arc<Vec<dir::NamespaceExport>>,
-    /// Module bindings (e.g., `declare module "foo"`).
+    /// Module bindings declared in the module.
     pub module_bindings: Arc<Vec<dir::ModuleBinding>>,
-    /// Export tables for module bindings.
-    pub module_binding_exports: Arc<IndexMap<dir::LocalNodeIdAny, dir::ModuleBindingExports>>,
-    /// Resolved import specifiers to module ids (keyed by (relative_module, specifier, edge, loader)).
-    /// The edge and loader components distinguish require-style imports and non-default loaders.
-    pub imported_modules: Arc<
-        IndexMap<
-            (Option<ModuleId>, StringId, ImportEdgeKind, Option<Loader>),
-            dir::ModuleResolution,
-        >,
-    >,
-    /// Exported symbols by key (space, name).
-    pub exported_symbols: Arc<IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>>,
 }
 
-impl ImportDir {
+impl DirBase {
     /// Create a stable anchor node for module-level diagnostics.
     fn create_anchor_node(
         tree: &mut dir::NodeTree,
@@ -134,7 +68,7 @@ impl ImportDir {
         tree.insert(anchor_slot, expression).into_any()
     }
 
-    /// Create one base import DIR with the chosen default symbol kind.
+    /// Create one base artifact with the chosen default symbol kind.
     fn new_with_default_symbol(
         id: ModuleId,
         version: ModuleVersion,
@@ -186,87 +120,101 @@ impl ImportDir {
             profile_id: None,
             id,
             version,
-            tree,
-            symbols,
-            types: dir::TypeTable::new(id),
-            captures: dir::CaptureTable::new(),
-            roots: Vec::new(),
+            tree: Arc::new(tree),
+            symbols: Arc::new(symbols),
+            types: Arc::new(dir::TypeTable::new(id)),
+            roots: Arc::new(Vec::new()),
             anchor_node,
-            import_meta: None,
             namespace_symbol: namespace_symbol_id,
             namespace_scope: namespace_scope_id,
             global_augmentation_scope: global_augmentation_scope_id,
             default_symbol: default_symbol_id,
             export_assignment_symbol: export_assignment_symbol_id,
-            export_assignment: None,
-            namespace_exports: Vec::new(),
-            module_bindings: Vec::new(),
-            module_binding_exports: IndexMap::new(),
-            imported_modules: IndexMap::new(),
-            exported_symbols: IndexMap::new(),
+            module_bindings: Arc::new(Vec::new()),
         }
     }
 
-    /// Create a new base import DIR.
+    /// Create a new base DIR artifact.
     pub fn new_base(id: ModuleId, version: ModuleVersion, anchor_source_id: u32) -> Self {
         Self::new_with_default_symbol(id, version, anchor_source_id, dir::SymbolKind::Namespace)
     }
 
-    /// Create a minimal base import DIR for data modules.
-    ///
-    /// Data modules have a simpler structure than code modules:
-    /// - No syntax tree, but a diagnostic anchor is still provided
-    /// - Single default export (the data value itself)
-    /// - No named exports
+    /// Create a minimal base DIR artifact for data modules.
     pub fn new_data_base(id: ModuleId, version: ModuleVersion, anchor_source_id: u32) -> Self {
         Self::new_with_default_symbol(id, version, anchor_source_id, dir::SymbolKind::Item)
     }
+}
 
-    /// Freeze this import DIR into one published DIR artifact.
-    pub fn into_dir(self) -> ModuleDir {
-        let Self {
-            profile_id,
-            id,
-            version,
-            tree,
-            symbols,
-            types,
-            captures,
-            roots,
-            anchor_node,
-            import_meta,
-            namespace_symbol,
-            namespace_scope,
-            global_augmentation_scope,
-            default_symbol,
-            export_assignment_symbol,
-            export_assignment,
-            namespace_exports,
-            module_bindings,
-            module_binding_exports,
-            imported_modules,
-            exported_symbols,
-        } = self;
+/// The prepared DIR for one profile-scoped module.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirPrepared {
+    /// The profile id this is targeting, if any.
+    pub profile_id: Option<ProfileId>,
+    /// The id of the Module.
+    pub id: ModuleId,
+    /// The version of the Module.
+    pub version: ModuleVersion,
+    /// The main DIR node tree of the Module.
+    pub tree: Arc<dir::NodeTree>,
+    /// The symbol side table of the Module.
+    pub symbols: Arc<dir::SymbolTable>,
+    /// The type side table of the Module.
+    pub types: Arc<dir::TypeTable>,
+    /// The top-level expressions of the Module.
+    pub roots: Arc<Vec<dir::LocalNodeId<dir::Expression>>>,
+    /// Stable fallback node for diagnostics and synthetic types.
+    pub anchor_node: dir::LocalNodeIdAny,
+    /// The symbol of the Module namespace.
+    pub namespace_symbol: dir::LocalSymbolId,
+    /// The scope of the Module.
+    pub namespace_scope: dir::LocalScopeId,
+    /// The scope for global augmentations within this module.
+    pub global_augmentation_scope: dir::LocalScopeId,
+    /// The symbol of the Module default.
+    pub default_symbol: dir::LocalSymbolId,
+    /// The symbol of the Module export assignment.
+    pub export_assignment_symbol: dir::LocalSymbolId,
+    /// Export assignment item (`export = ...`) when present.
+    pub export_assignment: Option<dir::LocalNodeId<dir::DependencyItem>>,
+    /// Module bindings declared in the module.
+    pub module_bindings: Arc<Vec<dir::ModuleBinding>>,
+    /// Export tables for module bindings.
+    pub module_binding_exports: Arc<ModuleBindingExportTable>,
+    /// Resolved imported modules.
+    pub imported_modules: Arc<ImportedModuleTable>,
+    /// Exported module symbols.
+    pub exported_symbols: Arc<ExportedSymbolTable>,
+}
 
-        ModuleDir {
-            profile_id,
-            id,
-            version,
+impl DirPrepared {
+    /// Build one prepared artifact from one base artifact and prepared locals.
+    pub fn from_base_with(
+        base: &DirBase,
+        profile_id: ProfileId,
+        tree: dir::NodeTree,
+        symbols: dir::SymbolTable,
+        roots: Vec<dir::LocalNodeId<dir::Expression>>,
+        export_assignment: Option<dir::LocalNodeId<dir::DependencyItem>>,
+        module_binding_exports: ModuleBindingExportTable,
+        imported_modules: ImportedModuleTable,
+        exported_symbols: ExportedSymbolTable,
+    ) -> Self {
+        Self {
+            profile_id: Some(profile_id),
+            id: base.id,
+            version: base.version,
             tree: Arc::new(tree),
             symbols: Arc::new(symbols),
-            types: Arc::new(types),
-            captures: Arc::new(captures),
+            types: base.types.clone(),
             roots: Arc::new(roots),
-            anchor_node,
-            import_meta,
-            namespace_symbol,
-            namespace_scope,
-            global_augmentation_scope,
-            default_symbol,
-            export_assignment_symbol,
+            anchor_node: base.anchor_node,
+            namespace_symbol: base.namespace_symbol,
+            namespace_scope: base.namespace_scope,
+            global_augmentation_scope: base.global_augmentation_scope,
+            default_symbol: base.default_symbol,
+            export_assignment_symbol: base.export_assignment_symbol,
             export_assignment,
-            namespace_exports: Arc::new(namespace_exports),
-            module_bindings: Arc::new(module_bindings),
+            module_bindings: base.module_bindings.clone(),
             module_binding_exports: Arc::new(module_binding_exports),
             imported_modules: Arc::new(imported_modules),
             exported_symbols: Arc::new(exported_symbols),
@@ -274,115 +222,344 @@ impl ImportDir {
     }
 }
 
-impl ModuleDir {
-    /// Clone a profile-dependent DIR from a base DIR.
-    pub fn from_base(base: &ModuleDir, profile_id: ProfileId) -> Self {
-        if base.profile_id.is_some() {
-            panic!("expected base DIR for module {id:?}", id = base.id);
-        }
+/// The resolved DIR for one profile-scoped module.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirResolved {
+    /// The profile id this is targeting, if any.
+    pub profile_id: Option<ProfileId>,
+    /// The id of the Module.
+    pub id: ModuleId,
+    /// The version of the Module.
+    pub version: ModuleVersion,
+    /// The main DIR node tree of the Module.
+    pub tree: Arc<dir::NodeTree>,
+    /// The symbol side table of the Module.
+    pub symbols: Arc<dir::SymbolTable>,
+    /// The type side table of the Module.
+    pub types: Arc<dir::TypeTable>,
+    /// The top-level expressions of the Module.
+    pub roots: Arc<Vec<dir::LocalNodeId<dir::Expression>>>,
+    /// Stable fallback node for diagnostics and synthetic types.
+    pub anchor_node: dir::LocalNodeIdAny,
+    /// The symbol of the Module namespace.
+    pub namespace_symbol: dir::LocalSymbolId,
+    /// The scope of the Module.
+    pub namespace_scope: dir::LocalScopeId,
+    /// The scope for global augmentations within this module.
+    pub global_augmentation_scope: dir::LocalScopeId,
+    /// The symbol of the Module default.
+    pub default_symbol: dir::LocalSymbolId,
+    /// The symbol of the Module export assignment.
+    pub export_assignment_symbol: dir::LocalSymbolId,
+    /// Export assignment item (`export = ...`) when present.
+    pub export_assignment: Option<dir::LocalNodeId<dir::DependencyItem>>,
+    /// Namespace exports declared in the module.
+    pub namespace_exports: Arc<Vec<dir::NamespaceExport>>,
+    /// Export tables for module bindings.
+    pub module_binding_exports: Arc<ModuleBindingExportTable>,
+    /// Resolved imported modules.
+    pub imported_modules: Arc<ImportedModuleTable>,
+    /// Exported module symbols.
+    pub exported_symbols: Arc<ExportedSymbolTable>,
+}
+
+impl DirResolved {
+    /// Build one resolved artifact from one prepared artifact and resolved locals.
+    pub fn from_prepared_with(
+        prepared: &DirPrepared,
+        tree: dir::NodeTree,
+        symbols: dir::SymbolTable,
+        export_assignment: Option<dir::LocalNodeId<dir::DependencyItem>>,
+        namespace_exports: Vec<dir::NamespaceExport>,
+        module_binding_exports: ModuleBindingExportTable,
+        imported_modules: ImportedModuleTable,
+        exported_symbols: ExportedSymbolTable,
+    ) -> Self {
         Self {
-            profile_id: Some(profile_id),
-            id: base.id,
-            version: base.version,
-            tree: base.tree.clone(),
-            symbols: base.symbols.clone(),
-            types: base.types.clone(),
-            captures: base.captures.clone(),
-            roots: base.roots.clone(),
-            anchor_node: base.anchor_node,
-            import_meta: None,
-            namespace_symbol: base.namespace_symbol,
-            namespace_scope: base.namespace_scope,
-            global_augmentation_scope: base.global_augmentation_scope,
-            default_symbol: base.default_symbol,
-            export_assignment_symbol: base.export_assignment_symbol,
-            export_assignment: base.export_assignment,
-            namespace_exports: base.namespace_exports.clone(),
-            module_bindings: base.module_bindings.clone(),
-            module_binding_exports: base.module_binding_exports.clone(),
-            imported_modules: base.imported_modules.clone(),
-            exported_symbols: base.exported_symbols.clone(),
+            profile_id: prepared.profile_id,
+            id: prepared.id,
+            version: prepared.version,
+            tree: Arc::new(tree),
+            symbols: Arc::new(symbols),
+            types: prepared.types.clone(),
+            roots: prepared.roots.clone(),
+            anchor_node: prepared.anchor_node,
+            namespace_symbol: prepared.namespace_symbol,
+            namespace_scope: prepared.namespace_scope,
+            global_augmentation_scope: prepared.global_augmentation_scope,
+            default_symbol: prepared.default_symbol,
+            export_assignment_symbol: prepared.export_assignment_symbol,
+            export_assignment,
+            namespace_exports: Arc::new(namespace_exports),
+            module_binding_exports: Arc::new(module_binding_exports),
+            imported_modules: Arc::new(imported_modules),
+            exported_symbols: Arc::new(exported_symbols),
+        }
+    }
+}
+
+/// The declared DIR for one profile-scoped module.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirDeclared {
+    /// The profile id this is targeting, if any.
+    pub profile_id: Option<ProfileId>,
+    /// The id of the Module.
+    pub id: ModuleId,
+    /// The version of the Module.
+    pub version: ModuleVersion,
+    /// The main DIR node tree of the Module.
+    pub tree: Arc<dir::NodeTree>,
+    /// The symbol side table of the Module.
+    pub symbols: Arc<dir::SymbolTable>,
+    /// The type side table of the Module.
+    pub types: Arc<dir::TypeTable>,
+    /// The capture side table of the Module.
+    pub captures: Arc<dir::CaptureTable>,
+    /// The top-level expressions of the Module.
+    pub roots: Arc<Vec<dir::LocalNodeId<dir::Expression>>>,
+    /// Stable fallback node for diagnostics and synthetic types.
+    pub anchor_node: dir::LocalNodeIdAny,
+    /// The symbol of the Module namespace.
+    pub namespace_symbol: dir::LocalSymbolId,
+    /// The scope of the Module.
+    pub namespace_scope: dir::LocalScopeId,
+    /// The symbol of the Module default.
+    pub default_symbol: dir::LocalSymbolId,
+    /// The symbol of the Module export assignment.
+    pub export_assignment_symbol: dir::LocalSymbolId,
+}
+
+impl DirDeclared {
+    /// Build one declared artifact from one resolved artifact and declared locals.
+    pub fn from_resolved_with(
+        resolved: &DirResolved,
+        symbols: dir::SymbolTable,
+        types: dir::TypeTable,
+        captures: dir::CaptureTable,
+    ) -> Self {
+        Self {
+            profile_id: resolved.profile_id,
+            id: resolved.id,
+            version: resolved.version,
+            tree: resolved.tree.clone(),
+            symbols: Arc::new(symbols),
+            types: Arc::new(types),
+            captures: Arc::new(captures),
+            roots: resolved.roots.clone(),
+            anchor_node: resolved.anchor_node,
+            namespace_symbol: resolved.namespace_symbol,
+            namespace_scope: resolved.namespace_scope,
+            default_symbol: resolved.default_symbol,
+            export_assignment_symbol: resolved.export_assignment_symbol,
+        }
+    }
+}
+
+/// The interface DIR for one profile-scoped module.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirInterface {
+    /// The profile id this is targeting, if any.
+    pub profile_id: Option<ProfileId>,
+    /// The id of the Module.
+    pub id: ModuleId,
+    /// The version of the Module.
+    pub version: ModuleVersion,
+    /// The main DIR node tree of the Module.
+    pub tree: Arc<dir::NodeTree>,
+    /// The symbol side table of the Module.
+    pub symbols: Arc<dir::SymbolTable>,
+    /// The type side table of the Module.
+    pub types: Arc<dir::TypeTable>,
+    /// The top-level expressions of the Module.
+    pub roots: Arc<Vec<dir::LocalNodeId<dir::Expression>>>,
+    /// Stable fallback node for diagnostics and synthetic types.
+    pub anchor_node: dir::LocalNodeIdAny,
+    /// The scope of the Module.
+    pub namespace_scope: dir::LocalScopeId,
+    /// Namespace exports declared in the module.
+    pub namespace_exports: Arc<Vec<dir::NamespaceExport>>,
+    /// Export tables for module bindings.
+    pub module_binding_exports: Arc<ModuleBindingExportTable>,
+    /// Exported module symbols.
+    pub exported_symbols: Arc<ExportedSymbolTable>,
+}
+
+impl DirInterface {
+    /// Build one interface artifact from one resolved artifact and one declared artifact.
+    pub fn from_resolved_and_declared(resolved: &DirResolved, declared: &DirDeclared) -> Self {
+        Self {
+            profile_id: declared.profile_id,
+            id: declared.id,
+            version: declared.version,
+            tree: declared.tree.clone(),
+            symbols: declared.symbols.clone(),
+            types: declared.types.clone(),
+            roots: declared.roots.clone(),
+            anchor_node: declared.anchor_node,
+            namespace_scope: declared.namespace_scope,
+            namespace_exports: resolved.namespace_exports.clone(),
+            module_binding_exports: resolved.module_binding_exports.clone(),
+            exported_symbols: resolved.exported_symbols.clone(),
         }
     }
 
-    /// Return the mutable node tree, cloning only when still shared.
-    pub fn tree_mut(&mut self) -> &mut dir::NodeTree {
-        Arc::make_mut(&mut self.tree)
+    /// Build one interface artifact from one resolved artifact, one declared artifact, and interface types.
+    pub fn from_resolved_and_declared_with_types(
+        resolved: &DirResolved,
+        declared: &DirDeclared,
+        types: dir::TypeTable,
+    ) -> Self {
+        Self {
+            types: Arc::new(types),
+            ..Self::from_resolved_and_declared(resolved, declared)
+        }
     }
+}
 
-    /// Return the mutable tree, symbols, and types together for one phase-local working set.
-    pub fn tree_symbols_types_mut(
-        &mut self,
-    ) -> (
-        &mut dir::NodeTree,
-        &mut dir::SymbolTable,
-        &mut dir::TypeTable,
-    ) {
-        let Self {
-            tree,
-            symbols,
-            types,
-            ..
-        } = self;
+/// The analyzed DIR for one profile-scoped module.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirAnalyzed {
+    /// The profile id this is targeting, if any.
+    pub profile_id: Option<ProfileId>,
+    /// The id of the Module.
+    pub id: ModuleId,
+    /// The version of the Module.
+    pub version: ModuleVersion,
+    /// The main DIR node tree of the Module.
+    pub tree: Arc<dir::NodeTree>,
+    /// The symbol side table of the Module.
+    pub symbols: Arc<dir::SymbolTable>,
+    /// The type side table of the Module.
+    pub types: Arc<dir::TypeTable>,
+    /// The capture side table of the Module.
+    pub captures: Arc<dir::CaptureTable>,
+    /// The top-level expressions of the Module.
+    pub roots: Arc<Vec<dir::LocalNodeId<dir::Expression>>>,
+    /// Stable fallback node for diagnostics and synthetic types.
+    pub anchor_node: dir::LocalNodeIdAny,
+    /// The symbol of the Module namespace.
+    pub namespace_symbol: dir::LocalSymbolId,
+    /// The scope of the Module.
+    pub namespace_scope: dir::LocalScopeId,
+    /// The symbol of the Module default.
+    pub default_symbol: dir::LocalSymbolId,
+    /// The symbol of the Module export assignment.
+    pub export_assignment_symbol: dir::LocalSymbolId,
+}
 
-        (
-            Arc::make_mut(tree),
-            Arc::make_mut(symbols),
-            Arc::make_mut(types),
-        )
+impl DirAnalyzed {
+    /// Build one analyzed artifact from one interface artifact, one declared artifact, and analyzed locals.
+    pub fn from_interface_and_declared_with(
+        interface: &DirInterface,
+        declared: &DirDeclared,
+        types: dir::TypeTable,
+        captures: dir::CaptureTable,
+    ) -> Self {
+        Self {
+            profile_id: interface.profile_id,
+            id: interface.id,
+            version: interface.version,
+            tree: interface.tree.clone(),
+            symbols: interface.symbols.clone(),
+            types: Arc::new(types),
+            captures: Arc::new(captures),
+            roots: interface.roots.clone(),
+            anchor_node: interface.anchor_node,
+            namespace_symbol: declared.namespace_symbol,
+            namespace_scope: interface.namespace_scope,
+            default_symbol: declared.default_symbol,
+            export_assignment_symbol: declared.export_assignment_symbol,
+        }
     }
+}
 
-    /// Return the mutable symbol table, cloning only when still shared.
-    pub fn symbols_mut(&mut self) -> &mut dir::SymbolTable {
-        Arc::make_mut(&mut self.symbols)
+/// The elaborated DIR for one profile-scoped module.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirElaborated {
+    /// The profile id this is targeting, if any.
+    pub profile_id: Option<ProfileId>,
+    /// The id of the Module.
+    pub id: ModuleId,
+    /// The version of the Module.
+    pub version: ModuleVersion,
+    /// The main DIR node tree of the Module.
+    pub tree: Arc<dir::NodeTree>,
+    /// The symbol side table of the Module.
+    pub symbols: Arc<dir::SymbolTable>,
+    /// The type side table of the Module.
+    pub types: Arc<dir::TypeTable>,
+    /// The capture side table of the Module.
+    pub captures: Arc<dir::CaptureTable>,
+    /// The top-level expressions of the Module.
+    pub roots: Arc<Vec<dir::LocalNodeId<dir::Expression>>>,
+    /// Stable fallback node for diagnostics and synthetic types.
+    pub anchor_node: dir::LocalNodeIdAny,
+    /// The scope of the Module.
+    pub namespace_scope: dir::LocalScopeId,
+}
+
+impl DirElaborated {
+    /// Build one elaborated artifact from one analyzed artifact and elaborated locals.
+    pub fn from_analyzed_with(
+        analyzed: &DirAnalyzed,
+        tree: dir::NodeTree,
+        symbols: dir::SymbolTable,
+        types: dir::TypeTable,
+    ) -> Self {
+        Self {
+            profile_id: analyzed.profile_id,
+            id: analyzed.id,
+            version: analyzed.version,
+            tree: Arc::new(tree),
+            symbols: Arc::new(symbols),
+            types: Arc::new(types),
+            captures: analyzed.captures.clone(),
+            roots: analyzed.roots.clone(),
+            anchor_node: analyzed.anchor_node,
+            namespace_scope: analyzed.namespace_scope,
+        }
     }
+}
 
-    /// Return the mutable type table, cloning only when still shared.
-    pub fn types_mut(&mut self) -> &mut dir::TypeTable {
-        Arc::make_mut(&mut self.types)
-    }
+/// The patched DIR for one profile-scoped module.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirPatched {
+    /// The profile id this is targeting, if any.
+    pub profile_id: Option<ProfileId>,
+    /// The id of the Module.
+    pub id: ModuleId,
+    /// The version of the Module.
+    pub version: ModuleVersion,
+    /// The main DIR node tree of the Module.
+    pub tree: Arc<dir::NodeTree>,
+    /// The symbol side table of the Module.
+    pub symbols: Arc<dir::SymbolTable>,
+    /// The type side table of the Module.
+    pub types: Arc<dir::TypeTable>,
+    /// The capture side table of the Module.
+    pub captures: Arc<dir::CaptureTable>,
+    /// The top-level expressions of the Module.
+    pub roots: Arc<Vec<dir::LocalNodeId<dir::Expression>>>,
+    /// Stable fallback node for diagnostics and synthetic types.
+    pub anchor_node: dir::LocalNodeIdAny,
+    /// The scope of the Module.
+    pub namespace_scope: dir::LocalScopeId,
+}
 
-    /// Return the mutable capture table, cloning only when still shared.
-    pub fn captures_mut(&mut self) -> &mut dir::CaptureTable {
-        Arc::make_mut(&mut self.captures)
-    }
-
-    /// Return the mutable roots list, cloning only when still shared.
-    pub fn roots_mut(&mut self) -> &mut Vec<dir::LocalNodeId<dir::Expression>> {
-        Arc::make_mut(&mut self.roots)
-    }
-
-    /// Return the mutable namespace exports, cloning only when still shared.
-    pub fn namespace_exports_mut(&mut self) -> &mut Vec<dir::NamespaceExport> {
-        Arc::make_mut(&mut self.namespace_exports)
-    }
-
-    /// Return the mutable module bindings, cloning only when still shared.
-    pub fn module_bindings_mut(&mut self) -> &mut Vec<dir::ModuleBinding> {
-        Arc::make_mut(&mut self.module_bindings)
-    }
-
-    /// Return the mutable binding export tables, cloning only when still shared.
-    pub fn module_binding_exports_mut(
-        &mut self,
-    ) -> &mut IndexMap<dir::LocalNodeIdAny, dir::ModuleBindingExports> {
-        Arc::make_mut(&mut self.module_binding_exports)
-    }
-
-    /// Return the mutable imported-module table, cloning only when still shared.
-    pub fn imported_modules_mut(
-        &mut self,
-    ) -> &mut IndexMap<
-        (Option<ModuleId>, StringId, ImportEdgeKind, Option<Loader>),
-        dir::ModuleResolution,
-    > {
-        Arc::make_mut(&mut self.imported_modules)
-    }
-
-    /// Return the mutable exported-symbol table, cloning only when still shared.
-    pub fn exported_symbols_mut(
-        &mut self,
-    ) -> &mut IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export> {
-        Arc::make_mut(&mut self.exported_symbols)
+impl DirPatched {
+    /// Build one patched artifact from one elaborated artifact and a patched tree.
+    pub fn from_elaborated_with(elaborated: &DirElaborated, tree: dir::NodeTree) -> Self {
+        Self {
+            profile_id: elaborated.profile_id,
+            id: elaborated.id,
+            version: elaborated.version,
+            tree: Arc::new(tree),
+            symbols: elaborated.symbols.clone(),
+            types: elaborated.types.clone(),
+            captures: elaborated.captures.clone(),
+            roots: elaborated.roots.clone(),
+            anchor_node: elaborated.anchor_node,
+            namespace_scope: elaborated.namespace_scope,
+        }
     }
 }

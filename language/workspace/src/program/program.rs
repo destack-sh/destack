@@ -5,77 +5,21 @@ use std::sync::Arc;
 use destack_ast as ast;
 use destack_core::StringPool;
 use destack_source::{
-    DiagnosticCollector, DiagnosticStore, File, FileContent, FileId, FileRegistry, FileSystem,
-    FileType, FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, PackageVersion, Uri,
+    DiagnosticCollector, DiagnosticStore, File, FileId, FileRegistry, FileSystem, FileType,
+    LanguageType, ModuleId, ModuleVersion, PackageId, PackageVersion, Uri,
 };
 use indexmap::IndexMap;
-use parking_lot::RwLock;
 
 use crate::{
-    ArtifactRegistry, Builtins, CompilerOptions, DestackOptions, DsPathAliases, EnvSnapshot,
-    FormatterOptions, LinterOptions, Loader, Module, ModuleAst, ModuleDetection, ModuleFormat,
-    ModuleGraphKey, ModuleGraphStamp, ModuleGraphVersion, ModuleRegistry, ModuleSource,
-    OutputRegistry, Package, PackageKind, PackageRegistry, Platform, Profile, ProfileConfig,
-    ProfileEnv, ProfileFlags, ProfileId, ProfileKey, ProfileRegistry, ProgramIndex, Runtime,
-    SourceType, Target, TargetId, TsConfig, TsConfigId, TsConfigOptions, TsConfigRegistry,
-    WorkspaceFileEntry, WorkspaceIndexSnapshot, WorkspaceModuleEntry,
-    builtin_libs_for_type_entries, discover_typescript_type_entries,
-    normalize_typescript_lib_names, normalize_typescript_type_entries, payload_hash_from_bytes,
-    typescript_default_libs,
+    ArtifactKey, ArtifactRegistry, Ast, Builtins, CompilerOptions, DestackOptions, DsPathAliases,
+    EnvSnapshot, FormatterOptions, LinterOptions, Loader, Module, ModuleDetection, ModuleFormat,
+    ModuleRegistry, ModuleSource, OutputRegistry, Package, PackageKind, PackageRegistry,
+    Platform, Profile, ProfileConfig, ProfileEnv, ProfileFlags, ProfileId, ProfileKey,
+    ProfileRegistry, Runtime, SourceType, Target, TargetId, TsConfig, TsConfigId,
+    TsConfigOptions, TsConfigRegistry, builtin_libs_for_type_entries,
+    discover_typescript_type_entries, normalize_typescript_lib_names,
+    normalize_typescript_type_entries, typescript_default_libs,
 };
-
-/// Unique identifier for Programs.
-#[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ProgramId(pub u32);
-
-impl std::fmt::Debug for ProgramId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{}", self.0)
-    }
-}
-
-impl std::fmt::Display for ProgramId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{}", self.0)
-    }
-}
-
-impl ProgramId {
-    /// Wrap an id as a ProgramId.
-    pub fn new(id: u32) -> Self {
-        Self(id)
-    }
-}
-
-/// Digest of package versions for program-scoped tasks.
-#[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ProgramStamp(pub u64);
-
-impl std::fmt::Debug for ProgramStamp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "p{:016x}", self.0)
-    }
-}
-
-impl std::fmt::Display for ProgramStamp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "p{:016x}", self.0)
-    }
-}
-
-impl ProgramStamp {
-    /// Create a new ProgramStamp.
-    pub fn new(value: u64) -> Self {
-        Self(value)
-    }
-
-    /// Get the raw stamp value.
-    pub fn raw(self) -> u64 {
-        self.0
-    }
-}
 
 /// Tsconfig context for one module profile decision.
 #[derive(Debug, Clone)]
@@ -116,10 +60,6 @@ pub struct Program {
     pub outputs: Arc<OutputRegistry>,
     /// The profiles in this program.
     pub profiles: Arc<ProfileRegistry>,
-    /// Derived tables and indexes for the program.
-    pub index: Arc<ProgramIndex>,
-    /// Loaded workspace index snapshot for cache rehydration.
-    pub workspace_index: RwLock<Option<Arc<WorkspaceIndexSnapshot>>>,
     /// The diagnostic collector.
     pub diagnostics: DiagnosticCollector,
     /// The diagnostic store.
@@ -164,10 +104,8 @@ impl Program {
         let artifacts = Arc::new(ArtifactRegistry::new());
         let outputs = Arc::new(OutputRegistry::new());
         let profiles = Arc::new(ProfileRegistry::new());
-        let index = Arc::new(ProgramIndex::new());
         let strings = Arc::new(StringPool::new());
         let diagnostics = DiagnosticCollector::new();
-        let workspace_index = RwLock::new(None);
         let diagnostic_store = DiagnosticStore::new();
 
         // create and insert the root package and module (for global caching)
@@ -187,9 +125,7 @@ impl Program {
             artifacts,
             outputs,
             profiles,
-            index,
             strings,
-            workspace_index,
             diagnostics,
             diagnostic_store,
             builtins: None,
@@ -214,8 +150,6 @@ impl Program {
     ) -> Self {
         let diagnostics = DiagnosticCollector::new();
         let profiles = Arc::new(ProfileRegistry::new());
-        let index = Arc::new(ProgramIndex::new());
-        let workspace_index = RwLock::new(None);
         let diagnostic_store = DiagnosticStore::new();
         let artifacts = Arc::new(ArtifactRegistry::new());
         let outputs = Arc::new(OutputRegistry::new());
@@ -237,9 +171,7 @@ impl Program {
             artifacts,
             outputs,
             profiles,
-            index,
             strings,
-            workspace_index,
             diagnostics,
             diagnostic_store,
             builtins,
@@ -291,7 +223,7 @@ impl Program {
 
         // root module (uses ephemeral module id)
         let root_module_id = ModuleId::EPHEMERAL;
-        let mut root_module_ast = ModuleAst::from_tree(
+        let mut root_module_ast = Ast::from_tree(
             root_module_id,
             ModuleVersion::INITIAL,
             root_ast,
@@ -305,172 +237,35 @@ impl Program {
         let root_module = Module::blank(
             root_module_id,
             root_file_id,
-            root_file.version,
             root_uri,
             None,
             root_package_id,
-            None, // no tsconfig for root module
-            SourceType::Script,
-            ModuleFormat::Esm,
             LanguageType::Destack,
             Loader::Destack,
             ModuleSource::User,
         );
 
-        modules.insert(root_module);
-        artifacts.set_ast(root_module_id, root_module_ast);
+        modules.insert(
+            root_module,
+            ModuleVersion::INITIAL,
+            root_file.version,
+            None, // no tsconfig for root module
+            SourceType::Script,
+            ModuleFormat::Esm,
+        );
+        artifacts.publish(
+            ArtifactKey::Ast {
+                module: root_module_id,
+            },
+            root_module_ast,
+        );
         (root_module_id, root_file_id)
     }
 
-    /// Load a workspace index snapshot into program state.
-    pub fn apply_workspace_index(&self, snapshot: WorkspaceIndexSnapshot) {
-        // update the program-visible snapshot
-        let snapshot = Arc::new(snapshot);
-        *self.workspace_index.write() = Some(snapshot.clone());
-
-        // reset cached graphs
-        self.index.module_graphs.clear();
-        self.index.module_graph_versions.clear();
-
-        // seed module graph versions from the snapshot
-        for (profile_id, version) in &snapshot.module_graph_versions {
-            self.index
-                .module_graph_versions
-                .insert(*profile_id, *version);
-        }
-
-        // seed module graphs from the snapshot
-        for (key, graph) in &snapshot.module_graphs {
-            self.index.module_graphs.insert(*key, graph.clone());
-            self.index
-                .module_graph_versions
-                .entry(key.profile_id)
-                .or_insert(ModuleGraphVersion::INITIAL);
-        }
-    }
-
-    /// Get the current module graph version for a profile.
-    pub fn module_graph_version(&self, profile_id: ProfileId) -> ModuleGraphVersion {
-        self.index
-            .module_graph_versions
-            .entry(profile_id)
-            .or_insert(ModuleGraphVersion::INITIAL)
-            .value()
-            .to_owned()
-    }
-
-    /// Get the current module graph stamp for a profile.
-    pub fn module_graph_stamp(&self, profile_id: ProfileId) -> ModuleGraphStamp {
-        ModuleGraphStamp::new(profile_id, self.module_graph_version(profile_id))
-    }
-
-    /// Bump the module graph version for a profile.
-    pub fn bump_module_graph_version(&self, profile_id: ProfileId) -> ModuleGraphVersion {
-        let next = self.module_graph_version(profile_id).next();
-        self.index.module_graph_versions.insert(profile_id, next);
-        next
-    }
-
-    /// Drop cached module graphs for a profile and bump the graph version.
+    /// Drop cached module graphs for a profile.
     pub fn drop_module_graph(&self, profile_id: ProfileId) {
-        let graph_key = ModuleGraphKey::new(profile_id);
-        self.index.module_graphs.remove(&graph_key);
-        self.bump_module_graph_version(profile_id);
-    }
-
-    /// Get the workspace index file entry for a path.
-    pub fn workspace_file_entry(&self, path: &Path) -> Option<WorkspaceFileEntry> {
-        // read the workspace index snapshot when available
-        let snapshot = self.workspace_index.read();
-        let snapshot = snapshot.as_ref()?;
-        snapshot.files.get(path).copied()
-    }
-
-    /// Get the workspace index module entry for a module id.
-    pub fn workspace_module_entry(&self, module_id: ModuleId) -> Option<WorkspaceModuleEntry> {
-        // read the workspace index snapshot when available
-        let snapshot = self.workspace_index.read();
-        let snapshot = snapshot.as_ref()?;
-        snapshot.modules.get(&module_id).copied()
-    }
-
-    /// Compute a hash for the file contents at a path.
-    fn file_content_hash_for_path(&self, path: &Path) -> Option<u64> {
-        // reuse loaded file contents when available
-        if let Some(file) = self.files.get_by_path(path) {
-            match &file.content {
-                FileContent::Text { content } => {
-                    return Some(payload_hash_from_bytes(content.as_bytes()));
-                }
-                FileContent::Json { content, .. } => {
-                    return Some(payload_hash_from_bytes(content.as_bytes()));
-                }
-                FileContent::Binary { content } => {
-                    return Some(payload_hash_from_bytes(content));
-                }
-                FileContent::Missing => return None,
-                FileContent::Unloaded => {}
-            }
-        }
-
-        // fall back to reading from the file system
-        let bytes = self.fs.read(path).ok()?;
-        Some(payload_hash_from_bytes(&bytes))
-    }
-
-    /// Resolve a cached file version for a path using the workspace index.
-    pub fn workspace_file_version_for_path(&self, path: &Path) -> FileVersion {
-        // return the initial version when no snapshot exists
-        let Some(entry) = self.workspace_file_entry(path) else {
-            return FileVersion::INITIAL;
-        };
-
-        // compare against filesystem metadata when available
-        let metadata = self.fs.metadata(path).ok();
-        let Some(metadata) = metadata else {
-            return entry.version_for_missing();
-        };
-
-        // return early when metadata changes
-        let version = entry.version_for_metadata(&metadata);
-        if version != entry.version {
-            return version;
-        }
-
-        // skip content hashing when no hash is recorded
-        let Some(expected_hash) = entry.content_hash else {
-            return entry.version;
-        };
-
-        // compare against the current content hash
-        let Some(current_hash) = self.file_content_hash_for_path(path) else {
-            return entry.version.next();
-        };
-
-        if current_hash == expected_hash {
-            entry.version
-        } else {
-            entry.version.next()
-        }
-    }
-
-    /// Resolve a cached module version using the workspace index and file version.
-    pub fn workspace_module_version_for_id(
-        &self,
-        module_id: ModuleId,
-        file_version: FileVersion,
-    ) -> ModuleVersion {
-        // return the initial version when no snapshot exists
-        let Some(entry) = self.workspace_module_entry(module_id) else {
-            return ModuleVersion::INITIAL;
-        };
-
-        // use the stored version when the source version matches
-        if entry.source_version == file_version {
-            return entry.version;
-        }
-
-        entry.version.next()
+        self.artifacts
+            .invalidate(&ArtifactKey::module_graph(profile_id));
     }
 
     /// Register a module with inline content (pre-loaded, no filesystem read needed).
@@ -504,18 +299,21 @@ impl Program {
         let module = Module::blank(
             module_id,
             file_id,
-            file_version,
             uri,
             None,
             package_id,
-            None,
-            source_type,
-            module_format,
             language_type,
             loader,
             ModuleSource::User,
         );
-        self.modules.insert(module);
+        self.modules.insert(
+            module,
+            ModuleVersion::INITIAL,
+            file_version,
+            None,
+            source_type,
+            module_format,
+        );
 
         module_id
     }
@@ -604,10 +402,10 @@ impl Program {
             (
                 module.path.clone(),
                 module.package_id,
-                module.tsconfig_id(),
+                self.modules.tsconfig_id(module_id),
                 module.language_type,
-                module.source_type(),
-                module.module_format(),
+                self.modules.source_type(module_id),
+                self.modules.module_format(module_id),
             )
         };
         let has_import_export = self.module_has_import_export_syntax(module_id);
@@ -632,27 +430,18 @@ impl Program {
             return;
         }
 
-        let mut state = module.state.write();
-        state.source_type = source_type;
-        state.module_format = module_format;
+        self.modules
+            .set_semantics(module_id, source_type, module_format);
     }
 
     /// Increment a module version and return the updated value.
     pub fn bump_module_version(&self, module_id: ModuleId) -> ModuleVersion {
-        // load module for update
-        let module = self.modules.get(module_id);
-        let mut state = module.state.write();
-
-        // bump module version
-        let next = state.version.next();
-        state.version = next;
-
-        next
+        self.modules.bump_version(module_id)
     }
 
     /// Access tsconfig for a module via closure.
     pub fn with_tsconfig<T>(&self, module: &Module, f: impl FnOnce(&TsConfig) -> T) -> Option<T> {
-        let tsconfig_id = module.tsconfig_id()?;
+        let tsconfig_id = self.modules.tsconfig_id(module.id)?;
         let tsconfig = self.tsconfigs.get(tsconfig_id);
 
         Some(f(&tsconfig.read()))
@@ -664,7 +453,7 @@ impl Program {
         module: &Module,
         f: impl FnOnce(&TsConfigOptions) -> T,
     ) -> Option<T> {
-        let tsconfig_id = module.tsconfig_id()?;
+        let tsconfig_id = self.modules.tsconfig_id(module.id)?;
         let tsconfig = self.tsconfigs.get(tsconfig_id);
         Some(f(&tsconfig.read().options))
     }

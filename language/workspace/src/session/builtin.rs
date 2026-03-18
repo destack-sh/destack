@@ -8,7 +8,8 @@ use destack_builtin::{
     CORE_SOURCES, LanguageSymbol, PRELUDE_SOURCE, builtin_lib,
 };
 use destack_source::{
-    File, FileRegistry, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri,
+    File, FileRegistry, FileType, LanguageType, ModuleId, ModuleVersion, PackageId, PackageVersion,
+    Uri,
 };
 use indexmap::IndexMap;
 use parking_lot::Mutex;
@@ -162,18 +163,21 @@ impl Builtins {
             let module = Module::blank(
                 module_id,
                 file_id,
-                file_version,
                 uri,
                 None,
                 BUILTIN_PACKAGE_ID,
-                None,
-                SourceType::Module,
-                ModuleFormat::Esm,
                 language_type,
                 loader,
                 ModuleSource::Builtin(BuiltinLibKind::Core),
             );
-            modules.insert(module);
+            modules.insert(
+                module,
+                ModuleVersion::INITIAL,
+                file_version,
+                None,
+                SourceType::Module,
+                ModuleFormat::Esm,
+            );
             core_modules.insert(module_path, module_id);
         }
 
@@ -460,18 +464,21 @@ impl Builtins {
         let module = Module::blank(
             module_id,
             file_id,
-            file_version,
             uri,
             None,
             BUILTIN_PACKAGE_ID,
-            None,
-            SourceType::Module,
-            ModuleFormat::Esm,
             language_type,
             loader,
             ModuleSource::Builtin(kind),
         );
-        modules.insert(module);
+        modules.insert(
+            module,
+            ModuleVersion::INITIAL,
+            file_version,
+            None,
+            SourceType::Module,
+            ModuleFormat::Esm,
+        );
 
         module_id
     }
