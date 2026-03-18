@@ -81,11 +81,11 @@ impl CommandContext<'_> {
                 .program
                 .profile_id_for_target_or_default(entry_module, &target_id);
             self.compiler
-                .enqueue(BuildKey::Artifact(ArtifactKey::MirOptimized {
-                    module: entry_module,
+                .enqueue(BuildKey::artifact(ArtifactKey::mir_optimized(
+                    entry_module,
                     profile,
-                    target: target_id.clone(),
-                }));
+                    target_id.clone(),
+                )));
         }
 
         // compile and collect diagnostics
@@ -182,11 +182,11 @@ fn enqueue_lower_tasks(
     target_id: &TargetId,
 ) {
     let profile = program.profile_id_for_target_or_default(module_id, target_id);
-    compiler.enqueue(BuildKey::Artifact(ArtifactKey::MirBase {
-        module: module_id,
+    compiler.enqueue(BuildKey::artifact(ArtifactKey::mir_base(
+        module_id,
         profile,
-        target: target_id.clone(),
-    }));
+        target_id.clone(),
+    )));
 }
 
 /// Execute the entry module in the VM.

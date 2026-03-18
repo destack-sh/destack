@@ -8,7 +8,7 @@ use destack_source::ProfileId;
 use parking_lot::Mutex;
 use {destack_query as query, destack_service as service, destack_workspace as workspace};
 
-use workspace::{ModuleGraphKey, Program};
+use workspace::{Program, WorkspaceIndexSnapshot};
 
 use crate::{Daemon, DaemonError, DaemonUpdate, WatchBatch as DaemonWatchBatch};
 
@@ -1140,14 +1140,12 @@ impl ProtocolServer {
 
     /// Produce a workspace index payload for a root.
     fn workspace_index_payload(&self, root: &Path) -> Result<BinaryPayload, ProtocolError> {
-        let program = self.program_for_root(root)?;
-        let snapshot =
-            program.workspace_index.read().clone().ok_or_else(|| {
-                self.protocol_error(ProtocolErrorCode::NotReady, "index not loaded")
-            })?;
-        let bytes = postcard::to_allocvec(snapshot.as_ref()).map_err(|error| {
-            self.protocol_error(ProtocolErrorCode::Internal, &error.to_string())
-        })?;
+        let _program = self.program_for_root(root)?;
+        let bytes = self
+            .session
+            .serialize_loaded_workspace_index()
+            .map_err(|error| self.protocol_error(ProtocolErrorCode::Internal, &error.to_string()))?
+            .ok_or_else(|| self.protocol_error(ProtocolErrorCode::NotReady, "index not loaded"))?;
         Ok(BinaryPayload {
             format: PayloadFormat::Postcard,
             body: PayloadBody::Inline { bytes },
@@ -1161,11 +1159,10 @@ impl ProtocolServer {
         profile_id: ProfileId,
     ) -> Result<BinaryPayload, ProtocolError> {
         let program = self.program_for_root(root)?;
-        let key = ModuleGraphKey::new(profile_id);
-        let graph = program.index.module_graphs.get(&key).ok_or_else(|| {
+        let graph = program.artifacts.module_graph(profile_id).ok_or_else(|| {
             self.protocol_error(ProtocolErrorCode::NotFound, "module graph missing")
         })?;
-        let bytes = postcard::to_allocvec(graph.value()).map_err(|error| {
+        let bytes = postcard::to_allocvec(graph.as_ref()).map_err(|error| {
             self.protocol_error(ProtocolErrorCode::Internal, &error.to_string())
         })?;
         Ok(BinaryPayload {

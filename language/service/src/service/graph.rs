@@ -3,7 +3,7 @@ use std::path::Path;
 
 use destack_compiler::{BuildKey, Compiler};
 use destack_source::{Diagnostic, DiagnosticStoreUpdate, FileId, ModuleId};
-use destack_workspace::{ArtifactKey, InvalidationKind, InvalidationPlan, ModuleGraphKey, Program};
+use destack_workspace::{ArtifactKey, InvalidationKind, InvalidationPlan, Program};
 
 use super::workspace::{ServiceUpdate, build_update};
 use super::{AnalyzeOutcome, LanguageService, LanguageServiceError};
@@ -47,10 +47,9 @@ impl LanguageService {
 
         // enqueue and run the module analysis task
         let profile_id = program.default_profile_id_for_module(module_id);
-        compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
-            module: module_id,
-            profile: profile_id,
-        }));
+        compiler.enqueue(BuildKey::artifact(ArtifactKey::dir_analyzed(
+            module_id, profile_id,
+        )));
         compiler.compile();
 
         // group fresh diagnostics by file id
@@ -67,7 +66,7 @@ impl LanguageService {
         let module = program.modules.get(module_id);
         let module = module.as_ref();
         let module_file_id = module.file_id;
-        let module_source_version = module.source_version();
+        let module_source_version = program.modules.source_version(module.id);
         let ast_ready = program.artifacts.ast(module_id).is_some();
         let dir_ready = program
             .artifacts
@@ -175,13 +174,12 @@ impl LanguageService {
             let mut queue: VecDeque<ModuleId> = module_ids.iter().copied().collect();
             while let Some(module_id) = queue.pop_front() {
                 let profile_id = program.default_profile_id_for_module(module_id);
-                let graph_key = ModuleGraphKey::new(profile_id);
-                let Some(graph) = program.index.module_graphs.get(&graph_key) else {
+                let Some(graph) = program.artifacts.module_graph(profile_id) else {
                     continue;
                 };
 
                 let module = program.modules.get(module_id);
-                let module_version = module.version();
+                let module_version = program.modules.version(module.id);
                 let Some(graph_version) = graph.module_versions.get(&module_id) else {
                     continue;
                 };
@@ -234,10 +232,9 @@ impl LanguageService {
         if !module_ids.is_empty() {
             for module_id in &module_ids {
                 let profile = program.default_profile_id_for_module(*module_id);
-                compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
-                    module: *module_id,
-                    profile,
-                }));
+                compiler.enqueue(BuildKey::artifact(ArtifactKey::dir_analyzed(
+                    *module_id, profile,
+                )));
             }
             compiler.compile();
 
@@ -296,20 +293,18 @@ impl LanguageService {
         let mut queued = HashSet::new();
         for module_id in module_ids.iter().copied() {
             let profile_id = program.default_profile_id_for_module(module_id);
-            let graph_key = ModuleGraphKey::new(profile_id);
-            if let Some(graph) = program.index.module_graphs.get(&graph_key) {
+            if let Some(graph) = program.artifacts.module_graph(profile_id) {
                 let module = program.modules.get(module_id);
                 let module = module.as_ref();
                 let graph_version = graph.module_versions.get(&module_id).copied();
-                if graph_version == Some(module.version()) {
+                if graph_version == Some(program.modules.version(module.id)) {
                     continue;
                 }
 
                 if queued.insert((module_id, profile_id)) {
-                    resolve_tasks.push(BuildKey::Artifact(ArtifactKey::DirResolved {
-                        module: module_id,
-                        profile: profile_id,
-                    }));
+                    resolve_tasks.push(BuildKey::artifact(ArtifactKey::dir_resolved(
+                        module_id, profile_id,
+                    )));
                 }
 
                 continue;
@@ -325,10 +320,9 @@ impl LanguageService {
                 }
 
                 if queued.insert((module.id, profile_id)) {
-                    resolve_tasks.push(BuildKey::Artifact(ArtifactKey::DirResolved {
-                        module: module.id,
-                        profile: profile_id,
-                    }));
+                    resolve_tasks.push(BuildKey::artifact(ArtifactKey::dir_resolved(
+                        module.id, profile_id,
+                    )));
                 }
             }
         }

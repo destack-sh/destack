@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_compiler::CompilerOptions;
 use destack_query as query;
 use destack_source::{FileContent, FileSystem, TemporaryPhysicalFileSystem};
-use destack_workspace::{MemoryCacheStore, ModuleGraphKey, Session};
+use destack_workspace::{MemoryCacheStore, Session};
 
 use crate::Daemon;
 use crate::tests::TestDaemon;
@@ -314,9 +314,8 @@ fn test_daemon_update_rebuilds_module_graph() {
     );
 
     let profile_id = program.default_profile_id_for_module(module_b);
-    let graph_key = ModuleGraphKey::new(profile_id);
     assert!(
-        program.index.module_graphs.contains_key(&graph_key),
+        program.artifacts.module_graph(profile_id).is_some(),
         "expected module graph to be rebuilt"
     );
 }
