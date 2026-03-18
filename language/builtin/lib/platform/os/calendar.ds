@@ -253,8 +253,8 @@ declare namespace os {
     /// Enumerate readable host calendars and return descriptor metadata.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
-    /// Uses EventKit on Apple platforms, CalendarContract on Android, and calendar provider APIs on desktop hosts.
+    /// Android, Apple hosts, Linux, and Windows.
+    /// Returns calendar descriptors from the active host calendar store.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -282,7 +282,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host calendar query APIs.
+    /// Returns calendar events from the active host calendar store for the requested UTC range.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -309,8 +309,8 @@ declare namespace os {
     /// Read one host calendar event payload by stable identifier.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
-    /// Uses host calendar read APIs.
+    /// Android, Apple hosts, Linux, and Windows.
+    /// Reads one calendar event by its stable host identifier.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -337,8 +337,8 @@ declare namespace os {
     /// Create one host calendar event and return its stable identifier.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
-    /// Uses host calendar-write APIs where available.
+    /// Android, Apple hosts, Linux, and Windows.
+    /// Creates one calendar event in the active host calendar store when the host supports writes.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -365,8 +365,8 @@ declare namespace os {
     /// Update one existing host calendar event by identifier.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
-    /// Uses host calendar-write APIs where available.
+    /// Android, Apple hosts, Linux, and Windows.
+    /// Updates one calendar event in the active host calendar store when the host supports writes.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -396,8 +396,8 @@ declare namespace os {
     /// Delete one existing host calendar event by identifier.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
-    /// Uses host calendar-delete APIs where available.
+    /// Android, Apple hosts, Linux, and Windows.
+    /// Deletes one calendar event from the active host calendar store when the host supports writes.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
