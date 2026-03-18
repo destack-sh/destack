@@ -6,7 +6,6 @@ use destack_workspace::{
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::app::ingress::service_app_ingress;
-use crate::host::app::requirements::require_declared_request;
 use crate::host::bootstrap::{default_compile_target_parts, host_options_for_target};
 use crate::host::core::adapter::{HostAdapter, HostPollOutcome};
 use crate::host::core::event::{HostEvent, HostLifecycleEvent, HostLifecycleState};
@@ -16,6 +15,7 @@ use crate::host::core::registry::{
 };
 use crate::host::core::request::{HostRequest, HostRequestContext, HostRequestOutcome};
 use crate::host::operation::HostOperation;
+use crate::host::policy::require_declared_request;
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilityId, PlatformCapabilitySet};
 use crate::runtime::poller::PollerWakeHandle;
 use crate::runtime::world::RuntimeId;
@@ -369,6 +369,18 @@ mod tests {
                 HostRequest::OsDocumentPick { .. } => HostRequestOutcome::immediate(
                     HostRequestResult::DocumentDescriptors(Vec::new()),
                 ),
+                HostRequest::OsDocumentImport { .. } => HostRequestOutcome::immediate(
+                    HostRequestResult::DocumentDescriptors(Vec::new()),
+                ),
+                HostRequest::OsDocumentAccessPersist { .. } => HostRequestOutcome::immediate(
+                    HostRequestResult::DocumentAccessGrants(Vec::new()),
+                ),
+                HostRequest::OsDocumentAccessList => HostRequestOutcome::immediate(
+                    HostRequestResult::DocumentAccessGrants(Vec::new()),
+                ),
+                HostRequest::OsDocumentAccessRevoke { .. } => {
+                    HostRequestOutcome::immediate(HostRequestResult::U32(0))
+                }
                 HostRequest::OsPermissionRequest { .. } => HostRequestOutcome::immediate(
                     HostRequestResult::PermissionState(PermissionState::Granted),
                 ),
@@ -484,11 +496,10 @@ mod tests {
         let outcome = host
             .submit_request(HostRequest::OsDocumentPick {
                 options: DocumentPickOptionsValue {
-                    mime_types: Vec::new(),
+                    content_types: Vec::new(),
                     extensions: Vec::new(),
                     multiple: false,
                     allow_directories: false,
-                    copy_to_sandbox: false,
                 },
             })
             .expect("document picker request should remain declaration-free");
@@ -510,7 +521,7 @@ mod tests {
         let error = host
             .submit_request(HostRequest::OsIntentSharePaths {
                 paths: Vec::new(),
-                mime_type: Some("text/plain".to_string()),
+                content_type: Some("text/plain".to_string()),
             })
             .expect_err("undeclared Android file share should fail");
         let message = error.to_string();
@@ -536,7 +547,7 @@ mod tests {
         let outcome = host
             .submit_request(HostRequest::OsIntentSharePaths {
                 paths: Vec::new(),
-                mime_type: Some("text/plain".to_string()),
+                content_type: Some("text/plain".to_string()),
             })
             .expect("declared Android file share should succeed");
 

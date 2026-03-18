@@ -54,8 +54,9 @@ declare namespace os {
     /// Read global host location-service availability before per-runtime authorization checks.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
-    /// Uses host location service-status APIs.
+    /// Android, Apple hosts, Linux, and Windows.
+    /// On non-Linux Unix hosts without one concrete provider backend, this may return `notSupported`.
+    /// On Linux, this reports whether one location provider is currently available.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioInvalidData, notSupported.
@@ -82,8 +83,9 @@ declare namespace os {
     /// Read one cached location sample from the host location service.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
-    /// Uses CoreLocation on Apple platforms, FusedLocationProvider or LocationManager on Android, and Geolocator on Windows.
+    /// Android, Apple hosts, Linux, and Windows.
+    /// Returns the most recent sample the host can supply, which may be current or cached.
+    /// On non-Linux Unix hosts without one concrete provider backend, this may return `notSupported`.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -110,8 +112,8 @@ declare namespace os {
     /// Open one location watch stream with one selected update policy.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
-    /// Uses host location subscription APIs.
+    /// Android, Apple hosts, Linux, and Windows.
+    /// On non-Linux Unix hosts without one concrete provider backend, this may return `notSupported`.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
@@ -138,8 +140,8 @@ declare namespace os {
     /// Close one location watch stream and release host subscription resources.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
-    /// Uses host location unsubscription APIs.
+    /// Android, Apple hosts, Linux, and Windows.
+    /// On non-Linux Unix hosts without one concrete provider backend, this may return `notSupported`.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -166,8 +168,8 @@ declare namespace os {
     /// Wait for one location sample from one opened location watch stream.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
-    /// Uses host location update queues.
+    /// Android, Apple hosts, Linux, and Windows.
+    /// Returns the next sample from the active watch when one is available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -197,8 +199,8 @@ declare namespace os {
     /// Poll one location sample from one opened location watch stream without waiting.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
-    /// Uses nonblocking host location update queue reads.
+    /// Android, Apple hosts, Linux, and Windows.
+    /// Returns one queued watch sample immediately when one is available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
