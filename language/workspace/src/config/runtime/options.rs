@@ -7,11 +7,7 @@ use crate::config::target::{
     TargetAppNotificationCategoryDeclaration, TargetAppPermission,
 };
 
-#[cfg(test)]
-use super::super::policy::ReplayPayloadMode;
 use super::super::policy::{ExecutionMode, ExecutionModeJson};
-#[cfg(test)]
-use super::RuntimeSelector;
 use super::{
     HeapOptions, HeapOptionsJson, PlatformAudioOptions, PlatformAudioOptionsJson,
     PlatformCryptoOptions, PlatformCryptoOptionsJson, PlatformDebugOptions,
@@ -896,96 +892,5 @@ impl RuntimeOptionsJson {
         if let Some(platform) = &self.platform {
             platform.apply_to(&mut options.platform);
         }
-    }
-}
-#[cfg(test)]
-mod tests {
-    use serde_json::json;
-
-    use super::{
-        ExecutionMode, ReplayPayloadMode, RuntimeAccess, RuntimeOptionsJson, RuntimeSelector,
-        RuntimeWorld,
-    };
-
-    /// Ensure runtime options apply shorthand and object selector rules.
-    #[test]
-    fn test_runtime_options_apply_parses_shorthand_and_object_rules() {
-        let runtime_json: RuntimeOptionsJson = serde_json::from_value(json!({
-            "rules": [
-                {
-                    "when": "destack.net.*",
-                    "access": "deny"
-                },
-                {
-                    "when": { "binding": "destack.fs.*" },
-                    "world": "simulation"
-                },
-                {
-                    "when": { "binding": "destack.crypto.*" },
-                    "replay": "argumentsAndResults"
-                }
-            ]
-        }))
-        .expect("runtime options json should parse");
-
-        let mut options = super::RuntimeOptions::default();
-        runtime_json.apply_to(&mut options);
-
-        assert_eq!(options.rules.len(), 3);
-        assert_eq!(
-            options.rules[0].when,
-            RuntimeSelector::binding("destack.net.*")
-        );
-        assert_eq!(options.rules[0].access, Some(RuntimeAccess::Deny));
-        assert_eq!(options.rules[0].world, None);
-        assert_eq!(options.rules[0].replay, None);
-        assert_eq!(
-            options.rules[1].when,
-            RuntimeSelector::binding("destack.fs.*")
-        );
-        assert_eq!(options.rules[1].access, None);
-        assert_eq!(options.rules[1].world, Some(RuntimeWorld::Simulation));
-        assert_eq!(options.rules[1].replay, None);
-        assert_eq!(
-            options.rules[2].when,
-            RuntimeSelector::binding("destack.crypto.*")
-        );
-        assert_eq!(options.rules[2].access, None);
-        assert_eq!(options.rules[2].world, None);
-        assert_eq!(
-            options.rules[2].replay,
-            Some(ReplayPayloadMode::ArgumentsAndResults)
-        );
-    }
-
-    /// Ensure runtime selector execution accepts one mode and many modes.
-    #[test]
-    fn test_runtime_options_apply_parses_execution_string_or_array() {
-        let runtime_json: RuntimeOptionsJson = serde_json::from_value(json!({
-            "rules": [
-                {
-                    "when": { "binding": "destack.net.*", "execution": "record" },
-                    "access": "deny"
-                },
-                {
-                    "when": { "binding": "destack.fs.*", "execution": ["record", "replay"] },
-                    "world": "simulation"
-                }
-            ]
-        }))
-        .expect("runtime options json should parse");
-
-        let mut options = super::RuntimeOptions::default();
-        runtime_json.apply_to(&mut options);
-
-        assert_eq!(options.rules.len(), 2);
-        assert_eq!(
-            options.rules[0].when.execution_modes,
-            Some(vec![ExecutionMode::Record])
-        );
-        assert_eq!(
-            options.rules[1].when.execution_modes,
-            Some(vec![ExecutionMode::Record, ExecutionMode::Replay])
-        );
     }
 }

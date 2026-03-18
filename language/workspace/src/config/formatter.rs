@@ -332,15 +332,6 @@ impl FormatterOptions {
         }
     }
 
-    /// Create options with tab indentation for testing.
-    #[cfg(test)]
-    pub fn default_tab() -> Self {
-        Self {
-            indent_style: IndentStyle::Tab,
-            ..Self::new()
-        }
-    }
-
     /// Set the line ending style.
     pub fn with_line_ending(mut self, line_ending: LineEnding) -> Self {
         self.line_ending = line_ending;
