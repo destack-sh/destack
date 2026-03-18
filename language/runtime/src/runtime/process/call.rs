@@ -10,13 +10,13 @@ use crate::runtime::bindings::{
 };
 use crate::runtime::policy::BindingDispatchDecision;
 use crate::runtime::random::RandomStreamId;
-use crate::runtime::scheduler::{EventLoop, MicrotaskId, TaskId};
+use crate::runtime::scheduler::{Loop, MicrotaskId, TaskId};
 use crate::runtime::trace::{EntropySubject, Trace};
 use crate::runtime::world::World;
 use crate::simulation::Simulation;
 
 use super::{
-    Agent, EventLoopScope, ExecutionContext, ExecutionContextId, binding_affinity_name,
+    Agent, ExecutionContext, ExecutionContextId, LoopScope, binding_affinity_name,
     current_agent_context, current_event_loop_scope, with_binding_call_arena,
 };
 use crate::runtime::{Hooks, NativeSlice, NativeStringRef, NativeStringSlice, PolicyCallId};
@@ -28,7 +28,7 @@ pub struct BindingCallContext {
     /// Agent state for platform bindings.
     agent: *const Agent,
     /// Event loop for task queues and timers.
-    event_loop: *const EventLoop,
+    event_loop: *const Loop,
     /// Host state for platform callbacks.
     host: *const HostSession,
     /// Shared world for replay, time, random, and policy.
@@ -36,7 +36,7 @@ pub struct BindingCallContext {
     /// Engine kind for this binding call.
     engine: BindingEngine,
     /// Event loop scope metadata for the current call.
-    scope: EventLoopScope,
+    scope: LoopScope,
     /// Execution-affinity context for the current call.
     execution_context: ExecutionContext,
 }
@@ -61,7 +61,7 @@ impl Drop for BindingHookGuard<'_> {
 
 impl BindingCallContext {
     /// Create a binding call context for TLS.
-    pub fn new(agent: &Agent, event_loop: &EventLoop, host: &HostSession, world: &World) -> Self {
+    pub fn new(agent: &Agent, event_loop: &Loop, host: &HostSession, world: &World) -> Self {
         let execution_context = event_loop.execution_context(host.is_process_main_context());
 
         Self {
@@ -78,7 +78,7 @@ impl BindingCallContext {
     /// Create a binding call context from raw pointers.
     pub(crate) fn from_raw(
         agent: *const Agent,
-        event_loop: *const EventLoop,
+        event_loop: *const Loop,
         host: *const HostSession,
         world: *const World,
         engine: BindingEngine,
@@ -89,7 +89,7 @@ impl BindingCallContext {
 
         Self {
             agent,
-            event_loop: event_loop as *const EventLoop,
+            event_loop: event_loop as *const Loop,
             host: host as *const HostSession,
             world,
             engine,
@@ -176,7 +176,7 @@ impl BindingCallContext {
 
     /// Borrow the event loop.
     #[inline]
-    pub fn event_loop(&self) -> &EventLoop {
+    pub fn event_loop(&self) -> &Loop {
         // safety: pointer is owned by the runtime
         unsafe { &*self.event_loop }
     }
@@ -238,7 +238,7 @@ impl BindingCallContext {
     }
 
     /// Return the current event loop scope.
-    pub const fn scope(&self) -> EventLoopScope {
+    pub const fn scope(&self) -> LoopScope {
         self.scope
     }
 

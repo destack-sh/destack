@@ -4,7 +4,7 @@ use destack_workspace::SchedulerOptions;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    EventLoop, EventLoopWatch, Microtask, MicrotaskId, Task, TaskId, TaskStatus, Timer, TimerHandle,
+    Loop, LoopWatch, Microtask, MicrotaskId, Task, TaskId, TaskStatus, Timer, TimerHandle,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::{HostEvent, HostEventKind};
@@ -15,7 +15,7 @@ use crate::runtime::{DropCounts, ExecutionContextId};
 
 /// Durable event-loop state captured at one checkpoint.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct EventLoopSnapshot {
+pub struct LoopSnapshot {
     /// Configured scheduler options.
     pub options: SchedulerOptions,
     /// The next task identifier to issue.
@@ -82,7 +82,7 @@ pub struct MicrotaskImage {
 
 /// Captured watch payload for one suspendable event-loop image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct EventLoopWatchImage {
+pub struct LoopWatchImage {
     /// Runnable continuation image.
     pub runnable: EngineContinuationImage,
     /// Resume payload passed back into the continuation.
@@ -97,7 +97,7 @@ pub struct TimerWatchImage {
     /// Timer handle associated with this watch.
     pub handle: ResourceId,
     /// Captured watch payload.
-    pub watch: EventLoopWatchImage,
+    pub watch: LoopWatchImage,
 }
 
 /// Captured poller-event watch keyed by poller token.
@@ -106,7 +106,7 @@ pub struct PollerEventWatchImage {
     /// Poller token associated with this watch.
     pub token: PollerToken,
     /// Captured watch payload.
-    pub watch: EventLoopWatchImage,
+    pub watch: LoopWatchImage,
 }
 
 /// Captured host-event watch keyed by host event kind.
@@ -115,16 +115,16 @@ pub struct HostEventWatchImage {
     /// Host event kind associated with this watch.
     pub kind: HostEventKind,
     /// Captured watch payload.
-    pub watch: EventLoopWatchImage,
+    pub watch: LoopWatchImage,
 }
 
-impl EventLoop {
+impl Loop {
     /// Capture one durable event-loop snapshot.
     pub(crate) fn snapshot(
         &self,
         mode: CaptureMode,
         engine: &mut dyn Engine,
-    ) -> RuntimeResult<EventLoopSnapshot> {
+    ) -> RuntimeResult<LoopSnapshot> {
         // fork capture keeps the existing idle invariant
         if mode == CaptureMode::Fork {
             self.fork_capture_barrier()?;
@@ -163,7 +163,7 @@ impl EventLoop {
         let timers = self.timers.lock().image();
         let canceled_timers = self.canceled_timers.lock().iter().copied().collect();
 
-        Ok(EventLoopSnapshot {
+        Ok(LoopSnapshot {
             options: self.options.clone(),
             next_task_id: self.next_task_id,
             next_microtask_id: self.next_microtask_id,
@@ -187,7 +187,7 @@ impl EventLoop {
     /// Restore one durable event-loop snapshot.
     pub(crate) fn restore_snapshot(
         &mut self,
-        snapshot: &EventLoopSnapshot,
+        snapshot: &LoopSnapshot,
         engine: &mut dyn Engine,
     ) -> RuntimeResult<()> {
         // clear dynamic state before rebuilding the image
@@ -352,7 +352,7 @@ impl EventLoop {
     fn timer_watch_image(
         &self,
         handle: ResourceId,
-        watch: &EventLoopWatch,
+        watch: &LoopWatch,
         mode: CaptureMode,
         engine: &mut dyn Engine,
     ) -> RuntimeResult<TimerWatchImage> {
@@ -366,7 +366,7 @@ impl EventLoop {
         &self,
         image: &TimerWatchImage,
         engine: &mut dyn Engine,
-    ) -> RuntimeResult<(ResourceId, EventLoopWatch)> {
+    ) -> RuntimeResult<(ResourceId, LoopWatch)> {
         let watch = self.watch_from_image(&image.watch, engine)?;
 
         Ok((image.handle, watch))
@@ -376,7 +376,7 @@ impl EventLoop {
     fn poller_event_watch_image(
         &self,
         token: PollerToken,
-        watch: &EventLoopWatch,
+        watch: &LoopWatch,
         mode: CaptureMode,
         engine: &mut dyn Engine,
     ) -> RuntimeResult<PollerEventWatchImage> {
@@ -390,7 +390,7 @@ impl EventLoop {
         &self,
         image: &PollerEventWatchImage,
         engine: &mut dyn Engine,
-    ) -> RuntimeResult<(PollerToken, EventLoopWatch)> {
+    ) -> RuntimeResult<(PollerToken, LoopWatch)> {
         let watch = self.watch_from_image(&image.watch, engine)?;
 
         Ok((image.token, watch))
@@ -400,7 +400,7 @@ impl EventLoop {
     fn host_event_watch_image(
         &self,
         kind: HostEventKind,
-        watch: &EventLoopWatch,
+        watch: &LoopWatch,
         mode: CaptureMode,
         engine: &mut dyn Engine,
     ) -> RuntimeResult<HostEventWatchImage> {
@@ -414,7 +414,7 @@ impl EventLoop {
         &self,
         image: &HostEventWatchImage,
         engine: &mut dyn Engine,
-    ) -> RuntimeResult<(HostEventKind, EventLoopWatch)> {
+    ) -> RuntimeResult<(HostEventKind, LoopWatch)> {
         let watch = self.watch_from_image(&image.watch, engine)?;
 
         Ok((image.kind, watch))
@@ -423,13 +423,13 @@ impl EventLoop {
     /// Capture one immutable watch image.
     fn watch_image(
         &self,
-        watch: &EventLoopWatch,
+        watch: &LoopWatch,
         mode: CaptureMode,
         engine: &mut dyn Engine,
-    ) -> RuntimeResult<EventLoopWatchImage> {
+    ) -> RuntimeResult<LoopWatchImage> {
         let runnable = self.capture_continuation_image(&watch.runnable, mode, engine)?;
 
-        Ok(EventLoopWatchImage {
+        Ok(LoopWatchImage {
             runnable,
             resume_value: watch.resume_value,
             priority: watch.priority,
@@ -439,12 +439,12 @@ impl EventLoop {
     /// Restore one watch from one immutable watch image.
     fn watch_from_image(
         &self,
-        image: &EventLoopWatchImage,
+        image: &LoopWatchImage,
         engine: &mut dyn Engine,
-    ) -> RuntimeResult<EventLoopWatch> {
+    ) -> RuntimeResult<LoopWatch> {
         let runnable = engine.restore_continuation_image(&image.runnable)?;
 
-        Ok(EventLoopWatch {
+        Ok(LoopWatch {
             runnable,
             resume_value: image.resume_value,
             priority: image.priority,
@@ -452,8 +452,8 @@ impl EventLoop {
     }
 }
 
-impl Capture for EventLoop {
-    type Image = EventLoopSnapshot;
+impl Capture for Loop {
+    type Image = LoopSnapshot;
     type Error = Box<RuntimeError>;
     type CaptureContext<'a> = &'a mut dyn Engine;
     type RestoreContext<'a> = &'a mut dyn Engine;
@@ -477,7 +477,7 @@ impl Capture for EventLoop {
     }
 }
 
-impl EventLoopSnapshot {
+impl LoopSnapshot {
     /// Return whether one runnable item is already ready in this snapshot.
     pub fn has_ready_work(&self) -> bool {
         !self.tasks.is_empty()
@@ -500,7 +500,7 @@ impl EventLoopSnapshot {
     }
 }
 
-impl EventLoop {
+impl Loop {
     /// Capture one continuation image or return one explicit capture barrier.
     fn capture_continuation_image(
         &self,

@@ -6,12 +6,12 @@ use crate::runtime::poller::{
 use crate::runtime::time::{Nanos, WorldInstant};
 use crate::runtime::{DropCounts, DropReason};
 
-use super::EventLoop;
+use super::Loop;
 
 /// Default host semantic dispatch batch size before forcing one poller event.
 const DEFAULT_HOST_EVENT_BUDGET: u64 = 32;
 
-impl EventLoop {
+impl Loop {
     /// Pop the next runnable item from the event loop.
     pub fn next_runnable(
         &mut self,
@@ -219,7 +219,7 @@ impl EventLoop {
 mod tests {
     use destack_workspace::SchedulerOptions;
 
-    use super::EventLoop;
+    use super::Loop;
     use crate::host::{HostEvent, HostLifecycleEvent, HostLifecycleState};
     use crate::platform::ResourceId;
     use crate::runtime::DropReason;
@@ -242,7 +242,7 @@ mod tests {
 
     #[test]
     fn test_next_runnable_dequeues_host_event_before_poller_event() {
-        let mut event_loop = EventLoop::default();
+        let mut event_loop = Loop::default();
 
         event_loop.enqueue_events(vec![io_poller_event(8)]);
         event_loop.enqueue_host_events(vec![HostEvent::Lifecycle(HostLifecycleEvent {
@@ -265,7 +265,7 @@ mod tests {
 
     #[test]
     fn test_next_runnable_interleaves_after_host_event_budget() {
-        let mut event_loop = EventLoop::default();
+        let mut event_loop = Loop::default();
         event_loop
             .configure(SchedulerOptions {
                 host_event_budget: Some(1),
@@ -294,7 +294,7 @@ mod tests {
 
     #[test]
     fn test_drop_counts_tracks_unwatched_dispatch() {
-        let mut event_loop = EventLoop::default();
+        let mut event_loop = Loop::default();
 
         event_loop.record_drop(DropReason::UnwatchedDispatch, 1);
 

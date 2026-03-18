@@ -17,7 +17,7 @@ use crate::runtime::engine::{Engine, EngineContinuation, EngineImage};
 use crate::runtime::memory::{Gc, RootSet, RootVisitor, resolve_heap_options};
 use crate::runtime::policy::HookSnapshot;
 use crate::runtime::poller::PollerToken;
-use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, EventLoopWatch};
+use crate::runtime::scheduler::{Loop, LoopSnapshot, LoopWatch};
 use crate::runtime::world::{RebindContext, RuntimeId, World};
 use crate::runtime::{
     DropCounts, DropReason, ExecutionContextId, Hooks, PlatformState, PlatformStateImage,
@@ -69,7 +69,7 @@ pub struct Agent {
     /// Agent-owned execution engine.
     pub(crate) engine: Box<dyn Engine>,
     /// Event loop for tasks, microtasks, and timers.
-    pub(crate) event_loop: Box<EventLoop>,
+    pub(crate) event_loop: Box<Loop>,
 }
 
 /// Materialized agent metadata captured in one world image.
@@ -96,7 +96,7 @@ pub struct AgentImage {
     /// Captured platform-state lifecycle state.
     pub platform_state: PlatformStateImage,
     /// Captured event-loop state.
-    pub event_loop: EventLoopSnapshot,
+    pub event_loop: LoopSnapshot,
     /// Captured authoritative heap image.
     pub heap_image: heap::HeapImage,
     /// Captured agent-owned execution image.
@@ -217,7 +217,7 @@ impl Agent {
         let heap_options = resolve_heap_options(&options.heap)?;
         let heap = heap::Heap::with_limits_and_layout(heap_options.limits, heap_options.layout);
 
-        let mut event_loop = Box::new(EventLoop::default());
+        let mut event_loop = Box::new(Loop::default());
         event_loop.configure(options.scheduler.clone())?;
 
         let execution_context_id = Self::event_loop_execution_context_id(runtime_id, agent_id);
@@ -363,7 +363,7 @@ impl Agent {
         resume_value: heap::Value,
         priority: u8,
     ) -> RuntimeResult<()> {
-        let watch = EventLoopWatch {
+        let watch = LoopWatch {
             runnable,
             resume_value,
             priority,
@@ -372,7 +372,7 @@ impl Agent {
     }
 
     /// Remove the timer watch registered for one timer handle.
-    pub fn unwatch_timer(&mut self, handle: ResourceId) -> Option<EventLoopWatch> {
+    pub fn unwatch_timer(&mut self, handle: ResourceId) -> Option<LoopWatch> {
         self.event_loop.unwatch_timer(handle)
     }
 
@@ -444,7 +444,7 @@ impl Agent {
         resume_value: heap::Value,
         priority: u8,
     ) -> RuntimeResult<()> {
-        let watch = EventLoopWatch {
+        let watch = LoopWatch {
             runnable,
             resume_value,
             priority,
@@ -453,7 +453,7 @@ impl Agent {
     }
 
     /// Remove the event watch registered for one poller token.
-    pub fn unwatch_event(&mut self, token: PollerToken) -> Option<EventLoopWatch> {
+    pub fn unwatch_event(&mut self, token: PollerToken) -> Option<LoopWatch> {
         self.event_loop.unwatch_event(token)
     }
 
@@ -470,7 +470,7 @@ impl Agent {
         resume_value: heap::Value,
         priority: u8,
     ) -> RuntimeResult<()> {
-        let watch = EventLoopWatch {
+        let watch = LoopWatch {
             runnable,
             resume_value,
             priority,
@@ -479,7 +479,7 @@ impl Agent {
     }
 
     /// Remove the host event watch registered for one host event kind.
-    pub fn unwatch_host_event(&mut self, kind: HostEventKind) -> Option<EventLoopWatch> {
+    pub fn unwatch_host_event(&mut self, kind: HostEventKind) -> Option<LoopWatch> {
         self.event_loop.unwatch_host_event(kind)
     }
 
@@ -634,7 +634,7 @@ impl Agent {
 
         // diagnostics and event loop
         let diagnostics = Arc::new(DiagnosticStore::from_options(&image.options.diagnostic));
-        let mut event_loop = Box::new(EventLoop::default());
+        let mut event_loop = Box::new(Loop::default());
 
         // heap and engine
         let mut heap = heap::Heap::from_image(&image.heap_image);

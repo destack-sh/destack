@@ -9,8 +9,9 @@ use crate::platform::core as core_platform;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ExecutorFailureKind {
     /// The executor bootstrap panicked before it became ready.
-    #[cfg(windows)]
     BootstrapPanic,
+    /// The executor thread returned one infrastructure error.
+    ThreadFailed,
     /// The executor thread panicked outside bootstrap or callback handling.
     ThreadPanic,
     /// One executor callback panicked.
@@ -25,8 +26,8 @@ impl ExecutorFailureKind {
     /// Return the stable error label for this failure kind.
     const fn label(self) -> &'static str {
         match self {
-            #[cfg(windows)]
             Self::BootstrapPanic => "bootstrap panic",
+            Self::ThreadFailed => "thread failure",
             Self::ThreadPanic => "thread panic",
             Self::CallbackPanic => "callback panic",
             Self::CallbackFailed => "callback failure",
