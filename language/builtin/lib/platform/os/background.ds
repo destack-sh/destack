@@ -38,18 +38,6 @@ export struct BackgroundTaskOptions {
     trigger: BackgroundTriggerKind;
     /// Requested minimum repeat interval in nanoseconds.
     minimumIntervalNs: uint64;
-    /// Earliest target execution timestamp in UTC nanoseconds.
-    earliestBeginUnixNs: uint64;
-    /// Whether one network route is required.
-    requiresNetwork: boolean;
-    /// Whether one unmetered network route is required.
-    requiresUnmeteredNetwork: boolean;
-    /// Whether charging power is required.
-    requiresCharging: boolean;
-    /// Whether idle mode is required.
-    requiresIdle: boolean;
-    /// Whether this registration should persist across host restart.
-    persisted: boolean;
 }
 
 /// Background-task descriptor payload.
@@ -60,18 +48,6 @@ export struct BackgroundTaskDescriptor {
     trigger: BackgroundTriggerKind;
     /// Effective minimum repeat interval in nanoseconds.
     minimumIntervalNs: uint64;
-    /// Earliest target execution timestamp in UTC nanoseconds.
-    earliestBeginUnixNs: uint64;
-    /// Whether one network route is required.
-    requiresNetwork: boolean;
-    /// Whether one unmetered network route is required.
-    requiresUnmeteredNetwork: boolean;
-    /// Whether charging power is required.
-    requiresCharging: boolean;
-    /// Whether idle mode is required.
-    requiresIdle: boolean;
-    /// Whether this registration persists across host restart.
-    persisted: boolean;
 }
 
 /// Background-task event stream open options.
@@ -122,7 +98,7 @@ declare namespace os {
     /// Read the current background-task scheduler status for this host runtime.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses BGTaskScheduler on Apple platforms, WorkManager or JobScheduler on Android, and host scheduler bridges on desktop platforms.
     ///
     /// # Errors
@@ -137,7 +113,7 @@ declare namespace os {
         effect: "external",
         replay: "recordable",
         capabilities: ["os.background.read"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "never",
@@ -150,7 +126,7 @@ declare namespace os {
     /// Enumerate background-task registrations for this runtime identity.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host background scheduler registration queries.
     ///
     /// # Errors
@@ -165,7 +141,7 @@ declare namespace os {
         effect: "external",
         replay: "recordable",
         capabilities: ["os.background.read"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -176,9 +152,10 @@ declare namespace os {
     /// Register one background task.
     ///
     /// Create or replace one background-task registration for this runtime identity.
+    /// Registrations are host persisted by definition.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host background scheduler registration APIs.
     ///
     /// # Errors
@@ -193,7 +170,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.background.control"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -206,7 +183,7 @@ declare namespace os {
     /// Remove one background-task registration by identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host background scheduler unregistration APIs.
     ///
     /// # Errors
@@ -221,7 +198,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.background.control"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -234,7 +211,7 @@ declare namespace os {
     /// Ask the host scheduler to trigger one registered task immediately for development validation where supported.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host developer test hooks where available.
     ///
     /// # Errors
@@ -249,7 +226,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.background.control"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -262,7 +239,7 @@ declare namespace os {
     /// Submit final execution status for one scheduled task execution token.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host background scheduler completion APIs.
     ///
     /// # Errors
@@ -277,7 +254,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.background.control"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -293,7 +270,7 @@ declare namespace os {
     /// Open one event stream for task-ready and expiration callbacks.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host background scheduler callback bridges.
     ///
     /// # Errors
@@ -308,7 +285,7 @@ declare namespace os {
         effect: "external",
         replay: "recordable",
         capabilities: ["os.background.read"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -321,7 +298,7 @@ declare namespace os {
     /// Close one opened event stream and release host callback routing resources.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host callback unregistration APIs.
     ///
     /// # Errors
@@ -336,7 +313,7 @@ declare namespace os {
         effect: "external",
         replay: "recordable",
         capabilities: ["os.background.read"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -349,7 +326,7 @@ declare namespace os {
     /// Wait for one queued background-task event from one opened event stream.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host background event queues.
     ///
     /// # Errors
@@ -364,7 +341,7 @@ declare namespace os {
         effect: "external",
         replay: "recordable",
         capabilities: ["os.background.read"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -380,7 +357,7 @@ declare namespace os {
     /// Poll one queued background-task event from one opened event stream without waiting.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host nonblocking background event queue reads.
     ///
     /// # Errors
@@ -395,7 +372,7 @@ declare namespace os {
         effect: "external",
         replay: "recordable",
         capabilities: ["os.background.read"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "never",

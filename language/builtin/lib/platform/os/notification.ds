@@ -215,7 +215,7 @@ declare namespace os {
     /// Return current host notification permission state for this runtime context.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host notification authorization APIs.
     ///
     /// # Errors
@@ -230,7 +230,7 @@ declare namespace os {
         effect: "external",
         replay: "recordable",
         capabilities: ["os.notification.permission"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -243,7 +243,7 @@ declare namespace os {
     /// Request notification permission through host authorization flow and return resulting permission state.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host notification permission request APIs where supported.
     ///
     /// # Errors
@@ -258,7 +258,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.notification.permission"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -271,7 +271,7 @@ declare namespace os {
     /// Submit one host notification request and return one host notification identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host notification center APIs on each platform.
     ///
     /// # Errors
@@ -286,7 +286,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.notification.post"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -299,7 +299,7 @@ declare namespace os {
     /// Schedule one host notification request for deferred delivery according to trigger policy.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host notification scheduling APIs on each platform.
     ///
     /// # Errors
@@ -314,7 +314,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.notification.post"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -327,7 +327,7 @@ declare namespace os {
     /// Enumerate pending notification requests owned by this runtime context.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host pending-notification query APIs.
     ///
     /// # Errors
@@ -342,7 +342,7 @@ declare namespace os {
         effect: "external",
         replay: "recordable",
         capabilities: ["os.notification.post"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -355,7 +355,7 @@ declare namespace os {
     /// Cancel one pending scheduled host notification by identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host scheduled-notification cancellation APIs.
     ///
     /// # Errors
@@ -370,7 +370,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.notification.post"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -383,7 +383,7 @@ declare namespace os {
     /// Cancel all pending scheduled notifications owned by this runtime context.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host scheduled-notification cancellation APIs.
     ///
     /// # Errors
@@ -398,7 +398,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.notification.post"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -411,7 +411,7 @@ declare namespace os {
     /// Register host notification categories and actions for this runtime context.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host notification category registration APIs.
     ///
     /// # Errors
@@ -426,7 +426,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.notification.post"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -439,7 +439,7 @@ declare namespace os {
     /// Enumerate registered host notification categories for this runtime context.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host notification category query APIs where available.
     ///
     /// # Errors
@@ -454,7 +454,7 @@ declare namespace os {
         effect: "external",
         replay: "recordable",
         capabilities: ["os.notification.post"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -467,7 +467,7 @@ declare namespace os {
     /// Cancel one previously posted host notification by identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host notification cancellation APIs.
     ///
     /// # Errors
@@ -482,7 +482,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.notification.post"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -495,7 +495,7 @@ declare namespace os {
     /// Cancel all currently posted host notifications owned by this runtime context.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host notification cancellation APIs.
     ///
     /// # Errors
@@ -510,7 +510,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.notification.post"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -523,7 +523,7 @@ declare namespace os {
     /// Open one event stream for delivered, interacted, and dismissed notification events.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host notification callback bridges.
     ///
     /// # Errors
@@ -538,7 +538,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.notification.permission"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -551,7 +551,7 @@ declare namespace os {
     /// Close one opened event stream and release host callback routing resources.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host callback unregistration APIs.
     ///
     /// # Errors
@@ -566,7 +566,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.notification.permission"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -579,7 +579,7 @@ declare namespace os {
     /// Wait for one queued notification event from one opened event stream.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host notification event queues.
     ///
     /// # Errors
@@ -594,7 +594,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.notification.permission"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -610,7 +610,7 @@ declare namespace os {
     /// Poll one queued notification event from one opened event stream without waiting.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host nonblocking notification event queue reads.
     ///
     /// # Errors
@@ -625,7 +625,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.notification.permission"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "never",

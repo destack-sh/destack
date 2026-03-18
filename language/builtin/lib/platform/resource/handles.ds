@@ -165,6 +165,9 @@ export newtype BackgroundEventHandle = ResourceId;
 /// Handle for one notification event stream.
 export newtype NotificationEventHandle = ResourceId;
 
+/// Handle for one media watch stream.
+export newtype MediaWatchHandle = ResourceId;
+
 /// Handle for one opened document-provider endpoint.
 export newtype DocumentHandle = ResourceId;
 

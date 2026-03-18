@@ -54,7 +54,7 @@ declare namespace os {
     /// Read global host location-service availability before per-runtime authorization checks.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host location service-status APIs.
     ///
     /// # Errors
@@ -69,7 +69,7 @@ declare namespace os {
         effect: "external",
         replay: "recordable",
         capabilities: ["os.location.read"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "never",
@@ -82,7 +82,7 @@ declare namespace os {
     /// Read one cached location sample from the host location service.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses CoreLocation on Apple platforms, FusedLocationProvider or LocationManager on Android, and Geolocator on Windows.
     ///
     /// # Errors
@@ -97,7 +97,7 @@ declare namespace os {
         effect: "external",
         replay: "recordable",
         capabilities: ["os.location.read"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -110,7 +110,7 @@ declare namespace os {
     /// Open one location watch stream with one selected update policy.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host location subscription APIs.
     ///
     /// # Errors
@@ -125,7 +125,7 @@ declare namespace os {
         effect: "external",
         replay: "recordable",
         capabilities: ["os.location.watch"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -138,7 +138,7 @@ declare namespace os {
     /// Close one location watch stream and release host subscription resources.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host location unsubscription APIs.
     ///
     /// # Errors
@@ -153,7 +153,7 @@ declare namespace os {
         effect: "external",
         replay: "recordable",
         capabilities: ["os.location.watch"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -166,7 +166,7 @@ declare namespace os {
     /// Wait for one location sample from one opened location watch stream.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host location update queues.
     ///
     /// # Errors
@@ -181,7 +181,7 @@ declare namespace os {
         effect: "external",
         replay: "recordable",
         capabilities: ["os.location.watch"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -197,7 +197,7 @@ declare namespace os {
     /// Poll one location sample from one opened location watch stream without waiting.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses nonblocking host location update queue reads.
     ///
     /// # Errors
@@ -212,7 +212,7 @@ declare namespace os {
         effect: "external",
         replay: "recordable",
         capabilities: ["os.location.watch"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "never",

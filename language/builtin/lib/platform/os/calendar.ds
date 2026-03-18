@@ -81,12 +81,22 @@ export struct CalendarRecurrenceWeekday {
     weekNumber?: int8;
 }
 
+/// Calendar reminder anchor.
+export enum CalendarReminderAnchor {
+    /// Reminder is anchored to the event start.
+    Start = 1,
+    /// Reminder is anchored to the event end.
+    End = 2,
+}
+
 /// Relative calendar reminder payload.
 export struct CalendarRelativeReminder {
     /// Discriminator for this calendar reminder variant.
     kind: "relative";
-    /// Minutes before start time for one relative reminder.
-    minutesBeforeStart: int32;
+    /// Reminder anchor for one relative reminder.
+    anchor: CalendarReminderAnchor;
+    /// Signed offset in seconds relative to the selected anchor.
+    offsetSeconds: int64;
 }
 
 /// Absolute calendar reminder payload.
@@ -243,7 +253,7 @@ declare namespace os {
     /// Enumerate readable host calendars and return descriptor metadata.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses EventKit on Apple platforms, CalendarContract on Android, and calendar provider APIs on desktop hosts.
     ///
     /// # Errors
@@ -258,7 +268,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.calendar.read"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -271,7 +281,7 @@ declare namespace os {
     /// Enumerate host calendar events over one selected UTC time range.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host calendar query APIs.
     ///
     /// # Errors
@@ -286,7 +296,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.calendar.read"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -299,7 +309,7 @@ declare namespace os {
     /// Read one host calendar event payload by stable identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host calendar read APIs.
     ///
     /// # Errors
@@ -314,7 +324,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.calendar.read"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -327,7 +337,7 @@ declare namespace os {
     /// Create one host calendar event and return its stable identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host calendar-write APIs where available.
     ///
     /// # Errors
@@ -342,7 +352,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.calendar.write"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -355,7 +365,7 @@ declare namespace os {
     /// Update one existing host calendar event by identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host calendar-write APIs where available.
     ///
     /// # Errors
@@ -370,7 +380,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.calendar.write"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -386,7 +396,7 @@ declare namespace os {
     /// Delete one existing host calendar event by identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host calendar-delete APIs where available.
     ///
     /// # Errors
@@ -401,7 +411,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.calendar.write"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",

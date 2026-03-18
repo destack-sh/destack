@@ -1,6 +1,7 @@
 import { Array } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { OsPath } from "../fs/path.ds";
+import { MediaWatchHandle } from "../resource/index.ds";
 
 /// Media asset class.
 export enum MediaAssetKind {
@@ -26,41 +27,108 @@ export struct MediaQuery {
     includeHidden: boolean;
 }
 
-/// Media asset descriptor.
-export struct MediaAssetDescriptor {
+/// Media asset summary.
+export struct MediaAssetSummary {
     /// Stable asset identifier.
     id: string;
     /// Host URI for this asset.
     uri: string;
     /// Asset filename payload.
     filename: string;
-    /// Asset MIME type payload when available.
-    mimeType: string;
     /// Asset class.
     kind: MediaAssetKind;
-    /// Asset width in pixels when available.
-    width: uint32;
-    /// Asset height in pixels when available.
-    height: uint32;
-    /// Asset duration in milliseconds for time-based assets.
-    durationMs: uint64;
+    /// Normalized content type when cheap or natively available.
+    contentType?: string;
     /// Asset size in bytes when available.
-    sizeBytes: uint64;
+    sizeBytes?: uint64;
     /// Asset creation timestamp in UTC nanoseconds when available.
-    createdUnixNs: uint64;
+    createdUnixNs?: uint64;
     /// Asset modification timestamp in UTC nanoseconds when available.
-    modifiedUnixNs: uint64;
+    modifiedUnixNs?: uint64;
+}
+
+/// Media asset descriptor.
+export struct MediaDimensions {
+    /// Asset width in pixels.
+    width: uint32;
+    /// Asset height in pixels.
+    height: uint32;
+}
+
+/// Media asset descriptor.
+export struct MediaAssetDescriptor {
+    /// Shared asset summary payload.
+    asset: MediaAssetSummary;
+    /// Asset dimensions for image and video assets when available.
+    dimensions?: MediaDimensions;
+    /// Asset duration in milliseconds for time-based assets.
+    durationMs?: uint64;
 }
 
 /// Paged media result payload.
 export struct MediaPage {
     /// Asset items for this page.
-    assets: Array<MediaAssetDescriptor>;
+    assets: Array<MediaAssetSummary>;
     /// Opaque cursor for the next page, empty when unavailable.
     nextCursor: string;
     /// Whether more assets are available.
     hasMore: boolean;
 }
+
+/// Media watch stream open options.
+export struct MediaWatchOptions {
+    /// Included asset classes, empty means all classes.
+    kinds: Array<MediaAssetKind>;
+    /// Whether hidden assets should be included.
+    includeHidden: boolean;
+    /// Whether added-asset events should be included.
+    includeAdded: boolean;
+    /// Whether updated-asset events should be included.
+    includeUpdated: boolean;
+    /// Whether removed-asset events should be included.
+    includeRemoved: boolean;
+}
+
+/// Shared metadata for media watch events.
+export struct MediaEventMetadata {
+    /// Monotonic event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Monotonic sequence number for this watch stream.
+    sequence: uint64;
+}
+
+/// Added media event payload.
+export struct MediaAddedEvent {
+    /// Discriminator for this media event variant.
+    kind: "added";
+    /// Shared event metadata.
+    metadata: MediaEventMetadata;
+    /// Current asset summary payload.
+    asset: MediaAssetSummary;
+}
+
+/// Updated media event payload.
+export struct MediaUpdatedEvent {
+    /// Discriminator for this media event variant.
+    kind: "updated";
+    /// Shared event metadata.
+    metadata: MediaEventMetadata;
+    /// Current asset summary payload.
+    asset: MediaAssetSummary;
+}
+
+/// Removed media event payload.
+export struct MediaRemovedEvent {
+    /// Discriminator for this media event variant.
+    kind: "removed";
+    /// Shared event metadata.
+    metadata: MediaEventMetadata;
+    /// Last known asset summary payload.
+    asset: MediaAssetSummary;
+}
+
+/// Media watch event payload.
+export newtype MediaEvent = MediaAddedEvent | MediaUpdatedEvent | MediaRemovedEvent;
 
 /// Media bindings.
 declare namespace os {
@@ -69,7 +137,7 @@ declare namespace os {
     /// Return one page of host media assets for one query.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses Photos framework on Apple platforms, MediaStore on Android, and host media-library bridges on desktop hosts.
     ///
     /// # Errors
@@ -84,7 +152,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.media.read"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -92,13 +160,13 @@ declare namespace os {
     })
     export function mediaList(query: MediaQuery): Result<MediaPage, PlatformError>;
 
-    /// Read one media asset descriptor.
+    /// Describe one media asset.
     ///
-    /// Read one host media asset descriptor by stable identifier.
+    /// Return one richer host media asset descriptor by stable identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host media-library read APIs.
+    /// Android, Unix, and Windows.
+    /// Uses host media-library detail APIs.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -108,24 +176,24 @@ declare namespace os {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding("destack.os.media.read", {
+    @binding("destack.os.media.describe", {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.media.read"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
         affinity: "any",
     })
-    export function mediaRead(id: string): Result<MediaAssetDescriptor, PlatformError>;
+    export function mediaDescribe(id: string): Result<MediaAssetDescriptor, PlatformError>;
 
     /// Import one file path into host media library.
     ///
     /// Import one file from one runtime-visible path and return one created media identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host media-library write APIs.
     ///
     /// # Errors
@@ -140,7 +208,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.media.write"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -156,7 +224,7 @@ declare namespace os {
     /// Delete host media assets and return deleted asset count.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host media-library delete APIs.
     ///
     /// # Errors
@@ -171,11 +239,126 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.media.write"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
         affinity: "any",
     })
     export function mediaDelete(ids: Array<string>): Result<uint32, PlatformError>;
+
+    /// Open media watch stream.
+    ///
+    /// Open one runtime-owned media watch stream and track add or update or remove events for one filtered asset set.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    /// Uses host media-list queries and runtime watch state.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.media.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.media.watchOpen", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.media.read"],
+        platforms: ["android", "windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function mediaWatchOpen(options: MediaWatchOptions): Result<MediaWatchHandle, PlatformError>;
+
+    /// Close media watch stream.
+    ///
+    /// Close one media watch stream and release runtime watch state.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    /// Uses runtime watch state cleanup.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.media.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.media.watchClose", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.media.read"],
+        platforms: ["android", "windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function mediaWatchClose(handle: MediaWatchHandle): Result<void, PlatformError>;
+
+    /// Wait for one media watch event.
+    ///
+    /// Wait for one queued media watch event from one opened watch stream.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    /// Uses runtime media watch state.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.media.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.media.watchRead", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.media.read"],
+        platforms: ["android", "windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function mediaWatchRead(
+        handle: MediaWatchHandle,
+        timeoutNs: uint64,
+    ): Result<MediaEvent, PlatformError>;
+
+    /// Poll one media watch event without blocking.
+    ///
+    /// Poll one queued media watch event from one opened watch stream without waiting.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    /// Uses runtime media watch state.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.media.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.media.watchTryRead", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.media.read"],
+        platforms: ["android", "windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
+    export function mediaWatchTryRead(handle: MediaWatchHandle): Result<MediaEvent, PlatformError>;
 }

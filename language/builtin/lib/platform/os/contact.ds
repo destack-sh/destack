@@ -140,7 +140,7 @@ declare namespace os {
     /// Return one page of host contacts with one selected field set.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses Contacts framework on Apple platforms, ContactsContract on Android, and address-book provider APIs on desktop hosts.
     ///
     /// # Errors
@@ -155,7 +155,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.contact.read"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -168,7 +168,7 @@ declare namespace os {
     /// Return one page of host contacts matching one backend query string.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host contact search APIs where available.
     ///
     /// # Errors
@@ -183,7 +183,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.contact.read"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -199,7 +199,7 @@ declare namespace os {
     /// Read one host contact payload by stable identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host contact read APIs.
     ///
     /// # Errors
@@ -214,7 +214,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.contact.read"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -227,7 +227,7 @@ declare namespace os {
     /// Create one host contact record and return its stable identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host contact-write APIs where available.
     ///
     /// # Errors
@@ -242,7 +242,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.contact.write"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -255,7 +255,7 @@ declare namespace os {
     /// Update one existing host contact by identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host contact-write APIs where available.
     ///
     /// # Errors
@@ -270,7 +270,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.contact.write"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
@@ -283,7 +283,7 @@ declare namespace os {
     /// Delete one existing host contact by identifier.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     /// Uses host contact-delete APIs where available.
     ///
     /// # Errors
@@ -298,7 +298,7 @@ declare namespace os {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.contact.write"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
