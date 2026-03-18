@@ -1,5 +1,6 @@
 use serde::Deserialize;
 
+use super::super::super::runtime::{HeapOptionsJson, RuntimeOptionsJson, SchedulerOptionsJson};
 use super::super::common::{
     StackRestartPolicy, StackRestartPolicyJson, StackRolloutStrategy, StackRolloutStrategyJson,
     StackScalingMetric, StackScalingMetricJson,
@@ -12,6 +13,12 @@ pub struct StackPlacementOptions {
     pub regions: Vec<String>,
     /// Placement class or pool name.
     pub class: Option<String>,
+    /// Affinity selectors or placement groups.
+    pub affinity: Vec<String>,
+    /// Anti-affinity selectors or placement groups.
+    pub anti_affinity: Vec<String>,
+    /// Spread dimensions like region, zone, or host.
+    pub spread: Vec<String>,
 }
 
 impl StackPlacementOptions {
@@ -23,6 +30,15 @@ impl StackPlacementOptions {
         if self.class.is_none() {
             self.class = parent.class.clone();
         }
+        if self.affinity.is_empty() {
+            self.affinity = parent.affinity.clone();
+        }
+        if self.anti_affinity.is_empty() {
+            self.anti_affinity = parent.anti_affinity.clone();
+        }
+        if self.spread.is_empty() {
+            self.spread = parent.spread.clone();
+        }
     }
 }
 
@@ -31,6 +47,9 @@ impl From<&StackPlacementJson> for StackPlacementOptions {
         Self {
             regions: json.regions.clone().unwrap_or_default(),
             class: json.class.clone(),
+            affinity: json.affinity.clone().unwrap_or_default(),
+            anti_affinity: json.anti_affinity.clone().unwrap_or_default(),
+            spread: json.spread.clone().unwrap_or_default(),
         }
     }
 }
@@ -55,6 +74,46 @@ impl StackCapacityOptions {
         self.limits.extend_from(&parent.limits);
         self.scaling.extend_from(&parent.scaling);
         self.concurrency.extend_from(&parent.concurrency);
+    }
+
+    /// Infer runtime overrides from the deploy capacity envelope.
+    pub fn inferred_runtime_overrides(&self) -> Option<RuntimeOptionsJson> {
+        let soft_limit_bytes = self
+            .requests
+            .memory
+            .as_deref()
+            .and_then(parse_byte_quantity);
+        let max_bytes = self.limits.memory.as_deref().and_then(parse_byte_quantity);
+        let max_tasks = self.concurrency.max;
+
+        if soft_limit_bytes.is_none() && max_bytes.is_none() && max_tasks.is_none() {
+            return None;
+        }
+
+        let heap = if soft_limit_bytes.is_some() || max_bytes.is_some() {
+            Some(HeapOptionsJson {
+                soft_limit_bytes,
+                max_bytes,
+                ..Default::default()
+            })
+        } else {
+            None
+        };
+
+        let scheduler = if max_tasks.is_some() {
+            Some(SchedulerOptionsJson {
+                max_tasks,
+                ..Default::default()
+            })
+        } else {
+            None
+        };
+
+        Some(RuntimeOptionsJson {
+            scheduler,
+            heap,
+            ..Default::default()
+        })
     }
 }
 
@@ -259,6 +318,90 @@ impl From<&StackAvailabilityJson> for StackAvailabilityOptions {
     }
 }
 
+/// Parse one byte quantity string into bytes.
+fn parse_byte_quantity(quantity: &str) -> Option<u64> {
+    let quantity = quantity.trim();
+    if quantity.is_empty() {
+        return None;
+    }
+
+    let digits_end = quantity
+        .find(|character: char| !character.is_ascii_digit())
+        .unwrap_or(quantity.len());
+    let number = quantity[..digits_end].parse::<u64>().ok()?;
+    let suffix = quantity[digits_end..].trim();
+
+    let multiplier = match suffix {
+        "" | "B" => 1,
+        "K" | "KB" => 1_000,
+        "M" | "MB" => 1_000_000,
+        "G" | "GB" => 1_000_000_000,
+        "T" | "TB" => 1_000_000_000_000,
+        "P" | "PB" => 1_000_000_000_000_000,
+        "Ki" | "KiB" => 1024,
+        "Mi" | "MiB" => 1024_u64.pow(2),
+        "Gi" | "GiB" => 1024_u64.pow(3),
+        "Ti" | "TiB" => 1024_u64.pow(4),
+        "Pi" | "PiB" => 1024_u64.pow(5),
+        _ => return None,
+    };
+
+    number.checked_mul(multiplier)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{StackCapacityJson, StackCapacityOptions, parse_byte_quantity};
+
+    /// Parse binary and decimal byte quantities.
+    #[test]
+    fn test_parse_byte_quantity_units() {
+        assert_eq!(parse_byte_quantity("256Mi"), Some(268_435_456));
+        assert_eq!(parse_byte_quantity("1Gi"), Some(1_073_741_824));
+        assert_eq!(parse_byte_quantity("2GB"), Some(2_000_000_000));
+        assert_eq!(parse_byte_quantity("4096"), Some(4096));
+        assert_eq!(parse_byte_quantity("1m"), None);
+    }
+
+    /// Infer runtime heap and scheduler limits from capacity.
+    #[test]
+    fn test_capacity_infers_runtime_overrides() {
+        let json = StackCapacityJson {
+            requests: super::StackComputeResourcesJson {
+                memory: Some("256Mi".to_string()),
+                ..Default::default()
+            },
+            limits: super::StackComputeResourcesJson {
+                memory: Some("1Gi".to_string()),
+                ..Default::default()
+            },
+            concurrency: super::StackConcurrencyJson { max: Some(64) },
+            ..Default::default()
+        };
+
+        let capacity = StackCapacityOptions::from(&json);
+        let runtime = capacity
+            .inferred_runtime_overrides()
+            .expect("runtime overrides should exist");
+
+        assert_eq!(
+            runtime.heap.as_ref().and_then(|heap| heap.soft_limit_bytes),
+            Some(268_435_456)
+        );
+        assert_eq!(
+            runtime.heap.as_ref().and_then(|heap| heap.max_bytes),
+            Some(1_073_741_824)
+        );
+        assert_eq!(
+            runtime
+                .scheduler
+                .as_ref()
+                .and_then(|scheduler| scheduler.max_tasks),
+            Some(64)
+        );
+    }
+}
+
 /// Placement configuration JSON.
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -268,6 +411,12 @@ pub struct StackPlacementJson {
     pub regions: Option<Vec<String>>,
     /// Placement class or pool name.
     pub class: Option<String>,
+    /// Affinity selectors or placement groups.
+    pub affinity: Option<Vec<String>>,
+    /// Anti-affinity selectors or placement groups.
+    pub anti_affinity: Option<Vec<String>>,
+    /// Spread dimensions like region, zone, or host.
+    pub spread: Option<Vec<String>>,
 }
 
 /// Capacity configuration JSON.

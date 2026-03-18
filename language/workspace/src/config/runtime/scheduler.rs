@@ -121,6 +121,49 @@ pub struct SchedulerOptionsJson {
 }
 
 impl SchedulerOptionsJson {
+    /// Inherit unset scheduler settings from one parent config.
+    pub fn extend_from(&mut self, parent: &Self) {
+        if self.tick_budget_ns.is_none() {
+            self.tick_budget_ns = parent.tick_budget_ns;
+        }
+        if self.microtask_budget.is_none() {
+            self.microtask_budget = parent.microtask_budget;
+        }
+        if self.host_event_budget.is_none() {
+            self.host_event_budget = parent.host_event_budget;
+        }
+        if self.max_microtask_depth.is_none() {
+            self.max_microtask_depth = parent.max_microtask_depth;
+        }
+        if self.timer_resolution_ns.is_none() {
+            self.timer_resolution_ns = parent.timer_resolution_ns;
+        }
+        if self.max_timer_coalesce_ns.is_none() {
+            self.max_timer_coalesce_ns = parent.max_timer_coalesce_ns;
+        }
+        if self.preempt_interval_ns.is_none() {
+            self.preempt_interval_ns = parent.preempt_interval_ns;
+        }
+        if self.poller_backend.is_none() {
+            self.poller_backend = parent.poller_backend;
+        }
+        if self.policy.is_none() {
+            self.policy = parent.policy;
+        }
+        if self.worker_threads.is_none() {
+            self.worker_threads = parent.worker_threads;
+        }
+        if self.io_threads.is_none() {
+            self.io_threads = parent.io_threads;
+        }
+        if self.blocking_threads.is_none() {
+            self.blocking_threads = parent.blocking_threads;
+        }
+        if self.max_tasks.is_none() {
+            self.max_tasks = parent.max_tasks;
+        }
+    }
+
     /// Apply scheduler overrides to a base set of options.
     pub fn apply_to(&self, options: &mut SchedulerOptions) {
         // apply event loop overrides
