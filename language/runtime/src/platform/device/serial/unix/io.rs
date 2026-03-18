@@ -38,12 +38,10 @@ pub(super) fn poll_timeout_millis(deadline: Option<Instant>) -> i32 {
 pub(super) fn wait_for_poll(
     descriptor: RawFd,
     events: libc::c_short,
-    timeout_ns: u64,
+    deadline: Option<Instant>,
     operation: &'static str,
     timeout_message: &'static str,
 ) -> RuntimeResult<libc::c_short> {
-    let deadline = core_platform::timeout_deadline(timeout_ns);
-
     loop {
         let timeout_millis = poll_timeout_millis(deadline);
         let mut poll_descriptor = libc::pollfd {
@@ -94,6 +92,13 @@ fn queue_serial_event(resource: &UnixSerialPortResource, record: UnixSerialEvent
 
 /// Process one unix serial poll mask into queued session events.
 fn process_serial_revents(resource: &UnixSerialPortResource, revents: libc::c_short) -> bool {
+    // invalid descriptor
+    if revents & libc::POLLNVAL != 0 {
+        queue_serial_event(resource, UnixSerialEventRecord::Disconnected);
+
+        return false;
+    }
+
     // disconnected
     if revents & libc::POLLHUP != 0 {
         queue_serial_event(resource, UnixSerialEventRecord::Disconnected);
@@ -288,6 +293,7 @@ pub(super) fn read_serial_bytes(
 
     // rearm read-ready publication before attempting a new read
     mark_read_ready_queued(resource, false);
+    let deadline = core_platform::timeout_deadline(timeout_ns);
 
     loop {
         let status = unsafe {
@@ -316,7 +322,7 @@ pub(super) fn read_serial_bytes(
             wait_for_poll(
                 descriptor,
                 libc::POLLIN | libc::POLLERR | libc::POLLHUP,
-                timeout_ns,
+                deadline,
                 operation,
                 "serial read would block",
             )?;
@@ -331,7 +337,7 @@ pub(super) fn read_serial_bytes(
             wait_for_poll(
                 descriptor,
                 libc::POLLIN | libc::POLLERR | libc::POLLHUP,
-                timeout_ns,
+                deadline,
                 operation,
                 "serial read would block",
             )?;
@@ -422,6 +428,7 @@ pub(super) fn write_serial_bytes(
 
     // serialize host write submission with other mutating operations
     let _operation_lock = resource.operation_lock.lock();
+    let deadline = core_platform::timeout_deadline(timeout_ns);
 
     loop {
         let status =
@@ -449,7 +456,7 @@ pub(super) fn write_serial_bytes(
             wait_for_poll(
                 descriptor,
                 libc::POLLOUT | libc::POLLERR | libc::POLLHUP,
-                timeout_ns,
+                deadline,
                 operation,
                 "serial write would block",
             )?;

@@ -2127,12 +2127,12 @@ pub(crate) unsafe fn destack_device_serial_open(
 
 /// Read one serial event.
 ///
-/// Wait for the next pending serial event for one opened endpoint.
-/// Events report readiness, modem transitions, disconnects, and line errors without forcing callers to poll control state.
+/// Wait for the next queued serial event for one opened endpoint.
+/// Events report readiness, modem transitions, disconnects, line errors, and queue overflow without forcing callers to poll control state.
 ///
 /// # Platform
 /// macOS, Linux-class Unix, and Windows.
-/// Uses WaitCommEvent driven ingress on Windows and kqueue or poll class readiness plus modem-status sources on macOS and Linux-class Unix.
+/// Uses queued session ingress on every supported backend: WaitCommEvent driven ingress on Windows and dedicated readiness monitors plus modem-status sampling on macOS and Linux-class Unix.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -2226,7 +2226,7 @@ pub(crate) unsafe fn destack_device_serial_set_signals(
 
 /// Poll one serial event without blocking.
 ///
-/// Read the next pending serial event for one opened endpoint without waiting for new host activity.
+/// Read the next queued serial event for one opened endpoint without waiting for new host activity.
 /// This operation only consumes events that have already been published into the session queue.
 ///
 /// # Platform
@@ -2356,6 +2356,7 @@ pub(crate) unsafe fn destack_device_serial_watch_open(
 ///
 /// Wait for the next queued serial topology event from one opened watch stream.
 /// The returned event carries the full descriptor snapshot so callers do not need to race a follow-up list call.
+/// Overflow events report dropped topology transitions and tell callers to resynchronize with `serialList`.
 ///
 /// # Platform
 /// macOS, Linux-class Unix, and Windows.
@@ -2389,7 +2390,7 @@ pub(crate) unsafe fn destack_device_serial_watch_read(
 /// Poll one serial topology event without blocking.
 ///
 /// Read the next queued serial topology event from one opened watch stream without waiting.
-/// This operation only consumes already published attach or detach events.
+/// This operation only consumes already published watch events, including overflow markers.
 ///
 /// # Platform
 /// macOS, Linux-class Unix, and Windows.

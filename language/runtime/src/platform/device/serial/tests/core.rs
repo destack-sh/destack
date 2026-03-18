@@ -11,12 +11,12 @@ use crate::platform::device::tests::{DeviceHarnessContext, HarnessValue};
 #[cfg(unix)]
 use crate::platform::device::{
     SerialDataBits, SerialEvent, SerialEventValue, SerialEventVm, SerialFlowControl,
-    SerialOutputSignals, SerialOutputSignalsVm, SerialParity, SerialPortConfig, SerialPortConfigVm,
-    SerialPortDescriptor, SerialPortDescriptorVm, SerialPortOpenOptions, SerialStopBits,
+    SerialOutputSignals, SerialOutputSignalsVm, SerialParity, SerialPortConfig,
+    SerialPortConfigValue, SerialPortConfigVm, SerialPortOpenOptions, SerialStopBits,
 };
 use crate::platform::device::{
-    SerialPortConfigValue, SerialPortDescriptorValue, SerialPortTransport, SerialWatchEvent,
-    SerialWatchEventValue, SerialWatchEventVm,
+    SerialPortDescriptor, SerialPortDescriptorValue, SerialPortDescriptorVm, SerialPortTransport,
+    SerialWatchEvent, SerialWatchEventValue, SerialWatchEventVm,
 };
 #[cfg(unix)]
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -211,6 +211,7 @@ pub(super) fn open_serial_handle_with_options(
 }
 
 /// Decode one serial descriptor from one native or VM harness result.
+#[cfg(unix)]
 pub(super) fn serial_descriptor_value(
     context: &mut DeviceHarnessContext<'_>,
     value: HarnessValue<SerialPortDescriptor, SerialPortDescriptorVm>,
@@ -324,4 +325,17 @@ pub(super) fn assert_serial_descriptor_invariants(
         "duplicate serial id: {}",
         descriptor.id
     );
+}
+
+/// Assert that one listed descriptor sequence is stable across one immediate repeat.
+pub(super) fn assert_serial_descriptor_list_stable(
+    previous: &[SerialPortDescriptorValue],
+    current: &[SerialPortDescriptorValue],
+) {
+    assert_eq!(current.len(), previous.len());
+
+    // compare the full descriptor snapshots in order
+    for (current, previous) in current.iter().zip(previous) {
+        assert_eq!(current, previous);
+    }
 }

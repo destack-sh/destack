@@ -14,7 +14,7 @@ use super::bluetooth::{LinuxBluetoothService, linux_bluetooth_service};
 use super::camera::{LinuxCameraWatchService, linux_camera_watch_service};
 #[cfg(target_os = "macos")]
 use super::camera::{MacosCameraWatchService, macos_camera_watch_service};
-#[cfg(unix)]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 use super::serial::{UnixSerialWatchService, unix_serial_watch_service};
 #[cfg(windows)]
 use super::serial::{WindowsSerialService, windows_serial_service};
@@ -33,7 +33,7 @@ pub(crate) struct PlatformDeviceState {
     #[cfg(target_os = "macos")]
     macos_camera_watch_service: ServiceHandle<MacosCameraWatchService>,
     /// Shared unix serial topology service handle for this agent.
-    #[cfg(unix)]
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     unix_serial_watch_service: ServiceHandle<UnixSerialWatchService>,
     /// Shared Windows serial ingress service handle for this agent.
     #[cfg(windows)]
@@ -84,7 +84,7 @@ impl PlatformDeviceState {
     }
 
     /// Return one shared unix serial topology service handle for this agent.
-    #[cfg(unix)]
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     pub(crate) fn unix_serial_watch_service(
         &self,
         operation: &'static str,
