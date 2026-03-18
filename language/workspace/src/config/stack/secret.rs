@@ -2,7 +2,7 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::common::merge_metadata;
+use super::common::{StackProviderJson, StackProviderOptions, merge_metadata};
 
 /// Secret options.
 #[derive(Debug, Clone, Default)]
@@ -13,8 +13,8 @@ pub struct StackSecretOptions {
     pub labels: IndexMap<String, String>,
     /// Non-identifying metadata.
     pub annotations: IndexMap<String, String>,
-    /// Provider-specific lowering overrides.
-    pub provider: Option<Value>,
+    /// Provider attachment.
+    pub provider: StackProviderOptions,
     /// Extra secret arguments.
     pub with: Option<Value>,
 }
@@ -25,9 +25,7 @@ impl StackSecretOptions {
         if self.reference.is_none() {
             self.reference = parent.reference.clone();
         }
-        if self.provider.is_none() {
-            self.provider = parent.provider.clone();
-        }
+        self.provider.extend_from(&parent.provider);
         if self.with.is_none() {
             self.with = parent.with.clone();
         }
@@ -43,7 +41,11 @@ impl From<&StackSecretJson> for StackSecretOptions {
             reference: json.reference.clone(),
             labels: json.labels.clone().unwrap_or_default(),
             annotations: json.annotations.clone().unwrap_or_default(),
-            provider: json.provider.clone(),
+            provider: json
+                .provider
+                .as_ref()
+                .map(StackProviderOptions::from)
+                .unwrap_or_default(),
             with: json.with.clone(),
         }
     }
@@ -63,8 +65,8 @@ pub struct StackSecretJson {
     pub labels: Option<IndexMap<String, String>>,
     /// Non-identifying metadata.
     pub annotations: Option<IndexMap<String, String>>,
-    /// Provider-specific lowering overrides.
-    pub provider: Option<Value>,
+    /// Provider attachment.
+    pub provider: Option<StackProviderJson>,
     /// Extra secret arguments.
     pub with: Option<Value>,
 }

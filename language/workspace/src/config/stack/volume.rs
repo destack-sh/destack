@@ -2,7 +2,7 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::common::merge_metadata;
+use super::common::{StackProviderJson, StackProviderOptions, merge_metadata};
 
 /// Volume options.
 #[derive(Debug, Clone, Default)]
@@ -21,8 +21,8 @@ pub struct StackVolumeOptions {
     pub labels: IndexMap<String, String>,
     /// Non-identifying metadata.
     pub annotations: IndexMap<String, String>,
-    /// Provider-specific lowering overrides.
-    pub provider: Option<Value>,
+    /// Provider attachment.
+    pub provider: StackProviderOptions,
     /// Extra volume arguments.
     pub with: Option<Value>,
 }
@@ -42,9 +42,7 @@ impl StackVolumeOptions {
         if self.retention.is_none() {
             self.retention = parent.retention.clone();
         }
-        if self.provider.is_none() {
-            self.provider = parent.provider.clone();
-        }
+        self.provider.extend_from(&parent.provider);
         if self.with.is_none() {
             self.with = parent.with.clone();
         }
@@ -65,7 +63,11 @@ impl From<&StackVolumeJson> for StackVolumeOptions {
             backup: StackVolumeBackupOptions::from(&json.backup),
             labels: json.labels.clone().unwrap_or_default(),
             annotations: json.annotations.clone().unwrap_or_default(),
-            provider: json.provider.clone(),
+            provider: json
+                .provider
+                .as_ref()
+                .map(StackProviderOptions::from)
+                .unwrap_or_default(),
             with: json.with.clone(),
         }
     }
@@ -109,7 +111,7 @@ impl From<&StackVolumeBackupJson> for StackVolumeBackupOptions {
 
 /// A passive mountable storage node.
 ///
-/// Inputs: size, class, and provider config.
+/// Inputs: size, class, and provider attachment.
 /// Outputs: mount handles for workloads.
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -130,8 +132,8 @@ pub struct StackVolumeJson {
     pub labels: Option<IndexMap<String, String>>,
     /// Non-identifying metadata.
     pub annotations: Option<IndexMap<String, String>>,
-    /// Provider-specific lowering overrides.
-    pub provider: Option<Value>,
+    /// Provider attachment.
+    pub provider: Option<StackProviderJson>,
     /// Extra volume arguments.
     pub with: Option<Value>,
 }

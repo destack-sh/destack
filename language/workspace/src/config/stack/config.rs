@@ -2,7 +2,7 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::common::merge_metadata;
+use super::common::{StackProviderJson, StackProviderOptions, merge_metadata};
 
 /// Config options.
 #[derive(Debug, Clone, Default)]
@@ -15,8 +15,8 @@ pub struct StackConfigOptions {
     pub labels: IndexMap<String, String>,
     /// Non-identifying metadata.
     pub annotations: IndexMap<String, String>,
-    /// Provider-specific lowering overrides.
-    pub provider: Option<Value>,
+    /// Provider attachment.
+    pub provider: StackProviderOptions,
     /// Extra config arguments.
     pub with: Option<Value>,
 }
@@ -27,9 +27,7 @@ impl StackConfigOptions {
         if self.file.is_none() {
             self.file = parent.file.clone();
         }
-        if self.provider.is_none() {
-            self.provider = parent.provider.clone();
-        }
+        self.provider.extend_from(&parent.provider);
         if self.with.is_none() {
             self.with = parent.with.clone();
         }
@@ -49,7 +47,11 @@ impl From<&StackConfigJson> for StackConfigOptions {
             data: json.data.clone().unwrap_or_default(),
             labels: json.labels.clone().unwrap_or_default(),
             annotations: json.annotations.clone().unwrap_or_default(),
-            provider: json.provider.clone(),
+            provider: json
+                .provider
+                .as_ref()
+                .map(StackProviderOptions::from)
+                .unwrap_or_default(),
             with: json.with.clone(),
         }
     }
@@ -71,8 +73,8 @@ pub struct StackConfigJson {
     pub labels: Option<IndexMap<String, String>>,
     /// Non-identifying metadata.
     pub annotations: Option<IndexMap<String, String>>,
-    /// Provider-specific lowering overrides.
-    pub provider: Option<Value>,
+    /// Provider attachment.
+    pub provider: Option<StackProviderJson>,
     /// Extra config arguments.
     pub with: Option<Value>,
 }

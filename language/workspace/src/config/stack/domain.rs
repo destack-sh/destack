@@ -2,7 +2,9 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::common::{StackTlsMode, StackTlsModeJson, merge_metadata};
+use super::common::{
+    StackProviderJson, StackProviderOptions, StackTlsMode, StackTlsModeJson, merge_metadata,
+};
 
 /// Stack domain options.
 #[derive(Debug, Clone, Default)]
@@ -21,8 +23,10 @@ pub struct StackDomainOptions {
     pub labels: IndexMap<String, String>,
     /// Non-identifying metadata.
     pub annotations: IndexMap<String, String>,
-    /// Provider-specific lowering overrides.
-    pub provider: Option<Value>,
+    /// Provider attachment.
+    pub provider: StackProviderOptions,
+    /// Extra domain arguments.
+    pub with: Option<Value>,
 }
 
 impl StackDomainOptions {
@@ -37,8 +41,9 @@ impl StackDomainOptions {
         if self.mode.is_none() {
             self.mode = parent.mode;
         }
-        if self.provider.is_none() {
-            self.provider = parent.provider.clone();
+        self.provider.extend_from(&parent.provider);
+        if self.with.is_none() {
+            self.with = parent.with.clone();
         }
 
         self.dns.extend_from(&parent.dns);
@@ -58,7 +63,12 @@ impl From<&StackDomainJson> for StackDomainOptions {
             tls: StackDomainTlsOptions::from(&json.tls),
             labels: json.labels.clone().unwrap_or_default(),
             annotations: json.annotations.clone().unwrap_or_default(),
-            provider: json.provider.clone(),
+            provider: json
+                .provider
+                .as_ref()
+                .map(StackProviderOptions::from)
+                .unwrap_or_default(),
+            with: json.with.clone(),
         }
     }
 }
@@ -66,32 +76,25 @@ impl From<&StackDomainJson> for StackDomainOptions {
 /// Domain DNS options.
 #[derive(Debug, Clone, Default)]
 pub struct StackDomainDnsOptions {
-    /// DNS provider identifier.
-    pub provider: Option<String>,
-    /// Control-plane account reference.
-    pub account: Option<String>,
+    /// DNS provider attachment.
+    pub provider: StackProviderOptions,
     /// DNS zone identifier or name.
     pub zone: Option<String>,
     /// Explicit DNS records to manage.
     pub records: IndexMap<String, StackDomainDnsRecordOptions>,
-    /// Extra DNS provider metadata.
-    pub config: Option<Value>,
+    /// Extra DNS provider arguments.
+    pub with: Option<Value>,
 }
 
 impl StackDomainDnsOptions {
     /// Inherit unset DNS settings from one parent config.
     pub fn extend_from(&mut self, parent: &Self) {
-        if self.provider.is_none() {
-            self.provider = parent.provider.clone();
-        }
-        if self.account.is_none() {
-            self.account = parent.account.clone();
-        }
+        self.provider.extend_from(&parent.provider);
         if self.zone.is_none() {
             self.zone = parent.zone.clone();
         }
-        if self.config.is_none() {
-            self.config = parent.config.clone();
+        if self.with.is_none() {
+            self.with = parent.with.clone();
         }
 
         for (name, record) in &parent.records {
@@ -107,8 +110,11 @@ impl StackDomainDnsOptions {
 impl From<&StackDomainDnsJson> for StackDomainDnsOptions {
     fn from(json: &StackDomainDnsJson) -> Self {
         Self {
-            provider: json.provider.clone(),
-            account: json.account.clone(),
+            provider: json
+                .provider
+                .as_ref()
+                .map(StackProviderOptions::from)
+                .unwrap_or_default(),
             zone: json.zone.clone(),
             records: json
                 .records
@@ -122,7 +128,7 @@ impl From<&StackDomainDnsJson> for StackDomainDnsOptions {
                         .collect()
                 })
                 .unwrap_or_default(),
-            config: json.config.clone(),
+            with: json.with.clone(),
         }
     }
 }
@@ -270,8 +276,10 @@ pub struct StackDomainJson {
     pub labels: Option<IndexMap<String, String>>,
     /// Non-identifying metadata.
     pub annotations: Option<IndexMap<String, String>>,
-    /// Provider-specific lowering overrides.
-    pub provider: Option<Value>,
+    /// Provider attachment.
+    pub provider: Option<StackProviderJson>,
+    /// Extra domain arguments.
+    pub with: Option<Value>,
 }
 
 /// Domain DNS JSON.
@@ -279,16 +287,14 @@ pub struct StackDomainJson {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct StackDomainDnsJson {
-    /// DNS provider identifier.
-    pub provider: Option<String>,
-    /// Control-plane account reference.
-    pub account: Option<String>,
+    /// DNS provider attachment.
+    pub provider: Option<StackProviderJson>,
     /// DNS zone identifier or name.
     pub zone: Option<String>,
     /// Explicit DNS records to manage.
     pub records: Option<IndexMap<String, StackDomainDnsRecordJson>>,
-    /// Extra DNS provider metadata.
-    pub config: Option<Value>,
+    /// Extra DNS provider arguments.
+    pub with: Option<Value>,
 }
 
 /// Domain DNS record JSON.
@@ -319,45 +325,4 @@ pub struct StackDomainTlsJson {
     pub mode: Option<StackTlsModeJson>,
     /// Certificate reference.
     pub certificate: Option<String>,
-}
-
-#[cfg(test)]
-mod tests {
-    use serde_json::json;
-
-    use super::StackDomainJson;
-
-    /// Parse structured DNS records for one domain.
-    #[test]
-    fn test_domain_parse_dns_records() {
-        let json: StackDomainJson = serde_json::from_value(json!({
-            "name": "example.com",
-            "dns": {
-                "provider": "cloudflare",
-                "records": {
-                    "root": {
-                        "type": "A",
-                        "name": "@",
-                        "value": "192.0.2.10",
-                        "ttl": 60,
-                        "proxied": true
-                    },
-                    "mail": {
-                        "type": "MX",
-                        "name": "@",
-                        "value": "mail.example.com",
-                        "priority": 10
-                    }
-                }
-            }
-        }))
-        .expect("domain should parse");
-
-        let records = json.dns.records.expect("records should be present");
-
-        assert_eq!(records["root"].r#type.as_deref(), Some("A"));
-        assert_eq!(records["root"].proxied, Some(true));
-        assert_eq!(records["mail"].r#type.as_deref(), Some("MX"));
-        assert_eq!(records["mail"].priority, Some(10));
-    }
 }

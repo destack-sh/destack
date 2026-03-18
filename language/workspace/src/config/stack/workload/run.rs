@@ -1,8 +1,7 @@
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::super::asset::{StackAssetsJson, StackAssetsOptions};
-use super::super::common::{StackRunKind, StackRunKindJson};
+use super::super::{StackAssetRefsJson, StackRunKind, StackRunKindJson};
 
 /// Builtin queue trigger kind id.
 pub const DESTACK_TRIGGER_QUEUE: &str = "destack.sh/trigger/queue";
@@ -20,8 +19,8 @@ pub struct StackRunOptions {
     pub protocol: Option<String>,
     /// Optional mount path or handler path.
     pub mount: Option<String>,
-    /// Static asset source or asset publishing configuration.
-    pub assets: StackAssetsOptions,
+    /// Referenced asset collections.
+    pub assets: Vec<String>,
     /// Trigger configuration.
     pub trigger: StackTriggerOptions,
     /// Delivery configuration.
@@ -46,7 +45,9 @@ impl StackRunOptions {
             self.with = parent.with.clone();
         }
 
-        self.assets.extend_from(&parent.assets);
+        if self.assets.is_empty() {
+            self.assets = parent.assets.clone();
+        }
         self.trigger.extend_from(&parent.trigger);
         self.delivery.extend_from(&parent.delivery);
     }
@@ -61,7 +62,7 @@ impl From<&StackRunJson> for StackRunOptions {
             assets: json
                 .assets
                 .as_ref()
-                .map(StackAssetsOptions::from)
+                .map(StackAssetRefsJson::names)
                 .unwrap_or_default(),
             trigger: StackTriggerOptions::from(&json.trigger),
             delivery: StackDeliveryOptions::from(&json.delivery),
@@ -210,8 +211,8 @@ pub struct StackRunJson {
     pub protocol: Option<String>,
     /// Optional mount path or handler path.
     pub mount: Option<String>,
-    /// Static asset source or asset publishing configuration.
-    pub assets: Option<StackAssetsJson>,
+    /// Referenced asset collections.
+    pub assets: Option<StackAssetRefsJson>,
     /// Trigger configuration.
     #[serde(default)]
     pub trigger: StackTriggerJson,
