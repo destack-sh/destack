@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_dir::{self as dir};
 use destack_source::{FileId, ModuleId, ProfileId};
-use destack_workspace::{Module, ModuleAst, ModuleDir, Program, Session};
+use destack_workspace::{Ast, DirAnalyzed, DirResolved, Module, Program, Session};
 
 use super::{get_module_by_file_id, program_for_module};
 
@@ -16,9 +16,11 @@ pub struct QueryContext<'a> {
     /// The owning program.
     pub program: Arc<Program>,
     /// The module AST (syntax tree and strings).
-    pub ast: Arc<ModuleAst>,
+    pub ast: Arc<Ast>,
     /// The module DIR (semantic IR).
-    pub dir: Arc<ModuleDir>,
+    pub dir: Arc<DirAnalyzed>,
+    /// The resolved module linkage surface.
+    pub resolved: Arc<DirResolved>,
     /// The profile used for this context.
     pub profile_id: ProfileId,
     /// The module id.
@@ -101,12 +103,14 @@ fn query_context_with_program_and_profile<'a>(
     // resolve module ast and profile dir artifact
     let ast = program.artifacts.ast(module.id)?;
     let dir = program.artifacts.dir_analyzed(module.id, profile)?;
+    let resolved = program.artifacts.dir_resolved(module.id, profile)?;
 
     // build query context
     Some(QueryContext {
         program,
         ast,
         dir,
+        resolved,
         profile_id: profile,
         module_id: module.id,
         file_id: module.file_id,

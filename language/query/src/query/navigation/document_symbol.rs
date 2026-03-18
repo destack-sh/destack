@@ -10,7 +10,7 @@ use crate::common::{
     is_synthetic_function_keyword_field, main_span_for_dir_node, member_key_name,
     member_symbol_kind, program_for_module, span_for_dir_node,
 };
-use destack_workspace::{ModuleAst, Session};
+use destack_workspace::{Ast, Session};
 
 /// A symbol in a document (for outline view).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -304,7 +304,7 @@ fn declaration_symbol_kind_ast(declaration: &ast::Declaration) -> SymbolKind {
 
 /// Convert an AST member to a document symbol.
 fn member_to_document_symbol_ast(
-    ast: &ModuleAst,
+    ast: &Ast,
     member_id: ast::LocalNodeId<ast::Member>,
 ) -> Option<DocumentSymbol> {
     // resolve the member node
@@ -346,7 +346,7 @@ fn member_to_document_symbol_ast(
 
 /// Convert an AST enum field to a document symbol.
 fn enum_field_to_document_symbol_ast(
-    ast: &ModuleAst,
+    ast: &Ast,
     field_id: ast::LocalNodeId<ast::EnumField>,
 ) -> Option<DocumentSymbol> {
     // resolve the enum field node
@@ -366,7 +366,7 @@ fn enum_field_to_document_symbol_ast(
 }
 
 /// Resolve a display name for a member key.
-fn member_key_name_ast(ast: &ModuleAst, key: &ast::Key) -> Option<String> {
+fn member_key_name_ast(ast: &Ast, key: &ast::Key) -> Option<String> {
     match key {
         ast::Key::Name(name) => Some(ast.strings.get(name.string()).to_string()),
         ast::Key::Private(name) => {

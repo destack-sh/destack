@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use destack_ast::{AnnotationPosition, Doc};
 use destack_dir as dir;
 
-use destack_workspace::{ModuleAst, Session};
+use destack_workspace::{Ast, Session};
 
 /// Collect documentation strings attached to a node.
-pub(crate) fn doc_strings_for_node(ast: &ModuleAst, node_id: u32) -> Vec<String> {
+pub(crate) fn doc_strings_for_node(ast: &Ast, node_id: u32) -> Vec<String> {
     // get doc annotations attached to this AST node
     let docs = ast.tree.get_docs_for(node_id);
 
@@ -32,7 +32,7 @@ pub(crate) fn doc_strings_for_node(ast: &ModuleAst, node_id: u32) -> Vec<String>
 
 /// Collect documentation strings attached to a node or immediate line docs.
 pub(crate) fn doc_strings_for_node_with_fallback(
-    ast: &ModuleAst,
+    ast: &Ast,
     source: &str,
     node_id: u32,
 ) -> Vec<String> {
@@ -51,7 +51,7 @@ pub(crate) fn doc_strings_for_node_with_fallback(
 
 /// Collect documentation strings from a node or enclosing nodes.
 pub(crate) fn doc_strings_for_node_or_enclosing(
-    ast: &ModuleAst,
+    ast: &Ast,
     source: &str,
     node_id: u32,
 ) -> Vec<String> {
@@ -123,7 +123,7 @@ pub(crate) fn doc_text_for_symbol(
 
 /// Join documentation strings with tag lines removed.
 pub(crate) fn doc_text_for_node_without_tags(
-    ast: &ModuleAst,
+    ast: &Ast,
     source: &str,
     node_id: u32,
     tags: &[&str],

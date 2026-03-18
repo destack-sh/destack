@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_dir::{GlobalSymbolId, StaticKey, SymbolType};
 use destack_source::{FileId, ModuleId};
-use destack_workspace::{ExportEntry, Program, Session};
+use destack_workspace::{Program, Session};
 
 use super::query_context;
 
@@ -91,7 +91,7 @@ pub fn get_module_exports_maybe(
     let mut exports = Vec::new();
 
     // read the exported symbols table
-    let exported_symbols = &ctx.dir.exported_symbols;
+    let exported_symbols = &ctx.resolved.exported_symbols;
 
     if !exported_symbols.is_empty() {
         // collect exported symbols from the export table
@@ -147,54 +147,6 @@ pub fn get_module_exports_maybe(
 
     // return the collected exports
     Some(exports)
-}
-
-/// Ensure the program export index is populated for the current module versions.
-pub fn ensure_program_export_index(session: &Session, program: &Program) {
-    // snapshot module handles to avoid holding registry locks
-    let modules: Vec<_> = program.modules.iter().collect();
-
-    for module_ref in modules {
-        // read module metadata needed for staleness checks
-        let module = module_ref.as_ref();
-        let module_id = module.id;
-        let module_version = module.version();
-
-        // skip modules with fresh export index entries
-        if !program.index.exports.is_stale(module_id, module_version) {
-            continue;
-        }
-
-        // skip modules without an available query context
-        let Some(exports) = get_module_exports_maybe(session, module_id) else {
-            continue;
-        };
-
-        // clear stale entries before inserting fresh exports
-        program.index.exports.clear_module(module_id);
-
-        // insert export entries for the module
-        for export in exports {
-            // create an export index entry
-            let name_id = session.strings.intern(&export.name);
-            let entry = ExportEntry {
-                module_id: export.module_id,
-                symbol_id: export.local_id,
-                symbol_type: export.kind,
-                space: export.space,
-                name: export.name,
-                module_path: export.module_path,
-            };
-
-            program.index.exports.add_export(name_id, entry);
-        }
-
-        // record the module version used for indexing
-        program
-            .index
-            .exports
-            .set_module_version(module_id, module_version);
-    }
 }
 
 /// Search for importable symbols (exported from other modules).

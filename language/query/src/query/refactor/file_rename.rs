@@ -308,7 +308,7 @@ fn resolve_rename_target_module_id(
     };
     let target_id = session.strings.intern(specifier);
     let cache_key = (relative_module, target_id, ImportEdgeKind::Import, None);
-    if let Some(targets) = ctx.dir.imported_modules.get(&cache_key).copied() {
+    if let Some(targets) = ctx.resolved.imported_modules.get(&cache_key).copied() {
         let dependency_kind = match kind {
             ast::DependencyKind::Type => dir::DependencyKind::Type,
             ast::DependencyKind::Value => dir::DependencyKind::Value,
