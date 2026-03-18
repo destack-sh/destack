@@ -140,8 +140,8 @@ declare namespace os {
     /// Return one page of host contacts with one selected field set.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
-    /// Uses Contacts framework on Apple platforms, ContactsContract on Android, and address-book provider APIs on desktop hosts.
+    /// Android, Apple hosts, Linux, and Windows.
+    /// Returns one paged contact result from the active host contact store.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -168,8 +168,8 @@ declare namespace os {
     /// Return one page of host contacts matching one backend query string.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
-    /// Uses host contact search APIs where available.
+    /// Android, Apple hosts, Linux, and Windows.
+    /// Returns one paged contact result that matches the requested search text.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -199,8 +199,8 @@ declare namespace os {
     /// Read one host contact payload by stable identifier.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
-    /// Uses host contact read APIs.
+    /// Android, Apple hosts, Linux, and Windows.
+    /// Reads one contact by its stable host identifier.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -227,8 +227,8 @@ declare namespace os {
     /// Create one host contact record and return its stable identifier.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
-    /// Uses host contact-write APIs where available.
+    /// Android, Apple hosts, Linux, and Windows.
+    /// Creates one contact in the active host contact store when the host supports writes.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -255,8 +255,8 @@ declare namespace os {
     /// Update one existing host contact by identifier.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
-    /// Uses host contact-write APIs where available.
+    /// Android, Apple hosts, Linux, and Windows.
+    /// Updates one contact in the active host contact store when the host supports writes.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -283,8 +283,8 @@ declare namespace os {
     /// Delete one existing host contact by identifier.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
-    /// Uses host contact-delete APIs where available.
+    /// Android, Apple hosts, Linux, and Windows.
+    /// Deletes one contact from the active host contact store when the host supports writes.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
