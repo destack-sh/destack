@@ -237,6 +237,16 @@ export struct UsbHotplugEventMetadata {
     device: UsbDeviceDescriptor;
 }
 
+/// Shared metadata for one USB hotplug watch overflow.
+export struct UsbHotplugOverflowEventMetadata {
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Monotonic sequence number for this watch stream.
+    sequence: uint64;
+    /// Number of dropped hotplug records since the last surfaced overflow.
+    droppedCount: uint64;
+}
+
 /// USB-attached hotplug event.
 export struct UsbHotplugAttachedEvent {
     /// Discriminator for this usb hotplug event variant.
@@ -253,8 +263,19 @@ export struct UsbHotplugDetachedEvent {
     metadata: UsbHotplugEventMetadata;
 }
 
+/// USB-hotplug-overflow event.
+export struct UsbHotplugOverflowEvent {
+    /// Discriminator for this usb hotplug event variant.
+    kind: "overflow";
+    /// Shared overflow metadata.
+    metadata: UsbHotplugOverflowEventMetadata;
+}
+
 /// USB hotplug event payload.
-export newtype UsbHotplugEvent = UsbHotplugAttachedEvent | UsbHotplugDetachedEvent;
+export newtype UsbHotplugEvent =
+    | UsbHotplugAttachedEvent
+    | UsbHotplugDetachedEvent
+    | UsbHotplugOverflowEvent;
 
 /// USB string descriptor payload.
 export struct UsbStringDescriptor {

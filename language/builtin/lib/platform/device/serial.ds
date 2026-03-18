@@ -137,8 +137,29 @@ export struct SerialDetachedEvent {
     metadata: SerialWatchEventMetadata;
 }
 
+/// Shared metadata for one serial watch overflow event.
+export struct SerialWatchOverflowEventMetadata {
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Monotonic sequence number for this watch stream.
+    sequence: uint64;
+    /// Number of dropped topology events since the last delivered overflow marker.
+    droppedCount: uint64;
+}
+
+/// Serial-watch-overflow event.
+export struct SerialWatchOverflowEvent {
+    /// Discriminator for this serial watch event variant.
+    kind: "overflow";
+    /// Shared overflow metadata.
+    metadata: SerialWatchOverflowEventMetadata;
+}
+
 /// Serial topology event.
-export newtype SerialWatchEvent = SerialAttachedEvent | SerialDetachedEvent;
+export newtype SerialWatchEvent =
+    | SerialAttachedEvent
+    | SerialDetachedEvent
+    | SerialWatchOverflowEvent;
 
 /// Serial input signal state.
 export struct SerialInputSignals {
@@ -228,12 +249,31 @@ export struct SerialDisconnectedEvent {
     metadata: SerialEventMetadata;
 }
 
+/// Shared metadata for one serial session overflow event.
+export struct SerialOverflowEventMetadata {
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Monotonic sequence number for this serial event stream.
+    sequence: uint64;
+    /// Number of dropped session events since the last delivered overflow marker.
+    droppedCount: uint64;
+}
+
+/// Serial-overflow event.
+export struct SerialOverflowEvent {
+    /// Discriminator for this serial event variant.
+    kind: "overflow";
+    /// Shared overflow metadata.
+    metadata: SerialOverflowEventMetadata;
+}
+
 /// Serial event.
 export newtype SerialEvent =
     | SerialReadReadyEvent
     | SerialModemStatusChangedEvent
     | SerialDisconnectedEvent
-    | SerialErrorEvent;
+    | SerialErrorEvent
+    | SerialOverflowEvent;
 
 /// Serial bindings.
 declare namespace device {
@@ -328,6 +368,7 @@ declare namespace device {
     ///
     /// Wait for the next queued serial topology event from one opened watch stream.
     /// The returned event carries the full descriptor snapshot so callers do not need to race a follow-up list call.
+    /// Overflow events report dropped topology transitions and tell callers to resynchronize with `serialList`.
     ///
     /// # Platform
     /// macOS, Linux-class Unix, and Windows.
@@ -359,7 +400,7 @@ declare namespace device {
     /// Poll one serial topology event without blocking.
     ///
     /// Read the next queued serial topology event from one opened watch stream without waiting.
-    /// This operation only consumes already published attach or detach events.
+    /// This operation only consumes already published watch events, including overflow markers.
     ///
     /// # Platform
     /// macOS, Linux-class Unix, and Windows.
@@ -784,12 +825,12 @@ declare namespace device {
 
     /// Read one serial event.
     ///
-    /// Wait for the next pending serial event for one opened endpoint.
-    /// Events report readiness, modem transitions, disconnects, and line errors without forcing callers to poll control state.
+    /// Wait for the next queued serial event for one opened endpoint.
+    /// Events report readiness, modem transitions, disconnects, line errors, and queue overflow without forcing callers to poll control state.
     ///
     /// # Platform
     /// macOS, Linux-class Unix, and Windows.
-    /// Uses WaitCommEvent driven ingress on Windows and kqueue or poll class readiness plus modem-status sources on macOS and Linux-class Unix.
+    /// Uses queued session ingress on every supported backend: WaitCommEvent driven ingress on Windows and dedicated readiness monitors plus modem-status sampling on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -816,7 +857,7 @@ declare namespace device {
 
     /// Poll one serial event without blocking.
     ///
-    /// Read the next pending serial event for one opened endpoint without waiting for new host activity.
+    /// Read the next queued serial event for one opened endpoint without waiting for new host activity.
     /// This operation only consumes events that have already been published into the session queue.
     ///
     /// # Platform
