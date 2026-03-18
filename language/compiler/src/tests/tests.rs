@@ -9,9 +9,10 @@ use std::time::Duration;
 use destack_ast::NodeParentIndex;
 use destack_core::ImmutableStringPool;
 use destack_dir::{
-    Annotation, Argument, CaptureKind, CaptureSet, Declaration, Declarator, DumperOptions,
-    DynamicKey, Expression, FunctionKind, GlobalSymbolId, LocalNodeId, NodeTree, Pattern,
-    ScalarLiteral, StringId, Symbol, SymbolTable, TypeTable,
+    Annotation, Argument, CaptureKind, CaptureSet, CaptureTable, Declaration, Declarator,
+    DumperOptions, DynamicKey, Expression, FunctionKind, GlobalSymbolId, LocalNodeId,
+    LocalNodeIdAny, LocalScopeId, NodeTree, Pattern, ScalarLiteral, StringId, Symbol, SymbolTable,
+    TypeTable,
 };
 use destack_formatter::{DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions};
 use destack_linter::Linter;
@@ -23,15 +24,16 @@ use destack_source::{
     PackageVersion, PhysicalFileSystem, PrintOptions, ProfileStamp, ProfileVersion, Uri,
     print_diagnostics, print_diff,
 };
-use destack_vm::{Heap, Isolate, IsolateOptions, Value};
+use destack_vm::{Heap, Isolate, IsolateOptions, MemoryContext, SharedSpace, Value};
 use destack_workspace::{
     ArtifactKey, CacheMode, CacheStore, Destack, DestackJson, DestackOptions, DiskCacheStore,
-    ImportDir, MemoryCacheStore, Module, ModuleDir, ModuleMir, OutputFormat, ProfileId,
-    Program, Session, Target, TargetId,
+    DirAnalyzed, DirBase, DirDeclared, DirElaborated, DirInterface, DirPatched, DirPrepared,
+    DirResolved, DiskCacheStore, ExportedSymbolTable, MemoryCacheStore, Module, OutputFormat,
+    ProfileId, Program, Session, Target, TargetId,
 };
 use serde_json::json;
 
-use crate::{BuildKey, Compiler, CompilerOptions, Task, TaskPhase, default_workers};
+use crate::{BuildKey, Compiler, CompilerOptions, TaskPhase, default_workers};
 
 use super::tracing::init_tracing;
 
@@ -99,6 +101,43 @@ pub struct DecoratorInfo {
     pub target_symbol: GlobalSymbolId,
     /// Whether the first decorator argument is a string literal.
     pub first_argument_is_string_literal: bool,
+}
+
+/// One cloned DIR snapshot for test helpers.
+#[derive(Debug, Clone)]
+pub(crate) struct TestDir {
+    /// The cloned node tree.
+    pub(crate) tree: NodeTree,
+    /// The cloned symbol table.
+    pub(crate) symbols: SymbolTable,
+    /// The cloned type table.
+    pub(crate) types: TypeTable,
+    /// The cloned capture table.
+    pub(crate) captures: CaptureTable,
+    /// The cloned root expressions.
+    pub(crate) roots: Vec<LocalNodeId<Expression>>,
+    /// The stable fallback node.
+    pub(crate) anchor_node: LocalNodeIdAny,
+    /// The namespace scope.
+    pub(crate) namespace_scope: LocalScopeId,
+    /// The cloned exported-symbol table.
+    pub(crate) exported_symbols: ExportedSymbolTable,
+}
+
+impl TestDir {
+    /// Clone one test snapshot from one patched DIR.
+    fn from_patched(dir: &DirPatched, exported_symbols: ExportedSymbolTable) -> Self {
+        Self {
+            tree: dir.tree.as_ref().clone(),
+            symbols: dir.symbols.as_ref().clone(),
+            types: dir.types.as_ref().clone(),
+            captures: dir.captures.as_ref().clone(),
+            roots: dir.roots.as_ref().clone(),
+            anchor_node: dir.anchor_node,
+            namespace_scope: dir.namespace_scope,
+            exported_symbols,
+        }
+    }
 }
 
 /// A test wrapper for a Program.
@@ -189,6 +228,8 @@ pub struct TestIsolate {
     isolate: Isolate,
     /// The authoritative heap for the isolate.
     heap: Heap,
+    /// The world-shared memory for the isolate.
+    shared: SharedSpace,
 }
 
 impl TestIsolate {
@@ -198,8 +239,10 @@ impl TestIsolate {
         function: &str,
         arguments: &[Value],
     ) -> destack_vm::RuntimeResult<destack_vm::ExecutionOutput> {
+        let mut memory = MemoryContext::new(&mut self.heap, &mut self.shared);
+
         self.isolate
-            .run_function_by_name(&mut self.heap, function, arguments)
+            .run_function_by_name(&mut memory, function, arguments)
     }
 
     /// Run a MIR function by name and return its output value.
@@ -218,69 +261,12 @@ impl TestIsolate {
 }
 
 impl TestProgram {
-    /// Rebuild one mutable import DIR from one published artifact for test-only inspection.
-    fn import_dir_from_artifact(dir: ModuleDir) -> ImportDir {
-        ImportDir {
-            profile_id: dir.profile_id,
-            id: dir.id,
-            version: dir.version,
-            tree: Arc::unwrap_or_clone(dir.tree),
-            symbols: Arc::unwrap_or_clone(dir.symbols),
-            types: Arc::unwrap_or_clone(dir.types),
-            captures: Arc::unwrap_or_clone(dir.captures),
-            roots: Arc::unwrap_or_clone(dir.roots),
-            anchor_node: dir.anchor_node,
-            import_meta: dir.import_meta,
-            namespace_symbol: dir.namespace_symbol,
-            namespace_scope: dir.namespace_scope,
-            global_augmentation_scope: dir.global_augmentation_scope,
-            default_symbol: dir.default_symbol,
-            export_assignment_symbol: dir.export_assignment_symbol,
-            export_assignment: dir.export_assignment,
-            namespace_exports: Arc::unwrap_or_clone(dir.namespace_exports),
-            module_bindings: Arc::unwrap_or_clone(dir.module_bindings),
-            module_binding_exports: Arc::unwrap_or_clone(dir.module_binding_exports),
-            imported_modules: Arc::unwrap_or_clone(dir.imported_modules),
-            exported_symbols: Arc::unwrap_or_clone(dir.exported_symbols),
-        }
-    }
-
-    /// Return the most advanced published DIR for one module and profile when available.
-    pub(crate) fn artifact_dir_data_maybe(
-        &self,
-        module_id: ModuleId,
-        profile: ProfileId,
-    ) -> Option<ModuleDir> {
-        for dir in [
-            self.program.artifacts.dir_patched(module_id, profile),
-            self.program.artifacts.dir_elaborated(module_id, profile),
-            self.program.artifacts.dir_analyzed(module_id, profile),
-            self.program.artifacts.dir_interface(module_id, profile),
-            self.program.artifacts.dir_declared(module_id, profile),
-            self.program.artifacts.dir_resolved(module_id, profile),
-            self.program.artifacts.dir_prepared(module_id, profile),
-            self.program.artifacts.dir_base(module_id),
-        ] {
-            if let Some(dir) = dir {
-                return Some(dir.as_ref().clone());
-            }
-        }
-
-        None
-    }
-
-    /// Return the most advanced published DIR for one module and profile.
-    pub(crate) fn artifact_dir_data(&self, module_id: ModuleId, profile: ProfileId) -> ModuleDir {
-        self.artifact_dir_data_maybe(module_id, profile)
-            .unwrap_or_else(|| panic!("missing artifact dir for module {module_id:?}"))
-    }
-
     /// Return the declared DIR data for one module and profile.
     pub(crate) fn artifact_dir_declared_data(
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-    ) -> ModuleDir {
+    ) -> DirDeclared {
         self.program
             .artifacts
             .dir_declared(module_id, profile)
@@ -288,13 +274,522 @@ impl TestProgram {
             .unwrap_or_else(|| panic!("missing declared dir for module {module_id:?}"))
     }
 
-    /// Return the most advanced published DIR for one module and profile.
-    pub(crate) fn artifact_dir(&self, module_id: ModuleId, profile: ProfileId) -> ImportDir {
-        Self::import_dir_from_artifact(self.artifact_dir_data(module_id, profile))
+    /// Clone the latest published DIR forward into one patched artifact.
+    fn artifact_dir_exact_maybe(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> Option<DirPatched> {
+        if let Some(dir) = self.program.artifacts.dir_patched(module_id, profile) {
+            return Some(dir.as_ref().clone());
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_elaborated(module_id, profile) {
+            return Some(DirPatched::from_elaborated_with(
+                dir.as_ref(),
+                dir.tree.as_ref().clone(),
+            ));
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_analyzed(module_id, profile) {
+            let elaborated = DirElaborated::from_analyzed_with(
+                dir.as_ref(),
+                dir.tree.as_ref().clone(),
+                dir.symbols.as_ref().clone(),
+                dir.types.as_ref().clone(),
+            );
+            return Some(DirPatched::from_elaborated_with(
+                &elaborated,
+                elaborated.tree.as_ref().clone(),
+            ));
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_interface(module_id, profile) {
+            let declared = self
+                .program
+                .artifacts
+                .dir_declared(module_id, profile)
+                .unwrap_or_else(|| panic!("missing declared dir for module {module_id:?}"));
+            let analyzed = DirAnalyzed::from_interface_and_declared_with(
+                dir.as_ref(),
+                declared.as_ref(),
+                dir.types.as_ref().clone(),
+                declared.captures.as_ref().clone(),
+            );
+            let elaborated = DirElaborated::from_analyzed_with(
+                &analyzed,
+                analyzed.tree.as_ref().clone(),
+                analyzed.symbols.as_ref().clone(),
+                analyzed.types.as_ref().clone(),
+            );
+            return Some(DirPatched::from_elaborated_with(
+                &elaborated,
+                elaborated.tree.as_ref().clone(),
+            ));
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_declared(module_id, profile) {
+            let resolved = self
+                .program
+                .artifacts
+                .dir_resolved(module_id, profile)
+                .unwrap_or_else(|| panic!("missing resolved dir for module {module_id:?}"));
+            let interface =
+                DirInterface::from_resolved_and_declared(resolved.as_ref(), dir.as_ref());
+            let analyzed = DirAnalyzed::from_interface_and_declared_with(
+                &interface,
+                dir.as_ref(),
+                interface.types.as_ref().clone(),
+                dir.captures.as_ref().clone(),
+            );
+            let elaborated = DirElaborated::from_analyzed_with(
+                &analyzed,
+                analyzed.tree.as_ref().clone(),
+                analyzed.symbols.as_ref().clone(),
+                analyzed.types.as_ref().clone(),
+            );
+            return Some(DirPatched::from_elaborated_with(
+                &elaborated,
+                elaborated.tree.as_ref().clone(),
+            ));
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_resolved(module_id, profile) {
+            let declared = DirDeclared::from_resolved_with(
+                dir.as_ref(),
+                dir.symbols.as_ref().clone(),
+                dir.types.as_ref().clone(),
+                CaptureTable::new(),
+            );
+            let interface = DirInterface::from_resolved_and_declared(dir.as_ref(), &declared);
+            let analyzed = DirAnalyzed::from_interface_and_declared_with(
+                &interface,
+                &declared,
+                interface.types.as_ref().clone(),
+                declared.captures.as_ref().clone(),
+            );
+            let elaborated = DirElaborated::from_analyzed_with(
+                &analyzed,
+                analyzed.tree.as_ref().clone(),
+                analyzed.symbols.as_ref().clone(),
+                analyzed.types.as_ref().clone(),
+            );
+            return Some(DirPatched::from_elaborated_with(
+                &elaborated,
+                elaborated.tree.as_ref().clone(),
+            ));
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_prepared(module_id, profile) {
+            let resolved = DirResolved::from_prepared_with(
+                dir.as_ref(),
+                dir.tree.as_ref().clone(),
+                dir.symbols.as_ref().clone(),
+                dir.export_assignment,
+                Vec::new(),
+                dir.module_binding_exports.as_ref().clone(),
+                dir.imported_modules.as_ref().clone(),
+                dir.exported_symbols.as_ref().clone(),
+            );
+            let declared = DirDeclared::from_resolved_with(
+                &resolved,
+                resolved.symbols.as_ref().clone(),
+                resolved.types.as_ref().clone(),
+                CaptureTable::new(),
+            );
+            let interface = DirInterface::from_resolved_and_declared(&resolved, &declared);
+            let analyzed = DirAnalyzed::from_interface_and_declared_with(
+                &interface,
+                &declared,
+                interface.types.as_ref().clone(),
+                declared.captures.as_ref().clone(),
+            );
+            let elaborated = DirElaborated::from_analyzed_with(
+                &analyzed,
+                analyzed.tree.as_ref().clone(),
+                analyzed.symbols.as_ref().clone(),
+                analyzed.types.as_ref().clone(),
+            );
+            return Some(DirPatched::from_elaborated_with(
+                &elaborated,
+                elaborated.tree.as_ref().clone(),
+            ));
+        }
+
+        self.program.artifacts.dir_base(module_id).map(|dir| {
+            let prepared = DirPrepared::from_base_with(
+                dir.as_ref(),
+                profile,
+                dir.tree.as_ref().clone(),
+                dir.symbols.as_ref().clone(),
+                dir.roots.as_ref().clone(),
+                None,
+                Default::default(),
+                Default::default(),
+                Default::default(),
+            );
+            let resolved = DirResolved::from_prepared_with(
+                &prepared,
+                prepared.tree.as_ref().clone(),
+                prepared.symbols.as_ref().clone(),
+                prepared.export_assignment,
+                Vec::new(),
+                prepared.module_binding_exports.as_ref().clone(),
+                prepared.imported_modules.as_ref().clone(),
+                prepared.exported_symbols.as_ref().clone(),
+            );
+            let declared = DirDeclared::from_resolved_with(
+                &resolved,
+                resolved.symbols.as_ref().clone(),
+                resolved.types.as_ref().clone(),
+                CaptureTable::new(),
+            );
+            let interface = DirInterface::from_resolved_and_declared(&resolved, &declared);
+            let analyzed = DirAnalyzed::from_interface_and_declared_with(
+                &interface,
+                &declared,
+                interface.types.as_ref().clone(),
+                declared.captures.as_ref().clone(),
+            );
+            let elaborated = DirElaborated::from_analyzed_with(
+                &analyzed,
+                analyzed.tree.as_ref().clone(),
+                analyzed.symbols.as_ref().clone(),
+                analyzed.types.as_ref().clone(),
+            );
+            DirPatched::from_elaborated_with(&elaborated, elaborated.tree.as_ref().clone())
+        })
+    }
+
+    /// Clone the latest published DIR forward into one patched artifact.
+    pub(crate) fn artifact_dir_data_maybe(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> Option<TestDir> {
+        self.artifact_dir_exact_maybe(module_id, profile)
+            .map(|dir| {
+                TestDir::from_patched(&dir, self.artifact_exported_symbols(module_id, profile))
+            })
+    }
+
+    /// Clone the latest published DIR forward into one patched artifact.
+    pub(crate) fn artifact_dir(&self, module_id: ModuleId, profile: ProfileId) -> TestDir {
+        self.artifact_dir_data_maybe(module_id, profile)
+            .unwrap_or_else(|| panic!("missing artifact dir for module {module_id:?}"))
+    }
+
+    /// Clone the latest published DIR forward into one patched artifact.
+    pub(crate) fn artifact_dir_data(&self, module_id: ModuleId, profile: ProfileId) -> TestDir {
+        self.artifact_dir(module_id, profile)
+    }
+
+    /// Return one cloned test DIR with its stable source id and analyze options.
+    pub(crate) fn artifact_dir_context(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> (Arc<Module>, TestDir, LocalNodeIdAny, crate::AnalyzeOptions) {
+        let module = self.program.modules.get(module_id);
+        let dir = self.artifact_dir(module_id, profile);
+        let source_id = dir.roots[0].into_any();
+        let options = self.compiler.analyze_context_options_for_module(module.id);
+
+        (module, dir, source_id, options)
+    }
+
+    /// Clone the latest published DIR tree for one module and profile.
+    pub(crate) fn artifact_tree(&self, module_id: ModuleId, profile: ProfileId) -> NodeTree {
+        if let Some(dir) = self.program.artifacts.dir_patched(module_id, profile) {
+            return dir.tree.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_elaborated(module_id, profile) {
+            return dir.tree.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_analyzed(module_id, profile) {
+            return dir.tree.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_interface(module_id, profile) {
+            return dir.tree.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_declared(module_id, profile) {
+            return dir.tree.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_resolved(module_id, profile) {
+            return dir.tree.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_prepared(module_id, profile) {
+            return dir.tree.as_ref().clone();
+        }
+
+        self.program
+            .artifacts
+            .dir_base(module_id)
+            .map(|dir| dir.tree.as_ref().clone())
+            .unwrap_or_else(|| panic!("missing artifact tree for module {module_id:?}"))
+    }
+
+    /// Clone the latest published DIR symbols for one module and profile.
+    pub(crate) fn artifact_symbols(&self, module_id: ModuleId, profile: ProfileId) -> SymbolTable {
+        if let Some(dir) = self.program.artifacts.dir_patched(module_id, profile) {
+            return dir.symbols.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_elaborated(module_id, profile) {
+            return dir.symbols.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_analyzed(module_id, profile) {
+            return dir.symbols.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_interface(module_id, profile) {
+            return dir.symbols.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_declared(module_id, profile) {
+            return dir.symbols.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_resolved(module_id, profile) {
+            return dir.symbols.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_prepared(module_id, profile) {
+            return dir.symbols.as_ref().clone();
+        }
+
+        self.program
+            .artifacts
+            .dir_base(module_id)
+            .map(|dir| dir.symbols.as_ref().clone())
+            .unwrap_or_else(|| panic!("missing artifact symbols for module {module_id:?}"))
+    }
+
+    /// Clone the latest published DIR types for one module and profile.
+    pub(crate) fn artifact_types(&self, module_id: ModuleId, profile: ProfileId) -> TypeTable {
+        if let Some(dir) = self.program.artifacts.dir_patched(module_id, profile) {
+            return dir.types.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_elaborated(module_id, profile) {
+            return dir.types.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_analyzed(module_id, profile) {
+            return dir.types.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_interface(module_id, profile) {
+            return dir.types.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_declared(module_id, profile) {
+            return dir.types.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_resolved(module_id, profile) {
+            return dir.types.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_prepared(module_id, profile) {
+            return dir.types.as_ref().clone();
+        }
+
+        self.program
+            .artifacts
+            .dir_base(module_id)
+            .map(|dir| dir.types.as_ref().clone())
+            .unwrap_or_else(|| panic!("missing artifact types for module {module_id:?}"))
+    }
+
+    /// Clone the latest published DIR roots for one module and profile.
+    pub(crate) fn artifact_roots(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> Vec<LocalNodeId<Expression>> {
+        if let Some(dir) = self.program.artifacts.dir_patched(module_id, profile) {
+            return dir.roots.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_elaborated(module_id, profile) {
+            return dir.roots.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_analyzed(module_id, profile) {
+            return dir.roots.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_interface(module_id, profile) {
+            return dir.roots.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_declared(module_id, profile) {
+            return dir.roots.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_resolved(module_id, profile) {
+            return dir.roots.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_prepared(module_id, profile) {
+            return dir.roots.as_ref().clone();
+        }
+
+        self.program
+            .artifacts
+            .dir_base(module_id)
+            .map(|dir| dir.roots.as_ref().clone())
+            .unwrap_or_else(|| panic!("missing artifact roots for module {module_id:?}"))
+    }
+
+    /// Clone the latest published DIR captures for one module and profile.
+    pub(crate) fn artifact_captures(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> CaptureTable {
+        if let Some(dir) = self.program.artifacts.dir_patched(module_id, profile) {
+            return dir.captures.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_elaborated(module_id, profile) {
+            return dir.captures.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_analyzed(module_id, profile) {
+            return dir.captures.as_ref().clone();
+        }
+
+        if self
+            .program
+            .artifacts
+            .dir_interface(module_id, profile)
+            .is_some()
+            && let Some(dir) = self.program.artifacts.dir_declared(module_id, profile)
+        {
+            return dir.captures.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_declared(module_id, profile) {
+            return dir.captures.as_ref().clone();
+        }
+
+        CaptureTable::new()
+    }
+
+    /// Return the latest published namespace scope for one module and profile.
+    pub(crate) fn artifact_namespace_scope(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> LocalScopeId {
+        if let Some(dir) = self.program.artifacts.dir_patched(module_id, profile) {
+            return dir.namespace_scope;
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_elaborated(module_id, profile) {
+            return dir.namespace_scope;
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_analyzed(module_id, profile) {
+            return dir.namespace_scope;
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_interface(module_id, profile) {
+            return dir.namespace_scope;
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_declared(module_id, profile) {
+            return dir.namespace_scope;
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_resolved(module_id, profile) {
+            return dir.namespace_scope;
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_prepared(module_id, profile) {
+            return dir.namespace_scope;
+        }
+
+        self.program
+            .artifacts
+            .dir_base(module_id)
+            .map(|dir| dir.namespace_scope)
+            .unwrap_or_else(|| panic!("missing artifact namespace scope for module {module_id:?}"))
+    }
+
+    /// Return the latest published anchor node for one module and profile.
+    pub(crate) fn artifact_anchor_node(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> LocalNodeIdAny {
+        if let Some(dir) = self.program.artifacts.dir_patched(module_id, profile) {
+            return dir.anchor_node;
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_elaborated(module_id, profile) {
+            return dir.anchor_node;
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_analyzed(module_id, profile) {
+            return dir.anchor_node;
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_interface(module_id, profile) {
+            return dir.anchor_node;
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_declared(module_id, profile) {
+            return dir.anchor_node;
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_resolved(module_id, profile) {
+            return dir.anchor_node;
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_prepared(module_id, profile) {
+            return dir.anchor_node;
+        }
+
+        self.program
+            .artifacts
+            .dir_base(module_id)
+            .map(|dir| dir.anchor_node)
+            .unwrap_or_else(|| panic!("missing artifact anchor node for module {module_id:?}"))
+    }
+
+    /// Clone the latest exported-symbol table for one module and profile.
+    pub(crate) fn artifact_exported_symbols(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> ExportedSymbolTable {
+        if let Some(dir) = self.program.artifacts.dir_interface(module_id, profile) {
+            return dir.exported_symbols.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_resolved(module_id, profile) {
+            return dir.exported_symbols.as_ref().clone();
+        }
+
+        if let Some(dir) = self.program.artifacts.dir_prepared(module_id, profile) {
+            return dir.exported_symbols.as_ref().clone();
+        }
+
+        ExportedSymbolTable::new()
     }
 
     /// Return the resolved DIR artifact for one module's default profile.
-    pub(crate) fn dir_resolved(&self, module_id: ModuleId) -> ImportDir {
+    pub(crate) fn dir_resolved(&self, module_id: ModuleId) -> DirResolved {
         let profile = self.default_profile_id(module_id);
         let dir = self
             .program
@@ -302,22 +797,22 @@ impl TestProgram {
             .dir_resolved(module_id, profile)
             .unwrap_or_else(|| panic!("missing resolved dir for module {module_id:?}"));
 
-        Self::import_dir_from_artifact(dir.as_ref().clone())
+        dir.as_ref().clone()
     }
 
     /// Return the base DIR artifact for one module.
-    pub(crate) fn dir_base(&self, module_id: ModuleId) -> ImportDir {
+    pub(crate) fn dir_base(&self, module_id: ModuleId) -> DirBase {
         let dir = self
             .program
             .artifacts
             .dir_base(module_id)
             .unwrap_or_else(|| panic!("missing base dir for module {module_id:?}"));
 
-        Self::import_dir_from_artifact(dir.as_ref().clone())
+        dir.as_ref().clone()
     }
 
     /// Return the declared DIR artifact for one module's default profile.
-    pub(crate) fn dir_declared(&self, module_id: ModuleId) -> ImportDir {
+    pub(crate) fn dir_declared(&self, module_id: ModuleId) -> DirDeclared {
         let profile = self.default_profile_id(module_id);
         let dir = self
             .program
@@ -325,28 +820,31 @@ impl TestProgram {
             .dir_declared(module_id, profile)
             .unwrap_or_else(|| panic!("missing declared dir for module {module_id:?}"));
 
-        Self::import_dir_from_artifact(dir.as_ref().clone())
+        dir.as_ref().clone()
     }
 
-    /// Return the published MIR for one module, profile, and target.
-    pub(crate) fn artifact_mir(
+    /// Clone the published MIR tree and strings for one module, profile, and target.
+    pub(crate) fn artifact_mir_parts(
         &self,
         module_id: ModuleId,
         profile: ProfileId,
         target_id: &TargetId,
-    ) -> ModuleMir {
-        let mir = self
+    ) -> (mir::NodeTree, ImmutableStringPool) {
+        if let Some(mir) = self
             .program
             .artifacts
             .mir_optimized(module_id, profile, target_id)
-            .or_else(|| {
-                self.program
-                    .artifacts
-                    .mir_base(module_id, profile, target_id)
-            })
+        {
+            return (mir.tree.clone(), mir.strings.clone().into_immutable());
+        }
+
+        let mir = self
+            .program
+            .artifacts
+            .mir_base(module_id, profile, target_id)
             .unwrap_or_else(|| panic!("missing artifact mir for module {module_id:?}"));
 
-        mir.as_ref().clone()
+        (mir.tree.clone(), mir.strings.clone().into_immutable())
     }
 
     /// Create a new TestProgram with the given options.
@@ -591,8 +1089,7 @@ impl TestProgram {
 
     /// Get the current module version.
     pub fn module_version(&self, module_id: ModuleId) -> ModuleVersion {
-        let module = self.program.modules.get(module_id);
-        module.version()
+        self.program.modules.version(module_id)
     }
 
     /// Get the current module stamp.
@@ -626,21 +1123,20 @@ impl TestProgram {
 
     /// Enqueue Import task for a module.
     pub fn import_module(&self, module: ModuleId) {
-        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirBase { module }));
+        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_base(module)));
     }
 
     /// Enqueue Bind task for a module.
     pub fn bind_module(&self, module: ModuleId) {
-        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirBase { module }));
+        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_base(module)));
     }
 
     /// Enqueue Resolve task for a module.
     pub fn resolve_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirResolved {
-            module,
-            profile,
-        }));
+        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_resolved(
+            module, profile,
+        )));
     }
 
     /// Resolve the language environment for the default root profile.
@@ -662,10 +1158,9 @@ impl TestProgram {
     /// Enqueue Analyze task for a module.
     pub fn analyze_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
-            module,
-            profile,
-        }));
+        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_analyzed(
+            module, profile,
+        )));
     }
 
     /// Drive declaration analysis for one module to completion.
@@ -688,10 +1183,9 @@ impl TestProgram {
     /// Lint a module through the linter crate.
     pub fn lint_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
-            module,
-            profile,
-        }));
+        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_analyzed(
+            module, profile,
+        )));
         self.compile();
 
         let linter = Linter::new(self.program.clone());
@@ -703,19 +1197,17 @@ impl TestProgram {
     /// Enqueue Elaborate task for a module.
     pub fn elaborate_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirElaborated {
-            module,
-            profile,
-        }));
+        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_elaborated(
+            module, profile,
+        )));
     }
 
     /// Enqueue Execute task for a module.
     pub fn execute_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirPatched {
-            module,
-            profile,
-        }));
+        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_patched(
+            module, profile,
+        )));
     }
 
     /// Add a build target to the package containing the given module.
@@ -810,11 +1302,9 @@ impl TestProgram {
             .program
             .profile_id_for_target(module, &target_id)
             .unwrap_or_else(|| panic!("missing profile for target '{target}'"));
-        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::MirBase {
-            module,
-            profile,
-            target: target_id,
-        }));
+        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::mir_base(
+            module, profile, target_id,
+        )));
     }
 
     /// Enqueue Optimize task for a module.
@@ -826,11 +1316,9 @@ impl TestProgram {
             .program
             .profile_id_for_target(module, &target_id)
             .unwrap_or_else(|| panic!("missing profile for target '{target}'"));
-        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::MirOptimized {
-            module,
-            profile,
-            target: target_id,
-        }));
+        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::mir_optimized(
+            module, profile, target_id,
+        )));
     }
 
     /// Enqueue the producer task for one build key.
@@ -838,14 +1326,14 @@ impl TestProgram {
         self.compiler.enqueue_build_key(build_key);
     }
 
-    /// Enqueue a task (does not run it).
-    pub fn enqueue<T: Into<Task>>(&self, task: T) {
-        self.compiler.enqueue(task);
+    /// Enqueue one build key (does not run it).
+    pub fn enqueue<T: Into<BuildKey>>(&self, build_key: T) {
+        self.compiler.enqueue(build_key);
     }
 
-    /// Enqueue a task and run to completion.
-    pub fn run<T: Into<Task>>(&self, task: T) {
-        self.enqueue(task);
+    /// Enqueue one build key and run to completion.
+    pub fn run<T: Into<BuildKey>>(&self, build_key: T) {
+        self.enqueue(build_key);
         self.compile();
     }
 
@@ -915,61 +1403,37 @@ impl TestProgram {
 
     /// Get the root expression ids for a module.
     pub fn module_dir_roots(&self, module_id: ModuleId) -> Vec<LocalNodeId<Expression>> {
-        // load module state
         let profile = self.default_profile_id(module_id);
-        let dir = self.artifact_dir(module_id, profile);
-
-        // return cloned roots
-        dir.roots.clone()
+        self.artifact_roots(module_id, profile)
     }
 
-    /// Run a closure with read access to a module's DIR.
-    pub fn with_dir_read<T>(
+    /// Run a closure with read access to one module's latest cloned DIR.
+    pub(crate) fn with_dir_read<T>(
         &self,
         module_id: ModuleId,
-        f: impl FnOnce(
-            &Module,
-            ProfileId,
-            &destack_workspace::ImportDir,
-            &NodeTree,
-            &SymbolTable,
-            &TypeTable,
-        ) -> T,
+        f: impl FnOnce(&Module, ProfileId, &TestDir, &NodeTree, &SymbolTable, &TypeTable) -> T,
     ) -> T {
-        // load module state
         let profile = self.default_profile_id(module_id);
         let module = self.program.modules.get(module_id);
         let module = module.as_ref();
         let dir = self.artifact_dir(module_id, profile);
 
-        // run the callback
-        f(&module, profile, &dir, &dir.tree, &dir.symbols, &dir.types)
+        f(module, profile, &dir, &dir.tree, &dir.symbols, &dir.types)
     }
 
-    /// Run a closure with mutable access to a module's type table.
-    pub fn with_dir_types_mut<T>(
+    /// Run a closure with mutable access to one module's cloned type table.
+    pub(crate) fn with_dir_types_mut<T>(
         &self,
         module_id: ModuleId,
-        f: impl FnOnce(
-            &Module,
-            ProfileId,
-            &destack_workspace::ImportDir,
-            &NodeTree,
-            &SymbolTable,
-            &mut TypeTable,
-        ) -> T,
+        f: impl FnOnce(&Module, ProfileId, &TestDir, &NodeTree, &SymbolTable, &mut TypeTable) -> T,
     ) -> T {
-        // load module state
         let profile = self.default_profile_id(module_id);
         let module = self.program.modules.get(module_id);
         let module = module.as_ref();
-        let mut dir = self.artifact_dir(module_id, profile);
-        let mut types = std::mem::replace(&mut dir.types, TypeTable::new(module_id));
+        let dir = self.artifact_dir(module_id, profile);
+        let mut types = dir.types.clone();
 
-        // run the callback
-        let result = f(&module, profile, &dir, &dir.tree, &dir.symbols, &mut types);
-        dir.types = types;
-        result
+        f(module, profile, &dir, &dir.tree, &dir.symbols, &mut types)
     }
 
     /// Get a module by URI.
@@ -1142,20 +1606,22 @@ impl TestProgram {
         let module = self.program.modules.get(module_id);
         let module = module.as_ref();
         let profile = self.default_profile_id(module.id);
-        let dir = self.artifact_dir(module.id, profile);
+        let tree = self.artifact_tree(module.id, profile);
+        let symbols = self.artifact_symbols(module.id, profile);
+        let roots = self.artifact_roots(module.id, profile);
+        let anchor_node = self.artifact_anchor_node(module.id, profile);
 
         // unbind DIR to AST
-        let fallback_node = dir
-            .roots
+        let fallback_node = roots
             .first()
             .copied()
             .map(LocalNodeId::into_any)
-            .unwrap_or(dir.anchor_node);
+            .unwrap_or(anchor_node);
         let unbound = self.compiler.unbind_module_from_parts(
             &module,
-            &dir.tree,
-            &dir.symbols,
-            &dir.roots,
+            &tree,
+            &symbols,
+            &roots,
             fallback_node,
             profile,
         );
@@ -1204,10 +1670,8 @@ impl TestProgram {
         let module = module.as_ref();
         let target_id = TargetId::new(module.package_id, target);
         let profile = self.default_profile_id(module_id);
-        let mir = self.artifact_mir(module_id, profile, &target_id);
-        let tree = &mir.tree;
-        let strings = mir.strings.clone().into_immutable();
-        format_mir(tree, &strings, self.mir_format_options())
+        let (tree, strings) = self.artifact_mir_parts(module_id, profile, &target_id);
+        format_mir(&tree, &strings, self.mir_format_options())
     }
 
     /// Format MIR options for test output.
@@ -1258,12 +1722,10 @@ impl TestProgram {
 
         // load the mir module state
         let profile = self.default_profile_id(module_id);
-        let mir = self.artifact_mir(module_id, profile, &target_id);
-        let tree = &mir.tree;
-        let strings = mir.strings.clone().into_immutable();
+        let (tree, strings) = self.artifact_mir_parts(module_id, profile, &target_id);
 
         // run the callback while the tree is held
-        f(tree, &strings)
+        f(&tree, &strings)
     }
 
     /// Create a fresh MIR interpreter for the module and target.
@@ -1272,20 +1734,25 @@ impl TestProgram {
         let module = module.as_ref();
         let target_id = TargetId::new(module.package_id, target);
         let profile = self.default_profile_id(module_id);
-        let mir = self.artifact_mir(module_id, profile, &target_id);
-        let tree = mir.tree.clone();
-        let strings = mir.strings.clone().into_immutable();
+        let (tree, strings) = self.artifact_mir_parts(module_id, profile, &target_id);
         let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
             .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
 
         let heap = Heap::new();
         let mut heap = heap;
+        let shared = SharedSpace::new();
+        let mut shared = shared;
+        let mut memory = MemoryContext::new(&mut heap, &mut shared);
 
         isolate
-            .initialize(&mut heap)
+            .initialize(&mut memory)
             .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
 
-        TestIsolate { isolate, heap }
+        TestIsolate {
+            isolate,
+            heap,
+            shared,
+        }
     }
 
     /// Create a reusable MIR interpreter for repeated calls.
@@ -1371,11 +1838,10 @@ impl TestProgram {
 
     /// Get a symbol by id.
     pub fn symbol_by_id(&self, symbol_id: GlobalSymbolId) -> Symbol {
-        // load module state
         let profile = self.default_profile_id(symbol_id.module_id);
-        let dir = self.artifact_dir(symbol_id.module_id, profile);
-        // return the symbol
-        dir.symbols.get_symbol(symbol_id.into_local()).clone()
+        let symbols = self.artifact_symbols(symbol_id.module_id, profile);
+
+        symbols.get_symbol(symbol_id.into_local()).clone()
     }
 
     /// Get the root expression for a bound module.
@@ -1399,21 +1865,19 @@ impl TestProgram {
 
     /// Get the nth function symbol declared in a module.
     pub fn expect_nth_function_symbol(&self, module_id: ModuleId, index: usize) -> GlobalSymbolId {
-        // load the module tree and roots
         let profile = self.default_profile_id(module_id);
-        let dir = self.artifact_dir(module_id, profile);
-        let tree = &dir.tree;
-        let roots = &dir.roots;
+        let tree = self.artifact_tree(module_id, profile);
+        let roots = self.artifact_roots(module_id, profile);
 
         // scan for the first function declaration
         let mut current_index = 0;
-        for root_id in roots {
-            let expression = dir.tree.get(*root_id);
+        for root_id in &roots {
+            let expression = tree.get(*root_id);
 
             // select the declaration expression if present
             let declaration_id = match expression {
                 Expression::Declaration { declaration } => Some(*declaration),
-                Expression::Statement { statement } => match dir.tree.get(*statement) {
+                Expression::Statement { statement } => match tree.get(*statement) {
                     Expression::Declaration { declaration } => Some(*declaration),
                     _ => None,
                 },
@@ -1441,20 +1905,19 @@ impl TestProgram {
         module_id: ModuleId,
         index: usize,
     ) -> LocalNodeId<Declarator> {
-        // load the module tree and roots
         let profile = self.default_profile_id(module_id);
-        let dir = self.artifact_dir(module_id, profile);
-        let roots = &dir.roots;
+        let tree = self.artifact_tree(module_id, profile);
+        let roots = self.artifact_roots(module_id, profile);
 
         // scan for the first let expression
         let mut current_index = 0;
-        for root_id in roots {
-            let expression = dir.tree.get(*root_id);
+        for root_id in &roots {
+            let expression = tree.get(*root_id);
 
             // select the let expression if present
             let let_expression_id = match expression {
                 Expression::Let { .. } => Some(*root_id),
-                Expression::Statement { statement } => match dir.tree.get(*statement) {
+                Expression::Statement { statement } => match tree.get(*statement) {
                     Expression::Let { .. } => Some(*statement),
                     _ => None,
                 },
@@ -1465,7 +1928,7 @@ impl TestProgram {
                 continue;
             };
 
-            let Expression::Let { declarators, .. } = dir.tree.get(let_expression_id) else {
+            let Expression::Let { declarators, .. } = tree.get(let_expression_id) else {
                 continue;
             };
 
@@ -1492,14 +1955,16 @@ impl TestProgram {
     ) -> GlobalSymbolId {
         // load the module tree and symbol table
         let profile = self.default_profile_id(module_id);
-        let dir = self.artifact_dir(module_id, profile);
+        let tree = self.artifact_tree(module_id, profile);
+        let symbols = self.artifact_symbols(module_id, profile);
+
         // resolve the interface declaration and scan members
-        let interface_entry = dir.symbols.get_symbol(interface_symbol.local_id);
+        let interface_entry = symbols.get_symbol(interface_symbol.local_id);
         let interface_declaration_id = interface_entry
             .primary_declaration
             .expect("expected interface declaration")
             .into_local_typed::<Declaration>();
-        let declaration = dir.tree.get(interface_declaration_id);
+        let declaration = tree.get(interface_declaration_id);
         let members = match declaration {
             Declaration::Interface { members, .. } => members,
             _ => panic!("expected interface declaration"),
@@ -1507,7 +1972,7 @@ impl TestProgram {
 
         // find the first matching member name
         for member_id in members {
-            let member = dir.tree.get(*member_id);
+            let member = tree.get(*member_id);
             let member_name_id = member.key().and_then(|key| match key {
                 DynamicKey::Name(name) => Some(name),
                 DynamicKey::Number(name) => Some(name),
@@ -1525,12 +1990,12 @@ impl TestProgram {
 
     /// Get the nth lambda function symbol declared in a module.
     pub fn expect_nth_lambda_symbol(&self, module_id: ModuleId, index: usize) -> GlobalSymbolId {
-        // load the module tree
         let profile = self.default_profile_id(module_id);
-        let dir = self.artifact_dir(module_id, profile);
+        let tree = self.artifact_tree(module_id, profile);
+
         // scan for the requested lambda declaration
         let mut current_index = 0;
-        for (_, declaration) in dir.tree.iter_nodes_of_type::<Declaration>() {
+        for (_, declaration) in tree.iter_nodes_of_type::<Declaration>() {
             let Declaration::Function {
                 descriptor,
                 signature,
@@ -1569,9 +2034,10 @@ impl TestProgram {
     ) -> CaptureSet {
         // load capture data for the module
         let profile = self.default_profile_id(module_id);
-        let dir = self.artifact_dir(module_id, profile);
+        let captures = self.artifact_captures(module_id, profile);
+
         // resolve the capture set
-        dir.captures
+        captures
             .capture_set(symbol)
             .cloned()
             .unwrap_or_else(|| panic!("expected capture set for {symbol:?}"))
@@ -1585,14 +2051,14 @@ impl TestProgram {
     ) -> Vec<(String, CaptureKind)> {
         // load the module symbol table
         let profile = self.default_profile_id(module_id);
-        let dir = self.artifact_dir(module_id, profile);
+        let symbols = self.artifact_symbols(module_id, profile);
+
         // resolve capture names
         capture_set
             .captures
             .iter()
             .map(|binding| {
-                let name = dir
-                    .symbols
+                let name = symbols
                     .get_symbol(binding.symbol.into_local())
                     .name()
                     .unwrap_or_else(|| panic!("expected named capture"));
@@ -1606,14 +2072,14 @@ impl TestProgram {
     pub fn capture_names(&self, module_id: ModuleId, capture_set: &CaptureSet) -> Vec<String> {
         // load the module symbol table
         let profile = self.default_profile_id(module_id);
-        let dir = self.artifact_dir(module_id, profile);
+        let symbols = self.artifact_symbols(module_id, profile);
+
         // resolve capture names
         capture_set
             .captures
             .iter()
             .map(|binding| {
-                let name = dir
-                    .symbols
+                let name = symbols
                     .get_symbol(binding.symbol.into_local())
                     .name()
                     .unwrap_or_else(|| panic!("expected named capture"));
@@ -1630,14 +2096,15 @@ impl TestProgram {
     ) -> Vec<String> {
         // load the module symbol table
         let profile = self.default_profile_id(module_id);
-        let dir = self.artifact_dir(module_id, profile);
+        let symbols = self.artifact_symbols(module_id, profile);
+        let captures = self.artifact_captures(module_id, profile);
+
         // resolve captured local names
-        let reference_locals = dir.captures.reference_locals(owner_symbol).unwrap_or(&[]);
+        let reference_locals = captures.reference_locals(owner_symbol).unwrap_or(&[]);
         reference_locals
             .iter()
             .map(|symbol| {
-                let name = dir
-                    .symbols
+                let name = symbols
                     .get_symbol(symbol.into_local())
                     .name()
                     .unwrap_or_else(|| panic!("expected named symbol"));
@@ -1657,10 +2124,11 @@ impl TestProgram {
         let module = self.module(module_uri);
         let module = module.as_ref();
         let profile = self.default_profile_id(module.id);
-        let dir = self.artifact_dir(module.id, profile);
-        let tree = &dir.tree;
+        let tree = self.artifact_tree(module.id, profile);
+        let symbols = self.artifact_symbols(module.id, profile);
+
         // resolve the declaration
-        let declaration_entry = dir.symbols.get_symbol(declaration_symbol.into_local());
+        let declaration_entry = symbols.get_symbol(declaration_symbol.into_local());
         let Some(declaration) = declaration_entry.primary_declaration else {
             panic!("expected declaration for {name}");
         };
