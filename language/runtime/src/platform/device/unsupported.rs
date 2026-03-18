@@ -7,28 +7,29 @@ use crate::platform::{NativeSlice, NativeStringRef, PlatformError};
 use crate::runtime::BindingCallContext;
 
 use crate::platform::device::{
-    BluetoothAdapterDescriptor, BluetoothDeviceDescriptor, BluetoothGattCharacteristicDescriptor,
-    BluetoothGattDescriptorDescriptor, BluetoothGattServiceDescriptor, BluetoothGattValueEvent,
-    BluetoothGattWriteMode, BluetoothScanEvent, BluetoothScanFilter, BluetoothSessionEvent,
-    CameraDeviceDescriptor, CameraExposureCompensationRange, CameraExposureMode,
-    CameraExposureTimeRange, CameraFloatControlRange, CameraFocusDistanceRange, CameraFocusMode,
-    CameraFrame, CameraPanAngleRange, CameraSensorIsoRange, CameraStabilizationMode,
-    CameraStreamCapability, CameraStreamConfig, CameraTiltAngleRange, CameraTorchMode,
-    CameraWhiteBalanceMode, CameraWhiteBalanceRange, CameraZoomRatioRange, SerialEvent,
-    SerialInputSignals, SerialOutputSignals, SerialPortConfig, SerialPortDescriptor,
-    SerialPortOpenOptions, UsbBosCapabilityDescriptor, UsbConfigurationDescriptor, UsbControlSetup,
-    UsbDeviceDescriptor, UsbEndpointSelector, UsbHotplugEvent, UsbInTransferResult,
-    UsbIsochronousTransferResult, UsbOutTransferResult, UsbStringDescriptor,
+    BluetoothAdapterDescriptor, BluetoothAdapterEvent, BluetoothDeviceDescriptor,
+    BluetoothGattCharacteristic, BluetoothGattDescriptor, BluetoothGattService,
+    BluetoothGattValueEvent, BluetoothGattWriteMode, BluetoothScanEvent, BluetoothScanFilter,
+    BluetoothSessionEvent, CameraControlCapabilities, CameraControlPatch, CameraControlState,
+    CameraDeviceDescriptor, CameraFrame, CameraPhoto, CameraPhotoCapabilities, CameraPhotoSettings,
+    CameraPhotoState, CameraRecording, CameraRecordingCapabilities, CameraRecordingOptions,
+    CameraRecordingState, CameraStreamCapability, CameraStreamConfig, CameraWatchEvent,
+    SerialEvent, SerialInputSignals, SerialOutputSignals, SerialPortConfig, SerialPortDescriptor,
+    SerialPortOpenOptions, SerialWatchEvent, UsbBosCapabilityDescriptor,
+    UsbConfigurationDescriptor, UsbControlSetup, UsbDeviceDescriptor, UsbEndpointSelector,
+    UsbHotplugEvent, UsbInTransferResult, UsbIsochronousTransferResult, UsbOutTransferResult,
+    UsbStringDescriptor,
 };
 use crate::platform::resource;
 
 /// List Bluetooth adapters.
 ///
-/// Enumerate host Bluetooth adapters and return stable identifiers.
+/// Enumerate Bluetooth adapters that can perform BLE scan or session work and return stable descriptor snapshots for them.
+/// Adapter identity is topology based so callers can correlate scan and session operations across process lifetimes.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth adapter enumeration APIs.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothAdapter discovery, one logical CoreBluetooth central adapter on iOS and macOS, BlueZ adapter objects on Linux-class Unix, and BluetoothAdapter plus Radio class topology on Windows.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -53,13 +54,142 @@ pub(crate) unsafe fn destack_device_bluetooth_adapter_list(
     .boxed())
 }
 
-/// List discovered GATT characteristics for one service.
+/// Close a Bluetooth adapter watch stream.
 ///
-/// Enumerate GATT characteristics in one selected service.
+/// Close one opened Bluetooth adapter watch stream and release its host subscription state.
+/// Closing an adapter watch does not affect active scans or device sessions.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth GATT characteristic-discovery APIs.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android broadcast unregistration, CoreBluetooth central-manager callback teardown on iOS and macOS, BlueZ adapter signal unsubscription on Linux-class Unix, and notification teardown on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.scan`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_bluetooth_adapter_watch_close(
+    _binding: &BindingCallContext,
+    handle: resource::BluetoothAdapterWatchHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.bluetooth.adapterWatchClose",
+    ))
+    .boxed())
+}
+
+/// Open a Bluetooth adapter watch stream.
+///
+/// Open a watch stream for Bluetooth adapter attach, detach, and state-change events.
+/// The stream reports adapter topology and state transitions independently from device scan and session work.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android Bluetooth adapter broadcasts, CoreBluetooth central-manager state callbacks on iOS and macOS, BlueZ adapter-manager signals on Linux-class Unix, and adapter device notifications on Windows.
+///
+/// # Errors
+/// Returns ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.scan`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_bluetooth_adapter_watch_open(
+    _binding: &BindingCallContext,
+    out: *mut resource::BluetoothAdapterWatchHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = out;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.bluetooth.adapterWatchOpen",
+    ))
+    .boxed())
+}
+
+/// Read one Bluetooth adapter event.
+///
+/// Wait for the next typed Bluetooth adapter event from one opened adapter watch stream.
+/// The event carries a full adapter descriptor snapshot so callers can react without racing a separate list call.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses adapter event queues fed by Android adapter broadcasts, CoreBluetooth central-manager state callbacks on iOS and macOS, BlueZ adapter signals on Linux-class Unix, and adapter notifications on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.scan`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_bluetooth_adapter_watch_read(
+    _binding: &BindingCallContext,
+    out: *mut BluetoothAdapterEvent,
+    handle: resource::BluetoothAdapterWatchHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle, timeoutns);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.bluetooth.adapterWatchRead",
+    ))
+    .boxed())
+}
+
+/// Poll one Bluetooth adapter event without blocking.
+///
+/// Read the next typed Bluetooth adapter event from one opened adapter watch stream without waiting.
+/// This operation only consumes already published adapter events.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses adapter event queues fed by Android adapter broadcasts, CoreBluetooth central-manager state callbacks on iOS and macOS, BlueZ adapter signals on Linux-class Unix, and adapter notifications on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.scan`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_bluetooth_adapter_watch_try_read(
+    _binding: &BindingCallContext,
+    out: *mut BluetoothAdapterEvent,
+    handle: resource::BluetoothAdapterWatchHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.bluetooth.adapterWatchTryRead",
+    ))
+    .boxed())
+}
+
+/// List discovered GATT characteristics for one service.
+///
+/// Enumerate the GATT characteristics in one selected service.
+/// Characteristic identifiers are session stable so reads, writes, and subscriptions can address them directly afterward.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothGatt characteristic discovery, CoreBluetooth characteristic discovery on iOS and macOS, BlueZ GATT object discovery on Linux-class Unix, and WinRT characteristic enumeration on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -71,7 +201,7 @@ pub(crate) unsafe fn destack_device_bluetooth_adapter_list(
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_gatt_characteristic_list(
     _binding: &BindingCallContext,
-    out: *mut NativeSlice<BluetoothGattCharacteristicDescriptor>,
+    out: *mut NativeSlice<BluetoothGattCharacteristic>,
     handle: resource::BluetoothDeviceHandle,
     serviceid: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -88,11 +218,12 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_characteristic_list(
 
 /// List discovered GATT descriptors for one characteristic.
 ///
-/// Enumerate GATT descriptors in one selected service and characteristic.
+/// Enumerate the GATT descriptors in one selected characteristic.
+/// Descriptor identifiers are session stable so later descriptor reads and writes can address them directly.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth GATT descriptor-discovery APIs.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothGatt descriptor discovery, CoreBluetooth descriptor discovery on iOS and macOS, BlueZ GATT object discovery on Linux-class Unix, and WinRT descriptor enumeration on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -104,7 +235,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_characteristic_list(
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_gatt_descriptor_list(
     _binding: &BindingCallContext,
-    out: *mut NativeSlice<BluetoothGattDescriptorDescriptor>,
+    out: *mut NativeSlice<BluetoothGattDescriptor>,
     handle: resource::BluetoothDeviceHandle,
     characteristicid: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -121,14 +252,15 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_descriptor_list(
 
 /// Read current ATT MTU.
 ///
-/// Read current negotiated ATT MTU for one connected device session.
+/// Read the current negotiated ATT MTU for one connected device session.
+/// This reports live transport state and does not force a rediscovery of the GATT graph.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host GATT session metadata APIs.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses live GATT session transport metadata on Android, returns `notSupported` on CoreBluetooth where ATT MTU is not exposed, BlueZ on Linux-class Unix, and WinRT on Windows.
 ///
 /// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
 ///
 /// # Security
 /// Requires `device.bluetooth.gatt`.
@@ -154,10 +286,11 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_mtu(
 /// Read one GATT characteristic value.
 ///
 /// Read one characteristic value from one connected Bluetooth device session.
+/// Value bytes are returned exactly as reported by the ATT layer with no profile specific reinterpretation.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host GATT read APIs.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothGatt characteristic reads, CoreBluetooth characteristic reads on iOS and macOS, BlueZ GATT characteristic value reads on Linux-class Unix, and WinRT GATT characteristic reads on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -188,10 +321,11 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_read(
 /// Read one GATT descriptor value.
 ///
 /// Read one descriptor value from one connected Bluetooth device session.
+/// Value bytes are returned exactly as reported by the ATT layer with no profile specific reinterpretation.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host GATT descriptor read APIs.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothGatt descriptor reads, CoreBluetooth descriptor reads on iOS and macOS, BlueZ GATT descriptor value reads on Linux-class Unix, and WinRT GATT descriptor reads on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -219,13 +353,14 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_read_descriptor(
     .boxed())
 }
 
-/// Wait for one GATT value event.
+/// Read one GATT value event.
 ///
-/// Wait for one characteristic value-notification event from one subscription.
+/// Wait for the next characteristic value event from one subscription.
+/// Event payloads preserve the originating service and characteristic identity so multiplexed callers can route updates precisely.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host GATT notification queues.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses subscription event queues fed by Android characteristic callbacks, CoreBluetooth characteristic callbacks on iOS and macOS, BlueZ characteristic callbacks on Linux-class Unix, and WinRT value-changed callbacks on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -254,11 +389,12 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_read_event(
 
 /// List discovered GATT services.
 ///
-/// Enumerate GATT services available on one connected device.
+/// Enumerate the current GATT service graph for one connected device session.
+/// Service identifiers are session stable so later characteristic and descriptor lookups can be routed without rediscovery churn.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses CoreBluetooth, BluetoothGatt, and host Bluetooth stack service-discovery APIs.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothGatt service discovery, CoreBluetooth service discovery on iOS and macOS, BlueZ GATT object discovery on Linux-class Unix, and WinRT GATT service enumeration on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -270,7 +406,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_read_event(
 /// External, recordable.
 pub(crate) unsafe fn destack_device_bluetooth_gatt_service_list(
     _binding: &BindingCallContext,
-    out: *mut NativeSlice<BluetoothGattServiceDescriptor>,
+    out: *mut NativeSlice<BluetoothGattService>,
     handle: resource::BluetoothDeviceHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -286,11 +422,12 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_service_list(
 
 /// Subscribe one GATT characteristic.
 ///
-/// Open one subscription for characteristic value notifications.
+/// Open one subscription for characteristic value notifications or indications.
+/// The returned subscription owns its own event queue and remains separate from direct characteristic reads.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host GATT notification subscribe APIs.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android notification registration, CoreBluetooth notification registration on iOS and macOS, BlueZ notification registration on Linux-class Unix, and WinRT characteristic value subscriptions on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -319,11 +456,12 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_subscribe(
 
 /// Poll one GATT value event without blocking.
 ///
-/// Poll one characteristic value-notification event from one subscription without waiting.
+/// Read the next characteristic value event from one subscription without waiting.
+/// This operation only consumes already published notification or indication events.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host nonblocking GATT notification reads.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses subscription event queues fed by Android characteristic callbacks, CoreBluetooth characteristic callbacks on iOS and macOS, BlueZ characteristic callbacks on Linux-class Unix, and WinRT value-changed callbacks on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -351,11 +489,12 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_try_read_event(
 
 /// Unsubscribe one GATT characteristic.
 ///
-/// Close one characteristic value notification subscription.
+/// Close one characteristic value subscription.
+/// Closing a subscription disables its host callback path when no remaining subscription requires that source.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host GATT notification unsubscribe APIs.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android notification disablement, CoreBluetooth notification disablement on iOS and macOS, BlueZ subscription teardown on Linux-class Unix, and WinRT subscription teardown on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -380,10 +519,11 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_unsubscribe(
 /// Write one GATT characteristic value.
 ///
 /// Write one characteristic value on one connected Bluetooth device session with one explicit ATT write mode.
+/// The write mode is caller controlled so response semantics remain explicit rather than inferred from characteristic properties.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host GATT write APIs.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothGatt characteristic writes, CoreBluetooth characteristic writes on iOS and macOS, BlueZ GATT characteristic value writes on Linux-class Unix, and WinRT GATT characteristic writes on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -412,10 +552,11 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_write(
 /// Write one GATT descriptor value.
 ///
 /// Write one descriptor value on one connected Bluetooth device session.
+/// Value bytes are passed through exactly so CCCD and vendor descriptor policy remains explicit to the caller.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host GATT descriptor write APIs.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothGatt descriptor writes, CoreBluetooth descriptor writes on iOS and macOS, BlueZ GATT descriptor value writes on Linux-class Unix, and WinRT GATT descriptor writes on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -440,13 +581,14 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_write_descriptor(
     .boxed())
 }
 
-/// Close Bluetooth scan session.
+/// Close a Bluetooth scan session.
 ///
-/// Close one scan session and stop host discovery operations.
+/// Close one scan session and release its host discovery state.
+/// Closing a scan session never closes or mutates any separately opened device session.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth scan-stop APIs.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothLeScanner stopScan, CoreBluetooth stopScan on iOS and macOS, discovery-subscription release on Linux-class Unix, and scan watcher teardown on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -468,13 +610,14 @@ pub(crate) unsafe fn destack_device_bluetooth_scan_close(
     .boxed())
 }
 
-/// Open Bluetooth scan session.
+/// Open a Bluetooth scan session.
 ///
-/// Open one Bluetooth scan session on one adapter with one optional filter.
+/// Open one BLE scan session on one adapter with one optional advertisement filter.
+/// Scan state is session local so repeated callers can apply independent filters without conflating their event streams.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth scan APIs.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothLeScanner, CoreBluetooth scanForPeripherals on iOS and macOS, BlueZ discovery filters and signal subscriptions on Linux-class Unix, and BluetoothLEAdvertisementWatcher on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -501,46 +644,14 @@ pub(crate) unsafe fn destack_device_bluetooth_scan_open(
     .boxed())
 }
 
-/// Wait for one scanned device.
+/// Read one Bluetooth scan event.
 ///
-/// Wait for one scanned device advertisement from one opened scan session.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth scan result queues.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.scan`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_bluetooth_scan_read(
-    _binding: &BindingCallContext,
-    out: *mut BluetoothDeviceDescriptor,
-    handle: resource::BluetoothScanHandle,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle, timeoutns);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.bluetooth.scan.read",
-    ))
-    .boxed())
-}
-
-/// Wait for one Bluetooth scan event.
-///
-/// Wait for one typed scan event from one opened scan session.
+/// Wait for the next typed scan event from one opened scan session.
+/// The event carries a full device descriptor snapshot so callers can react without racing a separate descriptor read.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth scan event queues.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses scan event queues fed by Android scan callbacks, CoreBluetooth discovery callbacks on iOS and macOS, BlueZ discovery signals on Linux-class Unix, and advertisement watcher callbacks on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -567,45 +678,14 @@ pub(crate) unsafe fn destack_device_bluetooth_scan_read_event(
     .boxed())
 }
 
-/// Poll one scanned device without blocking.
-///
-/// Poll one scanned device advertisement from one opened scan session without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth nonblocking scan result reads.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.scan`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_bluetooth_scan_try_read(
-    _binding: &BindingCallContext,
-    out: *mut BluetoothDeviceDescriptor,
-    handle: resource::BluetoothScanHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.bluetooth.scan.tryRead",
-    ))
-    .boxed())
-}
-
 /// Poll one Bluetooth scan event without blocking.
 ///
-/// Poll one typed scan event from one opened scan session without waiting.
+/// Read the next typed scan event from one opened scan session without waiting.
+/// This operation only consumes already published scan events.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host nonblocking Bluetooth scan event reads.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses scan event queues fed by Android scan callbacks, CoreBluetooth discovery callbacks on iOS and macOS, BlueZ discovery signals on Linux-class Unix, and advertisement watcher callbacks on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -631,13 +711,14 @@ pub(crate) unsafe fn destack_device_bluetooth_scan_try_read_event(
     .boxed())
 }
 
-/// Close Bluetooth device session.
+/// Close a Bluetooth device session.
 ///
-/// Close one opened Bluetooth device session and release host resources.
+/// Close one opened Bluetooth device session and release its host resources.
+/// Closing a session also terminates its session event stream and any GATT subscriptions derived from it.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth disconnect APIs.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android GATT session close, CoreBluetooth peripheral-session teardown on iOS and macOS, BlueZ device-session teardown on Linux-class Unix, and BluetoothLEDevice or GattSession release on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -659,13 +740,47 @@ pub(crate) unsafe fn destack_device_bluetooth_close(
     .boxed())
 }
 
-/// Open Bluetooth device session.
+/// Read the current Bluetooth device descriptor.
 ///
-/// Open one device session for link and GATT operations.
+/// Read the current device descriptor snapshot for one opened Bluetooth device session.
+/// The snapshot may change across reads as pairing, signal strength, or advertisement-backed metadata evolves.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth connect APIs.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothDevice and scan-cache properties, CoreBluetooth peripheral state plus advertisement cache on iOS and macOS, BlueZ device properties on Linux-class Unix, and BluetoothLEDevice properties plus cached advertisement metadata on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.connect`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_bluetooth_descriptor(
+    _binding: &BindingCallContext,
+    out: *mut BluetoothDeviceDescriptor,
+    handle: resource::BluetoothDeviceHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.bluetooth.session.descriptor",
+    ))
+    .boxed())
+}
+
+/// Open a Bluetooth device session.
+///
+/// Open one BLE device session for link, pairing, and GATT operations.
+/// Session identity is separate from scan identity so a device can continue streaming GATT state after advertisement visibility changes.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android BluetoothDevice and BluetoothGatt sessions, CoreBluetooth peripheral sessions on iOS and macOS, BlueZ device objects and GATT sessions on Linux-class Unix, and BluetoothLEDevice plus GattSession on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -694,11 +809,12 @@ pub(crate) unsafe fn destack_device_bluetooth_open(
 
 /// Pair one Bluetooth device.
 ///
-/// Pair one opened Bluetooth device session with host bonding APIs.
+/// Pair one opened Bluetooth device session with the host bonding mechanism.
+/// Pairing is explicit because it mutates external trust state and may trigger user mediated authentication flows.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host pairing and bonding APIs where available.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android Bluetooth bond flows, returns `notSupported` on CoreBluetooth where explicit bonding is not exposed, BlueZ device pairing flows on Linux-class Unix, and DeviceInformation pairing APIs on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
@@ -721,13 +837,14 @@ pub(crate) unsafe fn destack_device_bluetooth_pair(
     .boxed())
 }
 
-/// Wait for one Bluetooth session event.
+/// Read one Bluetooth session event.
 ///
-/// Wait for one typed session event from one opened Bluetooth device session.
+/// Wait for the next typed session event from one opened Bluetooth device session.
+/// Session events report connection, bond, and GATT database transitions without requiring polling of descriptor state.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth link-state and pairing event queues where available.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses session event queues fed by Android GATT callbacks, CoreBluetooth delegate callbacks on iOS and macOS, BlueZ device and GATT callbacks on Linux-class Unix, and WinRT device and GATT callbacks on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -756,11 +873,12 @@ pub(crate) unsafe fn destack_device_bluetooth_session_read_event(
 
 /// Read link RSSI for one Bluetooth device session.
 ///
-/// Read current received signal strength indicator for one connected device session.
+/// Read the current RSSI for one Bluetooth device session when the host exposes live link strength.
+/// This is a point-in-time signal sample and does not consume the session event stream.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth RSSI query APIs where available.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android RSSI reads or callback state, CoreBluetooth readRSSI on iOS and macOS, BlueZ device property reads on Linux-class Unix, and live BluetoothLEDevice signal queries on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -789,11 +907,12 @@ pub(crate) unsafe fn destack_device_bluetooth_read_rssi(
 
 /// Poll one Bluetooth session event without blocking.
 ///
-/// Poll one typed session event from one opened Bluetooth device session without waiting.
+/// Read the next typed session event from one opened Bluetooth device session without waiting.
+/// This operation only consumes already published session events.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host nonblocking Bluetooth session event reads where available.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses session event queues fed by Android GATT callbacks, CoreBluetooth delegate callbacks on iOS and macOS, BlueZ device and GATT callbacks on Linux-class Unix, and WinRT device and GATT callbacks on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -821,11 +940,12 @@ pub(crate) unsafe fn destack_device_bluetooth_session_try_read_event(
 
 /// Remove one Bluetooth device bond.
 ///
-/// Remove host bond state for one Bluetooth device on one adapter.
+/// Remove persistent host bond state for one Bluetooth device on one adapter.
+/// Unpairing is explicit because it mutates external trust state and may invalidate future encrypted sessions.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host unpair or remove-device APIs where available.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android bond removal, returns `notSupported` on CoreBluetooth where explicit unpairing is not exposed, BlueZ bond removal on Linux-class Unix, and DeviceInformation unpairing APIs on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -848,13 +968,14 @@ pub(crate) unsafe fn destack_device_bluetooth_unpair(
     .boxed())
 }
 
-/// Close camera endpoint.
+/// Close a camera endpoint.
 ///
-/// Close one opened camera endpoint and release host resources.
+/// Close one opened camera endpoint and release its host resources.
+/// Closing a device also invalidates any stream handles that were created from that device session.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend camera endpoint close operations.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android CameraDevice close, AVFoundation capture-device session teardown on iOS and macOS, V4L2 device handle release on Linux-class Unix, and Media Foundation source teardown on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -878,11 +999,12 @@ pub(crate) unsafe fn destack_device_camera_device_close(
 
 /// List camera endpoints.
 ///
-/// Enumerate host camera endpoints and return stable identifiers.
+/// Enumerate camera endpoints that are currently reachable from the host media stack and return stable descriptor snapshots for them.
+/// Descriptor identity is topology based so callers can correlate enumeration, watch, and open results across stream lifetimes.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend camera device enumeration APIs such as AVFoundation, Media Foundation, or V4L2.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android CameraManager discovery, AVFoundation device discovery on iOS and macOS, V4L2 class camera discovery on Linux-class Unix, and Media Foundation device discovery on Windows.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -907,13 +1029,14 @@ pub(crate) unsafe fn destack_device_camera_device_list(
     .boxed())
 }
 
-/// Open camera endpoint.
+/// Open a camera endpoint.
 ///
-/// Open one host camera endpoint for stream operations.
+/// Open one camera endpoint for capability discovery and stream creation.
+/// Opening a device establishes a control authority boundary that can outlive any individual stream session created from it.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend camera endpoint open operations.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android CameraDevice sessions, AVFoundation capture-device sessions on iOS and macOS, V4L2 style device nodes on Linux-class Unix, and Media Foundation capture sources on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -939,13 +1062,14 @@ pub(crate) unsafe fn destack_device_camera_device_open(
     .boxed())
 }
 
-/// List supported stream capabilities for one opened camera endpoint.
+/// List stream capabilities for one opened camera endpoint.
 ///
-/// Enumerate host camera stream capability descriptors for one opened endpoint.
+/// Enumerate stream capability descriptors for one opened camera endpoint.
+/// Each capability combines the stream configuration envelope with the control capability snapshot for that negotiated format family.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend camera capability enumeration APIs.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android CameraCharacteristics stream and control discovery, AVFoundation format negotiation on iOS and macOS, V4L2 format and control discovery on Linux-class Unix, and Media Foundation stream capability discovery on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -971,90 +1095,122 @@ pub(crate) unsafe fn destack_device_camera_device_stream_capability_list(
     .boxed())
 }
 
-/// List supported stream configurations for one opened camera endpoint.
+/// Close a camera topology watch stream.
 ///
-/// Enumerate host camera stream configurations for one opened endpoint.
+/// Close one opened camera topology watch stream and release its host subscription state.
+/// Closing a watch does not affect any separately opened camera device or camera stream.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend camera format and frame-rate enumeration APIs.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android camera-availability callback teardown, topology notification teardown on iOS, macOS, and Windows, and monitor teardown on Linux-class Unix.
 ///
 /// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
 ///
 /// # Security
 /// Requires `device.camera.device`.
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_camera_device_stream_config_list(
+pub(crate) unsafe fn destack_device_camera_device_watch_close(
     _binding: &BindingCallContext,
-    out: *mut NativeSlice<CameraStreamConfig>,
-    handle: resource::CameraDeviceHandle,
+    handle: resource::CameraWatchHandle,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
+    let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.device.streamConfigList",
+        "destack.device.camera.device.watchClose",
     ))
     .boxed())
 }
 
-/// Read camera brightness.
+/// Open a camera topology watch stream.
 ///
-/// Read one brightness adjustment from one opened camera stream.
+/// Open a watch stream for camera endpoint attach and detach events.
+/// The stream reports device topology changes independently from any opened device or stream session.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend brightness query APIs where available.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android camera availability callbacks, media-device topology notifications on iOS, macOS, and Windows, and device monitor subscriptions on Linux-class Unix.
 ///
 /// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+/// Returns ioWouldBlock, notSupported.
 ///
 /// # Security
-/// Requires `device.camera.control`.
+/// Requires `device.camera.device`.
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_brightness(
+pub(crate) unsafe fn destack_device_camera_device_watch_open(
     _binding: &BindingCallContext,
-    out: *mut f64,
-    handle: resource::CameraStreamHandle,
+    out: *mut resource::CameraWatchHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, handle);
+    let _ = out;
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.brightness",
+        "destack.device.camera.device.watchOpen",
     ))
     .boxed())
 }
 
-/// Read brightness range.
+/// Read one camera topology event.
 ///
-/// Read one brightness range descriptor for one opened camera stream.
+/// Wait for the next queued camera topology event from one opened watch stream.
+/// The returned event carries a full descriptor snapshot so attach consumers do not need a separate enumeration race.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend brightness capability query APIs where available.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses watch queues fed by Android camera availability callbacks, media-device topology callbacks on iOS, macOS, and Windows, and monitor events on Linux-class Unix.
 ///
 /// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
 ///
 /// # Security
-/// Requires `device.camera.control`.
+/// Requires `device.camera.device`.
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_brightness_range(
+pub(crate) unsafe fn destack_device_camera_device_watch_read(
     _binding: &BindingCallContext,
-    out: *mut CameraFloatControlRange,
-    handle: resource::CameraStreamHandle,
+    out: *mut CameraWatchEvent,
+    handle: resource::CameraWatchHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle, timeoutns);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.device.watchRead",
+    ))
+    .boxed())
+}
+
+/// Poll one camera topology event without blocking.
+///
+/// Read the next queued camera topology event from one opened watch stream without waiting.
+/// This operation only consumes already published attach or detach events.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses watch queues fed by Android camera availability callbacks, media-device topology callbacks on iOS, macOS, and Windows, and monitor events on Linux-class Unix.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.device`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_camera_device_watch_try_read(
+    _binding: &BindingCallContext,
+    out: *mut CameraWatchEvent,
+    handle: resource::CameraWatchHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -1062,18 +1218,19 @@ pub(crate) unsafe fn destack_device_camera_stream_brightness_range(
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.brightnessRange",
+        "destack.device.camera.device.watchTryRead",
     ))
     .boxed())
 }
 
-/// Close camera stream.
+/// Close a camera stream.
 ///
-/// Close one opened camera stream and release host resources.
+/// Close one opened camera stream and release its host resources.
+/// Closing a stream also terminates its frame queue and any pending frame waits owned by that stream session.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend stream close operations.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android capture-session teardown, AVFoundation stream-session teardown on iOS and macOS, queue teardown on Linux-class Unix, and Media Foundation stream teardown on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1095,13 +1252,14 @@ pub(crate) unsafe fn destack_device_camera_stream_close(
     .boxed())
 }
 
-/// Read current camera stream configuration.
+/// Read the active camera stream configuration.
 ///
-/// Read one active stream-configuration snapshot for one opened camera stream.
+/// Read the active stream configuration for one opened camera stream.
+/// The returned snapshot reflects the negotiated running format rather than only the originally requested configuration.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend stream settings and active-format query APIs.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android capture-session format state, AVFoundation live stream-format queries on iOS and macOS, negotiated queue state on Linux-class Unix, and Media Foundation stream descriptors on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -1127,109 +1285,44 @@ pub(crate) unsafe fn destack_device_camera_stream_config(
     .boxed())
 }
 
-/// Read camera contrast.
+/// Apply camera control updates.
 ///
-/// Read one contrast adjustment from one opened camera stream.
+/// Apply one partial control patch to one opened camera stream.
+/// Fields that are omitted leave the corresponding control unchanged so callers can update related settings incrementally.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend contrast query APIs where available.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android Camera2 request updates, AVFoundation grouped control updates on iOS and macOS, V4L2 class controls on Linux-class Unix, and Media Foundation camera controls on Windows.
 ///
 /// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
 ///
 /// # Security
 /// Requires `device.camera.control`.
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_contrast(
+pub(crate) unsafe fn destack_device_camera_stream_configure_controls(
     _binding: &BindingCallContext,
-    out: *mut f64,
     handle: resource::CameraStreamHandle,
+    controls: CameraControlPatch,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
+    let _ = (handle, controls);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.contrast",
+        "destack.device.camera.stream.configureControls",
     ))
     .boxed())
 }
 
-/// Read contrast range.
+/// Read camera control capabilities.
 ///
-/// Read one contrast range descriptor for one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend contrast capability query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_contrast_range(
-    _binding: &BindingCallContext,
-    out: *mut CameraFloatControlRange,
-    handle: resource::CameraStreamHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.contrastRange",
-    ))
-    .boxed())
-}
-
-/// Read camera exposure compensation.
-///
-/// Read one exposure-compensation value in EV units from one opened camera stream.
+/// Read the control-capability descriptor for one opened camera stream.
+/// Capability reporting groups modes and ranges into one structure so callers can validate patches before issuing them.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend exposure-compensation query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_exposure_compensation(
-    _binding: &BindingCallContext,
-    out: *mut f64,
-    handle: resource::CameraStreamHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.exposureCompensation",
-    ))
-    .boxed())
-}
-
-/// Read exposure-compensation range.
-///
-/// Read one exposure-compensation range descriptor for one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend exposure-compensation capability query APIs where available.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android CameraCharacteristics control discovery, AVFoundation control capability queries on iOS and macOS, V4L2 class control enumeration on Linux-class Unix, and Media Foundation camera control discovery on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1239,9 +1332,9 @@ pub(crate) unsafe fn destack_device_camera_stream_exposure_compensation(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_exposure_compensation_range(
+pub(crate) unsafe fn destack_device_camera_stream_control_capabilities(
     _binding: &BindingCallContext,
-    out: *mut CameraExposureCompensationRange,
+    out: *mut CameraControlCapabilities,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -1250,18 +1343,19 @@ pub(crate) unsafe fn destack_device_camera_stream_exposure_compensation_range(
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.exposureCompensationRange",
+        "destack.device.camera.stream.controlCapabilities",
     ))
     .boxed())
 }
 
-/// Read camera exposure mode.
+/// Read camera control state.
 ///
-/// Read one exposure mode from one opened camera stream.
+/// Read the current control-state snapshot for one opened camera stream.
+/// State is grouped into one snapshot so callers can reason about interacting controls coherently rather than field by field.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend camera exposure mode query APIs where available.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android Camera2 capture-request state, AVFoundation live device-control reads on iOS and macOS, V4L2 class controls on Linux-class Unix, and Media Foundation camera controls on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1271,9 +1365,9 @@ pub(crate) unsafe fn destack_device_camera_stream_exposure_compensation_range(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_exposure_mode(
+pub(crate) unsafe fn destack_device_camera_stream_control_state(
     _binding: &BindingCallContext,
-    out: *mut CameraExposureMode,
+    out: *mut CameraControlState,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -1282,178 +1376,19 @@ pub(crate) unsafe fn destack_device_camera_stream_exposure_mode(
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.exposureMode",
+        "destack.device.camera.stream.controlState",
     ))
     .boxed())
 }
 
-/// Read camera exposure time.
+/// Open a camera stream.
 ///
-/// Read one exposure time in nanoseconds from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend exposure-duration query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_exposure_time_ns(
-    _binding: &BindingCallContext,
-    out: *mut u64,
-    handle: resource::CameraStreamHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.exposureTimeNs",
-    ))
-    .boxed())
-}
-
-/// Read exposure-time range.
-///
-/// Read one exposure-time range descriptor for one opened camera stream.
+/// Open one camera stream with an explicit stream configuration.
+/// The stream owns frame delivery state independently from device enumeration and topology watching.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend exposure-duration capability query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_exposure_time_range(
-    _binding: &BindingCallContext,
-    out: *mut CameraExposureTimeRange,
-    handle: resource::CameraStreamHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.exposureTimeRange",
-    ))
-    .boxed())
-}
-
-/// Read camera focus distance.
-///
-/// Read one focus-distance value in diopters from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend focus-distance query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_focus_distance_diopters(
-    _binding: &BindingCallContext,
-    out: *mut f64,
-    handle: resource::CameraStreamHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.focusDistanceDiopters",
-    ))
-    .boxed())
-}
-
-/// Read focus-distance range.
-///
-/// Read one focus-distance range descriptor for one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend focus-distance capability query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_focus_distance_range(
-    _binding: &BindingCallContext,
-    out: *mut CameraFocusDistanceRange,
-    handle: resource::CameraStreamHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.focusDistanceRange",
-    ))
-    .boxed())
-}
-
-/// Read camera focus mode.
-///
-/// Read one focus mode from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend focus mode query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_focus_mode(
-    _binding: &BindingCallContext,
-    out: *mut CameraFocusMode,
-    handle: resource::CameraStreamHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.focusMode",
-    ))
-    .boxed())
-}
-
-/// Open camera stream.
-///
-/// Open one camera stream with explicit stream configuration.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend stream configuration and negotiation APIs.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android CameraCaptureSession plus ImageReader configuration, AVFoundation capture-output configuration on iOS and macOS, negotiated streaming queues on Linux-class Unix, and Media Foundation stream sinks on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1480,57 +1415,55 @@ pub(crate) unsafe fn destack_device_camera_stream_open(
     .boxed())
 }
 
-/// Read camera pan angle.
+/// Pause recording for one opened camera stream.
 ///
-/// Read one pan angle in degrees from one opened camera stream.
+/// Pause one active recording on one opened camera stream.
+/// Backends that cannot pause recording report `notSupported` instead of synthesizing segmented output.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend pan query APIs where available.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android recorder pause, AVFoundation movie-output pause or asset-writer pause on iOS and macOS where available, pipeline pause on Linux-class Unix when supported, and Media Foundation recording pause on Windows when supported.
 ///
 /// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
 ///
 /// # Security
-/// Requires `device.camera.control`.
+/// Requires `device.camera.capture`.
 ///
 /// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_pan_degrees(
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_device_camera_stream_pause_recording(
     _binding: &BindingCallContext,
-    out: *mut f64,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
+    let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.panDegrees",
+        "destack.device.camera.stream.pauseRecording",
     ))
     .boxed())
 }
 
-/// Read pan-angle range.
+/// Read still-photo capabilities for one opened camera stream.
 ///
-/// Read one pan-angle range descriptor for one opened camera stream.
+/// Read the still-photo capability descriptor for one opened camera stream.
+/// Photo capabilities are separated from stream capabilities because still capture commonly supports different formats, sizes, and flash policy than the video stream itself.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend pan capability query APIs where available.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android CameraCharacteristics still-capture discovery, AVFoundation still-photo capability queries on iOS and macOS, V4L2 plus codec capability discovery on Linux-class Unix, and Media Foundation still-image capability discovery on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `device.camera.control`.
+/// Requires `device.camera.capture`.
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_pan_range(
+pub(crate) unsafe fn destack_device_camera_stream_photo_capabilities(
     _binding: &BindingCallContext,
-    out: *mut CameraPanAngleRange,
+    out: *mut CameraPhotoCapabilities,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -1539,18 +1472,52 @@ pub(crate) unsafe fn destack_device_camera_stream_pan_range(
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.panRange",
+        "destack.device.camera.stream.photoCapabilities",
     ))
     .boxed())
 }
 
-/// Read camera frame.
+/// Read still-photo state for one opened camera stream.
 ///
-/// Wait for one camera frame from one running stream.
+/// Read the current still-photo state snapshot for one opened camera stream.
+/// Still-photo state remains separate from stream control state because photo output commonly uses different size, flash, and encoding policy than the live stream itself.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend camera frame queue operations.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android still-capture template state, AVFoundation live photo-output state on iOS and macOS, V4L2 plus codec still-image state on Linux-class Unix, and Media Foundation still-image state on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.capture`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_camera_stream_photo_state(
+    _binding: &BindingCallContext,
+    out: *mut CameraPhotoState,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.photoState",
+    ))
+    .boxed())
+}
+
+/// Read one camera frame.
+///
+/// Wait for the next camera frame from one running stream.
+/// Frame payloads preserve timestamp, plane layout, and metadata exactly so higher layers can implement their own buffering and color policy.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses frame queues fed by Android ImageReader callbacks, AVFoundation sample-buffer callbacks on iOS and macOS, streaming buffer completion on Linux-class Unix, and Media Foundation sample delivery on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -1577,57 +1544,26 @@ pub(crate) unsafe fn destack_device_camera_stream_read(
     .boxed())
 }
 
-/// Read camera saturation.
+/// Read recording capabilities for one opened camera stream.
 ///
-/// Read one saturation adjustment from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend saturation query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_saturation(
-    _binding: &BindingCallContext,
-    out: *mut f64,
-    handle: resource::CameraStreamHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.saturation",
-    ))
-    .boxed())
-}
-
-/// Read saturation range.
-///
-/// Read one saturation range descriptor for one opened camera stream.
+/// Read the recording capability descriptor for one opened camera stream.
+/// Recording capabilities stay separate from still-photo and live-frame capabilities because container, codec, audio, and pause support follow a different backend pipeline.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend saturation capability query APIs where available.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android Recorder or MediaCodec capture capability discovery, AVFoundation movie-output capability queries on iOS and macOS, V4L2 plus codec pipeline discovery on Linux-class Unix, and Media Foundation sink-writer capability discovery on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `device.camera.control`.
+/// Requires `device.camera.capture`.
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_saturation_range(
+pub(crate) unsafe fn destack_device_camera_stream_recording_capabilities(
     _binding: &BindingCallContext,
-    out: *mut CameraFloatControlRange,
+    out: *mut CameraRecordingCapabilities,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -1636,62 +1572,31 @@ pub(crate) unsafe fn destack_device_camera_stream_saturation_range(
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.saturationRange",
+        "destack.device.camera.stream.recordingCapabilities",
     ))
     .boxed())
 }
 
-/// Read camera sensor ISO.
+/// Read recording state for one opened camera stream.
 ///
-/// Read one sensor ISO value from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend ISO query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_sensor_iso(
-    _binding: &BindingCallContext,
-    out: *mut u32,
-    handle: resource::CameraStreamHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.sensorIso",
-    ))
-    .boxed())
-}
-
-/// Read sensor-ISO range.
-///
-/// Read one sensor-ISO range descriptor for one opened camera stream.
+/// Read the current recording state snapshot for one opened camera stream.
+/// Recording state remains separate from stream control and still-photo state because recording has its own lifecycle and sink policy.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend ISO capability query APIs where available.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android recorder state, AVFoundation movie-output state on iOS and macOS, V4L2 plus codec recording state on Linux-class Unix, and Media Foundation recording state on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `device.camera.control`.
+/// Requires `device.camera.capture`.
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_sensor_iso_range(
+pub(crate) unsafe fn destack_device_camera_stream_recording_state(
     _binding: &BindingCallContext,
-    out: *mut CameraSensorIsoRange,
+    out: *mut CameraRecordingState,
     handle: resource::CameraStreamHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -1700,607 +1605,48 @@ pub(crate) unsafe fn destack_device_camera_stream_sensor_iso_range(
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.sensorIsoRange",
+        "destack.device.camera.stream.recordingState",
     ))
     .boxed())
 }
 
-/// Set camera brightness.
+/// Resume recording for one opened camera stream.
 ///
-/// Apply one brightness adjustment on one opened camera stream.
+/// Resume one paused recording on one opened camera stream.
+/// Resuming continues the active recording session rather than starting a new output file.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend brightness control APIs where available.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android recorder resume, AVFoundation movie-output resume or asset-writer resume on iOS and macOS where available, pipeline resume on Linux-class Unix when supported, and Media Foundation recording resume on Windows when supported.
 ///
 /// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
 ///
 /// # Security
-/// Requires `device.camera.control`.
+/// Requires `device.camera.capture`.
 ///
 /// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_set_brightness(
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_device_camera_stream_resume_recording(
     _binding: &BindingCallContext,
     handle: resource::CameraStreamHandle,
-    argument_value: f64,
 ) -> RuntimeResult<()> {
-    let _ = (handle, argument_value);
+    let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.setBrightness",
+        "destack.device.camera.stream.resumeRecording",
     ))
     .boxed())
 }
 
-/// Set camera contrast.
-///
-/// Apply one contrast adjustment on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend contrast control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_set_contrast(
-    _binding: &BindingCallContext,
-    handle: resource::CameraStreamHandle,
-    argument_value: f64,
-) -> RuntimeResult<()> {
-    let _ = (handle, argument_value);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.setContrast",
-    ))
-    .boxed())
-}
-
-/// Set camera exposure compensation.
-///
-/// Apply one exposure-compensation value in EV units on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend exposure-compensation control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_set_exposure_compensation(
-    _binding: &BindingCallContext,
-    handle: resource::CameraStreamHandle,
-    valueev: f64,
-) -> RuntimeResult<()> {
-    let _ = (handle, valueev);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.setExposureCompensation",
-    ))
-    .boxed())
-}
-
-/// Set camera exposure mode.
-///
-/// Apply one exposure mode on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend camera exposure mode APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_set_exposure_mode(
-    _binding: &BindingCallContext,
-    handle: resource::CameraStreamHandle,
-    mode: CameraExposureMode,
-) -> RuntimeResult<()> {
-    let _ = (handle, mode);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.setExposureMode",
-    ))
-    .boxed())
-}
-
-/// Set camera exposure time.
-///
-/// Apply one exposure time in nanoseconds on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend exposure-duration control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_set_exposure_time_ns(
-    _binding: &BindingCallContext,
-    handle: resource::CameraStreamHandle,
-    valuens: u64,
-) -> RuntimeResult<()> {
-    let _ = (handle, valuens);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.setExposureTimeNs",
-    ))
-    .boxed())
-}
-
-/// Set camera focus distance.
-///
-/// Apply one focus-distance value in diopters on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend focus-distance control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_set_focus_distance_diopters(
-    _binding: &BindingCallContext,
-    handle: resource::CameraStreamHandle,
-    diopters: f64,
-) -> RuntimeResult<()> {
-    let _ = (handle, diopters);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.setFocusDistanceDiopters",
-    ))
-    .boxed())
-}
-
-/// Set camera focus mode.
-///
-/// Apply one focus mode on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend focus mode APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_set_focus_mode(
-    _binding: &BindingCallContext,
-    handle: resource::CameraStreamHandle,
-    mode: CameraFocusMode,
-) -> RuntimeResult<()> {
-    let _ = (handle, mode);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.setFocusMode",
-    ))
-    .boxed())
-}
-
-/// Set camera pan angle.
-///
-/// Apply one pan angle in degrees on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend pan control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_set_pan_degrees(
-    _binding: &BindingCallContext,
-    handle: resource::CameraStreamHandle,
-    degrees: f64,
-) -> RuntimeResult<()> {
-    let _ = (handle, degrees);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.setPanDegrees",
-    ))
-    .boxed())
-}
-
-/// Set camera saturation.
-///
-/// Apply one saturation adjustment on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend saturation control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_set_saturation(
-    _binding: &BindingCallContext,
-    handle: resource::CameraStreamHandle,
-    argument_value: f64,
-) -> RuntimeResult<()> {
-    let _ = (handle, argument_value);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.setSaturation",
-    ))
-    .boxed())
-}
-
-/// Set camera sensor ISO.
-///
-/// Apply one sensor ISO value on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend ISO control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_set_sensor_iso(
-    _binding: &BindingCallContext,
-    handle: resource::CameraStreamHandle,
-    iso: u32,
-) -> RuntimeResult<()> {
-    let _ = (handle, iso);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.setSensorIso",
-    ))
-    .boxed())
-}
-
-/// Set camera sharpness.
-///
-/// Apply one sharpness adjustment on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend sharpness control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_set_sharpness(
-    _binding: &BindingCallContext,
-    handle: resource::CameraStreamHandle,
-    argument_value: f64,
-) -> RuntimeResult<()> {
-    let _ = (handle, argument_value);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.setSharpness",
-    ))
-    .boxed())
-}
-
-/// Set camera stabilization mode.
-///
-/// Apply one stabilization mode on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend stabilization APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_set_stabilization_mode(
-    _binding: &BindingCallContext,
-    handle: resource::CameraStreamHandle,
-    mode: CameraStabilizationMode,
-) -> RuntimeResult<()> {
-    let _ = (handle, mode);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.setStabilizationMode",
-    ))
-    .boxed())
-}
-
-/// Set camera tilt angle.
-///
-/// Apply one tilt angle in degrees on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend tilt control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_set_tilt_degrees(
-    _binding: &BindingCallContext,
-    handle: resource::CameraStreamHandle,
-    degrees: f64,
-) -> RuntimeResult<()> {
-    let _ = (handle, degrees);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.setTiltDegrees",
-    ))
-    .boxed())
-}
-
-/// Set camera torch mode.
-///
-/// Apply one torch mode on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend torch APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_set_torch_mode(
-    _binding: &BindingCallContext,
-    handle: resource::CameraStreamHandle,
-    mode: CameraTorchMode,
-) -> RuntimeResult<()> {
-    let _ = (handle, mode);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.setTorchMode",
-    ))
-    .boxed())
-}
-
-/// Set camera white balance.
-///
-/// Apply one white-balance value in kelvin on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend white-balance control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_set_white_balance_kelvin(
-    _binding: &BindingCallContext,
-    handle: resource::CameraStreamHandle,
-    kelvin: u32,
-) -> RuntimeResult<()> {
-    let _ = (handle, kelvin);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.setWhiteBalanceKelvin",
-    ))
-    .boxed())
-}
-
-/// Set camera white-balance mode.
-///
-/// Apply one white-balance mode on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend white-balance mode APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_set_white_balance_mode(
-    _binding: &BindingCallContext,
-    handle: resource::CameraStreamHandle,
-    mode: CameraWhiteBalanceMode,
-) -> RuntimeResult<()> {
-    let _ = (handle, mode);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.setWhiteBalanceMode",
-    ))
-    .boxed())
-}
-
-/// Set camera zoom ratio.
-///
-/// Apply one digital zoom ratio on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend zoom control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_set_zoom_ratio(
-    _binding: &BindingCallContext,
-    handle: resource::CameraStreamHandle,
-    ratio: f64,
-) -> RuntimeResult<()> {
-    let _ = (handle, ratio);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.setZoomRatio",
-    ))
-    .boxed())
-}
-
-/// Read camera sharpness.
-///
-/// Read one sharpness adjustment from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend sharpness query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_sharpness(
-    _binding: &BindingCallContext,
-    out: *mut f64,
-    handle: resource::CameraStreamHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.sharpness",
-    ))
-    .boxed())
-}
-
-/// Read sharpness range.
-///
-/// Read one sharpness range descriptor for one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend sharpness capability query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_sharpness_range(
-    _binding: &BindingCallContext,
-    out: *mut CameraFloatControlRange,
-    handle: resource::CameraStreamHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.sharpnessRange",
-    ))
-    .boxed())
-}
-
-/// Read camera stabilization mode.
-///
-/// Read one stabilization mode from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend stabilization mode query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_stabilization_mode(
-    _binding: &BindingCallContext,
-    out: *mut CameraStabilizationMode,
-    handle: resource::CameraStreamHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.stabilizationMode",
-    ))
-    .boxed())
-}
-
-/// Start camera stream.
+/// Start a camera stream.
 ///
 /// Start one opened camera stream.
+/// Starting transitions the stream into active frame production without changing its negotiated format or control contract.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend stream start operations.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android repeating-request start, AVFoundation capture-session start on iOS and macOS, queue streaming start on Linux-class Unix, and Media Foundation source start on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -2322,13 +1668,44 @@ pub(crate) unsafe fn destack_device_camera_stream_start(
     .boxed())
 }
 
-/// Stop camera stream.
+/// Start recording from one opened camera stream.
 ///
-/// Stop one running camera stream.
+/// Start one video recording using one recording options object.
+/// Recording is separate from frame reads because encoded capture has its own sink, codec, duration, and audio policy.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend stream stop operations.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android recorder start with camera-session surfaces, AVFoundation movie-file or asset-writer start on iOS and macOS, V4L2 plus codec recording pipelines on Linux-class Unix, and Media Foundation sink-writer start on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.capture`, `audio.capture`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_device_camera_stream_start_recording(
+    _binding: &BindingCallContext,
+    handle: resource::CameraStreamHandle,
+    options: CameraRecordingOptions,
+) -> RuntimeResult<()> {
+    let _ = (handle, options);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.startRecording",
+    ))
+    .boxed())
+}
+
+/// Stop a camera stream.
+///
+/// Stop one running camera stream.
+/// Stopping halts frame production while preserving the stream handle for later restart or control queries.
+///
+/// # Platform
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android repeating-request stop, AVFoundation capture-session stop on iOS and macOS, queue streaming stop on Linux-class Unix, and Media Foundation source stop on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -2350,109 +1727,83 @@ pub(crate) unsafe fn destack_device_camera_stream_stop(
     .boxed())
 }
 
-/// Read camera tilt angle.
+/// Stop recording for one opened camera stream.
 ///
-/// Read one tilt angle in degrees from one opened camera stream.
+/// Stop one active recording on one opened camera stream and return the finalized recording descriptor.
+/// Stop finalizes encoded output and preserves the produced file path and encoded format metadata.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend tilt query APIs where available.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android recorder stop with finalized output metadata, AVFoundation movie-output or asset-writer finalize on iOS and macOS, V4L2 plus codec pipeline finalize on Linux-class Unix, and Media Foundation sink-writer finalize on Windows.
 ///
 /// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
 ///
 /// # Security
-/// Requires `device.camera.control`.
+/// Requires `device.camera.capture`.
 ///
 /// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_tilt_degrees(
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_device_camera_stream_stop_recording(
     _binding: &BindingCallContext,
-    out: *mut f64,
+    out: *mut CameraRecording,
     handle: resource::CameraStreamHandle,
+    timeoutns: u64,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, handle);
+    let _ = (out, handle, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.tiltDegrees",
+        "destack.device.camera.stream.stopRecording",
     ))
     .boxed())
 }
 
-/// Read tilt-angle range.
+/// Capture one still photo from one opened camera stream.
 ///
-/// Read one tilt-angle range descriptor for one opened camera stream.
+/// Capture one still photo using one still-photo settings object.
+/// Fields omitted from the settings object leave photo policy at host defaults, and still capture stays separate from streaming frame reads because photo output often uses different exposure, flash, resolution, and encoding policy than the live stream.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend tilt capability query APIs where available.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses Android still-capture requests with ImageReader outputs, AVFoundation photo capture on iOS and macOS, V4L2 plus codec capture pipelines on Linux-class Unix, and Media Foundation still-image capture on Windows.
 ///
 /// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
 ///
 /// # Security
-/// Requires `device.camera.control`.
+/// Requires `device.camera.capture`.
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_tilt_range(
+pub(crate) unsafe fn destack_device_camera_stream_take_photo(
     _binding: &BindingCallContext,
-    out: *mut CameraTiltAngleRange,
+    out: *mut CameraPhoto,
     handle: resource::CameraStreamHandle,
+    settings: CameraPhotoSettings,
+    timeoutns: u64,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, handle);
+    let _ = (out, handle, settings, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.tiltRange",
+        "destack.device.camera.stream.takePhoto",
     ))
     .boxed())
 }
 
-/// Read camera torch mode.
+/// Poll one camera frame without blocking.
 ///
-/// Read one torch mode from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend torch mode query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_torch_mode(
-    _binding: &BindingCallContext,
-    out: *mut CameraTorchMode,
-    handle: resource::CameraStreamHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.torchMode",
-    ))
-    .boxed())
-}
-
-/// Poll camera frame without blocking.
-///
-/// Poll one camera frame from one running stream without waiting.
+/// Read the next queued camera frame from one running stream without waiting for new capture work.
+/// This operation only consumes frames that have already been published into the stream queue.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend nonblocking camera frame queue operations.
+/// Android, iOS, macOS, Linux-class Unix, and Windows.
+/// Uses frame queues fed by Android ImageReader callbacks, AVFoundation sample-buffer callbacks on iOS and macOS, streaming buffer completion on Linux-class Unix, and Media Foundation sample delivery on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -2478,173 +1829,14 @@ pub(crate) unsafe fn destack_device_camera_stream_try_read(
     .boxed())
 }
 
-/// Read camera white balance.
+/// Close a serial endpoint.
 ///
-/// Read one white-balance value in kelvin from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend white-balance query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_white_balance_kelvin(
-    _binding: &BindingCallContext,
-    out: *mut u32,
-    handle: resource::CameraStreamHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.whiteBalanceKelvin",
-    ))
-    .boxed())
-}
-
-/// Read camera white-balance mode.
-///
-/// Read one white-balance mode from one opened camera stream.
+/// Close one opened serial endpoint and release its underlying host session.
+/// Closing a port also terminates its event stream and any pending read or write waits owned by that session.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend white-balance mode query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_white_balance_mode(
-    _binding: &BindingCallContext,
-    out: *mut CameraWhiteBalanceMode,
-    handle: resource::CameraStreamHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.whiteBalanceMode",
-    ))
-    .boxed())
-}
-
-/// Read white-balance range.
-///
-/// Read one white-balance range descriptor for one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend white-balance capability query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_white_balance_range(
-    _binding: &BindingCallContext,
-    out: *mut CameraWhiteBalanceRange,
-    handle: resource::CameraStreamHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.whiteBalanceRange",
-    ))
-    .boxed())
-}
-
-/// Read camera zoom ratio.
-///
-/// Read one digital zoom ratio from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend zoom query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_zoom_ratio(
-    _binding: &BindingCallContext,
-    out: *mut f64,
-    handle: resource::CameraStreamHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.zoomRatio",
-    ))
-    .boxed())
-}
-
-/// Read zoom-ratio range.
-///
-/// Read one zoom-ratio range descriptor for one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend zoom capability query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_zoom_ratio_range(
-    _binding: &BindingCallContext,
-    out: *mut CameraZoomRatioRange,
-    handle: resource::CameraStreamHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.zoomRatioRange",
-    ))
-    .boxed())
-}
-
-/// Close serial endpoint.
-///
-/// Close one opened serial endpoint and release host resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific serial close operations.
+/// macOS, Linux-class Unix, and Windows.
+/// Uses handle teardown and wait cancellation on Windows and file-descriptor close on macOS and Linux-class Unix.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -2665,11 +1857,12 @@ pub(crate) unsafe fn destack_device_serial_close(
 
 /// Read serial endpoint configuration.
 ///
-/// Read one line-configuration snapshot for one opened serial endpoint.
+/// Read the current line configuration for one opened serial endpoint.
+/// The returned snapshot reflects the active host serial driver state rather than only the original open options.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend serial line-configuration queries.
+/// macOS, Linux-class Unix, and Windows.
+/// Uses GetCommState on Windows and tcgetattr on macOS and Linux-class Unix.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -2692,13 +1885,14 @@ pub(crate) unsafe fn destack_device_serial_config(
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.serial.config")).boxed())
 }
 
-/// Reconfigure serial endpoint.
+/// Reconfigure a serial endpoint.
 ///
-/// Apply one serial line configuration on one opened endpoint.
+/// Apply one complete serial line configuration to one opened endpoint.
+/// Configuration updates take effect on the live session and govern subsequent I/O and event behavior.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses termios reconfiguration on Unix-like hosts and DCB reconfiguration on Windows.
+/// macOS, Linux-class Unix, and Windows.
+/// Uses SetCommState and related serial control calls on Windows and termios attribute updates on macOS and Linux-class Unix.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -2721,13 +1915,14 @@ pub(crate) unsafe fn destack_device_serial_configure(
     .boxed())
 }
 
-/// Read serial endpoint descriptor.
+/// Read a serial endpoint descriptor.
 ///
-/// Read one stable descriptor snapshot for one opened serial endpoint.
+/// Read the stable descriptor associated with one opened serial endpoint.
+/// The descriptor reports topology identity and metadata, not transient line state.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend descriptor and device-metadata queries.
+/// macOS, Linux-class Unix, and Windows.
+/// Uses the session's bound topology identity with metadata gathered from SetupAPI on Windows, IOKit on macOS, and sysfs or udev on Linux-class Unix.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -2756,10 +1951,11 @@ pub(crate) unsafe fn destack_device_serial_descriptor(
 /// Discard queued inbound serial bytes.
 ///
 /// Drop queued unread inbound bytes for one opened serial endpoint.
+/// This affects host receive buffers only and does not synthesize a disconnect or error condition.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses termios and Win32 purge APIs where available.
+/// macOS, Linux-class Unix, and Windows.
+/// Uses PurgeComm receive-flush flags on Windows and tcflush with TCIFLUSH on macOS and Linux-class Unix.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -2784,10 +1980,11 @@ pub(crate) unsafe fn destack_device_serial_discard_input(
 /// Discard queued outbound serial bytes.
 ///
 /// Drop queued unwritten outbound bytes for one opened serial endpoint.
+/// This operation aborts buffered transmit data without modifying the line configuration.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses termios and Win32 purge APIs where available.
+/// macOS, Linux-class Unix, and Windows.
+/// Uses PurgeComm transmit-flush flags on Windows and tcflush with TCOFLUSH on macOS and Linux-class Unix.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -2811,11 +2008,12 @@ pub(crate) unsafe fn destack_device_serial_discard_output(
 
 /// Drain serial output.
 ///
-/// Wait until queued outbound bytes drain on one opened serial endpoint.
+/// Wait until queued outbound bytes for one opened serial endpoint have left the host transmit queue.
+/// This is a transport flush barrier, not a close or cancellation operation.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend serial drain operations.
+/// macOS, Linux-class Unix, and Windows.
+/// Uses transmit-empty waits on Windows and tcdrain on macOS and Linux-class Unix.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -2836,11 +2034,12 @@ pub(crate) unsafe fn destack_device_serial_drain(
 
 /// Read serial input signal state.
 ///
-/// Return current serial input signal state for one opened endpoint.
+/// Return the current modem input signal state for one opened endpoint.
+/// Signal sampling is instantaneous and does not consume the serial event stream.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend modem-status APIs.
+/// macOS, Linux-class Unix, and Windows.
+/// Uses GetCommModemStatus on Windows and modem-bit reads such as TIOCMGET on macOS and Linux-class Unix.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -2868,12 +2067,12 @@ pub(crate) unsafe fn destack_device_serial_get_signals(
 
 /// List serial endpoints.
 ///
-/// Enumerate available host serial endpoints and return stable identifiers.
-/// Enumeration ordering follows host backend behavior.
+/// Enumerate serial endpoints that are currently reachable from the host namespace and return stable descriptor snapshots for them.
+/// Descriptor identity is topology based rather than open-handle based, so callers can compare enumeration results across watch and open lifetimes.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses `/dev/tty*` style enumeration on Unix-like hosts and SetupAPI COM-port enumeration on Windows.
+/// macOS, Linux-class Unix, and Windows.
+/// Uses SetupAPI serial device interfaces on Windows, IOKit serial-service enumeration on macOS, and tty enumeration with sysfs or udev identity enrichment on Linux-class Unix.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -2895,13 +2094,14 @@ pub(crate) unsafe fn destack_device_serial_list(
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.serial.list")).boxed())
 }
 
-/// Open serial endpoint.
+/// Open a serial endpoint.
 ///
-/// Open one serial endpoint with explicit line configuration and host open policy.
+/// Open one serial endpoint with explicit line configuration and host buffering policy.
+/// Opening establishes a long lived session whose configuration, events, and I/O remain isolated from later topology churn.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses termios-family open operations on Unix-like hosts and CreateFile serial APIs on Windows.
+/// macOS, Linux-class Unix, and Windows.
+/// Uses overlapped serial handles with DCB and timeout configuration on Windows and POSIX open plus termios session setup on macOS and Linux-class Unix.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -2925,13 +2125,14 @@ pub(crate) unsafe fn destack_device_serial_open(
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.serial.open")).boxed())
 }
 
-/// Wait for one serial event.
+/// Read one serial event.
 ///
-/// Wait for one pending serial event for one opened endpoint.
+/// Wait for the next pending serial event for one opened endpoint.
+/// Events report readiness, modem transitions, disconnects, and line errors without forcing callers to poll control state.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend serial event queues where available.
+/// macOS, Linux-class Unix, and Windows.
+/// Uses WaitCommEvent driven ingress on Windows and kqueue or poll class readiness plus modem-status sources on macOS and Linux-class Unix.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -2960,12 +2161,12 @@ pub(crate) unsafe fn destack_device_serial_read_event(
 
 /// Read serial bytes.
 ///
-/// Read bytes into caller memory from one opened serial endpoint.
-/// Partial reads are preserved exactly as reported by the host backend.
+/// Read bytes directly into caller memory from one opened serial endpoint.
+/// Partial completion is preserved exactly so callers can build their own framing and buffering policy.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend read operations with timeout handling.
+/// macOS, Linux-class Unix, and Windows.
+/// Uses overlapped ReadFile on Windows and blocking or deadline-bounded reads on macOS and Linux-class Unix.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -2996,10 +2197,11 @@ pub(crate) unsafe fn destack_device_serial_read_into(
 /// Update serial output signal state.
 ///
 /// Apply one partial output signal update for one opened endpoint.
+/// Fields that are omitted leave the corresponding line state unchanged.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend serial line-control APIs.
+/// macOS, Linux-class Unix, and Windows.
+/// Uses EscapeCommFunction and serial control ioctls on Windows and modem-control ioctls on macOS and Linux-class Unix.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3024,11 +2226,12 @@ pub(crate) unsafe fn destack_device_serial_set_signals(
 
 /// Poll one serial event without blocking.
 ///
-/// Poll one pending serial event for one opened endpoint.
+/// Read the next pending serial event for one opened endpoint without waiting for new host activity.
+/// This operation only consumes events that have already been published into the session queue.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend nonblocking serial event polling where available.
+/// macOS, Linux-class Unix, and Windows.
+/// Uses session event queues fed by WaitCommEvent on Windows and readiness monitors on macOS and Linux-class Unix.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -3038,7 +2241,7 @@ pub(crate) unsafe fn destack_device_serial_set_signals(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_serial_try_event(
+pub(crate) unsafe fn destack_device_serial_try_read_event(
     _binding: &BindingCallContext,
     out: *mut SerialEvent,
     handle: resource::SerialPortHandle,
@@ -3049,19 +2252,19 @@ pub(crate) unsafe fn destack_device_serial_try_event(
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.serial.tryEvent",
+        "destack.device.serial.tryReadEvent",
     ))
     .boxed())
 }
 
 /// Poll serial bytes without blocking.
 ///
-/// Read bytes into caller memory from one opened serial endpoint without waiting.
-/// Empty queue state is reported through ioWouldBlock.
+/// Read bytes directly into caller memory from one opened serial endpoint without waiting for new input.
+/// This operation only reports bytes that are already buffered by the host serial stack.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend nonblocking serial read operations.
+/// macOS, Linux-class Unix, and Windows.
+/// Uses nonblocking overlapped completion checks on Windows and nonblocking read paths on macOS and Linux-class Unix.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -3088,13 +2291,142 @@ pub(crate) unsafe fn destack_device_serial_try_read_into(
     .boxed())
 }
 
+/// Close a serial topology watch stream.
+///
+/// Close one opened serial topology watch stream and release its host subscription state.
+/// Closing a watch never closes or mutates any separately opened serial port session.
+///
+/// # Platform
+/// macOS, Linux-class Unix, and Windows.
+/// Uses Configuration Manager notification teardown on Windows and native device-namespace watcher teardown on macOS and Linux-class Unix.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.serial.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_serial_watch_close(
+    _binding: &BindingCallContext,
+    handle: resource::SerialWatchHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.serial.watchClose",
+    ))
+    .boxed())
+}
+
+/// Open a serial topology watch stream.
+///
+/// Open a watch stream that reports serial endpoint attach and detach transitions as ordered topology events.
+/// The stream is scoped to host namespace changes rather than to any individual open port session.
+///
+/// # Platform
+/// macOS, Linux-class Unix, and Windows.
+/// Uses Configuration Manager device-interface notifications on Windows and native device-namespace watchers paired with IOKit or sysfs descriptor snapshots on macOS and Linux-class Unix.
+///
+/// # Errors
+/// Returns ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.serial.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_serial_watch_open(
+    _binding: &BindingCallContext,
+    out: *mut resource::SerialWatchHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = out;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.serial.watchOpen",
+    ))
+    .boxed())
+}
+
+/// Read one serial topology event.
+///
+/// Wait for the next queued serial topology event from one opened watch stream.
+/// The returned event carries the full descriptor snapshot so callers do not need to race a follow-up list call.
+///
+/// # Platform
+/// macOS, Linux-class Unix, and Windows.
+/// Uses watch queues fed by Configuration Manager device-interface notifications on Windows and by native device-namespace watchers on macOS and Linux-class Unix.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+///
+/// # Security
+/// Requires `device.serial.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_serial_watch_read(
+    _binding: &BindingCallContext,
+    out: *mut SerialWatchEvent,
+    handle: resource::SerialWatchHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle, timeoutns);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.serial.watchRead",
+    ))
+    .boxed())
+}
+
+/// Poll one serial topology event without blocking.
+///
+/// Read the next queued serial topology event from one opened watch stream without waiting.
+/// This operation only consumes already published attach or detach events.
+///
+/// # Platform
+/// macOS, Linux-class Unix, and Windows.
+/// Uses watch queues fed by Configuration Manager device-interface notifications on Windows and by native device-namespace watchers on macOS and Linux-class Unix.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.serial.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_serial_watch_try_read(
+    _binding: &BindingCallContext,
+    out: *mut SerialWatchEvent,
+    handle: resource::SerialWatchHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.serial.watchTryRead",
+    ))
+    .boxed())
+}
+
 /// Write serial bytes.
 ///
 /// Write one byte sequence to one opened serial endpoint.
+/// Partial completion is preserved exactly so callers can retry or pace writes explicitly.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses backend serial write operations with timeout handling.
+/// macOS, Linux-class Unix, and Windows.
+/// Uses overlapped WriteFile on Windows and write or writev class serial output on macOS and Linux-class Unix.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3122,10 +2454,11 @@ pub(crate) unsafe fn destack_device_serial_write(
 /// List USB BOS capabilities.
 ///
 /// Enumerate BOS capability descriptors for one opened USB device.
+/// Raw BOS payload bytes are preserved so callers can interpret platform and vendor capabilities without data loss.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host BOS or device-capability descriptor query APIs where available.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses standard BOS descriptor reads on the default control pipe through libusb, including the wrapped Android session after host open handoff.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -3153,11 +2486,12 @@ pub(crate) unsafe fn destack_device_usb_bos_capability_list(
 
 /// Read bulk endpoint bytes.
 ///
-/// Read up to `maxBytes` from one bulk IN endpoint and return transfer status.
+/// Read up to `maxBytes` from one bulk IN endpoint and return transfer status with payload bytes.
+/// Completion may be partial, which preserves host transfer semantics for high volume streaming protocols.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB bulk-transfer APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses bulk IN transfer submissions on claimed interfaces through libusb, including the wrapped Android session after host open handoff.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
@@ -3186,10 +2520,11 @@ pub(crate) unsafe fn destack_device_usb_bulk_read(
 /// Write bulk endpoint bytes.
 ///
 /// Write bytes to one bulk OUT endpoint and return transfer status with transferred byte count.
+/// Completion may be partial, which preserves host transfer semantics for explicit higher-level retry policy.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB bulk-transfer APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses bulk OUT transfer submissions on claimed interfaces through libusb, including the wrapped Android session after host open handoff.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3218,10 +2553,11 @@ pub(crate) unsafe fn destack_device_usb_bulk_write(
 /// Claim USB interface.
 ///
 /// Claim one interface on one opened USB device.
+/// Claimed interfaces become the authority boundary for subsequent endpoint transfers and alternate-setting changes.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB interface-claim APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses libusb interface claims on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3246,11 +2582,12 @@ pub(crate) unsafe fn destack_device_usb_claim_interface(
 
 /// Clear halt condition on one endpoint.
 ///
-/// Clear one endpoint STALL condition for one opened USB device.
+/// Clear a STALL condition on one endpoint for one opened USB device.
+/// This is the explicit pipe recovery operation and does not imply transfer cancellation or interface release.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB clear-halt endpoint APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses CLEAR_FEATURE endpoint-halt requests through the active device session via libusb, including the wrapped Android session after host open handoff.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3272,11 +2609,12 @@ pub(crate) unsafe fn destack_device_usb_clear_halt(
 
 /// Close USB device.
 ///
-/// Close one opened USB device and release host resources.
+/// Close one opened USB device and release its underlying host session.
+/// Closing a device also releases any claimed interfaces and pending transfer ownership for that session.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB close APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses libusb device-session teardown on macOS, Linux-class Unix, and Windows, and wrapped libusb session teardown on Android.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -3297,11 +2635,12 @@ pub(crate) unsafe fn destack_device_usb_close(
 
 /// Read active USB configuration value.
 ///
-/// Read active configuration value for one opened USB device.
+/// Read the currently selected configuration value for one opened USB device.
+/// This reports live device state rather than the first configuration in descriptor order.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB configuration-state APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses live configuration queries through the device control path on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -3329,11 +2668,12 @@ pub(crate) unsafe fn destack_device_usb_configuration_get(
 
 /// List USB configurations.
 ///
-/// Enumerate USB configurations and nested interface descriptors for one opened device.
+/// Enumerate USB configurations and their nested interface and endpoint descriptors for one opened device.
+/// The returned tree is a descriptor snapshot and does not imply that any configuration or interface is currently active.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB configuration-descriptor query APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses standard configuration-descriptor reads and host descriptor parsing through libusb, including the wrapped Android session after host open handoff.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -3361,11 +2701,12 @@ pub(crate) unsafe fn destack_device_usb_configuration_list(
 
 /// Set active USB configuration value.
 ///
-/// Apply active configuration value for one opened USB device.
+/// Select the active configuration value for one opened USB device.
+/// Configuration changes are device state transitions and may invalidate previously claimed interfaces.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB set-configuration APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses SET_CONFIGURATION control requests through libusb on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3390,11 +2731,12 @@ pub(crate) unsafe fn destack_device_usb_configuration_set(
 
 /// Read control-transfer response bytes.
 ///
-/// Execute one control-transfer read and return transfer status with response bytes.
+/// Execute one control-transfer read and return both transfer status and response bytes.
+/// The setup packet is passed through without higher-level interpretation so callers can issue standard, class, or vendor requests explicitly.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB control-transfer APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses synchronous or deadline-bounded default-control transfers through libusb, including the wrapped Android session after host open handoff.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -3424,11 +2766,12 @@ pub(crate) unsafe fn destack_device_usb_control_read(
 
 /// Write control-transfer request bytes.
 ///
-/// Execute one control-transfer write and return transfer status with transferred byte count.
+/// Execute one control-transfer write and return both transfer status and transferred byte count.
+/// The setup packet is passed through without higher-level interpretation so callers can issue standard, class, or vendor requests explicitly.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB control-transfer APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses synchronous or deadline-bounded default-control transfers through libusb, including the wrapped Android session after host open handoff.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3459,11 +2802,12 @@ pub(crate) unsafe fn destack_device_usb_control_write(
 
 /// Read active USB device descriptor.
 ///
-/// Read descriptor metadata for one opened USB device.
+/// Read the active device descriptor and host topology metadata for one opened USB device.
+/// This snapshot describes the device itself and is independent from any currently claimed interface state.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB descriptor-query APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses cached standard device-descriptor reads with host topology metadata on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -3491,11 +2835,12 @@ pub(crate) unsafe fn destack_device_usb_descriptor(
 
 /// Read interrupt endpoint bytes.
 ///
-/// Read up to `maxBytes` from one interrupt IN endpoint and return transfer status.
+/// Read up to `maxBytes` from one interrupt IN endpoint and return transfer status with payload bytes.
+/// Poll interval semantics remain device defined, so this call does not synthesize any additional pacing policy.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB interrupt-transfer APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses interrupt IN transfer submissions on claimed interfaces through libusb, including the wrapped Android session after host open handoff.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
@@ -3527,10 +2872,11 @@ pub(crate) unsafe fn destack_device_usb_interrupt_read(
 /// Write interrupt endpoint bytes.
 ///
 /// Write bytes to one interrupt OUT endpoint and return transfer status with transferred byte count.
+/// Completion may be partial, which preserves host transfer semantics for explicit higher-level retry policy.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB interrupt-transfer APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses interrupt OUT transfer submissions on claimed interfaces through libusb, including the wrapped Android session after host open handoff.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3561,11 +2907,12 @@ pub(crate) unsafe fn destack_device_usb_interrupt_write(
 
 /// Read one isochronous transfer.
 ///
-/// Read one isochronous transfer and return flattened bytes with per-packet transfer results.
+/// Read one isochronous transfer and return flattened bytes with per-packet completion results.
+/// Packet boundaries are preserved explicitly so callers can reason about drop, underrun, and partial completion at the host cadence.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB isochronous transfer APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses scheduled isochronous transfer submissions with per-packet completion reporting through libusb, including the wrapped Android session after host open handoff.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
@@ -3596,11 +2943,12 @@ pub(crate) unsafe fn destack_device_usb_isochronous_read(
 
 /// Write one isochronous transfer.
 ///
-/// Write one flattened isochronous transfer and return per-packet transfer results.
+/// Write one isochronous transfer and return per-packet completion results.
+/// Packet boundaries are preserved explicitly so callers can reason about bandwidth pressure and partial completion at the host cadence.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB isochronous transfer APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses scheduled isochronous transfer submissions with per-packet completion reporting through libusb, including the wrapped Android session after host open handoff.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3637,104 +2985,14 @@ pub(crate) unsafe fn destack_device_usb_isochronous_write(
     .boxed())
 }
 
-/// Query whether kernel driver is active on one interface.
-///
-/// Query host kernel-driver attachment state for one interface.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB kernel-driver query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.usb.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_usb_kernel_driver_active(
-    _binding: &BindingCallContext,
-    out: *mut bool,
-    handle: resource::UsbDeviceHandle,
-    interfacenumber: u8,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle, interfacenumber);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.usb.kernelDriverActive",
-    ))
-    .boxed())
-}
-
-/// Attach kernel driver to one interface.
-///
-/// Reattach one host kernel driver to one interface where supported.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB kernel-driver attach APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.usb.control`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_device_usb_kernel_driver_attach(
-    _binding: &BindingCallContext,
-    handle: resource::UsbDeviceHandle,
-    interfacenumber: u8,
-) -> RuntimeResult<()> {
-    let _ = (handle, interfacenumber);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.usb.kernelDriverAttach",
-    ))
-    .boxed())
-}
-
-/// Detach kernel driver from one interface.
-///
-/// Detach one host kernel driver from one interface before userspace claiming where supported.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB kernel-driver detach APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.usb.control`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_device_usb_kernel_driver_detach(
-    _binding: &BindingCallContext,
-    handle: resource::UsbDeviceHandle,
-    interfacenumber: u8,
-) -> RuntimeResult<()> {
-    let _ = (handle, interfacenumber);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.usb.kernelDriverDetach",
-    ))
-    .boxed())
-}
-
 /// List USB devices.
 ///
-/// Enumerate attached USB devices and return stable descriptors.
+/// Enumerate attached USB devices and return stable descriptors for the current bus topology.
+/// Descriptor identity is bus or topology based so callers can correlate list and hotplug results without opening devices.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses libusb-family enumeration or host USB APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses libusb topology enumeration on macOS, Linux-class Unix, and Windows, and the Android USB host bridge on Android.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -3758,11 +3016,12 @@ pub(crate) unsafe fn destack_device_usb_list(
 
 /// Open USB device.
 ///
-/// Open one USB device for control and data transfers.
+/// Open one USB device for descriptor, configuration, interface, and transfer operations.
+/// Opening creates a device session whose lifetime and claimed interfaces are independent from further topology events.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB open APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses libusb device sessions on macOS, Linux-class Unix, and Windows, and Android host open plus libusb session wrapping on Android.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3788,10 +3047,11 @@ pub(crate) unsafe fn destack_device_usb_open(
 /// Release USB interface.
 ///
 /// Release one interface previously claimed on one opened USB device.
+/// Releasing an interface ends the session's authority over its endpoints without closing the device itself.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB interface-release APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses libusb interface release calls on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -3817,10 +3077,11 @@ pub(crate) unsafe fn destack_device_usb_release_interface(
 /// Reset one USB device.
 ///
 /// Request one bus-level reset for one opened USB device.
+/// Reset is a disruptive device state transition whose effects on active configuration and interfaces are intentionally left explicit.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB reset-device APIs where available.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses device reset requests through libusb on macOS, Linux-class Unix, and Windows, and the wrapped Android session after host open handoff on Android.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3842,10 +3103,11 @@ pub(crate) unsafe fn destack_device_usb_reset(
 /// Set USB interface alternate setting.
 ///
 /// Select one alternate setting for one claimed interface.
+/// Alternate-setting changes are session local and immediately redefine the active endpoint layout for that interface.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB alternate-setting APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses SET_INTERFACE style interface reconfiguration through libusb on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3871,11 +3133,12 @@ pub(crate) unsafe fn destack_device_usb_set_interface_alternate_setting(
 
 /// Read USB string descriptors.
 ///
-/// Read manufacturer, product, and serial-number string descriptors for one language identifier.
+/// Read manufacturer, product, and serial-number string descriptors for one selected language identifier.
+/// Missing strings remain absent rather than being synthesized from transport-specific fallback metadata.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB string-descriptor read APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses standard string-descriptor control transfers on the default control pipe through libusb, including the wrapped Android session after host open handoff.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -3904,11 +3167,12 @@ pub(crate) unsafe fn destack_device_usb_string_descriptor(
 
 /// List USB string-descriptor language identifiers.
 ///
-/// Enumerate string-descriptor language identifiers for one opened USB device.
+/// Enumerate the language identifiers that the device exposes for string-descriptor reads.
+/// Callers can use the returned identifiers to select deterministic manufacturer, product, and serial text reads.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB string-descriptor language query APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses standard GET_DESCRIPTOR string-language queries on the default control pipe through libusb, including the wrapped Android session after host open handoff.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -3936,11 +3200,12 @@ pub(crate) unsafe fn destack_device_usb_string_language_list(
 
 /// Cancel pending transfers on one endpoint.
 ///
-/// Cancel pending USB transfers for one endpoint on one opened USB device.
+/// Cancel pending transfers for one endpoint on one opened USB device.
+/// Cancellation is scoped to outstanding transfer state and does not clear stalls or reset the device.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB transfer-cancellation APIs where available.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses transfer cancellation on the session's async request queue through libusb, including the wrapped Android session after host open handoff.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -3965,11 +3230,12 @@ pub(crate) unsafe fn destack_device_usb_transfer_cancel(
 
 /// Cancel all pending transfers on one opened USB device.
 ///
-/// Cancel pending USB transfers on all endpoints for one opened USB device.
+/// Cancel pending transfers on all endpoints for one opened USB device.
+/// Cancellation is scoped to outstanding transfer state and does not release interfaces or close the device session.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB transfer-cancellation APIs where available.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses transfer cancellation on the device session's async request queues through libusb, including the wrapped Android session after host open handoff.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -3993,11 +3259,12 @@ pub(crate) unsafe fn destack_device_usb_transfer_cancel_all(
 
 /// Close USB hotplug watch stream.
 ///
-/// Close one USB hotplug watch stream and release host subscription resources.
+/// Close one opened USB hotplug watch stream and release its host subscription state.
+/// Closing a watch does not affect any separately opened USB device handle.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB hotplug unsubscription APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses libusb hotplug watch teardown on macOS, Linux-class Unix, and Windows, and Android host watch teardown on Android.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -4021,11 +3288,12 @@ pub(crate) unsafe fn destack_device_usb_watch_close(
 
 /// Open USB hotplug watch stream.
 ///
-/// Open one USB hotplug watch stream for attach and detach events.
+/// Open one hotplug watch stream for USB attach and detach events.
+/// The stream reports topology changes independently from any later opened device session.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB hotplug subscription APIs.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses libusb hotplug callbacks or snapshot polling on macOS, Linux-class Unix, and Windows, and the Android USB host bridge on Android.
 ///
 /// # Errors
 /// Returns ioWouldBlock, notSupported.
@@ -4049,11 +3317,12 @@ pub(crate) unsafe fn destack_device_usb_watch_open(
 
 /// Wait for one USB hotplug event.
 ///
-/// Wait for one queued USB hotplug event from one opened watch stream.
+/// Wait for the next queued USB hotplug event from one opened watch stream.
+/// The returned event carries a full descriptor snapshot so attach consumers do not need a follow-up enumeration race.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host USB hotplug event queues.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses watch queues fed by libusb hotplug callbacks or snapshot polling on macOS, Linux-class Unix, and Windows, and host watch streams on Android.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -4079,11 +3348,12 @@ pub(crate) unsafe fn destack_device_usb_watch_read(
 
 /// Poll one USB hotplug event without blocking.
 ///
-/// Poll one queued USB hotplug event from one opened watch stream without waiting.
+/// Read the next queued USB hotplug event from one opened watch stream without waiting.
+/// This operation only consumes already published attach or detach events.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host nonblocking USB hotplug event queue reads.
+/// macOS, Linux-class Unix, Windows, and Android.
+/// Uses watch queues fed by libusb hotplug callbacks or snapshot polling on macOS, Linux-class Unix, and Windows, and host watch streams on Android.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.

@@ -8,6 +8,7 @@ use crate::host::android::bridge::midi::types::AndroidHostMidiCallbacks;
 use crate::host::android::bridge::registry::{register_android_bindings, resolve_android_bindings};
 use crate::host::android::camera::types::AndroidHostCameraCallbacks;
 use crate::host::android::request::AndroidHostIntentCallbacks;
+use crate::host::android::usb::types::AndroidHostUsbCallbacks;
 
 /// Android host bindings container for callback-backed lanes.
 #[derive(Clone, Copy, Debug, Default)]
@@ -17,6 +18,8 @@ pub(crate) struct AndroidHostBindings {
     pub bluetooth: AndroidHostBluetoothCallbacks,
     /// Camera host callbacks.
     pub camera: AndroidHostCameraCallbacks,
+    /// USB host callbacks.
+    pub usb: AndroidHostUsbCallbacks,
     /// Intent host callbacks.
     pub intent: AndroidHostIntentCallbacks,
     /// Credentials host callbacks.

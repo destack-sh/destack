@@ -98,9 +98,11 @@ macro_rules! for_each_resource_handle_kind {
             (TlsContextHandle, TlsContext, "resource.tls.context", "tls_context", "The handle for one tls context object."),
             (TlsSessionHandle, TlsSession, "resource.tls.session", "tls_session", "The handle for one tls session object."),
             (BackgroundEventHandle, BackgroundEvent, "resource.background.event", "background_event", "The handle for one background event stream."),
+            (BluetoothAdapterWatchHandle, BluetoothAdapterWatch, "resource.bluetooth.adapter.watch", "bluetooth_adapter_watch", "The handle for one Bluetooth adapter watch stream."),
             (BluetoothDeviceHandle, BluetoothDevice, "resource.bluetooth.device", "bluetooth_device", "The handle for one Bluetooth device session."),
             (BluetoothScanHandle, BluetoothScan, "resource.bluetooth.scan", "bluetooth_scan", "The handle for one Bluetooth scan session."),
             (BluetoothSubscriptionHandle, BluetoothSubscription, "resource.bluetooth.subscription", "bluetooth_subscription", "The handle for one Bluetooth GATT subscription session."),
+            (CameraWatchHandle, CameraWatch, "resource.camera.watch", "camera_watch", "The handle for one camera topology watch stream."),
             (CameraDeviceHandle, CameraDevice, "resource.camera.device", "camera_device", "The handle for one camera device session."),
             (CameraStreamHandle, CameraStream, "resource.camera.stream", "camera_stream", "The handle for one camera stream session."),
             (DocumentHandle, Document, "resource.document", "document", "The handle for one document session."),
@@ -112,6 +114,7 @@ macro_rules! for_each_resource_handle_kind {
             (MidiOutputPortHandle, MidiOutputPort, "resource.midi.output.port", "midi_output_port", "The handle for one opened MIDI output endpoint."),
             (NetworkWatchHandle, NetworkWatch, "resource.network.watch", "network_watch", "The handle for one network watch stream."),
             (NotificationEventHandle, NotificationEvent, "resource.notification.event", "notification_event", "The handle for one notification event stream."),
+            (SerialWatchHandle, SerialWatch, "resource.serial.watch", "serial_watch", "The handle for one serial topology watch stream."),
             (SerialPortHandle, SerialPort, "resource.serial.port", "serial_port", "The handle for one serial port session."),
             (UsbDeviceHandle, UsbDevice, "resource.usb.device", "usb_device", "The handle for one USB device session."),
             (UsbWatchHandle, UsbWatch, "resource.usb.watch", "usb_watch", "The handle for one USB hotplug watch stream."),
@@ -177,10 +180,13 @@ macro_rules! define_resource_kind {
                     | Self::MidiEvent
                     | Self::InputMonitor
                     | Self::BackgroundEvent
+                    | Self::BluetoothAdapterWatch
                     | Self::BluetoothSubscription
+                    | Self::CameraWatch
                     | Self::LocationWatch
                     | Self::NetworkWatch
                     | Self::NotificationEvent
+                    | Self::SerialWatch
                     | Self::UsbWatch
                     | Self::WindowEvent
                     | Self::DisplayEvent
