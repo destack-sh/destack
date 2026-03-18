@@ -1,20 +1,19 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
 
-#[path = "harness.rs"]
-mod harness;
-
 use destack_vm as vm;
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::diagnostic::PlatformErrorCode;
 use crate::runtime::BindingCallContext;
+pub(crate) use crate::tests::platform::assert_ok_or_expected_error;
 use crate::tests::runtime::TestRuntime;
 
 /// Test harness context used by tests.
 pub(crate) struct DeviceHarnessContext<'call> {
     /// Runtime call context active for this operation.
-    pub(super) call_context: &'call BindingCallContext,
+    pub(crate) call_context: &'call BindingCallContext,
     /// VM context when running VM bindings.
-    pub(super) vm_context: Option<*mut ()>,
+    pub(crate) vm_context: Option<*mut ()>,
 }
 
 /// Native device harness.
@@ -113,4 +112,32 @@ where
     with_harnesses(|harness| {
         harness.run(&mut callback);
     });
+}
+
+/// Return the mutable VM context when the harness is running in VM mode.
+pub(crate) fn vm_context_mut<'a>(
+    context: &'a DeviceHarnessContext<'a>,
+) -> Option<&'a mut vm::ExternalCallContext<'a>> {
+    context
+        .vm_context
+        .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })
+}
+
+/// Run one callback against one native call context.
+pub(crate) fn with_native_context<F>(callback: F)
+where
+    F: for<'call> FnOnce(&'call BindingCallContext) -> RuntimeResult<()>,
+{
+    let runtime = TestRuntime::deterministic_random();
+
+    runtime
+        .with_native_call_context(callback)
+        .expect("device native test should succeed");
+}
+
+/// Assert one result is success or one expected not-supported outcome.
+pub(crate) fn assert_supported_or_not_supported<T>(
+    result: Result<T, Box<RuntimeError>>,
+) -> RuntimeResult<Option<T>> {
+    assert_ok_or_expected_error(result, &[PlatformErrorCode::NotSupported])
 }
