@@ -1,5 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 
+use std::sync::Arc;
+
 pub(super) use crate::analyze::assign::Assignability;
 pub(super) use crate::analyze::common::{
     CanonicalSymbolMode, ModuleSymbolView, ModuleTypeView, ObjectShape, SymbolTypeView, TypeContext,
@@ -135,10 +137,10 @@ impl TestProgram {
         TestModuleView {
             test: self,
             module_id,
-            roots: dir.roots.clone(),
-            tree: dir.tree.clone(),
-            symbols: dir.symbols.clone(),
-            types: dir.types.clone(),
+            roots: Arc::unwrap_or_clone(dir.roots),
+            tree: Arc::unwrap_or_clone(dir.tree),
+            symbols: Arc::unwrap_or_clone(dir.symbols),
+            types: Arc::unwrap_or_clone(dir.types),
         }
     }
 }

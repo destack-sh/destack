@@ -55,7 +55,7 @@ impl TestProgram {
         let Some(dir) = self.artifact_dir_data_maybe(module.id, profile) else {
             return;
         };
-        let tree = &*dir.tree;
+        let tree = &dir.tree;
         let mut dumper = Dumper::new(&strings, tree, self.dumper_options);
         println!("{}", "=".repeat(80));
         println!("{} [NODE]", module.uri);
@@ -75,8 +75,8 @@ impl TestProgram {
         let Some(dir) = self.artifact_dir_data_maybe(module.id, profile) else {
             return;
         };
-        let tree = &*dir.tree;
-        let symbols = &*dir.symbols;
+        let tree = &dir.tree;
+        let symbols = &dir.symbols;
         let mut dumper = Dumper::new(&strings, tree, self.dumper_options);
         println!("{}", "=".repeat(80));
         println!("{} [SYMBOL]", module.uri);

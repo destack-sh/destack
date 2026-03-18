@@ -6,7 +6,7 @@ use std::time::Duration;
 use destack_source::{DiagnosticSeverity, ModuleId, ProfileStamp, ProfileVersion};
 use destack_workspace::{ArtifactKey, CacheStore, MemoryCacheStore, ProfileId, Program, Session};
 
-use crate::{BuildKey, Compiler, CompilerOptions, Task, TaskPhase};
+use crate::{BuildKey, Compiler, CompilerOptions, TaskPhase};
 
 /// Program wrapper for compiler bench runs.
 pub(super) struct BenchProgram {
@@ -108,16 +108,15 @@ impl BenchProgram {
 
     /// Enqueue Import task for a module.
     pub(super) fn import_module(&self, module: ModuleId) {
-        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirBase { module }));
+        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_base(module)));
     }
 
     /// Enqueue Analyze task for a module.
     pub(super) fn analyze_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
-            module,
-            profile,
-        }));
+        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_analyzed(
+            module, profile,
+        )));
     }
 
     /// Resolve the language environment for the default root profile.
@@ -136,9 +135,9 @@ impl BenchProgram {
             .unwrap_or_else(|error| panic!("failed to resolve libs: {error:?}"));
     }
 
-    /// Enqueue a task (does not run it).
-    pub(super) fn enqueue<T: Into<Task>>(&self, task: T) {
-        self.compiler.enqueue(task);
+    /// Enqueue one build key (does not run it).
+    pub(super) fn enqueue<T: Into<BuildKey>>(&self, build_key: T) {
+        self.compiler.enqueue(build_key);
     }
 
     /// Enqueue the producer task for one build key.

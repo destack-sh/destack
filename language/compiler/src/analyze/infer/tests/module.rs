@@ -1,4 +1,5 @@
 use super::*;
+use crate::AnalyzeError;
 use destack_dir::FloatType;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -256,10 +257,7 @@ const thing: GlobalThing = { value: 1, label: "ok" };
         let remote_profile = test.default_profile_id(global_symbol.module_id);
         let remote_dir = test
             .compiler
-            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                global_symbol.module_id,
-                remote_profile,
-            ))
+            .require_artifact_dir_declared(global_symbol.module_id, remote_profile)
             .expect("declare stage should be ready for merged global module test");
         assert!(
             remote_dir
@@ -521,10 +519,7 @@ values.first() satisfies number | undefined;
         .expect("missing ambient Array symbol for merge baseline");
     let ambient_dir = test
         .compiler
-        .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-            ambient_symbol.module_id,
-            profile,
-        ))
+        .require_artifact_dir_declared(ambient_symbol.module_id, profile)
         .expect("declare stage should be ready for ambient Array merge baseline");
     let ambient_instance = ambient_dir
         .types
@@ -694,6 +689,74 @@ value.name satisfies string;
 
     // analyze should stay clean and resolve the re-exported import type member
     test.analyze_module_and_check_clean(module_id);
+}
+
+/// Require type-import infer dependencies before resolving imported type members.
+#[test]
+fn test_require_type_import_dependencies_for_infer_collects_direct_owner() {
+    let test = TestProgram::memory_sequential();
+    test.add_module(
+        "mod.ds",
+        r#"
+export type User = { name: string };
+"#,
+    );
+    let module_id = test.add_module(
+        "main.ds",
+        r#"
+type Alias = import("./mod.ds").User;
+"#,
+    );
+
+    test.resolve_module(module_id);
+    test.compile_check_clean();
+
+    let profile = test.default_profile_id(module_id);
+    test.compiler
+        .drive(|compiler| {
+            let module = compiler.program.modules.get(module_id);
+            let dir = compiler
+                .require_artifact_dir_resolved(module_id, profile)
+                .map_err(AnalyzeError::from)?;
+            compiler.require_type_import_dependencies_for_infer(module.as_ref(), profile, &dir.tree)
+        })
+        .unwrap_or_else(|error| panic!("failed to require type import dependencies: {error:?}"));
+
+    let module = test.program.modules.get(module_id);
+    let dir = test.dir_resolved(module_id);
+
+    let type_import = dir
+        .tree
+        .iter_nodes_of_type::<Expression>()
+        .find_map(|(expression_id, expression)| match expression {
+            Expression::TypeImport {
+                target, qualifier, ..
+            } => Some((expression_id, *target, qualifier.clone())),
+            _ => None,
+        })
+        .expect("missing type import expression");
+    let Expression::ScalarLiteral { value } = dir.tree.get(type_import.1) else {
+        panic!("expected string target");
+    };
+    let ScalarLiteral::String(target) = value else {
+        panic!("expected string target");
+    };
+
+    let resolved_symbol = test
+        .compiler
+        .resolve_import_type_symbol(
+            module.as_ref(),
+            profile,
+            type_import.0.into_any(),
+            *target,
+            type_import.2.as_ref(),
+        )
+        .unwrap_or_else(|error| panic!("failed to resolve import type symbol: {error:?}"));
+
+    assert!(
+        resolved_symbol.is_some(),
+        "expected resolved import type symbol"
+    );
 }
 
 /// Analyze cross module array type import.

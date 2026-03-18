@@ -729,9 +729,9 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
     let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
     let dir = test.artifact_dir_data(module_id, profile);
-    let tree = Arc::unwrap_or_clone(dir.tree);
-    let symbols = Arc::unwrap_or_clone(dir.symbols);
-    let mut types = Arc::unwrap_or_clone(dir.types);
+    let tree = dir.tree.clone();
+    let symbols = dir.symbols.clone();
+    let mut types = dir.types.clone();
     let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
 
     let log_symbol = symbols

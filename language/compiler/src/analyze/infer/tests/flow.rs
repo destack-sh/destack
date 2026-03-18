@@ -76,14 +76,15 @@ fn test_build_flow_graph_short_circuit_guard() {
     let module = test.program.modules.get(module_id);
     let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let mut dir = test.artifact_dir(module_id, profile);
-    let tree = &dir.tree;
-    let symbols = &dir.symbols;
+    let dir = test.artifact_dir(module_id, profile);
+    let mut dir = dir;
+    let roots = dir.roots.clone();
+    let tree = &mut dir.tree;
+    let symbols = &mut dir.symbols;
     let types = &mut dir.types;
 
     // locate the if expression
-    let if_expression_id = dir
-        .roots
+    let if_expression_id = roots
         .iter()
         .find_map(|root_id| match tree.get(*root_id) {
             Expression::If { .. } => Some(*root_id),

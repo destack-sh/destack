@@ -152,12 +152,9 @@ fn run_compile(compiler: &Compiler, modules: &[ModuleId], mode: CompileMode) {
         let profile_id: ProfileId = compiler.program.default_profile_id_for_module(module_id);
         // enqueue task
         match mode {
-            CompileMode::Check | CompileMode::Lint => {
-                compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
-                    module: module_id,
-                    profile: profile_id,
-                }))
-            }
+            CompileMode::Check | CompileMode::Lint => compiler.enqueue(BuildKey::artifact(
+                ArtifactKey::dir_analyzed(module_id, profile_id),
+            )),
         }
     }
 

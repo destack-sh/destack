@@ -170,3 +170,27 @@ pub(crate) fn run_mir_expect_error(
 
     assert_eq!(error.error, expected, "unexpected execution error");
 }
+
+/// Execute one managed nominal allocation and field load.
+#[test]
+fn test_execute_managed_nominal_field_load() {
+    let mir_text = r#"
+type @Box = { value: i32 }
+
+function @sumBox(v0: i32) -> i32 {
+block0(v0: i32):
+    v1: @Box = struct @Box (v0)
+    v2: ref<managed readonly @Box> = managed.alloc @Box
+    store v2, v1
+    v3: @Box = load v2
+    v4: i32 = field.get v3, 0
+    v5: i32 = iconst 1i32
+    v6: i32 = iadd v4, v5
+    return v6
+}
+"#;
+
+    let output = run_mir_ok(mir_text, "sumBox", &[Value::int32(9)]);
+
+    assert_eq!(output.value, Value::int32(10));
+}
