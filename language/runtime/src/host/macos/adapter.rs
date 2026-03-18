@@ -1,10 +1,9 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::apple::message as apple_message;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome};
+use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRuntimeId};
 use crate::host::macos::{macos_request_capabilities, submit_macos_request};
 use crate::host::{HostAdapter, Platform};
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
-use crate::runtime::world::RuntimeId;
 
 /// macOS host implementation.
 #[derive(Debug, Default)]
@@ -34,7 +33,7 @@ impl HostAdapter for MacosHost {
         host_capabilities
     }
 
-    fn session_capabilities(&self, _runtime_id: RuntimeId) -> PlatformCapabilitySet {
+    fn session_capabilities(&self, _host_runtime_id: HostRuntimeId) -> PlatformCapabilitySet {
         macos_request_capabilities()
     }
 
@@ -42,16 +41,18 @@ impl HostAdapter for MacosHost {
         apple_message::is_process_main_context()
     }
 
-    fn process_native_ingress(&self) -> RuntimeResult<bool> {
+    fn process_native_ingress(&self) -> RuntimeResult<()> {
         // service one ready slice of the Apple run loop
-        Ok(apple_message::process_ingress_ready(true))
+        apple_message::process_ingress_ready(true);
+
+        Ok(())
     }
 
     fn submit_request(
         &self,
-        _context: &HostRequestContext,
+        context: &HostRequestContext,
         request: HostRequest,
     ) -> RuntimeResult<HostRequestOutcome> {
-        submit_macos_request(request)
+        submit_macos_request(context, request)
     }
 }

@@ -9,7 +9,7 @@
     target_os = "openbsd",
     target_os = "solaris",
 ))]
-mod ingress;
+pub(crate) mod ingress;
 #[cfg(any(
     test,
     target_os = "dragonfly",
@@ -37,12 +37,14 @@ mod tests;
     target_os = "openbsd",
     target_os = "solaris",
 ))]
-pub use ingress::{
+pub use ingress::callback::{
     UnixApplicationLifecycle, unix_notify_application_lifecycle, unix_notify_interruption_changed,
-    unix_notify_memory_pressure_changed, unix_notify_permission_result,
-    unix_notify_power_mode_changed, unix_notify_thermal_state_changed, unix_notify_wake,
-    unix_notify_wall_clock_changed,
+    unix_notify_location_sample, unix_notify_memory_pressure_changed,
+    unix_notify_permission_result, unix_notify_power_mode_changed,
+    unix_notify_thermal_state_changed, unix_notify_wake, unix_notify_wall_clock_changed,
 };
+#[cfg(target_os = "linux")]
+pub(crate) use request::unregister_location_runtime as unregister_unix_location_runtime;
 #[cfg(any(
     test,
     target_os = "dragonfly",
