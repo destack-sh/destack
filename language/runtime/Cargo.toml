@@ -193,6 +193,7 @@ objc2-user-notifications = { workspace = true }
 [target.'cfg(target_os = "linux")'.dependencies]
 io-uring = { workspace = true }
 keyring = { workspace = true, features = ["linux-native-sync-persistent", "crypto-rust", "vendored"] }
+udev = { workspace = true }
 v4l2-sys-mit = { workspace = true }
 wayland-client = { workspace = true }
 wayland-protocols = { workspace = true }
