@@ -85,6 +85,35 @@ fn test_device_serial_read_event_does_not_repeat_without_one_read() {
     });
 }
 
+/// Emit one disconnected event when one serial peer disappears.
+#[test]
+fn test_device_serial_read_event_reports_one_disconnect_transition() {
+    with_harness_context(|mut context| {
+        let (controller, worker) = open_test_pty_pair()?;
+        let path = slave_path(worker)?;
+        close_descriptor(worker);
+
+        // open one pty-backed handle
+        let handle = open_serial_handle(&mut context, &path)?;
+
+        // drop the peer and wait for the disconnect event
+        close_descriptor(controller);
+
+        let event = context.destack_device_serial_read_event(handle, 50_000_000)?;
+        let event = serial_event_value(&mut context, event)?;
+        match event {
+            SerialEventValue::SerialDisconnectedEvent(event) => {
+                assert_eq!(event.kind, "disconnected");
+            }
+            other => panic!("expected disconnected event, got {other:?}"),
+        }
+
+        context.destack_device_serial_close(handle)?;
+
+        Ok(())
+    });
+}
+
 // serial buffers
 
 /// Read one exact byte count through the active harness.
