@@ -14,6 +14,8 @@ pub enum CacheKind {
     Ast,
     /// DIR cache payload after bind (profile-independent).
     DirBase,
+    /// DIR cache payload after profile preparation.
+    DirPrepared,
     /// DIR cache payload after resolve (profile-specific).
     DirResolved,
     /// DIR cache payload after analysis.
@@ -29,7 +31,11 @@ impl CacheKind {
     pub fn requires_profile(self) -> bool {
         matches!(
             self,
-            Self::DirResolved | Self::DirAnalyzed | Self::DirPatched | Self::Mir
+            Self::DirPrepared
+                | Self::DirResolved
+                | Self::DirAnalyzed
+                | Self::DirPatched
+                | Self::Mir
         )
     }
 }
