@@ -16,6 +16,8 @@ use std::sync::{Arc, Condvar, Mutex};
 #[cfg(target_os = "linux")]
 use std::thread;
 use std::time::Duration;
+#[cfg(target_os = "linux")]
+use std::time::Instant;
 
 use super::core as input_core;
 #[cfg(target_os = "linux")]
@@ -647,9 +649,12 @@ fn wait_for_monitor_watch_event(descriptor: RawFd, timeout: Duration) -> Runtime
         events: libc::POLLIN,
         revents: 0,
     };
-    let timeout_ms = timeout.as_millis().min(i32::MAX as u128) as i32;
+    let deadline = Instant::now().checked_add(timeout).ok_or_else(|| {
+        core_platform::invalid_argument("timeout", "timeout overflowed host deadline")
+    })?;
 
     loop {
+        let timeout_ms = monitor_watch_timeout_ms(deadline);
         let status = unsafe { libc::poll(&mut pollfd as *mut libc::pollfd, 1, timeout_ms) };
         if status > 0 {
             return Ok(true);
@@ -665,6 +670,20 @@ fn wait_for_monitor_watch_event(descriptor: RawFd, timeout: Duration) -> Runtime
 
         return Err(core_platform::io_error("poll", None));
     }
+}
+
+/// Convert one absolute deadline into one poll timeout in milliseconds.
+#[cfg(target_os = "linux")]
+fn monitor_watch_timeout_ms(deadline: Instant) -> i32 {
+    let now = Instant::now();
+    if now >= deadline {
+        return 0;
+    }
+
+    let remaining = deadline.saturating_duration_since(now);
+    let remaining_ms = remaining.as_nanos().div_ceil(1_000_000);
+
+    remaining_ms.min(i32::MAX as u128) as i32
 }
 
 /// Register one unix monitor runtime teardown finalizer.

@@ -1,4 +1,6 @@
 use std::path::Path;
+#[cfg(target_os = "linux")]
+use std::time::Instant;
 
 use super::core as input_core;
 #[cfg(target_os = "linux")]
@@ -130,8 +132,10 @@ fn poll_readable(descriptor: i32, timeout_ms: i32) -> RuntimeResult<bool> {
         events: libc::POLLIN,
         revents: 0,
     };
+    let deadline = poll_deadline(timeout_ms);
 
     loop {
+        let timeout_ms = poll_timeout_ms(deadline);
         let status = unsafe { libc::poll(&mut pollfd as *mut libc::pollfd, 1, timeout_ms) };
         if status > 0 {
             return Ok(true);
@@ -147,6 +151,37 @@ fn poll_readable(descriptor: i32, timeout_ms: i32) -> RuntimeResult<bool> {
 
         return Err(core_platform::io_error("poll", None));
     }
+}
+
+/// Convert one poll timeout into one absolute deadline when the wait is bounded.
+#[cfg(target_os = "linux")]
+fn poll_deadline(timeout_ms: i32) -> Option<Instant> {
+    if timeout_ms < 0 {
+        return None;
+    }
+
+    let timeout = u64::try_from(timeout_ms).ok()?;
+    let timeout = std::time::Duration::from_millis(timeout);
+
+    Instant::now().checked_add(timeout)
+}
+
+/// Convert one optional poll deadline into one relative poll timeout.
+#[cfg(target_os = "linux")]
+fn poll_timeout_ms(deadline: Option<Instant>) -> i32 {
+    let Some(deadline) = deadline else {
+        return -1;
+    };
+
+    let now = Instant::now();
+    if now >= deadline {
+        return 0;
+    }
+
+    let remaining = deadline.saturating_duration_since(now);
+    let remaining_ms = remaining.as_nanos().div_ceil(1_000_000);
+
+    remaining_ms.min(i32::MAX as u128) as i32
 }
 
 /// Convert one timeout in nanoseconds to one poll timeout in milliseconds.

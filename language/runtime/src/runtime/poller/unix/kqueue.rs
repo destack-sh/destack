@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::os::unix::io::RawFd;
 use std::sync::Arc;
+use std::time::Instant;
 
 use libc::{c_int, c_short, kevent as kevent_sys, timespec};
 
@@ -273,15 +274,16 @@ impl HostPoller for KqueuePoller {
                 .resize_with(max_events, || unsafe { std::mem::zeroed() });
         }
 
-        // prepare the timeout struct
-        let timeout = timeout_nanos.map(nanos_to_timespec);
-        let timeout_ptr = timeout
-            .as_ref()
-            .map(|time| time as *const timespec)
-            .unwrap_or(std::ptr::null());
+        // resolve the poll deadline once so EINTR does not reset the timeout budget
+        let deadline = timeout_nanos.and_then(core_platform::timeout_deadline);
 
         // call into kqueue
         let result = loop {
+            let timeout = timespec_from_deadline(deadline);
+            let timeout_ptr = timeout
+                .as_ref()
+                .map(|time| time as *const timespec)
+                .unwrap_or(std::ptr::null());
             let result = unsafe {
                 kevent_sys(
                     self.kqueue_fd,
@@ -549,15 +551,21 @@ fn event_mask_from_kevent(event: &libc::kevent) -> PollerEventMask {
 /// Identifier for the user wake event.
 const WAKE_IDENT: libc::uintptr_t = 1;
 
-/// Convert a nanosecond timeout to a timespec.
-fn nanos_to_timespec(nanos: u64) -> timespec {
+/// Convert one absolute deadline into one relative timespec.
+fn timespec_from_deadline(deadline: Option<Instant>) -> Option<timespec> {
+    let deadline = deadline?;
+
+    let now = Instant::now();
+    let remaining = deadline.saturating_duration_since(now);
+
     // split into seconds and remaining nanoseconds
-    let secs = nanos / 1_000_000_000;
-    let nsec = nanos % 1_000_000_000;
-    timespec {
+    let secs = remaining.as_secs();
+    let nsec = remaining.subsec_nanos();
+
+    Some(timespec {
         tv_sec: secs as libc::time_t,
         tv_nsec: nsec as libc::c_long,
-    }
+    })
 }
 
 /// Create a kevent entry for a filter.
