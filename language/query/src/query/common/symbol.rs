@@ -12,7 +12,7 @@ use super::{
     QueryContext, get_dir_node_main_span, get_dir_node_span, get_module_by_file_id,
     token_at_offset, token_span_at_offset,
 };
-use destack_workspace::{ModuleAst, ModuleDir, Session};
+use destack_workspace::{Ast, DirAnalyzed, Session};
 
 pub(crate) use super::resolve::{
     dependency_item_matches_name, matches_symbol_space_filter, owned_scope_for_symbol,
@@ -1239,7 +1239,7 @@ pub(crate) fn is_synthetic_function_keyword_field(
 fn get_symbol_span_with(
     session: &Session,
     symbol_id: GlobalSymbolId,
-    span_for_declaration: impl Fn(&ModuleAst, &ModuleDir, LocalNodeIdAny) -> Option<Span> + Copy,
+    span_for_declaration: impl Fn(&Ast, &DirAnalyzed, LocalNodeIdAny) -> Option<Span> + Copy,
     prefer_precise_member_name: bool,
 ) -> Option<Span> {
     // resolve the module and query context for this symbol
@@ -1420,12 +1420,12 @@ fn precise_member_name_span_for_declaration(
 fn fallback_export_span(
     ctx: &QueryContext<'_>,
     symbol_id: GlobalSymbolId,
-    span_for_declaration: impl Fn(&ModuleAst, &ModuleDir, LocalNodeIdAny) -> Option<Span> + Copy,
+    span_for_declaration: impl Fn(&Ast, &DirAnalyzed, LocalNodeIdAny) -> Option<Span> + Copy,
 ) -> Option<Span> {
     // handle export assignment symbols
     let is_export_assignment = symbol_id.local_id == ctx.dir.export_assignment_symbol;
     if is_export_assignment {
-        let item_id = ctx.dir.export_assignment;
+        let item_id = ctx.resolved.export_assignment;
         if let Some(item_id) = item_id {
             return span_for_declaration(&ctx.ast, &ctx.dir, item_id.into());
         }

@@ -5,7 +5,7 @@ use destack_dir::{
 };
 
 use crate::common::{doc_strings_for_node_or_enclosing, parse_param_docs};
-use destack_workspace::{ModuleAst, Session};
+use destack_workspace::{Ast, Session};
 
 /// Parameter names and documentation collected from a declaration.
 #[derive(Debug, Clone, Default)]
@@ -123,7 +123,7 @@ pub(crate) fn parameter_data_for_symbol(
 
 /// Collect @param documentation from a declaration's doc comments.
 pub(crate) fn parameter_doc_map(
-    ast: &ModuleAst,
+    ast: &Ast,
     source: &str,
     ast_node_id: u32,
 ) -> HashMap<String, String> {

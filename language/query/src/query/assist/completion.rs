@@ -12,12 +12,11 @@ use super::context::{CompletionContext, ContextResult, detect_completion_context
 use crate::common::{
     ImportEditMode, MemberInfo, MemberKind, MemberName, QueryContext, build_import_display_path,
     build_import_edits_with_mode, doc_text_for_symbol, dynamic_parameter_names,
-    ensure_program_export_index, get_canonical_symbol, get_module_by_file_id,
-    matches_symbol_space_filter, module_name_from_path, owned_scope_for_symbol,
-    path_component_count, path_distance, program_for_file, query_context,
-    resolve_extension_members_for_symbol, resolve_nominal_symbol_from_initializer,
-    resolve_reference_members, resolve_symbol_name, resolve_type_members, score_completion,
-    search_importable_symbols_for_program, visible_symbols,
+    get_canonical_symbol, get_module_by_file_id, matches_symbol_space_filter,
+    module_name_from_path, owned_scope_for_symbol, path_component_count, path_distance,
+    program_for_file, query_context, resolve_extension_members_for_symbol,
+    resolve_nominal_symbol_from_initializer, resolve_reference_members, resolve_symbol_name,
+    resolve_type_members, score_completion, search_importable_symbols_for_program, visible_symbols,
 };
 use crate::format::format_local_type;
 use destack_workspace::{ArtifactRegistry, Loader, Session};
@@ -558,27 +557,18 @@ fn complete_auto_imports(
 
     // prepare result storage and dedupe tracking
     let mut results = Vec::new();
-    let mut found_indexed = false;
     let mut seen: HashSet<(ModuleId, dir::LocalSymbolId)> = HashSet::new();
 
     // resolve the program for this file
     let program = program_for_file(session, file_id);
 
-    // ensure the export index is populated for the current program
-    ensure_program_export_index(session, &program);
-
-    // search by prefix using the index
-    let exports = program
-        .index
-        .exports
-        .search_by_prefix(prefix, current_module_id);
-    if !exports.is_empty() {
-        found_indexed = true;
-    }
+    // scan importable exports directly from the current program
+    let exports =
+        search_importable_symbols_for_program(session, &program, prefix, current_module_id);
 
     for export in exports {
         // filter exports by completion scope
-        if !matches_symbol_space_filter(export.symbol_type, export.space, space_filter) {
+        if !matches_symbol_space_filter(export.kind, export.space, space_filter) {
             continue;
         }
 
@@ -588,7 +578,7 @@ fn complete_auto_imports(
         };
 
         // dedupe across modules
-        let key = (export.module_id, export.symbol_id);
+        let key = (export.module_id, export.local_id);
         if !seen.insert(key) {
             continue;
         }
@@ -601,47 +591,10 @@ fn complete_auto_imports(
             export.module_id,
             module_path,
             &export.name,
-            export.symbol_type,
+            export.kind,
             import_mode,
             &mut results,
         );
-    }
-
-    if !found_indexed {
-        // fall back to direct module scanning when no indexes are available
-        let exports =
-            search_importable_symbols_for_program(session, &program, prefix, current_module_id);
-
-        for export in exports {
-            // filter exports by completion scope
-            if !matches_symbol_space_filter(export.kind, export.space, space_filter) {
-                continue;
-            }
-
-            // skip exports without a module path
-            let Some(module_path) = &export.module_path else {
-                continue;
-            };
-
-            // dedupe across modules
-            let key = (export.module_id, export.local_id);
-            if !seen.insert(key) {
-                continue;
-            }
-
-            // convert the export into an auto import completion
-            push_auto_import_completion(
-                session,
-                file_id,
-                current_package_id,
-                export.module_id,
-                module_path,
-                &export.name,
-                export.kind,
-                import_mode,
-                &mut results,
-            );
-        }
     }
 
     if allow_short_prefix && prefix.len() < AUTO_IMPORT_MIN_PREFIX {
@@ -1322,7 +1275,7 @@ fn complete_members_from_ast_type(
 
 /// Collect member completions from AST member lists.
 fn collect_member_completions_from_ast(
-    ast: &destack_workspace::ModuleAst,
+    ast: &destack_workspace::Ast,
     members: &[ast::LocalNodeId<ast::Member>],
     enum_receiver: bool,
     seen: &mut HashSet<String>,
@@ -1363,7 +1316,7 @@ fn collect_member_completions_from_ast(
 }
 
 /// Resolve a display name for an AST member key.
-fn member_key_name_ast(ast: &destack_workspace::ModuleAst, key: &ast::Key) -> Option<String> {
+fn member_key_name_ast(ast: &destack_workspace::Ast, key: &ast::Key) -> Option<String> {
     match key {
         ast::Key::Name(name) => Some(ast.strings.get(name.string()).to_string()),
         ast::Key::Private(name) => Some(format!("#{}", &*ast.strings.get(*name))),
@@ -1374,7 +1327,7 @@ fn member_key_name_ast(ast: &destack_workspace::ModuleAst, key: &ast::Key) -> Op
 
 /// Resolve a fallback type name from an AST expression.
 fn ast_type_name_from_expression_ast(
-    ast: &destack_workspace::ModuleAst,
+    ast: &destack_workspace::Ast,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<String> {
     let expression = ast.tree.get(expression_id);

@@ -400,7 +400,7 @@ fn collect_target_symbols(session: &Session, symbol_id: GlobalSymbolId) -> HashS
         if target_symbol.is_none()
             && let Some(name_id) = symbol.name()
         {
-            let exports = &ctx.dir.exported_symbols;
+            let exports = &ctx.resolved.exported_symbols;
             let dir_tree = ctx.tree();
             for ((space, key), export) in exports.iter() {
                 let dir::StaticKey::Name(export_name) = *key else {

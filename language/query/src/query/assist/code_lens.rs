@@ -4,7 +4,7 @@ use destack_source::{FileId, NodeSpanType, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::common::{get_canonical_symbol, get_module_by_file_id, resolve_symbol_name};
-use destack_workspace::{ModuleAst, Session};
+use destack_workspace::{Ast, Session};
 
 /// A code lens (inline annotation with optional command).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -316,7 +316,7 @@ fn count_subclasses(session: &Session, symbol_id: GlobalSymbolId) -> usize {
 }
 
 /// Check whether a node has a decorator with the given name.
-fn has_decorator_named(ast: &ModuleAst, node_id: u32, name: &str) -> bool {
+fn has_decorator_named(ast: &Ast, node_id: u32, name: &str) -> bool {
     // scan annotations attached to the node
     if decorator_on_node(ast, node_id, name) {
         return true;
@@ -343,7 +343,7 @@ fn has_decorator_named(ast: &ModuleAst, node_id: u32, name: &str) -> bool {
 }
 
 /// Check whether a decorator is attached directly to a node.
-fn decorator_on_node(ast: &ModuleAst, node_id: u32, name: &str) -> bool {
+fn decorator_on_node(ast: &Ast, node_id: u32, name: &str) -> bool {
     // scan annotations attached to the node
     let annotations = ast.tree.get_annotations(node_id);
     for annotation_id in annotations {
@@ -366,10 +366,7 @@ fn decorator_on_node(ast: &ModuleAst, node_id: u32, name: &str) -> bool {
 }
 
 /// Resolve the last segment of a decorator name when it is path-like.
-fn decorator_name_id(
-    ast: &ModuleAst,
-    decorator: &ast::Decorator,
-) -> Option<destack_core::StringId> {
+fn decorator_name_id(ast: &Ast, decorator: &ast::Decorator) -> Option<destack_core::StringId> {
     let mut expression_id = decorator.expression;
     loop {
         match ast.tree.get(expression_id) {

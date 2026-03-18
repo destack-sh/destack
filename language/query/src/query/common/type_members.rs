@@ -633,18 +633,20 @@ fn resolve_well_known_members(
     well_known: WellKnownSymbol,
     current_module_id: ModuleId,
 ) -> Vec<MemberInfo> {
-    // try to find well known symbols from any profile
-    // (NOTE #Broken?: LSP queries don't have a specific profile context)
-    for program in session.programs.iter() {
-        if let Some(symbol_id) = program
-            .value()
-            .artifacts
-            .first_well_known_type_symbol(well_known)
-        {
-            return resolve_reference_members(symbol_id, session, current_module_id);
-        }
-    }
+    // resolve the current query profile so we stay on one exact lib surface
+    let module = session.modules.get(current_module_id);
+    let module = module.as_ref();
+    let Some(ctx) = query_context(session, &module) else {
+        return Vec::new();
+    };
 
-    // fall back to empty members when no well known symbol is available
-    Vec::new()
+    // resolve the exact well known symbol from the current profile
+    let Some(environment) = ctx.program.artifacts.lib_environment(ctx.profile_id) else {
+        return Vec::new();
+    };
+    let Some(symbol_id) = environment.well_known_symbols.get_type_symbol(well_known) else {
+        return Vec::new();
+    };
+
+    resolve_reference_members(symbol_id, session, current_module_id)
 }

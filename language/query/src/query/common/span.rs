@@ -6,7 +6,7 @@ use super::QueryContext;
 use destack_ast as ast;
 use destack_dir::{self as dir, LocalNodeIdAny};
 use destack_source::{EnclosingSpan, File, FileId, Span};
-use destack_workspace::{Module, ModuleAst, ModuleDir, Session};
+use destack_workspace::{Ast, DirAnalyzed, Module, Session};
 
 /// Get a module by FileId.
 pub fn get_module_by_file_id(session: &Session, file_id: FileId) -> Option<Arc<Module>> {
@@ -15,8 +15,8 @@ pub fn get_module_by_file_id(session: &Session, file_id: FileId) -> Option<Arc<M
 
 /// Get the span of a DIR node by mapping through AST source map.
 pub fn get_dir_node_span(
-    ast: &ModuleAst,
-    dir: &ModuleDir,
+    ast: &Ast,
+    dir: &DirAnalyzed,
     dir_node_id: LocalNodeIdAny,
 ) -> Option<Span> {
     // get the AST node id from the DIR node
@@ -29,8 +29,8 @@ pub fn get_dir_node_span(
 /// Get the main span of a DIR node (e.g., identifier for declarations).
 /// Falls back to full span if no main span is set.
 pub fn get_dir_node_main_span(
-    ast: &ModuleAst,
-    dir: &ModuleDir,
+    ast: &Ast,
+    dir: &DirAnalyzed,
     dir_node_id: LocalNodeIdAny,
 ) -> Option<Span> {
     // get the AST node id from the DIR node

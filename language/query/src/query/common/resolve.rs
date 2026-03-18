@@ -1171,7 +1171,7 @@ pub(crate) fn resolve_type_symbol_from_module(
         }
     }
 
-    let exports = &ctx.dir.exported_symbols;
+    let exports = &ctx.resolved.exported_symbols;
     for ((space, key), export) in exports.iter() {
         let dir::StaticKey::Name(export_name) = *key else {
             continue;
