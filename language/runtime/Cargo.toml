@@ -145,6 +145,8 @@ windows-sys = { workspace = true, features = [
     "Win32_Media_Multimedia",
     "Win32_System_Com_StructuredStorage",
     "Win32_Devices_HumanInterfaceDevice",
+    "Win32_Devices_DeviceAndDriverInstallation",
+    "Win32_Devices_Properties",
     "Win32_Devices_Display",
     "Win32_Storage_FileSystem",
     "Win32_System_Com",
@@ -201,7 +203,7 @@ zbus = { workspace = true }
 [target.'cfg(target_os = "macos")'.dependencies]
 dispatch2 = { workspace = true }
 objc2-app-kit = { workspace = true }
-objc2-av-foundation = { workspace = true, features = ["objc2-core-media"] }
+objc2-av-foundation = { workspace = true, features = ["AVCaptureOutputBase", "AVCapturePhotoOutput", "AVVideoSettings", "objc2-core-media"] }
 objc2-core-bluetooth = { workspace = true }
 objc2-contacts = { workspace = true }
 objc2-core-location = { workspace = true }
