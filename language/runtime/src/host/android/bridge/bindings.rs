@@ -7,21 +7,39 @@ use crate::host::android::bridge::crypto::AndroidHostCryptoCallbacks;
 use crate::host::android::bridge::midi::types::AndroidHostMidiCallbacks;
 use crate::host::android::bridge::registry::{register_android_bindings, resolve_android_bindings};
 use crate::host::android::camera::types::AndroidHostCameraCallbacks;
-use crate::host::android::request::AndroidHostIntentCallbacks;
+use crate::host::android::request::background::AndroidHostBackgroundCallbacks;
+use crate::host::android::request::calendar::AndroidHostCalendarCallbacks;
+use crate::host::android::request::contact::AndroidHostContactCallbacks;
+use crate::host::android::request::intent::AndroidHostIntentCallbacks;
+use crate::host::android::request::location::AndroidHostLocationCallbacks;
+use crate::host::android::request::media::AndroidHostMediaCallbacks;
+use crate::host::android::request::notification::AndroidHostNotificationCallbacks;
 use crate::host::android::usb::types::AndroidHostUsbCallbacks;
 
 /// Android host bindings container for callback-backed lanes.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub(crate) struct AndroidHostBindings {
+    /// Background host callbacks.
+    pub background: AndroidHostBackgroundCallbacks,
     /// Bluetooth host callbacks.
     pub bluetooth: AndroidHostBluetoothCallbacks,
+    /// Calendar host callbacks.
+    pub calendar: AndroidHostCalendarCallbacks,
     /// Camera host callbacks.
     pub camera: AndroidHostCameraCallbacks,
+    /// Contact host callbacks.
+    pub contact: AndroidHostContactCallbacks,
     /// USB host callbacks.
     pub usb: AndroidHostUsbCallbacks,
     /// Intent host callbacks.
     pub intent: AndroidHostIntentCallbacks,
+    /// Location host callbacks.
+    pub location: AndroidHostLocationCallbacks,
+    /// Media host callbacks.
+    pub media: AndroidHostMediaCallbacks,
+    /// Notification host callbacks.
+    pub notification: AndroidHostNotificationCallbacks,
     /// Credentials host callbacks.
     pub credentials: AndroidHostCredentialsCallbacks,
     /// Crypto host callbacks.

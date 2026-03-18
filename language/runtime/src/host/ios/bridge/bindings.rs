@@ -1,13 +1,31 @@
 use crate::host::HOST_STATUS_NOT_SUPPORTED;
 use crate::host::ios::bridge::registry::{register_ios_bindings, resolve_ios_bindings};
+use crate::host::ios::request::background::IosHostBackgroundCallbacks;
+use crate::host::ios::request::calendar::IosHostCalendarCallbacks;
+use crate::host::ios::request::contact::IosHostContactCallbacks;
 use crate::host::ios::request::intent::IosHostIntentCallbacks;
+use crate::host::ios::request::location::IosHostLocationCallbacks;
+use crate::host::ios::request::media::IosHostMediaCallbacks;
+use crate::host::ios::request::notification::IosHostNotificationCallbacks;
 
 /// iOS host bindings container for callback-backed lanes.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct IosHostBindings {
+    /// Background host callbacks.
+    pub background: IosHostBackgroundCallbacks,
+    /// Calendar host callbacks.
+    pub calendar: IosHostCalendarCallbacks,
+    /// Contact host callbacks.
+    pub contact: IosHostContactCallbacks,
     /// Intent host callbacks.
     pub intent: IosHostIntentCallbacks,
+    /// Location host callbacks.
+    pub location: IosHostLocationCallbacks,
+    /// Media host callbacks.
+    pub media: IosHostMediaCallbacks,
+    /// Notification host callbacks.
+    pub notification: IosHostNotificationCallbacks,
 }
 
 /// Register one callback table for iOS host interop through one C ABI entrypoint.

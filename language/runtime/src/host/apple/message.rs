@@ -38,9 +38,8 @@ pub(crate) fn is_process_main_context() -> bool {
 }
 
 /// Service immediately ready platform ingress without blocking.
-pub(crate) fn process_ingress_ready(ignore_quit_message: bool) -> bool {
+pub(crate) fn process_ingress_ready(_ignore_quit_message: bool) -> bool {
     // ignore quit-message policy on run-loop platforms with no quit packets
-    let _ = ignore_quit_message;
     let mut dispatched_any = false;
 
     loop {
@@ -69,12 +68,9 @@ pub(crate) fn process_ingress_ready(ignore_quit_message: bool) -> bool {
 #[cfg(feature = "execution")]
 #[cfg_attr(feature = "execution", allow(dead_code))]
 pub(crate) fn service_registered_runtimes_until(
-    ignore_quit_message: bool,
+    _ignore_quit_message: bool,
     mut should_stop: impl FnMut() -> bool,
 ) -> RuntimeResult<()> {
-    // ignore quit-message policy on run-loop platforms with no quit packets
-    let _ = ignore_quit_message;
-
     // keep the current run loop alive until the stop condition is satisfied
     while !should_stop() {
         let status = unsafe {

@@ -1,14 +1,13 @@
 use destack_workspace::Platform;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostIngressHandle, HostRuntimeRegistry};
+use crate::host::core::{HostIngressHandle, HostRuntimeId, HostRuntimeRegistry};
 use crate::host::{
-    HostEvent, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState,
+    HostEvent, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState, HostLocationEvent,
     HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent, HostPowerMode,
     HostPowerModeEvent, HostThermalEvent, HostThermalState, HostWallClockEvent,
 };
-use crate::runtime::world::RuntimeId;
-
+use crate::platform::os::abi_generated::LocationSampleValue;
 /// Unix application lifecycle transitions from native callbacks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum UnixApplicationLifecycle {
@@ -26,7 +25,7 @@ pub enum UnixApplicationLifecycle {
 
 /// Return the active Unix host queue for this process and platform.
 fn unix_host_bridge(runtime_id: u64, platform: Platform) -> RuntimeResult<HostIngressHandle> {
-    HostRuntimeRegistry::ingress_handle_for_runtime(RuntimeId(runtime_id), platform)
+    HostRuntimeRegistry::ingress_handle_for_runtime(HostRuntimeId(runtime_id), platform)
 }
 
 /// Submit one Unix application lifecycle callback.
@@ -54,6 +53,22 @@ pub fn unix_notify_permission_result(
         permission: permission.to_string(),
         granted,
     }));
+
+    Ok(())
+}
+
+/// Submit one Unix location sample callback.
+pub fn unix_notify_location_sample(
+    runtime_id: u64,
+    platform: Platform,
+    watch_id: &str,
+    sample: LocationSampleValue,
+) -> RuntimeResult<()> {
+    let bridge = unix_host_bridge(runtime_id, platform)?;
+    bridge.publish_event(HostEvent::Location(Box::new(HostLocationEvent {
+        watch_id: watch_id.to_string(),
+        sample,
+    })));
 
     Ok(())
 }

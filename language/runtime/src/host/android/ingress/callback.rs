@@ -1,14 +1,16 @@
 use destack_workspace::Platform;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostIngressHandle, HostRuntimeRegistry};
+use crate::host::core::{HostIngressHandle, HostRuntimeId, HostRuntimeRegistry};
 use crate::host::{
-    HostEvent, HostIntentEvent, HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent,
-    HostLifecycleState, HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent,
+    HostBackgroundEvent, HostEvent, HostIntentEvent, HostIntentPayload, HostInterruptionEvent,
+    HostLifecycleEvent, HostLifecycleState, HostLocationEvent, HostMediaEvent, HostMediaEventKind,
+    HostMemoryPressureEvent, HostMemoryPressureLevel, HostNotificationEvent, HostPermissionEvent,
     HostPowerMode, HostPowerModeEvent, HostThermalEvent, HostThermalState, HostWallClockEvent,
 };
-use crate::runtime::world::RuntimeId;
-
+use crate::platform::os::{
+    BackgroundEventValue, LocationSampleValue, MediaEventValue, NotificationEventValue,
+};
 /// Android activity lifecycle transitions from native callbacks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AndroidActivityLifecycle {
@@ -28,7 +30,7 @@ pub enum AndroidActivityLifecycle {
 
 /// Return the active Android host queue for this process.
 fn android_host_bridge(runtime_id: u64) -> RuntimeResult<HostIngressHandle> {
-    HostRuntimeRegistry::ingress_handle_for_runtime(RuntimeId(runtime_id), Platform::Android)
+    HostRuntimeRegistry::ingress_handle_for_runtime(HostRuntimeId(runtime_id), Platform::Android)
 }
 
 /// Submit one Android activity lifecycle callback.
@@ -170,6 +172,60 @@ pub fn android_notify_interruption_changed(
     Ok(())
 }
 
+/// Submit one Android notification callback.
+pub fn android_notify_notification_event(
+    runtime_id: u64,
+    event: NotificationEventValue,
+) -> RuntimeResult<()> {
+    let bridge = android_host_bridge(runtime_id)?;
+    bridge.publish_event(HostEvent::Notification(Box::new(HostNotificationEvent {
+        event,
+    })));
+
+    Ok(())
+}
+
+/// Submit one Android background callback.
+pub fn android_notify_background_event(
+    runtime_id: u64,
+    event: BackgroundEventValue,
+) -> RuntimeResult<()> {
+    let bridge = android_host_bridge(runtime_id)?;
+    bridge.publish_event(HostEvent::Background(Box::new(HostBackgroundEvent {
+        event,
+    })));
+
+    Ok(())
+}
+
+/// Submit one Android location callback.
+pub fn android_notify_location_sample(
+    runtime_id: u64,
+    watch_id: &str,
+    sample: LocationSampleValue,
+) -> RuntimeResult<()> {
+    let bridge = android_host_bridge(runtime_id)?;
+    bridge.publish_event(HostEvent::Location(Box::new(HostLocationEvent {
+        watch_id: watch_id.to_string(),
+        sample,
+    })));
+
+    Ok(())
+}
+
+/// Submit one Android media callback.
+pub fn android_notify_media_event(
+    runtime_id: u64,
+    watch_id: &str,
+    event: MediaEventValue,
+) -> RuntimeResult<()> {
+    let bridge = android_host_bridge(runtime_id)?;
+    let event = host_media_event(watch_id, event);
+    bridge.publish_event(HostEvent::Media(Box::new(event)));
+
+    Ok(())
+}
+
 /// Submit one Android memory pressure callback.
 pub fn android_notify_memory_pressure_changed(
     runtime_id: u64,
@@ -217,6 +273,27 @@ pub fn android_notify_wake(runtime_id: u64) -> RuntimeResult<()> {
     bridge.wake()?;
 
     Ok(())
+}
+
+/// Convert one media event payload into one host media event.
+fn host_media_event(watch_id: &str, event: MediaEventValue) -> HostMediaEvent {
+    match event {
+        MediaEventValue::MediaAddedEvent(value) => HostMediaEvent {
+            watch_id: watch_id.to_string(),
+            kind: HostMediaEventKind::Added,
+            asset: value.asset,
+        },
+        MediaEventValue::MediaUpdatedEvent(value) => HostMediaEvent {
+            watch_id: watch_id.to_string(),
+            kind: HostMediaEventKind::Updated,
+            asset: value.asset,
+        },
+        MediaEventValue::MediaRemovedEvent(value) => HostMediaEvent {
+            watch_id: watch_id.to_string(),
+            kind: HostMediaEventKind::Removed,
+            asset: value.asset,
+        },
+    }
 }
 
 /// Map one Android activity lifecycle transition to host lifecycle state.

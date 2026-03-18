@@ -1,14 +1,16 @@
 use destack_workspace::Platform;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostIngressHandle, HostRuntimeRegistry};
+use crate::host::core::{HostIngressHandle, HostRuntimeId, HostRuntimeRegistry};
 use crate::host::{
-    HostEvent, HostIntentEvent, HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent,
-    HostLifecycleState, HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent,
+    HostBackgroundEvent, HostEvent, HostIntentEvent, HostIntentPayload, HostInterruptionEvent,
+    HostLifecycleEvent, HostLifecycleState, HostLocationEvent, HostMediaEvent, HostMediaEventKind,
+    HostMemoryPressureEvent, HostMemoryPressureLevel, HostNotificationEvent, HostPermissionEvent,
     HostPowerMode, HostPowerModeEvent, HostThermalEvent, HostThermalState, HostWallClockEvent,
 };
-use crate::runtime::world::RuntimeId;
-
+use crate::platform::os::{
+    BackgroundEventValue, LocationSampleValue, MediaEventValue, NotificationEventValue,
+};
 /// iOS application lifecycle transitions from native callbacks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum IosApplicationLifecycle {
@@ -28,7 +30,7 @@ pub enum IosApplicationLifecycle {
 
 /// Return the active iOS host queue for this process.
 fn ios_host_bridge(runtime_id: u64) -> RuntimeResult<HostIngressHandle> {
-    HostRuntimeRegistry::ingress_handle_for_runtime(RuntimeId(runtime_id), Platform::IOS)
+    HostRuntimeRegistry::ingress_handle_for_runtime(HostRuntimeId(runtime_id), Platform::IOS)
 }
 
 /// Submit one iOS application lifecycle callback.
@@ -167,6 +169,60 @@ pub fn ios_notify_interruption_changed(runtime_id: u64, interrupted: bool) -> Ru
     Ok(())
 }
 
+/// Submit one iOS notification callback.
+pub fn ios_notify_notification_event(
+    runtime_id: u64,
+    event: NotificationEventValue,
+) -> RuntimeResult<()> {
+    let bridge = ios_host_bridge(runtime_id)?;
+    bridge.publish_event(HostEvent::Notification(Box::new(HostNotificationEvent {
+        event,
+    })));
+
+    Ok(())
+}
+
+/// Submit one iOS background callback.
+pub fn ios_notify_background_event(
+    runtime_id: u64,
+    event: BackgroundEventValue,
+) -> RuntimeResult<()> {
+    let bridge = ios_host_bridge(runtime_id)?;
+    bridge.publish_event(HostEvent::Background(Box::new(HostBackgroundEvent {
+        event,
+    })));
+
+    Ok(())
+}
+
+/// Submit one iOS location callback.
+pub fn ios_notify_location_sample(
+    runtime_id: u64,
+    watch_id: &str,
+    sample: LocationSampleValue,
+) -> RuntimeResult<()> {
+    let bridge = ios_host_bridge(runtime_id)?;
+    bridge.publish_event(HostEvent::Location(Box::new(HostLocationEvent {
+        watch_id: watch_id.to_string(),
+        sample,
+    })));
+
+    Ok(())
+}
+
+/// Submit one iOS media callback.
+pub fn ios_notify_media_event(
+    runtime_id: u64,
+    watch_id: &str,
+    event: MediaEventValue,
+) -> RuntimeResult<()> {
+    let bridge = ios_host_bridge(runtime_id)?;
+    let event = host_media_event(watch_id, event);
+    bridge.publish_event(HostEvent::Media(Box::new(event)));
+
+    Ok(())
+}
+
 /// Submit one iOS memory pressure callback.
 pub fn ios_notify_memory_pressure_changed(
     runtime_id: u64,
@@ -211,6 +267,27 @@ pub fn ios_notify_wake(runtime_id: u64) -> RuntimeResult<()> {
     bridge.wake()?;
 
     Ok(())
+}
+
+/// Convert one media event payload into one host media event.
+fn host_media_event(watch_id: &str, event: MediaEventValue) -> HostMediaEvent {
+    match event {
+        MediaEventValue::MediaAddedEvent(value) => HostMediaEvent {
+            watch_id: watch_id.to_string(),
+            kind: HostMediaEventKind::Added,
+            asset: value.asset,
+        },
+        MediaEventValue::MediaUpdatedEvent(value) => HostMediaEvent {
+            watch_id: watch_id.to_string(),
+            kind: HostMediaEventKind::Updated,
+            asset: value.asset,
+        },
+        MediaEventValue::MediaRemovedEvent(value) => HostMediaEvent {
+            watch_id: watch_id.to_string(),
+            kind: HostMediaEventKind::Removed,
+            asset: value.asset,
+        },
+    }
 }
 
 /// Map one iOS application lifecycle transition to host lifecycle state.

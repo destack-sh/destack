@@ -1,14 +1,14 @@
 use destack_workspace::Platform;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostIngressHandle, HostRuntimeRegistry};
+use crate::host::core::{HostIngressHandle, HostRuntimeId, HostRuntimeRegistry};
 use crate::host::{
     HostEvent, HostIntentEvent, HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent,
-    HostLifecycleState, HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent,
-    HostPowerMode, HostPowerModeEvent, HostThermalEvent, HostThermalState, HostWallClockEvent,
+    HostLifecycleState, HostLocationEvent, HostMemoryPressureEvent, HostMemoryPressureLevel,
+    HostPermissionEvent, HostPowerMode, HostPowerModeEvent, HostThermalEvent, HostThermalState,
+    HostWallClockEvent,
 };
-use crate::runtime::world::RuntimeId;
-
+use crate::platform::os::abi_generated::LocationSampleValue;
 /// Windows application lifecycle transitions from native callbacks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum WindowsApplicationLifecycle {
@@ -28,7 +28,7 @@ pub enum WindowsApplicationLifecycle {
 
 /// Return the active Windows host queue for this process.
 fn windows_host_bridge(runtime_id: u64) -> RuntimeResult<HostIngressHandle> {
-    HostRuntimeRegistry::ingress_handle_for_runtime(RuntimeId(runtime_id), Platform::Windows)
+    HostRuntimeRegistry::ingress_handle_for_runtime(HostRuntimeId(runtime_id), Platform::Windows)
 }
 
 /// Submit one Windows application lifecycle callback.
@@ -54,6 +54,21 @@ pub fn windows_notify_permission_result(
         permission: permission.to_string(),
         granted,
     }));
+
+    Ok(())
+}
+
+/// Submit one Windows location-sample callback.
+pub fn windows_notify_location_sample(
+    runtime_id: u64,
+    watch_id: &str,
+    sample: LocationSampleValue,
+) -> RuntimeResult<()> {
+    let bridge = windows_host_bridge(runtime_id)?;
+    bridge.publish_event(HostEvent::Location(Box::new(HostLocationEvent {
+        watch_id: watch_id.to_string(),
+        sample,
+    })));
 
     Ok(())
 }
