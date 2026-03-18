@@ -14,6 +14,8 @@ mod ingress;
 mod request;
 #[cfg(test)]
 mod tests;
+#[cfg(any(test, target_os = "android"))]
+pub(crate) mod usb;
 
 #[cfg(target_os = "android")]
 pub(crate) use adapter::AndroidHost;

@@ -6,5 +6,6 @@ pub(crate) mod core;
 pub(crate) use core::{
     callback_test_lock, register_android_bindings, register_android_bindings_bluetooth,
     register_android_bindings_camera, register_android_bindings_credentials,
-    register_android_bindings_crypto, register_android_bindings_midi, register_android_runtime,
+    register_android_bindings_crypto, register_android_bindings_midi,
+    register_android_bindings_usb, register_android_runtime,
 };

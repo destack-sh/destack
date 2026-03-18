@@ -11,6 +11,7 @@ use crate::host::android::bridge::crypto::AndroidHostCryptoCallbacks;
 use crate::host::android::bridge::midi::types::AndroidHostMidiCallbacks;
 use crate::host::android::camera::types::AndroidHostCameraCallbacks;
 use crate::host::android::unregister_android_bindings;
+use crate::host::android::usb::types::AndroidHostUsbCallbacks;
 use crate::host::core::registry::HostRegistrationGuard;
 use crate::host::core::{HostQueue, HostRuntimeRegistry};
 use crate::runtime::world::RuntimeId;
@@ -121,6 +122,21 @@ pub(crate) fn register_android_bindings_camera(
         runtime_id,
         AndroidHostBindings {
             camera: callbacks,
+            ..AndroidHostBindings::default()
+        },
+    )
+}
+
+/// Register one runtime-scoped Android USB callback payload.
+pub(crate) fn register_android_bindings_usb(
+    runtime_id: u64,
+    callbacks: AndroidHostUsbCallbacks,
+) -> u32 {
+    // install one usb-only callback lane
+    register_android_bindings(
+        runtime_id,
+        AndroidHostBindings {
+            usb: callbacks,
             ..AndroidHostBindings::default()
         },
     )

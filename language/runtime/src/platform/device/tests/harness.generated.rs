@@ -6,7 +6,7 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::device::tests::DeviceHarnessContext;
-use crate::platform::device::{BluetoothAdapterCapabilities, BluetoothAdapterCapabilitiesVm, BluetoothAdapterDescriptor, BluetoothAdapterDescriptorVm, BluetoothAdvertisementData, BluetoothAdvertisementDataVm, BluetoothAdvertisementManufacturerData, BluetoothAdvertisementManufacturerDataVm, BluetoothAdvertisementServiceData, BluetoothAdvertisementServiceDataVm, BluetoothDataFilter, BluetoothDataFilterVm, BluetoothDeviceDescriptor, BluetoothDeviceDescriptorVm, BluetoothGattCharacteristicDescriptor, BluetoothGattCharacteristicDescriptorVm, BluetoothGattCharacteristicProperties, BluetoothGattCharacteristicPropertiesVm, BluetoothGattDescriptorDescriptor, BluetoothGattDescriptorDescriptorVm, BluetoothGattServiceDescriptor, BluetoothGattServiceDescriptorVm, BluetoothGattValueEvent, BluetoothGattValueEventVm, BluetoothGattWriteMode, BluetoothManufacturerDataFilter, BluetoothManufacturerDataFilterVm, BluetoothPairState, BluetoothPhy, BluetoothScanDiscoveredEvent, BluetoothScanDiscoveredEventVm, BluetoothScanEvent, BluetoothScanEventMetadata, BluetoothScanEventMetadataVm, BluetoothScanEventVm, BluetoothScanFilter, BluetoothScanFilterVm, BluetoothScanLostEvent, BluetoothScanLostEventVm, BluetoothScanMode, BluetoothScanUpdatedEvent, BluetoothScanUpdatedEventVm, BluetoothServiceDataFilter, BluetoothServiceDataFilterVm, BluetoothSessionDisconnectedEvent, BluetoothSessionDisconnectedEventVm, BluetoothSessionDisconnectedPayload, BluetoothSessionDisconnectedPayloadVm, BluetoothSessionEvent, BluetoothSessionEventMetadata, BluetoothSessionEventMetadataVm, BluetoothSessionEventVm, BluetoothSessionGattDatabaseChangedEvent, BluetoothSessionGattDatabaseChangedEventVm, BluetoothSessionGattDatabaseChangedPayload, BluetoothSessionGattDatabaseChangedPayloadVm, BluetoothSessionPairStateChangedEvent, BluetoothSessionPairStateChangedEventVm, BluetoothSessionPairStateChangedPayload, BluetoothSessionPairStateChangedPayloadVm, BluetoothTransport, CameraColorSpace, CameraDeviceDescriptor, CameraDeviceDescriptorVm, CameraDynamicRange, CameraExposureCompensationRange, CameraExposureCompensationRangeVm, CameraExposureMode, CameraExposureTimeRange, CameraExposureTimeRangeVm, CameraFacingMode, CameraFloatControlRange, CameraFloatControlRangeVm, CameraFocusDistanceRange, CameraFocusDistanceRangeVm, CameraFocusMode, CameraFrame, CameraFrameMetadata, CameraFrameMetadataVm, CameraFrameVm, CameraPanAngleRange, CameraPanAngleRangeVm, CameraPixelFormat, CameraPixelFormatDescriptor, CameraPixelFormatDescriptorVm, CameraPixelFormatFamily, CameraPlaneLayout, CameraPlaneLayoutVm, CameraSensorIsoRange, CameraSensorIsoRangeVm, CameraStabilizationMode, CameraStreamCapability, CameraStreamCapabilityVm, CameraStreamConfig, CameraStreamConfigVm, CameraTiltAngleRange, CameraTiltAngleRangeVm, CameraTorchMode, CameraWhiteBalanceMode, CameraWhiteBalanceRange, CameraWhiteBalanceRangeVm, CameraZoomRatioRange, CameraZoomRatioRangeVm, SerialDataBits, SerialDisconnectedEvent, SerialDisconnectedEventVm, SerialDisconnectedPayload, SerialDisconnectedPayloadVm, SerialErrorEvent, SerialErrorEventVm, SerialErrorKind, SerialErrorPayload, SerialErrorPayloadVm, SerialEvent, SerialEventMetadata, SerialEventMetadataVm, SerialEventVm, SerialFlowControl, SerialFlowControlVm, SerialInputSignals, SerialInputSignalsVm, SerialModemStatusChangedEvent, SerialModemStatusChangedEventVm, SerialModemStatusPayload, SerialModemStatusPayloadVm, SerialOutputSignals, SerialOutputSignalsVm, SerialParity, SerialPortConfig, SerialPortConfigVm, SerialPortDescriptor, SerialPortDescriptorVm, SerialPortOpenOptions, SerialPortOpenOptionsVm, SerialPortTransport, SerialReadReadyEvent, SerialReadReadyEventVm, SerialReadReadyPayload, SerialReadReadyPayloadVm, SerialStopBits, UsbBosCapabilityDescriptor, UsbBosCapabilityDescriptorVm, UsbBosCapabilityKind, UsbConfigurationDescriptor, UsbConfigurationDescriptorVm, UsbControlDeviceTarget, UsbControlDeviceTargetVm, UsbControlEndpointTarget, UsbControlEndpointTargetVm, UsbControlInterfaceTarget, UsbControlInterfaceTargetVm, UsbControlOtherTarget, UsbControlOtherTargetVm, UsbControlSetup, UsbControlSetupVm, UsbControlTarget, UsbControlTargetVm, UsbControlTransferType, UsbDeviceDescriptor, UsbDeviceDescriptorVm, UsbEndpointDescriptor, UsbEndpointDescriptorVm, UsbEndpointDirection, UsbEndpointSelector, UsbEndpointSelectorVm, UsbEndpointTransferType, UsbHotplugAttachedEvent, UsbHotplugAttachedEventVm, UsbHotplugDetachedEvent, UsbHotplugDetachedEventVm, UsbHotplugEvent, UsbHotplugEventMetadata, UsbHotplugEventMetadataVm, UsbHotplugEventVm, UsbInTransferResult, UsbInTransferResultVm, UsbInterfaceDescriptor, UsbInterfaceDescriptorVm, UsbIsochronousPacketResult, UsbIsochronousPacketResultVm, UsbIsochronousTransferResult, UsbIsochronousTransferResultVm, UsbOutTransferResult, UsbOutTransferResultVm, UsbStringDescriptor, UsbStringDescriptorVm, UsbTransferStatus, native as device_native, vm as device_vm};
+use crate::platform::device::{BluetoothAdapterAttachedEvent, BluetoothAdapterAttachedEventVm, BluetoothAdapterChangedEvent, BluetoothAdapterChangedEventVm, BluetoothAdapterDescriptor, BluetoothAdapterDescriptorVm, BluetoothAdapterDetachedEvent, BluetoothAdapterDetachedEventVm, BluetoothAdapterEvent, BluetoothAdapterEventMetadata, BluetoothAdapterEventMetadataVm, BluetoothAdapterEventVm, BluetoothAdvertisementData, BluetoothAdvertisementDataVm, BluetoothAdvertisementManufacturerData, BluetoothAdvertisementManufacturerDataVm, BluetoothAdvertisementServiceData, BluetoothAdvertisementServiceDataVm, BluetoothDataFilter, BluetoothDataFilterVm, BluetoothDeviceDescriptor, BluetoothDeviceDescriptorVm, BluetoothGattCharacteristic, BluetoothGattCharacteristicProperties, BluetoothGattCharacteristicPropertiesVm, BluetoothGattCharacteristicVm, BluetoothGattDescriptor, BluetoothGattDescriptorVm, BluetoothGattService, BluetoothGattServiceVm, BluetoothGattValueEvent, BluetoothGattValueEventVm, BluetoothGattWriteMode, BluetoothLeTransport, BluetoothManufacturerDataFilter, BluetoothManufacturerDataFilterVm, BluetoothPairState, BluetoothPhy, BluetoothScanDiscoveredEvent, BluetoothScanDiscoveredEventVm, BluetoothScanEvent, BluetoothScanEventMetadata, BluetoothScanEventMetadataVm, BluetoothScanEventVm, BluetoothScanFilter, BluetoothScanFilterVm, BluetoothScanLostEvent, BluetoothScanLostEventVm, BluetoothScanMode, BluetoothScanUpdatedEvent, BluetoothScanUpdatedEventVm, BluetoothServiceDataFilter, BluetoothServiceDataFilterVm, BluetoothSessionDisconnectedEvent, BluetoothSessionDisconnectedEventVm, BluetoothSessionEvent, BluetoothSessionEventMetadata, BluetoothSessionEventMetadataVm, BluetoothSessionEventVm, BluetoothSessionGattDatabaseChangedEvent, BluetoothSessionGattDatabaseChangedEventVm, BluetoothSessionPairStateChangedEvent, BluetoothSessionPairStateChangedEventVm, CameraAttachedEvent, CameraAttachedEventVm, CameraAudioCodec, CameraColorSpace, CameraControlCapabilities, CameraControlCapabilitiesVm, CameraControlPatch, CameraControlPatchVm, CameraControlState, CameraControlStateVm, CameraDetachedEvent, CameraDetachedEventVm, CameraDeviceDescriptor, CameraDeviceDescriptorVm, CameraDynamicRange, CameraExposureCompensationRange, CameraExposureCompensationRangeVm, CameraExposureMode, CameraExposureTimeRange, CameraExposureTimeRangeVm, CameraFacingMode, CameraFloatControlRange, CameraFloatControlRangeVm, CameraFocusDistanceRange, CameraFocusDistanceRangeVm, CameraFocusMode, CameraFrame, CameraFrameMetadata, CameraFrameMetadataVm, CameraFrameVm, CameraPanAngleRange, CameraPanAngleRangeVm, CameraPhoto, CameraPhotoCapabilities, CameraPhotoCapabilitiesVm, CameraPhotoFlashMode, CameraPhotoOptions, CameraPhotoOptionsVm, CameraPhotoSettings, CameraPhotoSettingsVm, CameraPhotoState, CameraPhotoStateVm, CameraPhotoVm, CameraPixelFormat, CameraPixelFormatDescriptor, CameraPixelFormatDescriptorVm, CameraPixelFormatFamily, CameraPlaneLayout, CameraPlaneLayoutVm, CameraRecording, CameraRecordingCapabilities, CameraRecordingCapabilitiesVm, CameraRecordingContainer, CameraRecordingOptions, CameraRecordingOptionsVm, CameraRecordingState, CameraRecordingStateVm, CameraRecordingVm, CameraRedEyeReduction, CameraSensorIsoRange, CameraSensorIsoRangeVm, CameraStabilizationMode, CameraStreamCapability, CameraStreamCapabilityVm, CameraStreamConfig, CameraStreamConfigVm, CameraTiltAngleRange, CameraTiltAngleRangeVm, CameraTorchMode, CameraVideoCodec, CameraWatchEvent, CameraWatchEventMetadata, CameraWatchEventMetadataVm, CameraWatchEventVm, CameraWhiteBalanceMode, CameraWhiteBalanceRange, CameraWhiteBalanceRangeVm, CameraZoomRatioRange, CameraZoomRatioRangeVm, SerialAttachedEvent, SerialAttachedEventVm, SerialDataBits, SerialDetachedEvent, SerialDetachedEventVm, SerialDisconnectedEvent, SerialDisconnectedEventVm, SerialErrorEvent, SerialErrorEventVm, SerialErrorKind, SerialEvent, SerialEventMetadata, SerialEventMetadataVm, SerialEventVm, SerialFlowControl, SerialFlowControlVm, SerialInputSignals, SerialInputSignalsVm, SerialModemStatusChangedEvent, SerialModemStatusChangedEventVm, SerialOutputSignals, SerialOutputSignalsVm, SerialParity, SerialPortConfig, SerialPortConfigVm, SerialPortDescriptor, SerialPortDescriptorVm, SerialPortOpenOptions, SerialPortOpenOptionsVm, SerialPortTransport, SerialReadReadyEvent, SerialReadReadyEventVm, SerialStopBits, SerialWatchEvent, SerialWatchEventMetadata, SerialWatchEventMetadataVm, SerialWatchEventVm, UsbBosCapabilityDescriptor, UsbBosCapabilityDescriptorVm, UsbBosCapabilityKind, UsbConfigurationDescriptor, UsbConfigurationDescriptorVm, UsbControlDeviceTarget, UsbControlDeviceTargetVm, UsbControlEndpointTarget, UsbControlEndpointTargetVm, UsbControlInterfaceTarget, UsbControlInterfaceTargetVm, UsbControlOtherTarget, UsbControlOtherTargetVm, UsbControlSetup, UsbControlSetupVm, UsbControlTarget, UsbControlTargetVm, UsbControlTransferType, UsbDeviceDescriptor, UsbDeviceDescriptorVm, UsbDeviceSpeed, UsbEndpointDescriptor, UsbEndpointDescriptorVm, UsbEndpointDirection, UsbEndpointSelector, UsbEndpointSelectorVm, UsbEndpointTransferType, UsbHotplugAttachedEvent, UsbHotplugAttachedEventVm, UsbHotplugDetachedEvent, UsbHotplugDetachedEventVm, UsbHotplugEvent, UsbHotplugEventMetadata, UsbHotplugEventMetadataVm, UsbHotplugEventVm, UsbInTransferResult, UsbInTransferResultVm, UsbInterfaceDescriptor, UsbInterfaceDescriptorVm, UsbIsochronousPacketResult, UsbIsochronousPacketResultVm, UsbIsochronousTransferResult, UsbIsochronousTransferResultVm, UsbOutTransferResult, UsbOutTransferResultVm, UsbStringDescriptor, UsbStringDescriptorVm, UsbTransferStatus, native as device_native, vm as device_vm};
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource};
 use destack_vm as vm;
 
@@ -30,11 +30,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// List Bluetooth adapters.
     ///
-    /// Enumerate host Bluetooth adapters and return stable identifiers.
+    /// Enumerate Bluetooth adapters that can perform BLE scan or session work and return stable descriptor snapshots for them.
+    /// Adapter identity is topology based so callers can correlate scan and session operations across process lifetimes.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host Bluetooth adapter enumeration APIs.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android BluetoothAdapter discovery, one logical CoreBluetooth central adapter on iOS and macOS, BlueZ adapter objects on Linux-class Unix, and BluetoothAdapter plus Radio class topology on Windows.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -63,13 +64,156 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// List discovered GATT characteristics for one service.
+    /// Close a Bluetooth adapter watch stream.
     ///
-    /// Enumerate GATT characteristics in one selected service.
+    /// Close one opened Bluetooth adapter watch stream and release its host subscription state.
+    /// Closing an adapter watch does not affect active scans or device sessions.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host Bluetooth GATT characteristic-discovery APIs.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android broadcast unregistration, CoreBluetooth central-manager callback teardown on iOS and macOS, BlueZ adapter signal unsubscription on Linux-class Unix, and notification teardown on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.bluetooth.scan`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_bluetooth_adapter_watch_close(
+        &mut self,
+        handle: resource::BluetoothAdapterWatchHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                device_vm::destack_device_bluetooth_adapter_watch_close(self.call_context, context, handle)
+            }
+            None => unsafe {
+                device_native::destack_device_bluetooth_adapter_watch_close(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Open a Bluetooth adapter watch stream.
+    ///
+    /// Open a watch stream for Bluetooth adapter attach, detach, and state-change events.
+    /// The stream reports adapter topology and state transitions independently from device scan and session work.
+    ///
+    /// # Platform
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android Bluetooth adapter broadcasts, CoreBluetooth central-manager state callbacks on iOS and macOS, BlueZ adapter-manager signals on Linux-class Unix, and adapter device notifications on Windows.
+    ///
+    /// # Errors
+    /// Returns ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.bluetooth.scan`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_bluetooth_adapter_watch_open(
+        &mut self,
+    ) -> RuntimeResult<resource::BluetoothAdapterWatchHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_bluetooth_adapter_watch_open(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<resource::BluetoothAdapterWatchHandle>::uninit();
+                unsafe {
+                    device_native::destack_device_bluetooth_adapter_watch_open(self.call_context, out.as_mut_ptr())?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            },
+        }
+    }
+
+    /// Read one Bluetooth adapter event.
+    ///
+    /// Wait for the next typed Bluetooth adapter event from one opened adapter watch stream.
+    /// The event carries a full adapter descriptor snapshot so callers can react without racing a separate list call.
+    ///
+    /// # Platform
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses adapter event queues fed by Android adapter broadcasts, CoreBluetooth central-manager state callbacks on iOS and macOS, BlueZ adapter signals on Linux-class Unix, and adapter notifications on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.bluetooth.scan`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_bluetooth_adapter_watch_read(
+        &mut self,
+        handle: resource::BluetoothAdapterWatchHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<BluetoothAdapterEvent, BluetoothAdapterEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_bluetooth_adapter_watch_read(self.call_context, context, handle, timeoutns)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<BluetoothAdapterEvent>::uninit();
+                unsafe {
+                    device_native::destack_device_bluetooth_adapter_watch_read(self.call_context, out.as_mut_ptr(), handle, timeoutns)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
+    /// Poll one Bluetooth adapter event without blocking.
+    ///
+    /// Read the next typed Bluetooth adapter event from one opened adapter watch stream without waiting.
+    /// This operation only consumes already published adapter events.
+    ///
+    /// # Platform
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses adapter event queues fed by Android adapter broadcasts, CoreBluetooth central-manager state callbacks on iOS and macOS, BlueZ adapter signals on Linux-class Unix, and adapter notifications on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.bluetooth.scan`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_bluetooth_adapter_watch_try_read(
+        &mut self,
+        handle: resource::BluetoothAdapterWatchHandle,
+    ) -> RuntimeResult<HarnessValue<BluetoothAdapterEvent, BluetoothAdapterEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_bluetooth_adapter_watch_try_read(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<BluetoothAdapterEvent>::uninit();
+                unsafe {
+                    device_native::destack_device_bluetooth_adapter_watch_try_read(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
+    /// List discovered GATT characteristics for one service.
+    ///
+    /// Enumerate the GATT characteristics in one selected service.
+    /// Characteristic identifiers are session stable so reads, writes, and subscriptions can address them directly afterward.
+    ///
+    /// # Platform
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android BluetoothGatt characteristic discovery, CoreBluetooth characteristic discovery on iOS and macOS, BlueZ GATT object discovery on Linux-class Unix, and WinRT characteristic enumeration on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -83,7 +227,7 @@ impl<'call> DeviceHarnessContext<'call> {
         &mut self,
         handle: resource::BluetoothDeviceHandle,
         serviceid: HarnessValue<NativeStringRef, vm::StringHandle>,
-    ) -> RuntimeResult<HarnessValue<NativeSlice<BluetoothGattCharacteristicDescriptor>, VmSlice<BluetoothGattCharacteristicDescriptorVm>>> {
+    ) -> RuntimeResult<HarnessValue<NativeSlice<BluetoothGattCharacteristic>, VmSlice<BluetoothGattCharacteristicVm>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let serviceid = serviceid.into_vm("serviceid")?;
@@ -92,7 +236,7 @@ impl<'call> DeviceHarnessContext<'call> {
             }
             None => {
                 let serviceid = serviceid.into_native("serviceid")?;
-                let mut out = std::mem::MaybeUninit::<NativeSlice<BluetoothGattCharacteristicDescriptor>>::uninit();
+                let mut out = std::mem::MaybeUninit::<NativeSlice<BluetoothGattCharacteristic>>::uninit();
                 unsafe {
                     device_native::destack_device_bluetooth_gatt_characteristic_list(self.call_context, out.as_mut_ptr(), handle, serviceid)?;
                 }
@@ -104,11 +248,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// List discovered GATT descriptors for one characteristic.
     ///
-    /// Enumerate GATT descriptors in one selected service and characteristic.
+    /// Enumerate the GATT descriptors in one selected characteristic.
+    /// Descriptor identifiers are session stable so later descriptor reads and writes can address them directly.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host Bluetooth GATT descriptor-discovery APIs.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android BluetoothGatt descriptor discovery, CoreBluetooth descriptor discovery on iOS and macOS, BlueZ GATT object discovery on Linux-class Unix, and WinRT descriptor enumeration on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -122,7 +267,7 @@ impl<'call> DeviceHarnessContext<'call> {
         &mut self,
         handle: resource::BluetoothDeviceHandle,
         characteristicid: HarnessValue<NativeStringRef, vm::StringHandle>,
-    ) -> RuntimeResult<HarnessValue<NativeSlice<BluetoothGattDescriptorDescriptor>, VmSlice<BluetoothGattDescriptorDescriptorVm>>> {
+    ) -> RuntimeResult<HarnessValue<NativeSlice<BluetoothGattDescriptor>, VmSlice<BluetoothGattDescriptorVm>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let characteristicid = characteristicid.into_vm("characteristicid")?;
@@ -131,7 +276,7 @@ impl<'call> DeviceHarnessContext<'call> {
             }
             None => {
                 let characteristicid = characteristicid.into_native("characteristicid")?;
-                let mut out = std::mem::MaybeUninit::<NativeSlice<BluetoothGattDescriptorDescriptor>>::uninit();
+                let mut out = std::mem::MaybeUninit::<NativeSlice<BluetoothGattDescriptor>>::uninit();
                 unsafe {
                     device_native::destack_device_bluetooth_gatt_descriptor_list(self.call_context, out.as_mut_ptr(), handle, characteristicid)?;
                 }
@@ -143,14 +288,15 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Read current ATT MTU.
     ///
-    /// Read current negotiated ATT MTU for one connected device session.
+    /// Read the current negotiated ATT MTU for one connected device session.
+    /// This reports live transport state and does not force a rediscovery of the GATT graph.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host GATT session metadata APIs.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses live GATT session transport metadata on Android, returns `notSupported` on CoreBluetooth where ATT MTU is not exposed, BlueZ on Linux-class Unix, and WinRT on Windows.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
     /// Requires `device.bluetooth.gatt`.
@@ -180,10 +326,11 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Read one GATT characteristic value.
     ///
     /// Read one characteristic value from one connected Bluetooth device session.
+    /// Value bytes are returned exactly as reported by the ATT layer with no profile specific reinterpretation.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host GATT read APIs.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android BluetoothGatt characteristic reads, CoreBluetooth characteristic reads on iOS and macOS, BlueZ GATT characteristic value reads on Linux-class Unix, and WinRT GATT characteristic reads on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -220,10 +367,11 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Read one GATT descriptor value.
     ///
     /// Read one descriptor value from one connected Bluetooth device session.
+    /// Value bytes are returned exactly as reported by the ATT layer with no profile specific reinterpretation.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host GATT descriptor read APIs.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android BluetoothGatt descriptor reads, CoreBluetooth descriptor reads on iOS and macOS, BlueZ GATT descriptor value reads on Linux-class Unix, and WinRT GATT descriptor reads on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -257,13 +405,14 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Wait for one GATT value event.
+    /// Read one GATT value event.
     ///
-    /// Wait for one characteristic value-notification event from one subscription.
+    /// Wait for the next characteristic value event from one subscription.
+    /// Event payloads preserve the originating service and characteristic identity so multiplexed callers can route updates precisely.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host GATT notification queues.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses subscription event queues fed by Android characteristic callbacks, CoreBluetooth characteristic callbacks on iOS and macOS, BlueZ characteristic callbacks on Linux-class Unix, and WinRT value-changed callbacks on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -296,11 +445,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// List discovered GATT services.
     ///
-    /// Enumerate GATT services available on one connected device.
+    /// Enumerate the current GATT service graph for one connected device session.
+    /// Service identifiers are session stable so later characteristic and descriptor lookups can be routed without rediscovery churn.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses CoreBluetooth, BluetoothGatt, and host Bluetooth stack service-discovery APIs.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android BluetoothGatt service discovery, CoreBluetooth service discovery on iOS and macOS, BlueZ GATT object discovery on Linux-class Unix, and WinRT GATT service enumeration on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -313,14 +463,14 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_bluetooth_gatt_service_list(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
-    ) -> RuntimeResult<HarnessValue<NativeSlice<BluetoothGattServiceDescriptor>, VmSlice<BluetoothGattServiceDescriptorVm>>> {
+    ) -> RuntimeResult<HarnessValue<NativeSlice<BluetoothGattService>, VmSlice<BluetoothGattServiceVm>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let out = device_vm::destack_device_bluetooth_gatt_service_list(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<NativeSlice<BluetoothGattServiceDescriptor>>::uninit();
+                let mut out = std::mem::MaybeUninit::<NativeSlice<BluetoothGattService>>::uninit();
                 unsafe {
                     device_native::destack_device_bluetooth_gatt_service_list(self.call_context, out.as_mut_ptr(), handle)?;
                 }
@@ -332,11 +482,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Subscribe one GATT characteristic.
     ///
-    /// Open one subscription for characteristic value notifications.
+    /// Open one subscription for characteristic value notifications or indications.
+    /// The returned subscription owns its own event queue and remains separate from direct characteristic reads.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host GATT notification subscribe APIs.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android notification registration, CoreBluetooth notification registration on iOS and macOS, BlueZ notification registration on Linux-class Unix, and WinRT characteristic value subscriptions on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -371,11 +522,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Poll one GATT value event without blocking.
     ///
-    /// Poll one characteristic value-notification event from one subscription without waiting.
+    /// Read the next characteristic value event from one subscription without waiting.
+    /// This operation only consumes already published notification or indication events.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host nonblocking GATT notification reads.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses subscription event queues fed by Android characteristic callbacks, CoreBluetooth characteristic callbacks on iOS and macOS, BlueZ characteristic callbacks on Linux-class Unix, and WinRT value-changed callbacks on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -407,11 +559,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Unsubscribe one GATT characteristic.
     ///
-    /// Close one characteristic value notification subscription.
+    /// Close one characteristic value subscription.
+    /// Closing a subscription disables its host callback path when no remaining subscription requires that source.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host GATT notification unsubscribe APIs.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android notification disablement, CoreBluetooth notification disablement on iOS and macOS, BlueZ subscription teardown on Linux-class Unix, and WinRT subscription teardown on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -438,10 +591,11 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Write one GATT characteristic value.
     ///
     /// Write one characteristic value on one connected Bluetooth device session with one explicit ATT write mode.
+    /// The write mode is caller controlled so response semantics remain explicit rather than inferred from characteristic properties.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host GATT write APIs.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android BluetoothGatt characteristic writes, CoreBluetooth characteristic writes on iOS and macOS, BlueZ GATT characteristic value writes on Linux-class Unix, and WinRT GATT characteristic writes on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -476,10 +630,11 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Write one GATT descriptor value.
     ///
     /// Write one descriptor value on one connected Bluetooth device session.
+    /// Value bytes are passed through exactly so CCCD and vendor descriptor policy remains explicit to the caller.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host GATT descriptor write APIs.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android BluetoothGatt descriptor writes, CoreBluetooth descriptor writes on iOS and macOS, BlueZ GATT descriptor value writes on Linux-class Unix, and WinRT GATT descriptor writes on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -510,13 +665,14 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Close Bluetooth scan session.
+    /// Close a Bluetooth scan session.
     ///
-    /// Close one scan session and stop host discovery operations.
+    /// Close one scan session and release its host discovery state.
+    /// Closing a scan session never closes or mutates any separately opened device session.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host Bluetooth scan-stop APIs.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android BluetoothLeScanner stopScan, CoreBluetooth stopScan on iOS and macOS, discovery-subscription release on Linux-class Unix, and scan watcher teardown on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -540,13 +696,14 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Open Bluetooth scan session.
+    /// Open a Bluetooth scan session.
     ///
-    /// Open one Bluetooth scan session on one adapter with one optional filter.
+    /// Open one BLE scan session on one adapter with one optional advertisement filter.
+    /// Scan state is session local so repeated callers can apply independent filters without conflating their event streams.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host Bluetooth scan APIs.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android BluetoothLeScanner, CoreBluetooth scanForPeripherals on iOS and macOS, BlueZ discovery filters and signal subscriptions on Linux-class Unix, and BluetoothLEAdvertisementWatcher on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -581,50 +738,14 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Wait for one scanned device.
+    /// Read one Bluetooth scan event.
     ///
-    /// Wait for one scanned device advertisement from one opened scan session.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host Bluetooth scan result queues.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.scan`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_bluetooth_scan_read(
-        &mut self,
-        handle: resource::BluetoothScanHandle,
-        timeoutns: u64,
-    ) -> RuntimeResult<HarnessValue<BluetoothDeviceDescriptor, BluetoothDeviceDescriptorVm>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_bluetooth_scan_read(self.call_context, context, handle, timeoutns)?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<BluetoothDeviceDescriptor>::uninit();
-                unsafe {
-                    device_native::destack_device_bluetooth_scan_read(self.call_context, out.as_mut_ptr(), handle, timeoutns)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            },
-        }
-    }
-
-    /// Wait for one Bluetooth scan event.
-    ///
-    /// Wait for one typed scan event from one opened scan session.
+    /// Wait for the next typed scan event from one opened scan session.
+    /// The event carries a full device descriptor snapshot so callers can react without racing a separate descriptor read.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host Bluetooth scan event queues.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses scan event queues fed by Android scan callbacks, CoreBluetooth discovery callbacks on iOS and macOS, BlueZ discovery signals on Linux-class Unix, and advertisement watcher callbacks on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -655,49 +776,14 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Poll one scanned device without blocking.
-    ///
-    /// Poll one scanned device advertisement from one opened scan session without waiting.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host Bluetooth nonblocking scan result reads.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.scan`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_bluetooth_scan_try_read(
-        &mut self,
-        handle: resource::BluetoothScanHandle,
-    ) -> RuntimeResult<HarnessValue<BluetoothDeviceDescriptor, BluetoothDeviceDescriptorVm>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_bluetooth_scan_try_read(self.call_context, context, handle)?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<BluetoothDeviceDescriptor>::uninit();
-                unsafe {
-                    device_native::destack_device_bluetooth_scan_try_read(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            },
-        }
-    }
-
     /// Poll one Bluetooth scan event without blocking.
     ///
-    /// Poll one typed scan event from one opened scan session without waiting.
+    /// Read the next typed scan event from one opened scan session without waiting.
+    /// This operation only consumes already published scan events.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host nonblocking Bluetooth scan event reads.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses scan event queues fed by Android scan callbacks, CoreBluetooth discovery callbacks on iOS and macOS, BlueZ discovery signals on Linux-class Unix, and advertisement watcher callbacks on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -727,13 +813,14 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Close Bluetooth device session.
+    /// Close a Bluetooth device session.
     ///
-    /// Close one opened Bluetooth device session and release host resources.
+    /// Close one opened Bluetooth device session and release its host resources.
+    /// Closing a session also terminates its session event stream and any GATT subscriptions derived from it.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host Bluetooth disconnect APIs.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android GATT session close, CoreBluetooth peripheral-session teardown on iOS and macOS, BlueZ device-session teardown on Linux-class Unix, and BluetoothLEDevice or GattSession release on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -757,13 +844,51 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Open Bluetooth device session.
+    /// Read the current Bluetooth device descriptor.
     ///
-    /// Open one device session for link and GATT operations.
+    /// Read the current device descriptor snapshot for one opened Bluetooth device session.
+    /// The snapshot may change across reads as pairing, signal strength, or advertisement-backed metadata evolves.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host Bluetooth connect APIs.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android BluetoothDevice and scan-cache properties, CoreBluetooth peripheral state plus advertisement cache on iOS and macOS, BlueZ device properties on Linux-class Unix, and BluetoothLEDevice properties plus cached advertisement metadata on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.bluetooth.connect`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_bluetooth_descriptor(
+        &mut self,
+        handle: resource::BluetoothDeviceHandle,
+    ) -> RuntimeResult<HarnessValue<BluetoothDeviceDescriptor, BluetoothDeviceDescriptorVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_bluetooth_descriptor(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<BluetoothDeviceDescriptor>::uninit();
+                unsafe {
+                    device_native::destack_device_bluetooth_descriptor(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
+    /// Open a Bluetooth device session.
+    ///
+    /// Open one BLE device session for link, pairing, and GATT operations.
+    /// Session identity is separate from scan identity so a device can continue streaming GATT state after advertisement visibility changes.
+    ///
+    /// # Platform
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android BluetoothDevice and BluetoothGatt sessions, CoreBluetooth peripheral sessions on iOS and macOS, BlueZ device objects and GATT sessions on Linux-class Unix, and BluetoothLEDevice plus GattSession on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -800,11 +925,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Pair one Bluetooth device.
     ///
-    /// Pair one opened Bluetooth device session with host bonding APIs.
+    /// Pair one opened Bluetooth device session with the host bonding mechanism.
+    /// Pairing is explicit because it mutates external trust state and may trigger user mediated authentication flows.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host pairing and bonding APIs where available.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android Bluetooth bond flows, returns `notSupported` on CoreBluetooth where explicit bonding is not exposed, BlueZ device pairing flows on Linux-class Unix, and DeviceInformation pairing APIs on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
@@ -829,13 +955,14 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Wait for one Bluetooth session event.
+    /// Read one Bluetooth session event.
     ///
-    /// Wait for one typed session event from one opened Bluetooth device session.
+    /// Wait for the next typed session event from one opened Bluetooth device session.
+    /// Session events report connection, bond, and GATT database transitions without requiring polling of descriptor state.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host Bluetooth link-state and pairing event queues where available.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses session event queues fed by Android GATT callbacks, CoreBluetooth delegate callbacks on iOS and macOS, BlueZ device and GATT callbacks on Linux-class Unix, and WinRT device and GATT callbacks on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -868,11 +995,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Read link RSSI for one Bluetooth device session.
     ///
-    /// Read current received signal strength indicator for one connected device session.
+    /// Read the current RSSI for one Bluetooth device session when the host exposes live link strength.
+    /// This is a point-in-time signal sample and does not consume the session event stream.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host Bluetooth RSSI query APIs where available.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android RSSI reads or callback state, CoreBluetooth readRSSI on iOS and macOS, BlueZ device property reads on Linux-class Unix, and live BluetoothLEDevice signal queries on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -905,11 +1033,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Poll one Bluetooth session event without blocking.
     ///
-    /// Poll one typed session event from one opened Bluetooth device session without waiting.
+    /// Read the next typed session event from one opened Bluetooth device session without waiting.
+    /// This operation only consumes already published session events.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host nonblocking Bluetooth session event reads where available.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses session event queues fed by Android GATT callbacks, CoreBluetooth delegate callbacks on iOS and macOS, BlueZ device and GATT callbacks on Linux-class Unix, and WinRT device and GATT callbacks on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -941,11 +1070,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Remove one Bluetooth device bond.
     ///
-    /// Remove host bond state for one Bluetooth device on one adapter.
+    /// Remove persistent host bond state for one Bluetooth device on one adapter.
+    /// Unpairing is explicit because it mutates external trust state and may invalidate future encrypted sessions.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host unpair or remove-device APIs where available.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android bond removal, returns `notSupported` on CoreBluetooth where explicit unpairing is not exposed, BlueZ bond removal on Linux-class Unix, and DeviceInformation unpairing APIs on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -974,13 +1104,14 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Close camera endpoint.
+    /// Close a camera endpoint.
     ///
-    /// Close one opened camera endpoint and release host resources.
+    /// Close one opened camera endpoint and release its host resources.
+    /// Closing a device also invalidates any stream handles that were created from that device session.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend camera endpoint close operations.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android CameraDevice close, AVFoundation capture-device session teardown on iOS and macOS, V4L2 device handle release on Linux-class Unix, and Media Foundation source teardown on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1006,11 +1137,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// List camera endpoints.
     ///
-    /// Enumerate host camera endpoints and return stable identifiers.
+    /// Enumerate camera endpoints that are currently reachable from the host media stack and return stable descriptor snapshots for them.
+    /// Descriptor identity is topology based so callers can correlate enumeration, watch, and open results across stream lifetimes.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend camera device enumeration APIs such as AVFoundation, Media Foundation, or V4L2.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android CameraManager discovery, AVFoundation device discovery on iOS and macOS, V4L2 class camera discovery on Linux-class Unix, and Media Foundation device discovery on Windows.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1039,13 +1171,14 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Open camera endpoint.
+    /// Open a camera endpoint.
     ///
-    /// Open one host camera endpoint for stream operations.
+    /// Open one camera endpoint for capability discovery and stream creation.
+    /// Opening a device establishes a control authority boundary that can outlive any individual stream session created from it.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend camera endpoint open operations.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android CameraDevice sessions, AVFoundation capture-device sessions on iOS and macOS, V4L2 style device nodes on Linux-class Unix, and Media Foundation capture sources on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1077,13 +1210,14 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// List supported stream capabilities for one opened camera endpoint.
+    /// List stream capabilities for one opened camera endpoint.
     ///
-    /// Enumerate host camera stream capability descriptors for one opened endpoint.
+    /// Enumerate stream capability descriptors for one opened camera endpoint.
+    /// Each capability combines the stream configuration envelope with the control capability snapshot for that negotiated format family.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend camera capability enumeration APIs.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android CameraCharacteristics stream and control discovery, AVFoundation format negotiation on iOS and macOS, V4L2 format and control discovery on Linux-class Unix, and Media Foundation stream capability discovery on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1113,71 +1247,66 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// List supported stream configurations for one opened camera endpoint.
+    /// Close a camera topology watch stream.
     ///
-    /// Enumerate host camera stream configurations for one opened endpoint.
+    /// Close one opened camera topology watch stream and release its host subscription state.
+    /// Closing a watch does not affect any separately opened camera device or camera stream.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend camera format and frame-rate enumeration APIs.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android camera-availability callback teardown, topology notification teardown on iOS, macOS, and Windows, and monitor teardown on Linux-class Unix.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
     /// Requires `device.camera.device`.
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_device_camera_device_stream_config_list(
+    pub(crate) fn destack_device_camera_device_watch_close(
         &mut self,
-        handle: resource::CameraDeviceHandle,
-    ) -> RuntimeResult<HarnessValue<NativeSlice<CameraStreamConfig>, VmSlice<CameraStreamConfigVm>>> {
+        handle: resource::CameraWatchHandle,
+    ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_camera_device_stream_config_list(self.call_context, context, handle)?;
-                Ok(HarnessValue::Vm(out))
+                device_vm::destack_device_camera_device_watch_close(self.call_context, context, handle)
             }
-            None => {
-                let mut out = std::mem::MaybeUninit::<NativeSlice<CameraStreamConfig>>::uninit();
-                unsafe {
-                    device_native::destack_device_camera_device_stream_config_list(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
+            None => unsafe {
+                device_native::destack_device_camera_device_watch_close(self.call_context, handle)
             },
         }
     }
 
-    /// Read camera brightness.
+    /// Open a camera topology watch stream.
     ///
-    /// Read one brightness adjustment from one opened camera stream.
+    /// Open a watch stream for camera endpoint attach and detach events.
+    /// The stream reports device topology changes independently from any opened device or stream session.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend brightness query APIs where available.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android camera availability callbacks, media-device topology notifications on iOS, macOS, and Windows, and device monitor subscriptions on Linux-class Unix.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    /// Returns ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `device.camera.control`.
+    /// Requires `device.camera.device`.
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_brightness(
+    pub(crate) fn destack_device_camera_device_watch_open(
         &mut self,
-        handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<f64> {
+    ) -> RuntimeResult<resource::CameraWatchHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_camera_stream_brightness(self.call_context, context, handle)?;
+                let out = device_vm::destack_device_camera_device_watch_open(self.call_context, context)?;
                 Ok(out)
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<f64>::uninit();
+                let mut out = std::mem::MaybeUninit::<resource::CameraWatchHandle>::uninit();
                 unsafe {
-                    device_native::destack_device_camera_stream_brightness(self.call_context, out.as_mut_ptr(), handle)?;
+                    device_native::destack_device_camera_device_watch_open(self.call_context, out.as_mut_ptr())?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
@@ -1185,35 +1314,37 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read brightness range.
+    /// Read one camera topology event.
     ///
-    /// Read one brightness range descriptor for one opened camera stream.
+    /// Wait for the next queued camera topology event from one opened watch stream.
+    /// The returned event carries a full descriptor snapshot so attach consumers do not need a separate enumeration race.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend brightness capability query APIs where available.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses watch queues fed by Android camera availability callbacks, media-device topology callbacks on iOS, macOS, and Windows, and monitor events on Linux-class Unix.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
     ///
     /// # Security
-    /// Requires `device.camera.control`.
+    /// Requires `device.camera.device`.
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_brightness_range(
+    pub(crate) fn destack_device_camera_device_watch_read(
         &mut self,
-        handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<HarnessValue<CameraFloatControlRange, CameraFloatControlRangeVm>> {
+        handle: resource::CameraWatchHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<CameraWatchEvent, CameraWatchEventVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_camera_stream_brightness_range(self.call_context, context, handle)?;
+                let out = device_vm::destack_device_camera_device_watch_read(self.call_context, context, handle, timeoutns)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<CameraFloatControlRange>::uninit();
+                let mut out = std::mem::MaybeUninit::<CameraWatchEvent>::uninit();
                 unsafe {
-                    device_native::destack_device_camera_stream_brightness_range(self.call_context, out.as_mut_ptr(), handle)?;
+                    device_native::destack_device_camera_device_watch_read(self.call_context, out.as_mut_ptr(), handle, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
@@ -1221,13 +1352,51 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Close camera stream.
+    /// Poll one camera topology event without blocking.
     ///
-    /// Close one opened camera stream and release host resources.
+    /// Read the next queued camera topology event from one opened watch stream without waiting.
+    /// This operation only consumes already published attach or detach events.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend stream close operations.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses watch queues fed by Android camera availability callbacks, media-device topology callbacks on iOS, macOS, and Windows, and monitor events on Linux-class Unix.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_device_watch_try_read(
+        &mut self,
+        handle: resource::CameraWatchHandle,
+    ) -> RuntimeResult<HarnessValue<CameraWatchEvent, CameraWatchEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_device_watch_try_read(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<CameraWatchEvent>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_device_watch_try_read(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
+    /// Close a camera stream.
+    ///
+    /// Close one opened camera stream and release its host resources.
+    /// Closing a stream also terminates its frame queue and any pending frame waits owned by that stream session.
+    ///
+    /// # Platform
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android capture-session teardown, AVFoundation stream-session teardown on iOS and macOS, queue teardown on Linux-class Unix, and Media Foundation stream teardown on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1251,13 +1420,14 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read current camera stream configuration.
+    /// Read the active camera stream configuration.
     ///
-    /// Read one active stream-configuration snapshot for one opened camera stream.
+    /// Read the active stream configuration for one opened camera stream.
+    /// The returned snapshot reflects the negotiated running format rather than only the originally requested configuration.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend stream settings and active-format query APIs.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android capture-session format state, AVFoundation live stream-format queries on iOS and macOS, negotiated queue state on Linux-class Unix, and Media Foundation stream descriptors on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -1287,49 +1457,48 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read camera contrast.
+    /// Apply camera control updates.
     ///
-    /// Read one contrast adjustment from one opened camera stream.
+    /// Apply one partial control patch to one opened camera stream.
+    /// Fields that are omitted leave the corresponding control unchanged so callers can update related settings incrementally.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend contrast query APIs where available.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android Camera2 request updates, AVFoundation grouped control updates on iOS and macOS, V4L2 class controls on Linux-class Unix, and Media Foundation camera controls on Windows.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
     /// Requires `device.camera.control`.
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_contrast(
+    pub(crate) fn destack_device_camera_stream_configure_controls(
         &mut self,
         handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<f64> {
+        controls: HarnessValue<CameraControlPatch, CameraControlPatchVm>,
+    ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_camera_stream_contrast(self.call_context, context, handle)?;
-                Ok(out)
+                let controls = controls.into_vm("controls")?;
+                device_vm::destack_device_camera_stream_configure_controls(self.call_context, context, handle, controls)
             }
-            None => {
-                let mut out = std::mem::MaybeUninit::<f64>::uninit();
-                unsafe {
-                    device_native::destack_device_camera_stream_contrast(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
+            None => unsafe {
+                let controls = controls.into_native("controls")?;
+                device_native::destack_device_camera_stream_configure_controls(self.call_context, handle, controls)
             },
         }
     }
 
-    /// Read contrast range.
+    /// Read camera control capabilities.
     ///
-    /// Read one contrast range descriptor for one opened camera stream.
+    /// Read the control-capability descriptor for one opened camera stream.
+    /// Capability reporting groups modes and ranges into one structure so callers can validate patches before issuing them.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend contrast capability query APIs where available.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android CameraCharacteristics control discovery, AVFoundation control capability queries on iOS and macOS, V4L2 class control enumeration on Linux-class Unix, and Media Foundation camera control discovery on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1339,19 +1508,19 @@ impl<'call> DeviceHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_contrast_range(
+    pub(crate) fn destack_device_camera_stream_control_capabilities(
         &mut self,
         handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<HarnessValue<CameraFloatControlRange, CameraFloatControlRangeVm>> {
+    ) -> RuntimeResult<HarnessValue<CameraControlCapabilities, CameraControlCapabilitiesVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_camera_stream_contrast_range(self.call_context, context, handle)?;
+                let out = device_vm::destack_device_camera_stream_control_capabilities(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<CameraFloatControlRange>::uninit();
+                let mut out = std::mem::MaybeUninit::<CameraControlCapabilities>::uninit();
                 unsafe {
-                    device_native::destack_device_camera_stream_contrast_range(self.call_context, out.as_mut_ptr(), handle)?;
+                    device_native::destack_device_camera_stream_control_capabilities(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
@@ -1359,49 +1528,14 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read camera exposure compensation.
+    /// Read camera control state.
     ///
-    /// Read one exposure-compensation value in EV units from one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend exposure-compensation query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_exposure_compensation(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<f64> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_camera_stream_exposure_compensation(self.call_context, context, handle)?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<f64>::uninit();
-                unsafe {
-                    device_native::destack_device_camera_stream_exposure_compensation(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            },
-        }
-    }
-
-    /// Read exposure-compensation range.
-    ///
-    /// Read one exposure-compensation range descriptor for one opened camera stream.
+    /// Read the current control-state snapshot for one opened camera stream.
+    /// State is grouped into one snapshot so callers can reason about interacting controls coherently rather than field by field.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend exposure-compensation capability query APIs where available.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android Camera2 capture-request state, AVFoundation live device-control reads on iOS and macOS, V4L2 class controls on Linux-class Unix, and Media Foundation camera controls on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1411,19 +1545,19 @@ impl<'call> DeviceHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_exposure_compensation_range(
+    pub(crate) fn destack_device_camera_stream_control_state(
         &mut self,
         handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<HarnessValue<CameraExposureCompensationRange, CameraExposureCompensationRangeVm>> {
+    ) -> RuntimeResult<HarnessValue<CameraControlState, CameraControlStateVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_camera_stream_exposure_compensation_range(self.call_context, context, handle)?;
+                let out = device_vm::destack_device_camera_stream_control_state(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<CameraExposureCompensationRange>::uninit();
+                let mut out = std::mem::MaybeUninit::<CameraControlState>::uninit();
                 unsafe {
-                    device_native::destack_device_camera_stream_exposure_compensation_range(self.call_context, out.as_mut_ptr(), handle)?;
+                    device_native::destack_device_camera_stream_control_state(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
@@ -1431,229 +1565,14 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read camera exposure mode.
+    /// Open a camera stream.
     ///
-    /// Read one exposure mode from one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend camera exposure mode query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_exposure_mode(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<CameraExposureMode> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_camera_stream_exposure_mode(self.call_context, context, handle)?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<CameraExposureMode>::uninit();
-                unsafe {
-                    device_native::destack_device_camera_stream_exposure_mode(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            },
-        }
-    }
-
-    /// Read camera exposure time.
-    ///
-    /// Read one exposure time in nanoseconds from one opened camera stream.
+    /// Open one camera stream with an explicit stream configuration.
+    /// The stream owns frame delivery state independently from device enumeration and topology watching.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend exposure-duration query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_exposure_time_ns(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<u64> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_camera_stream_exposure_time_ns(self.call_context, context, handle)?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<u64>::uninit();
-                unsafe {
-                    device_native::destack_device_camera_stream_exposure_time_ns(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            },
-        }
-    }
-
-    /// Read exposure-time range.
-    ///
-    /// Read one exposure-time range descriptor for one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend exposure-duration capability query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_exposure_time_range(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<HarnessValue<CameraExposureTimeRange, CameraExposureTimeRangeVm>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_camera_stream_exposure_time_range(self.call_context, context, handle)?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<CameraExposureTimeRange>::uninit();
-                unsafe {
-                    device_native::destack_device_camera_stream_exposure_time_range(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            },
-        }
-    }
-
-    /// Read camera focus distance.
-    ///
-    /// Read one focus-distance value in diopters from one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend focus-distance query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_focus_distance_diopters(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<f64> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_camera_stream_focus_distance_diopters(self.call_context, context, handle)?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<f64>::uninit();
-                unsafe {
-                    device_native::destack_device_camera_stream_focus_distance_diopters(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            },
-        }
-    }
-
-    /// Read focus-distance range.
-    ///
-    /// Read one focus-distance range descriptor for one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend focus-distance capability query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_focus_distance_range(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<HarnessValue<CameraFocusDistanceRange, CameraFocusDistanceRangeVm>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_camera_stream_focus_distance_range(self.call_context, context, handle)?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<CameraFocusDistanceRange>::uninit();
-                unsafe {
-                    device_native::destack_device_camera_stream_focus_distance_range(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            },
-        }
-    }
-
-    /// Read camera focus mode.
-    ///
-    /// Read one focus mode from one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend focus mode query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_focus_mode(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<CameraFocusMode> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_camera_stream_focus_mode(self.call_context, context, handle)?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<CameraFocusMode>::uninit();
-                unsafe {
-                    device_native::destack_device_camera_stream_focus_mode(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            },
-        }
-    }
-
-    /// Open camera stream.
-    ///
-    /// Open one camera stream with explicit stream configuration.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend stream configuration and negotiation APIs.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android CameraCaptureSession plus ImageReader configuration, AVFoundation capture-output configuration on iOS and macOS, negotiated streaming queues on Linux-class Unix, and Media Foundation stream sinks on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1686,71 +1605,67 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read camera pan angle.
+    /// Pause recording for one opened camera stream.
     ///
-    /// Read one pan angle in degrees from one opened camera stream.
+    /// Pause one active recording on one opened camera stream.
+    /// Backends that cannot pause recording report `notSupported` instead of synthesizing segmented output.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend pan query APIs where available.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android recorder pause, AVFoundation movie-output pause or asset-writer pause on iOS and macOS where available, pipeline pause on Linux-class Unix when supported, and Media Foundation recording pause on Windows when supported.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `device.camera.control`.
+    /// Requires `device.camera.capture`.
     ///
     /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_pan_degrees(
+    /// External, nonrecordable.
+    pub(crate) fn destack_device_camera_stream_pause_recording(
         &mut self,
         handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<f64> {
+    ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_camera_stream_pan_degrees(self.call_context, context, handle)?;
-                Ok(out)
+                device_vm::destack_device_camera_stream_pause_recording(self.call_context, context, handle)
             }
-            None => {
-                let mut out = std::mem::MaybeUninit::<f64>::uninit();
-                unsafe {
-                    device_native::destack_device_camera_stream_pan_degrees(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
+            None => unsafe {
+                device_native::destack_device_camera_stream_pause_recording(self.call_context, handle)
             },
         }
     }
 
-    /// Read pan-angle range.
+    /// Read still-photo capabilities for one opened camera stream.
     ///
-    /// Read one pan-angle range descriptor for one opened camera stream.
+    /// Read the still-photo capability descriptor for one opened camera stream.
+    /// Photo capabilities are separated from stream capabilities because still capture commonly supports different formats, sizes, and flash policy than the video stream itself.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend pan capability query APIs where available.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android CameraCharacteristics still-capture discovery, AVFoundation still-photo capability queries on iOS and macOS, V4L2 plus codec capability discovery on Linux-class Unix, and Media Foundation still-image capability discovery on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `device.camera.control`.
+    /// Requires `device.camera.capture`.
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_pan_range(
+    pub(crate) fn destack_device_camera_stream_photo_capabilities(
         &mut self,
         handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<HarnessValue<CameraPanAngleRange, CameraPanAngleRangeVm>> {
+    ) -> RuntimeResult<HarnessValue<CameraPhotoCapabilities, CameraPhotoCapabilitiesVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_camera_stream_pan_range(self.call_context, context, handle)?;
+                let out = device_vm::destack_device_camera_stream_photo_capabilities(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<CameraPanAngleRange>::uninit();
+                let mut out = std::mem::MaybeUninit::<CameraPhotoCapabilities>::uninit();
                 unsafe {
-                    device_native::destack_device_camera_stream_pan_range(self.call_context, out.as_mut_ptr(), handle)?;
+                    device_native::destack_device_camera_stream_photo_capabilities(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
@@ -1758,13 +1673,51 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read camera frame.
+    /// Read still-photo state for one opened camera stream.
     ///
-    /// Wait for one camera frame from one running stream.
+    /// Read the current still-photo state snapshot for one opened camera stream.
+    /// Still-photo state remains separate from stream control state because photo output commonly uses different size, flash, and encoding policy than the live stream itself.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend camera frame queue operations.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android still-capture template state, AVFoundation live photo-output state on iOS and macOS, V4L2 plus codec still-image state on Linux-class Unix, and Media Foundation still-image state on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.capture`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_photo_state(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<HarnessValue<CameraPhotoState, CameraPhotoStateVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_photo_state(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<CameraPhotoState>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_photo_state(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
+    /// Read one camera frame.
+    ///
+    /// Wait for the next camera frame from one running stream.
+    /// Frame payloads preserve timestamp, plane layout, and metadata exactly so higher layers can implement their own buffering and color policy.
+    ///
+    /// # Platform
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses frame queues fed by Android ImageReader callbacks, AVFoundation sample-buffer callbacks on iOS and macOS, streaming buffer completion on Linux-class Unix, and Media Foundation sample delivery on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -1795,71 +1748,36 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read camera saturation.
+    /// Read recording capabilities for one opened camera stream.
     ///
-    /// Read one saturation adjustment from one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend saturation query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_saturation(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<f64> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_camera_stream_saturation(self.call_context, context, handle)?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<f64>::uninit();
-                unsafe {
-                    device_native::destack_device_camera_stream_saturation(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            },
-        }
-    }
-
-    /// Read saturation range.
-    ///
-    /// Read one saturation range descriptor for one opened camera stream.
+    /// Read the recording capability descriptor for one opened camera stream.
+    /// Recording capabilities stay separate from still-photo and live-frame capabilities because container, codec, audio, and pause support follow a different backend pipeline.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend saturation capability query APIs where available.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android Recorder or MediaCodec capture capability discovery, AVFoundation movie-output capability queries on iOS and macOS, V4L2 plus codec pipeline discovery on Linux-class Unix, and Media Foundation sink-writer capability discovery on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `device.camera.control`.
+    /// Requires `device.camera.capture`.
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_saturation_range(
+    pub(crate) fn destack_device_camera_stream_recording_capabilities(
         &mut self,
         handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<HarnessValue<CameraFloatControlRange, CameraFloatControlRangeVm>> {
+    ) -> RuntimeResult<HarnessValue<CameraRecordingCapabilities, CameraRecordingCapabilitiesVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_camera_stream_saturation_range(self.call_context, context, handle)?;
+                let out = device_vm::destack_device_camera_stream_recording_capabilities(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<CameraFloatControlRange>::uninit();
+                let mut out = std::mem::MaybeUninit::<CameraRecordingCapabilities>::uninit();
                 unsafe {
-                    device_native::destack_device_camera_stream_saturation_range(self.call_context, out.as_mut_ptr(), handle)?;
+                    device_native::destack_device_camera_stream_recording_capabilities(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
@@ -1867,71 +1785,36 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read camera sensor ISO.
+    /// Read recording state for one opened camera stream.
     ///
-    /// Read one sensor ISO value from one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend ISO query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_sensor_iso(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<u32> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_camera_stream_sensor_iso(self.call_context, context, handle)?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<u32>::uninit();
-                unsafe {
-                    device_native::destack_device_camera_stream_sensor_iso(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            },
-        }
-    }
-
-    /// Read sensor-ISO range.
-    ///
-    /// Read one sensor-ISO range descriptor for one opened camera stream.
+    /// Read the current recording state snapshot for one opened camera stream.
+    /// Recording state remains separate from stream control and still-photo state because recording has its own lifecycle and sink policy.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend ISO capability query APIs where available.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android recorder state, AVFoundation movie-output state on iOS and macOS, V4L2 plus codec recording state on Linux-class Unix, and Media Foundation recording state on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `device.camera.control`.
+    /// Requires `device.camera.capture`.
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_sensor_iso_range(
+    pub(crate) fn destack_device_camera_stream_recording_state(
         &mut self,
         handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<HarnessValue<CameraSensorIsoRange, CameraSensorIsoRangeVm>> {
+    ) -> RuntimeResult<HarnessValue<CameraRecordingState, CameraRecordingStateVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_camera_stream_sensor_iso_range(self.call_context, context, handle)?;
+                let out = device_vm::destack_device_camera_stream_recording_state(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<CameraSensorIsoRange>::uninit();
+                let mut out = std::mem::MaybeUninit::<CameraRecordingState>::uninit();
                 unsafe {
-                    device_native::destack_device_camera_stream_sensor_iso_range(self.call_context, out.as_mut_ptr(), handle)?;
+                    device_native::destack_device_camera_stream_recording_state(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
@@ -1939,648 +1822,45 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Set camera brightness.
+    /// Resume recording for one opened camera stream.
     ///
-    /// Apply one brightness adjustment on one opened camera stream.
+    /// Resume one paused recording on one opened camera stream.
+    /// Resuming continues the active recording session rather than starting a new output file.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend brightness control APIs where available.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android recorder resume, AVFoundation movie-output resume or asset-writer resume on iOS and macOS where available, pipeline resume on Linux-class Unix when supported, and Media Foundation recording resume on Windows when supported.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `device.camera.control`.
+    /// Requires `device.camera.capture`.
     ///
     /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_set_brightness(
+    /// External, nonrecordable.
+    pub(crate) fn destack_device_camera_stream_resume_recording(
         &mut self,
         handle: resource::CameraStreamHandle,
-        argument_value: f64,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                device_vm::destack_device_camera_stream_set_brightness(self.call_context, context, handle, argument_value)
+                device_vm::destack_device_camera_stream_resume_recording(self.call_context, context, handle)
             }
             None => unsafe {
-                device_native::destack_device_camera_stream_set_brightness(self.call_context, handle, argument_value)
+                device_native::destack_device_camera_stream_resume_recording(self.call_context, handle)
             },
         }
     }
 
-    /// Set camera contrast.
-    ///
-    /// Apply one contrast adjustment on one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend contrast control APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_set_contrast(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-        argument_value: f64,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                device_vm::destack_device_camera_stream_set_contrast(self.call_context, context, handle, argument_value)
-            }
-            None => unsafe {
-                device_native::destack_device_camera_stream_set_contrast(self.call_context, handle, argument_value)
-            },
-        }
-    }
-
-    /// Set camera exposure compensation.
-    ///
-    /// Apply one exposure-compensation value in EV units on one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend exposure-compensation control APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_set_exposure_compensation(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-        valueev: f64,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                device_vm::destack_device_camera_stream_set_exposure_compensation(self.call_context, context, handle, valueev)
-            }
-            None => unsafe {
-                device_native::destack_device_camera_stream_set_exposure_compensation(self.call_context, handle, valueev)
-            },
-        }
-    }
-
-    /// Set camera exposure mode.
-    ///
-    /// Apply one exposure mode on one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend camera exposure mode APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_set_exposure_mode(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-        mode: CameraExposureMode,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                device_vm::destack_device_camera_stream_set_exposure_mode(self.call_context, context, handle, mode)
-            }
-            None => unsafe {
-                device_native::destack_device_camera_stream_set_exposure_mode(self.call_context, handle, mode)
-            },
-        }
-    }
-
-    /// Set camera exposure time.
-    ///
-    /// Apply one exposure time in nanoseconds on one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend exposure-duration control APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_set_exposure_time_ns(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-        valuens: u64,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                device_vm::destack_device_camera_stream_set_exposure_time_ns(self.call_context, context, handle, valuens)
-            }
-            None => unsafe {
-                device_native::destack_device_camera_stream_set_exposure_time_ns(self.call_context, handle, valuens)
-            },
-        }
-    }
-
-    /// Set camera focus distance.
-    ///
-    /// Apply one focus-distance value in diopters on one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend focus-distance control APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_set_focus_distance_diopters(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-        diopters: f64,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                device_vm::destack_device_camera_stream_set_focus_distance_diopters(self.call_context, context, handle, diopters)
-            }
-            None => unsafe {
-                device_native::destack_device_camera_stream_set_focus_distance_diopters(self.call_context, handle, diopters)
-            },
-        }
-    }
-
-    /// Set camera focus mode.
-    ///
-    /// Apply one focus mode on one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend focus mode APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_set_focus_mode(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-        mode: CameraFocusMode,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                device_vm::destack_device_camera_stream_set_focus_mode(self.call_context, context, handle, mode)
-            }
-            None => unsafe {
-                device_native::destack_device_camera_stream_set_focus_mode(self.call_context, handle, mode)
-            },
-        }
-    }
-
-    /// Set camera pan angle.
-    ///
-    /// Apply one pan angle in degrees on one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend pan control APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_set_pan_degrees(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-        degrees: f64,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                device_vm::destack_device_camera_stream_set_pan_degrees(self.call_context, context, handle, degrees)
-            }
-            None => unsafe {
-                device_native::destack_device_camera_stream_set_pan_degrees(self.call_context, handle, degrees)
-            },
-        }
-    }
-
-    /// Set camera saturation.
-    ///
-    /// Apply one saturation adjustment on one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend saturation control APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_set_saturation(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-        argument_value: f64,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                device_vm::destack_device_camera_stream_set_saturation(self.call_context, context, handle, argument_value)
-            }
-            None => unsafe {
-                device_native::destack_device_camera_stream_set_saturation(self.call_context, handle, argument_value)
-            },
-        }
-    }
-
-    /// Set camera sensor ISO.
-    ///
-    /// Apply one sensor ISO value on one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend ISO control APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_set_sensor_iso(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-        iso: u32,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                device_vm::destack_device_camera_stream_set_sensor_iso(self.call_context, context, handle, iso)
-            }
-            None => unsafe {
-                device_native::destack_device_camera_stream_set_sensor_iso(self.call_context, handle, iso)
-            },
-        }
-    }
-
-    /// Set camera sharpness.
-    ///
-    /// Apply one sharpness adjustment on one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend sharpness control APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_set_sharpness(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-        argument_value: f64,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                device_vm::destack_device_camera_stream_set_sharpness(self.call_context, context, handle, argument_value)
-            }
-            None => unsafe {
-                device_native::destack_device_camera_stream_set_sharpness(self.call_context, handle, argument_value)
-            },
-        }
-    }
-
-    /// Set camera stabilization mode.
-    ///
-    /// Apply one stabilization mode on one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend stabilization APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_set_stabilization_mode(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-        mode: CameraStabilizationMode,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                device_vm::destack_device_camera_stream_set_stabilization_mode(self.call_context, context, handle, mode)
-            }
-            None => unsafe {
-                device_native::destack_device_camera_stream_set_stabilization_mode(self.call_context, handle, mode)
-            },
-        }
-    }
-
-    /// Set camera tilt angle.
-    ///
-    /// Apply one tilt angle in degrees on one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend tilt control APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_set_tilt_degrees(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-        degrees: f64,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                device_vm::destack_device_camera_stream_set_tilt_degrees(self.call_context, context, handle, degrees)
-            }
-            None => unsafe {
-                device_native::destack_device_camera_stream_set_tilt_degrees(self.call_context, handle, degrees)
-            },
-        }
-    }
-
-    /// Set camera torch mode.
-    ///
-    /// Apply one torch mode on one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend torch APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_set_torch_mode(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-        mode: CameraTorchMode,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                device_vm::destack_device_camera_stream_set_torch_mode(self.call_context, context, handle, mode)
-            }
-            None => unsafe {
-                device_native::destack_device_camera_stream_set_torch_mode(self.call_context, handle, mode)
-            },
-        }
-    }
-
-    /// Set camera white balance.
-    ///
-    /// Apply one white-balance value in kelvin on one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend white-balance control APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_set_white_balance_kelvin(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-        kelvin: u32,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                device_vm::destack_device_camera_stream_set_white_balance_kelvin(self.call_context, context, handle, kelvin)
-            }
-            None => unsafe {
-                device_native::destack_device_camera_stream_set_white_balance_kelvin(self.call_context, handle, kelvin)
-            },
-        }
-    }
-
-    /// Set camera white-balance mode.
-    ///
-    /// Apply one white-balance mode on one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend white-balance mode APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_set_white_balance_mode(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-        mode: CameraWhiteBalanceMode,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                device_vm::destack_device_camera_stream_set_white_balance_mode(self.call_context, context, handle, mode)
-            }
-            None => unsafe {
-                device_native::destack_device_camera_stream_set_white_balance_mode(self.call_context, handle, mode)
-            },
-        }
-    }
-
-    /// Set camera zoom ratio.
-    ///
-    /// Apply one digital zoom ratio on one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend zoom control APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_set_zoom_ratio(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-        ratio: f64,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                device_vm::destack_device_camera_stream_set_zoom_ratio(self.call_context, context, handle, ratio)
-            }
-            None => unsafe {
-                device_native::destack_device_camera_stream_set_zoom_ratio(self.call_context, handle, ratio)
-            },
-        }
-    }
-
-    /// Read camera sharpness.
-    ///
-    /// Read one sharpness adjustment from one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend sharpness query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_sharpness(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<f64> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_camera_stream_sharpness(self.call_context, context, handle)?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<f64>::uninit();
-                unsafe {
-                    device_native::destack_device_camera_stream_sharpness(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            },
-        }
-    }
-
-    /// Read sharpness range.
-    ///
-    /// Read one sharpness range descriptor for one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend sharpness capability query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_sharpness_range(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<HarnessValue<CameraFloatControlRange, CameraFloatControlRangeVm>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_camera_stream_sharpness_range(self.call_context, context, handle)?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<CameraFloatControlRange>::uninit();
-                unsafe {
-                    device_native::destack_device_camera_stream_sharpness_range(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            },
-        }
-    }
-
-    /// Read camera stabilization mode.
-    ///
-    /// Read one stabilization mode from one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend stabilization mode query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_stabilization_mode(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<CameraStabilizationMode> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_camera_stream_stabilization_mode(self.call_context, context, handle)?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<CameraStabilizationMode>::uninit();
-                unsafe {
-                    device_native::destack_device_camera_stream_stabilization_mode(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            },
-        }
-    }
-
-    /// Start camera stream.
+    /// Start a camera stream.
     ///
     /// Start one opened camera stream.
+    /// Starting transitions the stream into active frame production without changing its negotiated format or control contract.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend stream start operations.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android repeating-request start, AVFoundation capture-session start on iOS and macOS, queue streaming start on Linux-class Unix, and Media Foundation source start on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -2604,13 +1884,48 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Stop camera stream.
+    /// Start recording from one opened camera stream.
     ///
-    /// Stop one running camera stream.
+    /// Start one video recording using one recording options object.
+    /// Recording is separate from frame reads because encoded capture has its own sink, codec, duration, and audio policy.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend stream stop operations.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android recorder start with camera-session surfaces, AVFoundation movie-file or asset-writer start on iOS and macOS, V4L2 plus codec recording pipelines on Linux-class Unix, and Media Foundation sink-writer start on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.capture`, `audio.capture`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_device_camera_stream_start_recording(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+        options: HarnessValue<CameraRecordingOptions, CameraRecordingOptionsVm>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                device_vm::destack_device_camera_stream_start_recording(self.call_context, context, handle, options)
+            }
+            None => unsafe {
+                let options = options.into_native("options")?;
+                device_native::destack_device_camera_stream_start_recording(self.call_context, handle, options)
+            },
+        }
+    }
+
+    /// Stop a camera stream.
+    ///
+    /// Stop one running camera stream.
+    /// Stopping halts frame production while preserving the stream handle for later restart or control queries.
+    ///
+    /// # Platform
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android repeating-request stop, AVFoundation capture-session stop on iOS and macOS, queue streaming stop on Linux-class Unix, and Media Foundation source stop on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -2634,71 +1949,37 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read camera tilt angle.
+    /// Stop recording for one opened camera stream.
     ///
-    /// Read one tilt angle in degrees from one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend tilt query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_tilt_degrees(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<f64> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_camera_stream_tilt_degrees(self.call_context, context, handle)?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<f64>::uninit();
-                unsafe {
-                    device_native::destack_device_camera_stream_tilt_degrees(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            },
-        }
-    }
-
-    /// Read tilt-angle range.
-    ///
-    /// Read one tilt-angle range descriptor for one opened camera stream.
+    /// Stop one active recording on one opened camera stream and return the finalized recording descriptor.
+    /// Stop finalizes encoded output and preserves the produced file path and encoded format metadata.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend tilt capability query APIs where available.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android recorder stop with finalized output metadata, AVFoundation movie-output or asset-writer finalize on iOS and macOS, V4L2 plus codec pipeline finalize on Linux-class Unix, and Media Foundation sink-writer finalize on Windows.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
     ///
     /// # Security
-    /// Requires `device.camera.control`.
+    /// Requires `device.camera.capture`.
     ///
     /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_tilt_range(
+    /// External, nonrecordable.
+    pub(crate) fn destack_device_camera_stream_stop_recording(
         &mut self,
         handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<HarnessValue<CameraTiltAngleRange, CameraTiltAngleRangeVm>> {
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<CameraRecording, CameraRecordingVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_camera_stream_tilt_range(self.call_context, context, handle)?;
+                let out = device_vm::destack_device_camera_stream_stop_recording(self.call_context, context, handle, timeoutns)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<CameraTiltAngleRange>::uninit();
+                let mut out = std::mem::MaybeUninit::<CameraRecording>::uninit();
                 unsafe {
-                    device_native::destack_device_camera_stream_tilt_range(self.call_context, out.as_mut_ptr(), handle)?;
+                    device_native::destack_device_camera_stream_stop_recording(self.call_context, out.as_mut_ptr(), handle, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
@@ -2706,49 +1987,55 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read camera torch mode.
+    /// Capture one still photo from one opened camera stream.
     ///
-    /// Read one torch mode from one opened camera stream.
+    /// Capture one still photo using one still-photo settings object.
+    /// Fields omitted from the settings object leave photo policy at host defaults, and still capture stays separate from streaming frame reads because photo output often uses different exposure, flash, resolution, and encoding policy than the live stream.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend torch mode query APIs where available.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses Android still-capture requests with ImageReader outputs, AVFoundation photo capture on iOS and macOS, V4L2 plus codec capture pipelines on Linux-class Unix, and Media Foundation still-image capture on Windows.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
     ///
     /// # Security
-    /// Requires `device.camera.control`.
+    /// Requires `device.camera.capture`.
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_torch_mode(
+    pub(crate) fn destack_device_camera_stream_take_photo(
         &mut self,
         handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<CameraTorchMode> {
+        settings: HarnessValue<CameraPhotoSettings, CameraPhotoSettingsVm>,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<CameraPhoto, CameraPhotoVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_camera_stream_torch_mode(self.call_context, context, handle)?;
-                Ok(out)
+                let settings = settings.into_vm("settings")?;
+                let out = device_vm::destack_device_camera_stream_take_photo(self.call_context, context, handle, settings, timeoutns)?;
+                Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<CameraTorchMode>::uninit();
+                let settings = settings.into_native("settings")?;
+                let mut out = std::mem::MaybeUninit::<CameraPhoto>::uninit();
                 unsafe {
-                    device_native::destack_device_camera_stream_torch_mode(self.call_context, out.as_mut_ptr(), handle)?;
+                    device_native::destack_device_camera_stream_take_photo(self.call_context, out.as_mut_ptr(), handle, settings, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
-                Ok(out)
+                Ok(HarnessValue::Native(out))
             },
         }
     }
 
-    /// Poll camera frame without blocking.
+    /// Poll one camera frame without blocking.
     ///
-    /// Poll one camera frame from one running stream without waiting.
+    /// Read the next queued camera frame from one running stream without waiting for new capture work.
+    /// This operation only consumes frames that have already been published into the stream queue.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend nonblocking camera frame queue operations.
+    /// Android, iOS, macOS, Linux-class Unix, and Windows.
+    /// Uses frame queues fed by Android ImageReader callbacks, AVFoundation sample-buffer callbacks on iOS and macOS, streaming buffer completion on Linux-class Unix, and Media Foundation sample delivery on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -2778,193 +2065,14 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read camera white balance.
+    /// Close a serial endpoint.
     ///
-    /// Read one white-balance value in kelvin from one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend white-balance query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_white_balance_kelvin(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<u32> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_camera_stream_white_balance_kelvin(self.call_context, context, handle)?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<u32>::uninit();
-                unsafe {
-                    device_native::destack_device_camera_stream_white_balance_kelvin(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            },
-        }
-    }
-
-    /// Read camera white-balance mode.
-    ///
-    /// Read one white-balance mode from one opened camera stream.
+    /// Close one opened serial endpoint and release its underlying host session.
+    /// Closing a port also terminates its event stream and any pending read or write waits owned by that session.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend white-balance mode query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_white_balance_mode(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<CameraWhiteBalanceMode> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_camera_stream_white_balance_mode(self.call_context, context, handle)?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<CameraWhiteBalanceMode>::uninit();
-                unsafe {
-                    device_native::destack_device_camera_stream_white_balance_mode(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            },
-        }
-    }
-
-    /// Read white-balance range.
-    ///
-    /// Read one white-balance range descriptor for one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend white-balance capability query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_white_balance_range(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<HarnessValue<CameraWhiteBalanceRange, CameraWhiteBalanceRangeVm>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_camera_stream_white_balance_range(self.call_context, context, handle)?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<CameraWhiteBalanceRange>::uninit();
-                unsafe {
-                    device_native::destack_device_camera_stream_white_balance_range(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            },
-        }
-    }
-
-    /// Read camera zoom ratio.
-    ///
-    /// Read one digital zoom ratio from one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend zoom query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_zoom_ratio(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<f64> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_camera_stream_zoom_ratio(self.call_context, context, handle)?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<f64>::uninit();
-                unsafe {
-                    device_native::destack_device_camera_stream_zoom_ratio(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            },
-        }
-    }
-
-    /// Read zoom-ratio range.
-    ///
-    /// Read one zoom-ratio range descriptor for one opened camera stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend zoom capability query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_zoom_ratio_range(
-        &mut self,
-        handle: resource::CameraStreamHandle,
-    ) -> RuntimeResult<HarnessValue<CameraZoomRatioRange, CameraZoomRatioRangeVm>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_camera_stream_zoom_ratio_range(self.call_context, context, handle)?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<CameraZoomRatioRange>::uninit();
-                unsafe {
-                    device_native::destack_device_camera_stream_zoom_ratio_range(self.call_context, out.as_mut_ptr(), handle)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            },
-        }
-    }
-
-    /// Close serial endpoint.
-    ///
-    /// Close one opened serial endpoint and release host resources.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific serial close operations.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses handle teardown and wait cancellation on Windows and file-descriptor close on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -2990,11 +2098,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Read serial endpoint configuration.
     ///
-    /// Read one line-configuration snapshot for one opened serial endpoint.
+    /// Read the current line configuration for one opened serial endpoint.
+    /// The returned snapshot reflects the active host serial driver state rather than only the original open options.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend serial line-configuration queries.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses GetCommState on Windows and tcgetattr on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -3024,13 +2133,14 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Reconfigure serial endpoint.
+    /// Reconfigure a serial endpoint.
     ///
-    /// Apply one serial line configuration on one opened endpoint.
+    /// Apply one complete serial line configuration to one opened endpoint.
+    /// Configuration updates take effect on the live session and govern subsequent I/O and event behavior.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses termios reconfiguration on Unix-like hosts and DCB reconfiguration on Windows.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses SetCommState and related serial control calls on Windows and termios attribute updates on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3057,13 +2167,14 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read serial endpoint descriptor.
+    /// Read a serial endpoint descriptor.
     ///
-    /// Read one stable descriptor snapshot for one opened serial endpoint.
+    /// Read the stable descriptor associated with one opened serial endpoint.
+    /// The descriptor reports topology identity and metadata, not transient line state.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend descriptor and device-metadata queries.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses the session's bound topology identity with metadata gathered from SetupAPI on Windows, IOKit on macOS, and sysfs or udev on Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -3096,10 +2207,11 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Discard queued inbound serial bytes.
     ///
     /// Drop queued unread inbound bytes for one opened serial endpoint.
+    /// This affects host receive buffers only and does not synthesize a disconnect or error condition.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses termios and Win32 purge APIs where available.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses PurgeComm receive-flush flags on Windows and tcflush with TCIFLUSH on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -3126,10 +2238,11 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Discard queued outbound serial bytes.
     ///
     /// Drop queued unwritten outbound bytes for one opened serial endpoint.
+    /// This operation aborts buffered transmit data without modifying the line configuration.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses termios and Win32 purge APIs where available.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses PurgeComm transmit-flush flags on Windows and tcflush with TCOFLUSH on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -3155,11 +2268,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Drain serial output.
     ///
-    /// Wait until queued outbound bytes drain on one opened serial endpoint.
+    /// Wait until queued outbound bytes for one opened serial endpoint have left the host transmit queue.
+    /// This is a transport flush barrier, not a close or cancellation operation.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend serial drain operations.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses transmit-empty waits on Windows and tcdrain on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -3185,11 +2299,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Read serial input signal state.
     ///
-    /// Return current serial input signal state for one opened endpoint.
+    /// Return the current modem input signal state for one opened endpoint.
+    /// Signal sampling is instantaneous and does not consume the serial event stream.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend modem-status APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses GetCommModemStatus on Windows and modem-bit reads such as TIOCMGET on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -3221,12 +2336,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// List serial endpoints.
     ///
-    /// Enumerate available host serial endpoints and return stable identifiers.
-    /// Enumeration ordering follows host backend behavior.
+    /// Enumerate serial endpoints that are currently reachable from the host namespace and return stable descriptor snapshots for them.
+    /// Descriptor identity is topology based rather than open-handle based, so callers can compare enumeration results across watch and open lifetimes.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses `/dev/tty*` style enumeration on Unix-like hosts and SetupAPI COM-port enumeration on Windows.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses SetupAPI serial device interfaces on Windows, IOKit serial-service enumeration on macOS, and tty enumeration with sysfs or udev identity enrichment on Linux-class Unix.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -3255,13 +2370,14 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Open serial endpoint.
+    /// Open a serial endpoint.
     ///
-    /// Open one serial endpoint with explicit line configuration and host open policy.
+    /// Open one serial endpoint with explicit line configuration and host buffering policy.
+    /// Opening establishes a long lived session whose configuration, events, and I/O remain isolated from later topology churn.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses termios-family open operations on Unix-like hosts and CreateFile serial APIs on Windows.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses overlapped serial handles with DCB and timeout configuration on Windows and POSIX open plus termios session setup on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3296,13 +2412,14 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Wait for one serial event.
+    /// Read one serial event.
     ///
-    /// Wait for one pending serial event for one opened endpoint.
+    /// Wait for the next pending serial event for one opened endpoint.
+    /// Events report readiness, modem transitions, disconnects, and line errors without forcing callers to poll control state.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend serial event queues where available.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses WaitCommEvent driven ingress on Windows and kqueue or poll class readiness plus modem-status sources on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -3335,12 +2452,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Read serial bytes.
     ///
-    /// Read bytes into caller memory from one opened serial endpoint.
-    /// Partial reads are preserved exactly as reported by the host backend.
+    /// Read bytes directly into caller memory from one opened serial endpoint.
+    /// Partial completion is preserved exactly so callers can build their own framing and buffering policy.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend read operations with timeout handling.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses overlapped ReadFile on Windows and blocking or deadline-bounded reads on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -3377,10 +2494,11 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Update serial output signal state.
     ///
     /// Apply one partial output signal update for one opened endpoint.
+    /// Fields that are omitted leave the corresponding line state unchanged.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend serial line-control APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses EscapeCommFunction and serial control ioctls on Windows and modem-control ioctls on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3409,11 +2527,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Poll one serial event without blocking.
     ///
-    /// Poll one pending serial event for one opened endpoint.
+    /// Read the next pending serial event for one opened endpoint without waiting for new host activity.
+    /// This operation only consumes events that have already been published into the session queue.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend nonblocking serial event polling where available.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses session event queues fed by WaitCommEvent on Windows and readiness monitors on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -3423,19 +2542,19 @@ impl<'call> DeviceHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_device_serial_try_event(
+    pub(crate) fn destack_device_serial_try_read_event(
         &mut self,
         handle: resource::SerialPortHandle,
     ) -> RuntimeResult<HarnessValue<SerialEvent, SerialEventVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_serial_try_event(self.call_context, context, handle)?;
+                let out = device_vm::destack_device_serial_try_read_event(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<SerialEvent>::uninit();
                 unsafe {
-                    device_native::destack_device_serial_try_event(self.call_context, out.as_mut_ptr(), handle)?;
+                    device_native::destack_device_serial_try_read_event(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
@@ -3445,12 +2564,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Poll serial bytes without blocking.
     ///
-    /// Read bytes into caller memory from one opened serial endpoint without waiting.
-    /// Empty queue state is reported through ioWouldBlock.
+    /// Read bytes directly into caller memory from one opened serial endpoint without waiting for new input.
+    /// This operation only reports bytes that are already buffered by the host serial stack.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend nonblocking serial read operations.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses nonblocking overlapped completion checks on Windows and nonblocking read paths on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -3483,13 +2602,156 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
+    /// Close a serial topology watch stream.
+    ///
+    /// Close one opened serial topology watch stream and release its host subscription state.
+    /// Closing a watch never closes or mutates any separately opened serial port session.
+    ///
+    /// # Platform
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses Configuration Manager notification teardown on Windows and native device-namespace watcher teardown on macOS and Linux-class Unix.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.serial.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_serial_watch_close(
+        &mut self,
+        handle: resource::SerialWatchHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                device_vm::destack_device_serial_watch_close(self.call_context, context, handle)
+            }
+            None => unsafe {
+                device_native::destack_device_serial_watch_close(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Open a serial topology watch stream.
+    ///
+    /// Open a watch stream that reports serial endpoint attach and detach transitions as ordered topology events.
+    /// The stream is scoped to host namespace changes rather than to any individual open port session.
+    ///
+    /// # Platform
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses Configuration Manager device-interface notifications on Windows and native device-namespace watchers paired with IOKit or sysfs descriptor snapshots on macOS and Linux-class Unix.
+    ///
+    /// # Errors
+    /// Returns ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.serial.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_serial_watch_open(
+        &mut self,
+    ) -> RuntimeResult<resource::SerialWatchHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_serial_watch_open(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<resource::SerialWatchHandle>::uninit();
+                unsafe {
+                    device_native::destack_device_serial_watch_open(self.call_context, out.as_mut_ptr())?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            },
+        }
+    }
+
+    /// Read one serial topology event.
+    ///
+    /// Wait for the next queued serial topology event from one opened watch stream.
+    /// The returned event carries the full descriptor snapshot so callers do not need to race a follow-up list call.
+    ///
+    /// # Platform
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses watch queues fed by Configuration Manager device-interface notifications on Windows and by native device-namespace watchers on macOS and Linux-class Unix.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.serial.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_serial_watch_read(
+        &mut self,
+        handle: resource::SerialWatchHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<SerialWatchEvent, SerialWatchEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_serial_watch_read(self.call_context, context, handle, timeoutns)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<SerialWatchEvent>::uninit();
+                unsafe {
+                    device_native::destack_device_serial_watch_read(self.call_context, out.as_mut_ptr(), handle, timeoutns)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
+    /// Poll one serial topology event without blocking.
+    ///
+    /// Read the next queued serial topology event from one opened watch stream without waiting.
+    /// This operation only consumes already published attach or detach events.
+    ///
+    /// # Platform
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses watch queues fed by Configuration Manager device-interface notifications on Windows and by native device-namespace watchers on macOS and Linux-class Unix.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.serial.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_serial_watch_try_read(
+        &mut self,
+        handle: resource::SerialWatchHandle,
+    ) -> RuntimeResult<HarnessValue<SerialWatchEvent, SerialWatchEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_serial_watch_try_read(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<SerialWatchEvent>::uninit();
+                unsafe {
+                    device_native::destack_device_serial_watch_try_read(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
     /// Write serial bytes.
     ///
     /// Write one byte sequence to one opened serial endpoint.
+    /// Partial completion is preserved exactly so callers can retry or pace writes explicitly.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend serial write operations with timeout handling.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses overlapped WriteFile on Windows and write or writev class serial output on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3526,10 +2788,11 @@ impl<'call> DeviceHarnessContext<'call> {
     /// List USB BOS capabilities.
     ///
     /// Enumerate BOS capability descriptors for one opened USB device.
+    /// Raw BOS payload bytes are preserved so callers can interpret platform and vendor capabilities without data loss.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host BOS or device-capability descriptor query APIs where available.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses standard BOS descriptor reads on the default control pipe through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -3561,11 +2824,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Read bulk endpoint bytes.
     ///
-    /// Read up to `maxBytes` from one bulk IN endpoint and return transfer status.
+    /// Read up to `maxBytes` from one bulk IN endpoint and return transfer status with payload bytes.
+    /// Completion may be partial, which preserves host transfer semantics for high volume streaming protocols.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB bulk-transfer APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses bulk IN transfer submissions on claimed interfaces through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
@@ -3603,10 +2867,11 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Write bulk endpoint bytes.
     ///
     /// Write bytes to one bulk OUT endpoint and return transfer status with transferred byte count.
+    /// Completion may be partial, which preserves host transfer semantics for explicit higher-level retry policy.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB bulk-transfer APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses bulk OUT transfer submissions on claimed interfaces through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3646,10 +2911,11 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Claim USB interface.
     ///
     /// Claim one interface on one opened USB device.
+    /// Claimed interfaces become the authority boundary for subsequent endpoint transfers and alternate-setting changes.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB interface-claim APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses libusb interface claims on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3676,11 +2942,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Clear halt condition on one endpoint.
     ///
-    /// Clear one endpoint STALL condition for one opened USB device.
+    /// Clear a STALL condition on one endpoint for one opened USB device.
+    /// This is the explicit pipe recovery operation and does not imply transfer cancellation or interface release.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB clear-halt endpoint APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses CLEAR_FEATURE endpoint-halt requests through the active device session via libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3709,11 +2976,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Close USB device.
     ///
-    /// Close one opened USB device and release host resources.
+    /// Close one opened USB device and release its underlying host session.
+    /// Closing a device also releases any claimed interfaces and pending transfer ownership for that session.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB close APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses libusb device-session teardown on macOS, Linux-class Unix, and Windows, and wrapped libusb session teardown on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -3739,11 +3007,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Read active USB configuration value.
     ///
-    /// Read active configuration value for one opened USB device.
+    /// Read the currently selected configuration value for one opened USB device.
+    /// This reports live device state rather than the first configuration in descriptor order.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB configuration-state APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses live configuration queries through the device control path on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -3775,11 +3044,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// List USB configurations.
     ///
-    /// Enumerate USB configurations and nested interface descriptors for one opened device.
+    /// Enumerate USB configurations and their nested interface and endpoint descriptors for one opened device.
+    /// The returned tree is a descriptor snapshot and does not imply that any configuration or interface is currently active.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB configuration-descriptor query APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses standard configuration-descriptor reads and host descriptor parsing through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -3811,11 +3081,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Set active USB configuration value.
     ///
-    /// Apply active configuration value for one opened USB device.
+    /// Select the active configuration value for one opened USB device.
+    /// Configuration changes are device state transitions and may invalidate previously claimed interfaces.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB set-configuration APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses SET_CONFIGURATION control requests through libusb on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3842,11 +3113,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Read control-transfer response bytes.
     ///
-    /// Execute one control-transfer read and return transfer status with response bytes.
+    /// Execute one control-transfer read and return both transfer status and response bytes.
+    /// The setup packet is passed through without higher-level interpretation so callers can issue standard, class, or vendor requests explicitly.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB control-transfer APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses synchronous or deadline-bounded default-control transfers through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -3882,11 +3154,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Write control-transfer request bytes.
     ///
-    /// Execute one control-transfer write and return transfer status with transferred byte count.
+    /// Execute one control-transfer write and return both transfer status and transferred byte count.
+    /// The setup packet is passed through without higher-level interpretation so callers can issue standard, class, or vendor requests explicitly.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB control-transfer APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses synchronous or deadline-bounded default-control transfers through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3925,11 +3198,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Read active USB device descriptor.
     ///
-    /// Read descriptor metadata for one opened USB device.
+    /// Read the active device descriptor and host topology metadata for one opened USB device.
+    /// This snapshot describes the device itself and is independent from any currently claimed interface state.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB descriptor-query APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses cached standard device-descriptor reads with host topology metadata on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -3961,11 +3235,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Read interrupt endpoint bytes.
     ///
-    /// Read up to `maxBytes` from one interrupt IN endpoint and return transfer status.
+    /// Read up to `maxBytes` from one interrupt IN endpoint and return transfer status with payload bytes.
+    /// Poll interval semantics remain device defined, so this call does not synthesize any additional pacing policy.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB interrupt-transfer APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses interrupt IN transfer submissions on claimed interfaces through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
@@ -4003,10 +3278,11 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Write interrupt endpoint bytes.
     ///
     /// Write bytes to one interrupt OUT endpoint and return transfer status with transferred byte count.
+    /// Completion may be partial, which preserves host transfer semantics for explicit higher-level retry policy.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB interrupt-transfer APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses interrupt OUT transfer submissions on claimed interfaces through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -4045,11 +3321,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Read one isochronous transfer.
     ///
-    /// Read one isochronous transfer and return flattened bytes with per-packet transfer results.
+    /// Read one isochronous transfer and return flattened bytes with per-packet completion results.
+    /// Packet boundaries are preserved explicitly so callers can reason about drop, underrun, and partial completion at the host cadence.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB isochronous transfer APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses scheduled isochronous transfer submissions with per-packet completion reporting through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
@@ -4088,11 +3365,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Write one isochronous transfer.
     ///
-    /// Write one flattened isochronous transfer and return per-packet transfer results.
+    /// Write one isochronous transfer and return per-packet completion results.
+    /// Packet boundaries are preserved explicitly so callers can reason about bandwidth pressure and partial completion at the host cadence.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB isochronous transfer APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses scheduled isochronous transfer submissions with per-packet completion reporting through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -4132,112 +3410,14 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Query whether kernel driver is active on one interface.
-    ///
-    /// Query host kernel-driver attachment state for one interface.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB kernel-driver query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_usb_kernel_driver_active(
-        &mut self,
-        handle: resource::UsbDeviceHandle,
-        interfacenumber: u8,
-    ) -> RuntimeResult<bool> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_usb_kernel_driver_active(self.call_context, context, handle, interfacenumber)?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<bool>::uninit();
-                unsafe {
-                    device_native::destack_device_usb_kernel_driver_active(self.call_context, out.as_mut_ptr(), handle, interfacenumber)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            },
-        }
-    }
-
-    /// Attach kernel driver to one interface.
-    ///
-    /// Reattach one host kernel driver to one interface where supported.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB kernel-driver attach APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.control`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_device_usb_kernel_driver_attach(
-        &mut self,
-        handle: resource::UsbDeviceHandle,
-        interfacenumber: u8,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                device_vm::destack_device_usb_kernel_driver_attach(self.call_context, context, handle, interfacenumber)
-            }
-            None => unsafe {
-                device_native::destack_device_usb_kernel_driver_attach(self.call_context, handle, interfacenumber)
-            },
-        }
-    }
-
-    /// Detach kernel driver from one interface.
-    ///
-    /// Detach one host kernel driver from one interface before userspace claiming where supported.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB kernel-driver detach APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.control`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_device_usb_kernel_driver_detach(
-        &mut self,
-        handle: resource::UsbDeviceHandle,
-        interfacenumber: u8,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                device_vm::destack_device_usb_kernel_driver_detach(self.call_context, context, handle, interfacenumber)
-            }
-            None => unsafe {
-                device_native::destack_device_usb_kernel_driver_detach(self.call_context, handle, interfacenumber)
-            },
-        }
-    }
-
     /// List USB devices.
     ///
-    /// Enumerate attached USB devices and return stable descriptors.
+    /// Enumerate attached USB devices and return stable descriptors for the current bus topology.
+    /// Descriptor identity is bus or topology based so callers can correlate list and hotplug results without opening devices.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses libusb-family enumeration or host USB APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses libusb topology enumeration on macOS, Linux-class Unix, and Windows, and the Android USB host bridge on Android.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -4268,11 +3448,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Open USB device.
     ///
-    /// Open one USB device for control and data transfers.
+    /// Open one USB device for descriptor, configuration, interface, and transfer operations.
+    /// Opening creates a device session whose lifetime and claimed interfaces are independent from further topology events.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB open APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses libusb device sessions on macOS, Linux-class Unix, and Windows, and Android host open plus libusb session wrapping on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -4307,10 +3488,11 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Release USB interface.
     ///
     /// Release one interface previously claimed on one opened USB device.
+    /// Releasing an interface ends the session's authority over its endpoints without closing the device itself.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB interface-release APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses libusb interface release calls on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -4338,10 +3520,11 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Reset one USB device.
     ///
     /// Request one bus-level reset for one opened USB device.
+    /// Reset is a disruptive device state transition whose effects on active configuration and interfaces are intentionally left explicit.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB reset-device APIs where available.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses device reset requests through libusb on macOS, Linux-class Unix, and Windows, and the wrapped Android session after host open handoff on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -4368,10 +3551,11 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Set USB interface alternate setting.
     ///
     /// Select one alternate setting for one claimed interface.
+    /// Alternate-setting changes are session local and immediately redefine the active endpoint layout for that interface.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB alternate-setting APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses SET_INTERFACE style interface reconfiguration through libusb on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -4399,11 +3583,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Read USB string descriptors.
     ///
-    /// Read manufacturer, product, and serial-number string descriptors for one language identifier.
+    /// Read manufacturer, product, and serial-number string descriptors for one selected language identifier.
+    /// Missing strings remain absent rather than being synthesized from transport-specific fallback metadata.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB string-descriptor read APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses standard string-descriptor control transfers on the default control pipe through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -4436,11 +3621,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// List USB string-descriptor language identifiers.
     ///
-    /// Enumerate string-descriptor language identifiers for one opened USB device.
+    /// Enumerate the language identifiers that the device exposes for string-descriptor reads.
+    /// Callers can use the returned identifiers to select deterministic manufacturer, product, and serial text reads.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB string-descriptor language query APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses standard GET_DESCRIPTOR string-language queries on the default control pipe through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -4472,11 +3658,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Cancel pending transfers on one endpoint.
     ///
-    /// Cancel pending USB transfers for one endpoint on one opened USB device.
+    /// Cancel pending transfers for one endpoint on one opened USB device.
+    /// Cancellation is scoped to outstanding transfer state and does not clear stalls or reset the device.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB transfer-cancellation APIs where available.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses transfer cancellation on the session's async request queue through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -4505,11 +3692,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Cancel all pending transfers on one opened USB device.
     ///
-    /// Cancel pending USB transfers on all endpoints for one opened USB device.
+    /// Cancel pending transfers on all endpoints for one opened USB device.
+    /// Cancellation is scoped to outstanding transfer state and does not release interfaces or close the device session.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB transfer-cancellation APIs where available.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses transfer cancellation on the device session's async request queues through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -4535,11 +3723,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Close USB hotplug watch stream.
     ///
-    /// Close one USB hotplug watch stream and release host subscription resources.
+    /// Close one opened USB hotplug watch stream and release its host subscription state.
+    /// Closing a watch does not affect any separately opened USB device handle.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB hotplug unsubscription APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses libusb hotplug watch teardown on macOS, Linux-class Unix, and Windows, and Android host watch teardown on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -4565,11 +3754,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Open USB hotplug watch stream.
     ///
-    /// Open one USB hotplug watch stream for attach and detach events.
+    /// Open one hotplug watch stream for USB attach and detach events.
+    /// The stream reports topology changes independently from any later opened device session.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB hotplug subscription APIs.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses libusb hotplug callbacks or snapshot polling on macOS, Linux-class Unix, and Windows, and the Android USB host bridge on Android.
     ///
     /// # Errors
     /// Returns ioWouldBlock, notSupported.
@@ -4600,11 +3790,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Wait for one USB hotplug event.
     ///
-    /// Wait for one queued USB hotplug event from one opened watch stream.
+    /// Wait for the next queued USB hotplug event from one opened watch stream.
+    /// The returned event carries a full descriptor snapshot so attach consumers do not need a follow-up enumeration race.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB hotplug event queues.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses watch queues fed by libusb hotplug callbacks or snapshot polling on macOS, Linux-class Unix, and Windows, and host watch streams on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -4637,11 +3828,12 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Poll one USB hotplug event without blocking.
     ///
-    /// Poll one queued USB hotplug event from one opened watch stream without waiting.
+    /// Read the next queued USB hotplug event from one opened watch stream without waiting.
+    /// This operation only consumes already published attach or detach events.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host nonblocking USB hotplug event queue reads.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses watch queues fed by libusb hotplug callbacks or snapshot polling on macOS, Linux-class Unix, and Windows, and host watch streams on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.

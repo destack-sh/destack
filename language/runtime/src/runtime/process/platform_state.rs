@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::RuntimeError;
 use crate::platform::audio::{PlatformAudioImage, PlatformAudioState};
+use crate::platform::device::{PlatformDeviceImage, PlatformDeviceState};
 use crate::platform::display::{PlatformDisplayImage, PlatformDisplayState};
 use crate::platform::fs::{PlatformFsImage, PlatformFsState};
 use crate::platform::input::{PlatformInputImage, PlatformInputState};
@@ -16,6 +17,8 @@ use crate::platform::os::{PlatformOsImage, PlatformOsState};
 pub(crate) struct PlatformState {
     /// Audio module state.
     pub audio: PlatformAudioState,
+    /// Device module state.
+    pub device: PlatformDeviceState,
     /// Display module state.
     pub display: PlatformDisplayState,
     /// Filesystem module state.
@@ -37,6 +40,8 @@ pub(crate) struct PlatformState {
 pub struct PlatformStateImage {
     /// Audio platform-state image.
     pub audio: PlatformAudioImage,
+    /// Device platform-state image.
+    pub device: PlatformDeviceImage,
     /// Display platform-state image.
     pub display: PlatformDisplayImage,
     /// Filesystem platform-state image.
@@ -67,6 +72,7 @@ impl Capture for PlatformState {
     ) -> Result<Self::Image, Self::Error> {
         Ok(PlatformStateImage {
             audio: self.audio.capture_image(mode, ())?,
+            device: self.device.capture_image(mode, ())?,
             display: self.display.capture_image(mode, ())?,
             fs: self.fs.capture_image(mode, ())?,
             input: self.input.capture_image(mode, ())?,
@@ -84,6 +90,7 @@ impl Capture for PlatformState {
         _context: Self::RestoreContext<'_>,
     ) -> Result<(), Self::Error> {
         self.audio.restore_image(&image.audio, ())?;
+        self.device.restore_image(&image.device, ())?;
         self.display.restore_image(&image.display, ())?;
         self.fs.restore_image(&image.fs, ())?;
         self.input.restore_image(&image.input, ())?;
