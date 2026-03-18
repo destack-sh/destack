@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use destack_builtin::LanguageSymbol;
-use destack_compiler::{BuildKey, Compiler, Task, TaskOutcome};
+use destack_compiler::{BuildKey, Compiler, TaskOutcome};
 use destack_core::{StringPool, fnv1a_64};
 use destack_dir::{
     self as dir, Annotation, Argument, Declaration, DependencyItem, Expression, GlobalSymbolId,
@@ -11,7 +11,7 @@ use destack_dir::{
 use destack_query::format::{format_local_type, format_type_literal};
 use destack_source::ModuleId;
 use destack_workspace::{
-    ArtifactKey, ArtifactRegistry, Module, ModuleDir, ModuleRegistry, ProfileId, Program,
+    ArtifactKey, ArtifactRegistry, DirPatched, Module, ModuleRegistry, ProfileId, Program,
 };
 
 use super::{
@@ -161,19 +161,18 @@ fn patched_dir_artifact(
     program: &Program,
     module_id: ModuleId,
     profile_id: ProfileId,
-) -> Arc<ModuleDir> {
+) -> Arc<DirPatched> {
     if let Some(dir) = program.artifacts.dir_patched(module_id, profile_id) {
         return dir;
     }
 
-    let outcome = compiler.run_task(Task::new(BuildKey::Artifact(ArtifactKey::DirPatched {
-        module: module_id,
-        profile: profile_id,
-    })));
+    let outcome = compiler.run_task(BuildKey::artifact(ArtifactKey::dir_patched(
+        module_id, profile_id,
+    )));
     match outcome {
         TaskOutcome::Complete => {}
-        TaskOutcome::Skipped { reason } => {
-            panic!("binding generation task DirPatched({module_id:?}) was skipped: {reason:?}");
+        TaskOutcome::Skipped => {
+            panic!("binding generation task DirPatched({module_id:?}) was skipped");
         }
         TaskOutcome::Error { error } => {
             panic!(
@@ -949,7 +948,7 @@ pub(crate) fn binding_type_from_symbol(
             name,
             symbol_id,
             declaration_id,
-            members,
+            &members,
             &tree,
             &types,
             &symbol_table,
@@ -983,13 +982,13 @@ pub(crate) fn binding_type_from_symbol(
                     if !elements
                         .iter()
                         .all(|element| is_string_literal_type(*element, &types))
-                        && unwrap_optional_union_type(elements, &types).is_none()
+                        && unwrap_optional_union_type(&elements, &types).is_none()
                     {
                         return binding_type_from_tagged_union_alias(
                             compiler,
                             program,
                             name,
-                            elements,
+                            &elements,
                             tree,
                             &types,
                             &symbol_table,
@@ -1007,7 +1006,7 @@ pub(crate) fn binding_type_from_symbol(
                         compiler,
                         program,
                         name.clone(),
-                        fields,
+                        &fields,
                         tree,
                         &types,
                         &symbol_table,
