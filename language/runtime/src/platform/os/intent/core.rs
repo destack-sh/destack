@@ -1,9 +1,7 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{invalid_argument, monotonic_now_ns};
 use crate::platform::fs::core as core_fs;
-use crate::platform::os::runtime::{
-    self, IntentEventStream, IntentQueuedEvent, IntentQueuedPayload,
-};
+use crate::platform::os::state::{self, IntentEventStream, IntentQueuedEvent, IntentQueuedPayload};
 use crate::platform::os::{
     IntentCustomActionEventValue, IntentCustomActionPayloadValue, IntentEventMetadataValue,
     IntentEventValue, IntentOpenFileEventValue, IntentOpenFilePayloadValue, IntentOpenOptions,
@@ -160,7 +158,7 @@ pub(crate) fn open(
     binding: &BindingCallContext,
     options: IntentOpenOptions,
 ) -> RuntimeResult<resource::IntentHandle> {
-    runtime::intent_open(binding, options)
+    state::intent_open(binding, options)
 }
 
 /// Close one inbound intent stream.
@@ -168,7 +166,7 @@ pub(crate) fn close(
     binding: &BindingCallContext,
     handle: resource::IntentHandle,
 ) -> RuntimeResult<()> {
-    runtime::intent_close(binding, handle)
+    state::intent_close(binding, handle)
 }
 
 /// Read one queued intent event.
@@ -177,7 +175,7 @@ pub(crate) fn read_value(
     handle: resource::IntentHandle,
     timeout_ns: u64,
 ) -> RuntimeResult<IntentEventValue> {
-    let (stream, event) = runtime::intent_read(binding, handle, timeout_ns)?;
+    let (stream, event) = state::intent_read(binding, handle, timeout_ns)?;
 
     encode_intent_event_value(binding, &stream, event)
 }
@@ -187,7 +185,7 @@ pub(crate) fn try_read_value(
     binding: &BindingCallContext,
     handle: resource::IntentHandle,
 ) -> RuntimeResult<IntentEventValue> {
-    let (stream, event) = runtime::intent_try_read(binding, handle)?;
+    let (stream, event) = state::intent_try_read(binding, handle)?;
 
     encode_intent_event_value(binding, &stream, event)
 }
@@ -209,7 +207,7 @@ fn encode_intent_event_value(
             },
         )),
         IntentQueuedPayload::OpenFile { path, content_type } => {
-            let path = runtime::intent_path_from_utf8(binding, path);
+            let path = state::intent_path_from_utf8(binding, path);
             let path = unsafe { <fs::OsPath as NativeAbiCodec>::into_value(path)? };
 
             Ok(IntentEventValue::IntentOpenFileEvent(
@@ -234,7 +232,7 @@ fn encode_intent_event_value(
             let mut encoded_paths = Vec::with_capacity(paths.len());
 
             for path in paths {
-                let path = runtime::intent_path_from_utf8(binding, path);
+                let path = state::intent_path_from_utf8(binding, path);
                 encoded_paths.push(unsafe { <fs::OsPath as NativeAbiCodec>::into_value(path)? });
             }
 
@@ -259,7 +257,7 @@ fn encode_intent_event_value(
             let mut encoded_paths = Vec::with_capacity(paths.len());
 
             for path in paths {
-                let path = runtime::intent_path_from_utf8(binding, path);
+                let path = state::intent_path_from_utf8(binding, path);
                 encoded_paths.push(unsafe { <fs::OsPath as NativeAbiCodec>::into_value(path)? });
             }
 

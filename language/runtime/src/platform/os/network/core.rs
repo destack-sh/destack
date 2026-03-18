@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use destack_vm as vm;
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::RuntimeResult;
 use crate::platform::abi::NativeArray;
-use crate::platform::core::{invalid_argument, io_would_block, monotonic_now_ns};
+use crate::platform::core::{io_would_block, monotonic_now_ns};
 use crate::platform::net::{
     NetInterface, NetInterfaceValue, RouteEntry, RouteEntryValue, RouteKind, SocketFamily,
     native as native_net,
@@ -14,8 +14,8 @@ use crate::platform::{NativeAbiCodec, resource};
 use crate::runtime::BindingCallContext;
 use crate::runtime::process::RuntimeScheduledCallbackControl;
 
-use crate::platform::os::core::{NetworkWatchStream, OsRuntimeState, runtime_state};
 use crate::platform::os::network::backend;
+use crate::platform::os::state::{NetworkWatchStream, PlatformOsState, invalid_handle, os_state};
 use crate::platform::os::{
     NetworkConnectionType, NetworkEvent, NetworkEventVm, NetworkState, NetworkStateVm,
 };
@@ -80,13 +80,13 @@ pub(crate) fn watch_open(
     binding: &BindingCallContext,
 ) -> RuntimeResult<resource::NetworkWatchHandle> {
     let initial_state = state(binding)?;
-    let runtime_state = runtime_state(binding)?;
+    let runtime_state = os_state(binding)?;
     let watch_state = Arc::new(NetworkWatchStream::new(initial_state));
-    runtime_state.register_network_watch_stream(watch_state.clone());
+    let watch_id = runtime_state.insert_network_watch(watch_state);
     ensure_network_watch_callback(binding)?;
     let entry = ResourceEntry::new(ResourceKind::NetworkWatch)
         .with_label("os.network.watch")
-        .with_payload(watch_state);
+        .with_payload(watch_id);
     let handle = binding
         .agent()
         .resources
@@ -100,19 +100,23 @@ pub(crate) fn watch_close(
     binding: &BindingCallContext,
     handle: resource::NetworkWatchHandle,
 ) -> RuntimeResult<()> {
+    let runtime_state = os_state(binding)?;
     let removed =
         binding
             .agent()
             .resources
             .remove(binding.world(), handle.0, Some(binding.engine()));
     let Some(entry) = removed else {
-        return Err(invalid_network_watch_handle());
+        return Err(invalid_handle("unknown network watch handle"));
     };
     let Some(payload) = entry.payload else {
-        return Err(invalid_network_watch_handle());
+        return Err(invalid_handle("unknown network watch handle"));
     };
-    let Ok(watch_state) = payload.downcast::<Arc<NetworkWatchStream>>() else {
-        return Err(invalid_network_watch_handle());
+    let Ok(watch_id) = payload.downcast::<u64>() else {
+        return Err(invalid_handle("unknown network watch handle"));
+    };
+    let Some(watch_state) = runtime_state.remove_network_watch(*watch_id) else {
+        return Err(invalid_handle("unknown network watch handle"));
     };
 
     watch_state.close();
@@ -137,7 +141,7 @@ pub(crate) fn watch_read(
         NETWORK_WATCH_SLICE_NS,
         || {
             if watch_state.is_closed() {
-                return Err(invalid_network_watch_handle());
+                return Err(invalid_handle("unknown network watch handle"));
             }
 
             Ok(watch_state.try_take())
@@ -307,16 +311,22 @@ fn resolve_watch_state(
         entry
             .payload
             .as_ref()
-            .and_then(|payload| payload.downcast_ref::<Arc<NetworkWatchStream>>())
-            .map(Arc::clone)
+            .and_then(|payload| payload.downcast_ref::<u64>())
+            .copied()
     });
+    let Some(watch_id) = resolved.flatten() else {
+        return Err(invalid_handle("unknown network watch handle"));
+    };
+    let runtime_state = os_state(binding)?;
 
-    resolved.flatten().ok_or_else(invalid_network_watch_handle)
+    runtime_state
+        .network_watch(watch_id)
+        .ok_or_else(|| invalid_handle("unknown network watch handle"))
 }
 
 /// Ensure one shared network watch callback is registered for this agent.
 fn ensure_network_watch_callback(binding: &BindingCallContext) -> RuntimeResult<()> {
-    let runtime_state = runtime_state(binding)?;
+    let runtime_state = os_state(binding)?;
     if runtime_state.network_watch_callback().is_some() {
         return Ok(());
     }
@@ -336,10 +346,9 @@ fn ensure_network_watch_callback(binding: &BindingCallContext) -> RuntimeResult<
 /// Service one shared network watch callback tick.
 fn service_network_watch_callback(
     binding: &BindingCallContext,
-    runtime_state: &Arc<OsRuntimeState>,
+    runtime_state: &PlatformOsState,
 ) -> RuntimeResult<RuntimeScheduledCallbackControl> {
-    let streams = runtime_state.network_watch_streams();
-    if streams.is_empty() {
+    if !runtime_state.has_network_watches() {
         if let Some(handle) = runtime_state.network_watch_callback() {
             runtime_state.clear_network_watch_callback(handle);
         }
@@ -347,6 +356,7 @@ fn service_network_watch_callback(
         return Ok(RuntimeScheduledCallbackControl::Cancel);
     }
 
+    let streams = runtime_state.network_watch_streams();
     let next_state = state(binding)?;
 
     for stream in streams {
@@ -354,11 +364,6 @@ fn service_network_watch_callback(
     }
 
     Ok(RuntimeScheduledCallbackControl::Keep)
-}
-
-/// Build one invalid network-watch handle error.
-fn invalid_network_watch_handle() -> Box<RuntimeError> {
-    invalid_argument("handle", "unknown network watch handle")
 }
 
 /// Expose one VM-facing host network snapshot.
