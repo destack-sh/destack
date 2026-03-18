@@ -210,16 +210,13 @@ impl LanguageService {
                     continue;
                 }
             };
-            if module.tsconfig_id != next_tsconfig {
-            if module.tsconfig_id() != next_tsconfig {
+            if program.modules.tsconfig_id(module.id) != next_tsconfig {
                 module_updates.push((module.id, next_tsconfig));
             }
         }
 
         for (module_id, tsconfig_id) in module_updates {
-            let module = program.modules.get(module_id);
-            let mut state = module.state.write();
-            state.tsconfig_id = tsconfig_id;
+            program.modules.set_tsconfig_id(module_id, tsconfig_id);
         }
 
         messages

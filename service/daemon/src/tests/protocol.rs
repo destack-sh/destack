@@ -175,7 +175,10 @@ fn test_protocol_deferred_payload_roundtrip() {
         "expected workspace index to exceed inline limit, got {len} bytes",
         len = snapshot_bytes.len()
     );
-    program.apply_workspace_index(snapshot);
+    harness
+        .test
+        .session
+        .apply_workspace_index_snapshot(&snapshot);
 
     // request the workspace index
     let response =

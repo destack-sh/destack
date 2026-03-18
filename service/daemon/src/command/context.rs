@@ -162,7 +162,10 @@ impl<'a> CommandContext<'a> {
         for module_id in modules {
             let module = self.program.modules.get(*module_id);
             let module = module.as_ref();
-            file_versions.insert(module.file_id, module.source_version());
+            file_versions.insert(
+                module.file_id,
+                self.program.modules.source_version(module.id),
+            );
         }
 
         // extend file versions for diagnostics outside modules
