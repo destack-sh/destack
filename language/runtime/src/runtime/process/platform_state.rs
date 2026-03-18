@@ -10,7 +10,7 @@ use crate::platform::input::{PlatformInputImage, PlatformInputState};
 use crate::platform::io::{PlatformIoImage, PlatformIoState};
 use crate::platform::midi::{PlatformMidiImage, PlatformMidiState};
 use crate::platform::net::{PlatformNetImage, PlatformNetState};
-use crate::platform::os::{PlatformOsImage, PlatformOsState};
+use crate::platform::os::PlatformOsState;
 
 /// Runtime-owned platform module state slots.
 #[derive(Debug, Default)]
@@ -55,7 +55,7 @@ pub struct PlatformStateImage {
     /// Network platform-state image.
     pub net: PlatformNetImage,
     /// OS platform-state image.
-    pub os: PlatformOsImage,
+    pub os: (),
 }
 
 impl Capture for PlatformState {
