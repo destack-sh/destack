@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::os::unix::io::RawFd;
 use std::sync::Arc;
+use std::time::Instant;
 
 use libc::{c_int, c_short, poll, pollfd};
 
@@ -203,11 +204,12 @@ impl HostPoller for UnixPoller {
             self.entries.push(Some((*resource_id, *entry)));
         }
 
-        // resolve the timeout in milliseconds
-        let timeout_ms = timeout_nanos.map(nanos_to_timeout_ms).unwrap_or(-1);
+        // resolve the poll deadline once so EINTR does not reset the timeout budget
+        let deadline = timeout_nanos.and_then(core_platform::timeout_deadline);
 
         // call poll and surface errors
         let _ = loop {
+            let timeout_ms = timeout_ms_from_deadline(deadline);
             let result = unsafe {
                 poll(
                     self.pollfds.as_mut_ptr(),
@@ -419,16 +421,22 @@ fn drain_wake(fd: RawFd) {
     }
 }
 
-/// Convert a nanosecond timeout to milliseconds for poll.
-fn nanos_to_timeout_ms(nanos: u64) -> c_int {
-    // map zero directly to immediate polls
-    if nanos == 0 {
+/// Convert one absolute deadline into one poll timeout in milliseconds.
+fn timeout_ms_from_deadline(deadline: Option<Instant>) -> c_int {
+    let Some(deadline) = deadline else {
+        return -1;
+    };
+
+    // map elapsed deadlines directly to immediate polls
+    let now = Instant::now();
+    if now >= deadline {
         return 0;
     }
 
     // round up to the nearest millisecond
-    let ms = nanos.div_ceil(1_000_000);
-    if ms > i32::MAX as u64 {
+    let remaining = deadline.saturating_duration_since(now);
+    let ms = remaining.as_nanos().div_ceil(1_000_000);
+    if ms > i32::MAX as u128 {
         i32::MAX
     } else {
         ms as i32
