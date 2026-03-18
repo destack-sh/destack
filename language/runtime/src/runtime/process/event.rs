@@ -1,6 +1,9 @@
 use std::collections::{HashMap, VecDeque};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+use parking_lot::{Condvar, Mutex as ParkingMutex};
 
 /// Runtime-owned retained event-log state for one event lane.
 #[derive(Debug)]
@@ -124,5 +127,66 @@ impl<T> RuntimeSnapshotCache<T> {
         let delta = build_delta(previous_snapshot, &snapshot);
         *cached_snapshot = Some(snapshot);
         Some(delta)
+    }
+}
+
+/// Runtime-owned blocking event queue for one live stream.
+#[derive(Debug)]
+pub struct RuntimeEventQueue<T> {
+    /// Pending events for this queue.
+    events: ParkingMutex<VecDeque<T>>,
+    /// Wake primitive for blocking readers.
+    wake: Condvar,
+    /// Whether this queue has been closed.
+    is_closed: AtomicBool,
+}
+
+impl<T> Default for RuntimeEventQueue<T> {
+    /// Build one empty event queue.
+    fn default() -> Self {
+        Self {
+            events: ParkingMutex::new(VecDeque::new()),
+            wake: Condvar::new(),
+            is_closed: AtomicBool::new(false),
+        }
+    }
+}
+
+impl<T> RuntimeEventQueue<T> {
+    /// Push one event and wake blocked readers.
+    pub fn push(&self, event: T) {
+        if self.is_closed.load(Ordering::Relaxed) {
+            return;
+        }
+
+        let mut events = self.events.lock();
+        events.push_back(event);
+        self.wake.notify_all();
+    }
+
+    /// Try to take one queued event.
+    pub fn try_take(&self) -> Option<T> {
+        let mut events = self.events.lock();
+        events.pop_front()
+    }
+
+    /// Return whether this queue has been closed.
+    pub fn is_closed(&self) -> bool {
+        self.is_closed.load(Ordering::Relaxed)
+    }
+
+    /// Close this queue and wake blocked readers.
+    pub fn close(&self) {
+        self.is_closed.store(true, Ordering::Relaxed);
+        self.wake.notify_all();
+    }
+
+    /// Wait once for queued events or timeout.
+    pub fn wait_once(&self, duration: Duration) {
+        let mut events = self.events.lock();
+
+        if events.is_empty() {
+            self.wake.wait_for(&mut events, duration);
+        }
     }
 }
