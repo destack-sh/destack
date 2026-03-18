@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     CallableOwnerId, for_each_callable_signature, function_signature_static_parameter_count,
 };
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of static parameters on a declaration.
@@ -31,7 +31,7 @@ impl LintRule for MaxStaticParams {
         MaxStaticParams::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
         let max_static_params = ctx.options.max_static_params;
@@ -98,7 +98,7 @@ impl LintRule for MaxStaticParams {
 
 /// Report static-parameter overflow for one callable method owner.
 fn report_method_static_params<T: ast::Node + Clone>(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &'static crate::LintMeta,
     owner_id: ast::LocalNodeId<T>,
     param_count: usize,

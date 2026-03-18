@@ -2,7 +2,7 @@ use destack_ast::{self as ast, Argument, Expression};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_static_string_literal_syntax;
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 // TODO #Architecture: this rule works but would be better with canonical DIR symbols
 
@@ -32,7 +32,7 @@ impl LintRule for NoBlankTarget {
         NoBlankTarget::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // inspect candidate expressions
@@ -109,7 +109,7 @@ impl LintRule for NoBlankTarget {
 
 /// Check if the left expression is a checked element tag.
 fn is_checked_target_element(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     left: Option<ast::LocalNodeId<Expression>>,
 ) -> bool {
     let Some(left_id) = left else {
@@ -134,7 +134,7 @@ fn is_checked_target_element(
 }
 
 /// Check if an argument is `target="_blank"`.
-fn is_blank_target(ctx: &LintModuleAstContext<'_>, arg: &Argument) -> bool {
+fn is_blank_target(ctx: &LintAstContext<'_>, arg: &Argument) -> bool {
     let Argument::Named { name, value, .. } = arg else {
         return false;
     };
@@ -156,7 +156,7 @@ fn is_blank_target(ctx: &LintModuleAstContext<'_>, arg: &Argument) -> bool {
 }
 
 /// Check if an argument is `rel` containing "noopener" or "noreferrer".
-fn is_safe_rel(ctx: &LintModuleAstContext<'_>, arg: &Argument) -> bool {
+fn is_safe_rel(ctx: &LintAstContext<'_>, arg: &Argument) -> bool {
     let Argument::Named { name, value, .. } = arg else {
         return false;
     };
@@ -181,7 +181,7 @@ fn is_safe_rel(ctx: &LintModuleAstContext<'_>, arg: &Argument) -> bool {
 }
 
 /// Check if an argument is any `rel=...` attribute.
-fn is_rel_argument(ctx: &LintModuleAstContext<'_>, arg: &Argument) -> bool {
+fn is_rel_argument(ctx: &LintAstContext<'_>, arg: &Argument) -> bool {
     let Argument::Named { name, .. } = arg else {
         return false;
     };
@@ -193,7 +193,7 @@ fn is_rel_argument(ctx: &LintModuleAstContext<'_>, arg: &Argument) -> bool {
 
 /// Return one static string argument value.
 fn argument_static_string_id(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     value: ast::LocalNodeId<Expression>,
 ) -> Option<ast::StringId> {
     expression_static_string_literal_syntax(ctx.tree, value)
@@ -201,7 +201,7 @@ fn argument_static_string_id(
 
 /// Build a safe fix that injects rel noopener and noreferrer.
 fn blank_target_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     args: &[ast::LocalNodeId<Argument>],
 ) -> Option<LintFix> {
     let last_argument = args.last()?;

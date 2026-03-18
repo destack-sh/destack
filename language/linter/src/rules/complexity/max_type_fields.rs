@@ -2,7 +2,7 @@ use destack_ast::{self as ast, Member, Property};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_unwrap_parenthesized_syntax;
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of fields in one type declaration.
@@ -29,7 +29,7 @@ impl LintRule for MaxTypeFields {
         MaxTypeFields::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
         let max_type_fields = ctx.options.max_type_fields;
@@ -77,7 +77,7 @@ impl LintRule for MaxTypeFields {
 
 /// Return declaration kind and field count for field carrying declarations.
 fn declaration_field_count(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     declaration: &ast::Declaration,
 ) -> Option<(&'static str, usize)> {
     // resolve declaration members when present
@@ -99,7 +99,7 @@ fn declaration_field_count(
 
 /// Return object type field count for one type expression when it is an object type.
 fn object_type_field_count(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<usize> {
     // normalize parenthesized wrappers
@@ -119,7 +119,7 @@ fn object_type_field_count(
 
 /// Report one field count overflow diagnostic.
 fn report_type_field_overflow<T: ast::Node + Clone>(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &'static crate::LintMeta,
     owner_id: ast::LocalNodeId<T>,
     type_kind: &str,

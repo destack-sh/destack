@@ -2,7 +2,7 @@ use destack_ast::{self as ast, Argument, Expression, ScalarLiteral};
 use destack_source::LanguageType;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest tuple type for fixed-length heterogeneous arrays.
@@ -43,7 +43,7 @@ impl LintRule for PreferTuple {
         PreferTuple::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // only applies to Destack files
@@ -137,10 +137,7 @@ enum LiteralType {
 }
 
 /// Get the literal type of an argument if it's a literal.
-fn get_argument_literal_type(
-    ctx: &LintModuleAstContext<'_>,
-    arg: &Argument,
-) -> Option<LiteralType> {
+fn get_argument_literal_type(ctx: &LintAstContext<'_>, arg: &Argument) -> Option<LiteralType> {
     let value_id = match arg {
         Argument::Positional { value, .. } => *value,
         _ => return None,

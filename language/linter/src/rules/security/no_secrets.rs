@@ -10,7 +10,7 @@ use regex::bytes::{
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow hardcoded secrets and credentials.
@@ -452,7 +452,7 @@ impl LintRule for NoSecrets {
         NoSecrets::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
         let mut secret_match_cache: HashMap<StringId, Option<SecretMatch>> = HashMap::new();
 

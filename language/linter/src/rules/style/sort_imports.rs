@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     ImportDeclarationKey, categorize_import, sort_import_declaration_indices,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce sorted import declarations.
@@ -71,7 +71,7 @@ impl LintRule for SortImports {
         SortImports::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
         let imports = collect_top_level_imports(ctx);
 
@@ -86,7 +86,7 @@ impl LintRule for SortImports {
 }
 
 /// Collect contiguous top-level import declarations.
-fn collect_top_level_imports(ctx: &LintModuleAstContext<'_>) -> Vec<ImportInfo> {
+fn collect_top_level_imports(ctx: &LintAstContext<'_>) -> Vec<ImportInfo> {
     let mut imports = Vec::new();
 
     // inspect candidate syntax nodes
@@ -155,7 +155,7 @@ fn collect_top_level_imports(ctx: &LintModuleAstContext<'_>) -> Vec<ImportInfo> 
 
 /// Check that imported members within an import are in canonical order.
 fn check_member_sorting(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &'static LintMeta,
     import: &ImportInfo,
 ) {
@@ -208,7 +208,7 @@ fn check_member_sorting(
 
 /// Check declaration ordering and report one canonical-order diagnostic.
 fn check_declaration_sorting(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &'static LintMeta,
     imports: &[ImportInfo],
 ) {
@@ -271,7 +271,7 @@ fn check_declaration_sorting(
 
 /// Build a declaration reorder fix for the contiguous top-level import block.
 fn build_declaration_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     imports: &[ImportInfo],
     order: &[usize],
 ) -> Option<LintFix> {
@@ -318,7 +318,7 @@ fn build_declaration_fix(
 
 /// Resolve a stable sort key name for a dependency item.
 fn dependency_item_sort_name(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     item_id: ast::LocalNodeId<DependencyItem>,
 ) -> String {
     let item = ctx.tree.get(item_id);
@@ -337,7 +337,7 @@ fn dependency_item_sort_name(
 
 /// Compare dependency items using canonical import member ordering.
 fn compare_dependency_items(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     left_id: ast::LocalNodeId<DependencyItem>,
     right_id: ast::LocalNodeId<DependencyItem>,
 ) -> std::cmp::Ordering {

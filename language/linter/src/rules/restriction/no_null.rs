@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_path_segments, expression_static_property_access_syntax};
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow the use of `null`.
@@ -29,7 +29,7 @@ impl LintRule for NoNull {
         NoNull::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // inspect candidate expressions
@@ -76,7 +76,7 @@ impl LintRule for NoNull {
 
 /// Return true when one null usage should be allowed for runtime semantics.
 fn is_allowed_null_usage(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     null_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     // resolve one call argument usage for this null literal
@@ -102,7 +102,7 @@ fn is_allowed_null_usage(
 
 /// Return one call callee and argument index for one null argument usage.
 fn find_call_argument_usage(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     null_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<(ast::LocalNodeId<ast::Expression>, usize)> {
     // start from the null expression
@@ -159,7 +159,7 @@ fn find_call_argument_usage(
 
 /// Return true when one expression resolves to Object.create.
 fn expression_is_object_create(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let object_name = ctx.strings.intern("Object");
@@ -190,7 +190,7 @@ fn expression_is_object_create(
 
 /// Return true when one expression resolves to useRef.
 fn expression_is_use_ref(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let use_ref_name = ctx.strings.intern("useRef");
@@ -224,7 +224,7 @@ fn expression_is_use_ref(
 
 /// Return true when one expression resolves to an insertBefore member call.
 fn expression_is_insert_before(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let insert_before_name = ctx.strings.intern("insertBefore");

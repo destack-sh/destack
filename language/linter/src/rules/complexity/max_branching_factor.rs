@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_is_else_if_branch;
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of branches in one conditional.
@@ -29,7 +29,7 @@ impl LintRule for MaxBranchingFactor {
         MaxBranchingFactor::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
         let max_branches = ctx.options.max_branching_factor;
@@ -78,7 +78,7 @@ impl LintRule for MaxBranchingFactor {
 
 /// Count branches in one if else chain.
 fn count_if_chain_branches(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> usize {
     // resolve one if expression entry point
@@ -109,7 +109,7 @@ fn count_if_chain_branches(
 
 /// Report one branching factor violation.
 fn report_branching_violation(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &'static crate::LintMeta,
     expression_id: ast::LocalNodeId<ast::Expression>,
     expression_kind: &str,

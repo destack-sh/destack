@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow unnecessary computed property keys in objects.
@@ -30,7 +30,7 @@ impl LintRule for NoUselessComputedKey {
         NoUselessComputedKey::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Property>() {
@@ -86,7 +86,7 @@ impl LintRule for NoUselessComputedKey {
 
 /// Return label and replacement text for one useless computed key expression.
 fn computed_key_replacement(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression: &ast::Expression,
 ) -> Option<(String, String)> {
     match expression {
@@ -113,7 +113,7 @@ fn computed_key_replacement(
 
 /// Return one span that covers `[<expression>]` around a computed key expression.
 fn computed_key_bracket_span(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<Span> {
     let source = ctx.source_text().as_bytes();

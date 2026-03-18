@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{comment_contains_warning_term, is_directive_comment};
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow specified warning terms in comments.
@@ -29,7 +29,7 @@ impl LintRule for NoWarningComments {
         NoWarningComments::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
         let warning_terms = &ctx.options.warning_comment_terms;
 
@@ -77,7 +77,7 @@ impl LintRule for NoWarningComments {
 
 /// Build a safe fix by removing one warning comment.
 fn warning_comment_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     comment_span: destack_source::Span,
 ) -> Option<LintFix> {
     let edits = ctx.edit_builder().delete(comment_span).into_edits();

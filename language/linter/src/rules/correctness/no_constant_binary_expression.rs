@@ -5,7 +5,7 @@ use crate::rules::common::{
     expression_constant_to_bool, expression_has_side_effects, expression_is_equal,
     expression_path_segments, expression_unwrap_parenthesized_syntax,
 };
-use crate::{LintDiagnostic, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow expressions where the operation doesn't affect the value.
@@ -35,7 +35,7 @@ impl LintRule for NoConstantBinaryExpression {
     }
 
     /// Check module AST nodes for binary expressions with constant outcomes.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // walk binary expressions
@@ -75,7 +75,7 @@ impl LintRule for NoConstantBinaryExpression {
 
 /// Check if a binary expression produces a constant result.
 fn check_constant_result(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     left_id: ast::LocalNodeId<ast::Expression>,
     operator: ast::BinaryOperator,
     right_id: ast::LocalNodeId<ast::Expression>,
@@ -183,7 +183,7 @@ fn check_constant_result(
 
 /// Return one constant truthiness value when known by construction.
 fn expression_constant_truthiness(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<bool> {
     // normalize expression shape
@@ -218,7 +218,7 @@ fn is_nullish(expression: &ast::Expression) -> bool {
 
 /// Return true when nullishness of one expression is statically fixed.
 fn expression_has_constant_nullishness(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
     require_non_nullish: bool,
 ) -> bool {
@@ -262,7 +262,7 @@ fn expression_has_constant_nullishness(
 
 /// Return true when one call target is a global cast builtin.
 fn expression_is_global_cast_call(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     callee_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     // resolve path segments

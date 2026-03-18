@@ -27,8 +27,8 @@ pub(crate) struct DecoratorCall<'a> {
     pub arguments: Option<&'a [ast::LocalNodeId<ast::Argument>]>,
 }
 
-/// Context for AST-level linting of a single module. Unfurls ModuleAst.
-pub struct LintModuleAstContext<'a> {
+/// Context for AST-level linting of a single module. Unfurls Ast.
+pub struct LintAstContext<'a> {
     /// The program containing this module.
     pub program: Arc<Program>,
     /// The module being linted.
@@ -58,16 +58,16 @@ pub struct LintModuleAstContext<'a> {
     diagnostics: Vec<LintDiagnostic>,
 }
 
-impl<'a> std::fmt::Debug for LintModuleAstContext<'a> {
+impl<'a> std::fmt::Debug for LintAstContext<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("LintModuleAstContext")
+        f.debug_struct("LintAstContext")
             .field("module_id", &self.module.id)
             .finish()
     }
 }
 
 #[allow(clippy::too_many_arguments)]
-impl<'a> LintModuleAstContext<'a> {
+impl<'a> LintAstContext<'a> {
     /// Create a new AST lint context for a module.
     pub fn new(
         program: Arc<Program>,

@@ -4,7 +4,7 @@ use destack_ast::{self as ast, BindingAnchor, Declaration, FunctionMode, Key, Me
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_structural_signature, span_has_comment_trivia};
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Require grouped accessor pairs in object literals and classes.
@@ -47,7 +47,7 @@ impl LintRule for GroupedAccessorPairs {
         GroupedAccessorPairs::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
@@ -106,7 +106,7 @@ struct AccessorIndices {
 }
 
 /// Return key identity for one AST key.
-fn accessor_key(ctx: &LintModuleAstContext<'_>, key: &Key) -> Option<AccessorKey> {
+fn accessor_key(ctx: &LintAstContext<'_>, key: &Key) -> Option<AccessorKey> {
     match key {
         Key::Name(name) => Some(AccessorKey::Name(name.string())),
         Key::Private(name) => Some(AccessorKey::Private(*name)),
@@ -135,7 +135,7 @@ fn member_owner(member: &Member) -> AccessorOwner {
 
 /// Check members in object-like declarations for ungrouped accessor pairs.
 fn check_members_for_ungrouped_accessors(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &'static crate::LintMeta,
     members: &[ast::LocalNodeId<Member>],
 ) {
@@ -224,7 +224,7 @@ fn check_members_for_ungrouped_accessors(
 
 /// Check properties in object expressions for ungrouped accessor pairs.
 fn check_properties_for_ungrouped_accessors(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &'static crate::LintMeta,
     properties: &[ast::LocalNodeId<ast::Property>],
 ) {
@@ -312,7 +312,7 @@ fn check_properties_for_ungrouped_accessors(
 
 /// Build an unsafe reorder fix for object-like member accessor pairs.
 fn grouped_member_accessor_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     members: &[ast::LocalNodeId<Member>],
     getter_index: usize,
     setter_index: usize,
@@ -351,7 +351,7 @@ fn grouped_member_accessor_fix(
 
 /// Build an unsafe reorder fix for object property accessor pairs.
 fn grouped_property_accessor_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     properties: &[ast::LocalNodeId<ast::Property>],
     getter_index: usize,
     setter_index: usize,

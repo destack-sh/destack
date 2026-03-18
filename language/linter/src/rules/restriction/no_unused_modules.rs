@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use destack_source::{FileType, ModuleId, Span};
 use destack_workspace::{
-    EntryResolutionMode, EntrySource, ModuleGraphKey, TargetDiscovery, TargetDiscoveryOptions,
+    EntryResolutionMode, EntrySource, TargetDiscovery, TargetDiscoveryOptions,
     discover_entry_modules,
 };
 
@@ -43,8 +43,7 @@ impl LintRule for NoUnusedModules {
         }
 
         // resolve the module graph for the active profile
-        let graph_key = ModuleGraphKey::new(ctx.profile_id);
-        let Some(graph) = ctx.program.index.module_graphs.get(&graph_key) else {
+        let Some(graph) = ctx.program.artifacts.module_graph(ctx.profile_id) else {
             return;
         };
 
@@ -199,7 +198,7 @@ fn module_has_exports(ctx: &LintProgramDirContext, module_id: ModuleId) -> bool 
     let Some(dir) = ctx
         .program
         .artifacts
-        .dir_analyzed(module_id, ctx.profile_id)
+        .dir_resolved(module_id, ctx.profile_id)
     else {
         return false;
     };
@@ -259,7 +258,7 @@ mod tests {
             let first_module = test.program.modules.get(module_ids[0]);
             let first_module = first_module.as_ref();
             let package_id = first_module.package_id;
-            drop(first_module);
+            let _ = first_module;
 
             let package_ref = test.program.packages.get(package_id);
             let mut package = package_ref.write();

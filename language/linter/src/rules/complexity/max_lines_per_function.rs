@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{CallableOwnerId, callable_owner_span, for_each_callable_signature};
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of lines per function.
@@ -29,7 +29,7 @@ impl LintRule for MaxLinesPerFunction {
         MaxLinesPerFunction::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata, threshold, and source file
         let meta = self.meta();
         let max_lines = ctx.options.max_lines_per_function;
@@ -86,7 +86,7 @@ impl LintRule for MaxLinesPerFunction {
 
 /// Report one max-lines-per-function violation for a callable owner.
 fn report_line_limit_violation<T: ast::Node>(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &'static crate::LintMeta,
     owner_id: ast::LocalNodeId<T>,
     body_id: ast::LocalNodeId<ast::Expression>,

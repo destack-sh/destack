@@ -2,7 +2,7 @@ use destack_ast::{self as ast, Declaration};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_or_declaration_docs;
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Require return type documentation.
@@ -28,7 +28,7 @@ impl LintRule for RequireReturnsDoc {
         RequireReturnsDoc::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // iterate over Expression nodes to find function declarations

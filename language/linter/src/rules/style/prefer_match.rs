@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest using `match` instead of complex if-else-if chains or switch statements.
@@ -31,7 +31,7 @@ impl LintRule for PreferMatch {
         PreferMatch::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -117,7 +117,7 @@ struct IfMatchCaseArm {
 
 /// Check if this if expression is the else-if of a parent if.
 fn is_else_if_of_parent(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     node_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let Some(parent_id) = ctx.parents.get(node_id) else {
@@ -142,7 +142,7 @@ fn is_else_if_of_parent(
 
 /// Collect an if-chain when all branch conditions compare one shared subject path.
 fn collect_if_chain_for_match(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     root_if_expression_id: ast::LocalNodeId<ast::Expression>,
     root_condition_id: ast::LocalNodeId<ast::Expression>,
     root_else_expression_id: ast::LocalNodeId<ast::Expression>,
@@ -203,7 +203,7 @@ fn collect_if_chain_for_match(
 
 /// Return `(subject_key, subject_expression, pattern_expression)` for one equality condition.
 fn comparison_subject_and_pattern(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     condition_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<(
     String,
@@ -252,7 +252,7 @@ fn comparison_subject_and_pattern(
 }
 
 /// Build a stable key for one path expression.
-fn path_key(ctx: &LintModuleAstContext<'_>, path: &ast::Path) -> String {
+fn path_key(ctx: &LintAstContext<'_>, path: &ast::Path) -> String {
     path.segments
         .iter()
         .map(|segment| ctx.strings.get(*segment).as_ref().to_string())
@@ -262,7 +262,7 @@ fn path_key(ctx: &LintModuleAstContext<'_>, path: &ast::Path) -> String {
 
 /// Build a safe if-chain to match rewrite when the chain has a final else.
 fn prefer_match_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     if_expression_id: ast::LocalNodeId<ast::Expression>,
     if_chain: &IfMatchChain,
 ) -> Option<LintFix> {
@@ -305,7 +305,7 @@ fn prefer_match_fix(
 
 /// Return match arm body text for one expression.
 fn match_arm_body_text(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<String> {
     let body_text = ctx

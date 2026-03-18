@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Expression};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 // #Correctness: prefer-fragment-shorthand works but would be better with canonical DIR symbols?
 
@@ -46,7 +46,7 @@ impl LintRule for PreferFragmentShorthand {
         PreferFragmentShorthand::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -137,10 +137,7 @@ fn convert_fragment_to_shorthand(text: &str) -> String {
 }
 
 /// Check if the left expression is `Fragment`.
-fn is_fragment_tag(
-    ctx: &LintModuleAstContext<'_>,
-    left: Option<ast::LocalNodeId<Expression>>,
-) -> bool {
+fn is_fragment_tag(ctx: &LintAstContext<'_>, left: Option<ast::LocalNodeId<Expression>>) -> bool {
     let Some(left_id) = left else {
         return false;
     };

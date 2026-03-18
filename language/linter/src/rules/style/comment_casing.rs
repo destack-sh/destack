@@ -6,7 +6,7 @@ use crate::rules::common::{
     first_alphabetic_character, is_directive_comment, is_non_prose_doc_line, is_separator_comment,
     is_separator_heading_line, parse_keyword_comment_with_options,
 };
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce comment casing conventions.
@@ -35,7 +35,7 @@ impl LintRule for CommentCasing {
     }
 
     /// Check module AST annotations for comment casing.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // non doc comments should start with lowercase
@@ -195,7 +195,7 @@ enum CasingFixKind {
 
 /// Build a safe fix for one comment casing violation.
 fn comment_casing_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     annotation_span: Span,
     fix_kind: CasingFixKind,
 ) -> Option<LintFix> {

@@ -2,7 +2,7 @@ use destack_ast::{self as ast, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_is_unqualified_path_name;
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow reassigning exceptions in catch clauses.
@@ -30,7 +30,7 @@ impl LintRule for NoExAssign {
         NoExAssign::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -71,7 +71,7 @@ impl LintRule for NoExAssign {
 
 /// Extract the binding name from a simple catch pattern.
 fn get_pattern_binding_name(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     pattern_id: ast::LocalNodeId<ast::Pattern>,
 ) -> Option<ast::StringId> {
     let pattern = ctx.tree.get(pattern_id);
@@ -83,7 +83,7 @@ fn get_pattern_binding_name(
 
 /// Collect assignment expression ids that target one catch binding.
 fn collect_assignment_references_in_expression(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
     catch_name: ast::StringId,
 ) -> Vec<ast::LocalNodeId<ast::Expression>> {
@@ -95,7 +95,7 @@ fn collect_assignment_references_in_expression(
 
 /// Report an exception reassignment diagnostic.
 fn report_ex_assign(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &'static crate::LintMeta,
     catch_expression_id: ast::LocalNodeId<ast::Expression>,
     expr_id: ast::LocalNodeId<ast::Expression>,
@@ -128,7 +128,7 @@ fn report_ex_assign(
 
 /// Build one unsafe fix by replacing reassignment with a local alias binding.
 fn no_ex_assign_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     catch_expression_id: ast::LocalNodeId<ast::Expression>,
     assignment_expression_id: ast::LocalNodeId<ast::Expression>,
     catch_name: ast::StringId,
@@ -184,7 +184,7 @@ fn no_ex_assign_fix(
 
 /// Return true when the catch binding name is referenced after a source offset.
 fn catch_name_is_used_after(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     catch_expression_id: ast::LocalNodeId<ast::Expression>,
     catch_name: ast::StringId,
     offset: u32,
@@ -205,7 +205,7 @@ fn catch_name_is_used_after(
 }
 
 /// Build a file local unique alias for one catch variable.
-fn unique_catch_alias_name(ctx: &LintModuleAstContext<'_>, catch_name: &str) -> String {
+fn unique_catch_alias_name(ctx: &LintAstContext<'_>, catch_name: &str) -> String {
     let base_name = format!("{catch_name}Reassigned");
     let base_name_id = ctx.strings.intern(&base_name);
     if !identifier_name_exists_in_ast(ctx, base_name_id) {
@@ -227,7 +227,7 @@ fn unique_catch_alias_name(ctx: &LintModuleAstContext<'_>, catch_name: &str) -> 
 }
 
 /// Return true when one identifier name appears in bindings or path references.
-fn identifier_name_exists_in_ast(ctx: &LintModuleAstContext<'_>, name_id: ast::StringId) -> bool {
+fn identifier_name_exists_in_ast(ctx: &LintAstContext<'_>, name_id: ast::StringId) -> bool {
     for pattern_id in ctx.tree.iter_nodes::<ast::Pattern>() {
         let pattern = ctx.tree.get(pattern_id);
         if let ast::Pattern::Binding { name, .. } = pattern

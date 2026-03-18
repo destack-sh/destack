@@ -12,8 +12,7 @@ use destack_formatter::{
 use destack_parser::Parser;
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, Edit, File, FileId, FileType,
-    LanguageType, MemoryFileSystem, ModuleId, ModuleStamp, PrintOptions, ProfileStamp, Uri,
-    print_diagnostics, print_diff,
+    LanguageType, MemoryFileSystem, ModuleId, PrintOptions, Uri, print_diagnostics, print_diff,
 };
 use destack_workspace::{
     ArtifactKey, EnvSnapshot, LintCategory, LintSeverity, LinterOptions, MemoryCacheStore,

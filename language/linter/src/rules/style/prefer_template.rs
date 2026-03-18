@@ -2,7 +2,7 @@ use destack_ast::{self as ast, BinaryOperator, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::span_has_comment_trivia;
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer template literals over string concatenation.
@@ -29,7 +29,7 @@ impl LintRule for PreferTemplate {
         PreferTemplate::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -103,7 +103,7 @@ fn is_string_expression(expression: &Expression) -> bool {
 
 /// Return true when this add expression is nested under another add expression.
 fn is_nested_add_expression(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let Some(parent_id) = ctx.parents.get(expression_id) else {
@@ -127,7 +127,7 @@ fn is_nested_add_expression(
 
 /// Return true when one concat chain contains any string-like part.
 fn concat_has_string_part(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let expression = ctx.tree.get(expression_id);
@@ -143,7 +143,7 @@ fn concat_has_string_part(
 
 /// Return true when one concat chain contains any non-string part.
 fn concat_has_non_string_part(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let expression = ctx.tree.get(expression_id);
@@ -159,7 +159,7 @@ fn concat_has_non_string_part(
 
 /// Return true when a concat chain contains unsupported numeric string escapes.
 fn concat_has_unsupported_numeric_escape(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let expression = ctx.tree.get(expression_id);
@@ -212,7 +212,7 @@ fn string_literal_has_unsupported_numeric_escape(literal_text: &str) -> bool {
 
 /// Build one template body string from a concat chain expression.
 fn concat_to_template_body(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> String {
     let expression = ctx.tree.get(expression_id);
@@ -332,7 +332,7 @@ fn count_backslashes_before(text: &[u8], mut index: usize) -> usize {
 
 /// Return the inner content of one template literal expression.
 fn template_expression_body(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> String {
     let span = ctx.tree.get_span(expression_id);

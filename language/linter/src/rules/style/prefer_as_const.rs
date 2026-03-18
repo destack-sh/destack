@@ -3,7 +3,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::span_has_comment_trivia;
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `as const` over literal type assertions.
@@ -29,7 +29,7 @@ impl LintRule for PreferAsConst {
         PreferAsConst::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // prefer `as const` in literal cast assertions
@@ -154,7 +154,7 @@ impl LintRule for PreferAsConst {
 
 /// Build a safe declarator fix from `name: 'x' = 'x'` to `name = 'x' as const`.
 fn declarator_literal_annotation_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     declarator_id: ast::LocalNodeId<Declarator>,
 ) -> Option<LintFix> {
     let declarator = ctx.tree.get(declarator_id);
@@ -193,7 +193,7 @@ fn declarator_literal_annotation_fix(
 
 /// Build a safe class field fix from `field: 'x' = 'x'` to `field = 'x' as const`.
 fn member_field_literal_annotation_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     member_id: ast::LocalNodeId<Member>,
 ) -> Option<LintFix> {
     let member = ctx.tree.get(member_id);

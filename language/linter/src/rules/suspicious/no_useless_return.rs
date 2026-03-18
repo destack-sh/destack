@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::span_has_comment_trivia;
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow redundant return statements at the end of functions.
@@ -29,7 +29,7 @@ impl LintRule for NoUselessReturn {
         NoUselessReturn::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
@@ -78,7 +78,7 @@ impl LintRule for NoUselessReturn {
 
 /// Return true when source text has a trailing comment after one return span.
 fn return_has_trailing_comment(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     return_span: destack_source::Span,
 ) -> bool {
     let source = ctx.source_text().as_bytes();
@@ -94,7 +94,7 @@ fn return_has_trailing_comment(
 
 /// Get a trailing bare return statement from a function body.
 fn get_trailing_bare_return(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
     let expr = ctx.tree.get(expr_id);

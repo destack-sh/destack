@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Expression, Pattern};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer tuple swap syntax over temporary variable.
@@ -38,7 +38,7 @@ impl LintRule for PreferTupleSwap {
         PreferTupleSwap::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // look for blocks containing expression sequences
@@ -111,7 +111,7 @@ struct SwapInfo {
 /// Detect a swap pattern across three consecutive expressions.
 /// Pattern: `let temp = a; a = b; b = temp`
 fn detect_swap_pattern(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     first_id: ast::LocalNodeId<Expression>,
     second_id: ast::LocalNodeId<Expression>,
     third_id: ast::LocalNodeId<Expression>,
@@ -170,7 +170,7 @@ fn detect_swap_pattern(
 
 /// Unwrap a Statement expression wrapper if present.
 fn unwrap_statement<'a>(
-    ctx: &'a LintModuleAstContext<'_>,
+    ctx: &'a LintAstContext<'_>,
     expression_id: ast::LocalNodeId<Expression>,
 ) -> &'a Expression {
     let expression = ctx.tree.get(expression_id);
@@ -182,7 +182,7 @@ fn unwrap_statement<'a>(
 
 /// Get a simple identifier name from a binding pattern.
 fn get_simple_binding_name(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     pattern_id: ast::LocalNodeId<Pattern>,
 ) -> Option<String> {
     let pattern = ctx.tree.get(pattern_id);
@@ -198,7 +198,7 @@ fn get_simple_binding_name(
 
 /// Get a simple path name from an expression (single identifier).
 fn get_simple_path_from_expression(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<Expression>,
 ) -> Option<String> {
     let expression = ctx.tree.get(expression_id);

@@ -1,10 +1,10 @@
 use destack_ast::{self as ast, ForEachKind, LocalNodeId};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 /// Check if the expression is an if statement, unwrapping Statement wrapper if needed.
-fn is_if_expression(ctx: &LintModuleAstContext<'_>, expr_id: LocalNodeId<ast::Expression>) -> bool {
+fn is_if_expression(ctx: &LintAstContext<'_>, expr_id: LocalNodeId<ast::Expression>) -> bool {
     let expr = ctx.tree.get(expr_id);
     match expr {
         ast::Expression::If { .. } => true,
@@ -38,7 +38,7 @@ impl LintRule for GuardForIn {
         GuardForIn::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -95,7 +95,7 @@ impl LintRule for GuardForIn {
 
 /// Build an unsafe fix that wraps the body with Object.hasOwn guard.
 fn guard_for_in_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     binding: &ast::ForEachBinding,
     iterator_expression_id: LocalNodeId<ast::Expression>,
     body_id: LocalNodeId<ast::Block>,
@@ -116,10 +116,7 @@ fn guard_for_in_fix(
 }
 
 /// Return the bound key name when the for-in binding is a simple identifier.
-fn for_in_binding_name(
-    ctx: &LintModuleAstContext<'_>,
-    binding: &ast::ForEachBinding,
-) -> Option<String> {
+fn for_in_binding_name(ctx: &LintAstContext<'_>, binding: &ast::ForEachBinding) -> Option<String> {
     let pattern_id = match binding {
         ast::ForEachBinding::Pattern { pattern, .. } => *pattern,
         ast::ForEachBinding::Using { pattern, .. } => *pattern,
@@ -139,7 +136,7 @@ fn for_in_binding_name(
 
 /// Return iterator text only when it is side effect free.
 fn side_effect_free_iterator_text(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: LocalNodeId<ast::Expression>,
 ) -> Option<String> {
     let expression = ctx.tree.get(expression_id);
@@ -160,7 +157,7 @@ fn side_effect_free_iterator_text(
 }
 
 /// Return a block's inner source text for fix rewriting.
-fn block_inner_text(ctx: &LintModuleAstContext<'_>, block: &ast::Block) -> Option<String> {
+fn block_inner_text(ctx: &LintAstContext<'_>, block: &ast::Block) -> Option<String> {
     let first_expression_id = *block.expressions.first()?;
     let last_expression_id = *block.expressions.last()?;
     let first_span = ctx.tree.get_span(first_expression_id);

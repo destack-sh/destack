@@ -6,7 +6,7 @@ use destack_source::LabeledSpan;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_statement_ancestor;
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 const MIN_DUPLICATE_STRING_LENGTH: usize = 10;
 const IGNORED_DUPLICATE_STRINGS: [&str; 1] = ["application/json"];
@@ -37,7 +37,7 @@ impl LintRule for NoDuplicateString {
         NoDuplicateString::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // collect all string literals with their locations
@@ -106,7 +106,7 @@ impl LintRule for NoDuplicateString {
 
 /// Return true when one string literal should be considered for duplication checks.
 fn string_value_is_reportable(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
     string_value: &str,
 ) -> bool {

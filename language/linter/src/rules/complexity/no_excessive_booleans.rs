@@ -5,7 +5,7 @@ use crate::rules::common::{
     CallableOwnerId, callable_owner_span, expression_unwrap_parenthesized_syntax,
     for_each_callable_signature, parameter_type_expression_id,
 };
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow too many boolean parameters or type fields.
@@ -34,7 +34,7 @@ impl LintRule for NoExcessiveBooleans {
         NoExcessiveBooleans::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
         let max_booleans = ctx.options.max_booleans;
@@ -143,7 +143,7 @@ fn declaration_members_with_fields(
 
 /// Report one boolean field count overflow diagnostic.
 fn report_boolean_field_overflow<T: ast::Node + Clone>(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &'static crate::LintMeta,
     owner_id: ast::LocalNodeId<T>,
     type_kind: &str,
@@ -176,7 +176,7 @@ fn report_boolean_field_overflow<T: ast::Node + Clone>(
 
 /// Count boolean typed fields in one member list.
 fn count_boolean_member_fields(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     members: &[ast::LocalNodeId<ast::Member>],
 ) -> usize {
     // count member fields with explicit boolean types
@@ -197,7 +197,7 @@ fn count_boolean_member_fields(
 
 /// Count boolean typed fields for one object type expression.
 fn count_boolean_object_type_fields(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<usize> {
     // normalize parenthesized type expression wrappers
@@ -225,7 +225,7 @@ fn count_boolean_object_type_fields(
 }
 
 /// Return true when one parameter has explicit boolean type.
-fn parameter_has_boolean_type(ctx: &LintModuleAstContext<'_>, parameter: &ast::Parameter) -> bool {
+fn parameter_has_boolean_type(ctx: &LintAstContext<'_>, parameter: &ast::Parameter) -> bool {
     // resolve optional parameter type annotation
     let Some(type_expression_id) = parameter_type_expression_id(parameter) else {
         return false;
@@ -237,7 +237,7 @@ fn parameter_has_boolean_type(ctx: &LintModuleAstContext<'_>, parameter: &ast::P
 
 /// Return true when one expression is the boolean type literal.
 fn expression_is_boolean_type(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     // normalize parenthesized wrappers around type expressions

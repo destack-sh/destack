@@ -2,7 +2,7 @@ use destack_ast::{self as ast, BinaryOperator, Expression};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_path_segments, match_selector_expression_id};
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Require `Number.isNaN()` instead of comparisons with `NaN`.
@@ -30,7 +30,7 @@ impl LintRule for UseIsnan {
         UseIsnan::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -62,7 +62,7 @@ impl LintRule for UseIsnan {
 
 /// Check one binary comparison for NaN usage.
 fn check_binary_nan_comparison(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &LintMeta,
     node_id: ast::LocalNodeId<ast::Expression>,
     left: ast::LocalNodeId<ast::Expression>,
@@ -120,7 +120,7 @@ fn check_binary_nan_comparison(
 
 /// Check switch discriminants and case selectors for NaN comparisons.
 fn check_switch_nan_comparisons(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &LintMeta,
     value: ast::LocalNodeId<ast::Expression>,
     cases: &[ast::LocalNodeId<ast::MatchCase>],
@@ -177,10 +177,7 @@ fn check_switch_nan_comparisons(
 }
 
 /// Check if an expression is the identifier `NaN` or `Number.NaN`
-fn is_nan_identifier(
-    ctx: &LintModuleAstContext<'_>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
-) -> bool {
+fn is_nan_identifier(ctx: &LintAstContext<'_>, expr_id: ast::LocalNodeId<ast::Expression>) -> bool {
     let expression = ctx.tree.get(expr_id);
     match expression {
         // unwrap parenthesized expressions before matching
@@ -226,7 +223,7 @@ fn comparison_message(operator: BinaryOperator) -> &'static str {
 
 /// Create a fix for NaN comparison (equality operators only).
 fn make_isnan_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     left: ast::LocalNodeId<ast::Expression>,
     right: ast::LocalNodeId<ast::Expression>,
     operator: BinaryOperator,

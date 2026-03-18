@@ -2,7 +2,7 @@ use destack_ast::{self as ast, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_statement_span;
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow assertions on constant values.
@@ -42,7 +42,7 @@ impl LintRule for NoConstantAssertion {
         NoConstantAssertion::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -122,7 +122,7 @@ impl LintRule for NoConstantAssertion {
 
 /// Build a safe fix by removing one standalone constant-true assertion statement.
 fn constant_true_assertion_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     call_expression_id: ast::LocalNodeId<Expression>,
     argument_expression_id: ast::LocalNodeId<Expression>,
 ) -> Option<LintFix> {
@@ -140,7 +140,7 @@ fn constant_true_assertion_fix(
 }
 
 /// Check if an expression is a call to an assert function.
-fn is_assert_call(ctx: &LintModuleAstContext<'_>, callee_id: ast::LocalNodeId<Expression>) -> bool {
+fn is_assert_call(ctx: &LintAstContext<'_>, callee_id: ast::LocalNodeId<Expression>) -> bool {
     let callee = ctx.tree.get(callee_id);
 
     match callee {
@@ -169,7 +169,7 @@ fn is_assert_call(ctx: &LintModuleAstContext<'_>, callee_id: ast::LocalNodeId<Ex
 
 /// Get the constant truthiness of an expression, if it can be determined at compile time.
 fn get_constant_truthiness(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<Expression>,
 ) -> Option<bool> {
     let expression = ctx.tree.get(expression_id);

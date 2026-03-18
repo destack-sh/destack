@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::span_has_comment_trivia;
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow renaming import, export, and destructured assignments to the same name.
@@ -28,7 +28,7 @@ impl LintRule for NoUselessRename {
         NoUselessRename::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // check destructuring pattern fields
@@ -172,7 +172,7 @@ impl RenameKind {
 
 /// Build one safe fix for a useless destructuring alias.
 fn useless_destructuring_rename_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     field_span: destack_source::Span,
     mutability: Option<ast::Mutability>,
     name_text: String,
@@ -209,7 +209,7 @@ fn useless_destructuring_rename_fix(
 
 /// Build one safe fix for a useless import or export rename item.
 fn useless_dependency_item_rename_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     item_span: destack_source::Span,
 ) -> Option<LintFix> {
     // keep source parity: avoid touching commented items

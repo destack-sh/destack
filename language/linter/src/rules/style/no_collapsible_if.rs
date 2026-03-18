@@ -2,7 +2,7 @@ use destack_ast::{self as ast, Block};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_unwrap_parenthesized_syntax, span_has_comment_trivia};
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest merging nested if statements without else.
@@ -43,7 +43,7 @@ impl LintRule for NoCollapsibleIf {
         NoCollapsibleIf::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -132,7 +132,7 @@ impl LintRule for NoCollapsibleIf {
 
 /// Return one `&&` operand text with minimal precedence-preserving wrapping.
 fn and_condition_operand_text(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> String {
     let expression_span = ctx.tree.get_span(expression_id);
@@ -203,7 +203,7 @@ fn expression_needs_parentheses_for_and_operand(expression: &ast::Expression) ->
 /// Check if a then expression contains only a single if statement without else.
 /// Returns the inner if expression ID if found.
 fn find_single_if_without_else(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression: &ast::Expression,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
@@ -225,7 +225,7 @@ fn find_single_if_without_else(
 /// Check if an expression is an if without else (possibly wrapped in a Statement).
 /// Returns the if expression ID if it's a valid collapsible if.
 fn is_if_without_else(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression: &ast::Expression,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {

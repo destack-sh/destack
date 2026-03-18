@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_is_else_if_branch, expression_is_equal, expression_unwrap_parenthesized_syntax,
 };
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow duplicate conditions in if-else-if chains.
@@ -31,7 +31,7 @@ impl LintRule for NoDuplicateElseIf {
         NoDuplicateElseIf::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // inspect each if condition against its parent else-if chain
@@ -92,7 +92,7 @@ impl LintRule for NoDuplicateElseIf {
 
 /// Return all expression conditions from parent else-if chain order.
 fn ancestor_else_if_conditions(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     mut expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Vec<ast::LocalNodeId<ast::Expression>> {
     // collect parent tests from nearest parent outward
@@ -135,7 +135,7 @@ fn ancestor_else_if_conditions(
 
 /// Return true when this if test is duplicate or covered by parent else-if chain tests.
 fn condition_is_duplicate_or_covered(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     if_expression_id: ast::LocalNodeId<ast::Expression>,
     test_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
@@ -200,7 +200,7 @@ fn condition_is_duplicate_or_covered(
 
 /// Return true when left condition list is a subset of right condition list.
 fn conditions_are_subset(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     left_conditions: &[ast::LocalNodeId<ast::Expression>],
     right_conditions: &[ast::LocalNodeId<ast::Expression>],
 ) -> bool {
@@ -213,7 +213,7 @@ fn conditions_are_subset(
 
 /// Return true when two condition expressions are equivalent for duplicate checks.
 fn condition_is_equal(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     left_id: ast::LocalNodeId<ast::Expression>,
     right_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
@@ -258,7 +258,7 @@ fn condition_is_equal(
 
 /// Return true when one expression is a logical and condition.
 fn condition_is_and(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, expression_id);
@@ -274,7 +274,7 @@ fn condition_is_and(
 
 /// Split one condition expression by logical or operators.
 fn split_by_or(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Vec<ast::LocalNodeId<ast::Expression>> {
     split_by_logical_operator(ctx, expression_id, ast::BinaryOperator::Or)
@@ -282,7 +282,7 @@ fn split_by_or(
 
 /// Split one condition expression by logical and operators.
 fn split_by_and(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Vec<ast::LocalNodeId<ast::Expression>> {
     split_by_logical_operator(ctx, expression_id, ast::BinaryOperator::And)
@@ -290,7 +290,7 @@ fn split_by_and(
 
 /// Split one condition expression by one logical operator.
 fn split_by_logical_operator(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
     operator: ast::BinaryOperator,
 ) -> Vec<ast::LocalNodeId<ast::Expression>> {
@@ -316,7 +316,7 @@ fn split_by_logical_operator(
 
 /// Return true when this else-if condition exactly duplicates one parent chain condition.
 fn has_exact_duplicate_in_ancestor_chain(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     if_expression_id: ast::LocalNodeId<ast::Expression>,
     test_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
@@ -329,7 +329,7 @@ fn has_exact_duplicate_in_ancestor_chain(
 
 /// Build an unsafe fix for one duplicate else-if by replacing it with its fallback branch.
 fn no_duplicate_else_if_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     if_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<LintFix> {
     // keep fixes for nested else-if expressions only

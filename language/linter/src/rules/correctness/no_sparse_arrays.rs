@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::argument_value_expression_id;
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow sparse arrays and tuples.
@@ -31,7 +31,7 @@ impl LintRule for NoSparseArrays {
     }
 
     /// Check module AST nodes for sparse array and tuple holes.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // inspect candidate expressions
@@ -82,7 +82,7 @@ impl LintRule for NoSparseArrays {
 
 /// Build a safe fix by replacing a sparse hole with `undefined`.
 fn no_sparse_arrays_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     stub_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<LintFix> {
     let stub_span = ctx.tree.get_span(stub_expression_id);

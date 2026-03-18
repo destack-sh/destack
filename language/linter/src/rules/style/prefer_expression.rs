@@ -5,7 +5,7 @@ use destack_ast::{
 use destack_core::StringId;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer expression-based if over statement-based pattern.
@@ -52,7 +52,7 @@ impl LintRule for PreferExpression {
         PreferExpression::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for root_id in ctx.roots.iter() {
@@ -63,7 +63,7 @@ impl LintRule for PreferExpression {
 
 /// Recursively check expressions for the pattern.
 fn check_expression(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &'static crate::LintMeta,
     tree: &NodeTree,
     expression_id: LocalNodeId<Expression>,
@@ -107,7 +107,7 @@ fn check_expression(
 
 /// Check a block for the uninitialized-let-then-if pattern.
 fn check_block(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     meta: &'static crate::LintMeta,
     tree: &NodeTree,
     block_id: LocalNodeId<Block>,
@@ -279,7 +279,7 @@ fn branch_assigned_value(
 
 /// Build a safe rewrite from `let x; if (...) { x = a } else { x = b }` to expression form.
 fn prefer_expression_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     candidate: ExpressionPatternCandidate,
 ) -> Option<LintFix> {
     let declaration_kind = match candidate.declaration_kind {

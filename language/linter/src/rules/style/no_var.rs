@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, ForEachBinding, ForEachDeclarationKind, LetKind};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `var` declarations.
@@ -28,7 +28,7 @@ impl LintRule for NoVar {
         NoVar::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // direct `var` declarations
@@ -102,7 +102,7 @@ impl LintRule for NoVar {
 }
 
 /// Build a safe fix that rewrites one `var` keyword to `let`.
-fn no_var_fix(ctx: &LintModuleAstContext<'_>, span: destack_source::Span) -> Option<LintFix> {
+fn no_var_fix(ctx: &LintAstContext<'_>, span: destack_source::Span) -> Option<LintFix> {
     let text = ctx.get_span_text(span);
     let trimmed_text = text.trim_start();
     let leading_whitespace_len = text.len().checked_sub(trimmed_text.len())?;

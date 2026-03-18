@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_is_else_if_branch;
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Require final else in if-else-if chains.
@@ -29,7 +29,7 @@ impl LintRule for RequireElseInIfChain {
         RequireElseInIfChain::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -80,7 +80,7 @@ impl LintRule for RequireElseInIfChain {
 
 /// Follow else wrappers and return the terminal else-if without fallback else.
 fn find_terminal_else_if_without_fallback(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     else_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
     let mut current_id = else_expression_id;
@@ -111,7 +111,7 @@ fn find_terminal_else_if_without_fallback(
 
 /// Build an unsafe fix by appending an empty final else branch.
 fn require_else_in_if_chain_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     terminal_else_if_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<LintFix> {
     let terminal_expression = ctx.tree.get(terminal_else_if_id);

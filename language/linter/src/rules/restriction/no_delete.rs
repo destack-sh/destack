@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expand_span_to_statement_terminator, expression_statement_ancestor};
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow the delete operator.
@@ -31,7 +31,7 @@ impl LintRule for NoDelete {
     }
 
     /// Check module AST nodes for delete expressions.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // walk expressions to find delete usage
@@ -77,7 +77,7 @@ impl LintRule for NoDelete {
 
 /// Build an unsafe fix by removing one standalone delete statement.
 fn no_delete_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     delete_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<LintFix> {
     // require one standalone statement context around the delete expression

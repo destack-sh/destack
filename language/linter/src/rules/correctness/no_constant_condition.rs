@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{control_flow_condition_expression, expression_statement_span};
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow constant expressions in conditions.
@@ -31,7 +31,7 @@ impl LintRule for NoConstantCondition {
     }
 
     /// Check module AST nodes for constant conditional expressions.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // walk conditional expressions
@@ -94,7 +94,7 @@ impl LintRule for NoConstantCondition {
 
 /// Build a conservative fix for constant conditions.
 fn no_constant_condition_fix(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<LintFix> {
     // inspect the conditional expression shape

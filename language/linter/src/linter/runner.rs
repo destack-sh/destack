@@ -5,7 +5,7 @@ use destack_source::ModuleId;
 use destack_workspace::{LintCategory, LintPreset, LinterOptions, Module, ProfileId, Program};
 
 use crate::{
-    BoxedLintRule, LintDiagnostic, LintLevel, LintModuleAstContext, LintModuleDirContext,
+    BoxedLintRule, LintAstContext, LintDiagnostic, LintLevel, LintModuleDirContext,
     LintProgramAstContext, LintProgramDirContext, LintScope, all_rules, recommended_rules,
     strict_rules,
 };
@@ -276,7 +276,7 @@ impl LintRunner {
             .ast(module.id)
             .expect("lint AST pass requires committed AST artifact");
         let file = program.files.get(module.file_id);
-        let mut ctx = LintModuleAstContext::new(
+        let mut ctx = LintAstContext::new(
             program,
             &module,
             file,
@@ -343,6 +343,10 @@ impl LintRunner {
             .artifacts
             .dir_analyzed(module.id, profile)
             .expect("lint DIR pass requires committed analyzed DIR artifact");
+        let resolved = program
+            .artifacts
+            .dir_resolved(module.id, profile)
+            .expect("lint DIR pass requires committed resolved DIR artifact");
 
         let mut ctx = LintModuleDirContext::new(
             program,
@@ -357,12 +361,13 @@ impl LintRunner {
             dir.namespace_symbol,
             dir.namespace_scope,
             dir.default_symbol,
-            dir.namespace_exports
+            resolved
+                .namespace_exports
                 .iter()
                 .map(|export| export.module_id)
                 .collect(),
-            dir.imported_modules.as_ref().clone(),
-            dir.exported_symbols.as_ref().clone(),
+            resolved.imported_modules.as_ref().clone(),
+            resolved.exported_symbols.as_ref().clone(),
             options,
             self.compute_fixes,
         );

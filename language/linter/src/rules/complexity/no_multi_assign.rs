@@ -5,7 +5,7 @@ use crate::rules::common::{
     expression_outer_parenthesized_syntax, expression_statement_ancestor,
     expression_unwrap_parenthesized_syntax,
 };
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow chained assignment expressions.
@@ -32,7 +32,7 @@ impl LintRule for NoMultiAssign {
         NoMultiAssign::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         // resolve lint metadata and option policy
         let meta = self.meta();
         let ignore_non_declaration = ctx.options.no_multi_assign_ignore_non_declaration;
@@ -81,7 +81,7 @@ impl LintRule for NoMultiAssign {
 
 /// Return true when one assignment should be reported by no-multi-assign.
 fn assignment_should_report(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     assignment_expression_id: ast::LocalNodeId<ast::Expression>,
     ignore_non_declaration: bool,
 ) -> bool {
@@ -101,7 +101,7 @@ fn assignment_should_report(
 
 /// Return true when one assignment is in a declaration initializer slot.
 fn assignment_is_declaration_initializer(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     assignment_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     // lift assignment through parenthesized wrappers for parent checks
@@ -151,7 +151,7 @@ fn assignment_is_declaration_initializer(
 
 /// Return true when one assignment has an assignment expression on the right.
 fn assignment_has_assignment_right(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     assignment_expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     // normalize the assignment expression before right-side checks
@@ -170,7 +170,7 @@ fn assignment_has_assignment_right(
 
 /// Build a safe fix for one chained assignment statement with simple paths.
 fn no_multi_assign_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<LintFix> {
     // keep statement scoped assignments only
@@ -217,7 +217,7 @@ fn no_multi_assign_fix(
 
 /// Collect left sides for a chained assignment and return the final rhs expression.
 fn collect_assignment_chain(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
     left_ids: &mut Vec<ast::LocalNodeId<ast::Expression>>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {

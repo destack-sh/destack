@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_contains_assignment;
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow assignment operators in return statements.
@@ -29,7 +29,7 @@ impl LintRule for NoReturnAssign {
         NoReturnAssign::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -114,7 +114,7 @@ impl LintRule for NoReturnAssign {
 
 /// Return one assignment expression id, unwrapping parentheses.
 fn assignment_expression_id(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
     let expression = ctx.tree.get(expr_id);
@@ -127,7 +127,7 @@ fn assignment_expression_id(
 
 /// Build an unsafe fix that lifts assignment out of return position.
 fn no_return_assign_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     return_id: ast::LocalNodeId<ast::Expression>,
     value_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<LintFix> {
@@ -151,7 +151,7 @@ fn no_return_assign_fix(
 }
 
 /// Build a unique binding name not present in the current source file.
-fn unique_binding_name(ctx: &LintModuleAstContext<'_>, base_name: &str) -> String {
+fn unique_binding_name(ctx: &LintAstContext<'_>, base_name: &str) -> String {
     if !ctx.file.text().contains(base_name) {
         return base_name.to_string();
     }

@@ -5,7 +5,7 @@ use crate::rules::common::{
     expression_path_segments, expression_unwrap_parenthesized_syntax, path_is_regexp_constructor,
     regex_pattern_info, regexp_global_qualifier_names,
 };
-use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
     /// Require `u` or `v` flag on regular expressions.
@@ -40,7 +40,7 @@ impl LintRule for RequireUnicodeRegexp {
         RequireUnicodeRegexp::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
         let regexp_name = ctx.strings.intern("RegExp");
         let global_qualifier_names = regexp_global_qualifier_names(ctx.strings);
@@ -108,7 +108,7 @@ impl LintRule for RequireUnicodeRegexp {
 
 /// Return true when this is a RegExp constructor with unknown flags.
 fn has_unknown_constructor_flags_argument(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<Expression>,
     regexp_name: ast::StringId,
     global_qualifier_names: &[ast::StringId],
@@ -160,7 +160,7 @@ fn has_unknown_constructor_flags_argument(
 
 /// Build a safe fix that appends a unicode flag to a regex literal.
 fn unicode_regex_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<Expression>,
     regexp_name: ast::StringId,
     global_qualifier_names: &[ast::StringId],

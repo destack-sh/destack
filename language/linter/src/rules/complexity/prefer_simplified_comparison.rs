@@ -2,7 +2,7 @@ use destack_ast::{self as ast, BinaryOperator};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_numeric_value, expression_unwrap_parenthesized_syntax};
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest simplifying comparisons.
@@ -28,7 +28,7 @@ impl LintRule for PreferSimplifiedComparison {
         PreferSimplifiedComparison::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -96,7 +96,7 @@ struct ComparisonSimplification {
 
 /// Return one simplification for a comparison operator and right-hand side.
 fn simplification_for_operator(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     operator: BinaryOperator,
     right_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ComparisonSimplification> {
@@ -139,7 +139,7 @@ fn simplification_for_operator(
 
 /// Return the base expression id when one side is `base +/- 1`.
 fn right_add_or_sub_one(
-    ctx: &mut LintModuleAstContext<'_>,
+    ctx: &mut LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
     operator: BinaryOperator,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {

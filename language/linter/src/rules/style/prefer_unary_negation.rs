@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, BinaryOperator, ScalarLiteral, UnaryOperator};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer unary negation over multiplying by -1.
@@ -28,7 +28,7 @@ impl LintRule for PreferUnaryNegation {
         PreferUnaryNegation::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -97,7 +97,7 @@ impl LintRule for PreferUnaryNegation {
 
 /// Check if an expression represents the value -1.
 fn is_negative_one(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression: &ast::Expression,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {

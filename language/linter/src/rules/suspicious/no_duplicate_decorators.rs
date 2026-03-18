@@ -3,7 +3,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{ExpressionDuplicateTracker, span_has_comment_trivia};
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow duplicate decorators on the same target.
@@ -30,7 +30,7 @@ impl LintRule for NoDuplicateDecorators {
         NoDuplicateDecorators::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         // check each annotated node
@@ -87,7 +87,7 @@ impl LintRule for NoDuplicateDecorators {
 }
 
 /// Return a deletion span that removes one duplicate decorator line cleanly.
-fn duplicate_decorator_fix_span(ctx: &LintModuleAstContext<'_>, annotation_span: Span) -> Span {
+fn duplicate_decorator_fix_span(ctx: &LintAstContext<'_>, annotation_span: Span) -> Span {
     let source = ctx.source_text().as_bytes();
     let mut start = annotation_span.start as usize;
     let mut end = annotation_span.end as usize;

@@ -2,7 +2,7 @@ use destack_ast::{self as ast, Expression};
 use destack_source::FileType;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow barrel files that re-export everything.
@@ -39,7 +39,7 @@ impl LintRule for NoBarrelFile {
         NoBarrelFile::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         if module_is_declaration_file(ctx) {
             return;
         }
@@ -114,7 +114,7 @@ impl LintRule for NoBarrelFile {
 }
 
 /// Return true when one module path points to a declaration file.
-fn module_is_declaration_file(ctx: &LintModuleAstContext<'_>) -> bool {
+fn module_is_declaration_file(ctx: &LintAstContext<'_>) -> bool {
     matches!(
         ctx.file.ty,
         FileType::DestackDeclaration | FileType::TypeScriptDeclaration
@@ -123,7 +123,7 @@ fn module_is_declaration_file(ctx: &LintModuleAstContext<'_>) -> bool {
 
 /// Return true when one export-from clause re-exports runtime values.
 fn export_is_value_reexport(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     kind: ast::DependencyKind,
     items: &[ast::LocalNodeId<ast::DependencyItem>],
 ) -> bool {

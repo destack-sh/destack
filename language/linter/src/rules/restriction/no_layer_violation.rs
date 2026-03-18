@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 
 use destack_source::{FileId, FileType, ModuleId, Span};
-use destack_workspace::{
-    DiagnosticPolicy, LintModuleBoundariesOptions, LintSeverity, ModuleGraphKey,
-};
+use destack_workspace::{DiagnosticPolicy, LintModuleBoundariesOptions, LintSeverity};
 
 use crate::rules::common::glob_matches;
 use crate::{LintDiagnostic, LintProgramDirContext, LintRule, declare_lint};
@@ -50,8 +48,7 @@ impl LintRule for NoLayerViolation {
         }
 
         // resolve module graph for this profile
-        let graph_key = ModuleGraphKey::new(ctx.profile_id);
-        let Some(graph) = ctx.program.index.module_graphs.get(&graph_key) else {
+        let Some(graph) = ctx.program.artifacts.module_graph(ctx.profile_id) else {
             return;
         };
 

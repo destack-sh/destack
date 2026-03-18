@@ -3,7 +3,7 @@ use std::hash::{Hash, Hasher};
 
 use destack_ast as ast;
 
-use crate::LintModuleAstContext;
+use crate::LintAstContext;
 use crate::rules::common::{blocks_equal, expression_is_equal, stable_hash_debug};
 
 /// Shared duplicate tracker for expression nodes.
@@ -37,7 +37,7 @@ impl ExpressionDuplicateTracker {
     /// Return a matching prior expression and insert current when unique.
     pub fn find_duplicate_or_insert(
         &mut self,
-        ctx: &LintModuleAstContext<'_>,
+        ctx: &LintAstContext<'_>,
         expression_id: ast::LocalNodeId<ast::Expression>,
     ) -> Option<ast::LocalNodeId<ast::Expression>> {
         let key = expression_coarse_key(ctx, expression_id);
@@ -71,7 +71,7 @@ impl BlockDuplicateTracker {
     /// Return a matching prior block and insert current when unique.
     pub fn find_duplicate_or_insert(
         &mut self,
-        ctx: &LintModuleAstContext<'_>,
+        ctx: &LintAstContext<'_>,
         block_id: ast::LocalNodeId<ast::Block>,
     ) -> Option<ast::LocalNodeId<ast::Block>> {
         let key = block_prefilter_key(ctx, block_id);
@@ -90,7 +90,7 @@ impl BlockDuplicateTracker {
 
 /// Build a coarse key for expression bucketing.
 fn expression_coarse_key(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> u64 {
     let expression = ctx.tree.get(expression_id);
@@ -165,7 +165,7 @@ fn expression_coarse_key(
 
 /// Build a structural key used for fast candidate rejection.
 fn expression_structural_key(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> u64 {
     let expression = ctx.tree.get(expression_id);
@@ -268,10 +268,7 @@ fn expression_structural_key(
 }
 
 /// Build a coarse prefilter key for one block.
-fn block_prefilter_key(
-    ctx: &LintModuleAstContext<'_>,
-    block_id: ast::LocalNodeId<ast::Block>,
-) -> u64 {
+fn block_prefilter_key(ctx: &LintAstContext<'_>, block_id: ast::LocalNodeId<ast::Block>) -> u64 {
     let block = ctx.tree.get(block_id);
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     block.expressions.len().hash(&mut hasher);
@@ -285,7 +282,7 @@ fn block_prefilter_key(
 
 /// Hash one normalized expression kind.
 fn hash_expression_kind(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     hasher: &mut std::collections::hash_map::DefaultHasher,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) {
@@ -296,7 +293,7 @@ fn hash_expression_kind(
 
 /// Hash one argument shape.
 fn hash_argument_shape(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     hasher: &mut std::collections::hash_map::DefaultHasher,
     argument_id: ast::LocalNodeId<ast::Argument>,
 ) {
@@ -320,7 +317,7 @@ fn hash_argument_shape(
 
 /// Hash one if condition shape.
 fn hash_if_condition_shape(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     hasher: &mut std::collections::hash_map::DefaultHasher,
     condition: &ast::IfCondition,
 ) {
@@ -351,7 +348,7 @@ fn hash_debug_into(
 
 /// Unwrap parenthesized and statement expressions for normalized hashing.
 fn unwrap_expression<'a>(
-    ctx: &'a LintModuleAstContext<'_>,
+    ctx: &'a LintAstContext<'_>,
     expression: &'a ast::Expression,
 ) -> &'a ast::Expression {
     match expression {

@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use destack_source::Span;
 
-use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow multiple declarators in a single let/const statement.
@@ -30,7 +30,7 @@ impl LintRule for NoMultiDeclarators {
         NoMultiDeclarators::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
 
         for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -80,7 +80,7 @@ impl LintRule for NoMultiDeclarators {
 
 /// Build a fix that splits one let statement into one statement per declarator.
 fn split_declarator_fix(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
     declarators: &[ast::LocalNodeId<ast::Declarator>],
     kind: ast::LetKind,
@@ -134,7 +134,7 @@ fn split_declarator_fix(
 
 /// Return true when one expression is the initializer of a for loop.
 fn is_for_initializer(
-    ctx: &LintModuleAstContext<'_>,
+    ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let Some(parent_id) = ctx.parents.get(expression_id) else {
