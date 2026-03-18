@@ -1,6 +1,9 @@
 use destack_core::LocalStringPool;
 use destack_mir::NodeTree;
 use destack_vm as vm;
+#[cfg(not(test))]
+use destack_workspace::RuntimeOptions;
+#[cfg(test)]
 use destack_workspace::{ExecutionMode, RandomMode, RandomOptions, RuntimeOptions};
 
 #[cfg(test)]
@@ -56,6 +59,25 @@ impl TestRuntime {
         Self::from_runtime_options(options)
     }
 
+    /// Build a runtime with deterministic random settings and no ambient host ingress.
+    #[cfg(test)]
+    pub(crate) fn deterministic_random_without_host_ambient_ingress() -> Self {
+        Self::deterministic_random_without_host_ambient_ingress_with_options(|_| {})
+    }
+
+    /// Build a runtime with deterministic random settings, one options mutator, and no ambient host ingress.
+    #[cfg(test)]
+    pub(crate) fn deterministic_random_without_host_ambient_ingress_with_options(
+        configure: impl FnOnce(&mut RuntimeOptions),
+    ) -> Self {
+        // build baseline deterministic options
+        let mut options = Self::deterministic_runtime_options();
+        configure(&mut options);
+
+        // runtime with deterministic random state and no ambient ingress
+        Self::from_runtime_options_with_native_ingress(options, false)
+    }
+
     /// Build the baseline deterministic runtime options.
     fn deterministic_runtime_options() -> RuntimeOptions {
         // route host-backed crypto snapshots to deterministic local files
@@ -81,6 +103,14 @@ impl TestRuntime {
 
     /// Build a test runtime from explicit runtime options.
     fn from_runtime_options(options: RuntimeOptions) -> Self {
+        Self::from_runtime_options_with_native_ingress(options, true)
+    }
+
+    /// Build a test runtime from explicit runtime options and one native-ingress policy.
+    fn from_runtime_options_with_native_ingress(
+        options: RuntimeOptions,
+        is_native_ingress_enabled: bool,
+    ) -> Self {
         // build runtime state from explicit options
         let world = World::from_options(&options).expect("runtime test world should build");
 
@@ -92,7 +122,11 @@ impl TestRuntime {
 
         let agent = Agent::new_in_world(Vec::new(), &options, &world, Box::new(agent_engine))
             .expect("runtime test agent should build");
-        let host = HostSession::from_runtime_options(&options, agent.runtime_id);
+        let host = if is_native_ingress_enabled {
+            HostSession::from_runtime_options(&options, agent.runtime_id)
+        } else {
+            HostSession::from_runtime_options_without_native_ingress(&options, agent.runtime_id)
+        };
 
         // vm binding isolate
         let tree = NodeTree::new();

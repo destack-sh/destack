@@ -1,9 +1,9 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::error::not_supported;
+use crate::host::core::registry::HostRuntimeId;
 use crate::host::core::request::{HostRequest, HostRequestContext, HostRequestOutcome};
 use crate::host::{HostEvent, Platform};
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
-use crate::runtime::world::RuntimeId;
 
 /// Host poll output containing queued events and queue-pressure drops.
 #[derive(Debug, Default)]
@@ -30,7 +30,7 @@ pub(crate) trait HostAdapter: std::fmt::Debug + Send + Sync {
     }
 
     /// Return dynamic session capabilities for one specific runtime.
-    fn session_capabilities(&self, _runtime_id: RuntimeId) -> PlatformCapabilitySet {
+    fn session_capabilities(&self, _host_runtime_id: HostRuntimeId) -> PlatformCapabilitySet {
         PlatformCapabilitySet::new()
     }
 
@@ -40,8 +40,8 @@ pub(crate) trait HostAdapter: std::fmt::Debug + Send + Sync {
     }
 
     /// Service immediately ready native host ingress without blocking.
-    fn process_native_ingress(&self) -> RuntimeResult<bool> {
-        Ok(false)
+    fn process_native_ingress(&self) -> RuntimeResult<()> {
+        Ok(())
     }
 
     /// Submit one host request through this adapter.

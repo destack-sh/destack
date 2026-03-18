@@ -1,57 +1,21 @@
 use std::sync::Arc;
 
-use destack_workspace::{Platform, PlatformHostOptions, RuntimeAppDeclaration, RuntimeOptions};
+use destack_workspace::{
+    Platform, PlatformHostOptions, PlatformOsOptions, RuntimeAppDeclaration, RuntimeOptions,
+};
 
 use crate::diagnostic::RuntimeResult;
-#[cfg(target_os = "android")]
-use crate::host::android::AndroidHost;
-#[cfg(target_os = "android")]
-use crate::host::android::unregister_android_bindings;
-use crate::host::common::require_declared_request;
+use crate::host::app::ingress::service_app_ingress;
+use crate::host::app::requirements::require_declared_request;
+use crate::host::bootstrap::{default_compile_target_parts, host_options_for_target};
 use crate::host::core::adapter::{HostAdapter, HostPollOutcome};
 use crate::host::core::event::{HostEvent, HostLifecycleEvent, HostLifecycleState};
 use crate::host::core::queue::HostQueue;
-use crate::host::core::registry::{HostCleanup, HostRegistrationGuard, HostRuntimeRegistry};
+use crate::host::core::registry::{
+    HostCleanup, HostRegistrationGuard, HostRuntimeId, HostRuntimeRegistry, next_host_runtime_id,
+};
 use crate::host::core::request::{HostRequest, HostRequestContext, HostRequestOutcome};
-#[cfg(target_os = "dragonfly")]
-use crate::host::dragonfly::DragonflyHost;
-#[cfg(target_os = "freebsd")]
-use crate::host::freebsd::FreeBsdHost;
-#[cfg(target_os = "haiku")]
-use crate::host::haiku::HaikuHost;
-#[cfg(target_os = "illumos")]
-use crate::host::illumos::IllumosHost;
-#[cfg(target_os = "ios")]
-use crate::host::ios::IosHost;
-#[cfg(target_os = "ios")]
-use crate::host::ios::unregister_ios_bindings;
-#[cfg(target_os = "linux")]
-use crate::host::linux::LinuxHost;
-#[cfg(target_os = "macos")]
-use crate::host::macos::MacosHost;
-#[cfg(target_os = "netbsd")]
-use crate::host::netbsd::NetBsdHost;
-#[cfg(target_os = "openbsd")]
-use crate::host::openbsd::OpenBsdHost;
-#[cfg(target_os = "solaris")]
-use crate::host::solaris::SolarisHost;
-#[cfg(not(any(
-    target_os = "android",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "haiku",
-    target_os = "illumos",
-    target_os = "ios",
-    target_os = "linux",
-    target_os = "macos",
-    target_os = "netbsd",
-    target_os = "openbsd",
-    target_os = "solaris",
-    windows,
-)))]
-use crate::host::unsupported::UnsupportedHost;
-#[cfg(windows)]
-use crate::host::windows::WindowsHost;
+use crate::host::operation::HostOperation;
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilityId, PlatformCapabilitySet};
 use crate::runtime::poller::PollerWakeHandle;
 use crate::runtime::world::RuntimeId;
@@ -64,14 +28,20 @@ pub struct HostSession {
     queue: Arc<HostQueue>,
     /// Shared registration guard for callback routing.
     registration_guard: HostRegistrationGuard,
-    /// Runtime id used for host callback routing and ingress observers.
+    /// Logical runtime id used by the world/runtime layer.
     runtime_id: RuntimeId,
+    /// Process-global routing id used for host callback routing and ingress observers.
+    host_runtime_id: HostRuntimeId,
     /// Static host capability set reported by the adapter.
     adapter_capabilities: PlatformCapabilitySet,
     /// Resolved host integration options for this runtime target.
     host_options: PlatformHostOptions,
+    /// Resolved OS runtime options for host-backed services.
+    os_options: PlatformOsOptions,
     /// Resolved target app declaration for request availability checks.
     app_declaration: RuntimeAppDeclaration,
+    /// Whether adapter-native ambient ingress should be serviced.
+    is_native_ingress_enabled: bool,
 }
 
 impl std::fmt::Debug for HostSession {
@@ -79,9 +49,10 @@ impl std::fmt::Debug for HostSession {
         f.debug_struct("HostSession")
             .field("platform", &self.platform())
             .field("runtime_id", &self.runtime_id)
+            .field("host_runtime_id", &self.host_runtime_id)
             .field(
                 "registration_runtime_id",
-                &self.registration_guard.runtime_id(),
+                &self.registration_guard.host_runtime_id(),
             )
             .field("adapter_capability_count", &self.adapter_capabilities.len())
             .field(
@@ -92,6 +63,7 @@ impl std::fmt::Debug for HostSession {
                 "event_queue_capacity",
                 &self.host_options.event_queue_capacity,
             )
+            .field("is_native_ingress_enabled", &self.is_native_ingress_enabled)
             .finish()
     }
 }
@@ -103,15 +75,38 @@ impl HostSession {
         cleanup: Option<HostCleanup>,
         runtime_id: RuntimeId,
         host_options: PlatformHostOptions,
+        os_options: PlatformOsOptions,
         app_declaration: RuntimeAppDeclaration,
     ) -> Self {
+        Self::new_with_options_and_native_ingress(
+            adapter,
+            cleanup,
+            runtime_id,
+            host_options,
+            os_options,
+            app_declaration,
+            true,
+        )
+    }
+
+    /// Create one host session from one explicit adapter and host options.
+    pub(crate) fn new_with_options_and_native_ingress(
+        adapter: Arc<dyn HostAdapter>,
+        cleanup: Option<HostCleanup>,
+        runtime_id: RuntimeId,
+        host_options: PlatformHostOptions,
+        os_options: PlatformOsOptions,
+        app_declaration: RuntimeAppDeclaration,
+        is_native_ingress_enabled: bool,
+    ) -> Self {
         let platform = adapter.platform();
-        let queue = Arc::new(HostQueue::new(runtime_id));
+        let host_runtime_id = next_host_runtime_id();
+        let queue = Arc::new(HostQueue::new(host_runtime_id));
 
         // register callback routing before this host starts serving callers
         let registration_guard = HostRuntimeRegistry::register_queue(
             platform,
-            runtime_id,
+            host_runtime_id,
             Arc::downgrade(&queue),
             cleanup,
         );
@@ -133,20 +128,54 @@ impl HostSession {
             queue,
             registration_guard,
             runtime_id,
+            host_runtime_id,
             adapter_capabilities,
             host_options,
+            os_options,
             app_declaration,
+            is_native_ingress_enabled,
         }
     }
 
     /// Create one host session from runtime options and one explicit runtime id.
     pub fn from_runtime_options(options: &RuntimeOptions, runtime_id: RuntimeId) -> Self {
         // resolve compile-target host integration once
-        let (platform, adapter, cleanup) = Self::default_compile_target_parts();
+        let (platform, adapter, cleanup) = default_compile_target_parts();
         let host_options = host_options_for_target(platform, options);
+        let os_options = options.os.clone();
         let app_declaration = options.app.clone();
 
-        Self::new_with_options(adapter, cleanup, runtime_id, host_options, app_declaration)
+        Self::new_with_options(
+            adapter,
+            cleanup,
+            runtime_id,
+            host_options,
+            os_options,
+            app_declaration,
+        )
+    }
+
+    /// Create one host session from runtime options without native ambient ingress.
+    #[cfg(test)]
+    pub(crate) fn from_runtime_options_without_native_ingress(
+        options: &RuntimeOptions,
+        runtime_id: RuntimeId,
+    ) -> Self {
+        // resolve compile-target host integration once
+        let (platform, adapter, cleanup) = default_compile_target_parts();
+        let host_options = host_options_for_target(platform, options);
+        let os_options = options.os.clone();
+        let app_declaration = options.app.clone();
+
+        Self::new_with_options_and_native_ingress(
+            adapter,
+            cleanup,
+            runtime_id,
+            host_options,
+            os_options,
+            app_declaration,
+            false,
+        )
     }
 
     /// Return the active host platform.
@@ -168,7 +197,7 @@ impl HostSession {
 
     /// Return the dynamic session capabilities reported by the active adapter.
     pub fn session_capabilities(&self) -> PlatformCapabilitySet {
-        self.adapter.session_capabilities(self.runtime_id)
+        self.adapter.session_capabilities(self.host_runtime_id)
     }
 
     /// Return whether adapter and session wiring report one host capability id.
@@ -188,20 +217,23 @@ impl HostSession {
         require_declared_request(self.platform(), &self.app_declaration, &request)?;
 
         // request context
-        let request_context = HostRequestContext {
-            runtime_id: self.runtime_id,
-            platform: self.platform(),
-            is_process_main_context: self.is_process_main_context(),
-        };
+        let request_context = self.host_request_context();
 
         self.adapter.submit_request(&request_context, request)
+    }
+
+    /// Submit one typed host operation through the active session.
+    pub(crate) fn submit_operation<T>(&self, operation: HostOperation<T>) -> RuntimeResult<T> {
+        let request = operation.request().clone();
+        let outcome = self.submit_request(request)?;
+
+        operation.decode_outcome(outcome)
     }
 
     /// Poll host events using the active host.
     pub fn poll_events(&self, timeout_nanos: Option<u64>) -> RuntimeResult<HostPollOutcome> {
         // drain the queued host event stream directly
         let events = self.queue.poll_events(timeout_nanos)?;
-
         // report queue pressure independently from the drained event batch
         let dropped_event_count = self.queue.take_dropped_event_count();
 
@@ -221,100 +253,40 @@ impl HostSession {
         self.runtime_id
     }
 
+    /// Return the process-global host routing id used for callback registration.
+    pub(crate) const fn host_runtime_id(&self) -> HostRuntimeId {
+        self.host_runtime_id
+    }
+
+    /// Build one host request context for this session.
+    fn host_request_context(&self) -> HostRequestContext {
+        HostRequestContext {
+            host_runtime_id: self.host_runtime_id,
+            platform: self.platform(),
+            os_options: self.os_options.clone(),
+            app_identity: self.app_declaration.identity.clone(),
+            is_process_main_context: self.is_process_main_context(),
+        }
+    }
+
     /// Return whether the current execution context is the process main context.
     pub fn is_process_main_context(&self) -> bool {
         self.adapter.is_process_main_context()
     }
-
     /// Service host-owned ingress for this runtime session.
     pub fn service_ingress(&self) -> RuntimeResult<()> {
         // service immediately ready native ingress from the adapter
-        self.adapter.process_native_ingress()?;
+        if self.is_native_ingress_enabled {
+            self.adapter.process_native_ingress()?;
+        }
+
+        let request_context = self.host_request_context();
+
+        // service app-owned ingress for this runtime
+        service_app_ingress(&request_context)?;
 
         // service runtime-owned ingress observers registered for this session
-        HostRuntimeRegistry::process_runtime_ingress(self.runtime_id)
-    }
-
-    /// Return the default host integration parts for the active compile target.
-    fn default_compile_target_parts() -> (Platform, Arc<dyn HostAdapter>, Option<HostCleanup>) {
-        #[cfg(target_os = "android")]
-        return (
-            Platform::Android,
-            Arc::new(AndroidHost::new()),
-            Some(unregister_android_bindings),
-        );
-
-        #[cfg(target_os = "dragonfly")]
-        return (Platform::DragonFly, Arc::new(DragonflyHost::new()), None);
-
-        #[cfg(target_os = "freebsd")]
-        return (Platform::FreeBsd, Arc::new(FreeBsdHost::new()), None);
-
-        #[cfg(target_os = "haiku")]
-        return (Platform::Haiku, Arc::new(HaikuHost::new()), None);
-
-        #[cfg(target_os = "illumos")]
-        return (Platform::Illumos, Arc::new(IllumosHost::new()), None);
-
-        #[cfg(target_os = "ios")]
-        return (
-            Platform::IOS,
-            Arc::new(IosHost::new()),
-            Some(unregister_ios_bindings),
-        );
-
-        #[cfg(target_os = "linux")]
-        return (Platform::Linux, Arc::new(LinuxHost::new()), None);
-
-        #[cfg(target_os = "macos")]
-        return (Platform::MacOS, Arc::new(MacosHost::new()), None);
-
-        #[cfg(target_os = "netbsd")]
-        return (Platform::NetBsd, Arc::new(NetBsdHost::new()), None);
-
-        #[cfg(target_os = "openbsd")]
-        return (Platform::OpenBsd, Arc::new(OpenBsdHost::new()), None);
-
-        #[cfg(target_os = "solaris")]
-        return (Platform::Solaris, Arc::new(SolarisHost::new()), None);
-
-        #[cfg(windows)]
-        return (Platform::Windows, Arc::new(WindowsHost::new()), None);
-
-        #[cfg(not(any(
-            target_os = "android",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "haiku",
-            target_os = "illumos",
-            target_os = "ios",
-            target_os = "linux",
-            target_os = "macos",
-            target_os = "netbsd",
-            target_os = "openbsd",
-            target_os = "solaris",
-            windows,
-        )))]
-        return (Platform::Universal, Arc::new(UnsupportedHost::new()), None);
-    }
-}
-
-/// Return host integration options for one compile target platform.
-fn host_options_for_target(platform: Platform, options: &RuntimeOptions) -> PlatformHostOptions {
-    match platform {
-        Platform::Android => options.platform.android.clone(),
-        Platform::DragonFly => options.platform.dragonfly.clone(),
-        Platform::FreeBsd => options.platform.freebsd.clone(),
-        Platform::Haiku => options.platform.haiku.clone(),
-        Platform::Illumos => options.platform.illumos.clone(),
-        Platform::IOS => options.platform.ios.clone(),
-        Platform::Linux => options.platform.linux.clone(),
-        Platform::MacOS => options.platform.macos.clone(),
-        Platform::NetBsd => options.platform.netbsd.clone(),
-        Platform::OpenBsd => options.platform.openbsd.clone(),
-        Platform::Solaris => options.platform.solaris.clone(),
-        Platform::Windows => options.platform.windows.host_options(),
-        _ => PlatformHostOptions::default(),
+        HostRuntimeRegistry::process_runtime_ingress(self.host_runtime_id)
     }
 }
 
@@ -338,14 +310,15 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     use destack_workspace::{
-        RuntimeAppDeclaration, RuntimeAppIntentDeclaration, RuntimeAppNotificationDeclaration,
+        PlatformOsOptions, RuntimeAppDeclaration, RuntimeAppIntentDeclaration,
+        RuntimeAppNotificationDeclaration,
     };
 
     use super::{
         HostAdapter, HostCleanup, HostRequest, HostRequestContext, HostRequestOutcome, HostSession,
         Platform, PlatformHostOptions, RuntimeId, RuntimeResult,
     };
-    use crate::host::core::HostRequestResult;
+    use crate::host::core::{HostRequestResult, HostRuntimeId};
     use crate::platform::os::abi_generated::DocumentPickOptionsValue;
     use crate::platform::os::{NotificationPermissionState, Permission, PermissionState};
     use crate::runtime::capability::PlatformCapabilitySet;
@@ -371,7 +344,7 @@ mod tests {
         }
 
         /// Return one empty session capability set for focused request tests.
-        fn session_capabilities(&self, _runtime_id: RuntimeId) -> PlatformCapabilitySet {
+        fn session_capabilities(&self, _runtime_id: HostRuntimeId) -> PlatformCapabilitySet {
             PlatformCapabilitySet::new()
         }
 
@@ -419,7 +392,15 @@ mod tests {
         let cleanup: Option<HostCleanup> = None;
         let runtime_id = RuntimeId(91);
         let host_options = PlatformHostOptions::default();
-        let host = HostSession::new_with_options(adapter, cleanup, runtime_id, host_options, app);
+        let os_options = PlatformOsOptions::default();
+        let host = HostSession::new_with_options(
+            adapter,
+            cleanup,
+            runtime_id,
+            host_options,
+            os_options,
+            app,
+        );
 
         (host, submit_count)
     }
@@ -483,13 +464,14 @@ mod tests {
         let outcome = host
             .submit_request(HostRequest::OsNotificationRequestPermission)
             .expect("declared notification permission request should succeed");
-        let permission_state = outcome
-            .into_notification_permission_state("destack.os.notification.requestPermission")
-            .expect("notification permission request should decode one permission state");
-
         // ensure the adapter received the request
         assert_eq!(submit_count.load(Ordering::Relaxed), 1);
-        assert_eq!(permission_state, NotificationPermissionState::Granted);
+        assert_eq!(
+            outcome,
+            HostRequestOutcome::immediate(HostRequestResult::NotificationPermissionState(
+                NotificationPermissionState::Granted,
+            )),
+        );
     }
 
     /// Allow declaration-free document picker requests to reach the adapter.
@@ -510,13 +492,12 @@ mod tests {
                 },
             })
             .expect("document picker request should remain declaration-free");
-        let descriptors = outcome
-            .into_document_descriptors("destack.os.document.pick")
-            .expect("document picker request should decode document descriptors");
-
         // ensure the adapter received the request
         assert_eq!(submit_count.load(Ordering::Relaxed), 1);
-        assert!(descriptors.is_empty());
+        assert_eq!(
+            outcome,
+            HostRequestOutcome::immediate(HostRequestResult::DocumentDescriptors(Vec::new())),
+        );
     }
 
     /// Reject undeclared Android file sharing before adapter submission.
