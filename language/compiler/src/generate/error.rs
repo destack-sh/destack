@@ -1,6 +1,5 @@
 use crate::{
     BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition, TaskError,
-    TaskSkipReason,
 };
 use destack_compiler_macros::DefineError;
 use destack_dir::AnchoredGlobalNodeId;
@@ -24,7 +23,7 @@ pub enum GenerateError {
 
     /// Task was skipped due to stale versions.
     #[error(code = "EG002", message = "task skipped")]
-    Skipped { reason: TaskSkipReason },
+    Skipped,
 
     // -------------------------------------------------------------------------
     // 1xx: Target / setup

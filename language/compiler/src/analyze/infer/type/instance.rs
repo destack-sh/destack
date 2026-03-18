@@ -627,10 +627,7 @@ impl Compiler {
         // declared instance shapes are the earliest stable boundary for class, struct,
         // interface, and extension member access
         let snapshot = self
-            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                symbol.module_id,
-                profile,
-            ))
+            .require_artifact_dir_declared(symbol.module_id, profile)
             .map_err(AnalyzeError::from)?;
         let remote_types = &snapshot.types;
         let Some(remote_instance_id) = remote_types.get_instance_type_id(symbol) else {

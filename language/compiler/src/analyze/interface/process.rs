@@ -1,6 +1,6 @@
 use crate::{AnalyzeResult, Compiler};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ModuleDir, ProfileId};
+use destack_workspace::{DirInterface, ProfileId};
 use std::sync::Arc;
 
 impl Compiler {
@@ -11,7 +11,7 @@ impl Compiler {
         profile: ProfileId,
         module_version: ModuleVersion,
         profile_version: ProfileVersion,
-    ) -> AnalyzeResult<Vec<(ModuleId, ProfileId, Arc<ModuleDir>)>> {
+    ) -> AnalyzeResult<Vec<(ModuleId, ProfileId, Arc<DirInterface>)>> {
         // ensure forward dependency edges are available for component discovery
         self.require_resolved_dependency_closure([module_id], profile)?;
 
@@ -22,13 +22,6 @@ impl Compiler {
             return Ok(Vec::new());
         }
 
-        let graph_version = self.module_graph_version(profile);
-        self.analyze_interface_component(
-            module_id,
-            profile,
-            module_version,
-            profile_version,
-            graph_version,
-        )
+        self.analyze_interface_component(module_id, profile, module_version, profile_version)
     }
 }

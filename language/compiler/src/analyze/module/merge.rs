@@ -24,9 +24,7 @@ impl Compiler {
         profile: ProfileId,
         symbol: GlobalSymbolId,
     ) -> GlobalSymbolId {
-        let owner_snapshot = match self.require_artifact_dir(
-            destack_workspace::ArtifactKey::dir_declared(symbol.module_id, profile),
-        ) {
+        let owner_snapshot = match self.require_artifact_dir_declared(symbol.module_id, profile) {
             Ok(snapshot) => snapshot,
             Err(_) => return symbol,
         };
@@ -124,10 +122,7 @@ impl Compiler {
 
         // normalize symbol typing first
 
-        let owner_dir = self.require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-            symbol.module_id,
-            view.profile,
-        ))?;
+        let owner_dir = self.require_artifact_dir_declared(symbol.module_id, view.profile)?;
         let owner_symbol = owner_dir.symbols.get_symbol(symbol.local_id);
         if owner_symbol.space != SymbolSpace::TypeValue {
             return Ok(symbol);

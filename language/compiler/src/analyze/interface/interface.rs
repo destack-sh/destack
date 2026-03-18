@@ -5,7 +5,7 @@ use crate::{
     Compiler,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ModuleDir, ProfileId};
+use destack_workspace::{ArtifactKey, DirInterface, ProfileId};
 use std::sync::Arc;
 
 impl Compiler {
@@ -20,15 +20,15 @@ impl Compiler {
 
         // avoid self dependency when already analyzing this module interface
         if self.current_build_key()
-            == Some(BuildKey::Artifact(
-                destack_workspace::ArtifactKey::DirInterface { module, profile },
-            ))
+            == Some(BuildKey::artifact(ArtifactKey::dir_interface(
+                module, profile,
+            )))
         {
             return Ok(());
         }
 
         // avoid same-component self cycles only from the canonical anchor task
-        if let Some(BuildKey::Artifact(destack_workspace::ArtifactKey::DirInterface {
+        if let Some(BuildKey::Artifact(ArtifactKey::DirInterface {
             module: current_module,
             profile: current_profile,
         })) = self.current_build_key()
@@ -36,12 +36,10 @@ impl Compiler {
         {
             let current_anchor = self.interface_component_anchor_module_id(current_module, profile);
             if current_anchor == current_module {
-                let graph_key = destack_workspace::ModuleGraphKey::new(profile);
                 let shares_component = self
                     .program
-                    .index
-                    .module_graphs
-                    .get(&graph_key)
+                    .artifacts
+                    .module_graph(profile)
                     .map(|graph| {
                         let index = self.interface_component_graph_index(profile, &graph);
                         let current_component_id = index.component_id_for_module(current_module);
@@ -57,12 +55,10 @@ impl Compiler {
         }
 
         let anchor_module_id = self.interface_component_anchor_module_id(module, profile);
-        self.require_build_key(BuildKey::Artifact(
-            destack_workspace::ArtifactKey::DirInterface {
-                module: anchor_module_id,
-                profile,
-            },
-        ))
+        self.require_build_key(BuildKey::artifact(ArtifactKey::dir_interface(
+            anchor_module_id,
+            profile,
+        )))
     }
 
     /// Phase 2: Build interface summaries.
@@ -72,7 +68,7 @@ impl Compiler {
         profile: ProfileId,
         module_version: ModuleVersion,
         profile_version: ProfileVersion,
-    ) -> AnalyzeResult<Arc<ModuleDir>> {
+    ) -> AnalyzeResult<Arc<DirInterface>> {
         // skip stale tasks
         self.ensure_module_profile_matches::<AnalyzeError>(
             module_id,
@@ -91,36 +87,39 @@ impl Compiler {
 
         // skip analysis when module language is disabled
         if !self.module_language_allowed(module_id) {
-            let dir_data = self
-                .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                    module_id, profile,
-                ))
+            let resolved = self
+                .require_artifact_dir_resolved(module_id, profile)
                 .map_err(AnalyzeError::from)?;
-            return Ok(dir_data);
+            let dir = self
+                .require_artifact_dir_declared(module_id, profile)
+                .map_err(AnalyzeError::from)?;
+            return Ok(Arc::new(DirInterface::from_resolved_and_declared(
+                resolved.as_ref(),
+                dir.as_ref(),
+            )));
         }
 
         // read the module dir ctx for analysis
-        let mut dir = self
-            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                module_id, profile,
-            ))
+        let resolved = self
+            .require_artifact_dir_resolved(module_id, profile)
             .map_err(AnalyzeError::from)?;
+        let dir = self
+            .require_artifact_dir_declared(module_id, profile)
+            .map_err(AnalyzeError::from)?;
+        let base = self
+            .require_artifact_dir_base(module_id)
+            .map_err(AnalyzeError::from)?;
+        let tree = dir.tree.clone();
+        let symbols = dir.symbols.clone();
+        let roots = dir.roots.clone();
+        let anchor_node = dir.anchor_node;
+        let namespace_symbol = dir.namespace_symbol;
+        let namespace_exports = resolved.namespace_exports.clone();
+        let module_bindings = base.module_bindings.clone();
+        let module_binding_exports = resolved.module_binding_exports.clone();
+        let exported_symbols = resolved.exported_symbols.clone();
+        let mut types = dir.types.as_ref().clone();
         {
-            let dir = Arc::make_mut(&mut dir);
-            let ModuleDir {
-                tree,
-                symbols,
-                types,
-                roots,
-                anchor_node,
-                namespace_symbol,
-                namespace_exports,
-                module_bindings,
-                module_binding_exports,
-                exported_symbols,
-                ..
-            } = dir;
-            let types = Arc::make_mut(types);
             let mut collector = BuildRequirementCollector::new();
 
             if self.is_code_module(module_id) {
@@ -131,7 +130,7 @@ impl Compiler {
                     &options,
                     tree.as_ref(),
                     symbols.as_ref(),
-                    types,
+                    &mut types,
                 );
 
                 {
@@ -165,7 +164,7 @@ impl Compiler {
                         .first()
                         .copied()
                         .map(destack_dir::LocalNodeId::into_any)
-                        .unwrap_or(*anchor_node);
+                        .unwrap_or(anchor_node);
 
                     // declare the module namespace value type from exports
                     self.collect(
@@ -174,7 +173,7 @@ impl Compiler {
                             &mut ctx.reborrow(),
                             exported_symbols.as_ref(),
                             module_source_id,
-                            *namespace_symbol,
+                            namespace_symbol,
                             namespace_exports.as_ref(),
                             module_bindings.as_ref(),
                             module_binding_exports.as_ref(),
@@ -188,6 +187,13 @@ impl Compiler {
                 return Err(AnalyzeError::Yield { requirement });
             }
         }
-        Ok(dir)
+
+        Ok(Arc::new(
+            DirInterface::from_resolved_and_declared_with_types(
+                resolved.as_ref(),
+                dir.as_ref(),
+                types,
+            ),
+        ))
     }
 }

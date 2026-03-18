@@ -25,22 +25,8 @@ impl Compiler {
 
         // locate the global symbol table for this module
         let global_table = self
-            .program
-            .index
-            .global_symbol_tables
-            .iter()
-            .find_map(|entry| {
-                let (key, table) = entry.pair();
-                if key.profile_id == ctx.profile
-                    && table.module_versions.contains_key(&ctx.module.id)
-                {
-                    return Some(table.clone());
-                }
-                None
-            });
-        let Some(global_table) = global_table else {
-            return Ok(None);
-        };
+            .global_symbol_table_for_module(ctx.module.id, ctx.profile)
+            .map_err(AnalyzeError::from)?;
 
         // collect global value bindings into a single shape
         let mut shape = ObjectShape::default();

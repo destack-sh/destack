@@ -131,10 +131,7 @@ impl Compiler {
 
         // load the remote module data for imported symbols
         let dir = self
-            .require_artifact_dir(destack_workspace::ArtifactKey::dir_analyzed(
-                symbol.module_id,
-                state.ctx.profile,
-            ))
+            .require_artifact_dir_analyzed(symbol.module_id, state.ctx.profile)
             .map_err(|error| self.elaborate_error_from_requirement(error))?;
 
         let view = NominalLookupView {

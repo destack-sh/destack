@@ -3,7 +3,7 @@ use std::sync::Arc;
 use destack_core::StringPool;
 use destack_mir as mir;
 use destack_source::{ModuleId, PackageId};
-use destack_workspace::{ModuleMir, TargetId};
+use destack_workspace::{MirBase, TargetId};
 use parking_lot::RwLock;
 
 use crate::optimize::{OptimizationLevel, PipelineOptions};
@@ -16,7 +16,7 @@ pub struct ModuleWorkItem {
     /// The target id for this work item.
     target_id: TargetId,
     /// The local mutable MIR state for this work item.
-    mir: Arc<RwLock<ModuleMir>>,
+    mir: Arc<RwLock<MirBase>>,
     /// The pipeline options for this module.
     options: PipelineOptions,
 }
@@ -26,7 +26,7 @@ impl ModuleWorkItem {
     pub fn new(
         module_id: ModuleId,
         target_id: TargetId,
-        mir: ModuleMir,
+        mir: MirBase,
         options: PipelineOptions,
     ) -> Self {
         Self {
@@ -89,7 +89,7 @@ impl ModuleWorkItem {
     }
 
     /// Access the module MIR data.
-    pub fn with_mir<T>(&self, f: impl FnOnce(&destack_workspace::ModuleMir) -> T) -> T {
+    pub fn with_mir<T>(&self, f: impl FnOnce(&MirBase) -> T) -> T {
         let mir = self.mir.read();
         f(&mir)
     }

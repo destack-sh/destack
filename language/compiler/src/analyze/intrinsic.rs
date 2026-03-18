@@ -1,6 +1,6 @@
 use destack_dir::{AnchoredGlobalNodeId, Symbol, SymbolType};
 use destack_source::ModuleId;
-use destack_workspace::{IntrinsicEnvironment, ProfileId, WellKnownIntrinsics};
+use destack_workspace::{ArtifactKey, IntrinsicEnvironment, ProfileId, WellKnownIntrinsics};
 
 use crate::analyze::common::{CanonicalSymbolMode, ModuleSymbolView};
 use crate::{
@@ -14,7 +14,7 @@ impl Compiler {
         let environment = self.resolve_intrinsic_environment(profile)?;
         self.program
             .artifacts
-            .set_intrinsic_environment(profile, environment);
+            .publish(ArtifactKey::intrinsic_environment(profile), environment);
 
         Ok(())
     }
@@ -24,9 +24,9 @@ impl Compiler {
         &self,
         profile: ProfileId,
     ) -> Result<(), BuildRequirementError> {
-        self.require_build_key(BuildKey::Artifact(
-            destack_workspace::ArtifactKey::IntrinsicEnvironment { profile },
-        ))
+        self.require_build_key(BuildKey::artifact(ArtifactKey::intrinsic_environment(
+            profile,
+        )))
     }
 
     /// Resolve the intrinsic environment for a profile.
@@ -94,9 +94,7 @@ impl Compiler {
 
             // scan active symbols for intrinsic bindings
             let dir = self
-                .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                    module_id, profile,
-                ))
+                .require_artifact_dir_declared(module_id, profile)
                 .map_err(AnalyzeError::from)?;
             let symbols = &dir.symbols;
             for local_symbol_id in symbols.active_symbol_ids() {

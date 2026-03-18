@@ -1731,9 +1731,8 @@ impl Compiler {
         let (tree, symbols) = if symbol.module_id == view.module.id {
             (view.tree, view.symbols)
         } else {
-            let Ok(snapshot) = self.require_artifact_dir(
-                destack_workspace::ArtifactKey::dir_declared(symbol.module_id, view.profile),
-            ) else {
+            let Ok(snapshot) = self.require_artifact_dir_declared(symbol.module_id, view.profile)
+            else {
                 return false;
             };
             remote_snapshot = snapshot;

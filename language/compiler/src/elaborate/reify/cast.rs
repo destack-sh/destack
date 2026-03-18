@@ -172,10 +172,7 @@ impl Compiler {
             symbol_entry.space
         } else {
             let dir = self
-                .require_artifact_dir(destack_workspace::ArtifactKey::dir_analyzed(
-                    target_symbol.module_id,
-                    state.ctx.profile,
-                ))
+                .require_artifact_dir_analyzed(target_symbol.module_id, state.ctx.profile)
                 .map_err(|error| self.elaborate_error_from_requirement(error))?;
             let symbol_entry = dir.symbols.get_symbol(target_symbol.local_id);
             symbol_entry.space

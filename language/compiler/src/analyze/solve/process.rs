@@ -1,17 +1,17 @@
-use std::sync::Arc;
-
 use crate::analyze::common::InferContext;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
-use destack_dir::InferTable;
+use destack_dir::{InferTable, NodeTree, SymbolTable, TypeTable};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ModuleDir, ProfileId};
+use destack_workspace::ProfileId;
 
 impl Compiler {
     /// Phase 4: Solve infer constraints.
     pub(crate) fn analyze_module_solve(
         &self,
-        dir: &mut ModuleDir,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
         infer: Option<&mut InferTable>,
         module_id: ModuleId,
         profile: ProfileId,
@@ -49,15 +49,6 @@ impl Compiler {
             return Ok(());
         };
         // solve transient infer constraints
-        let ModuleDir {
-            tree,
-            symbols,
-            types,
-            ..
-        } = dir;
-        let tree = tree.as_ref();
-        let symbols = symbols.as_ref();
-        let types = Arc::make_mut(types);
         let mut ctx = InferContext::new(&module, profile, &options, tree, symbols, types, infer);
         {
             let (mut ctx, infer) = ctx.split_type_context_and_infer();

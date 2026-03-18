@@ -1,6 +1,5 @@
 use crate::{
     BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition, TaskError,
-    TaskSkipReason,
 };
 use destack_compiler_macros::DefineError;
 use destack_core::StringId;
@@ -31,7 +30,7 @@ pub enum LowerError {
 
     /// Task was skipped due to stale versions.
     #[error(code = "EM002", message = "task skipped")]
-    Skipped { reason: TaskSkipReason },
+    Skipped,
 
     // -------------------------------------------------------------------------
     // 1xx: Type issues

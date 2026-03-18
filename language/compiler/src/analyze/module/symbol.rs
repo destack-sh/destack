@@ -34,11 +34,11 @@ impl Compiler {
         }
 
         // remote reads require one exact committed artifact
-        let remote_module = self.program.modules.get(module_id);
-        let remote_module = remote_module.as_ref();
-        let key = artifact_key(module_id, profile);
-        let snapshot = self.require_artifact_dir(key)?;
-
-        Ok(handle(&remote_module, &snapshot.symbols))
+        self.with_remote_dir_for_artifact(
+            module_id,
+            profile,
+            artifact_key,
+            |remote_module, _, symbols, _| handle(remote_module, symbols),
+        )
     }
 }

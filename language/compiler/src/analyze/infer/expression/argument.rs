@@ -49,10 +49,7 @@ impl Compiler {
         let owner_options = self.analyze_context_options_for_module(owner_module.id);
 
         let owner_dir = self
-            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                module_id,
-                ctx.profile,
-            ))
+            .require_artifact_dir_declared(module_id, ctx.profile)
             .map_err(AnalyzeError::from)?;
         let mut owner_ctx = TypeContext::new(
             owner_module,
@@ -126,9 +123,8 @@ impl Compiler {
         }
 
         // otherwise, resolve the owning module and ensure the node exists there
-        let argument_snapshot = self.require_artifact_dir(
-            destack_workspace::ArtifactKey::dir_declared(argument_node.module_id, view.profile),
-        )?;
+        let argument_snapshot =
+            self.require_artifact_dir_declared(argument_node.module_id, view.profile)?;
         if !argument_snapshot
             .tree
             .has_node_id(argument_node.local_id.id)
@@ -180,9 +176,8 @@ impl Compiler {
         }
 
         // otherwise, resolve the owning module and ensure the node exists there
-        let argument_snapshot = self.require_artifact_dir(
-            destack_workspace::ArtifactKey::dir_resolved(argument_node.module_id, ctx.profile),
-        )?;
+        let argument_snapshot =
+            self.require_artifact_dir_resolved(argument_node.module_id, ctx.profile)?;
         if !argument_snapshot
             .tree
             .has_node_id(argument_node.local_id.id)
@@ -1391,10 +1386,7 @@ impl Compiler {
             )
             .map_err(AnalyzeError::from)?;
             let snapshot = self
-                .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                    enum_symbol.module_id,
-                    ctx.profile,
-                ))
+                .require_artifact_dir_declared(enum_symbol.module_id, ctx.profile)
                 .map_err(AnalyzeError::from)?;
             self.enum_literal_matches_symbol(
                 &snapshot.tree,
@@ -1943,10 +1935,7 @@ impl Compiler {
             (tree, symbols)
         } else {
             remote_snapshot = self
-                .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                    extension_symbol.module_id,
-                    profile,
-                ))
+                .require_artifact_dir_declared(extension_symbol.module_id, profile)
                 .map_err(AnalyzeError::from)?;
             (
                 remote_snapshot.tree.as_ref(),

@@ -310,6 +310,106 @@ impl Compiler {
         })
     }
 
+    /// Query one remote published static constant lookup from one exact artifact family.
+    fn query_remote_artifact_static_constant_lookup(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        artifact_key: fn(ModuleId, ProfileId) -> ArtifactKey,
+        symbol: GlobalSymbolId,
+    ) -> Result<
+        (
+            Option<(GlobalSymbolId, StaticExpression, TypeTable)>,
+            Vec<GlobalSymbolId>,
+        ),
+        AnalyzeError,
+    > {
+        self.with_remote_dir_for_artifact(
+            module_id,
+            profile,
+            artifact_key,
+            |_, tree, symbols, types| match self
+                .query_artifact_static_constant_lookup_for_symbol(tree, symbols, types, symbol)
+            {
+                Some(ArtifactStaticConstantLookup::Found {
+                    symbol: resolved_symbol,
+                    value,
+                }) => (Some((resolved_symbol, value, types.clone())), Vec::new()),
+                Some(ArtifactStaticConstantLookup::Forward { symbols }) => (None, symbols),
+                None => (None, Vec::new()),
+            },
+        )
+        .map_err(AnalyzeError::from)
+    }
+
+    /// Evaluate one unresolved remote static constant on one cloned exact artifact snapshot.
+    fn evaluate_remote_artifact_static_constant(
+        &self,
+        profile: ProfileId,
+        local_types: &mut TypeTable,
+        symbol: GlobalSymbolId,
+        source_node: LocalNodeIdAny,
+        mode: StaticEvaluationMode,
+        substitution_entries: Option<&Vec<(GlobalSymbolId, Type)>>,
+        remote_dependency_artifact: fn(ModuleId, ProfileId) -> ArtifactKey,
+        visited: &HashSet<GlobalSymbolId>,
+        cycle_diagnostic_mode: StaticCycleDiagnosticMode,
+    ) -> AnalyzeResult<Option<StaticExpression>> {
+        self.with_remote_dir_for_artifact(
+            symbol.module_id,
+            profile,
+            remote_dependency_artifact,
+            |remote_module, remote_tree, remote_symbols, remote_types| {
+                let remote_options = self.analyze_context_options_for_module(remote_module.id);
+                let mut remote_snapshot = remote_types.clone();
+                let mut remote_visited = visited.clone();
+                let remote_substitutions = substitution_entries.map(|entries| {
+                    let mut mapped = HashMap::with_capacity(entries.len());
+                    for (parameter_symbol, local_type) in entries {
+                        let remote_type_id = self.import_remote_type_for_node(
+                            source_node,
+                            local_type,
+                            local_types,
+                            &mut remote_snapshot,
+                        );
+                        mapped.insert(*parameter_symbol, remote_type_id);
+                    }
+                    mapped
+                });
+
+                let mut view = TypeContext::new(
+                    remote_module,
+                    profile,
+                    &remote_options,
+                    remote_tree,
+                    remote_symbols,
+                    &mut remote_snapshot,
+                );
+                self.resolve_static_constant_reference_with_previsited(
+                    &mut view,
+                    symbol,
+                    mode,
+                    remote_substitutions.as_ref(),
+                    remote_dependency_artifact,
+                    &mut remote_visited,
+                    Some(symbol),
+                    cycle_diagnostic_mode,
+                )
+                .map(|value| {
+                    value.map(|value| {
+                        self.import_remote_static_expression_for_node(
+                            source_node,
+                            &value,
+                            &remote_snapshot,
+                            local_types,
+                        )
+                    })
+                })
+            },
+        )
+        .map_err(AnalyzeError::from)?
+    }
+
     /// Resolve constant bindings into static expressions when possible.
     pub(super) fn resolve_static_constant_reference(
         &self,
@@ -453,27 +553,13 @@ impl Compiler {
                         continue;
                     }
 
-                    let key = remote_dependency_artifact(candidate_symbol.module_id, ctx.profile);
-                    let owner_dir = self.require_artifact_dir(key).map_err(AnalyzeError::from)?;
-                    let (found_value, forwarded_symbols) = match self
-                        .query_artifact_static_constant_lookup_for_symbol(
-                            &owner_dir.tree,
-                            &owner_dir.symbols,
-                            &owner_dir.types,
+                    let (found_value, forwarded_symbols) = self
+                        .query_remote_artifact_static_constant_lookup(
+                            candidate_symbol.module_id,
+                            ctx.profile,
+                            remote_dependency_artifact,
                             candidate_symbol,
-                        ) {
-                        Some(ArtifactStaticConstantLookup::Found {
-                            symbol: resolved_symbol,
-                            value,
-                        }) => {
-                            let snapshot = owner_dir.types.as_ref().clone();
-                            (Some((resolved_symbol, value, snapshot)), Vec::new())
-                        }
-                        Some(ArtifactStaticConstantLookup::Forward {
-                            symbols: forwarded_symbols,
-                        }) => (None, forwarded_symbols),
-                        None => (None, Vec::new()),
-                    };
+                        )?;
 
                     if let Some((_resolved_symbol, value, remote_snapshot)) = found_value {
                         local_value = Some(self.import_remote_static_expression_for_node(
@@ -495,56 +581,17 @@ impl Compiler {
 
             // evaluate unresolved remote constants on a cloned remote snapshot when publication is absent
             if local_value.is_none() {
-                let key = remote_dependency_artifact(symbol.module_id, ctx.profile);
-                let remote_dir = self.require_artifact_dir(key).map_err(AnalyzeError::from)?;
-                let mut remote_snapshot = remote_dir.types.as_ref().clone();
-                let mut remote_visited = visited.clone();
-                let remote_substitutions = substitution_entries.as_ref().map(|entries| {
-                    let mut mapped = HashMap::with_capacity(entries.len());
-                    for (parameter_symbol, local_type) in entries {
-                        let remote_type_id = self.import_remote_type_for_node(
-                            source_node,
-                            local_type,
-                            ctx.types,
-                            &mut remote_snapshot,
-                        );
-                        mapped.insert(*parameter_symbol, remote_type_id);
-                    }
-                    mapped
-                });
-
-                let remote_module = self.program.modules.get(symbol.module_id);
-                let remote_module = remote_module.as_ref();
-                let remote_options = self.analyze_context_options_for_module(remote_module.id);
-                let mut view = TypeContext::new(
-                    &remote_module,
+                local_value = self.evaluate_remote_artifact_static_constant(
                     ctx.profile,
-                    &remote_options,
-                    &remote_dir.tree,
-                    &remote_dir.symbols,
-                    &mut remote_snapshot,
-                );
-                let evaluated_remote_value = self
-                    .resolve_static_constant_reference_with_previsited(
-                        &mut view,
-                        symbol,
-                        mode,
-                        remote_substitutions.as_ref(),
-                        remote_dependency_artifact,
-                        &mut remote_visited,
-                        Some(symbol),
-                        cycle_diagnostic_mode,
-                    )?
-                    .map(|value| (value, remote_snapshot));
-
-                local_value = evaluated_remote_value.map(|(value, remote_snapshot)| {
-                    self.import_remote_static_expression_for_node(
-                        source_node,
-                        &value,
-                        &remote_snapshot,
-                        ctx.types,
-                    )
-                });
+                    ctx.types,
+                    symbol,
+                    source_node,
+                    mode,
+                    substitution_entries.as_ref(),
+                    remote_dependency_artifact,
+                    visited,
+                    cycle_diagnostic_mode,
+                )?;
             }
 
             if owns_visit_marker {

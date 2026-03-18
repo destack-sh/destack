@@ -1,13 +1,11 @@
-use std::collections::VecDeque;
-use std::sync::Arc;
-
 use crate::{BuildRequirementError, Compiler};
 use destack_source::ModuleId;
-use destack_workspace::{ModuleGraph, ModuleGraphKey, ProfileId};
+use destack_workspace::{ModuleGraph, ProfileId};
 use rustc_hash::{FxHashMap, FxHashSet};
+use std::collections::VecDeque;
 
 /// Canonical interface component index for one graph snapshot.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 pub(crate) struct InterfaceComponentGraphIndex {
     /// Component id for each module.
     module_to_component: FxHashMap<ModuleId, usize>,
@@ -56,7 +54,6 @@ impl Compiler {
         modules: impl IntoIterator<Item = ModuleId>,
         profile: ProfileId,
     ) -> Result<(), BuildRequirementError> {
-        let key = ModuleGraphKey::new(profile);
         let mut pending = modules.into_iter().collect::<VecDeque<_>>();
         let mut visited = FxHashSet::default();
 
@@ -67,7 +64,7 @@ impl Compiler {
 
             self.require_dir_resolved(pending_module_id, profile)?;
 
-            if let Some(graph) = self.program.index.module_graphs.get(&key) {
+            if let Some(graph) = self.program.artifacts.module_graph(profile) {
                 for dependency_module_id in graph.dependencies_for(pending_module_id) {
                     if !visited.contains(&dependency_module_id) {
                         pending.push_back(dependency_module_id);
@@ -85,8 +82,7 @@ impl Compiler {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> ModuleId {
-        let key = ModuleGraphKey::new(profile);
-        let Some(graph) = self.program.index.module_graphs.get(&key) else {
+        let Some(graph) = self.program.artifacts.module_graph(profile) else {
             return module_id;
         };
 
@@ -99,23 +95,19 @@ impl Compiler {
     /// Build a canonical interface component index for one graph snapshot.
     pub(super) fn interface_component_graph_index(
         &self,
-        profile: ProfileId,
+        _profile: ProfileId,
         graph: &ModuleGraph,
-    ) -> Arc<InterfaceComponentGraphIndex> {
-        if let Some(index) = self.interface_component_indexes.get(&profile) {
-            return index.value().clone();
-        }
-
+    ) -> InterfaceComponentGraphIndex {
         // collect all modules that participate in this graph snapshot
         let modules = self.interface_graph_module_domain(graph);
         if modules.is_empty() {
-            return Arc::new(InterfaceComponentGraphIndex::default());
+            return InterfaceComponentGraphIndex::default();
         }
 
         // compute strongly connected components once for this module domain
         let components = self.interface_graph_scc(graph, &modules);
         if components.is_empty() {
-            return Arc::new(InterfaceComponentGraphIndex::default());
+            return InterfaceComponentGraphIndex::default();
         }
 
         // schedule components in deterministic topological order
@@ -167,16 +159,12 @@ impl Compiler {
             component_dependency_anchors.push(dependency_anchors);
         }
 
-        let index = Arc::new(InterfaceComponentGraphIndex {
+        InterfaceComponentGraphIndex {
             module_to_component,
             component_modules: ordered_components,
             component_anchors,
             component_dependency_anchors,
-        });
-
-        self.interface_component_indexes
-            .insert(profile, index.clone());
-        index
+        }
     }
 
     /// Collect one deterministic module domain from the graph snapshot.

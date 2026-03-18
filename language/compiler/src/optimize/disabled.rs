@@ -33,10 +33,10 @@ impl Compiler {
         profile: ProfileId,
         target: &TargetId,
     ) -> Result<(), BuildRequirementError> {
-        self.require_build_key(BuildKey::Artifact(ArtifactKey::MirOptimized {
+        self.require_build_key(BuildKey::artifact(ArtifactKey::mir_optimized(
             module,
             profile,
-            target: target.clone(),
-        }))
+            target.clone(),
+        )))
     }
 }

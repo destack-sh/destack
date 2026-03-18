@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_ast::StringId;
 use destack_dir::AnchoredGlobalNodeId;
 use destack_source::ModuleId;
-use destack_workspace::{CheckFailurePolicy, Module, ModuleDir, ProfileId, TargetId};
+use destack_workspace::{CheckFailurePolicy, DirElaborated, Module, ProfileId, TargetId};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::lower::{
@@ -21,7 +21,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-    ) -> ExecuteResult<Arc<ModuleDir>> {
+    ) -> ExecuteResult<Arc<DirElaborated>> {
         self.require_artifact_dir_elaborated(module_id, profile)
             .map_err(|error| match error {
                 crate::BuildRequirementError::NotReady { requirement } => {
@@ -133,7 +133,7 @@ struct ComptimeLowerer<'a> {
     /// The profile used to resolve module context.
     profile: ProfileId,
     /// The elaborated DIR snapshot for the module.
-    dir: Arc<ModuleDir>,
+    dir: Arc<DirElaborated>,
     /// DIR tree for the module.
     /// MIR builder for the comptime module.
     builder: mir::ModuleBuilder,

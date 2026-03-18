@@ -28,10 +28,7 @@ impl Compiler {
 
         // remote declared types reuse local storage with owner syntax and symbols
         let dir = self
-            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                module_id,
-                ctx.profile,
-            ))
+            .require_artifact_dir_declared(module_id, ctx.profile)
             .map_err(AnalyzeError::from)?;
         let module = self.program.modules.get(module_id);
         let module = module.as_ref();

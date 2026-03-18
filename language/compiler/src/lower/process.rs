@@ -6,7 +6,7 @@ use crate::{BuildKey, BuildRequirementError, Compiler, LowerError, LowerResult, 
 
 use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{
-    ArtifactKey, ModuleMir, OutputFormat, ProfileId, Target, TargetArch, TargetId,
+    ArtifactKey, MirBase, OutputFormat, ProfileId, Target, TargetArch, TargetId,
 };
 use target_lexicon::Triple;
 
@@ -37,9 +37,14 @@ impl Compiler {
             self.stats.record_lower();
         }
 
-        self.program
-            .artifacts
-            .set_mir_base(module, profile, target, payload);
+        self.program.artifacts.publish(
+            ArtifactKey::MirBase {
+                module,
+                profile,
+                target,
+            },
+            payload,
+        );
 
         Ok(())
     }
@@ -52,7 +57,7 @@ impl Compiler {
         module_version: ModuleVersion,
         profile_version: ProfileVersion,
         target_id: TargetId,
-    ) -> LowerResult<ModuleMir> {
+    ) -> LowerResult<MirBase> {
         let resolved_profile = self
             .program
             .profile_id_for_target(module_id, &target_id)
@@ -150,7 +155,7 @@ impl Compiler {
             lowerer.finish()
         };
 
-        let payload = ModuleMir {
+        let payload = MirBase {
             id: module_id,
             version: module_version,
             target: target_id.clone(),
@@ -176,11 +181,11 @@ impl Compiler {
         profile: ProfileId,
         target: &TargetId,
     ) -> Result<(), BuildRequirementError> {
-        self.require_build_key(BuildKey::Artifact(ArtifactKey::MirBase {
+        self.require_build_key(BuildKey::artifact(ArtifactKey::mir_base(
             module,
             profile,
-            target: target.clone(),
-        }))
+            target.clone(),
+        )))
     }
 
     /// Resolve the pointer size in bytes for a lowering target.

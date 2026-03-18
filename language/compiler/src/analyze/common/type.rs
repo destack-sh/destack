@@ -1433,10 +1433,7 @@ impl Compiler {
         // enum-field ownership is module-local metadata
         if field_symbol.module_id != ctx.module.id {
             let owner_dir = self
-                .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                    field_symbol.module_id,
-                    ctx.profile,
-                ))
+                .require_artifact_dir_declared(field_symbol.module_id, ctx.profile)
                 .map_err(AnalyzeError::from)?;
             let field_entry = owner_dir.symbols.get_symbol(field_symbol.local_id);
             let Some(primary) = field_entry.primary_declaration else {
@@ -1669,12 +1666,7 @@ impl Compiler {
 
             // import the declared alias target when the symbol is remote
             let (dependency_symbol, remote_alias_target, next) = self
-                .remote_alias_target_for_artifact(
-                    ctx.module,
-                    ctx.profile,
-                    current,
-                    destack_workspace::ArtifactKey::dir_declared,
-                )
+                .remote_declared_alias_target(ctx.profile, current)
                 .map_err(AnalyzeError::from)?;
             if let Some(dependency_symbol) = dependency_symbol {
                 ctx.types

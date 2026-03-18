@@ -1224,10 +1224,7 @@ impl Compiler {
 
         // import declared types from remote modules
         let remote_dir = self
-            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                node_id.module_id,
-                ctx.profile,
-            ))
+            .require_artifact_dir_declared(node_id.module_id, ctx.profile)
             .map_err(AnalyzeError::from)?;
         let remote_declared = remote_dir
             .types

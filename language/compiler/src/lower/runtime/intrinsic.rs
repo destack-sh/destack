@@ -81,10 +81,7 @@ fn resolve_canonical_symbol(
         let symbol = local_symbols.get_symbol(symbol_id.local_id);
         (symbol.canonical_symbol, symbol.target_symbol)
     } else {
-        let snapshot = compiler.require_artifact_dir(destack_workspace::ArtifactKey::dir_analyzed(
-            symbol_id.module_id,
-            profile,
-        ));
+        let snapshot = compiler.require_artifact_dir_analyzed(symbol_id.module_id, profile);
         let snapshot = match snapshot {
             Ok(snapshot) => snapshot,
             Err(BuildRequirementError::NotReady { requirement }) => {

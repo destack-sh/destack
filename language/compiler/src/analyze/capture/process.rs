@@ -1,7 +1,6 @@
-use std::sync::Arc;
-
+use destack_dir::{CaptureTable, NodeTree, SymbolTable};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ModuleDir, ProfileId};
+use destack_workspace::ProfileId;
 
 use crate::analyze::common::TreeSymbolView;
 use crate::timing::tags;
@@ -11,7 +10,9 @@ impl Compiler {
     /// Post-commit pass: resolve captures for closures and nested functions.
     pub(crate) fn analyze_module_capture(
         &self,
-        dir: &mut ModuleDir,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        captures: &mut CaptureTable,
         module_id: ModuleId,
         profile: ProfileId,
         module_version: ModuleVersion,
@@ -39,17 +40,11 @@ impl Compiler {
         // load module state and phase-local tables
         let module = self.program.modules.get(module_id);
         let module = module.as_ref();
-        let ModuleDir {
-            tree,
-            symbols,
-            captures,
-            ..
-        } = dir;
 
         // compute capture ctx
         self.compute_module_captures(
-            TreeSymbolView::new(&module, profile, tree.as_ref(), symbols.as_ref()),
-            Arc::make_mut(captures),
+            TreeSymbolView::new(&module, profile, tree, symbols),
+            captures,
         )?;
 
         Ok(())

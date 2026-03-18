@@ -355,9 +355,8 @@ impl Compiler {
                 continue;
             }
 
-            let Ok(owner_dir) = self.require_artifact_dir(
-                destack_workspace::ArtifactKey::dir_declared(current.module_id, ctx.profile),
-            ) else {
+            let Ok(owner_dir) = self.require_artifact_dir_declared(current.module_id, ctx.profile)
+            else {
                 break None;
             };
             let owner_module = self.program.modules.get(current.module_id);
@@ -711,10 +710,7 @@ impl Compiler {
             // remote modules are read-only here: do not force declaration evaluation
             let remote_declared = {
                 let remote_dir = self
-                    .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                        primary_declaration.module_id,
-                        ctx.profile,
-                    ))
+                    .require_artifact_dir_declared(primary_declaration.module_id, ctx.profile)
                     .ok()?;
                 let remote_types = &remote_dir.types;
                 remote_types.get_declared_type_id(primary_declaration).map(

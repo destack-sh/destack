@@ -277,10 +277,7 @@ impl Compiler {
         }
 
         let remote_dir = self
-            .require_artifact_dir(destack_workspace::ArtifactKey::dir_analyzed(
-                member_symbol.module_id,
-                ctx.profile,
-            ))
+            .require_artifact_dir_analyzed(member_symbol.module_id, ctx.profile)
             .map_err(AnalyzeError::from)?;
         let mut remote_snapshot = remote_dir.types.as_ref().clone();
         let remote_symbol_entry = remote_dir.symbols.get_symbol(member_symbol.local_id);
@@ -1077,10 +1074,7 @@ impl Compiler {
         }
 
         let owner_dir = self
-            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                symbol.module_id,
-                profile,
-            ))
+            .require_artifact_dir_declared(symbol.module_id, profile)
             .map_err(AnalyzeError::from)?;
         let owner_symbol_entry = owner_dir.symbols.get_symbol(symbol.local_id);
         let remote_module = self.program.modules.get(symbol.module_id);
@@ -1362,10 +1356,7 @@ impl Compiler {
         )
         .map_err(AnalyzeError::from)?;
         let snapshot = self
-            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                extension_symbol.module_id,
-                profile,
-            ))
+            .require_artifact_dir_declared(extension_symbol.module_id, profile)
             .map_err(AnalyzeError::from)?;
         Ok(self.find_member_symbol_in_declaration(
             extension_symbol.module_id,

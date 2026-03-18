@@ -203,10 +203,7 @@ impl Compiler {
         )
         .map_err(AnalyzeError::from)?;
         let snapshot = self
-            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                global_symbol.module_id,
-                ctx.profile,
-            ))
+            .require_artifact_dir_declared(global_symbol.module_id, ctx.profile)
             .map_err(AnalyzeError::from)?;
 
         // pick the remote shape source type

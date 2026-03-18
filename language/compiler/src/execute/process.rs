@@ -26,7 +26,7 @@ impl Compiler {
 
         self.program
             .artifacts
-            .set_dir_patched(module, profile, payload);
+            .publish(ArtifactKey::dir_patched(module, profile), payload);
 
         Ok(())
     }
@@ -37,9 +37,8 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<(), BuildRequirementError> {
-        self.require_build_key(BuildKey::Artifact(ArtifactKey::DirPatched {
-            module,
-            profile,
-        }))
+        self.require_build_key(BuildKey::artifact(ArtifactKey::dir_patched(
+            module, profile,
+        )))
     }
 }

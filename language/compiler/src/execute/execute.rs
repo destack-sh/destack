@@ -3,7 +3,7 @@ use indexmap::IndexMap;
 use crate::{BuildRequirementCollector, Compiler, ExecuteError, ExecuteResult};
 
 use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ComptimeOutput, ModuleDir, ProfileId, TrustPolicy};
+use destack_workspace::{ComptimeOutput, DirPatched, ProfileId, TrustPolicy};
 
 use super::{ComptimePatch, collect_comptime_dependencies};
 use vm::{Heap, MemoryContext, SharedSpace};
@@ -20,7 +20,7 @@ impl Compiler {
         profile_id: ProfileId,
         module_version: ModuleVersion,
         profile_version: ProfileVersion,
-    ) -> Result<ModuleDir, ExecuteError> {
+    ) -> Result<DirPatched, ExecuteError> {
         // skip stale tasks
         self.ensure_module_profile_matches::<ExecuteError>(
             module_id,
@@ -50,10 +50,12 @@ impl Compiler {
 
         // skip modules without executable comptime state
         if !self.is_code_module(module_id) {
-            return Ok(self
-                .require_dir_elaborated_data(module_id, profile_id)?
-                .as_ref()
-                .clone());
+            let elaborated = self.require_dir_elaborated_data(module_id, profile_id)?;
+            let payload = DirPatched::from_elaborated_with(
+                elaborated.as_ref(),
+                elaborated.tree.as_ref().clone(),
+            );
+            return Ok(payload);
         }
 
         // collect comptime expressions in this module
@@ -111,14 +113,14 @@ impl Compiler {
             profile_id,
             profile_version,
         )?;
-        let mut payload = self
-            .require_dir_elaborated_data(module_id, profile_id)?
-            .as_ref()
-            .clone();
+        let elaborated = self.require_dir_elaborated_data(module_id, profile_id)?;
+        let mut tree = elaborated.tree.as_ref().clone();
         for patch in patches {
-            let tree = payload.tree_mut();
-            self.apply_comptime_patch(module_id, profile_id, tree, patch);
+            self.apply_comptime_patch(module_id, profile_id, &mut tree, patch);
         }
+
+        // publish the patched artifact with updated comptime tree state
+        let payload = DirPatched::from_elaborated_with(elaborated.as_ref(), tree);
 
         // write executed DIR to cache
         if let Some(cache) = cache_handle.as_ref() {

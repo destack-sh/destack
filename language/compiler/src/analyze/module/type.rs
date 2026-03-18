@@ -48,21 +48,19 @@ impl Compiler {
         }
 
         // remote reads require one exact committed artifact
-        let remote_module = self.program.modules.get(module_id);
-        let remote_module = remote_module.as_ref();
-        let key = artifact_key(module_id, profile);
-        let snapshot = self.require_artifact_dir(key)?;
-
-        Ok(handle(&remote_module, &snapshot.types))
+        self.with_remote_dir_for_artifact(
+            module_id,
+            profile,
+            artifact_key,
+            |remote_module, _, _, types| handle(remote_module, types),
+        )
     }
 
-    /// Read one committed remote alias target from one exact artifact family.
-    pub(crate) fn remote_alias_target_for_artifact(
+    /// Read one committed remote alias target from declared artifact state.
+    pub(crate) fn remote_declared_alias_target(
         &self,
-        _module: &Module,
         profile: ProfileId,
         symbol: GlobalSymbolId,
-        artifact_key: fn(ModuleId, ProfileId) -> ArtifactKey,
     ) -> Result<
         (
             Option<GlobalSymbolId>,
@@ -71,11 +69,9 @@ impl Compiler {
         ),
         BuildRequirementError,
     > {
-        // remote reads require one exact committed artifact
-        let key = artifact_key(symbol.module_id, profile);
         let remote_module = self.program.modules.get(symbol.module_id);
         let remote_module = remote_module.as_ref();
-        let snapshot = self.require_artifact_dir(key)?;
+        let snapshot = self.require_artifact_dir_declared(symbol.module_id, profile)?;
         let symbol_entry = snapshot.symbols.get_symbol(symbol.local_id);
         if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
             let target_symbol = symbol_entry.target_symbol.or(symbol_entry.canonical_symbol);
@@ -89,6 +85,8 @@ impl Compiler {
             return Ok((Some(typed_symbol), None, target_symbol));
         };
         let mut remote_snapshot = snapshot.types.as_ref().clone();
+
+        // resolve unevaluated declared aliases before reading the target
         if matches!(
             remote_snapshot.get_type(remote_target_id),
             Type::Unevaluated(_)

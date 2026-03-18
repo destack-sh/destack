@@ -2129,10 +2129,7 @@ impl Compiler {
         }
 
         let remote_dir = self
-            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                symbol.module_id,
-                ctx.profile,
-            ))
+            .require_artifact_dir_declared(symbol.module_id, ctx.profile)
             .map_err(AnalyzeError::from)?;
         let remote_value = remote_dir
             .types
