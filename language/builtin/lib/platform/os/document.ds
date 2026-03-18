@@ -15,16 +15,14 @@ export enum DocumentAccess {
 
 /// Document picker options.
 export struct DocumentPickOptions {
-    /// MIME-type filters, empty means any type.
-    mimeTypes: Array<string>;
+    /// Content-type filters, empty means any type.
+    contentTypes: Array<string>;
     /// File-extension filters without the leading dot.
     extensions: Array<string>;
     /// Whether multiple selection is allowed.
     multiple: boolean;
     /// Whether directory selection is allowed.
     allowDirectories: boolean;
-    /// Whether the host should copy selected files to one runtime-visible sandbox path when possible.
-    copyToSandbox: boolean;
 }
 
 /// Document descriptor.
@@ -34,16 +32,28 @@ export struct DocumentDescriptor {
     uri: string;
     /// Host-visible document name.
     name: string;
-    /// Document MIME type payload when available.
-    mimeType?: string;
+    /// Normalized content type when cheap or natively available.
+    contentType?: string;
     /// Document size in bytes when available.
     sizeBytes?: uint64;
     /// Document modification timestamp in UTC nanoseconds when available.
     modifiedUnixNs?: uint64;
     /// Whether this descriptor represents one directory.
     isDirectory: boolean;
-    /// Runtime-visible local path when the host grants direct local access or one sandbox copy exists.
+    /// Runtime-visible local path when the host grants direct local access or one app-storage import exists.
     localPath?: OsPath;
+}
+
+/// Persisted document-access grant.
+export struct DocumentAccessGrant {
+    /// Stable persisted grant identifier.
+    id: string;
+    /// Granted document descriptor.
+    document: DocumentDescriptor;
+    /// Granted access mode.
+    access: DocumentAccess;
+    /// Grant persistence timestamp in UTC nanoseconds.
+    persistedUnixNs: uint64;
 }
 
 /// Document bindings.
@@ -76,13 +86,130 @@ declare namespace os {
     })
     export function documentPick(options: DocumentPickOptions): Result<Array<DocumentDescriptor>, PlatformError>;
 
-    /// Open one document URI.
+    /// Import selected documents into app-owned storage.
     ///
-    /// Open one host document-provider URI from one prior picker result with one selected access mode.
+    /// Copy selected external documents into app-owned storage and return imported document descriptors.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host document-provider open APIs.
+    /// Uses host-local filesystem import after one prior picker or provider selection.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.document.import", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.document.write"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function documentImport(
+        documents: Array<DocumentDescriptor>,
+    ): Result<Array<DocumentDescriptor>, PlatformError>;
+
+    /// Persist external document access for later reopen.
+    ///
+    /// Persist host-granted access for selected external documents and return durable grant descriptors.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host document-grant persistence where available and path-backed grant state on desktop hosts with direct local access.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.control`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.document.access.persist", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.document.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function documentAccessPersist(
+        documents: Array<DocumentDescriptor>,
+        access: DocumentAccess,
+    ): Result<Array<DocumentAccessGrant>, PlatformError>;
+
+    /// List persisted document-access grants.
+    ///
+    /// Return all persisted document-access grants for the active runtime identity.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host document-grant persistence state.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.document.access.list", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.document.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function documentAccessList(): Result<Array<DocumentAccessGrant>, PlatformError>;
+
+    /// Revoke persisted document-access grants.
+    ///
+    /// Revoke persisted document-access grants by identifier and return revoked grant count.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host document-grant persistence state.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.control`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.document.access.revoke", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.document.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function documentAccessRevoke(ids: Array<string>): Result<uint32, PlatformError>;
+
+    /// Open one document URI.
+    ///
+    /// Open one document URI with one selected access mode.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses local `file://` URI opens on current desktop hosts, with future provider-backed backends layered onto the same handle contract.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -107,13 +234,44 @@ declare namespace os {
         access: DocumentAccess,
     ): Result<DocumentHandle, PlatformError>;
 
-    /// Close one opened document handle.
+    /// Open one persisted document-access grant.
     ///
-    /// Close one opened document-provider handle and release host resources.
+    /// Open one persisted external-access grant by identifier with one selected access mode.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host descriptor close APIs.
+    /// Uses persisted desktop grant state backed by local paths on current hosts, with future provider-specific reopen backends layered onto the same handle contract.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.control`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.document.access.open", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.document.control"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function documentAccessOpen(
+        id: string,
+        access: DocumentAccess,
+    ): Result<DocumentHandle, PlatformError>;
+
+    /// Close one opened document handle.
+    ///
+    /// Close one opened document handle and release host resources.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses local host file-handle close semantics on current desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -141,7 +299,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host document-provider read APIs.
+    /// Uses local host file reads on current desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -173,7 +331,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host nonblocking document-provider read APIs.
+    /// Uses local host file reads on current desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -204,7 +362,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host document-provider write APIs.
+    /// Uses local host file writes on current desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -236,7 +394,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host document-provider flush APIs.
+    /// Uses local host file flush semantics on current desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
