@@ -273,7 +273,7 @@ declare namespace device {
     ///
     /// # Platform
     /// macOS, Linux-class Unix, and Windows.
-    /// Uses device notifications on Windows, IOKit matching notifications on macOS, and udev or devd style serial topology monitors on Linux-class Unix.
+    /// Uses Configuration Manager device-interface notifications on Windows and native device-namespace watchers paired with IOKit or sysfs descriptor snapshots on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns ioWouldBlock, notSupported.
@@ -302,7 +302,7 @@ declare namespace device {
     ///
     /// # Platform
     /// macOS, Linux-class Unix, and Windows.
-    /// Uses device-notification teardown on Windows, IOKit matching-notification teardown on macOS, and monitor teardown on Linux-class Unix.
+    /// Uses Configuration Manager notification teardown on Windows and native device-namespace watcher teardown on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -331,7 +331,7 @@ declare namespace device {
     ///
     /// # Platform
     /// macOS, Linux-class Unix, and Windows.
-    /// Uses watch queues fed by device notifications on Windows, IOKit matching callbacks on macOS, and monitor events on Linux-class Unix.
+    /// Uses watch queues fed by Configuration Manager device-interface notifications on Windows and by native device-namespace watchers on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -363,7 +363,7 @@ declare namespace device {
     ///
     /// # Platform
     /// macOS, Linux-class Unix, and Windows.
-    /// Uses watch queues fed by device notifications on Windows, IOKit matching callbacks on macOS, and monitor events on Linux-class Unix.
+    /// Uses watch queues fed by Configuration Manager device-interface notifications on Windows and by native device-namespace watchers on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
