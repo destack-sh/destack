@@ -2,10 +2,10 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use destack_vm as vm;
+use destack_vm::ExternalCallContext;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::os::tests::{HarnessValue, OsHarnessContext};
+use crate::platform::os::tests::{HarnessContext, HarnessValue};
 use crate::platform::os::{
     HostIdentity, HostIdentityVm, MountEntry, MountEntryVm, PermissionEntry, PermissionEntryVm,
     SystemSnapshot, SystemSnapshotVm,
@@ -15,7 +15,7 @@ use crate::platform::os::{LoadAverage, LoadAverageVm};
 use crate::platform::{NativeArray, VmArray, fs};
 
 /// Return one raw VM context pointer when this harness run uses VM bindings.
-fn vm_context_pointer(context: &OsHarnessContext<'_>) -> Option<*mut ()> {
+fn vm_context_pointer(context: &HarnessContext<'_>) -> Option<*mut ()> {
     context.vm_context
 }
 
@@ -30,7 +30,7 @@ pub(crate) fn now_unix_ns() -> u64 {
 
 /// Decode one host-identity harness value into owned fields.
 pub(crate) fn decode_host_identity_value(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     value: HarnessValue<HostIdentity, HostIdentityVm>,
 ) -> RuntimeResult<(String, String, String, String)> {
     match value {
@@ -43,8 +43,9 @@ pub(crate) fn decode_host_identity_value(
             Ok((hostname, kernel, release, architecture))
         }
         HarnessValue::Vm(value) => {
+            // decode the VM strings through the active VM context
             let vm_context = vm_context_pointer(context).expect("vm context should be available");
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut ExternalCallContext<'_>) };
             let hostname = vm_context
                 .string_ref(value.hostname)
                 .map_err(|error| RuntimeError::from(error).boxed())?
@@ -71,8 +72,8 @@ pub(crate) fn decode_host_identity_value(
     }
 }
 
-#[cfg(unix)]
 /// Decode one load-average harness value.
+#[cfg(unix)]
 pub(crate) fn decode_load_average_value(
     value: HarnessValue<LoadAverage, LoadAverageVm>,
 ) -> LoadAverage {
@@ -94,7 +95,7 @@ pub(crate) fn decode_system_snapshot_value(
 
 /// Decode one permission-entry array harness value.
 pub(crate) fn decode_permission_entries_value(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     value: HarnessValue<NativeArray<PermissionEntry>, VmArray<PermissionEntryVm>>,
 ) -> RuntimeResult<Vec<PermissionEntry>> {
     match value {
@@ -103,8 +104,9 @@ pub(crate) fn decode_permission_entries_value(
             Ok(values.to_vec())
         }
         HarnessValue::Vm(value) => {
+            // read the VM array through the active VM context
             let vm_context = vm_context_pointer(context).expect("vm context should be available");
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut ExternalCallContext<'_>) };
 
             value.read_values(vm_context)
         }
@@ -113,7 +115,7 @@ pub(crate) fn decode_permission_entries_value(
 
 /// Decode one mount-entry array harness value.
 pub(crate) fn decode_mount_entries_value(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     value: HarnessValue<NativeArray<MountEntry>, VmArray<MountEntryVm>>,
 ) -> RuntimeResult<Vec<MountEntryValue>> {
     match value {
@@ -141,8 +143,9 @@ pub(crate) fn decode_mount_entries_value(
             Ok(entries)
         }
         HarnessValue::Vm(value) => {
+            // decode the VM mount entries through the active VM context
             let vm_context = vm_context_pointer(context).expect("vm context should be available");
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let vm_context = unsafe { &mut *(vm_context as *mut ExternalCallContext<'_>) };
             let values = value.read_values(vm_context)?;
             let mut entries = Vec::with_capacity(values.len());
 
@@ -212,7 +215,7 @@ fn native_os_path_is_empty(path: fs::OsPath) -> RuntimeResult<bool> {
 
 /// Return whether one VM `OsPath` payload is empty.
 fn vm_os_path_is_empty(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &mut ExternalCallContext<'_>,
     path: fs::OsPathVm,
 ) -> RuntimeResult<bool> {
     match path {
