@@ -2,13 +2,13 @@ use destack_ast::{self as ast};
 use destack_core::StringId;
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, DependencySource, LocalNodeId, LocalNodeIdAny,
-    LocalScopeId, LocalScopeMark, Mutability, NodeTree, NodeType, StaticKey, SymbolSpace,
-    SymbolSpaceOrder, SymbolTable, TypeTable,
+    LocalScopeId, LocalScopeMark, ModuleBinding, Mutability, NodeTree, NodeType, StaticKey,
+    SymbolSpace, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
 
 use crate::Compiler;
 
-use destack_workspace::{ImportDir, Module, ModuleAst};
+use destack_workspace::{Ast, Module};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -48,8 +48,10 @@ impl Compiler {
     pub(super) fn bind_dependency_item(
         &self,
         module: &Module,
-        ast: &ModuleAst,
-        dir: &mut ImportDir,
+        ast: &Ast,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
         source: DependencySource,
         kind: ast::DependencyKind,
@@ -107,7 +109,9 @@ impl Compiler {
                 let value_id = self.bind_expression(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope,
                     ast_value_id,
                     Some(item_id),

@@ -271,9 +271,9 @@ declare module "buffer" {
     assert!(cache.symbols.contains_key(&buffer_key),);
 }
 
-/// Select a global table target from profile context when no default target is configured.
+/// Select global roots from profile context when no default target is configured.
 #[test]
-fn test_build_global_symbol_table_key_uses_profile_target_without_default() {
+fn test_select_global_symbol_table_uses_profile_target_without_default() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module("main.ds", "export const value: i32 = 1;");
     test.add_target(module_id, "js");
@@ -289,17 +289,17 @@ fn test_build_global_symbol_table_key_uses_profile_target_without_default() {
         .program
         .profile_id_for_target(module_id, &js_target)
         .expect("missing profile for js target");
-    let key = test
+    let roots = test
         .compiler
-        .build_global_symbol_table_key(module_id, js_profile)
+        .select_global_symbol_table(module_id, js_profile)
         .expect("expected profile target selection to avoid default-target error");
 
-    assert_eq!(key.target_id, js_target);
+    assert_eq!(roots, vec![module_id]);
 }
 
 /// Report an explicit error when multiple targets map to the same profile.
 #[test]
-fn test_build_global_symbol_table_key_errors_on_ambiguous_profile_targets() {
+fn test_select_global_symbol_table_errors_on_ambiguous_profile_targets() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module("main.ds", "export const value: i32 = 1;");
     test.add_target(module_id, "js");
@@ -332,7 +332,7 @@ fn test_build_global_symbol_table_key_errors_on_ambiguous_profile_targets() {
         .expect("missing profile for js target");
     let result = test
         .compiler
-        .build_global_symbol_table_key(module_id, js_profile);
+        .select_global_symbol_table(module_id, js_profile);
 
     let Err(ResolveError::InvalidTargetConfig { message, .. }) = result else {
         panic!("expected invalid target config for ambiguous profile targets");
@@ -345,7 +345,7 @@ fn test_build_global_symbol_table_key_errors_on_ambiguous_profile_targets() {
 
 /// Use the configured default target when multiple profile-equivalent targets match.
 #[test]
-fn test_build_global_symbol_table_key_prefers_default_target_with_ambiguous_profile_matches() {
+fn test_select_global_symbol_table_prefers_default_target_with_ambiguous_profile_matches() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module("main.ds", "export const value: i32 = 1;");
     test.add_target(module_id, "js");
@@ -377,17 +377,17 @@ fn test_build_global_symbol_table_key_prefers_default_target_with_ambiguous_prof
         .program
         .profile_id_for_target(module_id, &js_target)
         .expect("missing profile for js target");
-    let key = test
+    let roots = test
         .compiler
-        .build_global_symbol_table_key(module_id, js_profile)
+        .select_global_symbol_table(module_id, js_profile)
         .expect("expected default target to disambiguate profile matches");
 
-    assert_eq!(key.target_id, ts_target);
+    assert_eq!(roots, vec![module_id]);
 }
 
 /// Error when default target does not belong to the matching profile target set.
 #[test]
-fn test_build_global_symbol_table_key_errors_when_default_target_mismatches_profile_set() {
+fn test_select_global_symbol_table_errors_when_default_target_mismatches_profile_set() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module("main.ds", "export const value: i32 = 1;");
     test.add_target(module_id, "js");
@@ -422,7 +422,7 @@ fn test_build_global_symbol_table_key_errors_when_default_target_mismatches_prof
         .expect("missing profile for js target");
     let result = test
         .compiler
-        .build_global_symbol_table_key(module_id, js_profile);
+        .select_global_symbol_table(module_id, js_profile);
 
     let Err(ResolveError::InvalidTargetConfig { message, .. }) = result else {
         panic!("expected invalid target config for mismatched default target");
@@ -435,7 +435,7 @@ fn test_build_global_symbol_table_key_errors_when_default_target_mismatches_prof
 
 /// Error when destack.json default target references a missing target entry.
 #[test]
-fn test_build_global_symbol_table_key_errors_when_default_target_is_missing() {
+fn test_select_global_symbol_table_errors_when_default_target_is_missing() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module("main.ds", "export const value: i32 = 1;");
     test.add_target(module_id, "js");
@@ -463,7 +463,7 @@ fn test_build_global_symbol_table_key_errors_when_default_target_is_missing() {
 
     let result = test
         .compiler
-        .build_global_symbol_table_key(module_id, js_profile);
+        .select_global_symbol_table(module_id, js_profile);
 
     let Err(ResolveError::InvalidTargetConfig { message, .. }) = result else {
         panic!("expected invalid target config for missing default target");

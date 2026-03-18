@@ -201,14 +201,14 @@ impl Compiler {
         &self,
         profile: ProfileId,
     ) -> Result<(), BuildRequirementError> {
-        self.require_build_key(BuildKey::Artifact(ArtifactKey::LanguageEnvironment {
+        self.require_build_key(BuildKey::artifact(ArtifactKey::language_environment(
             profile,
-        }))
+        )))
     }
 
     /// Ensure the lib environment exists for one profile.
     pub fn require_lib_environment(&self, profile: ProfileId) -> Result<(), BuildRequirementError> {
-        self.require_build_key(BuildKey::Artifact(ArtifactKey::LibEnvironment { profile }))
+        self.require_build_key(BuildKey::artifact(ArtifactKey::lib_environment(profile)))
     }
 
     /// Get a required language item, returning an error if not found.

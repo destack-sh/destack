@@ -1,5 +1,5 @@
 use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, SymbolTable, SymbolType};
-use destack_workspace::{Module, ModuleDir, ProfileId};
+use destack_workspace::{Module, ProfileId};
 
 use crate::{Compiler, ResolveError, ResolveResult};
 
@@ -66,13 +66,11 @@ impl Compiler {
     pub(crate) fn resolve_canonical_symbol(
         &self,
         _module: &Module,
-        dir: &mut ModuleDir,
+        symbols: &mut SymbolTable,
         node: GlobalNodeIdAny,
         symbol_id: GlobalSymbolId,
         profile: ProfileId,
     ) -> ResolveResult<GlobalSymbolId> {
-        let symbols = dir.symbols_mut();
-
         // get the target_symbol
         let symbol = symbols.get_symbol(symbol_id.local_id);
         if symbol.ty == SymbolType::Newtype {

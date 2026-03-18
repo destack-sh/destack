@@ -1,46 +1,94 @@
+use crate::{BuildRequirementCollector, Compiler, ResolveError, ResolveResult};
 use destack_core::StringId;
-use destack_dir::ModuleTarget;
-use destack_source::{ModuleId, ModuleVersion, PackageId};
-use destack_workspace::{
-    ModuleBindingReference, ModuleBindingRegistry, ModuleBindingTable, ModuleBindingTableKey,
-    ModuleFormat, ProfileId,
-};
+use destack_dir::{Declaration, LocalNodeId, ModuleTarget};
+use destack_source::{ModuleId, PackageId};
+use destack_workspace::{ModuleFormat, ProfileId};
 use indexmap::IndexMap;
 
-use crate::{Compiler, ResolveResult};
+/// Reference a module binding declaration in a module.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct ModuleBindingReference {
+    /// The module id that owns the binding.
+    pub module_id: ModuleId,
+    /// The declaration node for the binding.
+    pub declaration: LocalNodeId<Declaration>,
+}
+
+/// Track module bindings reachable from a root set.
+#[derive(Debug, Clone)]
+pub(crate) struct ModuleBindingTable {
+    /// Module bindings by specifier.
+    pub bindings_by_specifier: IndexMap<StringId, Vec<ModuleBindingReference>>,
+}
+
+impl Default for ModuleBindingTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ModuleBindingTable {
+    /// Create an empty table.
+    fn new() -> Self {
+        Self {
+            bindings_by_specifier: IndexMap::new(),
+        }
+    }
+}
 
 impl Compiler {
-    /// Prepare the module binding table for a module and profile.
-    pub(crate) fn prepare_module_binding_table(
+    /// Return one cached module binding table for a profile when one already exists.
+    fn cached_module_binding_table_for_profile(
+        &self,
+        profile_id: ProfileId,
+    ) -> Option<ModuleBindingTable> {
+        self.module_binding_tables
+            .iter()
+            .find(|entry| entry.key().1 == profile_id)
+            .map(|entry| entry.value().clone())
+    }
+
+    /// Require the base DIR artifacts that can contribute module bindings.
+    pub(crate) fn require_module_binding_sources(
+        &self,
+        package_id: PackageId,
+        profile_id: ProfileId,
+    ) -> ResolveResult<()> {
+        let mut collector = BuildRequirementCollector::new();
+
+        // require the full source set before building one transient table
+        for module_id in self.module_binding_source_ids(package_id, profile_id)? {
+            if let Err(error) = self.require_dir_base(module_id)
+                && let Some(error) = collector.try_collect::<(), _>(Err(error))
+            {
+                let requirement = error.into_requirement();
+                return Err(ResolveError::UnsatisfiedRequirement { requirement });
+            }
+        }
+
+        if let Some(requirement) = collector.try_into_requirement() {
+            return Err(ResolveError::Yield { requirement });
+        }
+
+        Ok(())
+    }
+
+    /// Build the module binding table for one module and profile.
+    pub(crate) fn module_binding_table_for_module(
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
-    ) -> ResolveResult<ModuleBindingTableKey> {
+    ) -> ResolveResult<ModuleBindingTable> {
         let module = self.program.modules.get(module_id);
-        let module = module.as_ref();
-        let package_id = module.package_id;
-        // select the module binding cache key
-        let (global_key, _) = self.select_global_symbol_table(module_id, profile_id)?;
-        let key = ModuleBindingTableKey {
-            target_id: global_key.target_id,
-            profile_id: global_key.profile_id,
-            entry_module: global_key.entry_module,
-        };
 
-        // rebuild when module bindings changed since the cache was built
-        let mut rebuild_cache = true;
-        if let Some(cache) = self.program.index.module_binding_tables.get(&key) {
-            rebuild_cache = self.module_binding_table_is_stale(package_id, profile_id, &cache)?;
-        }
-        if rebuild_cache {
-            let cache = self.build_module_binding_table(package_id, profile_id)?;
-            self.program
-                .index
-                .module_binding_tables
-                .insert(key.clone(), cache);
+        // builtin modules should reuse the active profile binding table when one exists
+        if module.is_builtin()
+            && let Some(cache) = self.cached_module_binding_table_for_profile(profile_id)
+        {
+            return Ok(cache);
         }
 
-        Ok(key)
+        self.build_module_binding_table(module.package_id, profile_id)
     }
 
     /// Resolve a specifier to a module binding target when available.
@@ -50,10 +98,7 @@ impl Compiler {
         profile_id: ProfileId,
         specifier: StringId,
     ) -> ResolveResult<Option<ModuleTarget>> {
-        let cache_key = self.prepare_module_binding_table(module_id, profile_id)?;
-        let Some(cache) = self.program.index.module_binding_tables.get(&cache_key) else {
-            return Ok(None);
-        };
+        let cache = self.module_binding_table_for_module(module_id, profile_id)?;
 
         if cache.bindings_by_specifier.contains_key(&specifier) {
             return Ok(Some(ModuleTarget::Binding(specifier)));
@@ -69,10 +114,7 @@ impl Compiler {
         profile_id: ProfileId,
         specifier: StringId,
     ) -> ResolveResult<Option<Vec<ModuleBindingReference>>> {
-        let cache_key = self.prepare_module_binding_table(module_id, profile_id)?;
-        let Some(cache) = self.program.index.module_binding_tables.get(&cache_key) else {
-            return Ok(None);
-        };
+        let cache = self.module_binding_table_for_module(module_id, profile_id)?;
         Ok(cache.bindings_by_specifier.get(&specifier).cloned())
     }
 
@@ -95,7 +137,7 @@ impl Compiler {
                 return Ok(None);
             }
 
-            return Ok(Some(module.module_format()));
+            return Ok(Some(self.program.modules.module_format(module.id)));
         }
 
         // binding targets may span declarations from multiple modules
@@ -121,7 +163,7 @@ impl Compiler {
                 continue;
             }
 
-            if module.module_format().is_commonjs() {
+            if self.program.modules.module_format(module.id).is_commonjs() {
                 saw_commonjs = true;
             } else {
                 saw_esm = true;
@@ -151,41 +193,26 @@ impl Compiler {
         package_id: PackageId,
         profile_id: ProfileId,
     ) -> ResolveResult<ModuleBindingTable> {
-        let mut cache = ModuleBindingTable::new();
-
-        // collect module bindings declared in the current package
-        if let Some(registry) = self.program.index.module_binding_registry.get(&package_id) {
-            self.append_module_binding_registry(&mut cache, &registry);
+        // reuse the table while one compile invocation is in flight
+        if let Some(cache) = self.module_binding_tables.get(&(package_id, profile_id)) {
+            return Ok(cache.clone());
         }
 
-        // include ambient lib module bindings visible to this profile
-        for module_id in self.ambient_binding_module_ids(profile_id)? {
+        // require the full binding source set before reading committed base artifacts
+        self.require_module_binding_sources(package_id, profile_id)?;
+
+        let mut cache = ModuleBindingTable::new();
+
+        // collect module bindings from the published base surface
+        for module_id in self.module_binding_source_ids(package_id, profile_id)? {
             self.append_module_bindings_from_module(&mut cache, module_id)?;
         }
 
+        // cache the fresh table for later target lookups in this compiler instance
+        self.module_binding_tables
+            .insert((package_id, profile_id), cache.clone());
+
         Ok(cache)
-    }
-
-    /// Append one package registry to a module binding table.
-    fn append_module_binding_registry(
-        &self,
-        cache: &mut ModuleBindingTable,
-        registry: &ModuleBindingRegistry,
-    ) {
-        for (module_id, version) in &registry.module_versions {
-            cache.module_versions.insert(*module_id, *version);
-            cache.registry_module_versions.insert(*module_id, *version);
-        }
-
-        for (specifier, bindings) in &registry.bindings_by_specifier {
-            let entries = cache.bindings_by_specifier.entry(*specifier).or_default();
-            for binding in bindings {
-                if entries.iter().any(|entry| entry == binding) {
-                    continue;
-                }
-                entries.push(*binding);
-            }
-        }
     }
 
     /// Append bindings declared in one module to a module binding table.
@@ -196,21 +223,19 @@ impl Compiler {
     ) -> ResolveResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.as_ref();
-        cache.module_versions.insert(module_id, module.version());
 
         // only code modules can contribute module bindings
         if !module.is_code() {
             return Ok(());
         }
 
-        self.require_dir_base(module_id)?;
-
+        // read the already-required base artifact directly
         let dir = self
             .artifact_dir_base(module_id)
             .unwrap_or_else(|| panic!("missing committed base dir artifact for {module_id:?}"));
-        let module_bindings = dir.module_bindings.as_ref().clone();
+        let module_bindings = dir.module_bindings.clone();
 
-        for module_binding in &module_bindings {
+        for module_binding in module_bindings.iter() {
             let binding_ref = ModuleBindingReference {
                 module_id,
                 declaration: module_binding.declaration,
@@ -237,66 +262,33 @@ impl Compiler {
         self.ambient_lib_modules_from_input(profile_id)
     }
 
-    /// Collect package declared module binding versions for stale checks.
-    fn registry_module_binding_versions(
-        &self,
-        package_id: PackageId,
-    ) -> IndexMap<ModuleId, ModuleVersion> {
-        let mut versions = IndexMap::new();
+    /// Collect module ids that belong to one package.
+    fn package_module_ids(&self, package_id: PackageId) -> Vec<ModuleId> {
+        let mut module_ids = Vec::new();
 
-        // include package module binding versions
-        if let Some(registry) = self.program.index.module_binding_registry.get(&package_id) {
-            for (module_id, version) in &registry.module_versions {
-                versions.insert(*module_id, *version);
+        // collect modules from the target package
+        for module in self.program.modules.iter() {
+            if module.package_id == package_id {
+                module_ids.push(module.id);
             }
         }
 
-        versions
+        // keep traversal deterministic
+        module_ids.sort_unstable();
+        module_ids
     }
 
-    /// Return true when module binding inputs changed since caching.
-    fn module_binding_table_is_stale(
+    /// Collect the full module-binding source set for one package/profile pair.
+    fn module_binding_source_ids(
         &self,
         package_id: PackageId,
         profile_id: ProfileId,
-        cache: &ModuleBindingTable,
-    ) -> ResolveResult<bool> {
-        // compare package registry inputs first
-        let expected_registry_versions = self.registry_module_binding_versions(package_id);
-        if expected_registry_versions.len() != cache.registry_module_versions.len() {
-            return Ok(true);
-        }
+    ) -> ResolveResult<Vec<ModuleId>> {
+        let mut module_ids = self.package_module_ids(package_id);
+        module_ids.extend(self.ambient_binding_module_ids(profile_id)?);
+        module_ids.sort_unstable();
+        module_ids.dedup();
 
-        for (module_id, expected_version) in expected_registry_versions.clone() {
-            let Some(cached_version) = cache.registry_module_versions.get(&module_id) else {
-                return Ok(true);
-            };
-            if cached_version != &expected_version {
-                return Ok(true);
-            }
-        }
-
-        // compare the full module set, including ambient lib module bindings
-        let mut expected_module_versions = expected_registry_versions;
-        for module_id in self.ambient_binding_module_ids(profile_id)? {
-            let module = self.program.modules.get(module_id);
-            let module = module.as_ref();
-            expected_module_versions.insert(module_id, module.version());
-        }
-
-        if expected_module_versions.len() != cache.module_versions.len() {
-            return Ok(true);
-        }
-
-        for (module_id, expected_version) in expected_module_versions {
-            let Some(cached_version) = cache.module_versions.get(&module_id) else {
-                return Ok(true);
-            };
-            if cached_version != &expected_version {
-                return Ok(true);
-            }
-        }
-
-        Ok(false)
+        Ok(module_ids)
     }
 }

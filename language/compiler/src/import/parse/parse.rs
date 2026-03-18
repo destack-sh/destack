@@ -4,7 +4,7 @@ use crate::{Compiler, ImportError, ImportResult};
 use destack_core::StringPool;
 use destack_parser::{Parser, ParserSettings};
 use destack_source::{CacheKind, File, FileType, LanguageType, ModuleId, ModuleVersion, Span};
-use destack_workspace::{Loader, ModuleAst};
+use destack_workspace::{ArtifactKey, Ast, Loader};
 
 impl Compiler {
     /// Parse a module (load file and parse into AST).
@@ -138,7 +138,9 @@ impl Compiler {
                 self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
                 let mut ast = entry.payload;
                 ast.ensure_anchor_expression(file_id);
-                self.program.artifacts.set_ast(module_id, ast);
+                self.program
+                    .artifacts
+                    .publish(ArtifactKey::Ast { module: module_id }, ast);
                 self.program.refresh_module_semantics(module_id);
                 tracing::trace!(?module_id, "import.module.parse.code.cache");
                 return Ok(());
@@ -187,7 +189,7 @@ impl Compiler {
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let (tokens, side_tokens) = parser.take_tokens();
         let strings = StringPool::from_local(parser.strings);
-        let mut ast = ModuleAst::from_tree(
+        let mut ast = Ast::from_tree(
             module_id,
             module_version,
             parser.tree,
@@ -197,7 +199,9 @@ impl Compiler {
             side_tokens,
         );
         ast.ensure_anchor_expression(file_id);
-        self.program.artifacts.set_ast(module_id, ast.clone());
+        self.program
+            .artifacts
+            .publish(ArtifactKey::Ast { module: module_id }, ast.clone());
         self.program.refresh_module_semantics(module_id);
 
         // write AST to cache
@@ -276,7 +280,7 @@ impl Compiler {
 
         // create the anchor AST for the data module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-        let mut ast = ModuleAst::new(module_id, module_version);
+        let mut ast = Ast::new(module_id, module_version);
         ast.ensure_anchor_expression(file_id);
 
         // attach parsed data to the parse artifact
@@ -284,7 +288,9 @@ impl Compiler {
         self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
         ast.data_value = Some(value);
 
-        self.program.artifacts.set_ast(module_id, ast);
+        self.program
+            .artifacts
+            .publish(ArtifactKey::Ast { module: module_id }, ast);
 
         tracing::trace!(?module_id, "import.module.parse.json");
         Ok(())
@@ -324,7 +330,7 @@ impl Compiler {
 
         // create the anchor AST for the data module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-        let mut ast = ModuleAst::new(module_id, module_version);
+        let mut ast = Ast::new(module_id, module_version);
         ast.ensure_anchor_expression(file_id);
 
         // attach parsed data to the parse artifact
@@ -332,7 +338,9 @@ impl Compiler {
         self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
         ast.data_value = Some(value);
 
-        self.program.artifacts.set_ast(module_id, ast);
+        self.program
+            .artifacts
+            .publish(ArtifactKey::Ast { module: module_id }, ast);
 
         tracing::trace!(?module_id, "import.module.parse.toml");
         Ok(())
@@ -372,7 +380,7 @@ impl Compiler {
 
         // create the anchor AST for the data module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-        let mut ast = ModuleAst::new(module_id, module_version);
+        let mut ast = Ast::new(module_id, module_version);
         ast.ensure_anchor_expression(file_id);
 
         // attach parsed data to the parse artifact
@@ -380,7 +388,9 @@ impl Compiler {
         self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
         ast.data_value = Some(value);
 
-        self.program.artifacts.set_ast(module_id, ast);
+        self.program
+            .artifacts
+            .publish(ArtifactKey::Ast { module: module_id }, ast);
 
         tracing::trace!(?module_id, "import.module.parse.yaml");
         Ok(())
@@ -415,10 +425,12 @@ impl Compiler {
 
         // create the anchor AST for the text module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-        let mut ast = ModuleAst::new(module_id, module_version);
+        let mut ast = Ast::new(module_id, module_version);
         ast.ensure_anchor_expression(file_id);
 
-        self.program.artifacts.set_ast(module_id, ast);
+        self.program
+            .artifacts
+            .publish(ArtifactKey::Ast { module: module_id }, ast);
 
         tracing::trace!(?module_id, "import.module.parse.text");
         Ok(())
@@ -448,10 +460,12 @@ impl Compiler {
 
         // create the anchor AST for the binary module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-        let mut ast = ModuleAst::new(module_id, module_version);
+        let mut ast = Ast::new(module_id, module_version);
         ast.ensure_anchor_expression(file_id);
 
-        self.program.artifacts.set_ast(module_id, ast);
+        self.program
+            .artifacts
+            .publish(ArtifactKey::Ast { module: module_id }, ast);
 
         tracing::trace!(?module_id, "import.module.parse.binary");
         Ok(())
@@ -487,10 +501,12 @@ impl Compiler {
 
         // create the anchor AST for the text module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-        let mut ast = ModuleAst::new(module_id, module_version);
+        let mut ast = Ast::new(module_id, module_version);
         ast.ensure_anchor_expression(file_id);
 
-        self.program.artifacts.set_ast(module_id, ast);
+        self.program
+            .artifacts
+            .publish(ArtifactKey::Ast { module: module_id }, ast);
 
         tracing::trace!(?module_id, "import.module.parse.base64");
         Ok(())

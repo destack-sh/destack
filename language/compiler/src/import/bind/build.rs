@@ -1,8 +1,9 @@
 use destack_dir::{
-    Expression, LocalNodeId, LocalScopeMark, NodeTree, SymbolSpaceOrder, SymbolTable, TypeTable,
+    Expression, LocalNodeId, LocalScopeId, LocalScopeMark, ModuleBinding, NodeTree,
+    SymbolSpaceOrder, SymbolTable, TypeTable,
 };
 
-use destack_workspace::{ImportDir, Module, ModuleAst};
+use destack_workspace::{Ast, Module};
 
 use crate::Compiler;
 
@@ -11,20 +12,24 @@ impl Compiler {
     pub(super) fn bind_module_roots(
         &self,
         module: &Module,
-        ast: &ModuleAst,
-        dir: &mut ImportDir,
+        ast: &Ast,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        module_bindings: &mut Vec<ModuleBinding>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> Vec<LocalNodeId<Expression>> {
-        let scope = (dir.namespace_scope, LocalScopeMark::end());
+        let scope = (namespace_scope, LocalScopeMark::end());
         ast.roots
             .iter()
             .map(|expression| {
                 self.bind_expression(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope,
                     *expression,
                     None,

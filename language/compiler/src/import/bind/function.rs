@@ -2,10 +2,10 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature, Generics, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, StaticKey,
-    SymbolSpace, SymbolSpaceOrder, SymbolTable, TypeTable,
+    FunctionSignature, Generics, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding,
+    NodeTree, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
-use destack_workspace::{ImportDir, Module, ModuleAst};
+use destack_workspace::{Ast, Module};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -92,8 +92,10 @@ impl Compiler {
     pub(super) fn bind_function_signature(
         &self,
         module: &Module,
-        ast: &ModuleAst,
-        dir: &mut ImportDir,
+        ast: &Ast,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
         signature: &ast::FunctionSignature,
         parent_id: Option<LocalNodeIdAny>,
@@ -122,7 +124,9 @@ impl Compiler {
                             self.bind_parameter(
                                 module,
                                 ast,
-                                dir,
+                                namespace_scope,
+                                global_augmentation_scope,
+                                module_bindings,
                                 scope,
                                 SymbolSpace::Type,
                                 *static_parameter,
@@ -172,7 +176,9 @@ impl Compiler {
             self.bind_parameter(
                 module,
                 ast,
-                dir,
+                namespace_scope,
+                global_augmentation_scope,
+                module_bindings,
                 scope,
                 SymbolSpace::Value,
                 this_parameter,
@@ -188,7 +194,9 @@ impl Compiler {
                 self.bind_parameter(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope,
                     SymbolSpace::Value,
                     *parameter,
@@ -224,7 +232,9 @@ impl Compiler {
             self.bind_expression(
                 module,
                 ast,
-                dir,
+                namespace_scope,
+                global_augmentation_scope,
+                module_bindings,
                 scope,
                 return_type,
                 parent_id,
@@ -244,7 +254,9 @@ impl Compiler {
                         self.bind_where_clause(
                             module,
                             ast,
-                            dir,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
                             scope,
                             *where_clause,
                             parent_id,

@@ -7,7 +7,7 @@ use destack_dir::{
     LocalScopeMark, LocalSymbolId, NodeTree, NodeType, Path, Scope, ScopeKind, StaticKey, StringId,
     SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
-use destack_workspace::{Module, ModuleDir, ModuleSource, ProfileId};
+use destack_workspace::{DirPrepared, ExportedSymbolTable, Module, ModuleSource, ProfileId};
 
 use crate::resolve::binding::cache::{
     ResolveAbsoluteSymbolCacheKey, ResolveExpressionCache, ResolveScopeIndexCache,
@@ -28,8 +28,15 @@ struct ResolveState<'a> {
     /// The current module exported symbols when resolving inside the active module.
     current_exported_symbols:
         Option<&'a indexmap::IndexMap<(SymbolSpace, StaticKey), destack_dir::Export>>,
-    /// The immutable artifact snapshot for remote module reads.
-    artifact_dir: Option<&'a ModuleDir>,
+    /// The immutable artifact namespace symbol for remote module reads.
+    artifact_namespace_symbol: Option<LocalSymbolId>,
+    /// The immutable artifact namespace scope for remote module reads.
+    artifact_namespace_scope: Option<LocalScopeId>,
+    /// The immutable artifact global augmentation scope for remote module reads.
+    artifact_global_augmentation_scope: Option<LocalScopeId>,
+    /// The immutable artifact exported symbols for remote module reads.
+    artifact_exported_symbols:
+        Option<&'a indexmap::IndexMap<(SymbolSpace, StaticKey), destack_dir::Export>>,
     /// The active profile id.
     profile_id: ProfileId,
     /// The origin node used for diagnostics.
@@ -62,7 +69,10 @@ impl<'a> ResolveState<'a> {
             current_namespace_scope: Some(namespace_scope),
             current_global_augmentation_scope: Some(global_augmentation_scope),
             current_exported_symbols: Some(exported_symbols),
-            artifact_dir: None,
+            artifact_namespace_symbol: None,
+            artifact_namespace_scope: None,
+            artifact_global_augmentation_scope: None,
+            artifact_exported_symbols: None,
             profile_id,
             node,
             space_order,
@@ -78,7 +88,11 @@ impl<'a> ResolveState<'a> {
         node: GlobalNodeIdAny,
         space_order: SymbolSpaceOrder,
         symbols: &'a SymbolTable,
-        dir: &'a ModuleDir,
+        namespace_symbol: LocalSymbolId,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        exported_symbols: &'a indexmap::IndexMap<(SymbolSpace, StaticKey), destack_dir::Export>,
+        tree: Option<&'a NodeTree>,
     ) -> Self {
         Self {
             module,
@@ -86,33 +100,36 @@ impl<'a> ResolveState<'a> {
             current_namespace_scope: None,
             current_global_augmentation_scope: None,
             current_exported_symbols: None,
-            artifact_dir: Some(dir),
+            artifact_namespace_symbol: Some(namespace_symbol),
+            artifact_namespace_scope: Some(namespace_scope),
+            artifact_global_augmentation_scope: Some(global_augmentation_scope),
+            artifact_exported_symbols: Some(exported_symbols),
             profile_id,
             node,
             space_order,
             symbols,
-            current_tree: None,
+            current_tree: tree,
         }
     }
 
     /// Return the current namespace symbol.
     fn namespace_symbol(self) -> LocalSymbolId {
         self.current_namespace_symbol
-            .or_else(|| self.artifact_dir.map(|dir| dir.namespace_symbol))
+            .or(self.artifact_namespace_symbol)
             .expect("resolve state is missing namespace symbol")
     }
 
     /// Return the current namespace scope.
     fn namespace_scope(self) -> LocalScopeId {
         self.current_namespace_scope
-            .or_else(|| self.artifact_dir.map(|dir| dir.namespace_scope))
+            .or(self.artifact_namespace_scope)
             .expect("resolve state is missing namespace scope")
     }
 
     /// Return the current global augmentation scope.
     fn global_augmentation_scope(self) -> LocalScopeId {
         self.current_global_augmentation_scope
-            .or_else(|| self.artifact_dir.map(|dir| dir.global_augmentation_scope))
+            .or(self.artifact_global_augmentation_scope)
             .expect("resolve state is missing global augmentation scope")
     }
 
@@ -136,13 +153,11 @@ impl<'a> ResolveState<'a> {
             );
         }
 
-        let dir = self
-            .artifact_dir
-            .expect("artifact-backed resolve read is missing module dir");
         compiler.resolve_exported_symbol(
             module,
             self.profile_id,
-            &dir.exported_symbols,
+            self.artifact_exported_symbols
+                .expect("artifact-backed resolve read is missing exported symbols"),
             tree,
             order,
             key,
@@ -180,7 +195,7 @@ impl Compiler {
     fn prelude_resolved_artifact(
         &self,
         profile: ProfileId,
-    ) -> ResolveResult<Option<(Arc<Module>, Arc<ModuleDir>)>> {
+    ) -> ResolveResult<Option<(Arc<Module>, Arc<destack_workspace::DirResolved>)>> {
         // check if prelude injection is enabled
         if !self.options.inject_prelude {
             return Ok(None);
@@ -216,7 +231,12 @@ impl Compiler {
         }
 
         // only commonjs modules expose these runtime bindings by default
-        if !pass.module.module_format().is_commonjs() {
+        if !self
+            .program
+            .modules
+            .module_format(pass.module.id)
+            .is_commonjs()
+        {
             return None;
         }
 
@@ -422,11 +442,44 @@ impl Compiler {
         }
     }
 
-    /// Build a Member expression chain from a root expression with remaining path segments.
-    pub(crate) fn resolve_absolute_symbol(
+    /// Resolve one absolute symbol from one mutable phase-local DIR builder.
+    pub(crate) fn resolve_absolute_symbol_from_builder(
         &self,
         module: &Module,
-        dir: &ModuleDir,
+        profile_id: ProfileId,
+        node: GlobalNodeIdAny,
+        scope: (LocalScopeId, &Scope, LocalScopeMark),
+        key: StaticKey,
+        space_order: SymbolSpaceOrder,
+        symbols: &SymbolTable,
+        namespace_symbol: LocalSymbolId,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        exported_symbols: &ExportedSymbolTable,
+        tree: &NodeTree,
+        scope_cache: Option<&mut ResolveScopeIndexCache>,
+    ) -> ResolveResult<LocalSymbolId> {
+        let pass = ResolveState::current(
+            module,
+            profile_id,
+            node,
+            space_order,
+            symbols,
+            namespace_symbol,
+            namespace_scope,
+            global_augmentation_scope,
+            exported_symbols,
+            Some(tree),
+        );
+
+        self.resolve_absolute_symbol_from_state(pass, scope, key, scope_cache)
+    }
+
+    /// Resolve one absolute symbol from one immutable DIR artifact.
+    pub(crate) fn resolve_absolute_symbol_from_artifact(
+        &self,
+        module: &Module,
+        dir: &DirPrepared,
         profile_id: ProfileId,
         node: GlobalNodeIdAny,
         scope: (LocalScopeId, &Scope, LocalScopeMark),
@@ -435,7 +488,7 @@ impl Compiler {
         symbols: &SymbolTable,
         scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<LocalSymbolId> {
-        let pass = ResolveState::current(
+        let pass = ResolveState::artifact(
             module,
             profile_id,
             node,
@@ -447,24 +500,6 @@ impl Compiler {
             &dir.exported_symbols,
             Some(&dir.tree),
         );
-
-        self.resolve_absolute_symbol_from_state(pass, scope, key, scope_cache)
-    }
-
-    /// Resolve one absolute symbol from one immutable DIR artifact.
-    pub(crate) fn resolve_absolute_symbol_from_artifact(
-        &self,
-        module: &Module,
-        dir: &ModuleDir,
-        profile_id: ProfileId,
-        node: GlobalNodeIdAny,
-        scope: (LocalScopeId, &Scope, LocalScopeMark),
-        key: StaticKey,
-        space_order: SymbolSpaceOrder,
-        symbols: &SymbolTable,
-        scope_cache: Option<&mut ResolveScopeIndexCache>,
-    ) -> ResolveResult<LocalSymbolId> {
-        let pass = ResolveState::artifact(module, profile_id, node, space_order, symbols, dir);
 
         self.resolve_absolute_symbol_from_state(pass, scope, key, scope_cache)
     }
@@ -692,7 +727,6 @@ impl Compiler {
             let tree = selected_artifact
                 .as_ref()
                 .map(|dir| &*dir.tree)
-                .or(pass.artifact_dir.map(|dir| &*dir.tree))
                 .or(pass.current_tree)
                 .expect("selected lib resolve requires active tree for current module");
 
@@ -749,7 +783,11 @@ impl Compiler {
                         pass.node,
                         export_order,
                         symbols,
-                        dir,
+                        dir.namespace_symbol,
+                        dir.namespace_scope,
+                        dir.global_augmentation_scope,
+                        &dir.exported_symbols,
+                        Some(&dir.tree),
                     )
                     .resolve_exported_symbol(
                         self,
@@ -869,7 +907,11 @@ impl Compiler {
                 pass.node,
                 pass.space_order,
                 target_symbols,
-                target_dir.as_ref(),
+                target_dir.namespace_symbol,
+                target_dir.namespace_scope,
+                target_dir.global_augmentation_scope,
+                &target_dir.exported_symbols,
+                Some(&target_dir.tree),
             );
             match self.resolve_relative_symbol_with_ambient_merge_from_state(
                 prelude_pass,
@@ -983,7 +1025,11 @@ impl Compiler {
                             pass.node,
                             pass.space_order,
                             symbols,
-                            dir.as_ref(),
+                            dir.namespace_symbol,
+                            dir.namespace_scope,
+                            dir.global_augmentation_scope,
+                            &dir.exported_symbols,
+                            Some(&dir.tree),
                         )
                     } else {
                         pass
@@ -1063,7 +1109,11 @@ impl Compiler {
                 pass.node,
                 pass.space_order,
                 symbols,
-                ambient_dir.as_ref(),
+                ambient_dir.namespace_symbol,
+                ambient_dir.namespace_scope,
+                ambient_dir.global_augmentation_scope,
+                &ambient_dir.exported_symbols,
+                Some(&ambient_dir.tree),
             );
 
             // find symbol in the ambient module namespace scope first
@@ -1198,7 +1248,11 @@ impl Compiler {
                 node,
                 space_order,
                 symbols,
-                selected_dir.as_ref(),
+                selected_dir.namespace_symbol,
+                selected_dir.namespace_scope,
+                selected_dir.global_augmentation_scope,
+                &selected_dir.exported_symbols,
+                Some(&selected_dir.tree),
             );
 
             // prefer the selected lib module namespace scope
@@ -1251,7 +1305,7 @@ impl Compiler {
     pub(crate) fn resolve_relative_symbol_with_ambient_merge_from_artifact(
         &self,
         module: &Module,
-        dir: &ModuleDir,
+        dir: &DirPrepared,
         profile_id: ProfileId,
         node: GlobalNodeIdAny,
         symbol_id: LocalSymbolId,
@@ -1260,7 +1314,18 @@ impl Compiler {
         symbols: &SymbolTable,
         scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<(GlobalSymbolId, Option<Path>)> {
-        let pass = ResolveState::artifact(module, profile_id, node, space_order, symbols, dir);
+        let pass = ResolveState::artifact(
+            module,
+            profile_id,
+            node,
+            space_order,
+            symbols,
+            dir.namespace_symbol,
+            dir.namespace_scope,
+            dir.global_augmentation_scope,
+            &dir.exported_symbols,
+            Some(&dir.tree),
+        );
 
         self.resolve_relative_symbol_with_ambient_merge_from_state(
             pass,
@@ -1350,7 +1415,11 @@ impl Compiler {
                 pass.node,
                 pass.space_order,
                 source_symbols,
-                source_dir.as_ref(),
+                source_dir.namespace_symbol,
+                source_dir.namespace_scope,
+                source_dir.global_augmentation_scope,
+                &source_dir.exported_symbols,
+                Some(&source_dir.tree),
             );
 
             // resolve using the source module symbols table

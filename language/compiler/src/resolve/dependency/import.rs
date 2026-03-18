@@ -4,7 +4,7 @@ use destack_dir::{
     GlobalSymbolId, LocalScopeId, ModuleTarget, NodeTree, StaticKey, SymbolTable,
 };
 use destack_source::ModuleId;
-use destack_workspace::{ModuleDir, ProfileId};
+use destack_workspace::{DirPrepared, ProfileId};
 use rustc_hash::FxHashMap;
 
 use crate::resolve::dependency::cache::{
@@ -315,7 +315,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-        dir: &ModuleDir,
+        dir: &DirPrepared,
         tree: &NodeTree,
         scope_id: LocalScopeId,
         item: &DependencyItem,
@@ -354,7 +354,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-        dir: &ModuleDir,
+        dir: &DirPrepared,
         tree: &NodeTree,
         scope_id: LocalScopeId,
         target_symbol: GlobalSymbolId,
@@ -387,7 +387,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-        dir: &ModuleDir,
+        dir: &DirPrepared,
         tree: &NodeTree,
         scope_id: LocalScopeId,
         value: destack_dir::LocalNodeId<Expression>,

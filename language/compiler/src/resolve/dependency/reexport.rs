@@ -5,7 +5,7 @@ use destack_dir::{
     NodeTree, StaticKey, SymbolSpace, SymbolSpaceOrder,
 };
 use destack_source::ModuleId;
-use destack_workspace::{Module, ModuleDir, ProfileId};
+use destack_workspace::{DirPrepared, Module, ProfileId};
 use indexmap::IndexMap;
 
 use crate::resolve::dependency::cache::{
@@ -468,7 +468,7 @@ impl Compiler {
     fn resolve_export_entry_symbol(
         &self,
         module: &Module,
-        dir: &ModuleDir,
+        dir: &DirPrepared,
         scope_id: LocalScopeId,
         origin_module_id: ModuleId,
         origin_symbol: Option<GlobalSymbolId>,
@@ -514,7 +514,7 @@ impl Compiler {
     /// Locate the scope and export symbols for a module binding declaration.
     pub(super) fn binding_info_for_declaration(
         &self,
-        dir: &ModuleDir,
+        dir: &DirPrepared,
         declaration: LocalNodeId<Declaration>,
     ) -> Option<(
         LocalScopeId,
@@ -555,7 +555,7 @@ impl Compiler {
     fn resolve_reexport_item_target(
         &self,
         module: &Module,
-        dir: &ModuleDir,
+        dir: &DirPrepared,
         scope_id: LocalScopeId,
         origin_module_id: ModuleId,
         origin_symbol: Option<GlobalSymbolId>,

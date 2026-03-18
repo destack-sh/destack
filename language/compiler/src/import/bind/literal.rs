@@ -1,11 +1,11 @@
 use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
-    FloatType, IntType, IntrinsicType, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree,
-    PrimitiveType, ScalarLiteral, SymbolSpaceOrder, SymbolTable, TemplateLiteral, TypeLiteral,
-    TypeTable,
+    FloatType, IntType, IntrinsicType, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding,
+    NodeTree, PrimitiveType, ScalarLiteral, SymbolSpaceOrder, SymbolTable, TemplateLiteral,
+    TypeLiteral, TypeTable,
 };
-use destack_workspace::{ImportDir, Module, ModuleAst};
+use destack_workspace::{Ast, Module};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -13,7 +13,7 @@ impl Compiler {
     pub(super) fn bind_scalar_literal(
         &self,
         _module: &Module,
-        ast: &ModuleAst,
+        ast: &Ast,
         scalar_literal: &ast::ScalarLiteral,
     ) -> ScalarLiteral {
         match scalar_literal {
@@ -38,8 +38,10 @@ impl Compiler {
     pub(super) fn bind_template_literal(
         &self,
         module: &Module,
-        ast: &ModuleAst,
-        dir: &mut ImportDir,
+        ast: &Ast,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
         template_literal: &ast::TemplateLiteral,
         parent_id: Option<LocalNodeIdAny>,
@@ -63,7 +65,9 @@ impl Compiler {
                         self.bind_argument(
                             module,
                             ast,
-                            dir,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
                             scope,
                             *argument,
                             parent_id,

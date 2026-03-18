@@ -4,7 +4,7 @@ use destack_dir::{
     StringId, SymbolSpace,
 };
 use destack_source::ModuleId;
-use destack_workspace::ModuleDir;
+use destack_workspace::{DirPrepared, ExportedSymbolTable};
 use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 
@@ -66,21 +66,25 @@ impl ResolveDependencyItemCache {
     }
 
     /// Ensure module exports are cached for fast lookups.
-    pub(crate) fn ensure_module_exports(&mut self, module_id: ModuleId, dir: &ModuleDir) {
+    pub(crate) fn ensure_module_exports(
+        &mut self,
+        module_id: ModuleId,
+        exported_symbols: &ExportedSymbolTable,
+    ) {
         if self.module_exports.contains_key(&module_id) {
             return;
         }
 
         // cache the export table once per module
         self.module_exports
-            .insert(module_id, dir.exported_symbols.as_ref().clone());
+            .insert(module_id, exported_symbols.clone());
     }
 
     /// Return cached module exports for one immutable artifact, inserting when missing.
     pub(crate) fn module_exports_from_artifact(
         &mut self,
         module_id: ModuleId,
-        dir: &ModuleDir,
+        dir: &DirPrepared,
     ) -> &mut IndexMap<(SymbolSpace, StaticKey), Export> {
         self.module_exports
             .entry(module_id)

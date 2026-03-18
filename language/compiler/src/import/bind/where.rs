@@ -1,12 +1,12 @@
 use destack_ast as ast;
 use destack_dir::{
-    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, NodeType,
+    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, NodeTree, NodeType,
     SymbolSpaceOrder, SymbolTable, TypeTable, WhereClause,
 };
 
 use crate::Compiler;
 
-use destack_workspace::{ImportDir, Module, ModuleAst};
+use destack_workspace::{Ast, Module};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -14,8 +14,10 @@ impl Compiler {
     pub(super) fn bind_where_clause(
         &self,
         module: &Module,
-        ast: &ModuleAst,
-        dir: &mut ImportDir,
+        ast: &Ast,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
         ast_where_clause_id: ast::LocalNodeId<ast::WhereClause>,
         parent_id: Option<LocalNodeIdAny>,
@@ -37,7 +39,9 @@ impl Compiler {
         let right = self.bind_expression(
             module,
             ast,
-            dir,
+            namespace_scope,
+            global_augmentation_scope,
+            module_bindings,
             scope,
             ast_where_clause.right,
             Some(where_clause_id),

@@ -1,10 +1,33 @@
-use destack_workspace::ArtifactKey;
+use std::sync::Arc;
+
+use destack_dir::{
+    DependencyMode, Expression, LocalNodeIdAny, LocalScopeMark, NodeTree, NodeType, ScopeKind,
+    SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, SymbolType, TypeLiteral, TypeTable,
+};
+use destack_source::ModuleId;
+use destack_workspace::{ArtifactKey, DirBase};
 
 use crate::{BuildKey, BuildRequirementError, Compiler, ImportError, ImportResult};
-use destack_source::ModuleId;
-use destack_workspace::ImportDir;
 
 impl Compiler {
+    /// Create a stable module-level anchor node.
+    fn create_base_dir_anchor(
+        &self,
+        tree: &mut NodeTree,
+        namespace_scope: destack_dir::LocalScopeId,
+        anchor_source_id: u32,
+    ) -> LocalNodeIdAny {
+        // anchor nodes should always point to a real AST id
+        let scope = (namespace_scope, LocalScopeMark::end());
+        let anchor_slot =
+            tree.reserve_from_source(NodeType::Expression, anchor_source_id, scope, None);
+        let expression = Expression::TypeLiteral {
+            value: TypeLiteral::Void,
+        };
+
+        tree.insert(anchor_slot, expression).into_any()
+    }
+
     /// Build the parsed syntax tree for one module.
     pub fn process_ast(&self, module: ModuleId) -> ImportResult<()> {
         let module_version = self.module_version(module);
@@ -34,7 +57,9 @@ impl Compiler {
         {
             self.ensure_module_version_matches::<ImportError>(module, module_version)?;
             tracing::trace!(?module, "import.module.bind.cache");
-            self.program.artifacts.set_dir_base(module, entry.payload);
+            self.program
+                .artifacts
+                .publish(ArtifactKey::DirBase { module }, entry.payload);
             return Ok(());
         }
 
@@ -42,7 +67,20 @@ impl Compiler {
         let ast = self.program.artifacts.ast(module);
 
         // build one transient base DIR from the current AST
-        let (dir, ast) = {
+        let (
+            ast,
+            mut tree,
+            mut symbols,
+            mut types,
+            mut roots,
+            anchor_node,
+            namespace_symbol,
+            namespace_scope,
+            global_augmentation_scope,
+            default_symbol,
+            export_assignment_symbol,
+            mut module_bindings,
+        ) = {
             let module_handle = self.program.modules.get(module);
             let module_guard = module_handle.as_ref();
             self.ensure_module_version_matches_guard::<ImportError>(&module_guard, module_version)?;
@@ -50,27 +88,114 @@ impl Compiler {
             let anchor_id = ast
                 .anchor_expression
                 .expect("missing anchor expression on parsed module");
-
-            let dir = if module_guard.is_code() {
-                ImportDir::new_base(module, module_version, anchor_id.id)
+            let default_symbol_kind = if module_guard.is_code() {
+                SymbolKind::Namespace
             } else {
-                ImportDir::new_data_base(module, module_version, anchor_id.id)
+                SymbolKind::Item
             };
 
-            (dir, ast)
+            // set up the namespace, scopes, and module symbols
+            let mut symbols = SymbolTable::new(module);
+            let namespace_scope = symbols.insert_scope(ScopeKind::Namespace, None, None);
+            let global_augmentation_scope = symbols.insert_scope(
+                ScopeKind::Namespace,
+                Some((namespace_scope, LocalScopeMark::end())),
+                None,
+            );
+            let (namespace_symbol, _) = symbols.insert_symbol(
+                SymbolKind::Namespace,
+                SymbolType::Void,
+                SymbolSpace::Value,
+                SymbolBinding::Runtime,
+                None,
+                (namespace_scope, LocalScopeMark::end()),
+                Some(DependencyMode::Namespace),
+            );
+            symbols.get_scope_by_id_mut(namespace_scope).owner_id = Some(namespace_symbol);
+            let (default_symbol, _) = symbols.insert_symbol(
+                default_symbol_kind,
+                SymbolType::Void,
+                SymbolSpace::Value,
+                SymbolBinding::Runtime,
+                None,
+                (namespace_scope, LocalScopeMark::end()),
+                Some(DependencyMode::Default),
+            );
+            let (export_assignment_symbol, _) = symbols.insert_symbol(
+                SymbolKind::Namespace,
+                SymbolType::Void,
+                SymbolSpace::Value,
+                SymbolBinding::Runtime,
+                None,
+                (namespace_scope, LocalScopeMark::end()),
+                None,
+            );
+
+            // seed the local mutable tables
+            let mut tree = NodeTree::new(module);
+            let anchor_node = self.create_base_dir_anchor(&mut tree, namespace_scope, anchor_id.id);
+
+            (
+                ast,
+                tree,
+                symbols,
+                TypeTable::new(module),
+                Vec::new(),
+                anchor_node,
+                namespace_symbol,
+                namespace_scope,
+                global_augmentation_scope,
+                default_symbol,
+                export_assignment_symbol,
+                Vec::new(),
+            )
         };
 
         // run bind, desugar, and validate on the transient base DIR
-        let mut dir = dir;
-        self.import_module_bind(module, module_version, &ast, &mut dir)?;
-        self.import_module_desugar(module, module_version, &mut dir)?;
-        self.import_module_validate(module, module_version, &dir)?;
+        self.import_module_bind(
+            module,
+            module_version,
+            &ast,
+            namespace_scope,
+            global_augmentation_scope,
+            &mut module_bindings,
+            &mut tree,
+            &mut symbols,
+            &mut types,
+            &mut roots,
+        )?;
+        self.import_module_desugar(module, module_version, &mut tree)?;
+        self.import_module_validate(
+            module,
+            module_version,
+            &tree,
+            &symbols,
+            &roots,
+            global_augmentation_scope,
+        )?;
         if self.is_code_module(module) {
             self.stats.record_bind();
         }
 
+        // publish the final base artifact
+        let dir = DirBase {
+            profile_id: None,
+            id: module,
+            version: module_version,
+            tree: Arc::new(tree),
+            symbols: Arc::new(symbols),
+            types: Arc::new(types),
+            roots: Arc::new(roots),
+            anchor_node,
+            namespace_symbol,
+            namespace_scope,
+            global_augmentation_scope,
+            default_symbol,
+            export_assignment_symbol,
+            module_bindings: Arc::new(module_bindings),
+        };
+
         // write base DIR to cache
-        let dir = dir.into_dir();
         if let Some(cache) = cache_handle.as_ref() {
             self.ensure_module_version_matches::<ImportError>(module, module_version)?;
             if let Err(error) = cache.write_dir_base(dir.clone()) {
@@ -78,18 +203,20 @@ impl Compiler {
             }
         }
 
-        self.program.artifacts.set_dir_base(module, dir);
+        self.program
+            .artifacts
+            .publish(ArtifactKey::DirBase { module }, dir);
 
         Ok(())
     }
 
     /// Ensure a module AST exists.
     pub fn require_ast(&self, module: ModuleId) -> Result<(), BuildRequirementError> {
-        self.require_build_key(BuildKey::Artifact(ArtifactKey::Ast { module }))
+        self.require_build_key(BuildKey::artifact(ArtifactKey::ast(module)))
     }
 
     /// Ensure a module base DIR exists.
     pub fn require_dir_base(&self, module: ModuleId) -> Result<(), BuildRequirementError> {
-        self.require_build_key(BuildKey::Artifact(ArtifactKey::DirBase { module }))
+        self.require_build_key(BuildKey::artifact(ArtifactKey::dir_base(module)))
     }
 }

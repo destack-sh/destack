@@ -1,11 +1,12 @@
-use std::sync::Arc;
-
-use destack_dir::{DependencySource, Expression, LocalNodeId, NodeTree, NodeType, UnaryOperator};
+use destack_dir::{
+    DependencySource, Expression, LocalNodeId, LocalScopeId, LocalSymbolId, NodeTree, NodeType,
+    SymbolTable, TypeTable, UnaryOperator,
+};
 
 use crate::resolve::binding::cache::{ResolveExpressionCache, ResolvePathCacheKey};
 use crate::resolve::dependency::loader::LoaderAttribute;
 use crate::{Compiler, ResolveError, ResolveResult};
-use destack_workspace::{Module, ModuleDir, ProfileId};
+use destack_workspace::{ExportedSymbolTable, ImportedModuleTable, Module, ProfileId};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -61,14 +62,20 @@ impl Compiler {
     pub(crate) fn resolve_expression(
         &self,
         module: &Module,
-        dir: &mut ModuleDir,
         profile: ProfileId,
+        tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
+        _types: &TypeTable,
+        imported_modules: &mut ImportedModuleTable,
+        namespace_symbol: LocalSymbolId,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        exported_symbols: &mut ExportedSymbolTable,
         expression_id: LocalNodeId<Expression>,
         cache: &mut ResolveExpressionCache,
     ) -> ResolveResult<()> {
-        let tree = dir.tree.as_ref();
         let scope = {
-            let scope = dir.symbols.get_scope(expression_id, tree);
+            let scope = symbols.get_scope(expression_id, tree);
             let scope = (scope.0, scope.1.clone(), scope.2);
             if module.language_type.is_declaration() {
                 (scope.0, scope.1, destack_dir::LocalScopeMark::end())
@@ -104,7 +111,7 @@ impl Compiler {
                         };
                     let Some(remote_target) = self.resolve_import_maybe(
                         &module_handle,
-                        dir,
+                        imported_modules,
                         profile,
                         expression_id.into_global_any(module.id),
                         source,
@@ -149,7 +156,7 @@ impl Compiler {
                     };
                 let Some(remote_target) = self.resolve_import_maybe(
                     &module_handle,
-                    dir,
+                    imported_modules,
                     profile,
                     expression_id.into_global_any(module.id),
                     DependencySource::ExportStatement,
@@ -174,9 +181,6 @@ impl Compiler {
                 ref static_arguments,
                 space_order,
             } => {
-                let exported_symbols = Arc::clone(&dir.exported_symbols);
-                let symbols = Arc::clone(&dir.symbols);
-
                 // track runtime typeof tolerance for missing symbols only
                 let is_runtime_typeof_operand = self.unresolved_path_is_runtime_typeof_operand(
                     tree,
@@ -206,10 +210,10 @@ impl Compiler {
                     } else {
                         let resolved = self.resolve_absolute_path(
                             module,
-                            dir.namespace_symbol,
-                            dir.namespace_scope,
-                            dir.global_augmentation_scope,
-                            exported_symbols.as_ref(),
+                            namespace_symbol,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            exported_symbols,
                             expression_id,
                             expression_id.into_global_any(module.id),
                             profile,
@@ -217,8 +221,8 @@ impl Compiler {
                             &path,
                             static_arguments.clone(),
                             space_order,
-                            symbols.as_ref(),
-                            dir.tree_mut(),
+                            symbols,
+                            tree,
                             cache,
                         );
 
@@ -232,10 +236,10 @@ impl Compiler {
                 } else {
                     self.resolve_absolute_path(
                         module,
-                        dir.namespace_symbol,
-                        dir.namespace_scope,
-                        dir.global_augmentation_scope,
-                        exported_symbols.as_ref(),
+                        namespace_symbol,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        exported_symbols,
                         expression_id,
                         expression_id.into_global_any(module.id),
                         profile,
@@ -243,8 +247,8 @@ impl Compiler {
                         &path,
                         static_arguments.clone(),
                         space_order,
-                        symbols.as_ref(),
-                        dir.tree_mut(),
+                        symbols,
+                        tree,
                         cache,
                     )
                 };
@@ -266,7 +270,7 @@ impl Compiler {
                     expression_id.into_global_any(module.id),
                     (scope.0, &scope.1, scope.2),
                     target,
-                    &dir.symbols,
+                    symbols,
                 )?;
                 Expression::Break {
                     target: Some(target),
@@ -282,7 +286,7 @@ impl Compiler {
                     expression_id.into_global_any(module.id),
                     (scope.0, &scope.1, scope.2),
                     target,
-                    &dir.symbols,
+                    symbols,
                 )?;
                 Expression::Continue {
                     target: Some(target),
@@ -292,7 +296,7 @@ impl Compiler {
 
             _ => return Ok(()),
         };
-        *dir.tree_mut().get_mut(expression_id) = expression;
+        *tree.get_mut(expression_id) = expression;
 
         Ok(())
     }

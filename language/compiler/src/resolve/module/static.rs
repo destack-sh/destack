@@ -6,10 +6,7 @@ use destack_dir::{
     TypeLiteral, TypeTable, walk_any,
 };
 use destack_source::ModuleId;
-use destack_workspace::{
-    ImportMeta, ModuleDir, OutputFormat, Platform, ProfileEnv, ProfileId, Runtime,
-};
-use std::sync::Arc;
+use destack_workspace::{ImportMeta, OutputFormat, Platform, ProfileEnv, ProfileId, Runtime};
 
 use crate::{Compiler, ResolveError, ResolveResult, evaluate_binary_scalar, evaluate_unary_scalar};
 
@@ -80,24 +77,16 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
-        dir: &mut ModuleDir,
+        import_meta: Option<&ImportMeta>,
+        tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
+        types: &TypeTable,
+        roots: &mut Vec<LocalNodeId<Expression>>,
     ) -> ResolveResult<()> {
         // exit early when import meta is missing
-        let Some(import_meta) = dir.import_meta.as_ref() else {
+        let Some(import_meta) = import_meta else {
             return Ok(());
         };
-
-        // acquire the tree, symbols, and types for this dir
-        let ModuleDir {
-            tree,
-            symbols,
-            types,
-            roots,
-            ..
-        } = dir;
-        let tree = Arc::make_mut(tree);
-        let symbols = Arc::make_mut(symbols);
-        let types = types.as_ref();
 
         // validate decorator placement before applying filters
         self.validate_static_if_placement(module_id, profile_id, tree)?;
@@ -272,7 +261,7 @@ impl Compiler {
 
             kept_roots.push(root_id);
         }
-        *Arc::make_mut(roots) = kept_roots;
+        *roots = kept_roots;
 
         // filter block expressions by gating and declaration activity
         let block_ids: Vec<_> = tree.iter_node_ids_of_type::<Block>();

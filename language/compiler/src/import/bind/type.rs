@@ -1,11 +1,11 @@
 use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
-    Generics, Heritage, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LocalTypeId, Mutability,
-    NodeTree, SymbolSpace, SymbolSpaceOrder, SymbolTable, Type, TypeKind, TypeMappedModifiers,
-    TypeModifier, TypeTable, VarianceBound,
+    Generics, Heritage, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LocalTypeId, ModuleBinding,
+    Mutability, NodeTree, SymbolSpace, SymbolSpaceOrder, SymbolTable, Type, TypeKind,
+    TypeMappedModifiers, TypeModifier, TypeTable, VarianceBound,
 };
-use destack_workspace::{ImportDir, Module, ModuleAst};
+use destack_workspace::{Ast, Module};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -13,8 +13,10 @@ impl Compiler {
     pub(super) fn bind_expression_to_type(
         &self,
         module: &Module,
-        ast: &ModuleAst,
-        dir: &mut ImportDir,
+        ast: &Ast,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
         ast_expression_id: ast::LocalNodeId<ast::Expression>,
         parent_id: Option<LocalNodeIdAny>,
@@ -25,7 +27,9 @@ impl Compiler {
         let expression_id = self.bind_expression(
             module,
             ast,
-            dir,
+            namespace_scope,
+            global_augmentation_scope,
+            module_bindings,
             scope,
             ast_expression_id,
             parent_id,
@@ -89,8 +93,10 @@ impl Compiler {
     pub(super) fn bind_generics(
         &self,
         module: &Module,
-        ast: &ModuleAst,
-        dir: &mut ImportDir,
+        ast: &Ast,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
         generics: &ast::Generics,
         parent_id: Option<LocalNodeIdAny>,
@@ -108,7 +114,9 @@ impl Compiler {
                         self.bind_parameter(
                             module,
                             ast,
-                            dir,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
                             scope,
                             SymbolSpace::Type,
                             *static_parameter,
@@ -129,7 +137,9 @@ impl Compiler {
                     self.bind_where_clause(
                         module,
                         ast,
-                        dir,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
                         scope,
                         *where_clause,
                         parent_id,
@@ -151,8 +161,10 @@ impl Compiler {
     pub(super) fn bind_heritage(
         &self,
         module: &Module,
-        ast: &ModuleAst,
-        dir: &mut ImportDir,
+        ast: &Ast,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
         heritage: &ast::Heritage,
         parent_id: Option<LocalNodeIdAny>,
@@ -167,7 +179,9 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
-                        dir,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
                         scope,
                         *extends_type,
                         parent_id,
@@ -187,7 +201,9 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
-                        dir,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
                         scope,
                         *implements_type,
                         parent_id,

@@ -2,19 +2,21 @@ use crate::Compiler;
 use destack_ast::{self as ast};
 use destack_dir::{
     Annotation, AnnotationPosition, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
-    NodeTree, NodeType, SymbolSpaceOrder, SymbolTable, TypeTable,
+    ModuleBinding, NodeTree, NodeType, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
-use destack_workspace::{ImportDir, Module, ModuleAst};
+use destack_workspace::{Ast, Module};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Bind and attach all annotations for a module.
-    pub fn attach_annotations(
+    pub(super) fn attach_annotations(
         &self,
         module: &Module,
-        ast: &ModuleAst,
-        dir: &mut ImportDir,
+        ast: &Ast,
         scope: (LocalScopeId, LocalScopeMark),
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        module_bindings: &mut Vec<ModuleBinding>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
@@ -27,8 +29,10 @@ impl Compiler {
             self.bind_annotation(
                 module,
                 ast,
-                dir,
                 scope,
+                namespace_scope,
+                global_augmentation_scope,
+                module_bindings,
                 ast_annotation_id,
                 dir_parent_id,
                 tree,
@@ -71,9 +75,11 @@ impl Compiler {
     pub(super) fn bind_annotation(
         &self,
         module: &Module,
-        ast: &ModuleAst,
-        dir: &mut ImportDir,
+        ast: &Ast,
         scope: (LocalScopeId, LocalScopeMark),
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        module_bindings: &mut Vec<ModuleBinding>,
         ast_annotation_id: ast::LocalNodeId<ast::Annotation>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
@@ -96,7 +102,9 @@ impl Compiler {
                 let expression = self.bind_expression(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope,
                     decorator.expression,
                     Some(annotation_id),

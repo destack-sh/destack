@@ -1,6 +1,5 @@
 use crate::{
     BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition, TaskError,
-    TaskSkipReason,
 };
 use destack_builtin::LanguageSymbol;
 use destack_compiler_macros::DefineError;
@@ -25,7 +24,7 @@ pub enum ResolveError {
 
     /// Task was skipped due to stale versions.
     #[error(code = "ER002", message = "task skipped")]
-    Skipped { reason: TaskSkipReason },
+    Skipped,
 
     // -------------------------------------------------------------------------
     // 1xx: Symbol lookup

@@ -1,6 +1,5 @@
 use crate::analyze::common::TreeSymbolView;
 use std::collections::HashSet;
-use std::sync::Arc;
 
 use crate::import::{SymbolDescriptor, can_merge_declarations};
 use crate::{Compiler, ImportError};
@@ -12,7 +11,7 @@ use destack_dir::{
     SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, walk_expression,
 };
 use destack_source::{LanguageType, ModuleId};
-use destack_workspace::{Module, ModuleDir, ProfileId};
+use destack_workspace::{ExportedSymbolTable, Module, ModuleBindingExportTable, ProfileId};
 use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 
@@ -199,33 +198,24 @@ impl Compiler {
     pub(super) fn build_module_binding_exports(
         &self,
         module: &Module,
-        dir: &mut ModuleDir,
+        tree: &NodeTree,
+        symbols: &mut SymbolTable,
+        module_bindings: &[ModuleBinding],
+        module_binding_exports: &mut ModuleBindingExportTable,
         dependency_items_by_scope: &FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>>,
         export_items_by_scope: &FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>>,
         export_assignments_by_scope: &FxHashMap<LocalScopeId, Option<LocalNodeId<DependencyItem>>>,
     ) {
-        let ModuleDir {
-            tree,
-            symbols,
-            module_bindings,
-            module_binding_exports,
-            ..
-        } = dir;
-        let tree = tree.as_ref();
-        let symbols = Arc::make_mut(symbols);
-        let module_binding_exports = Arc::make_mut(module_binding_exports);
-
         // cache the default export name
         let default_name = self.program.strings.intern("default");
 
         // build the binding export table
-        let bindings = module_bindings.as_ref().clone();
-        if bindings.is_empty() {
+        if module_bindings.is_empty() {
             *module_binding_exports = IndexMap::new();
             return;
         }
-        let mut binding_exports = IndexMap::with_capacity(bindings.len());
-        for binding in bindings {
+        let mut binding_exports = IndexMap::with_capacity(module_bindings.len());
+        for binding in module_bindings {
             // collect the export assignment if present
             let dependency_items = dependency_items_by_scope
                 .get(&binding.scope)
@@ -248,7 +238,7 @@ impl Compiler {
             self.insert_binding_symbol_exports(
                 module.id,
                 module.language_type,
-                &binding,
+                binding,
                 symbols,
                 &mut exports,
                 export_assignment_item,
@@ -260,7 +250,7 @@ impl Compiler {
                 self.insert_binding_dependency_exports(
                     module.id,
                     module.language_type,
-                    &binding,
+                    binding,
                     tree,
                     symbols,
                     &mut exports,
@@ -271,7 +261,7 @@ impl Compiler {
             }
 
             // insert ambient exports for remaining names
-            self.insert_binding_ambient_exports(module.id, &binding, symbols, &mut exports);
+            self.insert_binding_ambient_exports(module.id, binding, symbols, &mut exports);
 
             // record the binding exports
             binding_exports.insert(
@@ -738,46 +728,43 @@ impl Compiler {
     pub(super) fn build_module_exports(
         &self,
         module: &Module,
-        dir: &mut ModuleDir,
+        tree: &NodeTree,
+        symbols: &mut SymbolTable,
+        roots: &[LocalNodeId<Expression>],
+        namespace_scope: LocalScopeId,
+        namespace_symbol: LocalSymbolId,
+        default_symbol: LocalSymbolId,
+        export_assignment_symbol: LocalSymbolId,
+        export_assignment: &mut Option<LocalNodeId<DependencyItem>>,
+        exported_symbols: &mut ExportedSymbolTable,
         dependency_items_by_scope: &FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>>,
         export_items_by_scope: &FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>>,
         export_assignments_by_scope: &FxHashMap<LocalScopeId, Option<LocalNodeId<DependencyItem>>>,
     ) {
-        let ModuleDir {
-            tree,
-            symbols,
-            roots,
-            exported_symbols,
-            ..
-        } = dir;
-        let tree = tree.as_ref();
-        let symbols = Arc::make_mut(symbols);
-        let exported_symbols = Arc::make_mut(exported_symbols);
-
         // cache the default export name
         let default_name = self.program.strings.intern("default");
-        let is_commonjs_module = module.module_format().is_commonjs();
+        let is_commonjs_module = self.program.modules.module_format(module.id).is_commonjs();
 
         // collect the export assignment if present
         let dependency_items = dependency_items_by_scope
-            .get(&dir.namespace_scope)
+            .get(&namespace_scope)
             .map(|items| items.as_slice())
             .unwrap_or_default();
         let export_assignment_item = export_assignments_by_scope
-            .get(&dir.namespace_scope)
+            .get(&namespace_scope)
             .copied()
             .flatten();
-        dir.export_assignment = export_assignment_item;
+        *export_assignment = export_assignment_item;
         let export_items = export_items_by_scope
-            .get(&dir.namespace_scope)
+            .get(&namespace_scope)
             .map(|items| items.as_slice())
             .unwrap_or_default();
 
         // insert exports declared by symbols
-        let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
+        let namespace_scope_symbols = symbols.get_scope_by_id(namespace_scope);
         if export_items.is_empty()
-            && namespace_scope.named_symbols.is_empty()
-            && namespace_scope.anonymous_symbols.is_empty()
+            && namespace_scope_symbols.named_symbols.is_empty()
+            && namespace_scope_symbols.anonymous_symbols.is_empty()
             && !self.module_is_ambient_lib(module)
             && !is_commonjs_module
         {
@@ -785,15 +772,15 @@ impl Compiler {
             return;
         }
         exported_symbols.reserve(
-            namespace_scope.named_symbols.len()
-                + namespace_scope.anonymous_symbols.len()
+            namespace_scope_symbols.named_symbols.len()
+                + namespace_scope_symbols.anonymous_symbols.len()
                 + dependency_items.len(),
         );
         self.insert_symbol_exports(
             module.id,
             module.language_type,
-            dir.namespace_scope,
-            dir.default_symbol,
+            namespace_scope,
+            default_symbol,
             symbols,
             exported_symbols,
             export_assignment_item,
@@ -805,7 +792,7 @@ impl Compiler {
             self.insert_dependency_exports(
                 module.id,
                 module.language_type,
-                dir.default_symbol,
+                default_symbol,
                 tree,
                 symbols,
                 exported_symbols,
@@ -819,9 +806,9 @@ impl Compiler {
         if self.module_is_ambient_lib(module) {
             self.insert_ambient_exports(
                 module.id,
-                dir.namespace_scope,
-                dir.default_symbol,
-                dir.export_assignment_symbol,
+                namespace_scope,
+                default_symbol,
+                export_assignment_symbol,
                 symbols,
                 exported_symbols,
             );
@@ -831,8 +818,8 @@ impl Compiler {
         if is_commonjs_module && export_assignment_item.is_none() {
             self.insert_commonjs_named_exports(
                 module.id,
-                dir.namespace_scope,
-                dir.namespace_symbol.into_global(module.id),
+                namespace_scope,
+                namespace_symbol.into_global(module.id),
                 roots,
                 tree,
                 symbols,
@@ -1085,20 +1072,15 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        dir: &mut ModuleDir,
+        tree: &NodeTree,
+        symbols: &mut SymbolTable,
+        default_symbol: LocalSymbolId,
+        export_assignment_symbol: LocalSymbolId,
+        export_assignment: Option<LocalNodeId<DependencyItem>>,
+        exported_symbols: &mut ExportedSymbolTable,
     ) {
-        let ModuleDir {
-            tree,
-            symbols,
-            exported_symbols,
-            ..
-        } = dir;
-        let tree = tree.as_ref();
-        let symbols = Arc::make_mut(symbols);
-        let exported_symbols = Arc::make_mut(exported_symbols);
-
         // resolve export assignment target symbols
-        if let Some(item_id) = dir.export_assignment {
+        if let Some(item_id) = export_assignment {
             let DependencyItem::Value { mode, value } = tree.get(item_id) else {
                 return;
             };
@@ -1106,21 +1088,17 @@ impl Compiler {
                 let value_expression = tree.get(*value);
                 if let Some(target_symbol) = value_expression.target_symbol() {
                     symbols
-                        .get_symbol_mut(dir.export_assignment_symbol)
+                        .get_symbol_mut(export_assignment_symbol)
                         .resolve_to(target_symbol);
                 }
             }
         }
 
         // resolve the default export target from value expressions
-        if symbols
-            .get_symbol(dir.default_symbol)
-            .target_symbol
-            .is_none()
-        {
+        if symbols.get_symbol(default_symbol).target_symbol.is_none() {
             let dependency_items = tree.iter_node_ids_of_type::<DependencyItem>();
             self.resolve_default_export_from_dependency_items(
-                dir.default_symbol,
+                default_symbol,
                 tree,
                 symbols,
                 dependency_items.into_iter(),
@@ -1144,25 +1122,14 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        dir: &mut ModuleDir,
+        tree: &NodeTree,
+        symbols: &mut SymbolTable,
+        module_bindings: &[ModuleBinding],
+        binding_exports: &mut ModuleBindingExportTable,
         dependency_items_by_scope: &FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>>,
     ) {
-        let ModuleDir {
-            tree,
-            symbols,
-            module_bindings,
-            module_binding_exports,
-            ..
-        } = dir;
-        let tree = tree.as_ref();
-        let symbols = Arc::make_mut(symbols);
-        let binding_exports = Arc::make_mut(module_binding_exports);
-
-        // snapshot module bindings for export resolution
-        let bindings = module_bindings.as_ref().clone();
-
         // finalize exports for each module binding
-        for binding in bindings {
+        for binding in module_bindings {
             let binding_key = binding.declaration.into_any();
 
             // resolve export assignment target symbols

@@ -4,11 +4,12 @@ use destack_builtin::builtin_lib;
 use destack_core::StringId;
 use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace, SymbolSpaceOrder};
 use destack_workspace::{
-    BuiltinLibSelection, Builtins, GlobalSymbolGroupKey, GlobalSymbolTable, LibEnvironment,
-    LibSymbolKey, ProfileId, ProfileKey, SymbolGroup, WellKnownSymbols,
+    BuiltinLibSelection, Builtins, LibEnvironment, LibSymbolKey, ProfileId, ProfileKey,
+    SymbolGroup, WellKnownSymbols,
 };
 use indexmap::IndexMap;
 
+use crate::resolve::module::globals::{GlobalSymbolGroupKey, GlobalSymbolTable};
 use crate::timing::tags;
 use crate::{BuildRequirementCollector, Compiler, ResolveError, ResolveResult};
 
@@ -235,9 +236,7 @@ impl Compiler {
                 // load the module
                 let module = self.program.modules.get(module_id);
                 let dir = self
-                    .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                        module_id, profile_id,
-                    ))
+                    .require_artifact_dir_resolved(module_id, profile_id)
                     .map_err(ResolveError::from)
                     .unwrap_or_else(|_| unreachable!());
                 let symbols = &dir.symbols;

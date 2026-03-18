@@ -3,10 +3,11 @@ use destack_ast as ast;
 use destack_dir::{
     AbstractionModifier, AccessorKind, Argument, BindingAnchor, BindingCategory, BindingKind,
     BindingModifier, BindingOperator, DeclarationKind, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, Mutability, NodeTree, NodeType, Parameter, StaticKey, SymbolBinding,
-    SymbolSpace, SymbolSpaceOrder, SymbolTable, Timing, TypeTable, VarianceModifier, Visibility,
+    LocalScopeMark, ModuleBinding, Mutability, NodeTree, NodeType, Parameter, StaticKey,
+    SymbolBinding, SymbolSpace, SymbolSpaceOrder, SymbolTable, Timing, TypeTable, VarianceModifier,
+    Visibility,
 };
-use destack_workspace::{ImportDir, Module, ModuleAst};
+use destack_workspace::{Ast, Module};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -14,7 +15,7 @@ impl Compiler {
     pub(super) fn bind_binding_modifier(
         &self,
         _module: &Module,
-        _ast: &ModuleAst,
+        _ast: &Ast,
         modifiers: ast::BindingModifier,
     ) -> BindingModifier {
         let kind = modifiers.kind.map(|kind| match kind {
@@ -75,8 +76,10 @@ impl Compiler {
     pub(super) fn bind_parameter(
         &self,
         module: &Module,
-        ast: &ModuleAst,
-        dir: &mut ImportDir,
+        ast: &Ast,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
         symbol_space: SymbolSpace,
         ast_parameter_id: ast::LocalNodeId<ast::Parameter>,
@@ -116,7 +119,9 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
-                        dir,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
                         scope,
                         default,
                         Some(parameter_id),
@@ -150,7 +155,9 @@ impl Compiler {
                     let ty = self.bind_expression_to_type(
                         module,
                         ast,
-                        dir,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
                         constraint_scope,
                         *ty,
                         Some(parameter_id.into()),
@@ -176,7 +183,9 @@ impl Compiler {
                 let pattern = self.bind_pattern(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope,
                     None,
                     SymbolBinding::Runtime,
@@ -192,7 +201,9 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
-                        dir,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
                         scope,
                         default,
                         Some(parameter_id),
@@ -219,7 +230,9 @@ impl Compiler {
                     let ty = self.bind_expression_to_type(
                         module,
                         ast,
-                        dir,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
                         constraint_scope,
                         *ty,
                         Some(parameter_id.into()),
@@ -265,7 +278,9 @@ impl Compiler {
                     let ty = self.bind_expression_to_type(
                         module,
                         ast,
-                        dir,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
                         constraint_scope,
                         *ty,
                         Some(parameter_id.into()),
@@ -290,7 +305,9 @@ impl Compiler {
                 let pattern = self.bind_pattern(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope,
                     None,
                     SymbolBinding::Runtime,
@@ -318,7 +335,9 @@ impl Compiler {
                     let ty = self.bind_expression_to_type(
                         module,
                         ast,
-                        dir,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
                         constraint_scope,
                         *ty,
                         Some(parameter_id.into()),
@@ -337,8 +356,10 @@ impl Compiler {
     pub(super) fn bind_argument(
         &self,
         module: &Module,
-        ast: &ModuleAst,
-        dir: &mut ImportDir,
+        ast: &Ast,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
         ast_argument_id: ast::LocalNodeId<ast::Argument>,
         parent_id: Option<LocalNodeIdAny>,
@@ -366,7 +387,9 @@ impl Compiler {
                 let value = self.bind_expression(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope,
                     *value,
                     Some(argument_id),
@@ -390,7 +413,9 @@ impl Compiler {
                 let value = self.bind_expression(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope,
                     *value,
                     Some(argument_id),
@@ -414,7 +439,9 @@ impl Compiler {
                 let value = self.bind_expression(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope,
                     *value,
                     Some(argument_id),
@@ -444,7 +471,9 @@ impl Compiler {
                 let value = self.bind_expression(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope,
                     *value,
                     Some(argument_id),
