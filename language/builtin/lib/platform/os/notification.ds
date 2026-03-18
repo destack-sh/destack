@@ -300,7 +300,9 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host notification scheduling APIs on each platform.
+    /// Uses Android notification scheduling, macOS UserNotifications, Windows toast scheduling,
+    /// and Linux systemd user timers where available.
+    /// Other Unix hosts may return notSupported when they do not expose one defensible scheduler.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -328,7 +330,9 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host pending-notification query APIs.
+    /// Uses Android pending-notification queries, macOS UserNotifications, Windows scheduled toast
+    /// queries, and Linux persisted scheduler state.
+    /// Other Unix hosts may return notSupported when they do not expose one defensible scheduler.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -356,7 +360,9 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host scheduled-notification cancellation APIs.
+    /// Uses Android pending-notification cancellation, macOS UserNotifications, Windows scheduled
+    /// toast cancellation, and Linux scheduler removal.
+    /// Other Unix hosts may return notSupported when they do not expose one defensible scheduler.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -384,7 +390,9 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host scheduled-notification cancellation APIs.
+    /// Uses Android pending-notification cancellation, macOS UserNotifications, Windows scheduled
+    /// toast cancellation, and Linux scheduler removal.
+    /// Other Unix hosts may return notSupported when they do not expose one defensible scheduler.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, notSupported.
@@ -412,7 +420,8 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host notification category registration APIs.
+    /// Uses Android category registration, macOS notification categories, Windows toast action
+    /// metadata, and Unix freedesktop action validation where the host supports actions.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
