@@ -99,7 +99,8 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses BGTaskScheduler on Apple platforms, WorkManager or JobScheduler on Android, and host scheduler bridges on desktop platforms.
+    /// Uses BGTaskScheduler on Apple platforms, WorkManager or JobScheduler on Android, and the
+    /// current desktop scheduler bridges plus persisted task records on desktop hosts.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -127,7 +128,8 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host background scheduler registration queries.
+    /// Uses host background scheduler registration queries on mobile and persisted scheduler
+    /// records on current desktop hosts.
     ///
     /// # Errors
     /// Returns ioWouldBlock, ioInvalidData, notSupported.
@@ -156,7 +158,8 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host background scheduler registration APIs.
+    /// Uses host background scheduler registration APIs on mobile and the current desktop
+    /// scheduler bridges on desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -184,7 +187,8 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host background scheduler unregistration APIs.
+    /// Uses host background scheduler unregistration APIs on mobile and the current desktop
+    /// scheduler bridges plus persisted task cleanup on desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -212,7 +216,8 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host developer test hooks where available.
+    /// Uses host developer test hooks where available and runtime-controlled desktop scheduler
+    /// trigger flows on current desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -240,7 +245,8 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host background scheduler completion APIs.
+    /// Uses host background scheduler completion APIs on mobile and runtime-owned execution
+    /// bookkeeping on current desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -271,7 +277,8 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host background scheduler callback bridges.
+    /// Uses host background scheduler callback bridges on mobile and runtime-owned ingress for the
+    /// current desktop scheduler bridges.
     ///
     /// # Errors
     /// Returns ioWouldBlock, notSupported.
