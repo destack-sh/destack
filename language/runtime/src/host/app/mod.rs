@@ -5,6 +5,5 @@ pub(crate) mod ingress;
 pub(crate) mod location;
 pub(crate) mod media;
 pub(crate) mod notification;
-pub(crate) mod requirements;
 #[cfg(target_os = "linux")]
 pub(crate) mod systemd;
