@@ -52,13 +52,13 @@ pub(crate) fn submit_intent_request(
 
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
         }
-        HostRequest::OsIntentShareText { text, mime_type } => {
+        HostRequest::OsIntentShareText { text, content_type } => {
             let status = unsafe {
                 destack_host_android_intent_share_text(
                     runtime_id,
                     NativeStringRef::from(text),
-                    mime_type.is_some(),
-                    mime_type
+                    content_type.is_some(),
+                    content_type
                         .as_ref()
                         .map_or(NativeStringRef::from(""), NativeStringRef::from),
                 )
@@ -67,7 +67,10 @@ pub(crate) fn submit_intent_request(
 
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
         }
-        HostRequest::OsIntentSharePaths { paths, mime_type } => {
+        HostRequest::OsIntentSharePaths {
+            paths,
+            content_type,
+        } => {
             let path_strings = paths
                 .iter()
                 .map(|path| core_fs::os_path_to_utf8_string(*path, "path"))
@@ -80,8 +83,8 @@ pub(crate) fn submit_intent_request(
                 destack_host_android_intent_share_paths(
                     runtime_id,
                     NativeStringSlice::from_slice(&path_refs),
-                    mime_type.is_some(),
-                    mime_type
+                    content_type.is_some(),
+                    content_type
                         .as_ref()
                         .map_or(NativeStringRef::from(""), NativeStringRef::from),
                 )

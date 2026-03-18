@@ -26,7 +26,7 @@ pub(crate) fn open_path(_binding: &BindingCallContext, _path: fs::OsPath) -> Run
 pub(crate) fn share_text(
     _binding: &BindingCallContext,
     _text: &str,
-    _mime_type: Option<&str>,
+    _content_type: Option<&str>,
 ) -> RuntimeResult<()> {
     Err(not_supported("destack.os.intent.shareText"))
 }
@@ -35,7 +35,7 @@ pub(crate) fn share_text(
 pub(crate) fn share_paths(
     _binding: &BindingCallContext,
     _paths: Vec<fs::OsPath>,
-    _mime_type: Option<&str>,
+    _content_type: Option<&str>,
 ) -> RuntimeResult<()> {
     Err(not_supported("destack.os.intent.sharePaths"))
 }

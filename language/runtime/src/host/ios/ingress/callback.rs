@@ -89,7 +89,7 @@ pub fn ios_notify_intent_open_file(
         source: source.map(str::to_string),
         payload: HostIntentPayload::OpenFile {
             path: path.to_string(),
-            mime_type: mime_type.map(str::to_string),
+            content_type: mime_type.map(str::to_string),
         },
     }));
 
@@ -108,7 +108,7 @@ pub fn ios_notify_intent_share_text(
         source: source.map(str::to_string),
         payload: HostIntentPayload::ShareText {
             text: text.to_string(),
-            mime_type: mime_type.map(str::to_string),
+            content_type: mime_type.map(str::to_string),
         },
     }));
 
@@ -127,7 +127,7 @@ pub fn ios_notify_intent_share_files(
         source: source.map(str::to_string),
         payload: HostIntentPayload::ShareFiles {
             paths: paths.to_vec(),
-            mime_type: mime_type.map(str::to_string),
+            content_type: mime_type.map(str::to_string),
         },
     }));
 
@@ -152,7 +152,7 @@ pub fn ios_notify_intent_custom_action(
             url: url.map(str::to_string),
             paths: paths.to_vec(),
             text: text.map(str::to_string),
-            mime_type: mime_type.map(str::to_string),
+            content_type: mime_type.map(str::to_string),
         },
     }));
 
