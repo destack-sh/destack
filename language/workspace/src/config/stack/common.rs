@@ -1,5 +1,6 @@
 use indexmap::IndexMap;
 use serde::Deserialize;
+use serde_json::Value;
 
 /// Default first-party issuer service name.
 pub const DESTACK_ISSUER_UNIVERSE_SERVICE: &str = "universe";
@@ -174,9 +175,166 @@ impl StackIssuerRefOptions {
 
 impl From<&StackIssuerRefJson> for StackIssuerRefOptions {
     fn from(json: &StackIssuerRefJson) -> Self {
+        match json {
+            StackIssuerRefJson::Service(reference) => Self {
+                service: Some(reference.service.clone()),
+                url: None,
+            },
+            StackIssuerRefJson::Url(reference) => Self {
+                service: None,
+                url: Some(reference.url.clone()),
+            },
+        }
+    }
+}
+
+/// Provider attachment options.
+#[derive(Debug, Clone, Default)]
+pub struct StackProviderOptions {
+    /// Provider identifier.
+    pub name: Option<String>,
+    /// Control-plane account reference.
+    pub account: Option<String>,
+    /// Extra provider-specific arguments.
+    pub with: Option<Value>,
+}
+
+impl StackProviderOptions {
+    /// Inherit unset provider settings from one parent config.
+    pub fn extend_from(&mut self, parent: &Self) {
+        if self.name.is_none() {
+            self.name = parent.name.clone();
+        }
+        if self.account.is_none() {
+            self.account = parent.account.clone();
+        }
+        if self.with.is_none() {
+            self.with = parent.with.clone();
+        }
+    }
+}
+
+impl From<&StackProviderJson> for StackProviderOptions {
+    fn from(json: &StackProviderJson) -> Self {
+        match json {
+            StackProviderJson::Name(name) => Self {
+                name: Some(name.clone()),
+                account: None,
+                with: None,
+            },
+            StackProviderJson::Options(options) => Self {
+                name: options.name.clone(),
+                account: options.account.clone(),
+                with: options.with.clone(),
+            },
+        }
+    }
+}
+
+/// Cache mode options.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StackCacheMode {
+    /// Public cacheable content.
+    Public,
+    /// Private cacheable content.
+    Private,
+    /// Bypass cache storage.
+    NoStore,
+    /// Revalidate on every use.
+    NoCache,
+}
+
+impl From<StackCacheModeJson> for StackCacheMode {
+    fn from(json: StackCacheModeJson) -> Self {
+        match json {
+            StackCacheModeJson::Public => Self::Public,
+            StackCacheModeJson::Private => Self::Private,
+            StackCacheModeJson::NoStore => Self::NoStore,
+            StackCacheModeJson::NoCache => Self::NoCache,
+        }
+    }
+}
+
+/// Provider attachment JSON.
+#[derive(Debug, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+pub enum StackProviderJson {
+    /// One shorthand provider identifier.
+    Name(String),
+    /// One structured provider attachment.
+    Options(StackProviderAttachmentJson),
+}
+
+/// Structured provider attachment JSON.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct StackProviderAttachmentJson {
+    /// Provider identifier.
+    pub name: Option<String>,
+    /// Control-plane account reference.
+    pub account: Option<String>,
+    /// Extra provider-specific arguments.
+    pub with: Option<Value>,
+}
+
+/// Cache policy options.
+#[derive(Debug, Clone, Default)]
+pub struct StackCacheOptions {
+    /// Cache visibility mode.
+    pub mode: Option<StackCacheMode>,
+    /// Default max age.
+    pub max_age: Option<String>,
+    /// Shared cache max age.
+    pub shared_max_age: Option<String>,
+    /// Stale while revalidate lifetime.
+    pub stale_while_revalidate: Option<String>,
+    /// Stale if error lifetime.
+    pub stale_if_error: Option<String>,
+    /// Whether cached content is immutable.
+    pub immutable: Option<bool>,
+    /// Cache variation keys.
+    pub vary: Vec<String>,
+}
+
+impl StackCacheOptions {
+    /// Inherit unset cache settings from one parent config.
+    pub fn extend_from(&mut self, parent: &Self) {
+        if self.mode.is_none() {
+            self.mode = parent.mode;
+        }
+        if self.max_age.is_none() {
+            self.max_age = parent.max_age.clone();
+        }
+        if self.shared_max_age.is_none() {
+            self.shared_max_age = parent.shared_max_age.clone();
+        }
+        if self.stale_while_revalidate.is_none() {
+            self.stale_while_revalidate = parent.stale_while_revalidate.clone();
+        }
+        if self.stale_if_error.is_none() {
+            self.stale_if_error = parent.stale_if_error.clone();
+        }
+        if self.immutable.is_none() {
+            self.immutable = parent.immutable;
+        }
+        if self.vary.is_empty() {
+            self.vary = parent.vary.clone();
+        }
+    }
+}
+
+impl From<&StackCacheJson> for StackCacheOptions {
+    fn from(json: &StackCacheJson) -> Self {
         Self {
-            service: json.service.clone(),
-            url: json.url.clone(),
+            mode: json.mode.map(StackCacheMode::from),
+            max_age: json.max_age.clone(),
+            shared_max_age: json.shared_max_age.clone(),
+            stale_while_revalidate: json.stale_while_revalidate.clone(),
+            stale_if_error: json.stale_if_error.clone(),
+            immutable: json.immutable,
+            vary: json.vary.clone().unwrap_or_default(),
         }
     }
 }
@@ -269,68 +427,69 @@ pub enum StackAccessModeJson {
     Required,
 }
 
-/// Issuer reference JSON.
-#[derive(Debug, Default, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct StackIssuerRefJson {
-    /// Internal issuer service name.
-    pub service: Option<String>,
-    /// External issuer URL.
-    pub url: Option<String>,
+/// Cache mode JSON.
+#[derive(Debug, Deserialize, Clone, Copy)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
+pub enum StackCacheModeJson {
+    /// Public cacheable content.
+    Public,
+    /// Private cacheable content.
+    Private,
+    /// Bypass cache storage.
+    NoStore,
+    /// Revalidate on every use.
+    NoCache,
 }
 
-#[cfg(feature = "schema")]
-impl schemars::JsonSchema for StackIssuerRefJson {
-    fn schema_name() -> std::borrow::Cow<'static, str> {
-        "StackIssuerRefJson".into()
-    }
+/// Cache policy JSON.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct StackCacheJson {
+    /// Cache visibility mode.
+    pub mode: Option<StackCacheModeJson>,
+    /// Default max age.
+    pub max_age: Option<String>,
+    /// Shared cache max age.
+    pub shared_max_age: Option<String>,
+    /// Stale while revalidate lifetime.
+    pub stale_while_revalidate: Option<String>,
+    /// Stale if error lifetime.
+    pub stale_if_error: Option<String>,
+    /// Whether cached content is immutable.
+    pub immutable: Option<bool>,
+    /// Cache variation keys.
+    pub vary: Option<Vec<String>>,
+}
 
-    fn schema_id() -> std::borrow::Cow<'static, str> {
-        concat!(module_path!(), "::StackIssuerRefJson").into()
-    }
+/// Issuer reference JSON.
+#[derive(Debug, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+pub enum StackIssuerRefJson {
+    /// Internal issuer service reference.
+    Service(StackIssuerServiceRefJson),
+    /// External issuer URL reference.
+    Url(StackIssuerUrlRefJson),
+}
 
-    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
-        let _ = generator;
+/// Internal issuer service reference JSON.
+#[derive(Debug, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct StackIssuerServiceRefJson {
+    /// Internal issuer service name.
+    pub service: String,
+}
 
-        schemars::json_schema!({
-            "description": "Issuer reference JSON.",
-            "type": "object",
-            "properties": {
-                "service": {
-                    "description": "Internal issuer service name.",
-                    "type": ["string", "null"]
-                },
-                "url": {
-                    "description": "External issuer URL.",
-                    "type": ["string", "null"]
-                }
-            },
-            "oneOf": [
-                {
-                    "required": ["service"],
-                    "not": {
-                        "required": ["url"]
-                    },
-                    "properties": {
-                        "service": {
-                            "type": "string"
-                        }
-                    }
-                },
-                {
-                    "required": ["url"],
-                    "not": {
-                        "required": ["service"]
-                    },
-                    "properties": {
-                        "url": {
-                            "type": "string"
-                        }
-                    }
-                }
-            ]
-        })
-    }
+/// External issuer URL reference JSON.
+#[derive(Debug, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct StackIssuerUrlRefJson {
+    /// External issuer URL.
+    pub url: String,
 }
 
 /// Merge metadata maps with child precedence.

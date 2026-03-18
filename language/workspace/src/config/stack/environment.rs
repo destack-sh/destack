@@ -1,12 +1,14 @@
 use indexmap::IndexMap;
 use serde::Deserialize;
 
+use super::asset::{StackAssetJson, StackAssetOptions};
 use super::common::merge_metadata;
 use super::component::{StackComponentJson, StackComponentOptions};
 use super::config::{StackConfigJson, StackConfigOptions};
 use super::domain::{StackDomainJson, StackDomainOptions};
 use super::ingress::{StackIngressJson, StackIngressOptions};
 use super::network::{StackNetworkJson, StackNetworkOptions};
+use super::publication::{StackPublicationJson, StackPublicationOptions};
 use super::secret::{StackSecretJson, StackSecretOptions};
 use super::service::{StackServiceJson, StackServiceOptions};
 use super::volume::{StackVolumeJson, StackVolumeOptions};
@@ -33,6 +35,10 @@ pub struct StackEnvironmentOptions {
     pub configs: IndexMap<String, StackConfigOptions>,
     /// Secret overrides.
     pub secrets: IndexMap<String, StackSecretOptions>,
+    /// Asset overrides.
+    pub assets: IndexMap<String, StackAssetOptions>,
+    /// Publication overrides.
+    pub publications: IndexMap<String, StackPublicationOptions>,
     /// Domain overrides.
     pub domains: IndexMap<String, StackDomainOptions>,
     /// Ingress overrides.
@@ -95,6 +101,22 @@ impl StackEnvironmentOptions {
                 current.extend_from(secret);
             } else {
                 self.secrets.insert(name.clone(), secret.clone());
+            }
+        }
+
+        for (name, asset) in &parent.assets {
+            if let Some(current) = self.assets.get_mut(name) {
+                current.extend_from(asset);
+            } else {
+                self.assets.insert(name.clone(), asset.clone());
+            }
+        }
+
+        for (name, publication) in &parent.publications {
+            if let Some(current) = self.publications.get_mut(name) {
+                current.extend_from(publication);
+            } else {
+                self.publications.insert(name.clone(), publication.clone());
             }
         }
 
@@ -181,6 +203,28 @@ impl From<&StackEnvironmentJson> for StackEnvironmentOptions {
                         .collect()
                 })
                 .unwrap_or_default(),
+            assets: json
+                .assets
+                .as_ref()
+                .map(|assets| {
+                    assets
+                        .iter()
+                        .map(|(name, asset)| (name.clone(), StackAssetOptions::from(asset)))
+                        .collect()
+                })
+                .unwrap_or_default(),
+            publications: json
+                .publications
+                .as_ref()
+                .map(|publications| {
+                    publications
+                        .iter()
+                        .map(|(name, publication)| {
+                            (name.clone(), StackPublicationOptions::from(publication))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
             domains: json
                 .domains
                 .as_ref()
@@ -223,6 +267,10 @@ pub struct StackEnvironmentJson {
     pub configs: Option<IndexMap<String, StackConfigJson>>,
     /// Secret overrides.
     pub secrets: Option<IndexMap<String, StackSecretJson>>,
+    /// Asset overrides.
+    pub assets: Option<IndexMap<String, StackAssetJson>>,
+    /// Publication overrides.
+    pub publications: Option<IndexMap<String, StackPublicationJson>>,
     /// Domain overrides.
     pub domains: Option<IndexMap<String, StackDomainJson>>,
     /// Ingress overrides.

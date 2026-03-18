@@ -2,7 +2,8 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 
 use super::common::{
-    StackAccessMode, StackAccessModeJson, StackIssuerRefJson, StackIssuerRefOptions, merge_metadata,
+    StackAccessMode, StackAccessModeJson, StackCacheJson, StackCacheOptions, StackIssuerRefJson,
+    StackIssuerRefOptions, merge_metadata,
 };
 
 /// Stack ingress configuration options.
@@ -118,6 +119,8 @@ pub struct StackRouteOptions {
     pub r#match: Option<String>,
     /// Target service name.
     pub service: Option<String>,
+    /// Target publication name.
+    pub publication: Option<String>,
     /// Allowed HTTP methods.
     pub methods: Vec<String>,
     /// Route access expectations.
@@ -142,6 +145,9 @@ impl StackRouteOptions {
         if self.service.is_none() {
             self.service = parent.service.clone();
         }
+        if self.publication.is_none() {
+            self.publication = parent.publication.clone();
+        }
         if self.methods.is_empty() {
             self.methods = parent.methods.clone();
         }
@@ -159,6 +165,7 @@ impl From<&StackRouteJson> for StackRouteOptions {
             domain: json.domain.clone(),
             r#match: json.r#match.clone(),
             service: json.service.clone(),
+            publication: json.publication.clone(),
             methods: json.methods.clone().unwrap_or_default(),
             access: StackRouteAccessOptions::from(&json.access),
             policy: StackRoutePolicyOptions::from(&json.policy),
@@ -225,10 +232,12 @@ impl From<&StackRouteAccessJson> for StackRouteAccessOptions {
 pub struct StackRoutePolicyOptions {
     /// Route timeout budget.
     pub timeout: Option<String>,
+    /// Service and publication resolution strategy.
+    pub resolution: Option<StackRouteResolution>,
     /// Retry policy.
     pub retries: StackRouteRetryOptions,
     /// Cache policy.
-    pub cache: StackRouteCacheOptions,
+    pub cache: StackCacheOptions,
 }
 
 impl StackRoutePolicyOptions {
@@ -236,6 +245,9 @@ impl StackRoutePolicyOptions {
     pub fn extend_from(&mut self, parent: &Self) {
         if self.timeout.is_none() {
             self.timeout = parent.timeout.clone();
+        }
+        if self.resolution.is_none() {
+            self.resolution = parent.resolution;
         }
         self.retries.extend_from(&parent.retries);
         self.cache.extend_from(&parent.cache);
@@ -246,8 +258,27 @@ impl From<&StackRoutePolicyJson> for StackRoutePolicyOptions {
     fn from(json: &StackRoutePolicyJson) -> Self {
         Self {
             timeout: json.timeout.clone(),
+            resolution: json.resolution.map(StackRouteResolution::from),
             retries: StackRouteRetryOptions::from(&json.retries),
-            cache: StackRouteCacheOptions::from(&json.cache),
+            cache: StackCacheOptions::from(&json.cache),
+        }
+    }
+}
+
+/// Route resolution options.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StackRouteResolution {
+    /// Resolve publications before service execution.
+    PublicationFirst,
+    /// Resolve service execution before publications.
+    ServiceFirst,
+}
+
+impl From<StackRouteResolutionJson> for StackRouteResolution {
+    fn from(json: StackRouteResolutionJson) -> Self {
+        match json {
+            StackRouteResolutionJson::PublicationFirst => Self::PublicationFirst,
+            StackRouteResolutionJson::ServiceFirst => Self::ServiceFirst,
         }
     }
 }
@@ -284,48 +315,6 @@ impl From<&StackRouteRetryJson> for StackRouteRetryOptions {
             attempts: json.attempts,
             per_try_timeout: json.per_try_timeout.clone(),
             conditions: json.conditions.clone().unwrap_or_default(),
-        }
-    }
-}
-
-/// Route cache policy options.
-#[derive(Debug, Clone, Default)]
-pub struct StackRouteCacheOptions {
-    /// Whether route caching is enabled.
-    pub enabled: Option<bool>,
-    /// Default cache lifetime.
-    pub ttl: Option<String>,
-    /// Stale while revalidate lifetime.
-    pub stale_while_revalidate: Option<String>,
-    /// Cache variation keys.
-    pub vary: Vec<String>,
-}
-
-impl StackRouteCacheOptions {
-    /// Inherit unset route cache settings from one parent config.
-    pub fn extend_from(&mut self, parent: &Self) {
-        if self.enabled.is_none() {
-            self.enabled = parent.enabled;
-        }
-        if self.ttl.is_none() {
-            self.ttl = parent.ttl.clone();
-        }
-        if self.stale_while_revalidate.is_none() {
-            self.stale_while_revalidate = parent.stale_while_revalidate.clone();
-        }
-        if self.vary.is_empty() {
-            self.vary = parent.vary.clone();
-        }
-    }
-}
-
-impl From<&StackRouteCacheJson> for StackRouteCacheOptions {
-    fn from(json: &StackRouteCacheJson) -> Self {
-        Self {
-            enabled: json.enabled,
-            ttl: json.ttl.clone(),
-            stale_while_revalidate: json.stale_while_revalidate.clone(),
-            vary: json.vary.clone().unwrap_or_default(),
         }
     }
 }
@@ -507,13 +496,13 @@ impl From<&StackCorsJson> for StackCorsOptions {
 
 /// An external routing surface.
 ///
-/// Inputs: domains, services, and routing rules.
+/// Inputs: domains, services, publications, and routing rules.
 /// Outputs: externally reachable routes and edge policy.
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct StackIngressJson {
-    /// Named service routes.
+    /// Named service or publication routes.
     pub routes: Option<IndexMap<String, StackRouteJson>>,
     /// Named redirect rules.
     pub redirects: Option<IndexMap<String, StackRedirectJson>>,
@@ -537,6 +526,8 @@ pub struct StackRouteJson {
     pub r#match: Option<String>,
     /// Target service name.
     pub service: Option<String>,
+    /// Target publication name.
+    pub publication: Option<String>,
     /// Allowed HTTP methods.
     pub methods: Option<Vec<String>>,
     /// Route access expectations.
@@ -575,12 +566,25 @@ pub struct StackRouteAccessJson {
 pub struct StackRoutePolicyJson {
     /// Route timeout budget.
     pub timeout: Option<String>,
+    /// Service and publication resolution strategy.
+    pub resolution: Option<StackRouteResolutionJson>,
     /// Retry policy.
     #[serde(default)]
     pub retries: StackRouteRetryJson,
     /// Cache policy.
     #[serde(default)]
-    pub cache: StackRouteCacheJson,
+    pub cache: StackCacheJson,
+}
+
+/// Route resolution JSON.
+#[derive(Debug, Deserialize, Clone, Copy)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
+pub enum StackRouteResolutionJson {
+    /// Resolve publications before service execution.
+    PublicationFirst,
+    /// Resolve service execution before publications.
+    ServiceFirst,
 }
 
 /// Route retry policy JSON.
@@ -594,21 +598,6 @@ pub struct StackRouteRetryJson {
     pub per_try_timeout: Option<String>,
     /// Retry conditions.
     pub conditions: Option<Vec<String>>,
-}
-
-/// Route cache policy JSON.
-#[derive(Debug, Default, Deserialize, Clone)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct StackRouteCacheJson {
-    /// Whether route caching is enabled.
-    pub enabled: Option<bool>,
-    /// Default cache lifetime.
-    pub ttl: Option<String>,
-    /// Stale while revalidate lifetime.
-    pub stale_while_revalidate: Option<String>,
-    /// Cache variation keys.
-    pub vary: Option<Vec<String>>,
 }
 
 /// Redirect configuration JSON.

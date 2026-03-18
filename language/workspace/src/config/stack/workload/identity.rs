@@ -1,6 +1,8 @@
 use serde::Deserialize;
 use serde_json::Value;
 
+use super::super::common::{StackProviderJson, StackProviderOptions};
+
 /// Workload identity options.
 #[derive(Debug, Clone, Default)]
 pub struct StackIdentityOptions {
@@ -8,8 +10,8 @@ pub struct StackIdentityOptions {
     pub name: Option<String>,
     /// Identity audience names.
     pub audiences: Vec<String>,
-    /// Provider-specific lowering overrides.
-    pub provider: Option<Value>,
+    /// Provider attachment.
+    pub provider: StackProviderOptions,
     /// Extra identity arguments.
     pub with: Option<Value>,
 }
@@ -23,9 +25,7 @@ impl StackIdentityOptions {
         if self.audiences.is_empty() {
             self.audiences = parent.audiences.clone();
         }
-        if self.provider.is_none() {
-            self.provider = parent.provider.clone();
-        }
+        self.provider.extend_from(&parent.provider);
         if self.with.is_none() {
             self.with = parent.with.clone();
         }
@@ -37,7 +37,11 @@ impl From<&StackIdentityJson> for StackIdentityOptions {
         Self {
             name: json.name.clone(),
             audiences: json.audiences.clone().unwrap_or_default(),
-            provider: json.provider.clone(),
+            provider: json
+                .provider
+                .as_ref()
+                .map(StackProviderOptions::from)
+                .unwrap_or_default(),
             with: json.with.clone(),
         }
     }
@@ -52,8 +56,8 @@ pub struct StackIdentityJson {
     pub name: Option<String>,
     /// Identity audience names.
     pub audiences: Option<Vec<String>>,
-    /// Provider-specific lowering overrides.
-    pub provider: Option<Value>,
+    /// Provider attachment.
+    pub provider: Option<StackProviderJson>,
     /// Extra identity arguments.
     pub with: Option<Value>,
 }

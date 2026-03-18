@@ -9,8 +9,8 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::super::runtime::RuntimeOptionsJson;
-use super::common::merge_metadata;
+use super::common::{StackProviderJson, StackProviderOptions, merge_metadata};
+use crate::config::runtime::RuntimeOptionsJson;
 pub use binding::*;
 pub use capacity::*;
 pub use health::*;
@@ -35,13 +35,13 @@ pub struct StackWorkloadOptions {
     pub labels: IndexMap<String, String>,
     /// Non-identifying metadata.
     pub annotations: IndexMap<String, String>,
-    /// Provider-specific lowering overrides.
-    pub provider: Option<Value>,
+    /// Provider attachment.
+    pub provider: StackProviderOptions,
     /// Workload health checks.
     pub health: StackHealthOptions,
     /// Placement constraints and preferences.
     pub placement: StackPlacementOptions,
-    /// Workload identity bindings.
+    /// Workload identity.
     pub identity: StackIdentityOptions,
     /// Compute envelope and scaling behavior.
     pub capacity: StackCapacityOptions,
@@ -49,6 +49,8 @@ pub struct StackWorkloadOptions {
     pub timeouts: StackTimeoutOptions,
     /// Destack runtime overrides for this workload.
     pub runtime: Option<RuntimeOptionsJson>,
+    /// Extra workload arguments.
+    pub with: Option<Value>,
     /// Rollout policy.
     pub rollout: StackRolloutOptions,
     /// Restart policy.
@@ -63,9 +65,7 @@ impl StackWorkloadOptions {
         if self.target.is_none() {
             self.target = parent.target.clone();
         }
-        if self.provider.is_none() {
-            self.provider = parent.provider.clone();
-        }
+        self.provider.extend_from(&parent.provider);
 
         self.run.extend_from(&parent.run);
 
@@ -102,6 +102,9 @@ impl StackWorkloadOptions {
         self.timeouts.extend_from(&parent.timeouts);
         if self.runtime.is_none() {
             self.runtime = parent.runtime.clone();
+        }
+        if self.with.is_none() {
+            self.with = parent.with.clone();
         }
         self.rollout.extend_from(&parent.rollout);
         self.restart.extend_from(&parent.restart);
@@ -161,13 +164,18 @@ impl From<&StackWorkloadJson> for StackWorkloadOptions {
                 .unwrap_or_default(),
             labels: json.labels.clone().unwrap_or_default(),
             annotations: json.annotations.clone().unwrap_or_default(),
-            provider: json.provider.clone(),
+            provider: json
+                .provider
+                .as_ref()
+                .map(StackProviderOptions::from)
+                .unwrap_or_default(),
             health: StackHealthOptions::from(&json.health),
             placement: StackPlacementOptions::from(&json.placement),
             identity: StackIdentityOptions::from(&json.identity),
             capacity: StackCapacityOptions::from(&json.capacity),
             timeouts: StackTimeoutOptions::from(&json.timeouts),
             runtime: json.runtime.clone(),
+            with: json.with.clone(),
             rollout: StackRolloutOptions::from(&json.rollout),
             restart: StackRestartOptions::from(&json.restart),
             availability: StackAvailabilityOptions::from(&json.availability),
@@ -198,15 +206,15 @@ pub struct StackWorkloadJson {
     pub labels: Option<IndexMap<String, String>>,
     /// Non-identifying metadata.
     pub annotations: Option<IndexMap<String, String>>,
-    /// Provider-specific lowering overrides.
-    pub provider: Option<Value>,
+    /// Provider attachment.
+    pub provider: Option<StackProviderJson>,
     /// Workload health checks.
     #[serde(default)]
     pub health: StackHealthJson,
     /// Placement constraints and preferences.
     #[serde(default)]
     pub placement: StackPlacementJson,
-    /// Workload identity bindings.
+    /// Workload identity.
     #[serde(default)]
     pub identity: StackIdentityJson,
     /// Compute envelope and scaling behavior.
@@ -217,6 +225,8 @@ pub struct StackWorkloadJson {
     pub timeouts: StackTimeoutJson,
     /// Destack runtime overrides for this workload.
     pub runtime: Option<RuntimeOptionsJson>,
+    /// Extra workload arguments.
+    pub with: Option<Value>,
     /// Rollout policy.
     #[serde(default)]
     pub rollout: StackRolloutJson,
