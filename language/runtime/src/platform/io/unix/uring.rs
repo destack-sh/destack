@@ -421,11 +421,13 @@ pub(crate) unsafe fn destack_io_uring_register_buffers(
 
         let resource = resolve_uring_resource(binding, handle)?;
         let mut state = resource.state.lock();
-        state
-            .ring
-            .submitter()
-            .register_buffers(&iovecs)
-            .map_err(|error| io_error_from_std("io_uring_register_buffers", error))?;
+        unsafe {
+            state
+                .ring
+                .submitter()
+                .register_buffers(&iovecs)
+                .map_err(|error| io_error_from_std("io_uring_register_buffers", error))?;
+        }
         state.has_registered_buffers = true;
 
         Ok(())

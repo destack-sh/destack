@@ -461,24 +461,6 @@ fn io_error_with_errno(operation: &'static str, errno: i32, detail: String) -> B
     .boxed()
 }
 
-/// Build one io error from one std::io::Error.
-#[cfg(target_os = "linux")]
-fn io_error_from_std(operation: &'static str, error: std::io::Error) -> Box<RuntimeError> {
-    if let Some(errno) = error.raw_os_error() {
-        return io_error_with_errno(operation, errno, format!("{operation} failed: {error}"));
-    }
-
-    RuntimeError::from(PlatformError::io_with(
-        None,
-        None,
-        None,
-        Some(operation.to_string()),
-        None,
-        format!("{operation} failed: {error}"),
-    ))
-    .boxed()
-}
-
 /// Build one errno error from the current unix thread errno.
 #[cfg(unix)]
 pub(super) fn io_error_from_errno(operation: &'static str) -> Box<RuntimeError> {

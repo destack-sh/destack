@@ -24,7 +24,7 @@ use crate::diagnostic::RuntimeError;
 use crate::diagnostic::RuntimeResult;
 #[cfg(any(unix, windows))]
 use crate::platform::PlatformError;
-#[cfg(target_os = "android")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 use crate::platform::ResourceId;
 #[cfg(unix)]
 use crate::platform::diagnostic::PlatformErrorCode;
