@@ -1,7 +1,7 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::tests::{
-    HarnessValue, HarnessContext, decode_permission_entries_value, with_harness_context,
+    HarnessContext, HarnessValue, decode_permission_entries_value, with_harness_context,
 };
 use crate::platform::os::{NotificationPermissionState, Permission, PermissionState};
 use crate::platform::{NativeArray, VmArray};
@@ -37,7 +37,6 @@ fn prime_permission_state(context: &mut HarnessContext<'_>) -> RuntimeResult<()>
 }
 
 /// Verify permission state stays unknown until one host permission result arrives.
-#[cfg(any(unix, windows))]
 #[test]
 fn test_permission_state_requires_observed_host_result() {
     with_harness_context(|mut context| {
@@ -51,7 +50,6 @@ fn test_permission_state_requires_observed_host_result() {
 }
 
 /// Verify permission state updates from host permission events across native and VM lanes.
-#[cfg(any(unix, windows))]
 #[test]
 fn test_permission_state_tracks_host_permission_events() {
     with_harness_context(|mut context| {
@@ -76,7 +74,6 @@ fn test_permission_state_tracks_host_permission_events() {
 }
 
 /// Verify permission-state reads preserve requested selector ordering.
-#[cfg(any(unix, windows))]
 #[test]
 fn test_permission_state_many_returns_requested_entries() {
     with_harness_context(|mut context| {
@@ -101,7 +98,6 @@ fn test_permission_state_many_returns_requested_entries() {
 }
 
 /// Verify unknown host permission tokens do not fabricate public permission states.
-#[cfg(any(unix, windows))]
 #[test]
 fn test_permission_state_ignores_unknown_host_permission_tokens() {
     with_harness_context(|mut context| {
