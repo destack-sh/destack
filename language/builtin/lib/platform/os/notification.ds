@@ -216,7 +216,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host notification authorization APIs.
+    /// Returns the current host notification authorization state when the host exposes one.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioInvalidData, notSupported.
@@ -244,7 +244,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host notification permission request APIs where supported.
+    /// Runs the host notification authorization flow where the host exposes one.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
@@ -272,7 +272,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host notification center APIs on each platform.
+    /// Posts through the active host notification service.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -300,8 +300,8 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses Android notification scheduling, macOS UserNotifications, Windows toast scheduling,
-    /// and Linux systemd user timers where available.
+    /// Schedules delivery through the active host notification service.
+    /// Linux may use the host scheduler when available.
     /// Other Unix hosts may return notSupported when they do not expose one defensible scheduler.
     ///
     /// # Errors
@@ -330,8 +330,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses Android pending-notification queries, macOS UserNotifications, Windows scheduled toast
-    /// queries, and Linux persisted scheduler state.
+    /// Enumerates scheduled notifications owned by this runtime from the active host notification service.
     /// Other Unix hosts may return notSupported when they do not expose one defensible scheduler.
     ///
     /// # Errors
@@ -360,8 +359,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses Android pending-notification cancellation, macOS UserNotifications, Windows scheduled
-    /// toast cancellation, and Linux scheduler removal.
+    /// Cancels one scheduled notification through the active host notification service.
     /// Other Unix hosts may return notSupported when they do not expose one defensible scheduler.
     ///
     /// # Errors
@@ -390,8 +388,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses Android pending-notification cancellation, macOS UserNotifications, Windows scheduled
-    /// toast cancellation, and Linux scheduler removal.
+    /// Cancels every scheduled notification owned by this runtime through the active host notification service.
     /// Other Unix hosts may return notSupported when they do not expose one defensible scheduler.
     ///
     /// # Errors
@@ -420,8 +417,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses Android category registration, macOS notification categories, Windows toast action
-    /// metadata, and Unix freedesktop action validation where the host supports actions.
+    /// Registers runtime notification categories and actions where the host supports them.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -449,7 +445,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host notification category query APIs where available.
+    /// Lists runtime notification categories where the host exposes or persists them.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -477,7 +473,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host notification cancellation APIs.
+    /// Cancels one previously posted notification through the active host notification service.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -505,7 +501,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host notification cancellation APIs.
+    /// Cancels every currently posted notification owned by this runtime through the active host notification service.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, notSupported.
@@ -533,7 +529,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host notification callback bridges.
+    /// Opens one host notification event stream for this runtime context.
     ///
     /// # Errors
     /// Returns ioWouldBlock, notSupported.
@@ -561,7 +557,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host callback unregistration APIs.
+    /// Closes one opened host notification event stream.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -589,7 +585,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host notification event queues.
+    /// Reads from the host notification event queue for one opened stream.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -620,7 +616,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host nonblocking notification event queue reads.
+    /// Polls the host notification event queue for one opened stream without waiting.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
