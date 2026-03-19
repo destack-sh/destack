@@ -4,13 +4,13 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::{PlatformError, PlatformErrorCode};
 use crate::platform::fs;
 use crate::platform::fs::core as core_fs;
-use crate::platform::os::tests::{HarnessValue, OsHarnessContext, with_harness_context};
+use crate::platform::os::tests::{HarnessContext, HarnessValue, with_harness_context};
 use crate::platform::os::{IntentEvent, IntentEventVm, IntentOpenOptions, IntentOpenOptionsVm};
 use crate::tests::platform::assert_runtime_error_code;
 
 /// Build one harness open-options payload for the active lane.
 fn open_options_harness_value(
-    context: &OsHarnessContext<'_>,
+    context: &HarnessContext<'_>,
     value: IntentOpenOptions,
 ) -> HarnessValue<IntentOpenOptions, IntentOpenOptionsVm> {
     if context.vm_context.is_some() {
@@ -47,7 +47,7 @@ enum DecodedIntentEvent {
 
 /// Decode one harness event payload into one plain test value.
 fn decode_intent_event(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     value: HarnessValue<IntentEvent, IntentEventVm>,
 ) -> RuntimeResult<DecodedIntentEvent> {
     match value {
@@ -99,7 +99,7 @@ fn decode_native_intent_event(value: IntentEvent) -> RuntimeResult<DecodedIntent
 
 /// Decode one VM event payload into one plain test value.
 fn decode_vm_intent_event(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     value: IntentEventVm,
 ) -> RuntimeResult<DecodedIntentEvent> {
     let vm_context = unsafe {

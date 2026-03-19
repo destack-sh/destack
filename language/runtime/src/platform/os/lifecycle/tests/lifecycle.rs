@@ -2,14 +2,13 @@ use std::thread;
 use std::time::Duration;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::HostRuntimeRegistry;
+use crate::host::core::{HostRuntimeId, HostRuntimeRegistry};
 use crate::host::{
     HostEvent, HostLifecycleEvent, HostLifecycleState, HostMemoryPressureLevel, HostPowerMode,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::tests::{HarnessValue, with_harness_context};
 use crate::platform::os::{LifecycleEvent, LifecycleEventVm, LifecycleState};
-use crate::runtime::world::RuntimeId;
 use crate::tests::platform::{assert_platform_error_code, assert_runtime_error_code};
 
 /// Decoded lifecycle event for shared test assertions.
@@ -22,7 +21,6 @@ struct LifecycleObservation {
 }
 
 /// Verify lifecycle state begins inactive before any host transition arrives.
-#[cfg(any(unix, windows))]
 #[test]
 fn test_lifecycle_state_starts_inactive() {
     with_harness_context(|mut context| {
@@ -35,7 +33,6 @@ fn test_lifecycle_state_starts_inactive() {
 }
 
 /// Verify lifecycle streams read host lifecycle transitions with strict sequencing.
-#[cfg(any(unix, windows))]
 #[test]
 fn test_lifecycle_stream_roundtrip_tracks_state_and_sequence() {
     with_harness_context(|mut context| {
@@ -135,7 +132,6 @@ fn test_lifecycle_stream_roundtrip_tracks_state_and_sequence() {
 }
 
 /// Verify lifecycle reads block until a host lifecycle event arrives.
-#[cfg(any(unix, windows))]
 #[test]
 fn test_lifecycle_read_waits_for_host_event() {
     with_harness_context(|mut context| {
@@ -145,7 +141,7 @@ fn test_lifecycle_read_waits_for_host_event() {
         thread::spawn(move || {
             thread::sleep(Duration::from_millis(10));
             HostRuntimeRegistry::dispatch_host_event(
-                RuntimeId(runtime_id),
+                HostRuntimeId(runtime_id),
                 &HostEvent::Lifecycle(HostLifecycleEvent {
                     state: HostLifecycleState::Running,
                 }),
@@ -170,7 +166,6 @@ fn test_lifecycle_read_waits_for_host_event() {
 }
 
 /// Verify lifecycle streams expose host memory and power signals honestly.
-#[cfg(any(unix, windows))]
 #[test]
 fn test_lifecycle_stream_reports_memory_and_power_events() {
     with_harness_context(|mut context| {
