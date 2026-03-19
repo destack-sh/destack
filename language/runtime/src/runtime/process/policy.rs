@@ -52,7 +52,7 @@ pub(crate) struct ExecutionPolicy {
     pub(crate) affinity: Option<ExecutionAffinity>,
 }
 
-#[allow(clippy::dead_code)]
+#[allow(dead_code)]
 impl ExecutionPolicy {
     /// Build one global execution policy.
     pub(crate) const fn global(mode: ExecutionMode) -> Self {
