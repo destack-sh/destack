@@ -17,7 +17,7 @@ use crate::runtime::poller::{
     PollerToken,
 };
 use crate::runtime::scheduler::{
-    Loop, Microtask, MicrotaskId, Runnable, Task, TaskId, TaskStatus, Timer, TimerDeadline,
+    EventLoop, Microtask, MicrotaskId, Runnable, Task, TaskId, TaskStatus, Timer, TimerDeadline,
 };
 use crate::runtime::time::{Nanos, WorldInstant, host as host_time};
 use crate::runtime::{Agent, BindingCallContext, DropReason, TickOutcome, World};
@@ -458,7 +458,7 @@ fn test_max_microtask_depth_allows_sequential_microtasks() {
 #[test]
 fn test_event_loop_next_runnable_prioritizes_microtasks() {
     // set up an event loop with one task and one microtask
-    let mut event_loop = Loop::default();
+    let mut event_loop = EventLoop::default();
     event_loop.enqueue_task(Task {
         id: TaskId::new(501),
         runnable: EngineContinuation::Native(NativeContinuation::new(601)),
@@ -489,7 +489,7 @@ fn test_event_loop_next_runnable_prioritizes_microtasks() {
 #[test]
 fn test_event_loop_next_runnable_prioritizes_higher_task_priority() {
     // set up an event loop with low and high priority tasks
-    let mut event_loop = Loop::default();
+    let mut event_loop = EventLoop::default();
     event_loop.enqueue_task(Task {
         id: TaskId::new(503),
         runnable: EngineContinuation::Native(NativeContinuation::new(603)),
@@ -519,7 +519,7 @@ fn test_event_loop_next_runnable_prioritizes_higher_task_priority() {
 #[test]
 fn test_event_loop_suspend_rejects_native_continuations() {
     // one queued native task
-    let mut event_loop = Loop::default();
+    let mut event_loop = EventLoop::default();
     event_loop.enqueue_task(Task {
         id: TaskId::new(601),
         runnable: EngineContinuation::Native(NativeContinuation::new(701)),
@@ -539,7 +539,7 @@ fn test_event_loop_suspend_rejects_native_continuations() {
 #[test]
 fn test_event_loop_suspend_roundtrip_preserves_pending_state() {
     // one queued poller event and one ready timer
-    let mut event_loop = Loop::default();
+    let mut event_loop = EventLoop::default();
     event_loop.enqueue_events(vec![PollerEvent {
         resource_id: ResourceId(61),
         source: PollerEventSource::Io,
@@ -567,7 +567,7 @@ fn test_event_loop_suspend_roundtrip_preserves_pending_state() {
     let image = event_loop
         .capture_image(CaptureMode::Suspend, &mut engine)
         .expect("capture suspend image");
-    let mut restored = Loop::default();
+    let mut restored = EventLoop::default();
     restored
         .restore_image(&image, &mut engine)
         .expect("restore suspend image");
@@ -588,7 +588,7 @@ fn test_event_loop_suspend_roundtrip_preserves_pending_state() {
 #[test]
 fn test_event_loop_configure_rejects_non_fifo_policy() {
     // configure one unsupported fair scheduler policy
-    let mut event_loop = Loop::default();
+    let mut event_loop = EventLoop::default();
     let options = SchedulerOptions {
         policy: destack_workspace::SchedulerPolicy::Fair,
         ..SchedulerOptions::default()
@@ -603,7 +603,7 @@ fn test_event_loop_configure_rejects_non_fifo_policy() {
 #[test]
 fn test_event_loop_cancel_timer_drops_ready_timer_before_dispatch() {
     // enqueue one timer and promote it into the ready queue
-    let mut event_loop = Loop::default();
+    let mut event_loop = EventLoop::default();
     event_loop
         .schedule_timer(Timer {
             handle: ResourceId(700).into(),

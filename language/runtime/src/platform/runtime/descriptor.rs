@@ -14,7 +14,7 @@ use crate::platform::runtime::{
 use crate::runtime;
 use crate::runtime::control::{ObservationEntry, SnapshotEntry, WorldViewEntry};
 use crate::runtime::engine::EngineImage;
-use crate::runtime::scheduler::LoopSnapshot;
+use crate::runtime::scheduler::EventLoopSnapshot;
 use crate::runtime::trace::{Outcome, TraceRecord};
 use crate::runtime::world::{
     Image, ObservationCategory, ObservationRecord as ObservationLogEntry, Revision, World,
@@ -258,7 +258,7 @@ impl RuntimeDescriptorCodec {
 
     /// Build one owned event-loop descriptor from one captured scheduler image.
     pub(crate) fn event_loop_descriptor(
-        snapshot: &LoopSnapshot,
+        snapshot: &EventLoopSnapshot,
     ) -> RuntimeResult<EventLoopDescriptor> {
         let task_count = u32::try_from(snapshot.tasks.len()).map_err(|_| {
             RuntimeError::from(PlatformError::invalid_argument_value(

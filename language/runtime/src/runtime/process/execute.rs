@@ -15,8 +15,9 @@ use destack_heap as heap;
 use destack_workspace::TimeMode;
 
 use super::{
-    Agent, BindingCallContext, LoopScope, RuntimeScheduledCallbackHandle, current_event_loop_scope,
-    enter_binding_call_context, enter_current_agent_context, enter_event_loop_scope,
+    Agent, BindingCallContext, EventLoopScope, RuntimeScheduledCallbackHandle,
+    current_event_loop_scope, enter_binding_call_context, enter_current_agent_context,
+    enter_event_loop_scope,
 };
 
 impl Agent {
@@ -54,7 +55,7 @@ impl Agent {
         );
 
         // execute the entrypoint with yielding enabled
-        let _guard = enter_event_loop_scope(LoopScope::empty());
+        let _guard = enter_event_loop_scope(EventLoopScope::empty());
         let mut shared = world.shared.borrow_mut();
         let mut memory = heap::MemoryContext::with_shared_limits(
             &mut self.heap,
@@ -76,7 +77,7 @@ impl Agent {
 
                 let output = self.run_until_task_complete(world, host, task_id, None, poller)?;
                 output.ok_or_else(|| {
-                    RuntimeError::LoopIdle {
+                    RuntimeError::EventLoopIdle {
                         task_id: task_id.get(),
                     }
                     .boxed()
@@ -109,7 +110,7 @@ impl Agent {
         );
 
         // execute the entrypoint with yielding enabled
-        let _guard = enter_event_loop_scope(LoopScope::empty());
+        let _guard = enter_event_loop_scope(EventLoopScope::empty());
         let mut shared = world.shared.borrow_mut();
         let mut memory = heap::MemoryContext::with_shared_limits(
             &mut self.heap,
@@ -130,7 +131,7 @@ impl Agent {
 
                 let output = self.run_until_task_complete(world, host, task_id, None, poller)?;
                 output.ok_or_else(|| {
-                    RuntimeError::LoopIdle {
+                    RuntimeError::EventLoopIdle {
                         task_id: task_id.get(),
                     }
                     .boxed()
@@ -167,7 +168,7 @@ impl Agent {
     ) -> RuntimeResult<EngineOutput> {
         let output = self.run_until_task_complete(world, host, target_task, None, poller)?;
         output.ok_or_else(|| {
-            RuntimeError::LoopIdle {
+            RuntimeError::EventLoopIdle {
                 task_id: target_task.get(),
             }
             .boxed()
@@ -224,7 +225,7 @@ impl Agent {
 
             // exit when the target task cannot make further progress
             if !progressed {
-                return Err(RuntimeError::LoopIdle {
+                return Err(RuntimeError::EventLoopIdle {
                     task_id: target_task.get(),
                 }
                 .boxed());
@@ -454,7 +455,7 @@ impl Agent {
     ) -> RuntimeResult<Option<EngineOutput>> {
         // run the task runnable
         task.status = TaskStatus::Waiting;
-        let _guard = enter_event_loop_scope(LoopScope::for_task(task.id));
+        let _guard = enter_event_loop_scope(EventLoopScope::for_task(task.id));
         let outcome = self.execute_runnable(world, task.runnable, task.resume_value)?;
 
         // handle the task outcome
@@ -506,7 +507,8 @@ impl Agent {
         }
 
         // run the microtask runnable
-        let _guard = enter_event_loop_scope(LoopScope::for_microtask(microtask.id, next_depth));
+        let _guard =
+            enter_event_loop_scope(EventLoopScope::for_microtask(microtask.id, next_depth));
         let outcome =
             self.execute_runnable(world, microtask.continuation, microtask.resume_value)?;
 
