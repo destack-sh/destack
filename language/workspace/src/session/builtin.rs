@@ -5,7 +5,7 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use destack_builtin::{
     BuiltinLibKind, BuiltinLibSource, BuiltinOutputFormat, BuiltinPlatform, BuiltinRuntime,
-    CORE_SOURCES, LanguageSymbol, PRELUDE_SOURCE, builtin_lib,
+    INTRINSIC_SOURCES, LanguageSymbol, PRELUDE_BUILTIN_SOURCE, builtin_lib,
 };
 use destack_source::{
     File, FileRegistry, FileType, LanguageType, ModuleId, ModuleVersion, PackageId, PackageVersion,
@@ -85,10 +85,10 @@ pub struct BuiltinLibSelection {
 pub struct Builtins {
     /// The builtin package ID.
     pub package_id: PackageId,
-    /// Core modules by path (e.g., "operator/arithmetic.ds" -> ModuleId).
-    pub core_module_by_path: IndexMap<String, ModuleId>,
-    /// Core module for each language item (LanguageSymbol -> ModuleId).
-    pub core_module_by_item: IndexMap<LanguageSymbol, ModuleId>,
+    /// Intrinsic modules by path.
+    pub intrinsic_module_by_path: IndexMap<String, ModuleId>,
+    /// Intrinsic module for each language item.
+    pub intrinsic_module_by_item: IndexMap<LanguageSymbol, ModuleId>,
     /// The prelude module ID (re-exports items available without imports).
     pub prelude_module_id: ModuleId,
 
@@ -103,7 +103,7 @@ pub struct Builtins {
 }
 
 impl Builtins {
-    /// Create builtins by registering core modules from embedded sources.
+    /// Create builtins by registering intrinsic modules from embedded sources.
     pub fn embedded(
         files: Arc<FileRegistry>,
         modules: Arc<ModuleRegistry>,
@@ -125,9 +125,9 @@ impl Builtins {
         };
         packages.insert(package);
 
-        // register core modules from embedded sources
-        let mut core_modules = IndexMap::with_capacity(CORE_SOURCES.len());
-        for source in CORE_SOURCES {
+        // register intrinsic modules from embedded sources
+        let mut intrinsic_modules = IndexMap::with_capacity(INTRINSIC_SOURCES.len());
+        for source in INTRINSIC_SOURCES {
             let uri = Uri::from_string(source.virtual_path());
 
             // select file/language types for the builtin source
@@ -158,7 +158,7 @@ impl Builtins {
                 std::path::Path::new(&module_path),
             );
 
-            // create blank module (will be parsed/bound later)
+            // create blank module
             let loader = Loader::from_file_type(file_type);
             let module = Module::blank(
                 module_id,
@@ -168,7 +168,7 @@ impl Builtins {
                 BUILTIN_PACKAGE_ID,
                 language_type,
                 loader,
-                ModuleSource::Builtin(BuiltinLibKind::Core),
+                ModuleSource::Builtin(BuiltinLibKind::Intrinsic),
             );
             modules.insert(
                 module,
@@ -178,35 +178,38 @@ impl Builtins {
                 SourceType::Module,
                 ModuleFormat::Esm,
             );
-            core_modules.insert(module_path, module_id);
+            intrinsic_modules.insert(module_path, module_id);
         }
 
         // build language item -> module mapping, validating all items have modules
         let mut language_symbol_modules = IndexMap::with_capacity(LanguageSymbol::all().count());
         for item in LanguageSymbol::all() {
             let module_path = format!("{}.ds", item.module());
-            let module_id = core_modules.get(&module_path).unwrap_or_else(|| {
+            let module_id = intrinsic_modules.get(&module_path).unwrap_or_else(|| {
                 panic!(
-                    "language item {item:?} references module '{module_path}' which is not in CORE_SOURCES"
+                    "language item {item:?} references module '{module_path}' which is not in INTRINSIC_SOURCES"
                 )
             });
             language_symbol_modules.insert(item, *module_id);
         }
 
         // look up prelude module ID (must be registered)
-        let prelude_path = if PRELUDE_SOURCE.path.is_empty() {
-            PRELUDE_SOURCE.name.to_string()
+        let prelude_path = if PRELUDE_BUILTIN_SOURCE.path.is_empty() {
+            PRELUDE_BUILTIN_SOURCE.name.to_string()
         } else {
-            format!("{}/{}", PRELUDE_SOURCE.path, PRELUDE_SOURCE.name)
+            format!(
+                "{}/{}",
+                PRELUDE_BUILTIN_SOURCE.path, PRELUDE_BUILTIN_SOURCE.name
+            )
         };
-        let prelude_module_id = *core_modules
-            .get(&prelude_path)
-            .unwrap_or_else(|| panic!("prelude module '{prelude_path}' is not in CORE_SOURCES"));
+        let prelude_module_id = *intrinsic_modules.get(&prelude_path).unwrap_or_else(|| {
+            panic!("prelude module '{prelude_path}' is not in INTRINSIC_SOURCES")
+        });
 
         Self {
             package_id: BUILTIN_PACKAGE_ID,
-            core_module_by_path: core_modules,
-            core_module_by_item: language_symbol_modules,
+            intrinsic_module_by_path: intrinsic_modules,
+            intrinsic_module_by_item: language_symbol_modules,
             prelude_module_id,
             lib_module_by_name: DashMap::new(),
             lib_selection_by_key: DashMap::new(),
@@ -218,7 +221,7 @@ impl Builtins {
     /// Get the ModuleId for a language item's defining module.
     pub fn module_for_item(&self, item: LanguageSymbol) -> ModuleId {
         *self
-            .core_module_by_item
+            .intrinsic_module_by_item
             .get(&item)
             .unwrap_or_else(|| panic!("language item {item:?} not registered"))
     }
@@ -409,12 +412,11 @@ impl Builtins {
 
     /// Get builtin modules that define intrinsic bindings.
     pub fn intrinsic_module_ids(&self) -> Vec<ModuleId> {
-        // filter core modules to intrinsic paths
+        // filter intrinsic modules to primitive paths
         let mut module_ids = Vec::new();
         let mut seen = HashSet::new();
-        for (path, module_id) in self.core_module_by_path.iter() {
-            if !path.starts_with("intrinsic/") {
-                // high-tech filter
+        for (path, module_id) in self.intrinsic_module_by_path.iter() {
+            if !path.starts_with("primitive/") {
                 continue;
             }
             if seen.insert(*module_id) {

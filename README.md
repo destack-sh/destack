@@ -148,7 +148,11 @@ Library, services, and apps are already written in Destack as much as possible, 
 
 ## Platforms
 
-Destack supports the web, of course, and also runs natively on Linux, macOS, and Windows as Tier 1 targets, with mobile (iOS, Android) still (very) experimental.
+Destack treats the web as a first-class target and also runs natively on Linux, macOS, and Windows as Tier 1 targets, with mobile (iOS, Android) still (very) experimental.
+The web and the native runtime are intended to converge on the same portable `destack:*` systems surface rather than drift into separate programming models.
+Low-level substrate is exposed through `platform:*`.
+Standards compatibility stays available through `Web*`-shaped APIs.
+Our own renderer and higher-level libraries should usually target `destack:*`, not raw `platform:*`.
 See [TARGETS.md](TARGETS.md).
 
 | Tier | Target triples |

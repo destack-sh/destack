@@ -1,6 +1,6 @@
-use super::lib::LIBS;
+use super::language::LANGUAGE_LIBS;
+use super::library::LIBRARY_LIBS;
 use super::source::BuiltinLib;
-use super::std::STD_LIB;
 
 /// Look up a builtin lib by name.
 pub fn builtin_lib(name: &str) -> Option<&'static BuiltinLib> {
@@ -24,7 +24,7 @@ pub fn builtin_lib_name_for_types_package(package_name: &str) -> Option<String> 
     None
 }
 
-/// Iterate every builtin lib, including std.
+/// Iterate every builtin language or library definition.
 fn builtin_libs() -> impl Iterator<Item = &'static BuiltinLib> {
-    std::iter::once(&STD_LIB).chain(LIBS.iter())
+    LANGUAGE_LIBS.iter().chain(LIBRARY_LIBS.iter())
 }

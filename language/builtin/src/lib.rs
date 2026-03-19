@@ -11,8 +11,8 @@ compile_error!(
     "runtime lib families require an explicit version mode: versions-all or versions-latest"
 );
 
-mod core;
+mod intrinsic;
 mod libs;
 
-pub use core::*;
+pub use intrinsic::*;
 pub use libs::*;

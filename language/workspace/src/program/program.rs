@@ -832,7 +832,7 @@ impl Program {
                     return true;
                 };
 
-                matches!(builtin.kind, destack_builtin::BuiltinLibKind::Std)
+                matches!(builtin.kind, destack_builtin::BuiltinLibKind::Language)
                     || matches!(builtin.name, "native" | "platform" | "destack")
             });
             if !libs.iter().any(|lib| lib == "native") {

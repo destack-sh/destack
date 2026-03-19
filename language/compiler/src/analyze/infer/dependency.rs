@@ -266,7 +266,10 @@ impl Compiler {
 
         let module = self.program.modules.get(module_id);
         let module = module.as_ref();
-        matches!(module.source, ModuleSource::Builtin(BuiltinLibKind::Lib))
+        matches!(
+            module.source,
+            ModuleSource::Builtin(BuiltinLibKind::Library)
+        )
     }
 
     /// Return one deterministic, deduplicated module id vector.

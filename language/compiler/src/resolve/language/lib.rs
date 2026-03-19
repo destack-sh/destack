@@ -670,11 +670,6 @@ impl Compiler {
     fn ordered_libs_for_profile_key(&self, profile_key: &ProfileKey) -> ResolveResult<Vec<String>> {
         let mut libs = profile_key.lib.clone();
 
-        // always include std lib
-        if !libs.contains(&"std".to_string()) {
-            libs.push("std".to_string());
-        }
-
         // always include globals
         if !libs.contains(&"globals".to_string()) {
             libs.push("globals".to_string());
@@ -707,9 +702,6 @@ impl Compiler {
         };
 
         let mut lib_names: Vec<String> = libs.iter().map(|lib| (*lib).to_string()).collect();
-        if !lib_names.iter().any(|name| name == "std") {
-            lib_names.push("std".to_string());
-        }
         if !lib_names.iter().any(|name| name == "globals") {
             lib_names.push("globals".to_string());
         }

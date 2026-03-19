@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashSet};
 use std::time::{Duration, Instant};
 
-use destack_builtin::{BuiltinLib, BuiltinLibKind, LIBS, STD_LIB};
+use destack_builtin::{BuiltinLib, BuiltinLibKind, LANGUAGE_LIBS, LIBRARY_LIBS};
 use destack_source::{DiagnosticSeverity, ModuleId};
 
 use crate::{StatsSnapshot, TaskPhase, default_workers};
@@ -199,7 +199,7 @@ pub fn run_bench(options: &BenchOptions) {
 /// Resolve declared lib symbols for all builtin libs.
 pub(crate) fn run_resolve_builtin_lib_symbols(mode: BenchMode) {
     // resolve declared lib symbols for all builtin libs
-    for lib in LIBS.iter() {
+    for lib in LIBRARY_LIBS.iter() {
         let test = test_program_for_mode(mode).with_profile_libs(&[lib.name]);
         test.resolve_language_environment();
         test.resolve_libs();
@@ -223,8 +223,9 @@ pub(crate) fn run_resolve_builtin_lib_symbols(mode: BenchMode) {
 /// Resolve all builtin libs in one program.
 pub(crate) fn run_resolve_all_builtin_libs(mode: BenchMode) {
     // collect all lib names
-    let lib_names: Vec<&str> = std::iter::once(&STD_LIB)
-        .chain(LIBS.iter())
+    let lib_names: Vec<&str> = LANGUAGE_LIBS
+        .iter()
+        .chain(LIBRARY_LIBS.iter())
         .map(|lib| lib.name)
         .collect();
 
@@ -268,7 +269,7 @@ fn run_builtin_libs_per_lib(options: &BenchOptions) {
     let lib_filter = options.lib_filter.as_ref();
     let timeout = options.effective_timeout();
 
-    for lib in std::iter::once(&STD_LIB).chain(LIBS.iter()) {
+    for lib in LANGUAGE_LIBS.iter().chain(LIBRARY_LIBS.iter()) {
         // apply optional lib filter
         if let Some(filter) = lib_filter
             && !filter.contains(lib.name)
@@ -353,7 +354,7 @@ fn builtin_lib_filter_from_env() -> Option<HashSet<String>> {
 
     // default to a compact lib subset
     let mut defaults = HashSet::new();
-    defaults.insert("std".to_string());
+    defaults.insert("js".to_string());
     defaults.insert("globals".to_string());
     defaults.insert("dom".to_string());
     defaults.insert("es2020.full".to_string());
@@ -404,7 +405,7 @@ fn report_timing_tag_summary(snapshot: &StatsSnapshot, top_n: usize) {
 fn libs_for_builtin(lib: &BuiltinLib) -> Vec<&'static str> {
     // include a baseline es lib for runtime libraries that require them
     let mut libs = Vec::new();
-    if lib.kind == BuiltinLibKind::Lib
+    if lib.kind == BuiltinLibKind::Library
         && !lib.name.starts_with("es")
         && !lib.name.starts_with("decorators")
     {
@@ -530,10 +531,7 @@ fn run_builtin_libs_combined(options: &BenchOptions) {
         builtin_lib_list_from_env()
     };
 
-    // ensure std and globals are always present
-    if !libs.iter().any(|name| name == "std") {
-        libs.push("std".to_string());
-    }
+    // ensure globals are always present
     if !libs.iter().any(|name| name == "globals") {
         libs.push("globals".to_string());
     }
@@ -595,10 +593,7 @@ fn run_list_builtin_lib_modules(options: &BenchOptions) {
         builtin_lib_list_from_env()
     };
 
-    // ensure std and globals are always present
-    if !libs.iter().any(|name| name == "std") {
-        libs.push("std".to_string());
-    }
+    // ensure globals are always present
     if !libs.iter().any(|name| name == "globals") {
         libs.push("globals".to_string());
     }
@@ -762,18 +757,15 @@ fn builtin_lib_label_for_module(display: &str) -> String {
     let Some(head) = segments.next() else {
         return "other".to_string();
     };
-    if head == "std" {
-        return "std".to_string();
-    }
     if head == "globals" {
         return "globals".to_string();
     }
-    if head != "lib" {
+    if head != "library" {
         return head.to_string();
     }
 
     let Some(lib_name) = segments.next() else {
-        return "lib".to_string();
+        return "library".to_string();
     };
-    format!("lib/{lib_name}")
+    format!("library/{lib_name}")
 }

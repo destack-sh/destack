@@ -171,8 +171,8 @@ impl Compiler {
     fn module_uses_prelude(&self, module: &Module) -> bool {
         match module.source {
             ModuleSource::User => true,
-            ModuleSource::Builtin(BuiltinLibKind::Std | BuiltinLibKind::Lib) => true,
-            ModuleSource::Builtin(BuiltinLibKind::Core) => false,
+            ModuleSource::Builtin(BuiltinLibKind::Language | BuiltinLibKind::Library) => true,
+            ModuleSource::Builtin(BuiltinLibKind::Intrinsic) => false,
         }
     }
 

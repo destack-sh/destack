@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use destack_builtin::builtin_lib;
 use destack_core::StringId;
 use destack_dir::{DependencyKind, ModuleResolution, ModuleTarget};
-use destack_resolver::{ResolveOptions, Resolver};
+use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
 use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri};
 use destack_workspace::{
     ImportEdgeKind, Loader, Module, ModuleSource, NodeLinker, Package, PackageKind, ProfileId,
@@ -22,8 +22,10 @@ const BUILTIN_EXTENSIONS: &[&str] = &[
 ];
 
 /// Protocol namespace roots mapped to builtin module roots.
-const BUILTIN_NAMESPACE_ROOTS: &[(&str, &str)] =
-    &[("destack", "lib/destack"), ("platform", "lib/platform")];
+const BUILTIN_NAMESPACE_ROOTS: &[(&str, &str)] = &[
+    ("destack", "library/destack"),
+    ("platform", "library/platform"),
+];
 
 /// Source module resolve policy derived from package and tsconfig ownership.
 #[derive(Debug, Clone)]
@@ -47,7 +49,7 @@ enum SourceImportResolvePolicy {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Refresh package destack config state from the filesystem.
+    /// Refresh package Destack config state from the filesystem.
     fn refresh_package_destack_config(
         &self,
         package_id: PackageId,
@@ -384,9 +386,9 @@ impl Compiler {
         }
 
         // resolve relative path against source URI
-        //  - source: builtin://core/prelude.ds
+        //  - source: builtin://intrinsic/prelude.ds
         //  - specifier: ./reflection/type.ds
-        //  - target: builtin://core/reflection/type.ds
+        //  - target: builtin://intrinsic/reflect/type.ds
         let source_dir = source_str.rsplit_once('/').map(|(dir, _)| dir)?;
         let target_uri_str = Self::resolve_relative_uri(source_dir, specifier);
         let target_uri = Uri::from_string(&target_uri_str);
@@ -956,8 +958,8 @@ impl Compiler {
     }
 
     /// Resolve a relative specifier against a base URI directory.
-    /// e.g., resolve_relative_uri("builtin://core", "./reflection/type.ds")
-    ///       -> "builtin://core/reflection/type.ds"
+    /// e.g., resolve_relative_uri("builtin://intrinsic", "./reflect/type.ds")
+    ///       -> "builtin://intrinsic/reflect/type.ds"
     fn resolve_relative_uri(base_dir: &str, specifier: &str) -> String {
         let mut parts: Vec<&str> = base_dir.split('/').collect();
 

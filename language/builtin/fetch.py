@@ -296,11 +296,11 @@ def _write_lib_sources(
 
             # emit the source entry
             lines.append("    BuiltinLibSource::new(")
-            lines.append('        "lib",')
+            lines.append('        "library",')
             lines.append(f'        "{lib_path}",')
             lines.append(f'        "{name}",')
             lines.append(
-                f'        include_str!(concat!("../../../lib/{lib_path}/{name}")),'
+                f'        include_str!(concat!("../../../library/{lib_path}/{name}")),'
             )
             lines.append("    ),")
         lines.append("];")

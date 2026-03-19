@@ -26,7 +26,7 @@ impl Compiler {
         if !self.options.load_libs {
             if matches!(
                 module_ref.source,
-                ModuleSource::Builtin(BuiltinLibKind::Lib)
+                ModuleSource::Builtin(BuiltinLibKind::Library)
             ) {
                 return Ok(());
             }
@@ -293,8 +293,11 @@ impl Compiler {
         module: &Module,
         _module_checks: ModuleCheckOptions,
     ) -> bool {
-        // builtin core declarations still need lazy declared alias materialization
-        if matches!(module.source, ModuleSource::Builtin(BuiltinLibKind::Core)) {
+        // intrinsic declarations still need lazy declared alias materialization
+        if matches!(
+            module.source,
+            ModuleSource::Builtin(BuiltinLibKind::Intrinsic)
+        ) {
             return false;
         }
 

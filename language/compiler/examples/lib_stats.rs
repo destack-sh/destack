@@ -315,7 +315,7 @@ fn seed_libs_for_bench(lib_name: &str) -> Vec<&'static str> {
     let mut libs = Vec::new();
 
     // include baseline es2020 for non es libs
-    if lib.kind == BuiltinLibKind::Lib
+    if lib.kind == BuiltinLibKind::Library
         && !lib.name.starts_with("es")
         && !lib.name.starts_with("decorators")
     {
@@ -324,9 +324,6 @@ fn seed_libs_for_bench(lib_name: &str) -> Vec<&'static str> {
     libs.push(lib.name);
 
     // include ambient roots
-    if !libs.contains(&"std") {
-        libs.push("std");
-    }
     if !libs.contains(&"globals") {
         libs.push("globals");
     }

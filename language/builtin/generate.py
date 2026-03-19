@@ -10,9 +10,12 @@ from typing import Iterable
 
 # resolve paths
 ROOT = Path(__file__).resolve().parent
-LIB_ROOT = ROOT / "lib"
-REGISTRY_PATH = LIB_ROOT / "registry.json"
-OUT_DIR = ROOT / "src" / "libs" / "lib"
+LANGUAGE_ROOT = ROOT / "language"
+LIBRARY_ROOT = ROOT / "library"
+LANGUAGE_REGISTRY_PATH = LANGUAGE_ROOT / "registry.json"
+LIBRARY_REGISTRY_PATH = LIBRARY_ROOT / "registry.json"
+LANGUAGE_OUT_DIR = ROOT / "src" / "libs" / "language"
+LIBRARY_OUT_DIR = ROOT / "src" / "libs" / "library"
 PLATFORM_DOC_DIRECTORIES = ["fs", "net", "process", "time", "timer"]
 PLATFORM_DOC_SECTIONS = ["# Platform", "# Errors", "# Security", "# Replay"]
 VERSIONED_LIB_PATTERN = re.compile(
@@ -67,6 +70,16 @@ class LatestFileVariant:
     file: FileEntry
     latest_file: FileEntry
     latest_versioned_lib_names: set[str]
+
+
+@dataclass(frozen=True)
+class RegistryGroup:
+    """One generated builtin family."""
+
+    kind: str
+    root: Path
+    registry_path: Path
+    out_dir: Path
 
 
 def load_json(path: Path) -> dict:
@@ -271,7 +284,7 @@ def merge_source_sets(sets: list[dict[str, SourceSet]]) -> dict[str, SourceSet]:
     return merged
 
 
-def parse_registry() -> tuple[
+def parse_registry(registry_path: Path, root: Path) -> tuple[
     dict[str, list[str]],
     dict[str, list[list[str]]],
     dict[str, SourceSet],
@@ -279,7 +292,7 @@ def parse_registry() -> tuple[
 ]:
     """Parse the full registry."""
     # load registry
-    registry = load_json(REGISTRY_PATH)
+    registry = load_json(registry_path)
     symbol_sets = parse_symbol_sets(registry.get("symbols", {}))
     alias_sets = parse_alias_sets(registry.get("aliases", {}))
     manifest_paths = as_str_list(registry.get("manifests"), "registry.manifests")
@@ -289,7 +302,7 @@ def parse_registry() -> tuple[
     source_sets: list[dict[str, SourceSet]] = []
 
     for manifest_path in manifest_paths:
-        path = LIB_ROOT / manifest_path
+        path = root / manifest_path
         file_entry, manifest_sets = parse_manifest(path)
         files.append(file_entry)
         source_sets.append(manifest_sets)
@@ -376,7 +389,7 @@ def platform_variants(values: Iterable[str]) -> list[str]:
     return [mapping[value] for value in values]
 
 
-def read_sources(source_set: SourceSet) -> list[str]:
+def read_sources(root: Path, source_set: SourceSet) -> list[str]:
     """Resolve sources for a source set."""
     # return explicit file list
     if source_set.files is not None:
@@ -388,9 +401,9 @@ def read_sources(source_set: SourceSet) -> list[str]:
 
     # expand glob relative to the lib root
     sources = []
-    for path in LIB_ROOT.glob(source_set.auto):
-        relative = str(path.relative_to(LIB_ROOT)).replace("\\", "/")
-        sources.append(f"lib/{relative}")
+    for path in root.glob(source_set.auto):
+        relative = str(path.relative_to(root)).replace("\\", "/")
+        sources.append(f"{root.name}/{relative}")
     return sorted(sources)
 
 
@@ -461,7 +474,7 @@ def validate_platform_binding_docs() -> None:
     # collect files in configured directories
     all_errors: list[str] = []
     for directory_name in PLATFORM_DOC_DIRECTORIES:
-        directory = LIB_ROOT / "platform" / directory_name
+        directory = LIBRARY_ROOT / "platform" / directory_name
         for path in sorted(directory.glob("*.ds")):
             all_errors.extend(find_binding_doc_errors(path))
 
@@ -663,6 +676,7 @@ def latest_file_variant(file: FileEntry) -> LatestFileVariant | None:
 
 
 def render_mod(
+    libs_const_name: str,
     group: str,
     files: list[FileEntry],
     *,
@@ -770,7 +784,7 @@ def render_mod(
         lib_files = all_lib_files if all_lib_files is not None else files
 
         lines.append("")
-        lines.append("pub const LIBS: &[BuiltinLib] = &[")
+        lines.append(f"pub const {libs_const_name}: &[BuiltinLib] = &[")
         for file in lib_files:
             family = family_name_for_path(file.path)
             feature_name = feature_name_for_family(family)
@@ -810,6 +824,9 @@ def render_mod(
 
 
 def render_file(
+    kind: str,
+    module_name: str,
+    root: Path,
     file: FileEntry,
     symbol_sets: dict[str, list[str]],
     alias_sets: dict[str, list[list[str]]],
@@ -853,7 +870,7 @@ def render_file(
         target_set: SourceSet | None = None
         if isinstance(lib.sources, str):
             target_set = source_sets[lib.sources]
-            sources_list = read_sources(target_set)
+            sources_list = read_sources(root, target_set)
         else:
             sources_list = lib.sources
 
@@ -878,7 +895,7 @@ def render_file(
 
         for source in sources_list:
             if source not in source_const_map:
-                root, *rest = source.split("/")
+                source_root, *rest = source.split("/")
                 module_path = "/".join(rest[:-1])
                 file_name = rest[-1]
                 const_name = const_name_for_source(
@@ -913,10 +930,10 @@ def render_file(
         entries = []
         for source in sources:
             const_name = source_const_map[source]
-            root, *rest = source.split("/")
+            source_root, *rest = source.split("/")
             module_path = "/".join(rest[:-1])
             file_name = rest[-1]
-            entries.append((const_name, root, module_path, file_name))
+            entries.append((const_name, source_root, module_path, file_name))
         source_blocks.append((label, runtimes, outputs, platforms, entries))
 
     # imports
@@ -942,7 +959,7 @@ def render_file(
         for name in sorted(needs_aliases):
             symbol_imports.append(const_name_for_alias_set(name))
         import_lines.append(
-            f"use crate::libs::lib::symbols::{{{', '.join(symbol_imports)}}};"
+            f"use crate::libs::{module_name}::symbols::{{{', '.join(symbol_imports)}}};"
         )
 
     lines.extend(import_lines)
@@ -972,18 +989,18 @@ def render_file(
             lines.append(f"    {prefix}_OUTPUTS,")
             lines.append(f"    {prefix}_PLATFORMS,")
             lines.append("    [")
-            for const_name, root, module_path, file_name in entries:
+            for const_name, source_root, module_path, file_name in entries:
                 lines.append(
-                    f'        ({const_name}, "{root}", "{module_path}", "{file_name}"),'
+                    f'        ({const_name}, "{source_root}", "{module_path}", "{file_name}"),'
                 )
             lines.append("    ]")
             lines.append(");\n")
         else:
             lines.append("builtin_lib_sources!(")
             lines.append("    [")
-            for const_name, root, module_path, file_name in entries:
+            for const_name, source_root, module_path, file_name in entries:
                 lines.append(
-                    f'        ({const_name}, "{root}", "{module_path}", "{file_name}"),'
+                    f'        ({const_name}, "{source_root}", "{module_path}", "{file_name}"),'
                 )
             lines.append("    ]")
             lines.append(");\n")
@@ -991,11 +1008,12 @@ def render_file(
     # libs
     for lib in file.libs:
         const_name = const_name_for_lib(lib.name)
-        constructor = "ambient_lib" if lib.ambient else "explicit_lib"
+        constructor = "language" if kind == "language" else "library"
+        mode = "ambient" if lib.ambient else "explicit"
 
         sources_list: list[str]
         if isinstance(lib.sources, str):
-            sources_list = read_sources(source_sets[lib.sources])
+            sources_list = read_sources(root, source_sets[lib.sources])
         else:
             sources_list = lib.sources
 
@@ -1012,6 +1030,7 @@ def render_file(
             lines.append(f'        "{dep}",')
         lines.append("    ],")
         lines.append(")")
+        lines.append(f".{mode}()")
 
         if lib.specifier_aliases:
             alias_const = const_name_for_alias_set(lib.specifier_aliases)
@@ -1032,12 +1051,11 @@ def render_file(
     return "\n".join(lines).rstrip() + "\n"
 
 
-def generate() -> None:
-    """Generate the builtin lib sources."""
-    # validate platform binding docs
-    validate_platform_binding_docs()
-
-    symbol_sets, alias_sets, source_sets, files = parse_registry()
+def generate_group(group: RegistryGroup) -> None:
+    """Generate one builtin family."""
+    symbol_sets, alias_sets, source_sets, files = parse_registry(
+        group.registry_path, group.root
+    )
 
     # derive latest only variants for versioned runtime libs
     latest_variants: list[LatestFileVariant] = []
@@ -1051,33 +1069,50 @@ def generate() -> None:
         latest_variants_by_path[file.path] = variant
 
     # symbols
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    (OUT_DIR / "symbols.rs").write_text(
+    group.out_dir.mkdir(parents=True, exist_ok=True)
+    (group.out_dir / "symbols.rs").write_text(
         render_symbols(symbol_sets, alias_sets), encoding="utf-8"
     )
 
     # file modules
     for file in files:
-        out_path = OUT_DIR / file.path
+        out_path = group.out_dir / file.path
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(
-            render_file(file, symbol_sets, alias_sets, source_sets), encoding="utf-8"
+            render_file(
+                group.kind,
+                group.root.name,
+                group.root,
+                file,
+                symbol_sets,
+                alias_sets,
+                source_sets,
+            ),
+            encoding="utf-8",
         )
 
     # latest only file modules
     expected_latest_paths: set[Path] = set()
     for variant in latest_variants:
-        out_path = OUT_DIR / variant.file.path
+        out_path = group.out_dir / variant.file.path
         latest_path = out_path.with_name(f"{out_path.stem}_latest.rs")
         latest_path.parent.mkdir(parents=True, exist_ok=True)
         latest_path.write_text(
-            render_file(variant.latest_file, symbol_sets, alias_sets, source_sets),
+            render_file(
+                group.kind,
+                group.root.name,
+                group.root,
+                variant.latest_file,
+                symbol_sets,
+                alias_sets,
+                source_sets,
+            ),
             encoding="utf-8",
         )
         expected_latest_paths.add(latest_path.resolve())
 
     # clean stale latest files no longer generated
-    for path in OUT_DIR.rglob("*_latest.rs"):
+    for path in group.out_dir.rglob("*_latest.rs"):
         if path.resolve() in expected_latest_paths:
             continue
 
@@ -1085,24 +1120,49 @@ def generate() -> None:
 
     # mod files
     grouped = group_by_parent(files)
-    for group, entries in grouped.items():
-        if group == "":
+    libs_const_name = f"{group.kind.upper()}_LIBS"
+    for subgroup, entries in grouped.items():
+        if subgroup == "":
             child_groups = sorted(name for name in grouped.keys() if name)
             rendered_mod = render_mod(
-                group,
+                libs_const_name,
+                subgroup,
                 entries,
                 all_lib_files=files,
                 child_groups=child_groups,
                 latest_variants_by_path=latest_variants_by_path,
             )
         else:
-            rendered_mod = render_mod(group, entries)
+            rendered_mod = render_mod(libs_const_name, subgroup, entries)
 
-        if group == "":
-            mod_path = OUT_DIR / "mod.rs"
+        if subgroup == "":
+            mod_path = group.out_dir / "mod.rs"
         else:
-            mod_path = OUT_DIR / group / "mod.rs"
+            mod_path = group.out_dir / subgroup / "mod.rs"
         mod_path.write_text(rendered_mod, encoding="utf-8")
+
+
+def generate() -> None:
+    """Generate the builtin lib sources."""
+    validate_platform_binding_docs()
+
+    groups = [
+        RegistryGroup(
+            kind="language",
+            root=LANGUAGE_ROOT,
+            registry_path=LANGUAGE_REGISTRY_PATH,
+            out_dir=LANGUAGE_OUT_DIR,
+        ),
+        RegistryGroup(
+            kind="library",
+            root=LIBRARY_ROOT,
+            registry_path=LIBRARY_REGISTRY_PATH,
+            out_dir=LIBRARY_OUT_DIR,
+        ),
+    ]
+
+    for group in groups:
+        generate_group(group)
 
 
 def main() -> None:

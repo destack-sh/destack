@@ -16,8 +16,14 @@ Runtime behaviour is modelled along the three basic dimensions of engine ("where
 
 The runtime is organized around core `runtime`, `platform` bindings, and the underlying `host` integration:
  - `runtime/`: all the core runtime scaffolding and orchestration (world, topology, poller, scheduler/loop, etc.)
- - `platform/`: host implementations for the modules defined in the builtin ["platform"](language/builtin/lib/platform) lib
+ - `platform/`: host implementations for the modules defined in the builtin ["platform"](language/builtin/library/platform) library
  - `host/`: host adapters, host event bridges, host ffi entrypoints, and host state integration
+
+At the API boundary, the runtime should expose two distinct layers.
+`platform:*` is the raw substrate and authority-bearing host surface.
+`destack:*` is the normalized portable systems surface built on top of that substrate.
+The long-term renderer and most higher-level libraries should usually target `destack:*`, not raw `platform:*`.
+`Web*` compatibility should sit above these layers as a standards facade rather than reshaping the runtime around browser-only semantics.
 
 ### Runtime architecture
 
@@ -399,7 +405,7 @@ The basic bridge is the `HostBackend` that is implemented by each host to provid
 
 ## Platform
 
-The `platform` bindings implement the "platform" builtin library bindings defined in `language/builtin/lib/platform`, the corresponding bindings and ABI stuff is automatically generated in `language/runtime/src/generate` (see all the `*.generated.rs` files).
+The `platform` bindings implement the "platform" builtin library bindings defined in `language/builtin/library/platform`, and the corresponding bindings and ABI surface are generated in `language/runtime/src/generate`.
 We have successively expanded the runtime generator to automatically wire as much of the native / VM data integration as possible, though unfortunately in some places we still need to manually normalize and serialise / deserialise because no reliable automatic mapping exists (or we couldn't find one). 
 
 The low-level `platform` bindings are not meant to be used by general userland - though they are accessible to advanced users - but instead through the higher-level `destack:*` library, which is essentially a `node:*` shaped higher level API with all the same functionality.
@@ -425,7 +431,7 @@ And because Destack tries to follow web standards closely, all the low level bin
 | [`process`](./src/platform/process) | Process lifecycle, environment, identity, scheduling, limits, signals, and wait operations. |
 | [`random`](./src/platform/random) | Secure entropy and deterministic random stream generation. |
 | [`resource`](./src/platform/resource) | Runtime resource identifiers and handle lifecycle operations. |
-| [`runtime`](../builtin/lib/platform/runtime) | Low-level world control, lineage, pinned views, causal trace, observation streams, and snapshot export or restore. |
+| [`runtime`](../builtin/library/platform/runtime) | Low-level world control, lineage, pinned views, causal trace, observation streams, and snapshot export or restore. |
 | [`security`](./src/platform/security) | Capability checks, policy state, sandbox controls, and enforcement hooks. |
 | [`thread`](./src/platform/thread) | Thread creation, synchronization, local storage, affinity, and priority controls. |
 | [`time`](./src/platform/time) | Clock reads, sleep primitives, and timer scheduling operations. |

@@ -13,7 +13,7 @@ use crate::{Loader, ModuleTarget, SourceType, TsConfigId};
 pub enum ModuleSource {
     /// User/project code.
     User,
-    /// Builtin library code (core, std, or lib).
+    /// Builtin library code.
     Builtin(BuiltinLibKind),
 }
 
