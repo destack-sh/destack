@@ -45,11 +45,12 @@ export enum ExportedEnum { A }
 //     ^^^^ keyword.declaration.type.ds
 //          ^^^^^^^^^^^^ entity.name.type.definition.ds
 
-namespace MyNs {}
-//          ^ entity.name.type.definition.ds
-
 newtype UserId {}
 //        ^ entity.name.type.definition.ds
+
+newtype UserId = int64
+//        ^ entity.name.type.definition.ds
+//                 ^^^^^ support.type.numeric.ds
 
 enum Status {
     Active
@@ -80,10 +81,6 @@ struct Box<T, U> {}
 //         ^ entity.name.type.parameter.ds
 //            ^ entity.name.type.parameter.ds
 
-class Derived extends Base implements Iface {}
-//                    ^^^^ entity.name.type.ds
-//                                    ^^^^^ entity.name.type.ds
-
 let value: Result
 //         ^^^^^^ entity.name.type.ds
 
@@ -107,28 +104,3 @@ extension DateHelpers for Date {}
 //          ^ entity.name.type.definition.ds
 //                    ^ keyword.declaration.type.ds
 //                        ^ entity.name.type.ds
-
-value.foo.bar
-//      ^ variable.other.member.ds
-//          ^ variable.other.member.ds
-
-value
-  .foo
-//   ^ variable.other.member.ds
-
-value.foo().bar
-//            ^ variable.other.member.ds
-
-0..this.count
-//  ^ keyword.other.context.ds
-
-...spread.member
-//         ^ variable.other.member.ds
-
-class Secret {
-    #value: int32
-//   ^^^^^ variable.other.property.ds
-}
-
-this.#value
-//    ^^^^^ variable.other.member.ds

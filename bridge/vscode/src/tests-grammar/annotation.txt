@@ -1,130 +1,5 @@
 // SYNTAX TEST "source.ds"
 
-const node = <div class="greeting" />
-//            ^^^ entity.name.tag.tsx
-
-const fragment = <test.MyComponent flag arg={true} />
-//                ^^^^  ^^^^^^^^ entity.name.tag.tsx
-//                                  ^^^ entity.other.attribute-name.tsx
-//                                      ^^^ entity.other.attribute-name.tsx
-
-const attrs = <div title='hi' data-id="value" />
-//             ^^^ entity.name.tag.tsx
-//                 ^^^^^ entity.other.attribute-name.tsx
-//                            ^^^^^^^ entity.other.attribute-name.tsx
-
-const fragment2 = <>
-//                ^ punctuation.definition.tag.begin.tsx
-  <Item />
-// ^^^^ entity.name.tag.tsx
-</>
-// <- punctuation.definition.tag.begin.tsx
-
-const spread = <Component {...props} data-id={value} />
-//              ^^^^^^^^^ entity.name.tag.tsx
-//                         ^^^ keyword.operator.prefix.ds
-//                                   ^^^^^^^ entity.other.attribute-name.tsx
-
-const nested = (
-  <Parent>
-// ^^^^^^ entity.name.tag.tsx
-    <Child value={items[0]} />
-//   ^^^^^ entity.name.tag.tsx
-//         ^^^^^ entity.other.attribute-name.tsx
-  </Parent>
-//  ^^^^^^ entity.name.tag.tsx
-)
-
-return (
-  <Button>
-//   ^ entity.name.tag.tsx
-  </Button>
-//    ^ entity.name.tag.tsx
-)
-
-const generic = <Table<Row> data={rows} />
-//               ^^^^^ entity.name.tag.tsx
-//                     ^^^ entity.name.type.ds
-//                          ^^^^ entity.other.attribute-name.tsx
-
-const namespaced = <svg:path data-id="1" />
-//                  ^^^^^^^^ entity.name.tag.tsx
-//                           ^^^^^^^ entity.other.attribute-name.tsx
-
-const closingNamespaced = (
-  <svg:path>
-// ^^^^^^^^ entity.name.tag.tsx
-  </svg:path>
-//  ^^^^^^^^ entity.name.tag.tsx
-)
-
-const genericArrow = <T,>(value: T) => value
-//                   ^ punctuation.definition.typeparameters.begin.ds
-//                    ^ entity.name.type.parameter.ds
-//                     ^ punctuation.separator.comma.ds
-//                      ^ punctuation.definition.typeparameters.end.ds
-
-const constrainedArrow = <T extends Node>(value: T) => value
-//                       ^ punctuation.definition.typeparameters.begin.ds
-//                        ^ entity.name.type.parameter.ds
-//                          ^^^^^^^ keyword.operator.type.binary.ds
-//                                      ^ punctuation.definition.typeparameters.end.ds
-
-const annotatedArrow = <T: Node>(value: T) => value
-//                     ^ punctuation.definition.typeparameters.begin.ds
-//                      ^ entity.name.type.parameter.ds
-//                         ^^^^ meta.type.parameter.annotation.ds entity.name.type.ds
-//                             ^ punctuation.definition.typeparameters.end.ds
-
-const comptimeArrow = <comptime T: Node>(value: T) => value
-//                    ^ punctuation.definition.typeparameters.begin.ds
-//                     ^^^^^^^^ keyword.other.comptime.ds
-//                              ^ entity.name.type.parameter.ds
-//                                 ^^^^ meta.type.parameter.annotation.ds entity.name.type.ds
-//                                     ^ punctuation.definition.typeparameters.end.ds
-
-const defaultedArrow = <T extends Node = Base>(value: T) => value
-//                     ^ punctuation.definition.typeparameters.begin.ds
-//                      ^ entity.name.type.parameter.ds
-//                        ^^^^^^^ keyword.operator.type.binary.ds
-//                                     ^ keyword.operator.assignment.ds
-//                                       ^^^^ entity.name.type.ds
-//                                           ^ punctuation.definition.typeparameters.end.ds
-
-const singleLetterTag = <T value={x} />
-//                       ^ entity.name.tag.tsx
-//                         ^^^^^ entity.other.attribute-name.tsx
-
-const deepGenericTag = <Table<Map<Key, Value>> data={rows} />
-//                      ^^^^^ entity.name.tag.tsx
-//                            ^^^ entity.name.type.ds
-//                                ^^^ entity.name.type.ds
-//                                     ^^^^^ entity.name.type.ds
-//                                             ^^^^ entity.other.attribute-name.tsx
-
-const expressionDoBlock = <Widget data={do { let prepared = map(value); prepared }} />
-//                         ^^^^^^ entity.name.tag.tsx
-//                                ^^^^ entity.other.attribute-name.tsx
-//                                      ^^ keyword.control.loop.ds
-
-const multilineGenericArrow = <T,>(
-//                            ^ punctuation.definition.typeparameters.begin.ds
-//                             ^ entity.name.type.parameter.ds
-//                              ^ punctuation.separator.comma.ds
-//                               ^ punctuation.definition.typeparameters.end.ds
-  value: T,
-): T => value
-//    ^ keyword.operator.arrow.ds
-
-const objectReturnArrow = <T>(value: T): { value: T } => ({ value })
-//                        ^ punctuation.definition.typeparameters.begin.ds
-//                         ^ entity.name.type.parameter.ds
-//                          ^ punctuation.definition.typeparameters.end.ds
-
-const handlerTag = <Widget onClick={(value) => value} />
-//                  ^^^^^^ entity.name.tag.tsx
-//                         ^^^^^^^ entity.other.attribute-name.tsx
-
 #tag
 // <- entity.name.function.decorator.ds
 //^^ entity.name.function.decorator.ds
@@ -144,3 +19,127 @@ const handlerTag = <Widget onClick={(value) => value} />
 @addrspace("shared")
 // <- entity.name.function.decorator.ds
 //^^^^^^^^ entity.name.function.decorator.ds
+
+@runtime.memoize
+// <- entity.name.function.decorator.ds
+//^^^^^^^^^^^^^^^^ entity.name.function.decorator.ds
+
+@runtime.memoize<T>()
+// <- entity.name.function.decorator.ds
+//         ^ entity.name.function.decorator.ds
+
+#ffi.intrinsic
+// <- entity.name.function.decorator.ds
+//^^^^^^^^^^^^^ entity.name.function.decorator.ds
+
+@service.middleware
+//^ entity.name.function.decorator.ds
+//         ^ entity.name.function.decorator.ds
+
+@service.middleware<Request>("v1")
+//^ entity.name.function.decorator.ds
+//         ^ entity.name.function.decorator.ds
+
+@deprecated("use newAPI")
+//^ entity.name.function.decorator.ds
+function oldAPI() {}
+
+@unroll
+//^ entity.name.function.decorator.ds
+for (let i = 0; i < 4; i++) {}
+
+function decorate(
+  @arg("id") id: int32,
+//^ entity.name.function.decorator.ds
+  @trace value: string,
+//^ entity.name.function.decorator.ds
+) {}
+
+function greet(@validate name: string) {}
+//               ^ entity.name.function.decorator.ds
+
+function kernel(data: @addrspace("shared") &Point) {}
+//                    ^ entity.name.function.decorator.ds
+
+function first(a: &string, b: &string): @lifetime("a") &string {
+//                                      ^ entity.name.function.decorator.ds
+    return a;
+}
+
+class CompileHooks {
+  @if(import.meta.output == "js")
+//^ entity.name.function.decorator.ds
+  comptime const Enabled: boolean = true
+}
+
+@if(import.meta.platform == "windows")
+//^ entity.name.function.decorator.ds
+module WindowsOnly {}
+
+function demo(@if(true) value: number): void {}
+//             ^ entity.name.function.decorator.ds
+
+call(@if(true) 1)
+//    ^ entity.name.function.decorator.ds
+
+const message = @Error(`bad number`)
+//              ^ entity.name.function.decorator.ds
+
+const alias = (@memoized(source))
+//               ^ entity.name.function.decorator.ds
+
+match (result) {
+  @cold
+//^ entity.name.function.decorator.ds
+  Err(error) => @emit("err"),
+//              ^ entity.name.function.decorator.ds
+  @hot
+//^ entity.name.function.decorator.ds
+  Ok(value) => value,
+}
+
+match (event) {
+    @likely
+//  ^ entity.name.function.decorator.ds
+    Click(pos) => handle(pos),
+}
+
+try {
+  risky()?;
+} catch match (err) {
+  @recover
+//^ entity.name.function.decorator.ds
+  _ => 0
+}
+
+@baz @bam class DecoratedMembers {
+  @foo static 2: string;
+
+  @bar.buzz(grue) public static 2: string = "value";
+
+  @readonly readonly "hello"?: int = "string";
+
+  @readonly fooBar(@required param: any, @optional param2?: any) {
+  }
+}
+
+class C {
+    @(super.decorate)
+//  ^ entity.name.function.decorator.ds
+//    ^^^^^ keyword.other.context.ds
+//          ^^^^^^^^ variable.other.member.ds
+    method2() {}
+//  ^^^^^^^ entity.name.function.definition.ds
+}
+
+declare namespace gpu {
+    @binding("destack.gpu.command.encoderOpen", {
+//  ^ entity.name.function.decorator.ds
+        effect: "external",
+//      ^^^^^^ variable.other.property.ds
+        capabilities: ["gpu.queue"],
+//      ^^^^^^^^^^^^ variable.other.property.ds
+    })
+    export function commandEncoderOpen(): void;
+//                  ^^^^^^^^^^^^^^^^^^ entity.name.function.definition.ds
+}

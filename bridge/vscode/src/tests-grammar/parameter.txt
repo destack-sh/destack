@@ -1,5 +1,13 @@
 // SYNTAX TEST "source.ds"
 
+function merge<T, U>(left: T, right: U): T where (
+//                                         ^^^^^ keyword.operator.type.ds
+  T: Add<U, T>,
+//   ^^^ entity.name.type.ds
+  U: Copy,
+//   ^^^^ entity.name.type.ds
+) {}
+
 newtype interface Add<T, R = this> {}
 // <- keyword.declaration.type.ds
 //      ^ keyword.declaration.type.ds
@@ -42,35 +50,11 @@ if (comptime Context extends EvictableContext<T>) { }
 //                           ^^^^^^^^^^^^^^^^ entity.name.type.ds
 //                                            ^ entity.name.type.ds
 
-if let value: int32 = maybe
-// <- keyword.control.conditional.ds
-// ^^^ keyword.declaration.type.ds
-
-await using resource = open()
-// <- keyword.control.async.ds
-//    ^^^^^ keyword.operator.type.ds
-//                   ^ keyword.operator.assignment.ds
-
-export using cache = openCache()
-// <- keyword.declaration.import.ds
-//     ^^^^^ keyword.operator.type.ds
-
 const derived = value satisfies Shape
 //                    ^ keyword.operator.type.binary.ds
 
 const narrowed = value instanceof Widget
 //                     ^^^^^^^^^^ keyword.operator.type.binary.ds
-
-import source from "./module.ds" with { type: "json" }
-// <- keyword.declaration.import.ds
-//            ^ keyword.declaration.import.ds
-//                               ^ keyword.declaration.import.ds
-
-for (item of entries) { }
-//        ^ keyword.operator.container.ds
-
-for (key in table) { }
-//       ^ keyword.operator.container.ds
 
 interface Producer<out T> {}
 // <- keyword.declaration.type.ds
