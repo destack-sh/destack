@@ -10,42 +10,43 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::device::{
-    BluetoothAdapterAttachedEvent, BluetoothAdapterAttachedEventValue,
-    BluetoothAdapterAttachedEventVm, BluetoothAdapterChangedEvent,
-    BluetoothAdapterChangedEventValue, BluetoothAdapterChangedEventVm, BluetoothAdapterDescriptor,
-    BluetoothAdapterDescriptorValue, BluetoothAdapterDescriptorVm, BluetoothAdapterDetachedEvent,
+    BluetoothAdapterChangedEvent, BluetoothAdapterChangedEventValue,
+    BluetoothAdapterChangedEventVm, BluetoothAdapterDescriptor, BluetoothAdapterDescriptorValue,
+    BluetoothAdapterDescriptorVm, BluetoothAdapterDetachedEvent,
     BluetoothAdapterDetachedEventValue, BluetoothAdapterDetachedEventVm, BluetoothAdapterEvent,
     BluetoothAdapterEventMetadata, BluetoothAdapterEventMetadataValue,
     BluetoothAdapterEventMetadataVm, BluetoothAdapterEventValue, BluetoothAdapterEventVm,
-    BluetoothAdvertisementData, BluetoothAdvertisementDataValue, BluetoothAdvertisementDataVm,
-    BluetoothAdvertisementManufacturerData, BluetoothAdvertisementManufacturerDataValue,
-    BluetoothAdvertisementManufacturerDataVm, BluetoothAdvertisementServiceData,
-    BluetoothAdvertisementServiceDataValue, BluetoothAdvertisementServiceDataVm,
-    BluetoothDataFilter, BluetoothDataFilterVm, BluetoothDeviceDescriptor,
-    BluetoothDeviceDescriptorValue, BluetoothDeviceDescriptorVm, BluetoothGattCharacteristic,
-    BluetoothGattCharacteristicProperties, BluetoothGattCharacteristicPropertiesVm,
-    BluetoothGattCharacteristicValue, BluetoothGattCharacteristicVm, BluetoothGattDescriptor,
-    BluetoothGattDescriptorValue, BluetoothGattDescriptorVm, BluetoothGattService,
-    BluetoothGattServiceValue, BluetoothGattServiceVm, BluetoothGattValueEvent,
-    BluetoothGattValueEventValue, BluetoothGattValueEventVm, BluetoothGattWriteMode,
-    BluetoothLeTransport, BluetoothManufacturerDataFilter, BluetoothManufacturerDataFilterVm,
-    BluetoothPairState, BluetoothPhy, BluetoothScanDiscoveredEvent,
-    BluetoothScanDiscoveredEventValue, BluetoothScanDiscoveredEventVm, BluetoothScanEvent,
-    BluetoothScanEventMetadata, BluetoothScanEventMetadataValue, BluetoothScanEventMetadataVm,
-    BluetoothScanEventValue, BluetoothScanEventVm, BluetoothScanFilter, BluetoothScanFilterVm,
-    BluetoothScanLostEvent, BluetoothScanLostEventValue, BluetoothScanLostEventVm,
-    BluetoothScanMode, BluetoothScanUpdatedEvent, BluetoothScanUpdatedEventValue,
-    BluetoothScanUpdatedEventVm, BluetoothServiceDataFilter, BluetoothServiceDataFilterVm,
-    BluetoothSessionDisconnectedEvent, BluetoothSessionDisconnectedEventValue,
-    BluetoothSessionDisconnectedEventVm, BluetoothSessionEvent, BluetoothSessionEventMetadata,
-    BluetoothSessionEventMetadataVm, BluetoothSessionEventValue, BluetoothSessionEventVm,
-    BluetoothSessionGattDatabaseChangedEvent, BluetoothSessionGattDatabaseChangedEventValue,
-    BluetoothSessionGattDatabaseChangedEventVm, BluetoothSessionPairStateChangedEvent,
-    BluetoothSessionPairStateChangedEventValue, BluetoothSessionPairStateChangedEventVm,
-    BluetoothadapterattachedeventReplayRecord, BluetoothadapterchangedeventReplayRecord,
-    BluetoothadapterdescriptorReplayRecord, BluetoothadapterdetachedeventReplayRecord,
-    BluetoothadaptereventReplayRecord, BluetoothadaptereventmetadataReplayRecord,
-    BluetoothadvertisementdataReplayRecord, BluetoothadvertisementmanufacturerdataReplayRecord,
+    BluetoothAdapterInstanceEvent, BluetoothAdapterInstanceEventValue,
+    BluetoothAdapterInstanceEventVm, BluetoothAdvertisementData, BluetoothAdvertisementDataValue,
+    BluetoothAdvertisementDataVm, BluetoothAdvertisementManufacturerData,
+    BluetoothAdvertisementManufacturerDataValue, BluetoothAdvertisementManufacturerDataVm,
+    BluetoothAdvertisementServiceData, BluetoothAdvertisementServiceDataValue,
+    BluetoothAdvertisementServiceDataVm, BluetoothDataFilter, BluetoothDataFilterVm,
+    BluetoothDeviceDescriptor, BluetoothDeviceDescriptorValue, BluetoothDeviceDescriptorVm,
+    BluetoothGattCharacteristic, BluetoothGattCharacteristicProperties,
+    BluetoothGattCharacteristicPropertiesVm, BluetoothGattCharacteristicValue,
+    BluetoothGattCharacteristicVm, BluetoothGattDescriptor, BluetoothGattDescriptorValue,
+    BluetoothGattDescriptorVm, BluetoothGattService, BluetoothGattServiceValue,
+    BluetoothGattServiceVm, BluetoothGattValueEvent, BluetoothGattValueEventValue,
+    BluetoothGattValueEventVm, BluetoothGattWriteMode, BluetoothLeTransport,
+    BluetoothManufacturerDataFilter, BluetoothManufacturerDataFilterVm, BluetoothPairState,
+    BluetoothPhy, BluetoothScanDiscoveredEvent, BluetoothScanDiscoveredEventValue,
+    BluetoothScanDiscoveredEventVm, BluetoothScanEvent, BluetoothScanEventMetadata,
+    BluetoothScanEventMetadataValue, BluetoothScanEventMetadataVm, BluetoothScanEventValue,
+    BluetoothScanEventVm, BluetoothScanFilter, BluetoothScanFilterVm, BluetoothScanLostEvent,
+    BluetoothScanLostEventValue, BluetoothScanLostEventVm, BluetoothScanMode,
+    BluetoothScanUpdatedEvent, BluetoothScanUpdatedEventValue, BluetoothScanUpdatedEventVm,
+    BluetoothServiceDataFilter, BluetoothServiceDataFilterVm, BluetoothSessionDisconnectedEvent,
+    BluetoothSessionDisconnectedEventValue, BluetoothSessionDisconnectedEventVm,
+    BluetoothSessionEvent, BluetoothSessionEventMetadata, BluetoothSessionEventMetadataVm,
+    BluetoothSessionEventValue, BluetoothSessionEventVm, BluetoothSessionGattDatabaseChangedEvent,
+    BluetoothSessionGattDatabaseChangedEventValue, BluetoothSessionGattDatabaseChangedEventVm,
+    BluetoothSessionPairStateChangedEvent, BluetoothSessionPairStateChangedEventValue,
+    BluetoothSessionPairStateChangedEventVm, BluetoothadapterattachedeventReplayRecord,
+    BluetoothadapterchangedeventReplayRecord, BluetoothadapterdescriptorReplayRecord,
+    BluetoothadapterdetachedeventReplayRecord, BluetoothadaptereventReplayRecord,
+    BluetoothadaptereventmetadataReplayRecord, BluetoothadvertisementdataReplayRecord,
+    BluetoothadvertisementmanufacturerdataReplayRecord,
     BluetoothadvertisementservicedataReplayRecord, BluetoothdevicedescriptorReplayRecord,
     BluetoothgattcharacteristicReplayRecord, BluetoothgattdescriptorReplayRecord,
     BluetoothgattserviceReplayRecord, BluetoothgattvalueeventReplayRecord,
@@ -53,8 +54,7 @@ use crate::platform::device::{
     BluetoothscaneventmetadataReplayRecord, BluetoothscanlosteventReplayRecord,
     BluetoothscanupdatedeventReplayRecord, BluetoothsessiondisconnectedeventReplayRecord,
     BluetoothsessioneventReplayRecord, BluetoothsessiongattdatabasechangedeventReplayRecord,
-    BluetoothsessionpairstatechangedeventReplayRecord, CameraAttachedEvent,
-    CameraAttachedEventValue, CameraAttachedEventVm, CameraAudioCodec, CameraColorSpace,
+    BluetoothsessionpairstatechangedeventReplayRecord, CameraAudioCodec, CameraColorSpace,
     CameraControlCapabilities, CameraControlCapabilitiesValue, CameraControlCapabilitiesVm,
     CameraControlPatch, CameraControlPatchVm, CameraControlState, CameraControlStateVm,
     CameraDetachedEvent, CameraDetachedEventValue, CameraDetachedEventVm, CameraDeviceDescriptor,
@@ -63,45 +63,51 @@ use crate::platform::device::{
     CameraExposureTimeRange, CameraExposureTimeRangeVm, CameraFacingMode, CameraFloatControlRange,
     CameraFloatControlRangeVm, CameraFocusDistanceRange, CameraFocusDistanceRangeVm,
     CameraFocusMode, CameraFrame, CameraFrameMetadata, CameraFrameMetadataVm, CameraFrameValue,
-    CameraFrameVm, CameraPanAngleRange, CameraPanAngleRangeVm, CameraPhoto,
-    CameraPhotoCapabilities, CameraPhotoCapabilitiesValue, CameraPhotoCapabilitiesVm,
-    CameraPhotoFlashMode, CameraPhotoOptions, CameraPhotoOptionsVm, CameraPhotoSettings,
-    CameraPhotoSettingsVm, CameraPhotoState, CameraPhotoStateVm, CameraPhotoValue, CameraPhotoVm,
-    CameraPixelFormat, CameraPixelFormatDescriptor, CameraPixelFormatDescriptorVm,
-    CameraPixelFormatFamily, CameraPlaneLayout, CameraPlaneLayoutVm, CameraRecording,
-    CameraRecordingCapabilities, CameraRecordingCapabilitiesValue, CameraRecordingCapabilitiesVm,
-    CameraRecordingContainer, CameraRecordingOptions, CameraRecordingOptionsValue,
-    CameraRecordingOptionsVm, CameraRecordingState, CameraRecordingStateValue,
-    CameraRecordingStateVm, CameraRecordingVm, CameraRedEyeReduction, CameraSensorIsoRange,
-    CameraSensorIsoRangeVm, CameraStabilizationMode, CameraStreamCapability,
-    CameraStreamCapabilityValue, CameraStreamCapabilityVm, CameraStreamConfig,
-    CameraStreamConfigVm, CameraTiltAngleRange, CameraTiltAngleRangeVm, CameraTorchMode,
-    CameraVideoCodec, CameraWatchEvent, CameraWatchEventMetadata, CameraWatchEventMetadataValue,
-    CameraWatchEventMetadataVm, CameraWatchEventValue, CameraWatchEventVm, CameraWhiteBalanceMode,
-    CameraWhiteBalanceRange, CameraWhiteBalanceRangeVm, CameraZoomRatioRange,
-    CameraZoomRatioRangeVm, CameraattachedeventReplayRecord, CameracontrolcapabilitiesReplayRecord,
-    CameradetachedeventReplayRecord, CameradevicedescriptorReplayRecord, CameraframeReplayRecord,
-    CameraphotoReplayRecord, CameraphotocapabilitiesReplayRecord,
-    CamerarecordingcapabilitiesReplayRecord, CamerarecordingoptionsReplayRecord,
-    CamerarecordingstateReplayRecord, CamerastreamcapabilityReplayRecord,
-    CamerawatcheventReplayRecord, CamerawatcheventmetadataReplayRecord, SerialAttachedEvent,
-    SerialAttachedEventValue, SerialAttachedEventVm, SerialDataBits, SerialDetachedEvent,
+    CameraFrameVm, CameraInstanceEvent, CameraInstanceEventValue, CameraInstanceEventVm,
+    CameraPanAngleRange, CameraPanAngleRangeVm, CameraPhoto, CameraPhotoCapabilities,
+    CameraPhotoCapabilitiesValue, CameraPhotoCapabilitiesVm, CameraPhotoFlashMode,
+    CameraPhotoOptions, CameraPhotoOptionsVm, CameraPhotoSettings, CameraPhotoSettingsVm,
+    CameraPhotoState, CameraPhotoStateVm, CameraPhotoValue, CameraPhotoVm, CameraPixelFormat,
+    CameraPixelFormatDescriptor, CameraPixelFormatDescriptorVm, CameraPixelFormatFamily,
+    CameraPlaneLayout, CameraPlaneLayoutVm, CameraRecording, CameraRecordingCapabilities,
+    CameraRecordingCapabilitiesValue, CameraRecordingCapabilitiesVm, CameraRecordingContainer,
+    CameraRecordingOptions, CameraRecordingOptionsValue, CameraRecordingOptionsVm,
+    CameraRecordingState, CameraRecordingStateValue, CameraRecordingStateVm, CameraRecordingVm,
+    CameraRedEyeReduction, CameraSensorIsoRange, CameraSensorIsoRangeVm, CameraStabilizationMode,
+    CameraStreamCapability, CameraStreamCapabilityValue, CameraStreamCapabilityVm,
+    CameraStreamConfig, CameraStreamConfigVm, CameraTiltAngleRange, CameraTiltAngleRangeVm,
+    CameraTorchMode, CameraVideoCodec, CameraWatchEvent, CameraWatchEventMetadata,
+    CameraWatchEventMetadataValue, CameraWatchEventMetadataVm, CameraWatchEventValue,
+    CameraWatchEventVm, CameraWhiteBalanceMode, CameraWhiteBalanceRange, CameraWhiteBalanceRangeVm,
+    CameraZoomRatioRange, CameraZoomRatioRangeVm, CameraattachedeventReplayRecord,
+    CameracontrolcapabilitiesReplayRecord, CameradetachedeventReplayRecord,
+    CameradevicedescriptorReplayRecord, CameraframeReplayRecord, CameraphotoReplayRecord,
+    CameraphotocapabilitiesReplayRecord, CamerarecordingcapabilitiesReplayRecord,
+    CamerarecordingoptionsReplayRecord, CamerarecordingstateReplayRecord,
+    CamerastreamcapabilityReplayRecord, CamerawatcheventReplayRecord,
+    CamerawatcheventmetadataReplayRecord, SerialDataBits, SerialDetachedEvent,
     SerialDetachedEventValue, SerialDetachedEventVm, SerialDisconnectedEvent,
     SerialDisconnectedEventValue, SerialDisconnectedEventVm, SerialErrorEvent,
     SerialErrorEventValue, SerialErrorEventVm, SerialErrorKind, SerialEvent, SerialEventMetadata,
     SerialEventMetadataVm, SerialEventValue, SerialEventVm, SerialFlowControl, SerialFlowControlVm,
-    SerialInputSignals, SerialInputSignalsVm, SerialModemStatusChangedEvent,
-    SerialModemStatusChangedEventValue, SerialModemStatusChangedEventVm, SerialOutputSignals,
-    SerialOutputSignalsVm, SerialParity, SerialPortConfig, SerialPortConfigVm,
-    SerialPortDescriptor, SerialPortDescriptorValue, SerialPortDescriptorVm, SerialPortOpenOptions,
-    SerialPortOpenOptionsVm, SerialPortTransport, SerialReadReadyEvent, SerialReadReadyEventValue,
-    SerialReadReadyEventVm, SerialStopBits, SerialWatchEvent, SerialWatchEventMetadata,
-    SerialWatchEventMetadataValue, SerialWatchEventMetadataVm, SerialWatchEventValue,
-    SerialWatchEventVm, SerialattachedeventReplayRecord, SerialdetachedeventReplayRecord,
-    SerialdisconnectedeventReplayRecord, SerialerroreventReplayRecord, SerialeventReplayRecord,
-    SerialmodemstatuschangedeventReplayRecord, SerialportdescriptorReplayRecord,
-    SerialreadreadyeventReplayRecord, SerialwatcheventReplayRecord,
-    SerialwatcheventmetadataReplayRecord, UsbBosCapabilityDescriptor,
+    SerialInputSignals, SerialInputSignalsVm, SerialInstanceEvent, SerialInstanceEventValue,
+    SerialInstanceEventVm, SerialModemStatusChangedEvent, SerialModemStatusChangedEventValue,
+    SerialModemStatusChangedEventVm, SerialOutputSignals, SerialOutputSignalsVm,
+    SerialOverflowEvent, SerialOverflowEventMetadata, SerialOverflowEventMetadataVm,
+    SerialOverflowEventValue, SerialOverflowEventVm, SerialParity, SerialPortConfig,
+    SerialPortConfigVm, SerialPortDescriptor, SerialPortDescriptorValue, SerialPortDescriptorVm,
+    SerialPortOpenOptions, SerialPortOpenOptionsVm, SerialPortTransport, SerialReadReadyEvent,
+    SerialReadReadyEventValue, SerialReadReadyEventVm, SerialStopBits, SerialWatchEvent,
+    SerialWatchEventMetadata, SerialWatchEventMetadataValue, SerialWatchEventMetadataVm,
+    SerialWatchEventValue, SerialWatchEventVm, SerialWatchOverflowEvent,
+    SerialWatchOverflowEventMetadata, SerialWatchOverflowEventMetadataVm,
+    SerialWatchOverflowEventValue, SerialWatchOverflowEventVm, SerialattachedeventReplayRecord,
+    SerialdetachedeventReplayRecord, SerialdisconnectedeventReplayRecord,
+    SerialerroreventReplayRecord, SerialeventReplayRecord,
+    SerialmodemstatuschangedeventReplayRecord, SerialoverfloweventReplayRecord,
+    SerialportdescriptorReplayRecord, SerialreadreadyeventReplayRecord,
+    SerialwatcheventReplayRecord, SerialwatcheventmetadataReplayRecord,
+    SerialwatchoverfloweventReplayRecord, UsbBosCapabilityDescriptor,
     UsbBosCapabilityDescriptorValue, UsbBosCapabilityDescriptorVm, UsbBosCapabilityKind,
     UsbConfigurationDescriptor, UsbConfigurationDescriptorValue, UsbConfigurationDescriptorVm,
     UsbControlDeviceTarget, UsbControlDeviceTargetVm, UsbControlEndpointTarget,
@@ -110,19 +116,21 @@ use crate::platform::device::{
     UsbControlTarget, UsbControlTargetVm, UsbControlTransferType, UsbDeviceDescriptor,
     UsbDeviceDescriptorValue, UsbDeviceDescriptorVm, UsbDeviceSpeed, UsbEndpointDescriptor,
     UsbEndpointDescriptorVm, UsbEndpointDirection, UsbEndpointSelector, UsbEndpointSelectorVm,
-    UsbEndpointTransferType, UsbHotplugAttachedEvent, UsbHotplugAttachedEventValue,
-    UsbHotplugAttachedEventVm, UsbHotplugDetachedEvent, UsbHotplugDetachedEventValue,
+    UsbEndpointTransferType, UsbHotplugDetachedEvent, UsbHotplugDetachedEventValue,
     UsbHotplugDetachedEventVm, UsbHotplugEvent, UsbHotplugEventMetadata,
     UsbHotplugEventMetadataValue, UsbHotplugEventMetadataVm, UsbHotplugEventValue,
-    UsbHotplugEventVm, UsbInTransferResult, UsbInTransferResultValue, UsbInTransferResultVm,
-    UsbInterfaceDescriptor, UsbInterfaceDescriptorValue, UsbInterfaceDescriptorVm,
-    UsbIsochronousPacketResult, UsbIsochronousPacketResultVm, UsbIsochronousTransferResult,
-    UsbIsochronousTransferResultValue, UsbIsochronousTransferResultVm, UsbOutTransferResult,
-    UsbOutTransferResultVm, UsbStringDescriptor, UsbStringDescriptorValue, UsbStringDescriptorVm,
-    UsbTransferStatus, UsbboscapabilitydescriptorReplayRecord,
-    UsbconfigurationdescriptorReplayRecord, UsbdevicedescriptorReplayRecord,
-    UsbhotplugattachedeventReplayRecord, UsbhotplugdetachedeventReplayRecord,
-    UsbhotplugeventReplayRecord, UsbhotplugeventmetadataReplayRecord,
+    UsbHotplugEventVm, UsbHotplugInstanceEvent, UsbHotplugInstanceEventValue,
+    UsbHotplugInstanceEventVm, UsbHotplugOverflowEvent, UsbHotplugOverflowEventMetadata,
+    UsbHotplugOverflowEventMetadataVm, UsbHotplugOverflowEventValue, UsbHotplugOverflowEventVm,
+    UsbInTransferResult, UsbInTransferResultValue, UsbInTransferResultVm, UsbInterfaceDescriptor,
+    UsbInterfaceDescriptorValue, UsbInterfaceDescriptorVm, UsbIsochronousPacketResult,
+    UsbIsochronousPacketResultVm, UsbIsochronousTransferResult, UsbIsochronousTransferResultValue,
+    UsbIsochronousTransferResultVm, UsbOutTransferResult, UsbOutTransferResultVm,
+    UsbStringDescriptor, UsbStringDescriptorValue, UsbStringDescriptorVm, UsbTransferStatus,
+    UsbboscapabilitydescriptorReplayRecord, UsbconfigurationdescriptorReplayRecord,
+    UsbdevicedescriptorReplayRecord, UsbhotplugattachedeventReplayRecord,
+    UsbhotplugdetachedeventReplayRecord, UsbhotplugeventReplayRecord,
+    UsbhotplugeventmetadataReplayRecord, UsbhotplugoverfloweventReplayRecord,
     UsbinterfacedescriptorReplayRecord, UsbintransferresultReplayRecord,
     UsbisochronoustransferresultReplayRecord, UsbstringdescriptorReplayRecord,
 };
@@ -398,7 +406,7 @@ fn encode_destack_device_bluetooth_adapter_watch_read_result(
 ) -> RuntimeResult<vm::Value> {
     result
         .map(|value| match value {
-            BluetoothAdapterEventVm::BluetoothAdapterAttachedEvent(value) => {
+            BluetoothAdapterEventVm::BluetoothAdapterInstanceEvent(value) => {
                 let tag_value = vm::Value::uint(1353297665u64, 32);
                 let payload_value = {
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
@@ -559,7 +567,7 @@ fn encode_destack_device_bluetooth_adapter_watch_try_read_result(
 ) -> RuntimeResult<vm::Value> {
     result
         .map(|value| match value {
-            BluetoothAdapterEventVm::BluetoothAdapterAttachedEvent(value) => {
+            BluetoothAdapterEventVm::BluetoothAdapterInstanceEvent(value) => {
                 let tag_value = vm::Value::uint(1353297665u64, 32);
                 let payload_value = {
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
@@ -2434,7 +2442,7 @@ fn encode_destack_device_camera_device_watch_read_result(
 ) -> RuntimeResult<vm::Value> {
     result
         .map(|value| match value {
-            CameraWatchEventVm::CameraAttachedEvent(value) => {
+            CameraWatchEventVm::CameraInstanceEvent(value) => {
                 let tag_value = vm::Value::uint(2552466724u64, 32);
                 let payload_value = {
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
@@ -2556,7 +2564,7 @@ fn encode_destack_device_camera_device_watch_try_read_result(
 ) -> RuntimeResult<vm::Value> {
     result
         .map(|value| match value {
-            CameraWatchEventVm::CameraAttachedEvent(value) => {
+            CameraWatchEventVm::CameraInstanceEvent(value) => {
                 let tag_value = vm::Value::uint(2552466724u64, 32);
                 let payload_value = {
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
@@ -5273,6 +5281,29 @@ fn encode_destack_device_serial_read_event_result(
                     .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
             }
+            SerialEventVm::SerialOverflowEvent(value) => {
+                let tag_value = vm::Value::uint(2823124308u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
             SerialEventVm::SerialReadReadyEvent(value) => {
                 let tag_value = vm::Value::uint(1237782817u64, 32);
                 let payload_value = {
@@ -5511,6 +5542,29 @@ fn encode_destack_device_serial_try_read_event_result(
                     .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
             }
+            SerialEventVm::SerialOverflowEvent(value) => {
+                let tag_value = vm::Value::uint(2823124308u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
             SerialEventVm::SerialReadReadyEvent(value) => {
                 let tag_value = vm::Value::uint(1237782817u64, 32);
                 let payload_value = {
@@ -5624,7 +5678,7 @@ fn encode_destack_device_serial_watch_read_result(
 ) -> RuntimeResult<vm::Value> {
     result
         .map(|value| match value {
-            SerialWatchEventVm::SerialAttachedEvent(value) => {
+            SerialWatchEventVm::SerialInstanceEvent(value) => {
                 let tag_value = vm::Value::uint(124316150u64, 32);
                 let payload_value = {
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
@@ -5810,6 +5864,29 @@ fn encode_destack_device_serial_watch_read_result(
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
                         };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            SerialWatchEventVm::SerialWatchOverflowEvent(value) => {
+                let tag_value = vm::Value::uint(734537633u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
                             .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                             .map_err(Box::<RuntimeError>::from)
@@ -5848,7 +5925,7 @@ fn encode_destack_device_serial_watch_try_read_result(
 ) -> RuntimeResult<vm::Value> {
     result
         .map(|value| match value {
-            SerialWatchEventVm::SerialAttachedEvent(value) => {
+            SerialWatchEventVm::SerialInstanceEvent(value) => {
                 let tag_value = vm::Value::uint(124316150u64, 32);
                 let payload_value = {
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
@@ -6034,6 +6111,29 @@ fn encode_destack_device_serial_watch_try_read_result(
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
                         };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            SerialWatchEventVm::SerialWatchOverflowEvent(value) => {
+                let tag_value = vm::Value::uint(734537633u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
                             .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                             .map_err(Box::<RuntimeError>::from)
@@ -7304,7 +7404,7 @@ fn encode_destack_device_usb_watch_read_result(
 ) -> RuntimeResult<vm::Value> {
     result
         .map(|value| match value {
-            UsbHotplugEventVm::UsbHotplugAttachedEvent(value) => {
+            UsbHotplugEventVm::UsbHotplugInstanceEvent(value) => {
                 let tag_value = vm::Value::uint(1449914010u64, 32);
                 let payload_value = {
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
@@ -7464,6 +7564,29 @@ fn encode_destack_device_usb_watch_read_result(
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
                         };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            UsbHotplugEventVm::UsbHotplugOverflowEvent(value) => {
+                let tag_value = vm::Value::uint(3495264529u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
                             .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                             .map_err(Box::<RuntimeError>::from)
@@ -7501,7 +7624,7 @@ fn encode_destack_device_usb_watch_try_read_result(
 ) -> RuntimeResult<vm::Value> {
     result
         .map(|value| match value {
-            UsbHotplugEventVm::UsbHotplugAttachedEvent(value) => {
+            UsbHotplugEventVm::UsbHotplugInstanceEvent(value) => {
                 let tag_value = vm::Value::uint(1449914010u64, 32);
                 let payload_value = {
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
@@ -7661,6 +7784,29 @@ fn encode_destack_device_usb_watch_try_read_result(
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
                         };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            UsbHotplugEventVm::UsbHotplugOverflowEvent(value) => {
+                let tag_value = vm::Value::uint(3495264529u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
                             .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                             .map_err(Box::<RuntimeError>::from)
@@ -10809,7 +10955,7 @@ fn destack_device_bluetooth_adapter_watch_read_replay(
             if let Ok(()) = result {
                 let result_value: BluetoothAdapterEvent = unsafe { out.read() };
                 let result_recorded = match result_value {
-                    BluetoothAdapterEvent::BluetoothAdapterAttachedEvent(value) => {
+                    BluetoothAdapterEvent::BluetoothAdapterInstanceEvent(value) => {
                         let result_recorded_bluetooth_adapter_attached_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_bluetooth_adapter_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_bluetooth_adapter_attached_event_metadata_sequence = value.metadata.sequence;
@@ -10844,7 +10990,7 @@ fn destack_device_bluetooth_adapter_watch_read_replay(
                             kind: result_recorded_bluetooth_adapter_attached_event_kind,
                             metadata: result_recorded_bluetooth_adapter_attached_event_metadata,
                         };
-                        BluetoothadaptereventReplayRecord::BluetoothAdapterAttachedEvent(result_recorded_bluetooth_adapter_attached_event)
+                        BluetoothadaptereventReplayRecord::BluetoothAdapterInstanceEvent(result_recorded_bluetooth_adapter_attached_event)
                     }
                     BluetoothAdapterEvent::BluetoothAdapterChangedEvent(value) => {
                         let result_recorded_bluetooth_adapter_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
@@ -10944,7 +11090,7 @@ fn destack_device_bluetooth_adapter_watch_read_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native = match value {
-                        BluetoothadaptereventReplayRecord::BluetoothAdapterAttachedEvent(value) => {
+                        BluetoothadaptereventReplayRecord::BluetoothAdapterInstanceEvent(value) => {
                             let value_native_bluetooth_adapter_attached_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_bluetooth_adapter_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_bluetooth_adapter_attached_event_metadata_sequence = value.metadata.sequence;
@@ -10975,11 +11121,11 @@ fn destack_device_bluetooth_adapter_watch_read_replay(
                                 sequence: value_native_bluetooth_adapter_attached_event_metadata_sequence,
                                 adapter: value_native_bluetooth_adapter_attached_event_metadata_adapter,
                             };
-                            let value_native_bluetooth_adapter_attached_event = BluetoothAdapterAttachedEvent {
+                            let value_native_bluetooth_adapter_attached_event = BluetoothAdapterInstanceEvent {
                                 kind: value_native_bluetooth_adapter_attached_event_kind,
                                 metadata: value_native_bluetooth_adapter_attached_event_metadata,
                             };
-                            BluetoothAdapterEvent::BluetoothAdapterAttachedEvent(value_native_bluetooth_adapter_attached_event)
+                            BluetoothAdapterEvent::BluetoothAdapterInstanceEvent(value_native_bluetooth_adapter_attached_event)
                         }
                         BluetoothadaptereventReplayRecord::BluetoothAdapterChangedEvent(value) => {
                             let value_native_bluetooth_adapter_changed_event_kind = binding.store_string(value.kind.as_str());
@@ -11085,7 +11231,7 @@ fn destack_device_bluetooth_adapter_watch_try_read_replay(
             if let Ok(()) = result {
                 let result_value: BluetoothAdapterEvent = unsafe { out.read() };
                 let result_recorded = match result_value {
-                    BluetoothAdapterEvent::BluetoothAdapterAttachedEvent(value) => {
+                    BluetoothAdapterEvent::BluetoothAdapterInstanceEvent(value) => {
                         let result_recorded_bluetooth_adapter_attached_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_bluetooth_adapter_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_bluetooth_adapter_attached_event_metadata_sequence = value.metadata.sequence;
@@ -11120,7 +11266,7 @@ fn destack_device_bluetooth_adapter_watch_try_read_replay(
                             kind: result_recorded_bluetooth_adapter_attached_event_kind,
                             metadata: result_recorded_bluetooth_adapter_attached_event_metadata,
                         };
-                        BluetoothadaptereventReplayRecord::BluetoothAdapterAttachedEvent(result_recorded_bluetooth_adapter_attached_event)
+                        BluetoothadaptereventReplayRecord::BluetoothAdapterInstanceEvent(result_recorded_bluetooth_adapter_attached_event)
                     }
                     BluetoothAdapterEvent::BluetoothAdapterChangedEvent(value) => {
                         let result_recorded_bluetooth_adapter_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
@@ -11220,7 +11366,7 @@ fn destack_device_bluetooth_adapter_watch_try_read_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native = match value {
-                        BluetoothadaptereventReplayRecord::BluetoothAdapterAttachedEvent(value) => {
+                        BluetoothadaptereventReplayRecord::BluetoothAdapterInstanceEvent(value) => {
                             let value_native_bluetooth_adapter_attached_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_bluetooth_adapter_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_bluetooth_adapter_attached_event_metadata_sequence = value.metadata.sequence;
@@ -11251,11 +11397,11 @@ fn destack_device_bluetooth_adapter_watch_try_read_replay(
                                 sequence: value_native_bluetooth_adapter_attached_event_metadata_sequence,
                                 adapter: value_native_bluetooth_adapter_attached_event_metadata_adapter,
                             };
-                            let value_native_bluetooth_adapter_attached_event = BluetoothAdapterAttachedEvent {
+                            let value_native_bluetooth_adapter_attached_event = BluetoothAdapterInstanceEvent {
                                 kind: value_native_bluetooth_adapter_attached_event_kind,
                                 metadata: value_native_bluetooth_adapter_attached_event_metadata,
                             };
-                            BluetoothAdapterEvent::BluetoothAdapterAttachedEvent(value_native_bluetooth_adapter_attached_event)
+                            BluetoothAdapterEvent::BluetoothAdapterInstanceEvent(value_native_bluetooth_adapter_attached_event)
                         }
                         BluetoothadaptereventReplayRecord::BluetoothAdapterChangedEvent(value) => {
                             let value_native_bluetooth_adapter_changed_event_kind = binding.store_string(value.kind.as_str());
@@ -15693,7 +15839,7 @@ fn destack_device_camera_device_watch_read_replay(
             if let Ok(()) = result {
                 let result_value: CameraWatchEvent = unsafe { out.read() };
                 let result_recorded = match result_value {
-                    CameraWatchEvent::CameraAttachedEvent(value) => {
+                    CameraWatchEvent::CameraInstanceEvent(value) => {
                         let result_recorded_camera_attached_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_camera_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_camera_attached_event_metadata_sequence = value.metadata.sequence;
@@ -15730,7 +15876,7 @@ fn destack_device_camera_device_watch_read_replay(
                             kind: result_recorded_camera_attached_event_kind,
                             metadata: result_recorded_camera_attached_event_metadata,
                         };
-                        CamerawatcheventReplayRecord::CameraAttachedEvent(result_recorded_camera_attached_event)
+                        CamerawatcheventReplayRecord::CameraInstanceEvent(result_recorded_camera_attached_event)
                     }
                     CameraWatchEvent::CameraDetachedEvent(value) => {
                         let result_recorded_camera_detached_event_kind = unsafe { value.kind.as_str()? }.to_string();
@@ -15795,7 +15941,7 @@ fn destack_device_camera_device_watch_read_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native = match value {
-                        CamerawatcheventReplayRecord::CameraAttachedEvent(value) => {
+                        CamerawatcheventReplayRecord::CameraInstanceEvent(value) => {
                             let value_native_camera_attached_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_camera_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_camera_attached_event_metadata_sequence = value.metadata.sequence;
@@ -15828,11 +15974,11 @@ fn destack_device_camera_device_watch_read_replay(
                                 sequence: value_native_camera_attached_event_metadata_sequence,
                                 device: value_native_camera_attached_event_metadata_device,
                             };
-                            let value_native_camera_attached_event = CameraAttachedEvent {
+                            let value_native_camera_attached_event = CameraInstanceEvent {
                                 kind: value_native_camera_attached_event_kind,
                                 metadata: value_native_camera_attached_event_metadata,
                             };
-                            CameraWatchEvent::CameraAttachedEvent(value_native_camera_attached_event)
+                            CameraWatchEvent::CameraInstanceEvent(value_native_camera_attached_event)
                         }
                         CamerawatcheventReplayRecord::CameraDetachedEvent(value) => {
                             let value_native_camera_detached_event_kind = binding.store_string(value.kind.as_str());
@@ -15903,7 +16049,7 @@ fn destack_device_camera_device_watch_try_read_replay(
             if let Ok(()) = result {
                 let result_value: CameraWatchEvent = unsafe { out.read() };
                 let result_recorded = match result_value {
-                    CameraWatchEvent::CameraAttachedEvent(value) => {
+                    CameraWatchEvent::CameraInstanceEvent(value) => {
                         let result_recorded_camera_attached_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_camera_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_camera_attached_event_metadata_sequence = value.metadata.sequence;
@@ -15940,7 +16086,7 @@ fn destack_device_camera_device_watch_try_read_replay(
                             kind: result_recorded_camera_attached_event_kind,
                             metadata: result_recorded_camera_attached_event_metadata,
                         };
-                        CamerawatcheventReplayRecord::CameraAttachedEvent(result_recorded_camera_attached_event)
+                        CamerawatcheventReplayRecord::CameraInstanceEvent(result_recorded_camera_attached_event)
                     }
                     CameraWatchEvent::CameraDetachedEvent(value) => {
                         let result_recorded_camera_detached_event_kind = unsafe { value.kind.as_str()? }.to_string();
@@ -16005,7 +16151,7 @@ fn destack_device_camera_device_watch_try_read_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native = match value {
-                        CamerawatcheventReplayRecord::CameraAttachedEvent(value) => {
+                        CamerawatcheventReplayRecord::CameraInstanceEvent(value) => {
                             let value_native_camera_attached_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_camera_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_camera_attached_event_metadata_sequence = value.metadata.sequence;
@@ -16038,11 +16184,11 @@ fn destack_device_camera_device_watch_try_read_replay(
                                 sequence: value_native_camera_attached_event_metadata_sequence,
                                 device: value_native_camera_attached_event_metadata_device,
                             };
-                            let value_native_camera_attached_event = CameraAttachedEvent {
+                            let value_native_camera_attached_event = CameraInstanceEvent {
                                 kind: value_native_camera_attached_event_kind,
                                 metadata: value_native_camera_attached_event_metadata,
                             };
-                            CameraWatchEvent::CameraAttachedEvent(value_native_camera_attached_event)
+                            CameraWatchEvent::CameraInstanceEvent(value_native_camera_attached_event)
                         }
                         CamerawatcheventReplayRecord::CameraDetachedEvent(value) => {
                             let value_native_camera_detached_event_kind = binding.store_string(value.kind.as_str());
@@ -20096,6 +20242,22 @@ fn destack_device_serial_read_event_replay(
                         };
                         SerialeventReplayRecord::SerialModemStatusChangedEvent(result_recorded_serial_modem_status_changed_event)
                     }
+                    SerialEvent::SerialOverflowEvent(value) => {
+                        let result_recorded_serial_overflow_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_serial_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_serial_overflow_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_serial_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_serial_overflow_event_metadata = SerialOverflowEventMetadata {
+                            timestamp_ns: result_recorded_serial_overflow_event_metadata_timestamp_ns,
+                            sequence: result_recorded_serial_overflow_event_metadata_sequence,
+                            dropped_count: result_recorded_serial_overflow_event_metadata_dropped_count,
+                        };
+                        let result_recorded_serial_overflow_event = SerialoverfloweventReplayRecord {
+                            kind: result_recorded_serial_overflow_event_kind,
+                            metadata: result_recorded_serial_overflow_event_metadata,
+                        };
+                        SerialeventReplayRecord::SerialOverflowEvent(result_recorded_serial_overflow_event)
+                    }
                     SerialEvent::SerialReadReadyEvent(value) => {
                         let result_recorded_serial_read_ready_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_serial_read_ready_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -20209,6 +20371,22 @@ fn destack_device_serial_read_event_replay(
                                 signals: value_native_serial_modem_status_changed_event_signals,
                             };
                             SerialEvent::SerialModemStatusChangedEvent(value_native_serial_modem_status_changed_event)
+                        }
+                        SerialeventReplayRecord::SerialOverflowEvent(value) => {
+                            let value_native_serial_overflow_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_serial_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_serial_overflow_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_serial_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_serial_overflow_event_metadata = SerialOverflowEventMetadata {
+                                timestamp_ns: value_native_serial_overflow_event_metadata_timestamp_ns,
+                                sequence: value_native_serial_overflow_event_metadata_sequence,
+                                dropped_count: value_native_serial_overflow_event_metadata_dropped_count,
+                            };
+                            let value_native_serial_overflow_event = SerialOverflowEvent {
+                                kind: value_native_serial_overflow_event_kind,
+                                metadata: value_native_serial_overflow_event_metadata,
+                            };
+                            SerialEvent::SerialOverflowEvent(value_native_serial_overflow_event)
                         }
                         SerialeventReplayRecord::SerialReadReadyEvent(value) => {
                             let value_native_serial_read_ready_event_kind = binding.store_string(value.kind.as_str());
@@ -20440,6 +20618,22 @@ fn destack_device_serial_try_read_event_replay(
                         };
                         SerialeventReplayRecord::SerialModemStatusChangedEvent(result_recorded_serial_modem_status_changed_event)
                     }
+                    SerialEvent::SerialOverflowEvent(value) => {
+                        let result_recorded_serial_overflow_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_serial_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_serial_overflow_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_serial_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_serial_overflow_event_metadata = SerialOverflowEventMetadata {
+                            timestamp_ns: result_recorded_serial_overflow_event_metadata_timestamp_ns,
+                            sequence: result_recorded_serial_overflow_event_metadata_sequence,
+                            dropped_count: result_recorded_serial_overflow_event_metadata_dropped_count,
+                        };
+                        let result_recorded_serial_overflow_event = SerialoverfloweventReplayRecord {
+                            kind: result_recorded_serial_overflow_event_kind,
+                            metadata: result_recorded_serial_overflow_event_metadata,
+                        };
+                        SerialeventReplayRecord::SerialOverflowEvent(result_recorded_serial_overflow_event)
+                    }
                     SerialEvent::SerialReadReadyEvent(value) => {
                         let result_recorded_serial_read_ready_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_serial_read_ready_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -20553,6 +20747,22 @@ fn destack_device_serial_try_read_event_replay(
                                 signals: value_native_serial_modem_status_changed_event_signals,
                             };
                             SerialEvent::SerialModemStatusChangedEvent(value_native_serial_modem_status_changed_event)
+                        }
+                        SerialeventReplayRecord::SerialOverflowEvent(value) => {
+                            let value_native_serial_overflow_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_serial_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_serial_overflow_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_serial_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_serial_overflow_event_metadata = SerialOverflowEventMetadata {
+                                timestamp_ns: value_native_serial_overflow_event_metadata_timestamp_ns,
+                                sequence: value_native_serial_overflow_event_metadata_sequence,
+                                dropped_count: value_native_serial_overflow_event_metadata_dropped_count,
+                            };
+                            let value_native_serial_overflow_event = SerialOverflowEvent {
+                                kind: value_native_serial_overflow_event_kind,
+                                metadata: value_native_serial_overflow_event_metadata,
+                            };
+                            SerialEvent::SerialOverflowEvent(value_native_serial_overflow_event)
                         }
                         SerialeventReplayRecord::SerialReadReadyEvent(value) => {
                             let value_native_serial_read_ready_event_kind = binding.store_string(value.kind.as_str());
@@ -20760,7 +20970,7 @@ fn destack_device_serial_watch_read_replay(
             if let Ok(()) = result {
                 let result_value: SerialWatchEvent = unsafe { out.read() };
                 let result_recorded = match result_value {
-                    SerialWatchEvent::SerialAttachedEvent(value) => {
+                    SerialWatchEvent::SerialInstanceEvent(value) => {
                         let result_recorded_serial_attached_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_serial_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_serial_attached_event_metadata_sequence = value.metadata.sequence;
@@ -20854,7 +21064,7 @@ fn destack_device_serial_watch_read_replay(
                             kind: result_recorded_serial_attached_event_kind,
                             metadata: result_recorded_serial_attached_event_metadata,
                         };
-                        SerialwatcheventReplayRecord::SerialAttachedEvent(result_recorded_serial_attached_event)
+                        SerialwatcheventReplayRecord::SerialInstanceEvent(result_recorded_serial_attached_event)
                     }
                     SerialWatchEvent::SerialDetachedEvent(value) => {
                         let result_recorded_serial_detached_event_kind = unsafe { value.kind.as_str()? }.to_string();
@@ -20952,6 +21162,22 @@ fn destack_device_serial_watch_read_replay(
                         };
                         SerialwatcheventReplayRecord::SerialDetachedEvent(result_recorded_serial_detached_event)
                     }
+                    SerialWatchEvent::SerialWatchOverflowEvent(value) => {
+                        let result_recorded_serial_watch_overflow_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_serial_watch_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_serial_watch_overflow_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_serial_watch_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_serial_watch_overflow_event_metadata = SerialWatchOverflowEventMetadata {
+                            timestamp_ns: result_recorded_serial_watch_overflow_event_metadata_timestamp_ns,
+                            sequence: result_recorded_serial_watch_overflow_event_metadata_sequence,
+                            dropped_count: result_recorded_serial_watch_overflow_event_metadata_dropped_count,
+                        };
+                        let result_recorded_serial_watch_overflow_event = SerialwatchoverfloweventReplayRecord {
+                            kind: result_recorded_serial_watch_overflow_event_kind,
+                            metadata: result_recorded_serial_watch_overflow_event_metadata,
+                        };
+                        SerialwatcheventReplayRecord::SerialWatchOverflowEvent(result_recorded_serial_watch_overflow_event)
+                    }
                 };
                 let payload = DeviceSerialWatchReadReplayRecord {
                     result: Ok(result_recorded),
@@ -20976,7 +21202,7 @@ fn destack_device_serial_watch_read_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native = match value {
-                        SerialwatcheventReplayRecord::SerialAttachedEvent(value) => {
+                        SerialwatcheventReplayRecord::SerialInstanceEvent(value) => {
                             let value_native_serial_attached_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_serial_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_serial_attached_event_metadata_sequence = value.metadata.sequence;
@@ -21068,11 +21294,11 @@ fn destack_device_serial_watch_read_replay(
                                 sequence: value_native_serial_attached_event_metadata_sequence,
                                 port: value_native_serial_attached_event_metadata_port,
                             };
-                            let value_native_serial_attached_event = SerialAttachedEvent {
+                            let value_native_serial_attached_event = SerialInstanceEvent {
                                 kind: value_native_serial_attached_event_kind,
                                 metadata: value_native_serial_attached_event_metadata,
                             };
-                            SerialWatchEvent::SerialAttachedEvent(value_native_serial_attached_event)
+                            SerialWatchEvent::SerialInstanceEvent(value_native_serial_attached_event)
                         }
                         SerialwatcheventReplayRecord::SerialDetachedEvent(value) => {
                             let value_native_serial_detached_event_kind = binding.store_string(value.kind.as_str());
@@ -21171,6 +21397,22 @@ fn destack_device_serial_watch_read_replay(
                                 metadata: value_native_serial_detached_event_metadata,
                             };
                             SerialWatchEvent::SerialDetachedEvent(value_native_serial_detached_event)
+                        }
+                        SerialwatcheventReplayRecord::SerialWatchOverflowEvent(value) => {
+                            let value_native_serial_watch_overflow_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_serial_watch_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_serial_watch_overflow_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_serial_watch_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_serial_watch_overflow_event_metadata = SerialWatchOverflowEventMetadata {
+                                timestamp_ns: value_native_serial_watch_overflow_event_metadata_timestamp_ns,
+                                sequence: value_native_serial_watch_overflow_event_metadata_sequence,
+                                dropped_count: value_native_serial_watch_overflow_event_metadata_dropped_count,
+                            };
+                            let value_native_serial_watch_overflow_event = SerialWatchOverflowEvent {
+                                kind: value_native_serial_watch_overflow_event_kind,
+                                metadata: value_native_serial_watch_overflow_event_metadata,
+                            };
+                            SerialWatchEvent::SerialWatchOverflowEvent(value_native_serial_watch_overflow_event)
                         }
                     };
                     unsafe { out.write(value_native) };
@@ -21202,7 +21444,7 @@ fn destack_device_serial_watch_try_read_replay(
             if let Ok(()) = result {
                 let result_value: SerialWatchEvent = unsafe { out.read() };
                 let result_recorded = match result_value {
-                    SerialWatchEvent::SerialAttachedEvent(value) => {
+                    SerialWatchEvent::SerialInstanceEvent(value) => {
                         let result_recorded_serial_attached_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_serial_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_serial_attached_event_metadata_sequence = value.metadata.sequence;
@@ -21296,7 +21538,7 @@ fn destack_device_serial_watch_try_read_replay(
                             kind: result_recorded_serial_attached_event_kind,
                             metadata: result_recorded_serial_attached_event_metadata,
                         };
-                        SerialwatcheventReplayRecord::SerialAttachedEvent(result_recorded_serial_attached_event)
+                        SerialwatcheventReplayRecord::SerialInstanceEvent(result_recorded_serial_attached_event)
                     }
                     SerialWatchEvent::SerialDetachedEvent(value) => {
                         let result_recorded_serial_detached_event_kind = unsafe { value.kind.as_str()? }.to_string();
@@ -21394,6 +21636,22 @@ fn destack_device_serial_watch_try_read_replay(
                         };
                         SerialwatcheventReplayRecord::SerialDetachedEvent(result_recorded_serial_detached_event)
                     }
+                    SerialWatchEvent::SerialWatchOverflowEvent(value) => {
+                        let result_recorded_serial_watch_overflow_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_serial_watch_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_serial_watch_overflow_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_serial_watch_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_serial_watch_overflow_event_metadata = SerialWatchOverflowEventMetadata {
+                            timestamp_ns: result_recorded_serial_watch_overflow_event_metadata_timestamp_ns,
+                            sequence: result_recorded_serial_watch_overflow_event_metadata_sequence,
+                            dropped_count: result_recorded_serial_watch_overflow_event_metadata_dropped_count,
+                        };
+                        let result_recorded_serial_watch_overflow_event = SerialwatchoverfloweventReplayRecord {
+                            kind: result_recorded_serial_watch_overflow_event_kind,
+                            metadata: result_recorded_serial_watch_overflow_event_metadata,
+                        };
+                        SerialwatcheventReplayRecord::SerialWatchOverflowEvent(result_recorded_serial_watch_overflow_event)
+                    }
                 };
                 let payload = DeviceSerialWatchTryReadReplayRecord {
                     result: Ok(result_recorded),
@@ -21418,7 +21676,7 @@ fn destack_device_serial_watch_try_read_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native = match value {
-                        SerialwatcheventReplayRecord::SerialAttachedEvent(value) => {
+                        SerialwatcheventReplayRecord::SerialInstanceEvent(value) => {
                             let value_native_serial_attached_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_serial_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_serial_attached_event_metadata_sequence = value.metadata.sequence;
@@ -21510,11 +21768,11 @@ fn destack_device_serial_watch_try_read_replay(
                                 sequence: value_native_serial_attached_event_metadata_sequence,
                                 port: value_native_serial_attached_event_metadata_port,
                             };
-                            let value_native_serial_attached_event = SerialAttachedEvent {
+                            let value_native_serial_attached_event = SerialInstanceEvent {
                                 kind: value_native_serial_attached_event_kind,
                                 metadata: value_native_serial_attached_event_metadata,
                             };
-                            SerialWatchEvent::SerialAttachedEvent(value_native_serial_attached_event)
+                            SerialWatchEvent::SerialInstanceEvent(value_native_serial_attached_event)
                         }
                         SerialwatcheventReplayRecord::SerialDetachedEvent(value) => {
                             let value_native_serial_detached_event_kind = binding.store_string(value.kind.as_str());
@@ -21613,6 +21871,22 @@ fn destack_device_serial_watch_try_read_replay(
                                 metadata: value_native_serial_detached_event_metadata,
                             };
                             SerialWatchEvent::SerialDetachedEvent(value_native_serial_detached_event)
+                        }
+                        SerialwatcheventReplayRecord::SerialWatchOverflowEvent(value) => {
+                            let value_native_serial_watch_overflow_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_serial_watch_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_serial_watch_overflow_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_serial_watch_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_serial_watch_overflow_event_metadata = SerialWatchOverflowEventMetadata {
+                                timestamp_ns: value_native_serial_watch_overflow_event_metadata_timestamp_ns,
+                                sequence: value_native_serial_watch_overflow_event_metadata_sequence,
+                                dropped_count: value_native_serial_watch_overflow_event_metadata_dropped_count,
+                            };
+                            let value_native_serial_watch_overflow_event = SerialWatchOverflowEvent {
+                                kind: value_native_serial_watch_overflow_event_kind,
+                                metadata: value_native_serial_watch_overflow_event_metadata,
+                            };
+                            SerialWatchEvent::SerialWatchOverflowEvent(value_native_serial_watch_overflow_event)
                         }
                     };
                     unsafe { out.write(value_native) };
@@ -23888,7 +24162,7 @@ fn destack_device_usb_watch_read_replay(
             if let Ok(()) = result {
                 let result_value: UsbHotplugEvent = unsafe { out.read() };
                 let result_recorded = match result_value {
-                    UsbHotplugEvent::UsbHotplugAttachedEvent(value) => {
+                    UsbHotplugEvent::UsbHotplugInstanceEvent(value) => {
                         let result_recorded_usb_hotplug_attached_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_usb_hotplug_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_usb_hotplug_attached_event_metadata_sequence = value.metadata.sequence;
@@ -23975,7 +24249,7 @@ fn destack_device_usb_watch_read_replay(
                             kind: result_recorded_usb_hotplug_attached_event_kind,
                             metadata: result_recorded_usb_hotplug_attached_event_metadata,
                         };
-                        UsbhotplugeventReplayRecord::UsbHotplugAttachedEvent(result_recorded_usb_hotplug_attached_event)
+                        UsbhotplugeventReplayRecord::UsbHotplugInstanceEvent(result_recorded_usb_hotplug_attached_event)
                     }
                     UsbHotplugEvent::UsbHotplugDetachedEvent(value) => {
                         let result_recorded_usb_hotplug_detached_event_kind = unsafe { value.kind.as_str()? }.to_string();
@@ -24066,6 +24340,22 @@ fn destack_device_usb_watch_read_replay(
                         };
                         UsbhotplugeventReplayRecord::UsbHotplugDetachedEvent(result_recorded_usb_hotplug_detached_event)
                     }
+                    UsbHotplugEvent::UsbHotplugOverflowEvent(value) => {
+                        let result_recorded_usb_hotplug_overflow_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_usb_hotplug_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_usb_hotplug_overflow_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_usb_hotplug_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_usb_hotplug_overflow_event_metadata = UsbHotplugOverflowEventMetadata {
+                            timestamp_ns: result_recorded_usb_hotplug_overflow_event_metadata_timestamp_ns,
+                            sequence: result_recorded_usb_hotplug_overflow_event_metadata_sequence,
+                            dropped_count: result_recorded_usb_hotplug_overflow_event_metadata_dropped_count,
+                        };
+                        let result_recorded_usb_hotplug_overflow_event = UsbhotplugoverfloweventReplayRecord {
+                            kind: result_recorded_usb_hotplug_overflow_event_kind,
+                            metadata: result_recorded_usb_hotplug_overflow_event_metadata,
+                        };
+                        UsbhotplugeventReplayRecord::UsbHotplugOverflowEvent(result_recorded_usb_hotplug_overflow_event)
+                    }
                 };
                 let payload = DeviceUsbWatchReadReplayRecord {
                     result: Ok(result_recorded),
@@ -24090,7 +24380,7 @@ fn destack_device_usb_watch_read_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native = match value {
-                        UsbhotplugeventReplayRecord::UsbHotplugAttachedEvent(value) => {
+                        UsbhotplugeventReplayRecord::UsbHotplugInstanceEvent(value) => {
                             let value_native_usb_hotplug_attached_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_usb_hotplug_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_usb_hotplug_attached_event_metadata_sequence = value.metadata.sequence;
@@ -24174,11 +24464,11 @@ fn destack_device_usb_watch_read_replay(
                                 sequence: value_native_usb_hotplug_attached_event_metadata_sequence,
                                 device: value_native_usb_hotplug_attached_event_metadata_device,
                             };
-                            let value_native_usb_hotplug_attached_event = UsbHotplugAttachedEvent {
+                            let value_native_usb_hotplug_attached_event = UsbHotplugInstanceEvent {
                                 kind: value_native_usb_hotplug_attached_event_kind,
                                 metadata: value_native_usb_hotplug_attached_event_metadata,
                             };
-                            UsbHotplugEvent::UsbHotplugAttachedEvent(value_native_usb_hotplug_attached_event)
+                            UsbHotplugEvent::UsbHotplugInstanceEvent(value_native_usb_hotplug_attached_event)
                         }
                         UsbhotplugeventReplayRecord::UsbHotplugDetachedEvent(value) => {
                             let value_native_usb_hotplug_detached_event_kind = binding.store_string(value.kind.as_str());
@@ -24269,6 +24559,22 @@ fn destack_device_usb_watch_read_replay(
                                 metadata: value_native_usb_hotplug_detached_event_metadata,
                             };
                             UsbHotplugEvent::UsbHotplugDetachedEvent(value_native_usb_hotplug_detached_event)
+                        }
+                        UsbhotplugeventReplayRecord::UsbHotplugOverflowEvent(value) => {
+                            let value_native_usb_hotplug_overflow_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_usb_hotplug_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_usb_hotplug_overflow_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_usb_hotplug_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_usb_hotplug_overflow_event_metadata = UsbHotplugOverflowEventMetadata {
+                                timestamp_ns: value_native_usb_hotplug_overflow_event_metadata_timestamp_ns,
+                                sequence: value_native_usb_hotplug_overflow_event_metadata_sequence,
+                                dropped_count: value_native_usb_hotplug_overflow_event_metadata_dropped_count,
+                            };
+                            let value_native_usb_hotplug_overflow_event = UsbHotplugOverflowEvent {
+                                kind: value_native_usb_hotplug_overflow_event_kind,
+                                metadata: value_native_usb_hotplug_overflow_event_metadata,
+                            };
+                            UsbHotplugEvent::UsbHotplugOverflowEvent(value_native_usb_hotplug_overflow_event)
                         }
                     };
                     unsafe { out.write(value_native) };
@@ -24300,7 +24606,7 @@ fn destack_device_usb_watch_try_read_replay(
             if let Ok(()) = result {
                 let result_value: UsbHotplugEvent = unsafe { out.read() };
                 let result_recorded = match result_value {
-                    UsbHotplugEvent::UsbHotplugAttachedEvent(value) => {
+                    UsbHotplugEvent::UsbHotplugInstanceEvent(value) => {
                         let result_recorded_usb_hotplug_attached_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_usb_hotplug_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_usb_hotplug_attached_event_metadata_sequence = value.metadata.sequence;
@@ -24387,7 +24693,7 @@ fn destack_device_usb_watch_try_read_replay(
                             kind: result_recorded_usb_hotplug_attached_event_kind,
                             metadata: result_recorded_usb_hotplug_attached_event_metadata,
                         };
-                        UsbhotplugeventReplayRecord::UsbHotplugAttachedEvent(result_recorded_usb_hotplug_attached_event)
+                        UsbhotplugeventReplayRecord::UsbHotplugInstanceEvent(result_recorded_usb_hotplug_attached_event)
                     }
                     UsbHotplugEvent::UsbHotplugDetachedEvent(value) => {
                         let result_recorded_usb_hotplug_detached_event_kind = unsafe { value.kind.as_str()? }.to_string();
@@ -24478,6 +24784,22 @@ fn destack_device_usb_watch_try_read_replay(
                         };
                         UsbhotplugeventReplayRecord::UsbHotplugDetachedEvent(result_recorded_usb_hotplug_detached_event)
                     }
+                    UsbHotplugEvent::UsbHotplugOverflowEvent(value) => {
+                        let result_recorded_usb_hotplug_overflow_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_usb_hotplug_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_usb_hotplug_overflow_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_usb_hotplug_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_usb_hotplug_overflow_event_metadata = UsbHotplugOverflowEventMetadata {
+                            timestamp_ns: result_recorded_usb_hotplug_overflow_event_metadata_timestamp_ns,
+                            sequence: result_recorded_usb_hotplug_overflow_event_metadata_sequence,
+                            dropped_count: result_recorded_usb_hotplug_overflow_event_metadata_dropped_count,
+                        };
+                        let result_recorded_usb_hotplug_overflow_event = UsbhotplugoverfloweventReplayRecord {
+                            kind: result_recorded_usb_hotplug_overflow_event_kind,
+                            metadata: result_recorded_usb_hotplug_overflow_event_metadata,
+                        };
+                        UsbhotplugeventReplayRecord::UsbHotplugOverflowEvent(result_recorded_usb_hotplug_overflow_event)
+                    }
                 };
                 let payload = DeviceUsbWatchTryReadReplayRecord {
                     result: Ok(result_recorded),
@@ -24502,7 +24824,7 @@ fn destack_device_usb_watch_try_read_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native = match value {
-                        UsbhotplugeventReplayRecord::UsbHotplugAttachedEvent(value) => {
+                        UsbhotplugeventReplayRecord::UsbHotplugInstanceEvent(value) => {
                             let value_native_usb_hotplug_attached_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_usb_hotplug_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_usb_hotplug_attached_event_metadata_sequence = value.metadata.sequence;
@@ -24586,11 +24908,11 @@ fn destack_device_usb_watch_try_read_replay(
                                 sequence: value_native_usb_hotplug_attached_event_metadata_sequence,
                                 device: value_native_usb_hotplug_attached_event_metadata_device,
                             };
-                            let value_native_usb_hotplug_attached_event = UsbHotplugAttachedEvent {
+                            let value_native_usb_hotplug_attached_event = UsbHotplugInstanceEvent {
                                 kind: value_native_usb_hotplug_attached_event_kind,
                                 metadata: value_native_usb_hotplug_attached_event_metadata,
                             };
-                            UsbHotplugEvent::UsbHotplugAttachedEvent(value_native_usb_hotplug_attached_event)
+                            UsbHotplugEvent::UsbHotplugInstanceEvent(value_native_usb_hotplug_attached_event)
                         }
                         UsbhotplugeventReplayRecord::UsbHotplugDetachedEvent(value) => {
                             let value_native_usb_hotplug_detached_event_kind = binding.store_string(value.kind.as_str());
@@ -24681,6 +25003,22 @@ fn destack_device_usb_watch_try_read_replay(
                                 metadata: value_native_usb_hotplug_detached_event_metadata,
                             };
                             UsbHotplugEvent::UsbHotplugDetachedEvent(value_native_usb_hotplug_detached_event)
+                        }
+                        UsbhotplugeventReplayRecord::UsbHotplugOverflowEvent(value) => {
+                            let value_native_usb_hotplug_overflow_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_usb_hotplug_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_usb_hotplug_overflow_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_usb_hotplug_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_usb_hotplug_overflow_event_metadata = UsbHotplugOverflowEventMetadata {
+                                timestamp_ns: value_native_usb_hotplug_overflow_event_metadata_timestamp_ns,
+                                sequence: value_native_usb_hotplug_overflow_event_metadata_sequence,
+                                dropped_count: value_native_usb_hotplug_overflow_event_metadata_dropped_count,
+                            };
+                            let value_native_usb_hotplug_overflow_event = UsbHotplugOverflowEvent {
+                                kind: value_native_usb_hotplug_overflow_event_kind,
+                                metadata: value_native_usb_hotplug_overflow_event_metadata,
+                            };
+                            UsbHotplugEvent::UsbHotplugOverflowEvent(value_native_usb_hotplug_overflow_event)
                         }
                     };
                     unsafe { out.write(value_native) };
@@ -26932,7 +27270,7 @@ fn destack_device_bluetooth_adapter_watch_read_vm_replay(
             if let Ok(value) = result {
                 let result_value: BluetoothAdapterEventVm = value.clone();
                 let result_recorded = match result_value {
-                    BluetoothAdapterEventVm::BluetoothAdapterAttachedEvent(value) => {
+                    BluetoothAdapterEventVm::BluetoothAdapterInstanceEvent(value) => {
                         let result_recorded_bluetooth_adapter_attached_event_kind = {
                             let result_recorded_bluetooth_adapter_attached_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_bluetooth_adapter_attached_event_kind_ref.as_str().to_string()
@@ -26976,7 +27314,7 @@ fn destack_device_bluetooth_adapter_watch_read_vm_replay(
                             kind: result_recorded_bluetooth_adapter_attached_event_kind,
                             metadata: result_recorded_bluetooth_adapter_attached_event_metadata,
                         };
-                        BluetoothadaptereventReplayRecord::BluetoothAdapterAttachedEvent(result_recorded_bluetooth_adapter_attached_event)
+                        BluetoothadaptereventReplayRecord::BluetoothAdapterInstanceEvent(result_recorded_bluetooth_adapter_attached_event)
                     }
                     BluetoothAdapterEventVm::BluetoothAdapterChangedEvent(value) => {
                         let result_recorded_bluetooth_adapter_changed_event_kind = {
@@ -27095,7 +27433,7 @@ fn destack_device_bluetooth_adapter_watch_read_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result = match value {
-                        BluetoothadaptereventReplayRecord::BluetoothAdapterAttachedEvent(value) => {
+                        BluetoothadaptereventReplayRecord::BluetoothAdapterInstanceEvent(value) => {
                             let vm_result_bluetooth_adapter_attached_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_bluetooth_adapter_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_bluetooth_adapter_attached_event_metadata_sequence = value.metadata.sequence;
@@ -27126,11 +27464,11 @@ fn destack_device_bluetooth_adapter_watch_read_vm_replay(
                                 sequence: vm_result_bluetooth_adapter_attached_event_metadata_sequence,
                                 adapter: vm_result_bluetooth_adapter_attached_event_metadata_adapter,
                             };
-                            let vm_result_bluetooth_adapter_attached_event = BluetoothAdapterAttachedEventVm {
+                            let vm_result_bluetooth_adapter_attached_event = BluetoothAdapterInstanceEventVm {
                                 kind: vm_result_bluetooth_adapter_attached_event_kind,
                                 metadata: vm_result_bluetooth_adapter_attached_event_metadata,
                             };
-                            BluetoothAdapterEventVm::BluetoothAdapterAttachedEvent(vm_result_bluetooth_adapter_attached_event)
+                            BluetoothAdapterEventVm::BluetoothAdapterInstanceEvent(vm_result_bluetooth_adapter_attached_event)
                         }
                         BluetoothadaptereventReplayRecord::BluetoothAdapterChangedEvent(value) => {
                             let vm_result_bluetooth_adapter_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -27239,7 +27577,7 @@ fn destack_device_bluetooth_adapter_watch_try_read_vm_replay(
             if let Ok(value) = result {
                 let result_value: BluetoothAdapterEventVm = value.clone();
                 let result_recorded = match result_value {
-                    BluetoothAdapterEventVm::BluetoothAdapterAttachedEvent(value) => {
+                    BluetoothAdapterEventVm::BluetoothAdapterInstanceEvent(value) => {
                         let result_recorded_bluetooth_adapter_attached_event_kind = {
                             let result_recorded_bluetooth_adapter_attached_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_bluetooth_adapter_attached_event_kind_ref.as_str().to_string()
@@ -27283,7 +27621,7 @@ fn destack_device_bluetooth_adapter_watch_try_read_vm_replay(
                             kind: result_recorded_bluetooth_adapter_attached_event_kind,
                             metadata: result_recorded_bluetooth_adapter_attached_event_metadata,
                         };
-                        BluetoothadaptereventReplayRecord::BluetoothAdapterAttachedEvent(result_recorded_bluetooth_adapter_attached_event)
+                        BluetoothadaptereventReplayRecord::BluetoothAdapterInstanceEvent(result_recorded_bluetooth_adapter_attached_event)
                     }
                     BluetoothAdapterEventVm::BluetoothAdapterChangedEvent(value) => {
                         let result_recorded_bluetooth_adapter_changed_event_kind = {
@@ -27402,7 +27740,7 @@ fn destack_device_bluetooth_adapter_watch_try_read_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result = match value {
-                        BluetoothadaptereventReplayRecord::BluetoothAdapterAttachedEvent(value) => {
+                        BluetoothadaptereventReplayRecord::BluetoothAdapterInstanceEvent(value) => {
                             let vm_result_bluetooth_adapter_attached_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_bluetooth_adapter_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_bluetooth_adapter_attached_event_metadata_sequence = value.metadata.sequence;
@@ -27433,11 +27771,11 @@ fn destack_device_bluetooth_adapter_watch_try_read_vm_replay(
                                 sequence: vm_result_bluetooth_adapter_attached_event_metadata_sequence,
                                 adapter: vm_result_bluetooth_adapter_attached_event_metadata_adapter,
                             };
-                            let vm_result_bluetooth_adapter_attached_event = BluetoothAdapterAttachedEventVm {
+                            let vm_result_bluetooth_adapter_attached_event = BluetoothAdapterInstanceEventVm {
                                 kind: vm_result_bluetooth_adapter_attached_event_kind,
                                 metadata: vm_result_bluetooth_adapter_attached_event_metadata,
                             };
-                            BluetoothAdapterEventVm::BluetoothAdapterAttachedEvent(vm_result_bluetooth_adapter_attached_event)
+                            BluetoothAdapterEventVm::BluetoothAdapterInstanceEvent(vm_result_bluetooth_adapter_attached_event)
                         }
                         BluetoothadaptereventReplayRecord::BluetoothAdapterChangedEvent(value) => {
                             let vm_result_bluetooth_adapter_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -32784,7 +33122,7 @@ fn destack_device_camera_device_watch_read_vm_replay(
             if let Ok(value) = result {
                 let result_value: CameraWatchEventVm = value.clone();
                 let result_recorded = match result_value {
-                    CameraWatchEventVm::CameraAttachedEvent(value) => {
+                    CameraWatchEventVm::CameraInstanceEvent(value) => {
                         let result_recorded_camera_attached_event_kind = {
                             let result_recorded_camera_attached_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_camera_attached_event_kind_ref.as_str().to_string()
@@ -32836,7 +33174,7 @@ fn destack_device_camera_device_watch_read_vm_replay(
                             kind: result_recorded_camera_attached_event_kind,
                             metadata: result_recorded_camera_attached_event_metadata,
                         };
-                        CamerawatcheventReplayRecord::CameraAttachedEvent(result_recorded_camera_attached_event)
+                        CamerawatcheventReplayRecord::CameraInstanceEvent(result_recorded_camera_attached_event)
                     }
                     CameraWatchEventVm::CameraDetachedEvent(value) => {
                         let result_recorded_camera_detached_event_kind = {
@@ -32917,7 +33255,7 @@ fn destack_device_camera_device_watch_read_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result = match value {
-                        CamerawatcheventReplayRecord::CameraAttachedEvent(value) => {
+                        CamerawatcheventReplayRecord::CameraInstanceEvent(value) => {
                             let vm_result_camera_attached_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_camera_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_camera_attached_event_metadata_sequence = value.metadata.sequence;
@@ -32950,11 +33288,11 @@ fn destack_device_camera_device_watch_read_vm_replay(
                                 sequence: vm_result_camera_attached_event_metadata_sequence,
                                 device: vm_result_camera_attached_event_metadata_device,
                             };
-                            let vm_result_camera_attached_event = CameraAttachedEventVm {
+                            let vm_result_camera_attached_event = CameraInstanceEventVm {
                                 kind: vm_result_camera_attached_event_kind,
                                 metadata: vm_result_camera_attached_event_metadata,
                             };
-                            CameraWatchEventVm::CameraAttachedEvent(vm_result_camera_attached_event)
+                            CameraWatchEventVm::CameraInstanceEvent(vm_result_camera_attached_event)
                         }
                         CamerawatcheventReplayRecord::CameraDetachedEvent(value) => {
                             let vm_result_camera_detached_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -33028,7 +33366,7 @@ fn destack_device_camera_device_watch_try_read_vm_replay(
             if let Ok(value) = result {
                 let result_value: CameraWatchEventVm = value.clone();
                 let result_recorded = match result_value {
-                    CameraWatchEventVm::CameraAttachedEvent(value) => {
+                    CameraWatchEventVm::CameraInstanceEvent(value) => {
                         let result_recorded_camera_attached_event_kind = {
                             let result_recorded_camera_attached_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_camera_attached_event_kind_ref.as_str().to_string()
@@ -33080,7 +33418,7 @@ fn destack_device_camera_device_watch_try_read_vm_replay(
                             kind: result_recorded_camera_attached_event_kind,
                             metadata: result_recorded_camera_attached_event_metadata,
                         };
-                        CamerawatcheventReplayRecord::CameraAttachedEvent(result_recorded_camera_attached_event)
+                        CamerawatcheventReplayRecord::CameraInstanceEvent(result_recorded_camera_attached_event)
                     }
                     CameraWatchEventVm::CameraDetachedEvent(value) => {
                         let result_recorded_camera_detached_event_kind = {
@@ -33161,7 +33499,7 @@ fn destack_device_camera_device_watch_try_read_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result = match value {
-                        CamerawatcheventReplayRecord::CameraAttachedEvent(value) => {
+                        CamerawatcheventReplayRecord::CameraInstanceEvent(value) => {
                             let vm_result_camera_attached_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_camera_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_camera_attached_event_metadata_sequence = value.metadata.sequence;
@@ -33194,11 +33532,11 @@ fn destack_device_camera_device_watch_try_read_vm_replay(
                                 sequence: vm_result_camera_attached_event_metadata_sequence,
                                 device: vm_result_camera_attached_event_metadata_device,
                             };
-                            let vm_result_camera_attached_event = CameraAttachedEventVm {
+                            let vm_result_camera_attached_event = CameraInstanceEventVm {
                                 kind: vm_result_camera_attached_event_kind,
                                 metadata: vm_result_camera_attached_event_metadata,
                             };
-                            CameraWatchEventVm::CameraAttachedEvent(vm_result_camera_attached_event)
+                            CameraWatchEventVm::CameraInstanceEvent(vm_result_camera_attached_event)
                         }
                         CamerawatcheventReplayRecord::CameraDetachedEvent(value) => {
                             let vm_result_camera_detached_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -37910,6 +38248,25 @@ fn destack_device_serial_read_event_vm_replay(
                         };
                         SerialeventReplayRecord::SerialModemStatusChangedEvent(result_recorded_serial_modem_status_changed_event)
                     }
+                    SerialEventVm::SerialOverflowEvent(value) => {
+                        let result_recorded_serial_overflow_event_kind = {
+                            let result_recorded_serial_overflow_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_serial_overflow_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_serial_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_serial_overflow_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_serial_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_serial_overflow_event_metadata = SerialOverflowEventMetadata {
+                            timestamp_ns: result_recorded_serial_overflow_event_metadata_timestamp_ns,
+                            sequence: result_recorded_serial_overflow_event_metadata_sequence,
+                            dropped_count: result_recorded_serial_overflow_event_metadata_dropped_count,
+                        };
+                        let result_recorded_serial_overflow_event = SerialoverfloweventReplayRecord {
+                            kind: result_recorded_serial_overflow_event_kind,
+                            metadata: result_recorded_serial_overflow_event_metadata,
+                        };
+                        SerialeventReplayRecord::SerialOverflowEvent(result_recorded_serial_overflow_event)
+                    }
                     SerialEventVm::SerialReadReadyEvent(value) => {
                         let result_recorded_serial_read_ready_event_kind = {
                             let result_recorded_serial_read_ready_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -38027,6 +38384,22 @@ fn destack_device_serial_read_event_vm_replay(
                                 signals: vm_result_serial_modem_status_changed_event_signals,
                             };
                             SerialEventVm::SerialModemStatusChangedEvent(vm_result_serial_modem_status_changed_event)
+                        }
+                        SerialeventReplayRecord::SerialOverflowEvent(value) => {
+                            let vm_result_serial_overflow_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_serial_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_serial_overflow_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_serial_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_serial_overflow_event_metadata = SerialOverflowEventMetadata {
+                                timestamp_ns: vm_result_serial_overflow_event_metadata_timestamp_ns,
+                                sequence: vm_result_serial_overflow_event_metadata_sequence,
+                                dropped_count: vm_result_serial_overflow_event_metadata_dropped_count,
+                            };
+                            let vm_result_serial_overflow_event = SerialOverflowEventVm {
+                                kind: vm_result_serial_overflow_event_kind,
+                                metadata: vm_result_serial_overflow_event_metadata,
+                            };
+                            SerialEventVm::SerialOverflowEvent(vm_result_serial_overflow_event)
                         }
                         SerialeventReplayRecord::SerialReadReadyEvent(value) => {
                             let vm_result_serial_read_ready_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -38271,6 +38644,25 @@ fn destack_device_serial_try_read_event_vm_replay(
                         };
                         SerialeventReplayRecord::SerialModemStatusChangedEvent(result_recorded_serial_modem_status_changed_event)
                     }
+                    SerialEventVm::SerialOverflowEvent(value) => {
+                        let result_recorded_serial_overflow_event_kind = {
+                            let result_recorded_serial_overflow_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_serial_overflow_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_serial_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_serial_overflow_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_serial_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_serial_overflow_event_metadata = SerialOverflowEventMetadata {
+                            timestamp_ns: result_recorded_serial_overflow_event_metadata_timestamp_ns,
+                            sequence: result_recorded_serial_overflow_event_metadata_sequence,
+                            dropped_count: result_recorded_serial_overflow_event_metadata_dropped_count,
+                        };
+                        let result_recorded_serial_overflow_event = SerialoverfloweventReplayRecord {
+                            kind: result_recorded_serial_overflow_event_kind,
+                            metadata: result_recorded_serial_overflow_event_metadata,
+                        };
+                        SerialeventReplayRecord::SerialOverflowEvent(result_recorded_serial_overflow_event)
+                    }
                     SerialEventVm::SerialReadReadyEvent(value) => {
                         let result_recorded_serial_read_ready_event_kind = {
                             let result_recorded_serial_read_ready_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -38388,6 +38780,22 @@ fn destack_device_serial_try_read_event_vm_replay(
                                 signals: vm_result_serial_modem_status_changed_event_signals,
                             };
                             SerialEventVm::SerialModemStatusChangedEvent(vm_result_serial_modem_status_changed_event)
+                        }
+                        SerialeventReplayRecord::SerialOverflowEvent(value) => {
+                            let vm_result_serial_overflow_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_serial_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_serial_overflow_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_serial_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_serial_overflow_event_metadata = SerialOverflowEventMetadata {
+                                timestamp_ns: vm_result_serial_overflow_event_metadata_timestamp_ns,
+                                sequence: vm_result_serial_overflow_event_metadata_sequence,
+                                dropped_count: vm_result_serial_overflow_event_metadata_dropped_count,
+                            };
+                            let vm_result_serial_overflow_event = SerialOverflowEventVm {
+                                kind: vm_result_serial_overflow_event_kind,
+                                metadata: vm_result_serial_overflow_event_metadata,
+                            };
+                            SerialEventVm::SerialOverflowEvent(vm_result_serial_overflow_event)
                         }
                         SerialeventReplayRecord::SerialReadReadyEvent(value) => {
                             let vm_result_serial_read_ready_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -38608,7 +39016,7 @@ fn destack_device_serial_watch_read_vm_replay(
             if let Ok(value) = result {
                 let result_value: SerialWatchEventVm = value.clone();
                 let result_recorded = match result_value {
-                    SerialWatchEventVm::SerialAttachedEvent(value) => {
+                    SerialWatchEventVm::SerialInstanceEvent(value) => {
                         let result_recorded_serial_attached_event_kind = {
                             let result_recorded_serial_attached_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_serial_attached_event_kind_ref.as_str().to_string()
@@ -38727,7 +39135,7 @@ fn destack_device_serial_watch_read_vm_replay(
                             kind: result_recorded_serial_attached_event_kind,
                             metadata: result_recorded_serial_attached_event_metadata,
                         };
-                        SerialwatcheventReplayRecord::SerialAttachedEvent(result_recorded_serial_attached_event)
+                        SerialwatcheventReplayRecord::SerialInstanceEvent(result_recorded_serial_attached_event)
                     }
                     SerialWatchEventVm::SerialDetachedEvent(value) => {
                         let result_recorded_serial_detached_event_kind = {
@@ -38850,6 +39258,25 @@ fn destack_device_serial_watch_read_vm_replay(
                         };
                         SerialwatcheventReplayRecord::SerialDetachedEvent(result_recorded_serial_detached_event)
                     }
+                    SerialWatchEventVm::SerialWatchOverflowEvent(value) => {
+                        let result_recorded_serial_watch_overflow_event_kind = {
+                            let result_recorded_serial_watch_overflow_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_serial_watch_overflow_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_serial_watch_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_serial_watch_overflow_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_serial_watch_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_serial_watch_overflow_event_metadata = SerialWatchOverflowEventMetadata {
+                            timestamp_ns: result_recorded_serial_watch_overflow_event_metadata_timestamp_ns,
+                            sequence: result_recorded_serial_watch_overflow_event_metadata_sequence,
+                            dropped_count: result_recorded_serial_watch_overflow_event_metadata_dropped_count,
+                        };
+                        let result_recorded_serial_watch_overflow_event = SerialwatchoverfloweventReplayRecord {
+                            kind: result_recorded_serial_watch_overflow_event_kind,
+                            metadata: result_recorded_serial_watch_overflow_event_metadata,
+                        };
+                        SerialwatcheventReplayRecord::SerialWatchOverflowEvent(result_recorded_serial_watch_overflow_event)
+                    }
                 };
                 let payload = DeviceSerialWatchReadReplayRecord {
                     result: Ok(result_recorded),
@@ -38875,7 +39302,7 @@ fn destack_device_serial_watch_read_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result = match value {
-                        SerialwatcheventReplayRecord::SerialAttachedEvent(value) => {
+                        SerialwatcheventReplayRecord::SerialInstanceEvent(value) => {
                             let vm_result_serial_attached_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_serial_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_serial_attached_event_metadata_sequence = value.metadata.sequence;
@@ -38962,11 +39389,11 @@ fn destack_device_serial_watch_read_vm_replay(
                                 sequence: vm_result_serial_attached_event_metadata_sequence,
                                 port: vm_result_serial_attached_event_metadata_port,
                             };
-                            let vm_result_serial_attached_event = SerialAttachedEventVm {
+                            let vm_result_serial_attached_event = SerialInstanceEventVm {
                                 kind: vm_result_serial_attached_event_kind,
                                 metadata: vm_result_serial_attached_event_metadata,
                             };
-                            SerialWatchEventVm::SerialAttachedEvent(vm_result_serial_attached_event)
+                            SerialWatchEventVm::SerialInstanceEvent(vm_result_serial_attached_event)
                         }
                         SerialwatcheventReplayRecord::SerialDetachedEvent(value) => {
                             let vm_result_serial_detached_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -39060,6 +39487,22 @@ fn destack_device_serial_watch_read_vm_replay(
                                 metadata: vm_result_serial_detached_event_metadata,
                             };
                             SerialWatchEventVm::SerialDetachedEvent(vm_result_serial_detached_event)
+                        }
+                        SerialwatcheventReplayRecord::SerialWatchOverflowEvent(value) => {
+                            let vm_result_serial_watch_overflow_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_serial_watch_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_serial_watch_overflow_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_serial_watch_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_serial_watch_overflow_event_metadata = SerialWatchOverflowEventMetadata {
+                                timestamp_ns: vm_result_serial_watch_overflow_event_metadata_timestamp_ns,
+                                sequence: vm_result_serial_watch_overflow_event_metadata_sequence,
+                                dropped_count: vm_result_serial_watch_overflow_event_metadata_dropped_count,
+                            };
+                            let vm_result_serial_watch_overflow_event = SerialWatchOverflowEventVm {
+                                kind: vm_result_serial_watch_overflow_event_kind,
+                                metadata: vm_result_serial_watch_overflow_event_metadata,
+                            };
+                            SerialWatchEventVm::SerialWatchOverflowEvent(vm_result_serial_watch_overflow_event)
                         }
                     };
                     Ok(vm_result)
@@ -39094,7 +39537,7 @@ fn destack_device_serial_watch_try_read_vm_replay(
             if let Ok(value) = result {
                 let result_value: SerialWatchEventVm = value.clone();
                 let result_recorded = match result_value {
-                    SerialWatchEventVm::SerialAttachedEvent(value) => {
+                    SerialWatchEventVm::SerialInstanceEvent(value) => {
                         let result_recorded_serial_attached_event_kind = {
                             let result_recorded_serial_attached_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_serial_attached_event_kind_ref.as_str().to_string()
@@ -39213,7 +39656,7 @@ fn destack_device_serial_watch_try_read_vm_replay(
                             kind: result_recorded_serial_attached_event_kind,
                             metadata: result_recorded_serial_attached_event_metadata,
                         };
-                        SerialwatcheventReplayRecord::SerialAttachedEvent(result_recorded_serial_attached_event)
+                        SerialwatcheventReplayRecord::SerialInstanceEvent(result_recorded_serial_attached_event)
                     }
                     SerialWatchEventVm::SerialDetachedEvent(value) => {
                         let result_recorded_serial_detached_event_kind = {
@@ -39336,6 +39779,25 @@ fn destack_device_serial_watch_try_read_vm_replay(
                         };
                         SerialwatcheventReplayRecord::SerialDetachedEvent(result_recorded_serial_detached_event)
                     }
+                    SerialWatchEventVm::SerialWatchOverflowEvent(value) => {
+                        let result_recorded_serial_watch_overflow_event_kind = {
+                            let result_recorded_serial_watch_overflow_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_serial_watch_overflow_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_serial_watch_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_serial_watch_overflow_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_serial_watch_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_serial_watch_overflow_event_metadata = SerialWatchOverflowEventMetadata {
+                            timestamp_ns: result_recorded_serial_watch_overflow_event_metadata_timestamp_ns,
+                            sequence: result_recorded_serial_watch_overflow_event_metadata_sequence,
+                            dropped_count: result_recorded_serial_watch_overflow_event_metadata_dropped_count,
+                        };
+                        let result_recorded_serial_watch_overflow_event = SerialwatchoverfloweventReplayRecord {
+                            kind: result_recorded_serial_watch_overflow_event_kind,
+                            metadata: result_recorded_serial_watch_overflow_event_metadata,
+                        };
+                        SerialwatcheventReplayRecord::SerialWatchOverflowEvent(result_recorded_serial_watch_overflow_event)
+                    }
                 };
                 let payload = DeviceSerialWatchTryReadReplayRecord {
                     result: Ok(result_recorded),
@@ -39361,7 +39823,7 @@ fn destack_device_serial_watch_try_read_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result = match value {
-                        SerialwatcheventReplayRecord::SerialAttachedEvent(value) => {
+                        SerialwatcheventReplayRecord::SerialInstanceEvent(value) => {
                             let vm_result_serial_attached_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_serial_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_serial_attached_event_metadata_sequence = value.metadata.sequence;
@@ -39448,11 +39910,11 @@ fn destack_device_serial_watch_try_read_vm_replay(
                                 sequence: vm_result_serial_attached_event_metadata_sequence,
                                 port: vm_result_serial_attached_event_metadata_port,
                             };
-                            let vm_result_serial_attached_event = SerialAttachedEventVm {
+                            let vm_result_serial_attached_event = SerialInstanceEventVm {
                                 kind: vm_result_serial_attached_event_kind,
                                 metadata: vm_result_serial_attached_event_metadata,
                             };
-                            SerialWatchEventVm::SerialAttachedEvent(vm_result_serial_attached_event)
+                            SerialWatchEventVm::SerialInstanceEvent(vm_result_serial_attached_event)
                         }
                         SerialwatcheventReplayRecord::SerialDetachedEvent(value) => {
                             let vm_result_serial_detached_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -39546,6 +40008,22 @@ fn destack_device_serial_watch_try_read_vm_replay(
                                 metadata: vm_result_serial_detached_event_metadata,
                             };
                             SerialWatchEventVm::SerialDetachedEvent(vm_result_serial_detached_event)
+                        }
+                        SerialwatcheventReplayRecord::SerialWatchOverflowEvent(value) => {
+                            let vm_result_serial_watch_overflow_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_serial_watch_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_serial_watch_overflow_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_serial_watch_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_serial_watch_overflow_event_metadata = SerialWatchOverflowEventMetadata {
+                                timestamp_ns: vm_result_serial_watch_overflow_event_metadata_timestamp_ns,
+                                sequence: vm_result_serial_watch_overflow_event_metadata_sequence,
+                                dropped_count: vm_result_serial_watch_overflow_event_metadata_dropped_count,
+                            };
+                            let vm_result_serial_watch_overflow_event = SerialWatchOverflowEventVm {
+                                kind: vm_result_serial_watch_overflow_event_kind,
+                                metadata: vm_result_serial_watch_overflow_event_metadata,
+                            };
+                            SerialWatchEventVm::SerialWatchOverflowEvent(vm_result_serial_watch_overflow_event)
                         }
                     };
                     Ok(vm_result)
@@ -42236,7 +42714,7 @@ fn destack_device_usb_watch_read_vm_replay(
             if let Ok(value) = result {
                 let result_value: UsbHotplugEventVm = value.clone();
                 let result_recorded = match result_value {
-                    UsbHotplugEventVm::UsbHotplugAttachedEvent(value) => {
+                    UsbHotplugEventVm::UsbHotplugInstanceEvent(value) => {
                         let result_recorded_usb_hotplug_attached_event_kind = {
                             let result_recorded_usb_hotplug_attached_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_usb_hotplug_attached_event_kind_ref.as_str().to_string()
@@ -42334,7 +42812,7 @@ fn destack_device_usb_watch_read_vm_replay(
                             kind: result_recorded_usb_hotplug_attached_event_kind,
                             metadata: result_recorded_usb_hotplug_attached_event_metadata,
                         };
-                        UsbhotplugeventReplayRecord::UsbHotplugAttachedEvent(result_recorded_usb_hotplug_attached_event)
+                        UsbhotplugeventReplayRecord::UsbHotplugInstanceEvent(result_recorded_usb_hotplug_attached_event)
                     }
                     UsbHotplugEventVm::UsbHotplugDetachedEvent(value) => {
                         let result_recorded_usb_hotplug_detached_event_kind = {
@@ -42436,6 +42914,25 @@ fn destack_device_usb_watch_read_vm_replay(
                         };
                         UsbhotplugeventReplayRecord::UsbHotplugDetachedEvent(result_recorded_usb_hotplug_detached_event)
                     }
+                    UsbHotplugEventVm::UsbHotplugOverflowEvent(value) => {
+                        let result_recorded_usb_hotplug_overflow_event_kind = {
+                            let result_recorded_usb_hotplug_overflow_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_usb_hotplug_overflow_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_usb_hotplug_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_usb_hotplug_overflow_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_usb_hotplug_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_usb_hotplug_overflow_event_metadata = UsbHotplugOverflowEventMetadata {
+                            timestamp_ns: result_recorded_usb_hotplug_overflow_event_metadata_timestamp_ns,
+                            sequence: result_recorded_usb_hotplug_overflow_event_metadata_sequence,
+                            dropped_count: result_recorded_usb_hotplug_overflow_event_metadata_dropped_count,
+                        };
+                        let result_recorded_usb_hotplug_overflow_event = UsbhotplugoverfloweventReplayRecord {
+                            kind: result_recorded_usb_hotplug_overflow_event_kind,
+                            metadata: result_recorded_usb_hotplug_overflow_event_metadata,
+                        };
+                        UsbhotplugeventReplayRecord::UsbHotplugOverflowEvent(result_recorded_usb_hotplug_overflow_event)
+                    }
                 };
                 let payload = DeviceUsbWatchReadReplayRecord {
                     result: Ok(result_recorded),
@@ -42461,7 +42958,7 @@ fn destack_device_usb_watch_read_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result = match value {
-                        UsbhotplugeventReplayRecord::UsbHotplugAttachedEvent(value) => {
+                        UsbhotplugeventReplayRecord::UsbHotplugInstanceEvent(value) => {
                             let vm_result_usb_hotplug_attached_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_usb_hotplug_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_usb_hotplug_attached_event_metadata_sequence = value.metadata.sequence;
@@ -42540,11 +43037,11 @@ fn destack_device_usb_watch_read_vm_replay(
                                 sequence: vm_result_usb_hotplug_attached_event_metadata_sequence,
                                 device: vm_result_usb_hotplug_attached_event_metadata_device,
                             };
-                            let vm_result_usb_hotplug_attached_event = UsbHotplugAttachedEventVm {
+                            let vm_result_usb_hotplug_attached_event = UsbHotplugInstanceEventVm {
                                 kind: vm_result_usb_hotplug_attached_event_kind,
                                 metadata: vm_result_usb_hotplug_attached_event_metadata,
                             };
-                            UsbHotplugEventVm::UsbHotplugAttachedEvent(vm_result_usb_hotplug_attached_event)
+                            UsbHotplugEventVm::UsbHotplugInstanceEvent(vm_result_usb_hotplug_attached_event)
                         }
                         UsbhotplugeventReplayRecord::UsbHotplugDetachedEvent(value) => {
                             let vm_result_usb_hotplug_detached_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -42630,6 +43127,22 @@ fn destack_device_usb_watch_read_vm_replay(
                                 metadata: vm_result_usb_hotplug_detached_event_metadata,
                             };
                             UsbHotplugEventVm::UsbHotplugDetachedEvent(vm_result_usb_hotplug_detached_event)
+                        }
+                        UsbhotplugeventReplayRecord::UsbHotplugOverflowEvent(value) => {
+                            let vm_result_usb_hotplug_overflow_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_usb_hotplug_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_usb_hotplug_overflow_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_usb_hotplug_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_usb_hotplug_overflow_event_metadata = UsbHotplugOverflowEventMetadata {
+                                timestamp_ns: vm_result_usb_hotplug_overflow_event_metadata_timestamp_ns,
+                                sequence: vm_result_usb_hotplug_overflow_event_metadata_sequence,
+                                dropped_count: vm_result_usb_hotplug_overflow_event_metadata_dropped_count,
+                            };
+                            let vm_result_usb_hotplug_overflow_event = UsbHotplugOverflowEventVm {
+                                kind: vm_result_usb_hotplug_overflow_event_kind,
+                                metadata: vm_result_usb_hotplug_overflow_event_metadata,
+                            };
+                            UsbHotplugEventVm::UsbHotplugOverflowEvent(vm_result_usb_hotplug_overflow_event)
                         }
                     };
                     Ok(vm_result)
@@ -42664,7 +43177,7 @@ fn destack_device_usb_watch_try_read_vm_replay(
             if let Ok(value) = result {
                 let result_value: UsbHotplugEventVm = value.clone();
                 let result_recorded = match result_value {
-                    UsbHotplugEventVm::UsbHotplugAttachedEvent(value) => {
+                    UsbHotplugEventVm::UsbHotplugInstanceEvent(value) => {
                         let result_recorded_usb_hotplug_attached_event_kind = {
                             let result_recorded_usb_hotplug_attached_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_usb_hotplug_attached_event_kind_ref.as_str().to_string()
@@ -42762,7 +43275,7 @@ fn destack_device_usb_watch_try_read_vm_replay(
                             kind: result_recorded_usb_hotplug_attached_event_kind,
                             metadata: result_recorded_usb_hotplug_attached_event_metadata,
                         };
-                        UsbhotplugeventReplayRecord::UsbHotplugAttachedEvent(result_recorded_usb_hotplug_attached_event)
+                        UsbhotplugeventReplayRecord::UsbHotplugInstanceEvent(result_recorded_usb_hotplug_attached_event)
                     }
                     UsbHotplugEventVm::UsbHotplugDetachedEvent(value) => {
                         let result_recorded_usb_hotplug_detached_event_kind = {
@@ -42864,6 +43377,25 @@ fn destack_device_usb_watch_try_read_vm_replay(
                         };
                         UsbhotplugeventReplayRecord::UsbHotplugDetachedEvent(result_recorded_usb_hotplug_detached_event)
                     }
+                    UsbHotplugEventVm::UsbHotplugOverflowEvent(value) => {
+                        let result_recorded_usb_hotplug_overflow_event_kind = {
+                            let result_recorded_usb_hotplug_overflow_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_usb_hotplug_overflow_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_usb_hotplug_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_usb_hotplug_overflow_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_usb_hotplug_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_usb_hotplug_overflow_event_metadata = UsbHotplugOverflowEventMetadata {
+                            timestamp_ns: result_recorded_usb_hotplug_overflow_event_metadata_timestamp_ns,
+                            sequence: result_recorded_usb_hotplug_overflow_event_metadata_sequence,
+                            dropped_count: result_recorded_usb_hotplug_overflow_event_metadata_dropped_count,
+                        };
+                        let result_recorded_usb_hotplug_overflow_event = UsbhotplugoverfloweventReplayRecord {
+                            kind: result_recorded_usb_hotplug_overflow_event_kind,
+                            metadata: result_recorded_usb_hotplug_overflow_event_metadata,
+                        };
+                        UsbhotplugeventReplayRecord::UsbHotplugOverflowEvent(result_recorded_usb_hotplug_overflow_event)
+                    }
                 };
                 let payload = DeviceUsbWatchTryReadReplayRecord {
                     result: Ok(result_recorded),
@@ -42889,7 +43421,7 @@ fn destack_device_usb_watch_try_read_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result = match value {
-                        UsbhotplugeventReplayRecord::UsbHotplugAttachedEvent(value) => {
+                        UsbhotplugeventReplayRecord::UsbHotplugInstanceEvent(value) => {
                             let vm_result_usb_hotplug_attached_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_usb_hotplug_attached_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_usb_hotplug_attached_event_metadata_sequence = value.metadata.sequence;
@@ -42968,11 +43500,11 @@ fn destack_device_usb_watch_try_read_vm_replay(
                                 sequence: vm_result_usb_hotplug_attached_event_metadata_sequence,
                                 device: vm_result_usb_hotplug_attached_event_metadata_device,
                             };
-                            let vm_result_usb_hotplug_attached_event = UsbHotplugAttachedEventVm {
+                            let vm_result_usb_hotplug_attached_event = UsbHotplugInstanceEventVm {
                                 kind: vm_result_usb_hotplug_attached_event_kind,
                                 metadata: vm_result_usb_hotplug_attached_event_metadata,
                             };
-                            UsbHotplugEventVm::UsbHotplugAttachedEvent(vm_result_usb_hotplug_attached_event)
+                            UsbHotplugEventVm::UsbHotplugInstanceEvent(vm_result_usb_hotplug_attached_event)
                         }
                         UsbhotplugeventReplayRecord::UsbHotplugDetachedEvent(value) => {
                             let vm_result_usb_hotplug_detached_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -43058,6 +43590,22 @@ fn destack_device_usb_watch_try_read_vm_replay(
                                 metadata: vm_result_usb_hotplug_detached_event_metadata,
                             };
                             UsbHotplugEventVm::UsbHotplugDetachedEvent(vm_result_usb_hotplug_detached_event)
+                        }
+                        UsbhotplugeventReplayRecord::UsbHotplugOverflowEvent(value) => {
+                            let vm_result_usb_hotplug_overflow_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_usb_hotplug_overflow_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_usb_hotplug_overflow_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_usb_hotplug_overflow_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_usb_hotplug_overflow_event_metadata = UsbHotplugOverflowEventMetadata {
+                                timestamp_ns: vm_result_usb_hotplug_overflow_event_metadata_timestamp_ns,
+                                sequence: vm_result_usb_hotplug_overflow_event_metadata_sequence,
+                                dropped_count: vm_result_usb_hotplug_overflow_event_metadata_dropped_count,
+                            };
+                            let vm_result_usb_hotplug_overflow_event = UsbHotplugOverflowEventVm {
+                                kind: vm_result_usb_hotplug_overflow_event_kind,
+                                metadata: vm_result_usb_hotplug_overflow_event_metadata,
+                            };
+                            UsbHotplugEventVm::UsbHotplugOverflowEvent(vm_result_usb_hotplug_overflow_event)
                         }
                     };
                     Ok(vm_result)

@@ -1,3 +1,4 @@
+/// Expose one minimal device harness context on supported native hosts.
 use super::with_harness_context;
 
 #[cfg(any(unix, windows))]

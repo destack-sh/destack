@@ -2419,8 +2419,8 @@ impl VmAbiCodec for UsbTransferStatus {
 
 /// ABI tagged union for BluetoothAdapterEvent.
 pub enum BluetoothAdapterEventAbi<A: BindingAbi> {
-    /// BluetoothAdapterAttachedEvent variant.
-    BluetoothAdapterAttachedEvent(platform_device::BluetoothAdapterAttachedEventAbi<A>),
+    /// BluetoothAdapterInstanceEvent variant.
+    BluetoothAdapterInstanceEvent(platform_device::BluetoothAdapterInstanceEventAbi<A>),
     /// BluetoothAdapterChangedEvent variant.
     BluetoothAdapterChangedEvent(platform_device::BluetoothAdapterChangedEventAbi<A>),
     /// BluetoothAdapterDetachedEvent variant.
@@ -2473,8 +2473,8 @@ impl VmAggregateCodec for BluetoothAdapterEventAbi<VmAbi> {
         }
         let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let decoded = match tag {
-            1353297665u32 => Self::BluetoothAdapterAttachedEvent(
-                <BluetoothAdapterAttachedEventVm as VmAggregateCodec>::decode_with_context(
+            1353297665u32 => Self::BluetoothAdapterInstanceEvent(
+                <BluetoothAdapterInstanceEventVm as VmAggregateCodec>::decode_with_context(
                     context, slots[1],
                 )?,
             ),
@@ -2504,11 +2504,11 @@ impl VmAggregateCodec for BluetoothAdapterEventAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = match self {
-            Self::BluetoothAdapterAttachedEvent(value) => {
+            Self::BluetoothAdapterInstanceEvent(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(1353297665u32, context)?;
                 let payload_value =
-                    <BluetoothAdapterAttachedEventVm as VmAggregateCodec>::encode_with_context(
+                    <BluetoothAdapterInstanceEventVm as VmAggregateCodec>::encode_with_context(
                         value, context,
                     )?;
                 vec![tag_value, payload_value]
@@ -2543,8 +2543,8 @@ impl VmCollectionElement for BluetoothAdapterEventAbi<VmAbi> {}
 /// Value type for BluetoothAdapterEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BluetoothAdapterEventValue {
-    /// BluetoothAdapterAttachedEvent variant.
-    BluetoothAdapterAttachedEvent(BluetoothAdapterAttachedEventValue),
+    /// BluetoothAdapterInstanceEvent variant.
+    BluetoothAdapterInstanceEvent(BluetoothAdapterInstanceEventValue),
     /// BluetoothAdapterChangedEvent variant.
     BluetoothAdapterChangedEvent(BluetoothAdapterChangedEventValue),
     /// BluetoothAdapterDetachedEvent variant.
@@ -2556,9 +2556,9 @@ impl NativeAbiCodec for BluetoothAdapterEventAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         let owned = match self {
-            Self::BluetoothAdapterAttachedEvent(value) => {
-                BluetoothAdapterEventValue::BluetoothAdapterAttachedEvent(unsafe {
-                    <BluetoothAdapterAttachedEvent as NativeAbiCodec>::into_value(value)?
+            Self::BluetoothAdapterInstanceEvent(value) => {
+                BluetoothAdapterEventValue::BluetoothAdapterInstanceEvent(unsafe {
+                    <BluetoothAdapterInstanceEvent as NativeAbiCodec>::into_value(value)?
                 })
             }
             Self::BluetoothAdapterChangedEvent(value) => {
@@ -2577,9 +2577,9 @@ impl NativeAbiCodec for BluetoothAdapterEventAbi<NativeAbi> {
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         match value {
-            BluetoothAdapterEventValue::BluetoothAdapterAttachedEvent(value) => {
-                Self::BluetoothAdapterAttachedEvent(
-                    <BluetoothAdapterAttachedEvent as NativeAbiCodec>::from_value(binding, value),
+            BluetoothAdapterEventValue::BluetoothAdapterInstanceEvent(value) => {
+                Self::BluetoothAdapterInstanceEvent(
+                    <BluetoothAdapterInstanceEvent as NativeAbiCodec>::from_value(binding, value),
                 )
             }
             BluetoothAdapterEventValue::BluetoothAdapterChangedEvent(value) => {
@@ -2604,9 +2604,9 @@ impl VmAbiCodec for BluetoothAdapterEventAbi<VmAbi> {
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
-            Self::BluetoothAdapterAttachedEvent(value) => {
-                BluetoothAdapterEventValue::BluetoothAdapterAttachedEvent(
-                    <BluetoothAdapterAttachedEventVm as VmAbiCodec>::into_value(value, context)?,
+            Self::BluetoothAdapterInstanceEvent(value) => {
+                BluetoothAdapterEventValue::BluetoothAdapterInstanceEvent(
+                    <BluetoothAdapterInstanceEventVm as VmAbiCodec>::into_value(value, context)?,
                 )
             }
             Self::BluetoothAdapterChangedEvent(value) => {
@@ -2628,9 +2628,9 @@ impl VmAbiCodec for BluetoothAdapterEventAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
-            BluetoothAdapterEventValue::BluetoothAdapterAttachedEvent(value) => {
-                Ok(Self::BluetoothAdapterAttachedEvent(
-                    <BluetoothAdapterAttachedEventVm as VmAbiCodec>::from_value(context, value)?,
+            BluetoothAdapterEventValue::BluetoothAdapterInstanceEvent(value) => {
+                Ok(Self::BluetoothAdapterInstanceEvent(
+                    <BluetoothAdapterInstanceEventVm as VmAbiCodec>::from_value(context, value)?,
                 ))
             }
             BluetoothAdapterEventValue::BluetoothAdapterChangedEvent(value) => {
@@ -3103,8 +3103,8 @@ impl VmAbiCodec for BluetoothSessionEventAbi<VmAbi> {
 
 /// ABI tagged union for CameraWatchEvent.
 pub enum CameraWatchEventAbi<A: BindingAbi> {
-    /// CameraAttachedEvent variant.
-    CameraAttachedEvent(platform_device::CameraAttachedEventAbi<A>),
+    /// CameraInstanceEvent variant.
+    CameraInstanceEvent(platform_device::CameraInstanceEventAbi<A>),
     /// CameraDetachedEvent variant.
     CameraDetachedEvent(platform_device::CameraDetachedEventAbi<A>),
 }
@@ -3155,8 +3155,8 @@ impl VmAggregateCodec for CameraWatchEventAbi<VmAbi> {
         }
         let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let decoded = match tag {
-            2552466724u32 => Self::CameraAttachedEvent(
-                <CameraAttachedEventVm as VmAggregateCodec>::decode_with_context(
+            2552466724u32 => Self::CameraInstanceEvent(
+                <CameraInstanceEventVm as VmAggregateCodec>::decode_with_context(
                     context, slots[1],
                 )?,
             ),
@@ -3181,11 +3181,11 @@ impl VmAggregateCodec for CameraWatchEventAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = match self {
-            Self::CameraAttachedEvent(value) => {
+            Self::CameraInstanceEvent(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(2552466724u32, context)?;
                 let payload_value =
-                    <CameraAttachedEventVm as VmAggregateCodec>::encode_with_context(
+                    <CameraInstanceEventVm as VmAggregateCodec>::encode_with_context(
                         value, context,
                     )?;
                 vec![tag_value, payload_value]
@@ -3211,8 +3211,8 @@ impl VmCollectionElement for CameraWatchEventAbi<VmAbi> {}
 /// Value type for CameraWatchEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CameraWatchEventValue {
-    /// CameraAttachedEvent variant.
-    CameraAttachedEvent(CameraAttachedEventValue),
+    /// CameraInstanceEvent variant.
+    CameraInstanceEvent(CameraInstanceEventValue),
     /// CameraDetachedEvent variant.
     CameraDetachedEvent(CameraDetachedEventValue),
 }
@@ -3222,9 +3222,9 @@ impl NativeAbiCodec for CameraWatchEventAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         let owned = match self {
-            Self::CameraAttachedEvent(value) => {
-                CameraWatchEventValue::CameraAttachedEvent(unsafe {
-                    <CameraAttachedEvent as NativeAbiCodec>::into_value(value)?
+            Self::CameraInstanceEvent(value) => {
+                CameraWatchEventValue::CameraInstanceEvent(unsafe {
+                    <CameraInstanceEvent as NativeAbiCodec>::into_value(value)?
                 })
             }
             Self::CameraDetachedEvent(value) => {
@@ -3238,8 +3238,8 @@ impl NativeAbiCodec for CameraWatchEventAbi<NativeAbi> {
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         match value {
-            CameraWatchEventValue::CameraAttachedEvent(value) => Self::CameraAttachedEvent(
-                <CameraAttachedEvent as NativeAbiCodec>::from_value(binding, value),
+            CameraWatchEventValue::CameraInstanceEvent(value) => Self::CameraInstanceEvent(
+                <CameraInstanceEvent as NativeAbiCodec>::from_value(binding, value),
             ),
             CameraWatchEventValue::CameraDetachedEvent(value) => Self::CameraDetachedEvent(
                 <CameraDetachedEvent as NativeAbiCodec>::from_value(binding, value),
@@ -3256,8 +3256,8 @@ impl VmAbiCodec for CameraWatchEventAbi<VmAbi> {
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
-            Self::CameraAttachedEvent(value) => CameraWatchEventValue::CameraAttachedEvent(
-                <CameraAttachedEventVm as VmAbiCodec>::into_value(value, context)?,
+            Self::CameraInstanceEvent(value) => CameraWatchEventValue::CameraInstanceEvent(
+                <CameraInstanceEventVm as VmAbiCodec>::into_value(value, context)?,
             ),
             Self::CameraDetachedEvent(value) => CameraWatchEventValue::CameraDetachedEvent(
                 <CameraDetachedEventVm as VmAbiCodec>::into_value(value, context)?,
@@ -3271,8 +3271,8 @@ impl VmAbiCodec for CameraWatchEventAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
-            CameraWatchEventValue::CameraAttachedEvent(value) => Ok(Self::CameraAttachedEvent(
-                <CameraAttachedEventVm as VmAbiCodec>::from_value(context, value)?,
+            CameraWatchEventValue::CameraInstanceEvent(value) => Ok(Self::CameraInstanceEvent(
+                <CameraInstanceEventVm as VmAbiCodec>::from_value(context, value)?,
             )),
             CameraWatchEventValue::CameraDetachedEvent(value) => Ok(Self::CameraDetachedEvent(
                 <CameraDetachedEventVm as VmAbiCodec>::from_value(context, value)?,
@@ -3456,6 +3456,8 @@ pub enum SerialEventAbi<A: BindingAbi> {
     SerialErrorEvent(platform_device::SerialErrorEventAbi<A>),
     /// SerialModemStatusChangedEvent variant.
     SerialModemStatusChangedEvent(platform_device::SerialModemStatusChangedEventAbi<A>),
+    /// SerialOverflowEvent variant.
+    SerialOverflowEvent(platform_device::SerialOverflowEventAbi<A>),
     /// SerialReadReadyEvent variant.
     SerialReadReadyEvent(platform_device::SerialReadReadyEventAbi<A>),
 }
@@ -3519,6 +3521,11 @@ impl VmAggregateCodec for SerialEventAbi<VmAbi> {
                     context, slots[1],
                 )?,
             ),
+            2823124308u32 => Self::SerialOverflowEvent(
+                <SerialOverflowEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
             1237782817u32 => Self::SerialReadReadyEvent(
                 <SerialReadReadyEventVm as VmAggregateCodec>::decode_with_context(
                     context, slots[1],
@@ -3565,6 +3572,15 @@ impl VmAggregateCodec for SerialEventAbi<VmAbi> {
                     )?;
                 vec![tag_value, payload_value]
             }
+            Self::SerialOverflowEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2823124308u32, context)?;
+                let payload_value =
+                    <SerialOverflowEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
             Self::SerialReadReadyEvent(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(1237782817u32, context)?;
@@ -3592,6 +3608,8 @@ pub enum SerialEventValue {
     SerialErrorEvent(SerialErrorEventValue),
     /// SerialModemStatusChangedEvent variant.
     SerialModemStatusChangedEvent(SerialModemStatusChangedEventValue),
+    /// SerialOverflowEvent variant.
+    SerialOverflowEvent(SerialOverflowEventValue),
     /// SerialReadReadyEvent variant.
     SerialReadReadyEvent(SerialReadReadyEventValue),
 }
@@ -3614,6 +3632,9 @@ impl NativeAbiCodec for SerialEventAbi<NativeAbi> {
                     <SerialModemStatusChangedEvent as NativeAbiCodec>::into_value(value)?
                 })
             }
+            Self::SerialOverflowEvent(value) => SerialEventValue::SerialOverflowEvent(unsafe {
+                <SerialOverflowEvent as NativeAbiCodec>::into_value(value)?
+            }),
             Self::SerialReadReadyEvent(value) => SerialEventValue::SerialReadReadyEvent(unsafe {
                 <SerialReadReadyEvent as NativeAbiCodec>::into_value(value)?
             }),
@@ -3634,6 +3655,9 @@ impl NativeAbiCodec for SerialEventAbi<NativeAbi> {
                     <SerialModemStatusChangedEvent as NativeAbiCodec>::from_value(binding, value),
                 )
             }
+            SerialEventValue::SerialOverflowEvent(value) => Self::SerialOverflowEvent(
+                <SerialOverflowEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
             SerialEventValue::SerialReadReadyEvent(value) => Self::SerialReadReadyEvent(
                 <SerialReadReadyEvent as NativeAbiCodec>::from_value(binding, value),
             ),
@@ -3660,6 +3684,9 @@ impl VmAbiCodec for SerialEventAbi<VmAbi> {
                     <SerialModemStatusChangedEventVm as VmAbiCodec>::into_value(value, context)?,
                 )
             }
+            Self::SerialOverflowEvent(value) => SerialEventValue::SerialOverflowEvent(
+                <SerialOverflowEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
             Self::SerialReadReadyEvent(value) => SerialEventValue::SerialReadReadyEvent(
                 <SerialReadReadyEventVm as VmAbiCodec>::into_value(value, context)?,
             ),
@@ -3683,6 +3710,9 @@ impl VmAbiCodec for SerialEventAbi<VmAbi> {
                     <SerialModemStatusChangedEventVm as VmAbiCodec>::from_value(context, value)?,
                 ))
             }
+            SerialEventValue::SerialOverflowEvent(value) => Ok(Self::SerialOverflowEvent(
+                <SerialOverflowEventVm as VmAbiCodec>::from_value(context, value)?,
+            )),
             SerialEventValue::SerialReadReadyEvent(value) => Ok(Self::SerialReadReadyEvent(
                 <SerialReadReadyEventVm as VmAbiCodec>::from_value(context, value)?,
             )),
@@ -3692,10 +3722,12 @@ impl VmAbiCodec for SerialEventAbi<VmAbi> {
 
 /// ABI tagged union for SerialWatchEvent.
 pub enum SerialWatchEventAbi<A: BindingAbi> {
-    /// SerialAttachedEvent variant.
-    SerialAttachedEvent(platform_device::SerialAttachedEventAbi<A>),
+    /// SerialInstanceEvent variant.
+    SerialInstanceEvent(platform_device::SerialInstanceEventAbi<A>),
     /// SerialDetachedEvent variant.
     SerialDetachedEvent(platform_device::SerialDetachedEventAbi<A>),
+    /// SerialWatchOverflowEvent variant.
+    SerialWatchOverflowEvent(platform_device::SerialWatchOverflowEventAbi<A>),
 }
 
 pub type SerialWatchEvent = SerialWatchEventAbi<NativeAbi>;
@@ -3744,13 +3776,18 @@ impl VmAggregateCodec for SerialWatchEventAbi<VmAbi> {
         }
         let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let decoded = match tag {
-            124316150u32 => Self::SerialAttachedEvent(
-                <SerialAttachedEventVm as VmAggregateCodec>::decode_with_context(
+            124316150u32 => Self::SerialInstanceEvent(
+                <SerialInstanceEventVm as VmAggregateCodec>::decode_with_context(
                     context, slots[1],
                 )?,
             ),
             530245625u32 => Self::SerialDetachedEvent(
                 <SerialDetachedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            734537633u32 => Self::SerialWatchOverflowEvent(
+                <SerialWatchOverflowEventVm as VmAggregateCodec>::decode_with_context(
                     context, slots[1],
                 )?,
             ),
@@ -3770,11 +3807,11 @@ impl VmAggregateCodec for SerialWatchEventAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = match self {
-            Self::SerialAttachedEvent(value) => {
+            Self::SerialInstanceEvent(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(124316150u32, context)?;
                 let payload_value =
-                    <SerialAttachedEventVm as VmAggregateCodec>::encode_with_context(
+                    <SerialInstanceEventVm as VmAggregateCodec>::encode_with_context(
                         value, context,
                     )?;
                 vec![tag_value, payload_value]
@@ -3784,6 +3821,15 @@ impl VmAggregateCodec for SerialWatchEventAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(530245625u32, context)?;
                 let payload_value =
                     <SerialDetachedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::SerialWatchOverflowEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(734537633u32, context)?;
+                let payload_value =
+                    <SerialWatchOverflowEventVm as VmAggregateCodec>::encode_with_context(
                         value, context,
                     )?;
                 vec![tag_value, payload_value]
@@ -3800,10 +3846,12 @@ impl VmCollectionElement for SerialWatchEventAbi<VmAbi> {}
 /// Value type for SerialWatchEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SerialWatchEventValue {
-    /// SerialAttachedEvent variant.
-    SerialAttachedEvent(SerialAttachedEventValue),
+    /// SerialInstanceEvent variant.
+    SerialInstanceEvent(SerialInstanceEventValue),
     /// SerialDetachedEvent variant.
     SerialDetachedEvent(SerialDetachedEventValue),
+    /// SerialWatchOverflowEvent variant.
+    SerialWatchOverflowEvent(SerialWatchOverflowEventValue),
 }
 
 impl NativeAbiCodec for SerialWatchEventAbi<NativeAbi> {
@@ -3811,14 +3859,19 @@ impl NativeAbiCodec for SerialWatchEventAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         let owned = match self {
-            Self::SerialAttachedEvent(value) => {
-                SerialWatchEventValue::SerialAttachedEvent(unsafe {
-                    <SerialAttachedEvent as NativeAbiCodec>::into_value(value)?
+            Self::SerialInstanceEvent(value) => {
+                SerialWatchEventValue::SerialInstanceEvent(unsafe {
+                    <SerialInstanceEvent as NativeAbiCodec>::into_value(value)?
                 })
             }
             Self::SerialDetachedEvent(value) => {
                 SerialWatchEventValue::SerialDetachedEvent(unsafe {
                     <SerialDetachedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::SerialWatchOverflowEvent(value) => {
+                SerialWatchEventValue::SerialWatchOverflowEvent(unsafe {
+                    <SerialWatchOverflowEvent as NativeAbiCodec>::into_value(value)?
                 })
             }
         };
@@ -3827,12 +3880,17 @@ impl NativeAbiCodec for SerialWatchEventAbi<NativeAbi> {
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         match value {
-            SerialWatchEventValue::SerialAttachedEvent(value) => Self::SerialAttachedEvent(
-                <SerialAttachedEvent as NativeAbiCodec>::from_value(binding, value),
+            SerialWatchEventValue::SerialInstanceEvent(value) => Self::SerialInstanceEvent(
+                <SerialInstanceEvent as NativeAbiCodec>::from_value(binding, value),
             ),
             SerialWatchEventValue::SerialDetachedEvent(value) => Self::SerialDetachedEvent(
                 <SerialDetachedEvent as NativeAbiCodec>::from_value(binding, value),
             ),
+            SerialWatchEventValue::SerialWatchOverflowEvent(value) => {
+                Self::SerialWatchOverflowEvent(
+                    <SerialWatchOverflowEvent as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
         }
     }
 }
@@ -3845,12 +3903,17 @@ impl VmAbiCodec for SerialWatchEventAbi<VmAbi> {
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
-            Self::SerialAttachedEvent(value) => SerialWatchEventValue::SerialAttachedEvent(
-                <SerialAttachedEventVm as VmAbiCodec>::into_value(value, context)?,
+            Self::SerialInstanceEvent(value) => SerialWatchEventValue::SerialInstanceEvent(
+                <SerialInstanceEventVm as VmAbiCodec>::into_value(value, context)?,
             ),
             Self::SerialDetachedEvent(value) => SerialWatchEventValue::SerialDetachedEvent(
                 <SerialDetachedEventVm as VmAbiCodec>::into_value(value, context)?,
             ),
+            Self::SerialWatchOverflowEvent(value) => {
+                SerialWatchEventValue::SerialWatchOverflowEvent(
+                    <SerialWatchOverflowEventVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
         };
         Ok(owned)
     }
@@ -3860,12 +3923,17 @@ impl VmAbiCodec for SerialWatchEventAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
-            SerialWatchEventValue::SerialAttachedEvent(value) => Ok(Self::SerialAttachedEvent(
-                <SerialAttachedEventVm as VmAbiCodec>::from_value(context, value)?,
+            SerialWatchEventValue::SerialInstanceEvent(value) => Ok(Self::SerialInstanceEvent(
+                <SerialInstanceEventVm as VmAbiCodec>::from_value(context, value)?,
             )),
             SerialWatchEventValue::SerialDetachedEvent(value) => Ok(Self::SerialDetachedEvent(
                 <SerialDetachedEventVm as VmAbiCodec>::from_value(context, value)?,
             )),
+            SerialWatchEventValue::SerialWatchOverflowEvent(value) => {
+                Ok(Self::SerialWatchOverflowEvent(
+                    <SerialWatchOverflowEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
         }
     }
 }
@@ -4130,10 +4198,12 @@ impl VmAbiCodec for UsbControlTargetAbi<VmAbi> {
 
 /// ABI tagged union for UsbHotplugEvent.
 pub enum UsbHotplugEventAbi<A: BindingAbi> {
-    /// UsbHotplugAttachedEvent variant.
-    UsbHotplugAttachedEvent(platform_device::UsbHotplugAttachedEventAbi<A>),
+    /// UsbHotplugInstanceEvent variant.
+    UsbHotplugInstanceEvent(platform_device::UsbHotplugInstanceEventAbi<A>),
     /// UsbHotplugDetachedEvent variant.
     UsbHotplugDetachedEvent(platform_device::UsbHotplugDetachedEventAbi<A>),
+    /// UsbHotplugOverflowEvent variant.
+    UsbHotplugOverflowEvent(platform_device::UsbHotplugOverflowEventAbi<A>),
 }
 
 pub type UsbHotplugEvent = UsbHotplugEventAbi<NativeAbi>;
@@ -4182,13 +4252,18 @@ impl VmAggregateCodec for UsbHotplugEventAbi<VmAbi> {
         }
         let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let decoded = match tag {
-            1449914010u32 => Self::UsbHotplugAttachedEvent(
-                <UsbHotplugAttachedEventVm as VmAggregateCodec>::decode_with_context(
+            1449914010u32 => Self::UsbHotplugInstanceEvent(
+                <UsbHotplugInstanceEventVm as VmAggregateCodec>::decode_with_context(
                     context, slots[1],
                 )?,
             ),
             755050223u32 => Self::UsbHotplugDetachedEvent(
                 <UsbHotplugDetachedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            3495264529u32 => Self::UsbHotplugOverflowEvent(
+                <UsbHotplugOverflowEventVm as VmAggregateCodec>::decode_with_context(
                     context, slots[1],
                 )?,
             ),
@@ -4208,11 +4283,11 @@ impl VmAggregateCodec for UsbHotplugEventAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = match self {
-            Self::UsbHotplugAttachedEvent(value) => {
+            Self::UsbHotplugInstanceEvent(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(1449914010u32, context)?;
                 let payload_value =
-                    <UsbHotplugAttachedEventVm as VmAggregateCodec>::encode_with_context(
+                    <UsbHotplugInstanceEventVm as VmAggregateCodec>::encode_with_context(
                         value, context,
                     )?;
                 vec![tag_value, payload_value]
@@ -4222,6 +4297,15 @@ impl VmAggregateCodec for UsbHotplugEventAbi<VmAbi> {
                     <u32 as VmAggregateCodec>::encode_with_context(755050223u32, context)?;
                 let payload_value =
                     <UsbHotplugDetachedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::UsbHotplugOverflowEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3495264529u32, context)?;
+                let payload_value =
+                    <UsbHotplugOverflowEventVm as VmAggregateCodec>::encode_with_context(
                         value, context,
                     )?;
                 vec![tag_value, payload_value]
@@ -4238,10 +4322,12 @@ impl VmCollectionElement for UsbHotplugEventAbi<VmAbi> {}
 /// Value type for UsbHotplugEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum UsbHotplugEventValue {
-    /// UsbHotplugAttachedEvent variant.
-    UsbHotplugAttachedEvent(UsbHotplugAttachedEventValue),
+    /// UsbHotplugInstanceEvent variant.
+    UsbHotplugInstanceEvent(UsbHotplugInstanceEventValue),
     /// UsbHotplugDetachedEvent variant.
     UsbHotplugDetachedEvent(UsbHotplugDetachedEventValue),
+    /// UsbHotplugOverflowEvent variant.
+    UsbHotplugOverflowEvent(UsbHotplugOverflowEventValue),
 }
 
 impl NativeAbiCodec for UsbHotplugEventAbi<NativeAbi> {
@@ -4249,14 +4335,19 @@ impl NativeAbiCodec for UsbHotplugEventAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         let owned = match self {
-            Self::UsbHotplugAttachedEvent(value) => {
-                UsbHotplugEventValue::UsbHotplugAttachedEvent(unsafe {
-                    <UsbHotplugAttachedEvent as NativeAbiCodec>::into_value(value)?
+            Self::UsbHotplugInstanceEvent(value) => {
+                UsbHotplugEventValue::UsbHotplugInstanceEvent(unsafe {
+                    <UsbHotplugInstanceEvent as NativeAbiCodec>::into_value(value)?
                 })
             }
             Self::UsbHotplugDetachedEvent(value) => {
                 UsbHotplugEventValue::UsbHotplugDetachedEvent(unsafe {
                     <UsbHotplugDetachedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::UsbHotplugOverflowEvent(value) => {
+                UsbHotplugEventValue::UsbHotplugOverflowEvent(unsafe {
+                    <UsbHotplugOverflowEvent as NativeAbiCodec>::into_value(value)?
                 })
             }
         };
@@ -4265,11 +4356,14 @@ impl NativeAbiCodec for UsbHotplugEventAbi<NativeAbi> {
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         match value {
-            UsbHotplugEventValue::UsbHotplugAttachedEvent(value) => Self::UsbHotplugAttachedEvent(
-                <UsbHotplugAttachedEvent as NativeAbiCodec>::from_value(binding, value),
+            UsbHotplugEventValue::UsbHotplugInstanceEvent(value) => Self::UsbHotplugInstanceEvent(
+                <UsbHotplugInstanceEvent as NativeAbiCodec>::from_value(binding, value),
             ),
             UsbHotplugEventValue::UsbHotplugDetachedEvent(value) => Self::UsbHotplugDetachedEvent(
                 <UsbHotplugDetachedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            UsbHotplugEventValue::UsbHotplugOverflowEvent(value) => Self::UsbHotplugOverflowEvent(
+                <UsbHotplugOverflowEvent as NativeAbiCodec>::from_value(binding, value),
             ),
         }
     }
@@ -4283,11 +4377,14 @@ impl VmAbiCodec for UsbHotplugEventAbi<VmAbi> {
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
-            Self::UsbHotplugAttachedEvent(value) => UsbHotplugEventValue::UsbHotplugAttachedEvent(
-                <UsbHotplugAttachedEventVm as VmAbiCodec>::into_value(value, context)?,
+            Self::UsbHotplugInstanceEvent(value) => UsbHotplugEventValue::UsbHotplugInstanceEvent(
+                <UsbHotplugInstanceEventVm as VmAbiCodec>::into_value(value, context)?,
             ),
             Self::UsbHotplugDetachedEvent(value) => UsbHotplugEventValue::UsbHotplugDetachedEvent(
                 <UsbHotplugDetachedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::UsbHotplugOverflowEvent(value) => UsbHotplugEventValue::UsbHotplugOverflowEvent(
+                <UsbHotplugOverflowEventVm as VmAbiCodec>::into_value(value, context)?,
             ),
         };
         Ok(owned)
@@ -4298,9 +4395,9 @@ impl VmAbiCodec for UsbHotplugEventAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
-            UsbHotplugEventValue::UsbHotplugAttachedEvent(value) => {
-                Ok(Self::UsbHotplugAttachedEvent(
-                    <UsbHotplugAttachedEventVm as VmAbiCodec>::from_value(context, value)?,
+            UsbHotplugEventValue::UsbHotplugInstanceEvent(value) => {
+                Ok(Self::UsbHotplugInstanceEvent(
+                    <UsbHotplugInstanceEventVm as VmAbiCodec>::from_value(context, value)?,
                 ))
             }
             UsbHotplugEventValue::UsbHotplugDetachedEvent(value) => {
@@ -4308,44 +4405,49 @@ impl VmAbiCodec for UsbHotplugEventAbi<VmAbi> {
                     <UsbHotplugDetachedEventVm as VmAbiCodec>::from_value(context, value)?,
                 ))
             }
+            UsbHotplugEventValue::UsbHotplugOverflowEvent(value) => {
+                Ok(Self::UsbHotplugOverflowEvent(
+                    <UsbHotplugOverflowEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
         }
     }
 }
 
-/// ABI struct for BluetoothAdapterAttachedEvent.
+/// ABI struct for BluetoothAdapterInstanceEvent.
 #[repr(C)]
-pub struct BluetoothAdapterAttachedEventAbi<A: BindingAbi> {
+pub struct BluetoothAdapterInstanceEventAbi<A: BindingAbi> {
     /// Discriminator for this Bluetooth adapter event variant.
     pub kind: A::String,
     /// Shared event metadata.
     pub metadata: platform_device::BluetoothAdapterEventMetadataAbi<A>,
 }
 
-pub type BluetoothAdapterAttachedEvent = BluetoothAdapterAttachedEventAbi<NativeAbi>;
-pub type BluetoothAdapterAttachedEventVm = BluetoothAdapterAttachedEventAbi<VmAbi>;
+pub type BluetoothAdapterInstanceEvent = BluetoothAdapterInstanceEventAbi<NativeAbi>;
+pub type BluetoothAdapterInstanceEventVm = BluetoothAdapterInstanceEventAbi<VmAbi>;
 
-impl<A: BindingAbi> std::fmt::Debug for BluetoothAdapterAttachedEventAbi<A> {
+impl<A: BindingAbi> std::fmt::Debug for BluetoothAdapterInstanceEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("BluetoothAdapterAttachedEventAbi")
+            .debug_struct("BluetoothAdapterInstanceEventAbi")
             .finish_non_exhaustive()
     }
 }
 
-impl Copy for BluetoothAdapterAttachedEventAbi<NativeAbi> {}
-impl Clone for BluetoothAdapterAttachedEventAbi<NativeAbi> {
+impl Copy for BluetoothAdapterInstanceEventAbi<NativeAbi> {}
+impl Clone for BluetoothAdapterInstanceEventAbi<NativeAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl Copy for BluetoothAdapterAttachedEventAbi<VmAbi> {}
-impl Clone for BluetoothAdapterAttachedEventAbi<VmAbi> {
+impl Copy for BluetoothAdapterInstanceEventAbi<VmAbi> {}
+impl Clone for BluetoothAdapterInstanceEventAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl VmAggregateCodec for BluetoothAdapterAttachedEventAbi<VmAbi> {
+impl VmAggregateCodec for BluetoothAdapterInstanceEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -4353,7 +4455,7 @@ impl VmAggregateCodec for BluetoothAdapterAttachedEventAbi<VmAbi> {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "BluetoothAdapterAttachedEvent",
+                "BluetoothAdapterInstanceEvent",
             ))
             .boxed());
         }
@@ -4396,22 +4498,22 @@ impl VmAggregateCodec for BluetoothAdapterAttachedEventAbi<VmAbi> {
     }
 }
 
-impl VmCollectionElement for BluetoothAdapterAttachedEventAbi<VmAbi> {}
+impl VmCollectionElement for BluetoothAdapterInstanceEventAbi<VmAbi> {}
 
-/// Value type for BluetoothAdapterAttachedEvent.
+/// Value type for BluetoothAdapterInstanceEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct BluetoothAdapterAttachedEventValue {
+pub struct BluetoothAdapterInstanceEventValue {
     /// Discriminator for this Bluetooth adapter event variant.
     pub kind: String,
     /// Shared event metadata.
     pub metadata: BluetoothAdapterEventMetadataValue,
 }
 
-impl NativeAbiCodec for BluetoothAdapterAttachedEventAbi<NativeAbi> {
-    type Value = BluetoothAdapterAttachedEventValue;
+impl NativeAbiCodec for BluetoothAdapterInstanceEventAbi<NativeAbi> {
+    type Value = BluetoothAdapterInstanceEventValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(BluetoothAdapterAttachedEventValue {
+        Ok(BluetoothAdapterInstanceEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
             metadata: unsafe {
                 <BluetoothAdapterEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
@@ -4430,14 +4532,14 @@ impl NativeAbiCodec for BluetoothAdapterAttachedEventAbi<NativeAbi> {
     }
 }
 
-impl VmAbiCodec for BluetoothAdapterAttachedEventAbi<VmAbi> {
-    type Value = BluetoothAdapterAttachedEventValue;
+impl VmAbiCodec for BluetoothAdapterInstanceEventAbi<VmAbi> {
+    type Value = BluetoothAdapterInstanceEventValue;
 
     fn into_value(
         self,
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(BluetoothAdapterAttachedEventValue {
+        Ok(BluetoothAdapterInstanceEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <BluetoothAdapterEventMetadataVm as VmAbiCodec>::into_value(
                 self.metadata,
@@ -8664,40 +8766,40 @@ impl VmAbiCodec for BluetoothSessionPairStateChangedEventAbi<VmAbi> {
     }
 }
 
-/// ABI struct for CameraAttachedEvent.
+/// ABI struct for CameraInstanceEvent.
 #[repr(C)]
-pub struct CameraAttachedEventAbi<A: BindingAbi> {
+pub struct CameraInstanceEventAbi<A: BindingAbi> {
     /// Discriminator for this camera watch event variant.
     pub kind: A::String,
     /// Shared event metadata.
     pub metadata: platform_device::CameraWatchEventMetadataAbi<A>,
 }
 
-pub type CameraAttachedEvent = CameraAttachedEventAbi<NativeAbi>;
-pub type CameraAttachedEventVm = CameraAttachedEventAbi<VmAbi>;
+pub type CameraInstanceEvent = CameraInstanceEventAbi<NativeAbi>;
+pub type CameraInstanceEventVm = CameraInstanceEventAbi<VmAbi>;
 
-impl<A: BindingAbi> std::fmt::Debug for CameraAttachedEventAbi<A> {
+impl<A: BindingAbi> std::fmt::Debug for CameraInstanceEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("CameraAttachedEventAbi")
+            .debug_struct("CameraInstanceEventAbi")
             .finish_non_exhaustive()
     }
 }
 
-impl Copy for CameraAttachedEventAbi<NativeAbi> {}
-impl Clone for CameraAttachedEventAbi<NativeAbi> {
+impl Copy for CameraInstanceEventAbi<NativeAbi> {}
+impl Clone for CameraInstanceEventAbi<NativeAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl Copy for CameraAttachedEventAbi<VmAbi> {}
-impl Clone for CameraAttachedEventAbi<VmAbi> {
+impl Copy for CameraInstanceEventAbi<VmAbi> {}
+impl Clone for CameraInstanceEventAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl VmAggregateCodec for CameraAttachedEventAbi<VmAbi> {
+impl VmAggregateCodec for CameraInstanceEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -8705,7 +8807,7 @@ impl VmAggregateCodec for CameraAttachedEventAbi<VmAbi> {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "CameraAttachedEvent",
+                "CameraInstanceEvent",
             ))
             .boxed());
         }
@@ -8747,22 +8849,22 @@ impl VmAggregateCodec for CameraAttachedEventAbi<VmAbi> {
     }
 }
 
-impl VmCollectionElement for CameraAttachedEventAbi<VmAbi> {}
+impl VmCollectionElement for CameraInstanceEventAbi<VmAbi> {}
 
-/// Value type for CameraAttachedEvent.
+/// Value type for CameraInstanceEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct CameraAttachedEventValue {
+pub struct CameraInstanceEventValue {
     /// Discriminator for this camera watch event variant.
     pub kind: String,
     /// Shared event metadata.
     pub metadata: CameraWatchEventMetadataValue,
 }
 
-impl NativeAbiCodec for CameraAttachedEventAbi<NativeAbi> {
-    type Value = CameraAttachedEventValue;
+impl NativeAbiCodec for CameraInstanceEventAbi<NativeAbi> {
+    type Value = CameraInstanceEventValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(CameraAttachedEventValue {
+        Ok(CameraInstanceEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
             metadata: unsafe {
                 <CameraWatchEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
@@ -8781,14 +8883,14 @@ impl NativeAbiCodec for CameraAttachedEventAbi<NativeAbi> {
     }
 }
 
-impl VmAbiCodec for CameraAttachedEventAbi<VmAbi> {
-    type Value = CameraAttachedEventValue;
+impl VmAbiCodec for CameraInstanceEventAbi<VmAbi> {
+    type Value = CameraInstanceEventValue;
 
     fn into_value(
         self,
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(CameraAttachedEventValue {
+        Ok(CameraInstanceEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <CameraWatchEventMetadataVm as VmAbiCodec>::into_value(
                 self.metadata,
@@ -14467,40 +14569,40 @@ impl VmAbiCodec for OsPathUtf16Abi<VmAbi> {
     }
 }
 
-/// ABI struct for SerialAttachedEvent.
+/// ABI struct for SerialInstanceEvent.
 #[repr(C)]
-pub struct SerialAttachedEventAbi<A: BindingAbi> {
+pub struct SerialInstanceEventAbi<A: BindingAbi> {
     /// Discriminator for this serial watch event variant.
     pub kind: A::String,
     /// Shared event metadata.
     pub metadata: platform_device::SerialWatchEventMetadataAbi<A>,
 }
 
-pub type SerialAttachedEvent = SerialAttachedEventAbi<NativeAbi>;
-pub type SerialAttachedEventVm = SerialAttachedEventAbi<VmAbi>;
+pub type SerialInstanceEvent = SerialInstanceEventAbi<NativeAbi>;
+pub type SerialInstanceEventVm = SerialInstanceEventAbi<VmAbi>;
 
-impl<A: BindingAbi> std::fmt::Debug for SerialAttachedEventAbi<A> {
+impl<A: BindingAbi> std::fmt::Debug for SerialInstanceEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("SerialAttachedEventAbi")
+            .debug_struct("SerialInstanceEventAbi")
             .finish_non_exhaustive()
     }
 }
 
-impl Copy for SerialAttachedEventAbi<NativeAbi> {}
-impl Clone for SerialAttachedEventAbi<NativeAbi> {
+impl Copy for SerialInstanceEventAbi<NativeAbi> {}
+impl Clone for SerialInstanceEventAbi<NativeAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl Copy for SerialAttachedEventAbi<VmAbi> {}
-impl Clone for SerialAttachedEventAbi<VmAbi> {
+impl Copy for SerialInstanceEventAbi<VmAbi> {}
+impl Clone for SerialInstanceEventAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl VmAggregateCodec for SerialAttachedEventAbi<VmAbi> {
+impl VmAggregateCodec for SerialInstanceEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -14508,7 +14610,7 @@ impl VmAggregateCodec for SerialAttachedEventAbi<VmAbi> {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "SerialAttachedEvent",
+                "SerialInstanceEvent",
             ))
             .boxed());
         }
@@ -14550,22 +14652,22 @@ impl VmAggregateCodec for SerialAttachedEventAbi<VmAbi> {
     }
 }
 
-impl VmCollectionElement for SerialAttachedEventAbi<VmAbi> {}
+impl VmCollectionElement for SerialInstanceEventAbi<VmAbi> {}
 
-/// Value type for SerialAttachedEvent.
+/// Value type for SerialInstanceEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SerialAttachedEventValue {
+pub struct SerialInstanceEventValue {
     /// Discriminator for this serial watch event variant.
     pub kind: String,
     /// Shared event metadata.
     pub metadata: SerialWatchEventMetadataValue,
 }
 
-impl NativeAbiCodec for SerialAttachedEventAbi<NativeAbi> {
-    type Value = SerialAttachedEventValue;
+impl NativeAbiCodec for SerialInstanceEventAbi<NativeAbi> {
+    type Value = SerialInstanceEventValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(SerialAttachedEventValue {
+        Ok(SerialInstanceEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
             metadata: unsafe {
                 <SerialWatchEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
@@ -14584,14 +14686,14 @@ impl NativeAbiCodec for SerialAttachedEventAbi<NativeAbi> {
     }
 }
 
-impl VmAbiCodec for SerialAttachedEventAbi<VmAbi> {
-    type Value = SerialAttachedEventValue;
+impl VmAbiCodec for SerialInstanceEventAbi<VmAbi> {
+    type Value = SerialInstanceEventValue;
 
     fn into_value(
         self,
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(SerialAttachedEventValue {
+        Ok(SerialInstanceEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <SerialWatchEventMetadataVm as VmAbiCodec>::into_value(
                 self.metadata,
@@ -15636,6 +15738,251 @@ impl VmAbiCodec for SerialOutputSignals {
 
 impl VmCollectionElement for SerialOutputSignals {}
 
+/// ABI struct for SerialOverflowEvent.
+#[repr(C)]
+pub struct SerialOverflowEventAbi<A: BindingAbi> {
+    /// Discriminator for this serial event variant.
+    pub kind: A::String,
+    /// Shared overflow metadata.
+    pub metadata: SerialOverflowEventMetadata,
+}
+
+pub type SerialOverflowEvent = SerialOverflowEventAbi<NativeAbi>;
+pub type SerialOverflowEventVm = SerialOverflowEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for SerialOverflowEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SerialOverflowEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for SerialOverflowEventAbi<NativeAbi> {}
+impl Clone for SerialOverflowEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for SerialOverflowEventAbi<VmAbi> {}
+impl Clone for SerialOverflowEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for SerialOverflowEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialOverflowEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <SerialOverflowEventMetadataVm as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <SerialOverflowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for SerialOverflowEventAbi<VmAbi> {}
+
+/// Value type for SerialOverflowEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SerialOverflowEventValue {
+    /// Discriminator for this serial event variant.
+    pub kind: String,
+    /// Shared overflow metadata.
+    pub metadata: SerialOverflowEventMetadata,
+}
+
+impl NativeAbiCodec for SerialOverflowEventAbi<NativeAbi> {
+    type Value = SerialOverflowEventValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(SerialOverflowEventValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            metadata: unsafe {
+                <SerialOverflowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            metadata: <SerialOverflowEventMetadata as NativeAbiCodec>::from_value(
+                binding,
+                value.metadata,
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for SerialOverflowEventAbi<VmAbi> {
+    type Value = SerialOverflowEventValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(SerialOverflowEventValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            metadata: <SerialOverflowEventMetadataVm as VmAbiCodec>::into_value(
+                self.metadata,
+                context,
+            )?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <SerialOverflowEventMetadataVm as VmAbiCodec>::from_value(
+                context,
+                value.metadata,
+            )?,
+        })
+    }
+}
+
+/// ABI struct for SerialOverflowEventMetadata.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct SerialOverflowEventMetadata {
+    /// Event timestamp in nanoseconds.
+    pub timestamp_ns: u64,
+    /// Monotonic sequence number for this serial event stream.
+    pub sequence: u64,
+    /// Number of dropped session events since the last delivered overflow marker.
+    pub dropped_count: u64,
+}
+
+pub type SerialOverflowEventMetadataVm = SerialOverflowEventMetadata;
+
+impl VmAggregateCodec for SerialOverflowEventMetadata {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialOverflowEventMetadata",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_dropped_count =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            timestamp_ns: field_timestamp_ns,
+            sequence: field_sequence,
+            dropped_count: field_dropped_count,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.dropped_count, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for SerialOverflowEventMetadata.
+pub type SerialOverflowEventMetadataValue = SerialOverflowEventMetadata;
+
+impl NativeAbiCodec for SerialOverflowEventMetadata {
+    type Value = SerialOverflowEventMetadataValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SerialOverflowEventMetadata {
+    type Value = SerialOverflowEventMetadataValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for SerialOverflowEventMetadata {}
+
 /// ABI struct for SerialPortConfig.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -16456,6 +16803,251 @@ impl VmAbiCodec for SerialWatchEventMetadataAbi<VmAbi> {
         })
     }
 }
+
+/// ABI struct for SerialWatchOverflowEvent.
+#[repr(C)]
+pub struct SerialWatchOverflowEventAbi<A: BindingAbi> {
+    /// Discriminator for this serial watch event variant.
+    pub kind: A::String,
+    /// Shared overflow metadata.
+    pub metadata: SerialWatchOverflowEventMetadata,
+}
+
+pub type SerialWatchOverflowEvent = SerialWatchOverflowEventAbi<NativeAbi>;
+pub type SerialWatchOverflowEventVm = SerialWatchOverflowEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for SerialWatchOverflowEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SerialWatchOverflowEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for SerialWatchOverflowEventAbi<NativeAbi> {}
+impl Clone for SerialWatchOverflowEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for SerialWatchOverflowEventAbi<VmAbi> {}
+impl Clone for SerialWatchOverflowEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for SerialWatchOverflowEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialWatchOverflowEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <SerialWatchOverflowEventMetadataVm as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <SerialWatchOverflowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for SerialWatchOverflowEventAbi<VmAbi> {}
+
+/// Value type for SerialWatchOverflowEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SerialWatchOverflowEventValue {
+    /// Discriminator for this serial watch event variant.
+    pub kind: String,
+    /// Shared overflow metadata.
+    pub metadata: SerialWatchOverflowEventMetadata,
+}
+
+impl NativeAbiCodec for SerialWatchOverflowEventAbi<NativeAbi> {
+    type Value = SerialWatchOverflowEventValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(SerialWatchOverflowEventValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            metadata: unsafe {
+                <SerialWatchOverflowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            metadata: <SerialWatchOverflowEventMetadata as NativeAbiCodec>::from_value(
+                binding,
+                value.metadata,
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for SerialWatchOverflowEventAbi<VmAbi> {
+    type Value = SerialWatchOverflowEventValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(SerialWatchOverflowEventValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            metadata: <SerialWatchOverflowEventMetadataVm as VmAbiCodec>::into_value(
+                self.metadata,
+                context,
+            )?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <SerialWatchOverflowEventMetadataVm as VmAbiCodec>::from_value(
+                context,
+                value.metadata,
+            )?,
+        })
+    }
+}
+
+/// ABI struct for SerialWatchOverflowEventMetadata.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct SerialWatchOverflowEventMetadata {
+    /// Event timestamp in nanoseconds.
+    pub timestamp_ns: u64,
+    /// Monotonic sequence number for this watch stream.
+    pub sequence: u64,
+    /// Number of dropped topology events since the last delivered overflow marker.
+    pub dropped_count: u64,
+}
+
+pub type SerialWatchOverflowEventMetadataVm = SerialWatchOverflowEventMetadata;
+
+impl VmAggregateCodec for SerialWatchOverflowEventMetadata {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialWatchOverflowEventMetadata",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_dropped_count =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            timestamp_ns: field_timestamp_ns,
+            sequence: field_sequence,
+            dropped_count: field_dropped_count,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.dropped_count, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for SerialWatchOverflowEventMetadata.
+pub type SerialWatchOverflowEventMetadataValue = SerialWatchOverflowEventMetadata;
+
+impl NativeAbiCodec for SerialWatchOverflowEventMetadata {
+    type Value = SerialWatchOverflowEventMetadataValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SerialWatchOverflowEventMetadata {
+    type Value = SerialWatchOverflowEventMetadataValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for SerialWatchOverflowEventMetadata {}
 
 /// ABI struct for UsbBosCapabilityDescriptor.
 #[repr(C)]
@@ -18087,40 +18679,40 @@ impl VmAbiCodec for UsbEndpointSelector {
 
 impl VmCollectionElement for UsbEndpointSelector {}
 
-/// ABI struct for UsbHotplugAttachedEvent.
+/// ABI struct for UsbHotplugInstanceEvent.
 #[repr(C)]
-pub struct UsbHotplugAttachedEventAbi<A: BindingAbi> {
+pub struct UsbHotplugInstanceEventAbi<A: BindingAbi> {
     /// Discriminator for this usb hotplug event variant.
     pub kind: A::String,
     /// Shared event metadata.
     pub metadata: platform_device::UsbHotplugEventMetadataAbi<A>,
 }
 
-pub type UsbHotplugAttachedEvent = UsbHotplugAttachedEventAbi<NativeAbi>;
-pub type UsbHotplugAttachedEventVm = UsbHotplugAttachedEventAbi<VmAbi>;
+pub type UsbHotplugInstanceEvent = UsbHotplugInstanceEventAbi<NativeAbi>;
+pub type UsbHotplugInstanceEventVm = UsbHotplugInstanceEventAbi<VmAbi>;
 
-impl<A: BindingAbi> std::fmt::Debug for UsbHotplugAttachedEventAbi<A> {
+impl<A: BindingAbi> std::fmt::Debug for UsbHotplugInstanceEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("UsbHotplugAttachedEventAbi")
+            .debug_struct("UsbHotplugInstanceEventAbi")
             .finish_non_exhaustive()
     }
 }
 
-impl Copy for UsbHotplugAttachedEventAbi<NativeAbi> {}
-impl Clone for UsbHotplugAttachedEventAbi<NativeAbi> {
+impl Copy for UsbHotplugInstanceEventAbi<NativeAbi> {}
+impl Clone for UsbHotplugInstanceEventAbi<NativeAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl Copy for UsbHotplugAttachedEventAbi<VmAbi> {}
-impl Clone for UsbHotplugAttachedEventAbi<VmAbi> {
+impl Copy for UsbHotplugInstanceEventAbi<VmAbi> {}
+impl Clone for UsbHotplugInstanceEventAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl VmAggregateCodec for UsbHotplugAttachedEventAbi<VmAbi> {
+impl VmAggregateCodec for UsbHotplugInstanceEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -18128,7 +18720,7 @@ impl VmAggregateCodec for UsbHotplugAttachedEventAbi<VmAbi> {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "UsbHotplugAttachedEvent",
+                "UsbHotplugInstanceEvent",
             ))
             .boxed());
         }
@@ -18170,22 +18762,22 @@ impl VmAggregateCodec for UsbHotplugAttachedEventAbi<VmAbi> {
     }
 }
 
-impl VmCollectionElement for UsbHotplugAttachedEventAbi<VmAbi> {}
+impl VmCollectionElement for UsbHotplugInstanceEventAbi<VmAbi> {}
 
-/// Value type for UsbHotplugAttachedEvent.
+/// Value type for UsbHotplugInstanceEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct UsbHotplugAttachedEventValue {
+pub struct UsbHotplugInstanceEventValue {
     /// Discriminator for this usb hotplug event variant.
     pub kind: String,
     /// Shared event metadata.
     pub metadata: UsbHotplugEventMetadataValue,
 }
 
-impl NativeAbiCodec for UsbHotplugAttachedEventAbi<NativeAbi> {
-    type Value = UsbHotplugAttachedEventValue;
+impl NativeAbiCodec for UsbHotplugInstanceEventAbi<NativeAbi> {
+    type Value = UsbHotplugInstanceEventValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(UsbHotplugAttachedEventValue {
+        Ok(UsbHotplugInstanceEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
             metadata: unsafe {
                 <UsbHotplugEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
@@ -18204,14 +18796,14 @@ impl NativeAbiCodec for UsbHotplugAttachedEventAbi<NativeAbi> {
     }
 }
 
-impl VmAbiCodec for UsbHotplugAttachedEventAbi<VmAbi> {
-    type Value = UsbHotplugAttachedEventValue;
+impl VmAbiCodec for UsbHotplugInstanceEventAbi<VmAbi> {
+    type Value = UsbHotplugInstanceEventValue;
 
     fn into_value(
         self,
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(UsbHotplugAttachedEventValue {
+        Ok(UsbHotplugInstanceEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <UsbHotplugEventMetadataVm as VmAbiCodec>::into_value(
                 self.metadata,
@@ -18522,6 +19114,251 @@ impl VmAbiCodec for UsbHotplugEventMetadataAbi<VmAbi> {
         })
     }
 }
+
+/// ABI struct for UsbHotplugOverflowEvent.
+#[repr(C)]
+pub struct UsbHotplugOverflowEventAbi<A: BindingAbi> {
+    /// Discriminator for this usb hotplug event variant.
+    pub kind: A::String,
+    /// Shared overflow metadata.
+    pub metadata: UsbHotplugOverflowEventMetadata,
+}
+
+pub type UsbHotplugOverflowEvent = UsbHotplugOverflowEventAbi<NativeAbi>;
+pub type UsbHotplugOverflowEventVm = UsbHotplugOverflowEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for UsbHotplugOverflowEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("UsbHotplugOverflowEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for UsbHotplugOverflowEventAbi<NativeAbi> {}
+impl Clone for UsbHotplugOverflowEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for UsbHotplugOverflowEventAbi<VmAbi> {}
+impl Clone for UsbHotplugOverflowEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for UsbHotplugOverflowEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbHotplugOverflowEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <UsbHotplugOverflowEventMetadataVm as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <UsbHotplugOverflowEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for UsbHotplugOverflowEventAbi<VmAbi> {}
+
+/// Value type for UsbHotplugOverflowEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsbHotplugOverflowEventValue {
+    /// Discriminator for this usb hotplug event variant.
+    pub kind: String,
+    /// Shared overflow metadata.
+    pub metadata: UsbHotplugOverflowEventMetadata,
+}
+
+impl NativeAbiCodec for UsbHotplugOverflowEventAbi<NativeAbi> {
+    type Value = UsbHotplugOverflowEventValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(UsbHotplugOverflowEventValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            metadata: unsafe {
+                <UsbHotplugOverflowEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            metadata: <UsbHotplugOverflowEventMetadata as NativeAbiCodec>::from_value(
+                binding,
+                value.metadata,
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for UsbHotplugOverflowEventAbi<VmAbi> {
+    type Value = UsbHotplugOverflowEventValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(UsbHotplugOverflowEventValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            metadata: <UsbHotplugOverflowEventMetadataVm as VmAbiCodec>::into_value(
+                self.metadata,
+                context,
+            )?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <UsbHotplugOverflowEventMetadataVm as VmAbiCodec>::from_value(
+                context,
+                value.metadata,
+            )?,
+        })
+    }
+}
+
+/// ABI struct for UsbHotplugOverflowEventMetadata.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct UsbHotplugOverflowEventMetadata {
+    /// Event timestamp in nanoseconds.
+    pub timestamp_ns: u64,
+    /// Monotonic sequence number for this watch stream.
+    pub sequence: u64,
+    /// Number of dropped hotplug records since the last surfaced overflow.
+    pub dropped_count: u64,
+}
+
+pub type UsbHotplugOverflowEventMetadataVm = UsbHotplugOverflowEventMetadata;
+
+impl VmAggregateCodec for UsbHotplugOverflowEventMetadata {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbHotplugOverflowEventMetadata",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_dropped_count =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            timestamp_ns: field_timestamp_ns,
+            sequence: field_sequence,
+            dropped_count: field_dropped_count,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.dropped_count, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for UsbHotplugOverflowEventMetadata.
+pub type UsbHotplugOverflowEventMetadataValue = UsbHotplugOverflowEventMetadata;
+
+impl NativeAbiCodec for UsbHotplugOverflowEventMetadata {
+    type Value = UsbHotplugOverflowEventMetadataValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for UsbHotplugOverflowEventMetadata {
+    type Value = UsbHotplugOverflowEventMetadataValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for UsbHotplugOverflowEventMetadata {}
 
 /// ABI struct for UsbInTransferResult.
 #[repr(C)]
@@ -19390,7 +20227,7 @@ impl VmAbiCodec for UsbStringDescriptorAbi<VmAbi> {
     }
 }
 
-/// Replay struct for BluetoothAdapterAttachedEvent.
+/// Replay struct for BluetoothAdapterInstanceEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BluetoothadapterattachedeventReplayRecord {
     /// Discriminator for this Bluetooth adapter event variant.
@@ -19674,7 +20511,7 @@ pub struct BluetoothsessionpairstatechangedeventReplayRecord {
     pub pair_state: BluetoothPairState,
 }
 
-/// Replay struct for CameraAttachedEvent.
+/// Replay struct for CameraInstanceEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CameraattachedeventReplayRecord {
     /// Discriminator for this camera watch event variant.
@@ -19935,7 +20772,7 @@ pub struct Ospathutf16ReplayRecord {
     pub utf16: Vec<u16>,
 }
 
-/// Replay struct for SerialAttachedEvent.
+/// Replay struct for SerialInstanceEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SerialattachedeventReplayRecord {
     /// Discriminator for this serial watch event variant.
@@ -19988,6 +20825,15 @@ pub struct SerialmodemstatuschangedeventReplayRecord {
     pub signals: SerialInputSignals,
 }
 
+/// Replay struct for SerialOverflowEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SerialoverfloweventReplayRecord {
+    /// Discriminator for this serial event variant.
+    pub kind: String,
+    /// Shared overflow metadata.
+    pub metadata: SerialOverflowEventMetadata,
+}
+
 /// Replay struct for SerialPortDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SerialportdescriptorReplayRecord {
@@ -20033,6 +20879,15 @@ pub struct SerialwatcheventmetadataReplayRecord {
     pub sequence: u64,
     /// Serial endpoint descriptor payload.
     pub port: SerialportdescriptorReplayRecord,
+}
+
+/// Replay struct for SerialWatchOverflowEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SerialwatchoverfloweventReplayRecord {
+    /// Discriminator for this serial watch event variant.
+    pub kind: String,
+    /// Shared overflow metadata.
+    pub metadata: SerialWatchOverflowEventMetadata,
 }
 
 /// Replay struct for UsbBosCapabilityDescriptor.
@@ -20147,7 +21002,7 @@ pub struct UsbdevicedescriptorReplayRecord {
     pub port_path: Option<Vec<u8>>,
 }
 
-/// Replay struct for UsbHotplugAttachedEvent.
+/// Replay struct for UsbHotplugInstanceEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UsbhotplugattachedeventReplayRecord {
     /// Discriminator for this usb hotplug event variant.
@@ -20174,6 +21029,15 @@ pub struct UsbhotplugeventmetadataReplayRecord {
     pub sequence: u64,
     /// Hotplug device descriptor payload.
     pub device: UsbdevicedescriptorReplayRecord,
+}
+
+/// Replay struct for UsbHotplugOverflowEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsbhotplugoverfloweventReplayRecord {
+    /// Discriminator for this usb hotplug event variant.
+    pub kind: String,
+    /// Shared overflow metadata.
+    pub metadata: UsbHotplugOverflowEventMetadata,
 }
 
 /// Replay struct for UsbInTransferResult.
@@ -20229,8 +21093,8 @@ pub struct UsbstringdescriptorReplayRecord {
 /// Replay enum for BluetoothAdapterEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BluetoothadaptereventReplayRecord {
-    /// BluetoothAdapterAttachedEvent variant.
-    BluetoothAdapterAttachedEvent(BluetoothadapterattachedeventReplayRecord),
+    /// BluetoothAdapterInstanceEvent variant.
+    BluetoothAdapterInstanceEvent(BluetoothadapterattachedeventReplayRecord),
     /// BluetoothAdapterChangedEvent variant.
     BluetoothAdapterChangedEvent(BluetoothadapterchangedeventReplayRecord),
     /// BluetoothAdapterDetachedEvent variant.
@@ -20262,8 +21126,8 @@ pub enum BluetoothsessioneventReplayRecord {
 /// Replay enum for CameraWatchEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CamerawatcheventReplayRecord {
-    /// CameraAttachedEvent variant.
-    CameraAttachedEvent(CameraattachedeventReplayRecord),
+    /// CameraInstanceEvent variant.
+    CameraInstanceEvent(CameraattachedeventReplayRecord),
     /// CameraDetachedEvent variant.
     CameraDetachedEvent(CameradetachedeventReplayRecord),
 }
@@ -20286,6 +21150,8 @@ pub enum SerialeventReplayRecord {
     SerialErrorEvent(SerialerroreventReplayRecord),
     /// SerialModemStatusChangedEvent variant.
     SerialModemStatusChangedEvent(SerialmodemstatuschangedeventReplayRecord),
+    /// SerialOverflowEvent variant.
+    SerialOverflowEvent(SerialoverfloweventReplayRecord),
     /// SerialReadReadyEvent variant.
     SerialReadReadyEvent(SerialreadreadyeventReplayRecord),
 }
@@ -20293,10 +21159,12 @@ pub enum SerialeventReplayRecord {
 /// Replay enum for SerialWatchEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SerialwatcheventReplayRecord {
-    /// SerialAttachedEvent variant.
-    SerialAttachedEvent(SerialattachedeventReplayRecord),
+    /// SerialInstanceEvent variant.
+    SerialInstanceEvent(SerialattachedeventReplayRecord),
     /// SerialDetachedEvent variant.
     SerialDetachedEvent(SerialdetachedeventReplayRecord),
+    /// SerialWatchOverflowEvent variant.
+    SerialWatchOverflowEvent(SerialwatchoverfloweventReplayRecord),
 }
 
 /// Replay enum for UsbControlTarget.
@@ -20315,8 +21183,10 @@ pub enum UsbcontroltargetReplayRecord {
 /// Replay enum for UsbHotplugEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum UsbhotplugeventReplayRecord {
-    /// UsbHotplugAttachedEvent variant.
-    UsbHotplugAttachedEvent(UsbhotplugattachedeventReplayRecord),
+    /// UsbHotplugInstanceEvent variant.
+    UsbHotplugInstanceEvent(UsbhotplugattachedeventReplayRecord),
     /// UsbHotplugDetachedEvent variant.
     UsbHotplugDetachedEvent(UsbhotplugdetachedeventReplayRecord),
+    /// UsbHotplugOverflowEvent variant.
+    UsbHotplugOverflowEvent(UsbhotplugoverfloweventReplayRecord),
 }
