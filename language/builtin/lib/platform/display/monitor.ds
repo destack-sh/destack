@@ -20,6 +20,9 @@ export enum DisplayOrientation {
 /// Display descriptor metric bit flags.
 export newtype DisplayMetricChangedMask = uint32;
 
+/// Display-mode pixel-format identifier.
+export newtype DisplayPixelFormat = uint32;
+
 /// Display metric changed-mask bit for display-name updates.
 export const DISPLAY_METRIC_CHANGED_NAME: DisplayMetricChangedMask = DisplayMetricChangedMask(0x1);
 /// Display metric changed-mask bit for primary-display updates.
@@ -32,6 +35,8 @@ export const DISPLAY_METRIC_CHANGED_WORK_AREA: DisplayMetricChangedMask = Displa
 export const DISPLAY_METRIC_CHANGED_SCALE_FACTOR: DisplayMetricChangedMask = DisplayMetricChangedMask(0x10);
 /// Display metric changed-mask bit for orientation updates.
 export const DISPLAY_METRIC_CHANGED_ORIENTATION: DisplayMetricChangedMask = DisplayMetricChangedMask(0x20);
+/// Display metric changed-mask bit for color-state updates.
+export const DISPLAY_METRIC_CHANGED_COLOR_STATE: DisplayMetricChangedMask = DisplayMetricChangedMask(0x40);
 
 /// Support status for one capability that may be unknown on some hosts.
 export enum DisplaySupportStatus {
@@ -51,8 +56,8 @@ export struct DisplayMode {
     height: uint32;
     /// Refresh rate in millihertz.
     refreshMilliHz: uint32;
-    /// Color format identifier.
-    format: uint32;
+    /// Pixel-format identifier.
+    format: DisplayPixelFormat;
     /// Color depth in bits per pixel.
     bitDepth: uint16;
 }
@@ -145,6 +150,8 @@ export struct DisplayDescriptor {
     variableRefreshSupport: DisplaySupportStatus;
     /// HDR capability status.
     hdrSupport: DisplaySupportStatus;
+    /// Current display color state when exposed by the backend.
+    colorState: DisplayColorState | void;
 }
 
 /// Display monitor list request.
@@ -169,8 +176,7 @@ export struct DisplayMonitorOpenOptions {
 declare namespace display {
     /// List available displays.
     ///
-    /// Enumerate host display outputs and return stable identifiers and physical metadata.
-    /// Output ordering and hotplug visibility follow host compositor or kernel display APIs.
+    /// List host display outputs with stable identifiers and physical metadata.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -199,7 +205,7 @@ declare namespace display {
 
     /// Read the current primary display handle.
     ///
-    /// Return one opened display handle for the current primary display when available.
+    /// Return the current primary display handle when available.
     /// Returns `void` when the backend has no discoverable primary display.
     ///
     /// # Platform
@@ -226,10 +232,9 @@ declare namespace display {
     })
     export function monitorPrimary(request: DisplayMonitorListRequest): Result<DisplayHandle | void, PlatformError>;
 
-    /// Open one display endpoint.
+    /// Open a display endpoint.
     ///
-    /// Open one host display endpoint by identifier for mode queries and updates.
-    /// Endpoint lifetime semantics follow host display management APIs.
+    /// Open a display endpoint by identifier for mode queries and updates.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -258,10 +263,9 @@ declare namespace display {
         options: DisplayMonitorOpenOptions,
     ): Result<DisplayHandle, PlatformError>;
 
-    /// Close one display endpoint.
+    /// Close a display endpoint.
     ///
-    /// Close one opened display endpoint and release host resources.
-    /// Any outstanding mode-change session state is discarded.
+    /// Close a display endpoint and release host resources.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -287,9 +291,9 @@ declare namespace display {
     })
     export function monitorClose(handle: DisplayHandle): Result<void, PlatformError>;
 
-    /// Read descriptor metadata for one opened display.
+    /// Read display descriptor metadata.
     ///
-    /// Read one normalized descriptor snapshot for one opened display endpoint.
+    /// Read the current descriptor snapshot for a display endpoint.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -317,8 +321,8 @@ declare namespace display {
 
     /// Read available display modes.
     ///
-    /// Read all host-supported modes for one opened display endpoint.
-    /// Mode list ordering follows host backend reporting behavior.
+    /// Read all host-supported modes for a display endpoint.
+    /// Mode ordering follows backend reporting behavior.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -344,9 +348,9 @@ declare namespace display {
     })
     export function monitorModes(handle: DisplayHandle): Result<Slice<DisplayMode>, PlatformError>;
 
-    /// Read the current mode for one opened display.
+    /// Read the current mode for a display.
     ///
-    /// Read one point-in-time active mode for one opened display endpoint.
+    /// Read the active mode for a display endpoint.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -372,10 +376,9 @@ declare namespace display {
     })
     export function monitorCurrentMode(handle: DisplayHandle): Result<DisplayMode, PlatformError>;
 
-    /// Read the desktop-preferred mode for one opened display.
+    /// Read the desktop-preferred mode for a display.
     ///
-    /// Read one platform desktop mode for one opened display endpoint.
-    /// This aligns with host desktop-resolution semantics.
+    /// Read the platform desktop mode for a display endpoint.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -403,8 +406,7 @@ declare namespace display {
 
     /// Resolve one requested mode to the closest supported mode.
     ///
-    /// Return one backend-selected closest mode for one requested mode.
-    /// Mode-matching behavior follows host backend selection policy.
+    /// Return the closest backend-selected mode for the requested mode.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -433,9 +435,9 @@ declare namespace display {
         requested: DisplayMode,
     ): Result<DisplayMode, PlatformError>;
 
-    /// Apply one display mode.
+    /// Apply a display mode.
     ///
-    /// Apply one mode to an opened display endpoint.
+    /// Apply a mode to a display endpoint.
     /// Mode-set behavior and rollback semantics are host-defined.
     ///
     /// # Platform
@@ -465,9 +467,9 @@ declare namespace display {
         mode: DisplayMode,
     ): Result<void, PlatformError>;
 
-    /// Read one display color-state snapshot.
+    /// Read a display color-state snapshot.
     ///
-    /// Read one point-in-time display color-state snapshot for one opened display endpoint.
+    /// Read the current display color state for a display endpoint.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -493,9 +495,9 @@ declare namespace display {
     })
     export function monitorColorState(handle: DisplayHandle): Result<DisplayColorState, PlatformError>;
 
-    /// Read one display HDR policy mode.
+    /// Read a display HDR policy mode.
     ///
-    /// Read one point-in-time HDR policy mode for one opened display endpoint.
+    /// Read the current HDR policy mode for a display endpoint.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -521,9 +523,9 @@ declare namespace display {
     })
     export function monitorHdrMode(handle: DisplayHandle): Result<DisplayHdrMode, PlatformError>;
 
-    /// Set one display HDR policy mode.
+    /// Set a display HDR policy mode.
     ///
-    /// Apply one HDR policy mode to one opened display endpoint.
+    /// Apply an HDR policy mode to a display endpoint.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -552,9 +554,9 @@ declare namespace display {
         mode: DisplayHdrMode,
     ): Result<void, PlatformError>;
 
-    /// Read one display gamma ramp.
+    /// Read a display gamma ramp.
     ///
-    /// Read one gamma-ramp table payload for one opened display endpoint.
+    /// Read the gamma-ramp table for a display endpoint.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -580,9 +582,9 @@ declare namespace display {
     })
     export function monitorGammaRamp(handle: DisplayHandle): Result<DisplayGammaRamp, PlatformError>;
 
-    /// Set one display gamma ramp.
+    /// Set a display gamma ramp.
     ///
-    /// Apply one gamma-ramp table payload to one opened display endpoint.
+    /// Apply a gamma-ramp table to a display endpoint.
     ///
     /// # Platform
     /// Unix and Windows.

@@ -3,8 +3,6 @@ import type { BackendSupport } from "../core/index.ds";
 import type { PlatformError } from "../error/index.ds";
 
 /// Display backend selector.
-/// This enum declares known backend kinds for the platform API.
-/// One runtime build can implement only a subset of these kinds.
 export enum DisplayBackend {
     /// Select the best backend for the current host.
     Auto = 0,
@@ -105,8 +103,8 @@ export const DISPLAY_BACKEND_CAP_TRANSPARENCY: DisplayBackendCapabilityFlags = D
 export const DISPLAY_BACKEND_CAP_ALWAYS_ON_TOP: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x40000);
 /// Backend capability flag bit for host-level attention requests.
 export const DISPLAY_BACKEND_CAP_ATTENTION_REQUEST: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x80000);
-/// Backend capability flag bit for explicit refresh-request signaling.
-export const DISPLAY_BACKEND_CAP_REFRESH_REQUEST: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x100000);
+/// Backend capability flag bit for explicit window invalidation.
+export const DISPLAY_BACKEND_CAP_WINDOW_INVALIDATE: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x100000);
 /// Backend capability flag bit for window theme reporting.
 export const DISPLAY_BACKEND_CAP_THEME: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x200000);
 /// Backend capability flag bit for occlusion reporting.
@@ -141,12 +139,22 @@ export const DISPLAY_BACKEND_CAP_WINDOW_TASKBAR_VISIBILITY: DisplayBackendCapabi
 export const DISPLAY_BACKEND_CAP_WINDOW_ROLE_POPUP: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x1000000000);
 /// Backend capability flag bit for overlay window role support.
 export const DISPLAY_BACKEND_CAP_WINDOW_ROLE_OVERLAY: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x2000000000);
+/// Backend capability flag bit for explicit window content-rect queries.
+export const DISPLAY_BACKEND_CAP_WINDOW_CONTENT_RECT: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x4000000000);
+/// Backend capability flag bit for explicit framebuffer-size queries.
+export const DISPLAY_BACKEND_CAP_WINDOW_FRAMEBUFFER_SIZE: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x8000000000);
+/// Backend capability flag bit for explicit window render-state reporting.
+export const DISPLAY_BACKEND_CAP_WINDOW_RENDER_STATE: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x10000000000);
+/// Backend capability flag bit for host begin-frame streams.
+export const DISPLAY_BACKEND_CAP_BEGIN_FRAME_STREAM: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x20000000000);
+/// Backend capability flag bit for host begin-frame timing metadata.
+export const DISPLAY_BACKEND_CAP_BEGIN_FRAME_TIMING: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x40000000000);
 
 /// Display backend bindings.
 declare namespace display {
     /// List host display backends.
     ///
-    /// Enumerate backend kinds known to the API and report support state and feature flags.
+    /// List known display backends with support state and capability flags.
     ///
     /// # Platform
     /// Unix and Windows.

@@ -147,6 +147,9 @@ export newtype WindowEventHandle = ResourceId;
 /// Handle for one display monitor-event stream.
 export newtype DisplayEventHandle = ResourceId;
 
+/// Handle for one display begin-frame stream.
+export newtype DisplayBeginFrameHandle = ResourceId;
+
 /// Handle for one inbound intent event stream.
 export newtype IntentHandle = ResourceId;
 
@@ -189,8 +192,14 @@ export newtype GpuQueueHandle = ResourceId;
 /// Handle for one GPU surface endpoint.
 export newtype GpuSurfaceHandle = ResourceId;
 
-/// Handle for one GPU command list endpoint.
-export newtype GpuCommandListHandle = ResourceId;
+/// Handle for one GPU presentation stream.
+export newtype GpuSurfacePresentationHandle = ResourceId;
+
+/// Handle for one GPU command encoder.
+export newtype GpuCommandEncoderHandle = ResourceId;
+
+/// Handle for one finished GPU command buffer.
+export newtype GpuCommandBufferHandle = ResourceId;
 
 /// Handle for one active GPU compute-pass endpoint.
 export newtype GpuComputePassHandle = ResourceId;
@@ -230,6 +239,9 @@ export newtype GpuTextureHandle = ResourceId;
 
 /// Handle for one GPU texture-view endpoint.
 export newtype GpuTextureViewHandle = ResourceId;
+
+/// Handle for one GPU external-texture endpoint.
+export newtype GpuExternalTextureHandle = ResourceId;
 
 /// Handle for one GPU sampler endpoint.
 export newtype GpuSamplerHandle = ResourceId;

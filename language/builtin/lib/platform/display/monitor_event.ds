@@ -157,12 +157,10 @@ export struct DisplayMonitorEventOpenOptions {
 
 /// Display monitor event bindings.
 declare namespace display {
-    /// Open one global monitor-event stream.
+    /// Open a global monitor-event stream.
     ///
-    /// Open one host monitor-event stream for display hotplug and metrics-change routing.
-    /// Event ordering follows host event-loop delivery behavior.
-    /// This stream should be consumed from one runtime event-loop thread.
-    /// Dropped events are reported through `metadata.droppedCount`.
+    /// Open the host monitor-event stream for display hotplug and descriptor changes.
+    /// Events follow host event-loop delivery and use stable display identifiers when available.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -188,9 +186,9 @@ declare namespace display {
     })
     export function monitorEventOpen(options: DisplayMonitorEventOpenOptions): Result<DisplayEventHandle, PlatformError>;
 
-    /// Close one global monitor-event stream.
+    /// Close a global monitor-event stream.
     ///
-    /// Close one opened monitor-event stream and release host monitor routing resources.
+    /// Close a monitor-event stream and release host routing resources.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -216,9 +214,9 @@ declare namespace display {
     })
     export function monitorEventClose(handle: DisplayEventHandle): Result<void, PlatformError>;
 
-    /// Wait for one monitor event.
+    /// Wait for a monitor event.
     ///
-    /// Wait for one event from one opened monitor-event stream.
+    /// Wait for the next event from a monitor-event stream.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -247,9 +245,9 @@ declare namespace display {
         timeoutNs: uint64,
     ): Result<DisplayMonitorEvent, PlatformError>;
 
-    /// Poll one monitor event without blocking.
+    /// Poll a monitor event without blocking.
     ///
-    /// Poll one pending event from one opened monitor-event stream without waiting.
+    /// Poll a pending event from a monitor-event stream without waiting.
     /// Empty queue state is reported through ioWouldBlock.
     ///
     /// # Platform
@@ -276,9 +274,9 @@ declare namespace display {
     })
     export function monitorEventTryRead(handle: DisplayEventHandle): Result<DisplayMonitorEvent, PlatformError>;
 
-    /// Wait for one batch of monitor events.
+    /// Wait for a batch of monitor events.
     ///
-    /// Wait for pending events from one opened monitor-event stream and return up to `maxEvents` events.
+    /// Wait for pending events from a monitor-event stream and return up to `maxEvents` events.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -308,9 +306,9 @@ declare namespace display {
         timeoutNs: uint64,
     ): Result<Array<DisplayMonitorEvent>, PlatformError>;
 
-    /// Poll one batch of monitor events without blocking.
+    /// Poll a batch of monitor events without blocking.
     ///
-    /// Poll pending events from one opened monitor-event stream and return up to `maxEvents` events.
+    /// Poll pending events from a monitor-event stream and return up to `maxEvents` events.
     ///
     /// # Platform
     /// Unix and Windows.

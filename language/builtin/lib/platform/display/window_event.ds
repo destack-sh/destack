@@ -10,11 +10,13 @@ import {
 import {
     WindowAspectRatio,
     WindowChromeKind,
+    WindowLogicalRect,
     WindowLogicalSize,
     WindowModeOptions,
     WindowOcclusionState,
     WindowPhysicalSize,
     WindowPosition,
+    WindowRenderState,
     WindowSafeAreaInsets,
     WindowTheme,
     WindowVisibility,
@@ -64,12 +66,36 @@ export struct WindowSizePayload {
     currentSizePhysical: WindowPhysicalSize;
 }
 
+/// Window content-rectangle-change payload.
+export struct WindowContentRectPayload {
+    /// Logical content rectangle before this event.
+    previousContentRectLogical: WindowLogicalRect;
+    /// Logical content rectangle after this event.
+    currentContentRectLogical: WindowLogicalRect;
+}
+
+/// Window framebuffer-size-change payload.
+export struct WindowFramebufferSizePayload {
+    /// Drawable framebuffer size before this event.
+    previousFramebufferSize: WindowPhysicalSize;
+    /// Drawable framebuffer size after this event.
+    currentFramebufferSize: WindowPhysicalSize;
+}
+
 /// Window scale-factor payload.
 export struct WindowScaleFactorPayload {
     /// Scale factor before this event in milli-scale units.
     previousScaleFactorMilli: uint32;
     /// Scale factor after this event in milli-scale units.
     currentScaleFactorMilli: uint32;
+}
+
+/// Window render-state-change payload.
+export struct WindowRenderStatePayload {
+    /// Render state before this event.
+    previousRenderState: WindowRenderState;
+    /// Render state after this event.
+    currentRenderState: WindowRenderState;
 }
 
 /// Window mode-change payload.
@@ -288,6 +314,26 @@ export struct WindowSizeChangedEvent {
     payload: WindowSizePayload;
 }
 
+/// Window-content-rectangle-changed event.
+export struct WindowContentRectChangedEvent {
+    /// Discriminator for this window event variant.
+    kind: "contentRectChanged";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Content-rectangle-change payload.
+    payload: WindowContentRectPayload;
+}
+
+/// Window-framebuffer-size-changed event.
+export struct WindowFramebufferSizeChangedEvent {
+    /// Discriminator for this window event variant.
+    kind: "framebufferSizeChanged";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Framebuffer-size-change payload.
+    payload: WindowFramebufferSizePayload;
+}
+
 /// Window-scale-factor-changed event.
 export struct WindowScaleFactorChangedEvent {
     /// Discriminator for this window event variant.
@@ -298,12 +344,14 @@ export struct WindowScaleFactorChangedEvent {
     payload: WindowScaleFactorPayload;
 }
 
-/// Window-refresh-requested event.
-export struct WindowRefreshRequestedEvent {
+/// Window-render-state-changed event.
+export struct WindowRenderStateChangedEvent {
     /// Discriminator for this window event variant.
-    kind: "refreshRequested";
+    kind: "renderStateChanged";
     /// Shared event metadata.
     metadata: WindowEventMetadata;
+    /// Render-state-change payload.
+    payload: WindowRenderStatePayload;
 }
 
 /// Window-mode-changed event.
@@ -500,8 +548,10 @@ export newtype WindowEvent =
     | WindowOcclusionChangedEvent
     | WindowPositionChangedEvent
     | WindowSizeChangedEvent
+    | WindowContentRectChangedEvent
+    | WindowFramebufferSizeChangedEvent
     | WindowScaleFactorChangedEvent
-    | WindowRefreshRequestedEvent
+    | WindowRenderStateChangedEvent
     | WindowModeChangedEvent
     | WindowDisplayChangedEvent
     | WindowThemeChangedEvent
@@ -541,48 +591,52 @@ export const WINDOW_EVENT_KIND_OCCLUSION_CHANGED: WindowEventKindMask = WindowEv
 export const WINDOW_EVENT_KIND_POSITION_CHANGED: WindowEventKindMask = WindowEventKindMask(0x40);
 /// Event kind bit for `sizeChanged`.
 export const WINDOW_EVENT_KIND_SIZE_CHANGED: WindowEventKindMask = WindowEventKindMask(0x80);
+/// Event kind bit for `contentRectChanged`.
+export const WINDOW_EVENT_KIND_CONTENT_RECT_CHANGED: WindowEventKindMask = WindowEventKindMask(0x100);
+/// Event kind bit for `framebufferSizeChanged`.
+export const WINDOW_EVENT_KIND_FRAMEBUFFER_SIZE_CHANGED: WindowEventKindMask = WindowEventKindMask(0x200);
 /// Event kind bit for `scaleFactorChanged`.
-export const WINDOW_EVENT_KIND_SCALE_FACTOR_CHANGED: WindowEventKindMask = WindowEventKindMask(0x100);
-/// Event kind bit for `refreshRequested`.
-export const WINDOW_EVENT_KIND_REFRESH_REQUESTED: WindowEventKindMask = WindowEventKindMask(0x200);
+export const WINDOW_EVENT_KIND_SCALE_FACTOR_CHANGED: WindowEventKindMask = WindowEventKindMask(0x400);
+/// Event kind bit for `renderStateChanged`.
+export const WINDOW_EVENT_KIND_RENDER_STATE_CHANGED: WindowEventKindMask = WindowEventKindMask(0x800);
 /// Event kind bit for `modeChanged`.
-export const WINDOW_EVENT_KIND_MODE_CHANGED: WindowEventKindMask = WindowEventKindMask(0x400);
+export const WINDOW_EVENT_KIND_MODE_CHANGED: WindowEventKindMask = WindowEventKindMask(0x1000);
 /// Event kind bit for `displayChanged`.
-export const WINDOW_EVENT_KIND_DISPLAY_CHANGED: WindowEventKindMask = WindowEventKindMask(0x800);
+export const WINDOW_EVENT_KIND_DISPLAY_CHANGED: WindowEventKindMask = WindowEventKindMask(0x2000);
 /// Event kind bit for `themeChanged`.
-export const WINDOW_EVENT_KIND_THEME_CHANGED: WindowEventKindMask = WindowEventKindMask(0x1000);
+export const WINDOW_EVENT_KIND_THEME_CHANGED: WindowEventKindMask = WindowEventKindMask(0x4000);
 /// Event kind bit for `chromeChanged`.
-export const WINDOW_EVENT_KIND_CHROME_CHANGED: WindowEventKindMask = WindowEventKindMask(0x2000);
+export const WINDOW_EVENT_KIND_CHROME_CHANGED: WindowEventKindMask = WindowEventKindMask(0x8000);
 /// Event kind bit for `taskbarVisibilityChanged`.
-export const WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED: WindowEventKindMask = WindowEventKindMask(0x4000);
+export const WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED: WindowEventKindMask = WindowEventKindMask(0x10000);
 /// Event kind bit for `safeAreaChanged`.
-export const WINDOW_EVENT_KIND_SAFE_AREA_CHANGED: WindowEventKindMask = WindowEventKindMask(0x8000);
+export const WINDOW_EVENT_KIND_SAFE_AREA_CHANGED: WindowEventKindMask = WindowEventKindMask(0x20000);
 /// Event kind bit for `opacityChanged`.
-export const WINDOW_EVENT_KIND_OPACITY_CHANGED: WindowEventKindMask = WindowEventKindMask(0x10000);
+export const WINDOW_EVENT_KIND_OPACITY_CHANGED: WindowEventKindMask = WindowEventKindMask(0x40000);
 /// Event kind bit for `parentChanged`.
-export const WINDOW_EVENT_KIND_PARENT_CHANGED: WindowEventKindMask = WindowEventKindMask(0x20000);
+export const WINDOW_EVENT_KIND_PARENT_CHANGED: WindowEventKindMask = WindowEventKindMask(0x80000);
 /// Event kind bit for `transientChanged`.
-export const WINDOW_EVENT_KIND_TRANSIENT_CHANGED: WindowEventKindMask = WindowEventKindMask(0x40000);
+export const WINDOW_EVENT_KIND_TRANSIENT_CHANGED: WindowEventKindMask = WindowEventKindMask(0x100000);
 /// Event kind bit for `modalChanged`.
-export const WINDOW_EVENT_KIND_MODAL_CHANGED: WindowEventKindMask = WindowEventKindMask(0x80000);
+export const WINDOW_EVENT_KIND_MODAL_CHANGED: WindowEventKindMask = WindowEventKindMask(0x200000);
 /// Event kind bit for `mousePassthroughChanged`.
-export const WINDOW_EVENT_KIND_MOUSE_PASSTHROUGH_CHANGED: WindowEventKindMask = WindowEventKindMask(0x100000);
+export const WINDOW_EVENT_KIND_MOUSE_PASSTHROUGH_CHANGED: WindowEventKindMask = WindowEventKindMask(0x400000);
 /// Event kind bit for `aspectRatioChanged`.
-export const WINDOW_EVENT_KIND_ASPECT_RATIO_CHANGED: WindowEventKindMask = WindowEventKindMask(0x200000);
+export const WINDOW_EVENT_KIND_ASPECT_RATIO_CHANGED: WindowEventKindMask = WindowEventKindMask(0x800000);
 /// Event kind bit for `dropStarted`.
-export const WINDOW_EVENT_KIND_DROP_STARTED: WindowEventKindMask = WindowEventKindMask(0x400000);
+export const WINDOW_EVENT_KIND_DROP_STARTED: WindowEventKindMask = WindowEventKindMask(0x1000000);
 /// Event kind bit for `fileHovered`.
-export const WINDOW_EVENT_KIND_FILE_HOVERED: WindowEventKindMask = WindowEventKindMask(0x800000);
+export const WINDOW_EVENT_KIND_FILE_HOVERED: WindowEventKindMask = WindowEventKindMask(0x2000000);
 /// Event kind bit for `dropCancelled`.
-export const WINDOW_EVENT_KIND_DROP_CANCELLED: WindowEventKindMask = WindowEventKindMask(0x1000000);
+export const WINDOW_EVENT_KIND_DROP_CANCELLED: WindowEventKindMask = WindowEventKindMask(0x4000000);
 /// Event kind bit for `dropCompleted`.
-export const WINDOW_EVENT_KIND_DROP_COMPLETED: WindowEventKindMask = WindowEventKindMask(0x2000000);
+export const WINDOW_EVENT_KIND_DROP_COMPLETED: WindowEventKindMask = WindowEventKindMask(0x8000000);
 /// Event kind bit for `fileHoverLeft`.
-export const WINDOW_EVENT_KIND_FILE_HOVER_LEFT: WindowEventKindMask = WindowEventKindMask(0x4000000);
+export const WINDOW_EVENT_KIND_FILE_HOVER_LEFT: WindowEventKindMask = WindowEventKindMask(0x10000000);
 /// Event kind bit for `fileDropped`.
-export const WINDOW_EVENT_KIND_FILE_DROPPED: WindowEventKindMask = WindowEventKindMask(0x8000000);
+export const WINDOW_EVENT_KIND_FILE_DROPPED: WindowEventKindMask = WindowEventKindMask(0x20000000);
 /// Event kind bit for `textDropped`.
-export const WINDOW_EVENT_KIND_TEXT_DROPPED: WindowEventKindMask = WindowEventKindMask(0x10000000);
+export const WINDOW_EVENT_KIND_TEXT_DROPPED: WindowEventKindMask = WindowEventKindMask(0x40000000);
 
 /// Window-event stream filter options.
 export struct WindowEventFilter {
@@ -607,17 +661,15 @@ export struct WindowEventOpenOptions {
 
 /// Window event bindings.
 declare namespace display {
-    /// Open one global window-event stream.
+    /// Open a global window-event stream.
     ///
-    /// Open one host window-event stream for all windows in this runtime.
-    /// Event ordering follows host event-loop delivery behavior.
-    /// Stream payloads include drop-session lifecycle events and final drop payload events.
-    /// This stream should be consumed from one runtime event-loop thread.
-    /// Dropped events are reported through `metadata.droppedCount`.
+    /// Open the host window-event stream for all windows in this runtime.
+    /// Events report lifecycle, state, and drop transitions as the host event loop delivers them.
+    /// Begin-frame delivery is exposed separately through `display.frame`.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses one host event-loop stream model with stable window-handle routing.
+    /// Uses Wayland event dispatch, X11 event queue dispatch, and Win32 message-loop delivery with stable window-handle routing.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
@@ -639,13 +691,13 @@ declare namespace display {
     })
     export function windowEventOpen(options: WindowEventOpenOptions): Result<WindowEventHandle, PlatformError>;
 
-    /// Close one global window-event stream.
+    /// Close a global window-event stream.
     ///
-    /// Close one opened window-event stream and release host event routing resources.
+    /// Close a window-event stream and release host routing resources.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific event-stream close operations.
+    /// Uses Wayland event-stream deregistration, X11 queue cleanup, and Win32 message-routing teardown.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -667,13 +719,13 @@ declare namespace display {
     })
     export function windowEventClose(handle: WindowEventHandle): Result<void, PlatformError>;
 
-    /// Wait for one window event.
+    /// Wait for a window event.
     ///
-    /// Wait for one event from one opened host window-event stream.
+    /// Wait for the next event from a window-event stream.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host event queue wait operations.
+    /// Uses Wayland event waits, X11 event queue waits, and Win32 message waits.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
@@ -698,14 +750,14 @@ declare namespace display {
         timeoutNs: uint64,
     ): Result<WindowEvent, PlatformError>;
 
-    /// Poll one window event without blocking.
+    /// Poll a window event without blocking.
     ///
-    /// Poll one pending event from one opened host window-event stream without waiting.
+    /// Poll a pending event from a window-event stream without waiting.
     /// Empty queue state is reported through ioWouldBlock.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses nonblocking host event queue polling.
+    /// Uses nonblocking Wayland dispatch, X11 event polling, and Win32 message polling.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -727,13 +779,13 @@ declare namespace display {
     })
     export function windowEventTryRead(handle: WindowEventHandle): Result<WindowEvent, PlatformError>;
 
-    /// Wait for one batch of window events.
+    /// Wait for a batch of window events.
     ///
-    /// Wait for pending events from one opened host window-event stream and return up to `maxEvents` events.
+    /// Wait for pending events from a window-event stream and return up to `maxEvents` events.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host event queue batch wait operations.
+    /// Uses Wayland batch dispatch, X11 event queue waits, and Win32 message batch waits.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
@@ -759,13 +811,13 @@ declare namespace display {
         timeoutNs: uint64,
     ): Result<Array<WindowEvent>, PlatformError>;
 
-    /// Poll one batch of window events without blocking.
+    /// Poll a batch of window events without blocking.
     ///
-    /// Poll pending events from one opened host window-event stream and return up to `maxEvents` events.
+    /// Poll pending events from a window-event stream and return up to `maxEvents` events.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses nonblocking host event queue batch polling.
+    /// Uses nonblocking Wayland batch dispatch, X11 event polling, and Win32 message batch polling.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
