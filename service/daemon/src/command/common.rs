@@ -241,7 +241,7 @@ pub struct CommandEnvVar {
 /// Configuration override applied to a command.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ConfigOverride {
-    /// Override path (e.g. compilerOptions.strict).
+    /// Override path (e.g. compiler.strict).
     pub path: String,
     /// Override payload value.
     pub value: serde_json::Value,

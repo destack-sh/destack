@@ -8,7 +8,7 @@ use destack_source::ProfileId;
 use parking_lot::Mutex;
 use {destack_query as query, destack_service as service, destack_workspace as workspace};
 
-use workspace::{Program, WorkspaceIndexSnapshot};
+use workspace::Program;
 
 use crate::{Daemon, DaemonError, DaemonUpdate, WatchBatch as DaemonWatchBatch};
 
@@ -1142,6 +1142,7 @@ impl ProtocolServer {
     fn workspace_index_payload(&self, root: &Path) -> Result<BinaryPayload, ProtocolError> {
         let _program = self.program_for_root(root)?;
         let bytes = self
+            .daemon
             .session
             .serialize_loaded_workspace_index()
             .map_err(|error| self.protocol_error(ProtocolErrorCode::Internal, &error.to_string()))?
