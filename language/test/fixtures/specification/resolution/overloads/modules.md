@@ -29,7 +29,7 @@ selected satisfies "general";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
 ### direct imports do not select later overloads
@@ -58,7 +58,7 @@ selected satisfies "specific";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
 ## Reexports
@@ -91,7 +91,7 @@ selected satisfies "general";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
 ### named reexports do not select later overloads
@@ -124,7 +124,7 @@ selected satisfies "specific";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
 ### export stars select the first overload
@@ -155,7 +155,7 @@ selected satisfies "general";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
 ### export stars do not select later overloads
@@ -188,5 +188,5 @@ selected satisfies "specific";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```

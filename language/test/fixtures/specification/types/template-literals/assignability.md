@@ -103,7 +103,7 @@ let ok: string = value;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ### string does not assign to template literal type

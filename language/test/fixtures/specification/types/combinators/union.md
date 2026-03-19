@@ -60,7 +60,7 @@ value satisfies string;
 > Any members collapse the union to any.
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ```ds

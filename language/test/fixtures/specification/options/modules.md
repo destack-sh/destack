@@ -17,7 +17,7 @@ const value: string = "ok";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": false } }
+{ "compiler": { "allowTs": false } }
 ```
 
 - contains: typescript modules are disabled
@@ -35,7 +35,7 @@ const value: string = "ok";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true } }
+{ "compiler": { "allowTs": true } }
 ```
 
 ## allowJs
@@ -53,7 +53,7 @@ const value = "ok";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowJs": false } }
+{ "compiler": { "allowJs": false } }
 ```
 
 - contains: javascript modules are disabled
@@ -71,7 +71,7 @@ const value = "ok";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowJs": true } }
+{ "compiler": { "allowJs": true } }
 ```
 
 ## checkTs
@@ -89,7 +89,7 @@ const value: string = 123;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": false } }
+{ "compiler": { "allowTs": true, "checkTs": false } }
 ```
 
 ### checkTs enables diagnostics when true
@@ -105,7 +105,7 @@ const value: string = 123;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
 - contains: not assignable
@@ -126,7 +126,7 @@ value();
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowJs": true, "checkJs": false } }
+{ "compiler": { "allowJs": true, "checkJs": false } }
 ```
 
 ### checkJs enables diagnostics when true
@@ -143,7 +143,7 @@ value();
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowJs": true, "checkJs": true } }
+{ "compiler": { "allowJs": true, "checkJs": true } }
 ```
 
 - contains: calling non-callable
@@ -163,7 +163,7 @@ declare const value;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "skipLibCheck": true } }
+{ "compiler": { "skipLibCheck": true } }
 ```
 
 ### skipLibCheck reports declaration errors when false
@@ -179,7 +179,7 @@ declare const value;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "skipLibCheck": false } }
+{ "compiler": { "skipLibCheck": false } }
 ```
 
 - contains: implicit any
@@ -199,7 +199,7 @@ export const value: string;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noUntrustedDeclarations": true } }
+{ "compiler": { "noUntrustedDeclarations": true } }
 ```
 
 - contains: untrusted declaration files are disabled
@@ -217,7 +217,7 @@ export const value: string;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noUntrustedDeclarations": false } }
+{ "compiler": { "noUntrustedDeclarations": false } }
 ```
 
 ## alwaysStrict
@@ -237,7 +237,7 @@ function dup(value: number, value: number) {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true, "alwaysStrict": false } }
+{ "compiler": { "allowTs": true, "checkTs": true, "alwaysStrict": false } }
 ```
 
 - contains: duplicate identifier
@@ -264,7 +264,7 @@ export const value = 1;
 
 ```json:destack.json
 {
-  "compilerOptions": {
+  "compiler": {
     "allowTs": true,
     "checkTs": true,
     "module": "commonjs",
@@ -289,7 +289,7 @@ import "./missing-side-effect";
 
 ```json:destack.json
 {
-  "compilerOptions": {
+  "compiler": {
     "allowTs": true,
     "checkTs": true,
     "noUncheckedSideEffectImports": true
@@ -313,7 +313,7 @@ import "./missing-side-effect";
 
 ```json:destack.json
 {
-  "compilerOptions": {
+  "compiler": {
     "allowTs": true,
     "checkTs": true,
     "noUncheckedSideEffectImports": false
@@ -339,7 +339,7 @@ import "./dep";
 
 ```json:destack.json
 {
-  "compilerOptions": {
+  "compiler": {
     "allowTs": true,
     "checkTs": true,
     "noUncheckedSideEffectImports": true
@@ -370,7 +370,7 @@ user satisfies User;
 
 ```json:destack.json
 {
-  "compilerOptions": {
+  "compiler": {
     "allowTs": true,
     "checkTs": true,
     "verbatimModuleSyntax": true

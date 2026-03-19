@@ -76,5 +76,5 @@ const value: Value = "ok";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```

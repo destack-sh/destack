@@ -39,7 +39,7 @@ y satisfies 42;
 > Casting from any to any type is valid.
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ```ds
@@ -53,7 +53,7 @@ y satisfies number;
 > Casting any type to any is valid.
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ```ds

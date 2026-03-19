@@ -109,10 +109,10 @@ cjs.buildValue();
 
 ### es module interop enables synthetic default imports from named only commonjs exports
 
-> `compilerOptions.esModuleInterop` allows default imports to bind to the CommonJS namespace shape.
+> `compiler.esModuleInterop` allows default imports to bind to the CommonJS namespace shape.
 
 ```json:destack.json
-{ "compilerOptions": { "esModuleInterop": true } }
+{ "compiler": { "esModuleInterop": true } }
 ```
 
 ```js:cjs.js
@@ -131,10 +131,10 @@ cjs.buildValue();
 
 ### allow synthetic default imports enables synthetic default imports from named only commonjs exports
 
-> `compilerOptions.allowSyntheticDefaultImports` allows default imports to bind to the CommonJS namespace shape.
+> `compiler.allowSyntheticDefaultImports` allows default imports to bind to the CommonJS namespace shape.
 
 ```json:destack.json
-{ "compilerOptions": { "allowSyntheticDefaultImports": true } }
+{ "compiler": { "allowSyntheticDefaultImports": true } }
 ```
 
 ```js:cjs.js

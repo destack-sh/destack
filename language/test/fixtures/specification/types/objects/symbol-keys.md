@@ -7,7 +7,7 @@
 > Well-known symbol keys can be used in object types.
 
 ```json:destack.json
-{ "compilerOptions": { "lib": ["es2015"], "noUncheckedIndexedAccess": false } }
+{ "compiler": { "lib": ["es2015"], "noUncheckedIndexedAccess": false } }
 ```
 
 ```ds:package.json
@@ -28,7 +28,7 @@ box[Symbol.iterator] satisfies int32
 > Symbol index signatures accept symbol keys.
 
 ```json:destack.json
-{ "compilerOptions": { "lib": ["es2015"], "noUncheckedIndexedAccess": false } }
+{ "compiler": { "lib": ["es2015"], "noUncheckedIndexedAccess": false } }
 ```
 
 ```ds:package.json
@@ -50,7 +50,7 @@ box[token] satisfies int32
 > Keyof on a symbol index signature yields symbol.
 
 ```json:destack.json
-{ "compilerOptions": { "lib": ["es2015"] } }
+{ "compiler": { "lib": ["es2015"] } }
 ```
 
 ```ds:package.json
@@ -76,7 +76,7 @@ const bad: Keys = "name";
 > Keyof should include the specific well-known symbol.
 
 ```json:destack.json
-{ "compilerOptions": { "lib": ["es2015"] } }
+{ "compiler": { "lib": ["es2015"] } }
 ```
 
 ```ds:package.json
@@ -104,7 +104,7 @@ const badSymbol: Keys = other;
 > Registry symbol keys can be used in object types.
 
 ```json:destack.json
-{ "compilerOptions": { "lib": ["es2015"] } }
+{ "compiler": { "lib": ["es2015"] } }
 ```
 
 ```ds:package.json
@@ -125,7 +125,7 @@ box[Symbol.for("token")] satisfies string
 > Unique symbols can be used as object keys.
 
 ```json:destack.json
-{ "compilerOptions": { "lib": ["es2015"] } }
+{ "compiler": { "lib": ["es2015"] } }
 ```
 
 ```ds:package.json
@@ -148,7 +148,7 @@ box[token] satisfies int32
 > Keyof preserves the unique symbol key.
 
 ```json:destack.json
-{ "compilerOptions": { "lib": ["es2015"] } }
+{ "compiler": { "lib": ["es2015"] } }
 ```
 
 ```ds:package.json
@@ -172,7 +172,7 @@ const ok: Keys = token;
 > Keyof should not accept unrelated symbols.
 
 ```json:destack.json
-{ "compilerOptions": { "lib": ["es2015"] } }
+{ "compiler": { "lib": ["es2015"] } }
 ```
 
 ```ds:package.json

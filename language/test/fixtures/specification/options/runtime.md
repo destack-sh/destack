@@ -21,7 +21,7 @@ export const value = 1;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noDynamicImport": true } }
+{ "compiler": { "noDynamicImport": true } }
 ```
 
 - contains: dynamic imports are disabled
@@ -43,7 +43,7 @@ export const value = 1;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noDynamicImport": false } }
+{ "compiler": { "noDynamicImport": false } }
 ```
 
 ## noInternalImport
@@ -52,7 +52,7 @@ export const value = 1;
 
 > Internal protocol imports are rejected when noInternalImport is true.
 
-```ds:main.ds runtime=native output=native libs=default
+```ds:main.ds runtime=native output=native libs=es5
 import "platform:fs";
 ```
 
@@ -61,7 +61,7 @@ import "platform:fs";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noInternalImport": true } }
+{ "compiler": { "noInternalImport": true } }
 ```
 
 - contains: internal module import
@@ -70,7 +70,7 @@ import "platform:fs";
 
 > Internal protocol imports are allowed when noInternalImport is false.
 
-```ds:main.ds runtime=native output=native libs=default
+```ds:main.ds runtime=native output=native libs=es5
 import "platform:fs";
 ```
 
@@ -79,14 +79,14 @@ import "platform:fs";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noInternalImport": false } }
+{ "compiler": { "noInternalImport": false } }
 ```
 
 ### noInternalImport reports warnings for internal protocol imports when warn
 
 > Internal protocol imports emit warnings when noInternalImport is warn.
 
-```ds:main.ds runtime=native output=native libs=default
+```ds:main.ds runtime=native output=native libs=es5
 import "platform:fs";
 ```
 
@@ -95,7 +95,7 @@ import "platform:fs";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noInternalImport": "warn" } }
+{ "compiler": { "noInternalImport": "warn" } }
 ```
 
 - warning: contains: internal module import
@@ -115,7 +115,7 @@ eval("1");
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false, "noDynamicEvaluation": true } }
+{ "compiler": { "noAny": false, "noDynamicEvaluation": true } }
 ```
 
 - contains: dynamic evaluation is disabled
@@ -133,7 +133,7 @@ eval("1");
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false, "noDynamicEvaluation": false } }
+{ "compiler": { "noAny": false, "noDynamicEvaluation": false } }
 ```
 
 ### noDynamicEvaluation reports Function when true
@@ -149,7 +149,7 @@ let value = Function(["return 1"]);
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false, "noDynamicEvaluation": true } }
+{ "compiler": { "noAny": false, "noDynamicEvaluation": true } }
 ```
 
 - contains: dynamic evaluation is disabled
@@ -167,7 +167,7 @@ let value = Function(["return 1"]);
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false, "noDynamicEvaluation": false } }
+{ "compiler": { "noAny": false, "noDynamicEvaluation": false } }
 ```
 
 ## noProxy
@@ -187,7 +187,7 @@ let proxy = new Proxy(target, handler);
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false, "noProxy": true } }
+{ "compiler": { "noAny": false, "noProxy": true } }
 ```
 
 - contains: proxy usage is disabled
@@ -207,7 +207,7 @@ let proxy = new Proxy(target, handler);
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false, "noProxy": false } }
+{ "compiler": { "noAny": false, "noProxy": false } }
 ```
 
 ## noDynamicShapes
@@ -227,7 +227,7 @@ Object.defineProperty(target, "x", descriptor);
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false, "noDynamicShapes": true } }
+{ "compiler": { "noAny": false, "noDynamicShapes": true } }
 ```
 
 - contains: dynamic shape mutation is disabled
@@ -247,7 +247,7 @@ Object.defineProperty(target, "x", descriptor);
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false, "noDynamicShapes": false } }
+{ "compiler": { "noAny": false, "noDynamicShapes": false } }
 ```
 
 ### noDynamicShapes reports delete when true
@@ -264,7 +264,7 @@ delete target.value;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noDynamicShapes": true } }
+{ "compiler": { "noDynamicShapes": true } }
 ```
 
 - contains: dynamic shape mutation is disabled
@@ -283,7 +283,7 @@ delete target.value;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noDynamicShapes": false } }
+{ "compiler": { "noDynamicShapes": false } }
 ```
 
 ## noManaged
@@ -305,7 +305,7 @@ let value = new Box();
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noManaged": true } }
+{ "compiler": { "noManaged": true } }
 ```
 
 - contains: managed memory is disabled
@@ -327,7 +327,7 @@ let value2: ^Box = ^new Box();
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noManaged": true } }
+{ "compiler": { "noManaged": true } }
 ```
 
 ## noRuntime
@@ -347,7 +347,7 @@ async function run(): int32 {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noRuntime": true } }
+{ "compiler": { "noRuntime": true } }
 ```
 
 - contains: runtime features are disabled
@@ -366,7 +366,7 @@ const value = await promise;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false, "noRuntime": true } }
+{ "compiler": { "noAny": false, "noRuntime": true } }
 ```
 
 - contains: runtime features are disabled
@@ -387,7 +387,7 @@ function* generator(): int32 {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noRuntime": true } }
+{ "compiler": { "noRuntime": true } }
 ```
 
 - contains: runtime features are disabled
@@ -407,7 +407,7 @@ async function run(): int32 {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noRuntime": false } }
+{ "compiler": { "noRuntime": false } }
 ```
 
 ### noRuntime allows await when false
@@ -424,7 +424,7 @@ const value = await promise;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false, "noRuntime": false } }
+{ "compiler": { "noAny": false, "noRuntime": false } }
 ```
 
 ### noRuntime allows yield when false
@@ -443,7 +443,7 @@ function* generator(): int32 {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noRuntime": false } }
+{ "compiler": { "noRuntime": false } }
 ```
 
 ## noExceptions
@@ -463,7 +463,7 @@ function boom(): void {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noExceptions": true } }
+{ "compiler": { "noExceptions": true } }
 ```
 
 - contains: exceptions are disabled
@@ -485,7 +485,7 @@ try {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noExceptions": true } }
+{ "compiler": { "noExceptions": true } }
 ```
 
 - contains: exceptions are disabled
@@ -507,7 +507,7 @@ try {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noExceptions": false } }
+{ "compiler": { "noExceptions": false } }
 ```
 
 ## noComputedPropertyAccess
@@ -527,7 +527,7 @@ let out = target[key];
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noComputedPropertyAccess": true } }
+{ "compiler": { "noComputedPropertyAccess": true } }
 ```
 
 - contains: computed property access is disabled
@@ -547,7 +547,7 @@ let out = target[key];
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noComputedPropertyAccess": false } }
+{ "compiler": { "noComputedPropertyAccess": false } }
 ```
 
 ## noReferentialEquality
@@ -567,7 +567,7 @@ let same = left == right;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noReferentialEquality": true } }
+{ "compiler": { "noReferentialEquality": true } }
 ```
 
 - contains: referential equality is disabled
@@ -587,7 +587,7 @@ let same = left === right;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noReferentialEquality": true } }
+{ "compiler": { "noReferentialEquality": true } }
 ```
 
 - contains: referential equality is disabled
@@ -607,7 +607,7 @@ let same = left !== right;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noReferentialEquality": true } }
+{ "compiler": { "noReferentialEquality": true } }
 ```
 
 - contains: referential equality is disabled
@@ -633,7 +633,7 @@ let same = left == right;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noReferentialEquality": false } }
+{ "compiler": { "noReferentialEquality": false } }
 ```
 
 ### noReferentialEquality allows class equality when false
@@ -656,7 +656,7 @@ same satisfies boolean;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noReferentialEquality": false } }
+{ "compiler": { "noReferentialEquality": false } }
 ```
 
 
@@ -692,7 +692,7 @@ pet.speak();
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noImplicitDynamicDispatch": true } }
+{ "compiler": { "noImplicitDynamicDispatch": true } }
 ```
 
 - contains: implicit dynamic dispatch is disabled
@@ -727,7 +727,7 @@ pet.speak();
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noImplicitDynamicDispatch": false } }
+{ "compiler": { "noImplicitDynamicDispatch": false } }
 ```
 
 ## noGlobalThis
@@ -747,7 +747,7 @@ let value = globalThis;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noGlobalThis": true } }
+{ "compiler": { "noGlobalThis": true } }
 ```
 
 - contains: globalThis access is disabled
@@ -767,7 +767,7 @@ let value = globalThis;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noGlobalThis": false } }
+{ "compiler": { "noGlobalThis": false } }
 ```
 
 ## useDefineForClassFields
@@ -790,7 +790,7 @@ counter.value satisfies number;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "useDefineForClassFields": true } }
+{ "compiler": { "useDefineForClassFields": true } }
 ```
 
 ### useDefineForClassFields allows class field initializers when false
@@ -811,5 +811,5 @@ counter.value satisfies number;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "useDefineForClassFields": false } }
+{ "compiler": { "useDefineForClassFields": false } }
 ```

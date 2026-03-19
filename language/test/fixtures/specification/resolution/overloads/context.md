@@ -141,7 +141,7 @@ selected satisfies "generic-first";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
+{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
 ### callback object contextual typing does not select later candidates
@@ -168,7 +168,7 @@ selected satisfies "string-second";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
+{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
 - contains: not assignable
@@ -222,7 +222,7 @@ selected satisfies "generic-first";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
+{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
 ### callback object overload order through re-exports still rejects later candidates
@@ -257,7 +257,7 @@ selected satisfies "string-second";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
+{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
 - contains: not assignable

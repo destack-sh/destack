@@ -69,5 +69,5 @@ child.childOnly() satisfies "child";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true, "noImplicitThis": true, "strictBindCallApply": true } }
+{ "compiler": { "allowTs": true, "checkTs": true, "noImplicitThis": true, "strictBindCallApply": true } }
 ```

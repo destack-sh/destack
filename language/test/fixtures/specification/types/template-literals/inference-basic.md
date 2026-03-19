@@ -69,7 +69,7 @@ let ok2: Strip<any> = "value";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ### template literal infer rejects non string from any
@@ -83,7 +83,7 @@ let bad: Strip<any> = 1;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 - contains: type 1 is not assignable to type strip<<type>>

@@ -13,7 +13,7 @@ Tests for override modifiers and `noImplicitOverride`.
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noImplicitOverride": true } }
+{ "compiler": { "noImplicitOverride": true } }
 ```
 
 ```ds
@@ -37,7 +37,7 @@ class Derived extends Base {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noImplicitOverride": true } }
+{ "compiler": { "noImplicitOverride": true } }
 ```
 
 ```ds
@@ -59,7 +59,7 @@ class Derived extends Base {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noImplicitOverride": false } }
+{ "compiler": { "noImplicitOverride": false } }
 ```
 
 ```ds
@@ -83,7 +83,7 @@ class Derived extends Base {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noImplicitOverride": false } }
+{ "compiler": { "noImplicitOverride": false } }
 ```
 
 ```ds
@@ -105,7 +105,7 @@ class Derived extends Base {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noImplicitOverride": true } }
+{ "compiler": { "noImplicitOverride": true } }
 ```
 
 ```ds

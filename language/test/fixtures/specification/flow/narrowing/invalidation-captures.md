@@ -184,5 +184,5 @@ if (box.inner.value !== undefined) {
 - contains: not assignable
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```

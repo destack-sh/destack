@@ -82,7 +82,7 @@ const ok2: AnySelect = "no";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ### conditional types with any reject non members
@@ -98,7 +98,7 @@ const bad: AnySelect = 1;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 - contains: not assignable
@@ -194,7 +194,7 @@ let ok: WrappedAny = "yes";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ### wrapped unknown conditionals choose the false branch

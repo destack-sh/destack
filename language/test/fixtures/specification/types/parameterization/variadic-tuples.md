@@ -55,5 +55,5 @@ value[2] satisfies true;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```

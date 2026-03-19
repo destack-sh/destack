@@ -19,7 +19,7 @@ value;
 
 ```json:destack.json
 {
-  "compilerOptions": {
+  "compiler": {
     "noAny": false
   },
   "targets": {
@@ -46,7 +46,7 @@ value;
 
 ```json:destack.json
 {
-  "compilerOptions": {
+  "compiler": {
     "noImprecisePrimitives": false
   },
   "targets": {
@@ -73,7 +73,7 @@ value;
 
 ```json:destack.json
 {
-  "compilerOptions": {
+  "compiler": {
     "noImplicitConversions": false
   },
   "targets": {
@@ -101,7 +101,7 @@ cast;
 
 ```json:destack.json
 {
-  "compilerOptions": {
+  "compiler": {
     "noUnsafeTypeAssertions": false
   },
   "targets": {
@@ -133,7 +133,7 @@ value;
 
 ```json:destack.json
 {
-  "compilerOptions": {
+  "compiler": {
     "noManaged": false
   },
   "targets": {
@@ -162,7 +162,7 @@ value;
 
 ```json:destack.json
 {
-  "compilerOptions": {
+  "compiler": {
     "noAny": false
   },
   "targets": {

@@ -172,7 +172,7 @@ let value: int32 = bag["a"];
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noUncheckedIndexedAccess": true } }
+{ "compiler": { "noUncheckedIndexedAccess": true } }
 ```
 
 - contains: not assignable
@@ -195,7 +195,7 @@ let value: int32 = bag["a"];
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noUncheckedIndexedAccess": false } }
+{ "compiler": { "noUncheckedIndexedAccess": false } }
 ```
 
 ## property access
@@ -203,7 +203,7 @@ let value: int32 = bag["a"];
 ### noPropertyAccessFromIndexSignature forbids dot access
 
 ```json:destack.json
-{ "compilerOptions": { "noPropertyAccessFromIndexSignature": true } }
+{ "compiler": { "noPropertyAccessFromIndexSignature": true } }
 ```
 
 ```ds:package.json
@@ -237,7 +237,7 @@ let value = bag.missing
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noPropertyAccessFromIndexSignature": false } }
+{ "compiler": { "noPropertyAccessFromIndexSignature": false } }
 ```
 
 ### dot access from index signature is allowed by default

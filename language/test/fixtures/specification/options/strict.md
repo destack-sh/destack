@@ -19,7 +19,7 @@ function handle(value) {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": true } }
+{ "compiler": { "strict": true } }
 ```
 
 - contains: implicit any type
@@ -41,7 +41,7 @@ function handle(value) {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": false, "noImplicitAny": true } }
+{ "compiler": { "strict": false, "noImplicitAny": true } }
 ```
 
 - contains: implicit any type
@@ -61,7 +61,7 @@ function handle(value) {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": true, "noImplicitAny": false } }
+{ "compiler": { "strict": true, "noImplicitAny": false } }
 ```
 
 ### strict false allows implicit any by default
@@ -79,7 +79,7 @@ function handle(value) {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": false } }
+{ "compiler": { "strict": false } }
 ```
 
 ### strict enables strict null checks by default
@@ -95,7 +95,7 @@ let value: int32 = null;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": true } }
+{ "compiler": { "strict": true } }
 ```
 
 - contains: not assignable
@@ -113,7 +113,7 @@ let value: int32 = null;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": false } }
+{ "compiler": { "strict": false } }
 ```
 
 ## strictNullChecks
@@ -131,7 +131,7 @@ let value: int32 = null;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": false, "strictNullChecks": true } }
+{ "compiler": { "strict": false, "strictNullChecks": true } }
 ```
 
 - contains: not assignable
@@ -149,7 +149,7 @@ let value: int32 = null;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": true, "strictNullChecks": false } }
+{ "compiler": { "strict": true, "strictNullChecks": false } }
 ```
 
 ### strict enables noImplicitThis by default
@@ -167,7 +167,7 @@ function counter() {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": true } }
+{ "compiler": { "strict": true } }
 ```
 
 - contains: implicit this type
@@ -187,7 +187,7 @@ function counter() {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": false } }
+{ "compiler": { "strict": false } }
 ```
 
 ## noImplicitThis
@@ -207,7 +207,7 @@ function counter() {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": false, "noImplicitThis": true } }
+{ "compiler": { "strict": false, "noImplicitThis": true } }
 ```
 
 - contains: implicit this type
@@ -227,7 +227,7 @@ function counter() {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": false, "noImplicitThis": false } }
+{ "compiler": { "strict": false, "noImplicitThis": false } }
 ```
 
 ### strict enables strictFunctionTypes by default
@@ -248,7 +248,7 @@ let wide: FnWide = narrow;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": true } }
+{ "compiler": { "strict": true } }
 ```
 
 - contains: not assignable
@@ -273,7 +273,7 @@ let wide: FnWide = narrow;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": false, "strictFunctionTypes": true } }
+{ "compiler": { "strict": false, "strictFunctionTypes": true } }
 ```
 
 - contains: not assignable
@@ -299,7 +299,7 @@ let value: Wide = new Narrow();
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": false, "strictFunctionTypes": true } }
+{ "compiler": { "strict": false, "strictFunctionTypes": true } }
 ```
 
 - contains: not assignable
@@ -322,7 +322,7 @@ let wide: FnWide = narrow;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": false, "strictFunctionTypes": false } }
+{ "compiler": { "strict": false, "strictFunctionTypes": false } }
 ```
 
 ### strictFunctionTypes allows narrow method parameters when false
@@ -346,7 +346,7 @@ let value: Wide = new Narrow();
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": false, "strictFunctionTypes": false } }
+{ "compiler": { "strict": false, "strictFunctionTypes": false } }
 ```
 
 ### strict enables strictBindCallApply by default
@@ -366,7 +366,7 @@ add.call({ base: "no" }, 1);
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": true } }
+{ "compiler": { "strict": true } }
 ```
 
 - contains: not assignable
@@ -390,7 +390,7 @@ add.call({ base: "no" }, 1);
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": false, "strictBindCallApply": true } }
+{ "compiler": { "strict": false, "strictBindCallApply": true } }
 ```
 
 - contains: not assignable
@@ -412,7 +412,7 @@ add.call({ base: "no" }, 1);
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": false, "strictBindCallApply": false } }
+{ "compiler": { "strict": false, "strictBindCallApply": false } }
 ```
 
 ### strict enables strictBuiltinIteratorReturn by default
@@ -431,7 +431,7 @@ const value: ReturnValue = 1;
 
 ```json:destack.json
 {
-  "compilerOptions": { "strict": true, "lib": ["es5", "es2015.iterable"] }
+  "compiler": { "strict": true, "lib": ["es5", "es2015.iterable"] }
 }
 ```
 
@@ -452,7 +452,7 @@ class Counter {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": true } }
+{ "compiler": { "strict": true } }
 ```
 
 - contains: property is not definitely assigned
@@ -476,7 +476,7 @@ value satisfies int;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": true } }
+{ "compiler": { "strict": true } }
 ```
 
 - contains: expected string
@@ -500,7 +500,7 @@ try {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strict": false, "useUnknownInCatchVariables": true } }
+{ "compiler": { "strict": false, "useUnknownInCatchVariables": true } }
 ```
 
 - contains: expected string
@@ -523,7 +523,7 @@ try {
 
 ```json:destack.json
 {
-  "compilerOptions": {
+  "compiler": {
     "strict": false,
     "noAny": false,
     "useUnknownInCatchVariables": false
@@ -543,7 +543,7 @@ try {
 
 ```json:destack.json
 {
-  "compilerOptions": {
+  "compiler": {
     "strictBuiltinIteratorReturn": true,
     "lib": ["es5", "es2015.iterable"]
   }
@@ -568,7 +568,7 @@ const value: ReturnValue = 1;
 
 ```json:destack.json
 {
-  "compilerOptions": {
+  "compiler": {
     "noAny": false,
     "strictBuiltinIteratorReturn": false,
     "lib": ["es5", "es2015.iterable"]

@@ -151,7 +151,7 @@ callIt({
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
+{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
 ### this-less methods do not infer from sibling members when flipped
@@ -171,7 +171,7 @@ callIt({
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
+{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
 - contains: unknown
@@ -197,7 +197,7 @@ output satisfies string;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
+{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
 ### this-less methods do not contextually infer sibling generic payloads
@@ -217,7 +217,7 @@ build({
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
+{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
 - contains: unknown
@@ -249,7 +249,7 @@ output satisfies string;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
+{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
 ## generic callback precision
@@ -268,7 +268,7 @@ head satisfies 1;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
+{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
 ### generic callback inference widens mutable array element types
@@ -285,7 +285,7 @@ head satisfies number;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
+{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
 ### generic callback inference does not keep mutable array literal elements
@@ -302,7 +302,7 @@ head satisfies 1;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
+{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
 - contains: not assignable
@@ -329,7 +329,7 @@ head satisfies 1;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
+{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
 ## nested contextual inference
@@ -349,7 +349,7 @@ output satisfies string;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
+{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
 ### nested callback inference rejects mismatched payload usage
@@ -366,7 +366,7 @@ withValue("ready", read => read().toFixed());
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
+{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
 - contains: tofixed
@@ -393,7 +393,7 @@ output satisfies string;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
+{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
 ### nested this-less methods do not infer sibling payloads
@@ -413,7 +413,7 @@ wire({
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
+{ "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
 - contains: unknown

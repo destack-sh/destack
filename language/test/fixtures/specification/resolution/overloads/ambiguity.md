@@ -26,7 +26,7 @@ selected satisfies "string";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ### any inputs do not select later overloads
@@ -51,7 +51,7 @@ selected satisfies "number";
 - contains: not assignable
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ### never inputs follow declaration order
@@ -114,7 +114,7 @@ selected satisfies "any";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ### unknown inputs do not select later overloads
@@ -139,5 +139,5 @@ selected satisfies "unknown";
 - contains: not assignable
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```

@@ -13,7 +13,7 @@ Tests for `strictPropertyInitialization` on classes.
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strictPropertyInitialization": true } }
+{ "compiler": { "strictPropertyInitialization": true } }
 ```
 
 ```ds
@@ -33,7 +33,7 @@ class Counter {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strictPropertyInitialization": true } }
+{ "compiler": { "strictPropertyInitialization": true } }
 ```
 
 ```ds
@@ -55,7 +55,7 @@ class Counter {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strictPropertyInitialization": true } }
+{ "compiler": { "strictPropertyInitialization": true } }
 ```
 
 ```ds
@@ -73,7 +73,7 @@ class Counter {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strictPropertyInitialization": true } }
+{ "compiler": { "strictPropertyInitialization": true } }
 ```
 
 ```ds
@@ -91,7 +91,7 @@ class Counter {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strictPropertyInitialization": true } }
+{ "compiler": { "strictPropertyInitialization": true } }
 ```
 
 ```ds

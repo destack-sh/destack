@@ -79,7 +79,7 @@ let ok: AnyString = "value";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ### template literal type rejects symbol spans

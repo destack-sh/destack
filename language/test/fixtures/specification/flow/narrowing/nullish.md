@@ -174,7 +174,7 @@ if (null !== value) {
 ### strictNullChecks false still narrows explicit null unions
 
 ```json:destack.json
-{ "compilerOptions": { "strictNullChecks": false } }
+{ "compiler": { "strictNullChecks": false } }
 ```
 
 ```ds
@@ -189,7 +189,7 @@ if (value != null) {
 ### strictNullChecks false still narrows explicit undefined unions
 
 ```json:destack.json
-{ "compilerOptions": { "strictNullChecks": false } }
+{ "compiler": { "strictNullChecks": false } }
 ```
 
 ```ds

@@ -97,7 +97,7 @@ Box.missing() satisfies number;
 > Class fields gated with true still participate in class construction requirements.
 
 ```json:destack.json
-{ "compilerOptions": { "strictPropertyInitialization": false } }
+{ "compiler": { "strictPropertyInitialization": false } }
 ```
 
 ```ds

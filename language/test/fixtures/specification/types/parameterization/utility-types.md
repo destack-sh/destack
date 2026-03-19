@@ -51,7 +51,7 @@ let ok: number = value;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ### pick preserves optional properties
@@ -549,7 +549,7 @@ let ok: string = value;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ### nonnullable with never yields never
@@ -637,5 +637,5 @@ let ok: string = value;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```

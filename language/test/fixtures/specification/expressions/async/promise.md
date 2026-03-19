@@ -60,7 +60,7 @@ async function read(): Promise<number> {
 
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ```ds libs=es5,es2015.promise

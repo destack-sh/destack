@@ -7,7 +7,7 @@
 > Throw expressions are rejected when exceptions are disabled.
 
 ```json:destack.json
-{ "compilerOptions": { "noExceptions": true } }
+{ "compiler": { "noExceptions": true } }
 ```
 
 ```ds:package.json
@@ -27,7 +27,7 @@ function fail(): never {
 > Try expressions remain valid when exceptions are disabled, as long as no throw is used.
 
 ```json:destack.json
-{ "compilerOptions": { "noExceptions": true } }
+{ "compiler": { "noExceptions": true } }
 ```
 
 ```ds:package.json
@@ -49,7 +49,7 @@ value satisfies int;
 > Throw expressions are allowed when exceptions are enabled.
 
 ```json:destack.json
-{ "compilerOptions": { "noExceptions": false } }
+{ "compiler": { "noExceptions": false } }
 ```
 
 ```ds:package.json
@@ -67,7 +67,7 @@ function fail(): never {
 > Throw remains forbidden inside try blocks when exceptions are disabled.
 
 ```json:destack.json
-{ "compilerOptions": { "noExceptions": true } }
+{ "compiler": { "noExceptions": true } }
 ```
 
 ```ds:package.json
@@ -91,7 +91,7 @@ value satisfies int32;
 > Throw remains forbidden inside catch blocks when exceptions are disabled.
 
 ```json:destack.json
-{ "compilerOptions": { "noExceptions": true } }
+{ "compiler": { "noExceptions": true } }
 ```
 
 ```ds:package.json

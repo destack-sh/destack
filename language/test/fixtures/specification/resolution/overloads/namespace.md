@@ -33,7 +33,7 @@ selected satisfies "general";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
 ### namespace imports do not select later overloads
@@ -66,7 +66,7 @@ selected satisfies "specific";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
 ## Methods
@@ -98,7 +98,7 @@ selected satisfies "general";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
 ### namespace imported methods do not select later overloads
@@ -130,7 +130,7 @@ selected satisfies "specific";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
 ### namespace imports preserve overload order through renamed re-exports
@@ -161,7 +161,7 @@ selected satisfies "general";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
 ### namespace imports through renamed re-exports do not select later overloads
@@ -194,5 +194,5 @@ selected satisfies "specific";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```

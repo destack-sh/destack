@@ -13,7 +13,7 @@ Tests for strict `bind`, `call`, and `apply` checking.
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strictBindCallApply": true } }
+{ "compiler": { "strictBindCallApply": true } }
 ```
 
 ```ds
@@ -35,7 +35,7 @@ add.call({ base: "no" }, 1);
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strictBindCallApply": true } }
+{ "compiler": { "strictBindCallApply": true } }
 ```
 
 ```ds
@@ -57,7 +57,7 @@ add.apply({ base: 1 }, ["no"]);
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strictBindCallApply": true } }
+{ "compiler": { "strictBindCallApply": true } }
 ```
 
 ```ds
@@ -79,7 +79,7 @@ result satisfies number;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strictBindCallApply": false } }
+{ "compiler": { "strictBindCallApply": false } }
 ```
 
 ```ds
@@ -99,7 +99,7 @@ add.call({ base: "no" }, 1);
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strictBindCallApply": true } }
+{ "compiler": { "strictBindCallApply": true } }
 ```
 
 ```ds
@@ -122,7 +122,7 @@ bound("no");
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strictBindCallApply": true } }
+{ "compiler": { "strictBindCallApply": true } }
 ```
 
 ```ds

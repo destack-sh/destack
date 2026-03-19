@@ -161,7 +161,7 @@ let value: number = values[0];
 > Arrays expose filter with typed results.
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ```ds libs=es5
@@ -175,7 +175,7 @@ filtered satisfies number[];
 > Arrays expose findIndex.
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ```ds libs=es2015

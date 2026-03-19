@@ -50,7 +50,7 @@ Rename should update alias and package specifiers when targets move.
 The workspace config defines the `@/` alias.
 
 ```json:destack.json
-{ "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["src/*"] } } }
+{ "compiler": { "baseUrl": ".", "paths": { "@/*": ["src/*"] } } }
 ```
 
 The alias target module exports `foo`.
