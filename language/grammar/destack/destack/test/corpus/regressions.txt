@@ -85,46 +85,6 @@ type MaybeRef = Reference<Entity>?;
           (type_identifier))))))
 
 ==================================
-Regression function type unnamed builtin parameter
-==================================
-
-declare interface Promise<T> {
-  "catch"<F>(f: (any) => F): Promise<T | F>
-}
-
----
-
-(program
-  (ambient_declaration
-    (interface_declaration
-      (type_identifier)
-      (type_parameters
-        (type_parameter
-          (type_identifier)))
-      (interface_body
-        (method_signature
-          (string
-            (string_fragment))
-          (type_parameters
-            (type_parameter
-              (type_identifier)))
-          (formal_parameters
-            (required_parameter
-              (identifier)
-              (type_annotation
-                (function_type
-                  (formal_parameters
-                    (predefined_type))
-                  (type_identifier)))))
-          (type_annotation
-            (generic_type
-              (type_identifier)
-              (type_arguments
-                (union_type
-                  (type_identifier)
-                  (type_identifier))))))))))
-
-==================================
 Regression newtype tuple aliases
 ==================================
 
@@ -142,18 +102,18 @@ export newtype extern = (string,) | ();
         (tuple_type)))))
 
 ==================================
-Regression parenthesized const if let
+Regression parenthesized const if let statement
 ==================================
 
 if (const Some(piece) = currentPiece) {
   piece
 }
 
-const shape = if (const Some(next) = nextPiece) {
+if (const Some(next) = nextPiece) {
   next
 } else {
   current
-};
+}
 
 ---
 
@@ -169,21 +129,18 @@ const shape = if (const Some(next) = nextPiece) {
     (statement_block
       (expression_statement
         (identifier))))
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (if_expression
-        (destack_if_let_condition
-          (destack_if_let_pattern
-            (call_expression
-              (identifier)
-              (arguments
-                (identifier))))
-          (identifier))
-        (statement_block
-          (expression_statement
-            (identifier)))
-        (else_clause
-          (statement_block
-            (expression_statement
-              (identifier))))))))
+  (if_statement
+    (destack_if_let_condition
+      (destack_if_let_pattern
+        (call_expression
+          (identifier)
+          (arguments
+            (identifier))))
+      (identifier))
+    (statement_block
+      (expression_statement
+        (identifier)))
+    (else_clause
+      (statement_block
+        (expression_statement
+          (identifier))))))

@@ -2,11 +2,10 @@
 Coverage ambient and global declarations
 ==================================
 
-declare let version: number;
-declare var retries: number;
+declare const version: number;
 declare function *stream(): number;
 
-global {
+declare namespace env {
   interface Window {
     dsVersion: number;
   }
@@ -16,13 +15,7 @@ global {
 
 (program
   (ambient_declaration
-    (ambient_variable_declaration
-      (variable_declarator
-        (identifier)
-        (type_annotation
-          (predefined_type)))))
-  (ambient_declaration
-    (ambient_variable_declaration
+    (ambient_const_declaration
       (variable_declarator
         (identifier)
         (type_annotation
@@ -32,15 +25,17 @@ global {
     (formal_parameters)
     (type_annotation
       (predefined_type)))
-  (global_declaration
-    (statement_block
-      (interface_declaration
-        (type_identifier)
-        (interface_body
-          (destack_property_signature
-            (property_identifier)
-            (type_annotation
-              (predefined_type))))))))
+  (ambient_declaration
+    (internal_module
+      (identifier)
+      (statement_block
+        (interface_declaration
+          (type_identifier)
+          (interface_body
+            (destack_property_signature
+              (property_identifier)
+              (type_annotation
+                (predefined_type)))))))))
 
 ==================================
 Coverage associated members and placeholders
@@ -133,12 +128,8 @@ enum Mode {
         (number)))))
 
 ==================================
-Coverage relation and ownership types
+Coverage ownership types
 ==================================
-
-type UsesImplements = Vec<number> implements Storage<number>;
-type UsesIn = number in (number | string);
-type ExtendsExpr = number extends number;
 
 type Shared = &readonly number;
 type Owned = ^readonly number;
@@ -147,30 +138,6 @@ type Raw = *number;
 ---
 
 (program
-  (type_alias_declaration
-    (type_identifier)
-    (implements_relation_type
-      (generic_type
-        (type_identifier)
-        (type_arguments
-          (predefined_type)))
-      (generic_type
-        (type_identifier)
-        (type_arguments
-          (predefined_type)))))
-  (type_alias_declaration
-    (type_identifier)
-    (in_relation_type
-      (predefined_type)
-      (parenthesized_type
-        (union_type
-          (predefined_type)
-          (predefined_type)))))
-  (type_alias_declaration
-    (type_identifier)
-    (relation_type
-      (predefined_type)
-      (predefined_type)))
   (type_alias_declaration
     (type_identifier)
     (borrow_type
@@ -241,10 +208,6 @@ const loops = outer: loop {
 
 const usingValue = using temp = source;
 const derefValue = *pointer;
-const doValue = do { 1 };
-const whileValue = while (flag) { break 1; };
-const forValue = for (let i = 0; i < 1; i++) { i; };
-const tryValue = try { risky()?; } catch match (err) { _ => 0 };
 const comptimeValue = comptime { 1 + 2 };
 const alias = (@memoized(source));
 
@@ -285,58 +248,6 @@ const alias = (@memoized(source));
       (identifier)
       (dereference_expression
         (identifier))))
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (do_expression
-        (statement_block
-          (expression_statement
-            (number))))))
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (while_expression
-        (while_expression
-          (parenthesized_expression
-            (identifier))
-          (statement_block
-            (break_statement
-              (number)))))))
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (for_expression
-        (for_expression
-          (lexical_declaration
-            (variable_declarator
-              (identifier)
-              (number)))
-          (binary_expression
-            (identifier)
-            (number))
-          (update_expression
-            (identifier))
-          (statement_block
-            (expression_statement
-              (identifier)))))))
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (try_expression
-        (try_expression
-          (statement_block
-            (expression_statement
-              (try_propagation_expression
-                (call_expression
-                  (identifier)
-                  (arguments)))))
-          (catch_match_clause
-            (identifier)
-            (match_arm
-              (match_pattern
-                (identifier))
-              (expression_statement
-                (number))))))))
   (lexical_declaration
     (variable_declarator
       (identifier)

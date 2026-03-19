@@ -78,10 +78,7 @@ module.exports = function defineGrammar(dialect) {
       [$.construct_signature, $._property_name],
     ]),
 
-    conflicts: ($, previous) => (dialect === 'destack' ?
-      previous.filter((conflict) => !conflictHasRuleNames(conflict, ['class_static_block', '_property_name'])) :
-      previous
-    ).concat([
+    conflicts: ($, previous) => previous.concat([
       [$.call_expression, $.instantiation_expression, $.binary_expression],
       [$.call_expression, $.instantiation_expression, $.binary_expression, $.unary_expression],
       [$.call_expression, $.instantiation_expression, $.binary_expression, $.update_expression],
@@ -122,7 +119,6 @@ module.exports = function defineGrammar(dialect) {
       [$.template_literal_type, $.template_string],
       [$.primary_expression, $.struct_literal_expression],
       [$.struct_literal_expression, $._extends_clause_single],
-      [$.parenthesized_expression, $.if_expression],
       [$.primary_type, $.associated_type_projection],
       [$.expression, $.dereference_expression],
       [$.lookup_type, $.pointer_type, $.array_type],
@@ -131,25 +127,20 @@ module.exports = function defineGrammar(dialect) {
       [$.type, $.borrow_type],
       [$.type, $.managed_type],
       [$.extends_type_clause, $.generic_type],
-      [$.extends_type_clause, $.associated_type_projection],
-      [$.nested_identifier, $.nested_type_identifier, $.extends_type_clause],
       [$.primary_expression, $.associated_type_projection],
       [$.if_statement, $.primary_expression],
+      [$.if_statement, $.parenthesized_expression],
       [$.expression, $.borrow_expression],
-      [$.expression, $.managed_expression],
-      [$.primary_expression, $.loop_expression],
-      [$.primary_expression, $.borrow_expression],
-      [$.primary_expression, $.managed_expression],
-      [$.primary_expression, $.static_value_argument],
-      [$.primary_expression, $.comptime_type_argument],
-      [$.class_heritage, $.extends_clause],
-      [$.class_heritage, $.implements_clause],
+        [$.expression, $.managed_expression],
+        [$.primary_expression, $.borrow_expression],
+        [$.primary_expression, $.managed_expression],
+        [$.primary_expression, $.static_value_argument],
+        [$.primary_expression, $.comptime_type_argument],
+        [$.class_heritage, $.extends_clause],
+        [$.class_heritage, $.implements_clause],
     ]).concat(
       dialect === 'destack' ? [
         [$.comptime_block_statement, $.comptime_expression],
-        [$.if_statement, $.if_expression],
-        [$.if_statement, $.primary_expression, $.if_expression],
-        [$.if_statement, $.parenthesized_expression, $.if_expression],
         [$._destructuring_pattern, $.destack_if_let_pattern],
         [$.primary_expression, $.function_expression, $.generator_function],
         [$.primary_type, $.type_predicate],
@@ -157,7 +148,9 @@ module.exports = function defineGrammar(dialect) {
         [$.primary_type, $.destack_predefined_type_parameters],
         [$.formal_parameters, $.tuple_type],
         [$.asserts, $.type_predicate],
-        [$._property_name, $.ambient_variable_declaration],
+        [$.readonly_type, $.intersection_type],
+        [$.readonly_type, $.union_type],
+        [$.pattern, $.try_propagation_expression],
       ] : [],
     ).concat(
       dialect === 'typescript' ? [
@@ -176,6 +169,7 @@ module.exports = function defineGrammar(dialect) {
       .concat([
         $._type_identifier,
         $._jsx_start_opening_element,
+        ...(dialect === 'destack' ? [$.destack_member_name] : []),
       ]),
 
     rules: {
@@ -183,26 +177,12 @@ module.exports = function defineGrammar(dialect) {
         if (dialect === 'destack') {
           return seq(
             repeat(field('decorator', $.decorator)),
-            optional('declare'),
-            optional($.accessibility_modifier),
             optional('static'),
-            optional('abstract'),
-            optional($.override_modifier),
-            optional('accessor'),
             optional('readonly'),
             field('name', $._property_name),
-            choice(
-              seq(
-                field('type', $.type_annotation),
-                optional($._initializer),
-              ),
-              seq(
-                choice('?', '!'),
-                field('type', optional($.type_annotation)),
-                optional($._initializer),
-              ),
-              $._initializer,
-            ),
+            optional(choice('?', '!')),
+            field('type', optional($.type_annotation)),
+            optional($._initializer),
           );
         }
 
@@ -357,13 +337,6 @@ module.exports = function defineGrammar(dialect) {
           $.managed_expression,
           $.borrow_expression,
           $.dereference_expression,
-          $.if_expression,
-          $.match_expression,
-          $.do_expression,
-          $.loop_expression,
-          $.for_expression,
-          $.while_expression,
-          $.try_expression,
           $.comptime_expression,
           $.using_assignment_expression,
         ] : []),
@@ -438,6 +411,7 @@ module.exports = function defineGrammar(dialect) {
           $.destack_static_if_statement,
           $.comptime_block_statement,
           $.destack_for_in_statement,
+          $.match_statement,
           previous,
         );
       },
@@ -506,6 +480,16 @@ module.exports = function defineGrammar(dialect) {
         '}',
       ),
 
+      match_statement: $ => seq(
+        'match',
+        '(',
+        field('value', $.expression),
+        ')',
+        '{',
+        repeat($.match_arm),
+        '}',
+      ),
+
       match_arm: $ => seq(
         repeat(field('decorator', $.decorator)),
         field('pattern', $.match_pattern),
@@ -542,14 +526,10 @@ module.exports = function defineGrammar(dialect) {
         $.super,
         $.member_expression,
         $.call_expression,
-        $.non_null_expression,
-        $.managed_expression,
-        $.borrow_expression,
         $.binary_expression,
         $.struct_literal_expression,
         $.object,
         $.tuple_pattern,
-        $.parenthesized_expression,
         $.rest_pattern,
         $.array_pattern,
         $.object_pattern,
@@ -603,7 +583,14 @@ module.exports = function defineGrammar(dialect) {
       try_expression: $ => prec.right(1, alias($.try_statement, $.try_expression)),
 
       try_propagation_expression: $ => prec.left('unary', seq(
-        field('argument', $.expression),
+        field('argument', choice(
+          $.identifier,
+          $.parenthesized_expression,
+          $.member_expression,
+          $.subscript_expression,
+          $.call_expression,
+          $.annotation_call_expression,
+        )),
         token.immediate('?'),
       )),
 
@@ -713,6 +700,7 @@ module.exports = function defineGrammar(dialect) {
         $.labeled_statement,
         $.destack_for_in_statement,
         $.comptime_block_statement,
+        $.match_statement,
       ),
 
       destack_static_if_expression: $ => prec.right('declaration', seq(
@@ -735,12 +723,7 @@ module.exports = function defineGrammar(dialect) {
         $.rest_pattern,
         $.tuple_pattern,
         $.call_expression,
-        $.binary_expression,
         $.struct_literal_expression,
-        $.parenthesized_expression,
-        $.non_null_expression,
-        $.managed_expression,
-        $.borrow_expression,
         $.member_expression,
       )),
 
@@ -768,20 +751,10 @@ module.exports = function defineGrammar(dialect) {
         $.undefined,
         $.this,
         $.super,
-        $.binary_expression,
-        $.ternary_expression,
         $.as_expression,
         $.satisfies_expression,
         $.instantiation_expression,
-        $.managed_expression,
-        $.borrow_expression,
-        $.dereference_expression,
         $.try_propagation_expression,
-        $.comptime_expression,
-        $.loop_expression,
-        $.match_expression,
-        $.if_expression,
-        $.binary_expression,
       )),
 
       _jsx_start_opening_element: $ => seq(
@@ -927,15 +900,82 @@ module.exports = function defineGrammar(dialect) {
         field('pattern', $.object_pattern),
       ),
 
+      destack_member_name: $ => choice(
+        alias($.identifier, $.property_identifier),
+        $.computed_property_name,
+      ),
+
+      destack_method_signature_member: $ => choice(
+        seq(
+          optional('static'),
+          optional('async'),
+          field('name', $.destack_member_name),
+          optional('?'),
+          $._call_signature,
+        ),
+        seq(
+          optional('static'),
+          optional('async'),
+          choice('get', 'set'),
+          field('name', $.destack_member_name),
+          optional('?'),
+          $._call_signature,
+        ),
+      ),
+
+      destack_method_definition_member: $ => choice(
+        prec.left(seq(
+          optional('static'),
+          optional('async'),
+          field('name', $.destack_member_name),
+          optional('?'),
+          $._call_signature,
+          field('body', choice(
+            $.statement_block,
+            $.placeholder_block,
+          )),
+        )),
+        prec.left(seq(
+          optional('static'),
+          optional('async'),
+          choice('get', 'set'),
+          field('name', $.destack_member_name),
+          optional('?'),
+          $._call_signature,
+          field('body', choice(
+            $.statement_block,
+            $.placeholder_block,
+          )),
+        )),
+      ),
+
+      destack_field_member: $ => seq(
+        optional('static'),
+        optional('readonly'),
+        field('name', $.destack_member_name),
+        optional(choice('?', '!')),
+        field('type', optional($.type_annotation)),
+        optional($._initializer),
+      ),
+
+      destack_enum_assignment_member: $ => seq(
+        field('name', $.destack_member_name),
+        $._initializer,
+      ),
+
+      destack_enum_static_field_member: $ => seq(
+        'static',
+        optional('readonly'),
+        field('name', $.destack_member_name),
+        optional(choice('?', '!')),
+        field('type', optional($.type_annotation)),
+        optional($._initializer),
+      ),
+
       method_signature: $ => seq(
         ...(dialect === 'destack' ?
           [
-            optional($.accessibility_modifier),
-            optional('declare'),
             optional('static'),
-            optional('abstract'),
-            optional($.override_modifier),
-            optional('readonly'),
             optional('async'),
           ] :
           [
@@ -945,7 +985,7 @@ module.exports = function defineGrammar(dialect) {
             optional('readonly'),
             optional('async'),
           ]),
-        optional(choice('get', 'set', '*')),
+        optional(choice('get', 'set', ...(dialect === 'destack' ? [] : ['*']))),
         field('name', $._property_name),
         optional('?'),
         $._call_signature,
@@ -1118,62 +1158,69 @@ module.exports = function defineGrammar(dialect) {
         ')',
       ),
 
-      class_body: $ => seq(
-        '{',
-        repeat(choice(
-          seq(
-            repeat(field('decorator', $.decorator)),
-            $.method_definition,
-            optional($._semicolon),
-          ),
-          // As it happens for functions, the semicolon insertion should not
-          // happen if a block follows the closing paren, because then it's a
-          // *definition*, not a declaration. Example:
-          //     public foo()
-          //     { <--- this brace made the method signature become a definition
-          //     }
-          // The same rule applies for functions and that's why we use
-          // "_function_signature_automatic_semicolon".
-          seq($.method_signature, choice($._function_signature_automatic_semicolon, ',')),
-          $.class_static_block,
-          ...(dialect === 'destack' ?
-            [
+      class_body: $ => {
+        if (dialect !== 'destack') {
+          return seq(
+            '{',
+            repeat(choice(
               seq(
-                $.struct_embedding_member,
-                optional(choice($._semicolon, ',')),
+                repeat(field('decorator', $.decorator)),
+                $.method_definition,
+                optional($._semicolon),
               ),
-            ] :
-            []),
-          seq(
-            choice(
-              ...(dialect === 'destack' ?
-                [
-                  $.associated_type_declaration,
-                  $.associated_const_declaration,
-                  $.comptime_block_statement,
-                ] :
-                []),
-              ...(dialect === 'destack' ? [] : [$.abstract_method_signature]),
-              $.index_signature,
-              $.method_signature,
-              $.public_field_definition,
+              seq($.method_signature, choice($._function_signature_automatic_semicolon, ',')),
+              seq(
+                choice(
+                  $.index_signature,
+                  $.method_signature,
+                  $.public_field_definition,
+                ),
+                choice($._semicolon, ','),
+              ),
+              ';',
+            )),
+            '}',
+          );
+        }
+
+        return seq(
+          '{',
+          repeat(choice(
+            seq(
+              repeat(field('decorator', $.decorator)),
+              alias($.destack_method_definition_member, $.method_definition),
+              optional($._semicolon),
             ),
-            choice($._semicolon, ','),
-          ),
-          ';',
-        )),
-        '}',
-      ),
+            seq(
+              repeat(field('decorator', $.decorator)),
+              alias($.destack_method_signature_member, $.method_signature),
+              choice($._function_signature_automatic_semicolon, $._semicolon, ','),
+            ),
+            seq(
+              $.struct_embedding_member,
+              optional(choice($._semicolon, ',')),
+            ),
+            seq(
+              repeat(field('decorator', $.decorator)),
+              choice(
+                $.associated_type_declaration,
+                $.associated_const_declaration,
+                $.comptime_block_statement,
+                $.index_signature,
+                alias($.destack_field_member, $.public_field_definition),
+              ),
+              choice($._semicolon, ','),
+            ),
+            ';',
+          )),
+          '}',
+        );
+      },
 
       method_definition: $ => prec.left(seq(
         ...(dialect === 'destack' ?
           [
-            optional($.accessibility_modifier),
-            optional('declare'),
             optional('static'),
-            optional('abstract'),
-            optional($.override_modifier),
-            optional('readonly'),
             optional('async'),
           ] :
           [
@@ -1183,7 +1230,7 @@ module.exports = function defineGrammar(dialect) {
             optional('readonly'),
             optional('async'),
           ]),
-        optional(choice('get', 'set', '*')),
+        optional(choice('get', 'set', ...(dialect === 'destack' ? [] : ['*']))),
         field('name', $._property_name),
         optional('?'),
         $._call_signature,
@@ -1199,7 +1246,6 @@ module.exports = function defineGrammar(dialect) {
         }
 
         return seq(
-          optional($.accessibility_modifier),
           'static',
           $.statement_block,
         );
@@ -1211,11 +1257,10 @@ module.exports = function defineGrammar(dialect) {
         ...(dialect === 'destack' ? [$.destack_declare_function_signature] : []),
         ...(dialect === 'destack' ? [$.destack_declare_generator_function_signature] : []),
         $.function_signature,
-        $.abstract_class_declaration,
-        $.module,
-        prec('declaration', $.internal_module),
+        ...(dialect === 'destack' ? [] : [$.abstract_class_declaration]),
+        ...(dialect === 'destack' ? [] : [$.module]),
+        ...(dialect === 'destack' ? [] : [prec('declaration', $.internal_module)]),
         ...(dialect === 'destack' ? [$.extension_declaration] : []),
-        ...(dialect === 'destack' ? [$.global_declaration] : []),
         $.type_alias_declaration,
         $.enum_declaration,
         $.interface_declaration,
@@ -1361,21 +1406,9 @@ module.exports = function defineGrammar(dialect) {
           'declare',
           choice(
             $.ambient_const_declaration,
-            $.ambient_variable_declaration,
-            $.function_declaration,
             $.generator_function_declaration,
-            $.class_declaration,
-            $.abstract_class_declaration,
-            $.module,
+            $.function_declaration,
             prec('declaration', $.internal_module),
-            $.struct_declaration,
-            $.extension_declaration,
-            $.type_alias_declaration,
-            $.enum_declaration,
-            $.interface_declaration,
-            $.import_alias,
-            $.global_declaration,
-            seq('module', '.', alias($.identifier, $.property_identifier), ':', $.type, $._semicolon),
           ),
         );
       },
@@ -1490,7 +1523,7 @@ module.exports = function defineGrammar(dialect) {
       )),
 
       interface_declaration: $ => prec.right('declaration', seq(
-        ...(dialect === 'destack' ? [optional('abstract'), optional('newtype')] : []),
+        ...(dialect === 'destack' ? [optional('newtype')] : []),
         'interface',
         field('name', dialect === 'destack' ? optional($._type_identifier) : $._type_identifier),
         field('type_parameters', optional($.type_parameters)),
@@ -1520,12 +1553,13 @@ module.exports = function defineGrammar(dialect) {
 
       _destack_interface_member: $ => seq(
         repeat(field('guard', $.destack_static_if_guard)),
+        repeat(field('decorator', $.decorator)),
         choice(
           $.associated_type_declaration,
           $.associated_const_declaration,
-          prec(1, $.method_signature),
-          $.method_definition,
-          prec(1, $.destack_property_signature),
+          prec(1, alias($.destack_method_signature_member, $.method_signature)),
+          alias($.destack_method_definition_member, $.method_definition),
+          prec(1, alias($.destack_field_member, $.destack_property_signature)),
           $.call_signature,
           $.construct_signature,
           $.index_signature,
@@ -1567,16 +1601,14 @@ module.exports = function defineGrammar(dialect) {
       ),
 
       _destack_enum_member: $ => seq(
-        repeat(choice(
-          field('guard', $.destack_static_if_guard),
-          field('decorator', $.decorator),
-        )),
+        repeat(field('guard', $.destack_static_if_guard)),
+        repeat(field('decorator', $.decorator)),
         choice(
-          field('name', $._property_name),
-          $.enum_assignment,
-          $.method_definition,
-          $.method_signature,
-          $.enum_static_field,
+          field('name', $.destack_member_name),
+          alias($.destack_enum_assignment_member, $.enum_assignment),
+          alias($.destack_method_definition_member, $.method_definition),
+          alias($.destack_method_signature_member, $.method_signature),
+          alias($.destack_enum_static_field_member, $.enum_static_field),
           $.associated_type_declaration,
           $.associated_const_declaration,
           $.comptime_block_statement,
@@ -1602,21 +1634,9 @@ module.exports = function defineGrammar(dialect) {
         field('name', $._type_identifier),
         field('type_parameters', optional($.type_parameters)),
         '=',
-        field('value', dialect === 'destack' ? choice($.type, $.implements_relation_type, $.in_relation_type) : $.type),
+        field('value', $.type),
         $._semicolon,
       ),
-
-      implements_relation_type: $ => prec.left(seq(
-        field('left', $.type),
-        'implements',
-        field('right', $.type),
-      )),
-
-      in_relation_type: $ => prec.left(seq(
-        field('left', $.type),
-        'in',
-        field('right', $.type),
-      )),
 
       associated_type_declaration: $ => seq(
         'type',
@@ -1661,31 +1681,17 @@ module.exports = function defineGrammar(dialect) {
         const commonPrefix = [
           repeat(field('decorator', $.decorator)),
           ...(dialect === 'destack' ? [optional('comptime')] : []),
-          optional($.accessibility_modifier),
-          optional($.override_modifier),
-          optional('readonly'),
         ];
 
         if (dialect === 'destack') {
-          return choice(
-            seq(
-              ...commonPrefix,
-              field('pattern', choice(
-                $.pattern,
-                $.this,
-                alias('in', $.identifier),
-                alias('out', $.identifier),
-              )),
-            ),
-            seq(
-              ...commonPrefix,
-              choice('in', 'out'),
-              field('pattern', choice(
-                $.identifier,
-                alias($._reserved_identifier, $.identifier),
-                $.this,
-              )),
-            ),
+          return seq(
+            ...commonPrefix,
+            field('pattern', choice(
+              $.pattern,
+              $.this,
+              alias('in', $.identifier),
+              alias('out', $.identifier),
+            )),
           );
         }
 
@@ -1776,8 +1782,8 @@ module.exports = function defineGrammar(dialect) {
         ...(dialect === 'destack' ? [$.optional_type] : []),
         $.function_type,
         $.readonly_type,
-        $.constructor_type,
-        $.infer_type,
+        ...(dialect === 'destack' ? [] : [$.constructor_type]),
+        ...(dialect === 'destack' ? [] : [$.infer_type]),
         prec(-1, alias($._type_query_member_expression_in_type_annotation, $.member_expression)),
         prec(-1, alias($._type_query_call_expression_in_type_annotation, $.call_expression)),
       ),
@@ -1842,7 +1848,6 @@ module.exports = function defineGrammar(dialect) {
             $.managed_type,
             $.borrow_type,
             $.pointer_type,
-            $.relation_type,
           ] :
           []),
         $.parenthesized_type,
@@ -1861,14 +1866,21 @@ module.exports = function defineGrammar(dialect) {
         ...(dialect === 'destack' ? [] : [$.existential_type]),
         $.literal_type,
         $.lookup_type,
-        $.conditional_type,
+        ...(dialect === 'destack' ? [] : [$.conditional_type]),
         $.template_literal_type,
         $.intersection_type,
         $.union_type,
         'const',
       ),
 
-      template_type: $ => seq('${', choice($.primary_type, $.infer_type), '}'),
+      template_type: $ => seq(
+        '${',
+        choice(
+          $.primary_type,
+          ...(dialect === 'destack' ? [] : [$.infer_type]),
+        ),
+        '}',
+      ),
 
       template_literal_type: $ => seq(
         '`',
@@ -1896,12 +1908,6 @@ module.exports = function defineGrammar(dialect) {
         field('consequence', $.type),
         ':',
         field('alternative', $.type),
-      )),
-
-      relation_type: $ => prec.left(seq(
-        field('left', $.type),
-        field('operator', 'extends'),
-        field('right', $.type),
       )),
 
       generic_type: $ => prec('call', seq(
@@ -2005,7 +2011,13 @@ module.exports = function defineGrammar(dialect) {
       lookup_type: $ => seq(
         $.primary_type,
         '[',
-        dialect === 'destack' ? choice($.type, $.expression) : $.type,
+        dialect === 'destack' ?
+          choice(
+            $.type,
+            $.static_value_argument,
+            $.as_expression,
+          ) :
+          $.type,
         ']',
       ),
 
@@ -2152,9 +2164,7 @@ module.exports = function defineGrammar(dialect) {
       ),
 
       destack_property_signature: $ => seq(
-        optional($.accessibility_modifier),
         optional('static'),
-        optional($.override_modifier),
         optional('readonly'),
         field('name', $._property_name),
         optional('?'),
@@ -2166,7 +2176,10 @@ module.exports = function defineGrammar(dialect) {
         field('type_parameters', optional($.type_parameters)),
         field('parameters', $.formal_parameters),
         field('return_type', optional(
-          choice($.type_annotation, $.asserts_annotation, $.type_predicate_annotation),
+          choice(
+            $.type_annotation,
+            ...(dialect === 'destack' ? [] : [$.asserts_annotation, $.type_predicate_annotation]),
+          ),
         )),
       ),
 
@@ -2248,7 +2261,6 @@ module.exports = function defineGrammar(dialect) {
       ),
 
       index_signature: $ => seq(
-        ...(dialect === 'destack' ? [optional($.accessibility_modifier)] : []),
         optional(
           seq(
             field('sign', optional(choice('-', '+'))),
@@ -2291,7 +2303,10 @@ module.exports = function defineGrammar(dialect) {
           ) :
           seq('[', commaSep($._tuple_type_member), optional(','), ']')
       ),
-      readonly_type: $ => seq('readonly', $.type),
+      readonly_type: $ => seq(
+        'readonly',
+        $.type,
+      ),
 
       union_type: $ => prec.left(seq(optional($.type), '|', $.type)),
       intersection_type: $ => prec.left(seq(optional($.type), '&', $.type)),
@@ -2305,7 +2320,10 @@ module.exports = function defineGrammar(dialect) {
             []),
         )),
         '=>',
-        field('return_type', choice($.type, $.asserts, $.type_predicate)),
+        field('return_type', choice(
+          $.type,
+          ...(dialect === 'destack' ? [] : [$.asserts, $.type_predicate]),
+        )),
       )),
 
       destack_predefined_type_parameters: $ => seq(

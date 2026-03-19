@@ -153,10 +153,10 @@ export extension DateUtils for Date {
               (this))))))))
 
 ==================================
-Match expression
+Match statement
 ==================================
 
-const label = match (state) {
+match (state) {
   Ready => "go"
   Loading => "wait"
   _ => "other"
@@ -165,35 +165,32 @@ const label = match (state) {
 ---
 
 (program
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (match_expression
-        (identifier)
-        (match_arm
-          (match_pattern
-            (identifier))
-          (expression_statement
-            (string
-              (string_fragment))))
-        (match_arm
-          (match_pattern
-            (identifier))
-          (expression_statement
-            (string
-              (string_fragment))))
-        (match_arm
-          (match_pattern
-            (identifier))
-          (expression_statement
-            (string
-              (string_fragment))))))))
+  (match_statement
+    (identifier)
+    (match_arm
+      (match_pattern
+        (identifier))
+      (expression_statement
+        (string
+          (string_fragment))))
+    (match_arm
+      (match_pattern
+        (identifier))
+      (expression_statement
+        (string
+          (string_fragment))))
+    (match_arm
+      (match_pattern
+        (identifier))
+      (expression_statement
+        (string
+          (string_fragment))))))
 
 ==================================
-Match with guard and struct pattern
+Match statement with guard and struct pattern
 ==================================
 
-const label = match (user) {
+match (user) {
   User { age } if age >= 18 => "adult"
   _ => "child"
 }
@@ -201,90 +198,81 @@ const label = match (user) {
 ---
 
 (program
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (match_expression
+  (match_statement
+    (identifier)
+    (match_arm
+      (match_pattern
+        (struct_literal_expression
+          (identifier)
+          (object
+            (shorthand_property_identifier))))
+      (binary_expression
         (identifier)
-        (match_arm
-          (match_pattern
-            (struct_literal_expression
-              (identifier)
-              (object
-                (shorthand_property_identifier))))
-          (binary_expression
-            (identifier)
-            (number))
-          (expression_statement
-            (string
-              (string_fragment))))
-        (match_arm
-          (match_pattern
-            (identifier))
-          (expression_statement
-            (string
-              (string_fragment))))))))
+        (number))
+      (expression_statement
+        (string
+          (string_fragment))))
+    (match_arm
+      (match_pattern
+        (identifier))
+      (expression_statement
+        (string
+          (string_fragment))))))
 
 ==================================
-If let expression
+If let statement with variant pattern
 ==================================
 
-const value = if let Some(x) = maybe {
-  x
+if let Some(x) = maybe {
+  x;
 } else {
-  0
+  0;
 }
 
 ---
 
 (program
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (if_expression
-        (destack_if_let_pattern
-          (call_expression
-            (identifier)
-            (arguments
-              (identifier))))
+  (if_statement
+    (destack_if_let_pattern
+      (call_expression
         (identifier)
-        (statement_block
-          (expression_statement
-            (identifier)))
-        (else_clause
-          (statement_block
-            (expression_statement
-              (number))))))))
+        (arguments
+          (identifier))))
+    (identifier)
+    (statement_block
+      (expression_statement
+        (identifier)))
+    (else_clause
+      (statement_block
+        (expression_statement
+          (number))))))
 
 ==================================
-If let with type annotation
+If let statement with type annotation
 ==================================
 
-const value = if let x: int32 = maybeNumber {
-  x
+if let x: int32 = maybeNumber {
+  x;
 } else {
-  0
+  0;
 }
 
 ---
 
 (program
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (if_expression
-        (destack_if_let_pattern
-          (identifier))
-        (type_annotation
-          (type_identifier))
-        (identifier)
-        (statement_block
-          (expression_statement
-            (identifier)))
-        (else_clause
-          (statement_block
-            (expression_statement
-              (number))))))))
+  (if_statement
+    (destack_if_let_pattern
+      (identifier))
+    (type_annotation
+      (type_identifier))
+    (identifier)
+    (statement_block
+      (expression_statement
+        (identifier)))
+    (else_clause
+      (statement_block
+        (expression_statement
+          (number))))))
 
 ==================================
 If let statement
@@ -297,39 +285,36 @@ if let x = maybe {
 ---
 
 (program
-  (expression_statement
-    (if_expression
-      (destack_if_let_pattern
-        (identifier))
-      (identifier)
-      (statement_block
-        (expression_statement
-          (identifier))))))
+  (if_statement
+    (destack_if_let_pattern
+      (identifier))
+    (identifier)
+    (statement_block
+      (expression_statement
+        (identifier)))))
 
 ==================================
-If expression
+If statement
 ==================================
 
-const sign = if (x > 0) { 1 } else { -1 }
+if (x > 0) { 1; } else { -1; }
 
 ---
 
 (program
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (if_expression
-        (binary_expression
-          (identifier)
-          (number))
-        (statement_block
-          (expression_statement
-            (number)))
-        (else_clause
-          (statement_block
-            (expression_statement
-              (unary_expression
-                (number)))))))))
+  (if_statement
+    (parenthesized_expression
+      (binary_expression
+        (identifier)
+        (number)))
+    (statement_block
+      (expression_statement
+        (number)))
+    (else_clause
+      (statement_block
+        (expression_statement
+          (unary_expression
+            (number)))))))
 
 ==================================
 Function with where clause
@@ -366,17 +351,21 @@ function process<T>(x: T): T where T: Copy {
 Loop statement
 ==================================
 
-loop {
+const looped = outer: loop {
   break
 }
 
 ---
 
 (program
-  (expression_statement
-    (loop_expression
-      (statement_block
-        (break_statement)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (labeled_loop_initializer
+        (statement_identifier)
+        (loop_expression
+          (statement_block
+            (break_statement)))))))
 
 ==================================
 Destack for in statement
@@ -400,10 +389,10 @@ for item in items {
             (identifier)))))))
 
 ==================================
-Try expression with catch match
+Try statement with catch match
 ==================================
 
-const result = try {
+try {
   readConfig()?;
 } catch match (e) {
   IOError(msg) => recover(msg)
@@ -413,36 +402,32 @@ const result = try {
 ---
 
 (program
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (try_expression
-        (try_expression
-          (statement_block
-            (expression_statement
-              (try_propagation_expression
-                (call_expression
-                  (identifier)
-                  (arguments)))))
-          (catch_match_clause
+  (try_statement
+    (statement_block
+      (expression_statement
+        (try_propagation_expression
+          (call_expression
             (identifier)
-            (match_arm
-              (match_pattern
-                (call_expression
-                  (identifier)
-                  (arguments
-                    (identifier))))
-              (expression_statement
-                (call_expression
-                  (identifier)
-                  (arguments
-                    (identifier)))))
-            (match_arm
-              (match_pattern
-                (identifier))
-              (match_arm_statement
-                (throw_statement
-                  (identifier))))))))))
+            (arguments)))))
+    (catch_match_clause
+      (identifier)
+      (match_arm
+        (match_pattern
+          (call_expression
+            (identifier)
+            (arguments
+              (identifier))))
+        (expression_statement
+          (call_expression
+            (identifier)
+            (arguments
+              (identifier)))))
+      (match_arm
+        (match_pattern
+          (identifier))
+        (match_arm_statement
+          (throw_statement
+            (identifier)))))))
 
 ==================================
 Annotation call expression
@@ -463,10 +448,10 @@ const message = @Error(`bad number`)
             (string_fragment)))))))
 
 ==================================
-Match with decorated comma arms
+Match statement with decorated comma arms
 ==================================
 
-const result = match (event) {
+match (event) {
   @cold
   Err(e) => handleError(e),
   @hot
@@ -476,40 +461,37 @@ const result = match (event) {
 ---
 
 (program
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (match_expression
-        (identifier)
-        (match_arm
-          (decorator
-            (identifier))
-          (match_pattern
-            (call_expression
-              (identifier)
-              (arguments
-                (identifier))))
-          (expression_statement
-            (call_expression
-              (identifier)
-              (arguments
-                (identifier)))))
-        (match_arm
-          (decorator
-            (identifier))
-          (match_pattern
-            (call_expression
-              (identifier)
-              (arguments
-                (identifier))))
-          (expression_statement
-            (identifier)))))))
+  (match_statement
+    (identifier)
+    (match_arm
+      (decorator
+        (identifier))
+      (match_pattern
+        (call_expression
+          (identifier)
+          (arguments
+            (identifier))))
+      (expression_statement
+        (call_expression
+          (identifier)
+          (arguments
+            (identifier)))))
+    (match_arm
+      (decorator
+        (identifier))
+      (match_pattern
+        (call_expression
+          (identifier)
+          (arguments
+            (identifier))))
+      (expression_statement
+        (identifier)))))
 
 ==================================
-Try expression with decorated catch match comma arms
+Try statement with decorated catch match comma arms
 ==================================
 
-const value = try {
+try {
   riskyOperationA()?;
 } catch match (e) {
   @cold
@@ -521,63 +503,59 @@ const value = try {
 ---
 
 (program
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (try_expression
-        (try_expression
-          (statement_block
-            (expression_statement
-              (try_propagation_expression
-                (call_expression
-                  (identifier)
-                  (arguments)))))
-          (catch_match_clause
+  (try_statement
+    (statement_block
+      (expression_statement
+        (try_propagation_expression
+          (call_expression
             (identifier)
-            (match_arm
-              (decorator
-                (identifier))
-              (match_pattern
-                (call_expression
-                  (identifier)
-                  (arguments
-                    (identifier))))
-              (expression_statement
-                (call_expression
-                  (identifier)
-                  (arguments
-                    (template_string
-                      (string_fragment)
-                      (template_substitution
-                        (identifier)))))))
-            (match_arm
-              (match_pattern
-                (identifier))
-              (expression_statement
-                (call_expression
-                  (identifier)
-                  (arguments
-                    (template_string
-                      (string_fragment)
-                      (template_substitution
-                        (identifier)))))))
-            (match_arm
-              (match_pattern
-                (identifier))
-              (expression_statement
-                (call_expression
-                  (identifier)
-                  (arguments
-                    (template_string
-                      (string_fragment)
-                      (template_substitution
-                        (identifier)))))))))))))
+            (arguments)))))
+    (catch_match_clause
+      (identifier)
+      (match_arm
+        (decorator
+          (identifier))
+        (match_pattern
+          (call_expression
+            (identifier)
+            (arguments
+              (identifier))))
+        (expression_statement
+          (call_expression
+            (identifier)
+            (arguments
+              (template_string
+                (string_fragment)
+                (template_substitution
+                  (identifier)))))))
+      (match_arm
+        (match_pattern
+          (identifier))
+        (expression_statement
+          (call_expression
+            (identifier)
+            (arguments
+              (template_string
+                (string_fragment)
+                (template_substitution
+                  (identifier)))))))
+      (match_arm
+        (match_pattern
+          (identifier))
+        (expression_statement
+          (call_expression
+            (identifier)
+            (arguments
+              (template_string
+                (string_fragment)
+                (template_substitution
+                  (identifier))))))))))
 
 ==================================
-Match variant wildcard pattern
+Match statement with variant wildcard pattern
 ==================================
 
-const value = match (result) {
+match (result) {
   Err _ => this
   _ => 0
 }
@@ -585,20 +563,17 @@ const value = match (result) {
 ---
 
 (program
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (match_expression
-        (identifier)
-        (match_arm
-          (match_pattern
-            (match_variant_pattern
-              (identifier)
-              (identifier)))
-          (expression_statement
-            (this)))
-        (match_arm
-          (match_pattern
-            (identifier))
-          (expression_statement
-            (number)))))))
+  (match_statement
+    (identifier)
+    (match_arm
+      (match_pattern
+        (match_variant_pattern
+          (identifier)
+          (identifier)))
+      (expression_statement
+        (this)))
+    (match_arm
+      (match_pattern
+        (identifier))
+      (expression_statement
+        (number)))))
