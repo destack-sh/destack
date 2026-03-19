@@ -19,10 +19,19 @@
           "include": "#literal"
         },
         {
+          "include": "#comptime-block"
+        },
+        {
           "include": "#function-definition"
         },
         {
           "include": "#entity-definition"
+        },
+        {
+          "include": "#transfer"
+        },
+        {
+          "include": "#import-attributes"
         },
         {
           "include": "#wildcard"
@@ -58,6 +67,33 @@
     },
     "comment": {
       "patterns": [
+        {
+          "name": "comment.line.triple-slash.directive.ds",
+          "match": "(?x)^([ \\t]*)(///)\\s*(<)(reference)\\s+(path|types|lib)(=)(\"[^\"]*\"|'[^']*')(\\s*/>)\\s*$",
+          "captures": {
+            "2": {
+              "name": "punctuation.definition.comment.ds"
+            },
+            "3": {
+              "name": "punctuation.definition.tag.begin.ds"
+            },
+            "4": {
+              "name": "keyword.declaration.import.ds"
+            },
+            "5": {
+              "name": "variable.other.property.ds"
+            },
+            "6": {
+              "name": "keyword.operator.assignment.ds"
+            },
+            "7": {
+              "name": "string.quoted.double.ds"
+            },
+            "8": {
+              "name": "punctuation.definition.tag.end.ds"
+            }
+          }
+        },
         {
           "name": "comment.line.double-slash.ds",
           "match": "//.*$"
@@ -110,6 +146,18 @@
     "keyword": {
       "patterns": [
         {
+          "name": "meta.export.default.ds",
+          "match": "(?x)(\\bexport\\b)\\s+(default)\\b",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.import.ds"
+            },
+            "2": {
+              "name": "keyword.other.modifier.ds"
+            }
+          }
+        },
+        {
           "name": "keyword.other.modifier.ds",
           "match": "\\b(?:public|protected|private|readonly|mut|static|final|accessor|default|abstract|override)\\b"
         },
@@ -135,7 +183,7 @@
         },
         {
           "name": "keyword.declaration.type.ds",
-          "match": "\\b(?:const|let|var|namespace|type|newtype|struct|class|enum|union|interface|function|extension|declare|constructor)\\b"
+          "match": "\\b(?:const|let|var|module|global|namespace|type|newtype|struct|class|enum|union|interface|function|extension|declare|constructor)\\b"
         },
         {
           "name": "keyword.operator.new.ds",
@@ -296,7 +344,7 @@
       "patterns": [
         {
           "name": "meta.function.call.ds meta.type.arguments.ds",
-          "begin": "(?x)(\\b[A-Za-z_]\\w*(?:\\.[A-Za-z_]\\w*)*)\\s*(<)(?=[^>\\n]*>\\s*\\()",
+          "begin": "(?x)((?:[$A-Za-z_][$A-Za-z0-9_]*)(?:\\.(?:[$A-Za-z_][$A-Za-z0-9_]*))*)\\s*(<)(?=[^>\\n]*>\\s*\\()",
           "beginCaptures": {
             "1": {
               "name": "entity.name.function.call.ds"
@@ -340,7 +388,7 @@
       "patterns": [
         {
           "name": "meta.type.alias.ds",
-          "begin": "\\b(type|newtype)\\s+([A-Za-z_]\\w*)(?=\\s*(?:<[^>]*>\\s*)?=)",
+          "begin": "\\b(type|newtype)\\s+([$A-Za-z_][$A-Za-z0-9_]*)(?=\\s*(?:<[^>]*>\\s*)?=)",
           "beginCaptures": {
             "1": {
               "name": "keyword.declaration.type.ds"
@@ -375,7 +423,7 @@
               "name": "punctuation.separator.type.annotation.ds"
             }
           },
-          "end": "(?=\\s*(?:=|,|\\)|\\]|\\}|;|$))",
+          "end": "(?=\\s*(?:where\\b|=|,|\\)|\\]|\\}|;|$))",
           "patterns": [
             {
               "include": "#type-optional"
@@ -393,7 +441,7 @@
               "name": "keyword.operator.arrow.ds"
             }
           },
-          "end": "(?=\\s*(?:=|,|\\)|\\]|\\}|;|$))",
+          "end": "(?=\\s*(?:where\\b|=|,|\\)|\\]|\\}|;|$))",
           "patterns": [
             {
               "include": "#type-optional"
@@ -441,6 +489,9 @@
     },
     "type-expression": {
       "patterns": [
+        {
+          "include": "#decorator"
+        },
         {
           "include": "#type-function"
         },
@@ -504,7 +555,7 @@
         },
         {
           "name": "entity.name.type.ds",
-          "match": "\\b(?!extends\\b|implements\\b|satisfies\\b|as\\b|is\\b|infer\\b|keyof\\b|typeof\\b|new\\b|in\\b|of\\b|const\\b|import\\b|self\\b|this\\b|super\\b|package\\b)([A-Za-z_]\\w*(?:\\.[A-Za-z_]\\w*)*)\\b"
+          "match": "(?x)(?<![$\\w])(?!extends\\b|implements\\b|satisfies\\b|as\\b|is\\b|infer\\b|keyof\\b|typeof\\b|new\\b|in\\b|of\\b|const\\b|import\\b|self\\b|this\\b|super\\b|package\\b)([$A-Za-z_][$A-Za-z0-9_]*(?:\\.[$A-Za-z_][$A-Za-z0-9_]*)*)(?![$\\w])"
         }
       ]
     },
@@ -1048,7 +1099,7 @@
       "patterns": [
         {
           "name": "meta.type.parameters.ds",
-          "begin": "(?x)(?<!\\bnew\\s+[A-Za-z_]\\w*)<(?=\\s*(?:(?:(?:comptime|const|in|out)\\s+)*[A-Za-z_]\\w*\\s*(?:,|>|extends|:)))(?=[^>]*>(?=\\s*(?:\\(|\\{|=|:|\\bfor\\b|\\bextends\\b|\\bimplements\\b|[A-Za-z_]\\w*\\s+for\\b)))",
+          "begin": "(?x)(?<!\\bnew\\s+[A-Za-z_]\\w*)<(?=\\s*(?:(?:(?:comptime|const|in|out)\\s+)*[A-Za-z_]\\w*\\s*(?:,|>|extends|:)))(?=[^>]*>(?=\\s*(?:\\(|\\{|=|:|;|,|\\bfor\\b|\\bextends\\b|\\bimplements\\b|[A-Za-z_]\\w*\\s+for\\b)))",
           "beginCaptures": {
             "0": {
               "name": "punctuation.definition.typeparameters.begin.ds"
@@ -1461,31 +1512,310 @@
       "patterns": [
         {
           "name": "meta.function.definition.ds",
-          "match": "(?x)\\b(function)\\s+([A-Za-z_]\\w*)(?=\\s*(?:<[^>]*>\\s*)?\\()",
+          "match": "(?x)\\b(async)\\s+(function)\\s*(\\*)?\\s+([$A-Za-z_][$A-Za-z0-9_]*)(?=\\s*(?:<[^>]*>\\s*)?\\()",
+          "captures": {
+            "1": {
+              "name": "keyword.control.async.ds"
+            },
+            "2": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "3": {
+              "name": "keyword.operator.multiplication.ds"
+            },
+            "4": {
+              "name": "entity.name.function.definition.ds"
+            }
+          }
+        },
+        {
+          "name": "meta.function.definition.ds",
+          "match": "(?x)\\b(function)\\s*(\\*)?\\s+([$A-Za-z_][$A-Za-z0-9_]*)(?=\\s*(?:<[^>]*>\\s*)?\\()",
           "captures": {
             "1": {
               "name": "keyword.declaration.type.ds"
             },
             "2": {
+              "name": "keyword.operator.multiplication.ds"
+            },
+            "3": {
               "name": "entity.name.function.definition.ds"
             }
           }
         }
       ]
     },
+    "comptime-block": {
+      "patterns": [
+        {
+          "name": "meta.comptime.block.ds",
+          "begin": "(?x)\\b(comptime)\\b\\s*(?=\\{)",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.other.comptime.ds"
+            }
+          },
+          "end": "(?m)(?<![^\\n]*\\S)\\}",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.block.end.ds"
+            }
+          },
+          "patterns": [
+            {
+              "name": "punctuation.section.block.begin.ds",
+              "match": "\\{"
+            },
+            {
+              "include": "#comment"
+            },
+            {
+              "include": "#expression"
+            }
+          ]
+        }
+      ]
+    },
+    "transfer": {
+      "patterns": [
+        {
+          "name": "meta.import.specifier.ds",
+          "begin": "(?x)(\\bimport\\b)(?=\\s*(?:type\\s+)?(?:\\{|[$A-Za-z_][$A-Za-z0-9_]*\\s*,\\s*\\{))",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.declaration.import.ds"
+            }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.block.end.ds"
+            }
+          },
+          "patterns": [
+            {
+              "name": "punctuation.section.block.begin.ds",
+              "match": "\\{"
+            },
+            {
+              "name": "keyword.declaration.type.ds",
+              "match": "\\btype\\b"
+            },
+            {
+              "name": "keyword.declaration.import.ds",
+              "match": "\\bas\\b"
+            },
+            {
+              "name": "keyword.other.modifier.ds",
+              "match": "\\bdefault\\b"
+            },
+            {
+              "name": "entity.name.type.ds",
+              "match": "\\b[A-Z][$A-Za-z0-9_]*\\b(?=\\s*(?:,|\\}|\\bas\\b))"
+            },
+            {
+              "name": "variable.other.binding.ds",
+              "match": "\\b[$a-z_][$A-Za-z0-9_]*\\b(?=\\s*(?:,|\\}|\\bas\\b))"
+            }
+          ]
+        },
+        {
+          "name": "meta.export.specifier.ds",
+          "begin": "(?x)(\\bexport\\b)(?=\\s*(?:type\\s+)?\\{)",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.declaration.import.ds"
+            }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.block.end.ds"
+            }
+          },
+          "patterns": [
+            {
+              "name": "punctuation.section.block.begin.ds",
+              "match": "\\{"
+            },
+            {
+              "name": "keyword.declaration.type.ds",
+              "match": "\\btype\\b"
+            },
+            {
+              "name": "keyword.declaration.import.ds",
+              "match": "\\bas\\b"
+            },
+            {
+              "name": "keyword.other.modifier.ds",
+              "match": "\\bdefault\\b"
+            },
+            {
+              "name": "entity.name.type.ds",
+              "match": "\\b[A-Z][$A-Za-z0-9_]*\\b(?=\\s*(?:,|\\}|\\bas\\b))"
+            },
+            {
+              "name": "variable.other.binding.ds",
+              "match": "\\b[$a-z_][$A-Za-z0-9_]*\\b(?=\\s*(?:,|\\}|\\bas\\b))"
+            }
+          ]
+        },
+        {
+          "name": "meta.transfer.namespace.ds",
+          "match": "(?x)(\\bimport\\b)\\s+(?:(type)\\s+)?(\\*)\\s+(as)\\s+([$A-Za-z_][$A-Za-z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.import.ds"
+            },
+            "2": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "3": {
+              "name": "keyword.operator.wildcard.ds"
+            },
+            "4": {
+              "name": "keyword.declaration.import.ds"
+            },
+            "5": {
+              "name": "variable.other.binding.ds"
+            }
+          }
+        },
+        {
+          "name": "meta.transfer.namespace.ds",
+          "match": "(?x)(\\bexport\\b)\\s+(?:(type)\\s+)?(\\*)\\s+(as)\\s+([$A-Za-z_][$A-Za-z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.import.ds"
+            },
+            "2": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "3": {
+              "name": "keyword.operator.wildcard.ds"
+            },
+            "4": {
+              "name": "keyword.declaration.import.ds"
+            },
+            "5": {
+              "name": "variable.other.binding.ds"
+            }
+          }
+        }
+      ]
+    },
+    "import-attributes": {
+      "patterns": [
+        {
+          "name": "meta.import.attributes.ds",
+          "begin": "(?x)\\b(with)\\b\\s*(\\{)",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.declaration.import.ds"
+            },
+            "2": {
+              "name": "punctuation.section.block.begin.ds"
+            }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.block.end.ds"
+            }
+          },
+          "patterns": [
+            {
+              "name": "variable.other.property.ds",
+              "match": "(?x)\\b([$A-Za-z_][$A-Za-z0-9_]*)\\b(?=\\s*:)"
+            },
+            {
+              "include": "#literal-string"
+            },
+            {
+              "include": "#literal-template"
+            }
+          ]
+        }
+      ]
+    },
     "binding": {
       "patterns": [
         {
-          "name": "variable.other.binding.ds",
-          "match": "(?x)\\b([A-Za-z_]\\w*)\\b(?=\\s*[?!]?\\s*:(?!:))"
+          "name": "meta.binding.catch.ds",
+          "match": "(?x)\\b(catch)(?:\\s+(match))?\\s*\\(\\s*([$A-Za-z_][$A-Za-z0-9_]*)(?=\\s*(?::|\\)))",
+          "captures": {
+            "1": {
+              "name": "keyword.control.exception.ds"
+            },
+            "2": {
+              "name": "keyword.control.conditional.ds"
+            },
+            "3": {
+              "name": "variable.other.binding.ds"
+            }
+          }
+        },
+        {
+          "name": "meta.binding.loop.await.using.ds",
+          "match": "(?x)\\bfor\\s*\\(\\s*await\\s+using\\s+([$A-Za-z_][$A-Za-z0-9_]*)(?=\\s+\\b(?:of|in)\\b)",
+          "captures": {
+            "1": {
+              "name": "variable.other.binding.ds"
+            }
+          }
+        },
+        {
+          "name": "meta.binding.loop.using.ds",
+          "begin": "(?x)\\bfor\\s*\\(\\s*(?:await\\s+)?(using)\\s+([$A-Za-z_][$A-Za-z0-9_]*)(?=\\s+\\b(?:of|in)\\b)",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.operator.type.ds"
+            },
+            "2": {
+              "name": "variable.other.binding.ds"
+            }
+          },
+          "end": "(?=\\))",
+          "patterns": [
+            {
+              "name": "keyword.control.loop.ds",
+              "match": "\\bfor\\b"
+            },
+            {
+              "name": "keyword.operator.container.ds",
+              "match": "\\b(?:of|in)\\b"
+            }
+          ]
+        },
+        {
+          "name": "meta.binding.loop.ds",
+          "match": "(?x)\\bfor\\s*\\(\\s*([$A-Za-z_][$A-Za-z0-9_]*)(?=\\s+\\b(?:of|in)\\b)",
+          "captures": {
+            "1": {
+              "name": "variable.other.binding.ds"
+            }
+          }
+        },
+        {
+          "name": "meta.binding.destack.for.in.ds",
+          "match": "(?x)\\bfor\\s+([$A-Za-z_][$A-Za-z0-9_]*)(?=\\s+\\bin\\b)",
+          "captures": {
+            "1": {
+              "name": "variable.other.binding.ds"
+            }
+          }
         },
         {
           "name": "variable.other.binding.ds",
-          "match": "(?x)\\b([A-Za-z_]\\w*)\\b(?=\\s*=(?![=]))"
+          "match": "(?x)(?<![$\\w])([$A-Za-z_][$A-Za-z0-9_]*)(?![$\\w])(?=\\s*[?!]?\\s*:(?!:))"
         },
         {
           "name": "variable.other.binding.ds",
-          "match": "(?x)\\b([A-Za-z_]\\w*)\\b(?=\\s*(?:,|}))",
+          "match": "(?x)(?<![$\\w])([$A-Za-z_][$A-Za-z0-9_]*)(?![$\\w])(?=\\s*=(?![=]))"
+        },
+        {
+          "name": "variable.other.binding.ds",
+          "match": "(?x)(?<![$\\w])([$A-Za-z_][$A-Za-z0-9_]*)(?![$\\w])(?=\\s*(?:,|}))",
           "captures": {
             "1": {
               "name": "variable.other.binding.ds"
@@ -1506,7 +1836,78 @@
       "patterns": [
         {
           "name": "meta.decorator.call.ds",
-          "match": "(?x)([#@])([A-Za-z_]\\w*)(?=\\s*(?:<[^>]*>\\s*)?\\()",
+          "begin": "(?x)([#@])([$A-Za-z_][$A-Za-z0-9_]*(?:\\.[$A-Za-z_][$A-Za-z0-9_]*)*)(\\s*(?:<[^>\\n]*>\\s*)?\\()",
+          "beginCaptures": {
+            "1": {
+              "name": "entity.name.function.decorator.ds"
+            },
+            "2": {
+              "name": "entity.name.function.decorator.ds"
+            },
+            "3": {
+              "name": "punctuation.section.group.begin.ds"
+            }
+          },
+          "end": "\\)",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.group.end.ds"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#comment"
+            },
+            {
+              "name": "variable.other.property.ds",
+              "match": "(?x)(?m)^\\s*([$A-Za-z_][$A-Za-z0-9_]*)(?=\\s*:(?!:))"
+            },
+            {
+              "include": "#literal"
+            },
+            {
+              "include": "#call-expression"
+            },
+            {
+              "include": "#type-reference"
+            },
+            {
+              "include": "#path"
+            },
+            {
+              "include": "#keyword"
+            },
+            {
+              "include": "#operator"
+            }
+          ]
+        },
+        {
+          "name": "meta.decorator.expression.ds",
+          "begin": "(?x)([#@])(\\()",
+          "beginCaptures": {
+            "1": {
+              "name": "entity.name.function.decorator.ds"
+            },
+            "2": {
+              "name": "punctuation.section.group.begin.ds"
+            }
+          },
+          "end": "\\)",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.group.end.ds"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#expression"
+            }
+          ]
+        },
+        {
+          "name": "meta.decorator.call.ds",
+          "match": "(?x)([#@])([$A-Za-z_][$A-Za-z0-9_]*(?:\\.[$A-Za-z_][$A-Za-z0-9_]*)*)(?=\\s*(?:<[^>]*>\\s*)?\\()",
           "captures": {
             "1": {
               "name": "entity.name.function.decorator.ds"
@@ -1518,7 +1919,7 @@
         },
         {
           "name": "meta.decorator.ds",
-          "match": "(?x)([#@])([A-Za-z_]\\w*)",
+          "match": "(?x)([#@])([$A-Za-z_][$A-Za-z0-9_]*(?:\\.[$A-Za-z_][$A-Za-z0-9_]*)*)",
           "captures": {
             "1": {
               "name": "entity.name.function.decorator.ds"
@@ -1832,7 +2233,31 @@
       "patterns": [
         {
           "name": "meta.function.definition.ds",
-          "match": "(?x)(?m)^\\s*(?:\\b(?:public|protected|private|readonly|mut|static|final|accessor|default|abstract|override|export|declare|async)\\s+)*\\b(get|set|move)\\b\\s+([A-Za-z_]\\w*)(?=\\s*(?:<[^>]*>\\s*)?\\()",
+          "match": "(?x)(?m)^\\s*(?:[#@](?:\\([^\\n)]*\\)|[$A-Za-z_][$A-Za-z0-9_]*(?:\\.[$A-Za-z_][$A-Za-z0-9_]*)*(?:\\s*(?:<[^>\\n]*>\\s*)?\\([^\\n)]*\\))?)\\s+)*(?:\\b(?:public|protected|private|readonly|mut|static|final|accessor|default|abstract|override|export|declare|async)\\s+)*(?:(\\*)\\s*)?(\\[)([$A-Za-z_][$A-Za-z0-9_]*)(\\.)([$A-Za-z_][$A-Za-z0-9_]*)(\\])(?=\\s*(?:<[^>]*>\\s*)?\\()",
+          "captures": {
+            "1": {
+              "name": "keyword.operator.multiplication.ds"
+            },
+            "2": {
+              "name": "punctuation.section.brackets.begin.ds"
+            },
+            "3": {
+              "name": "entity.name.type.ds"
+            },
+            "4": {
+              "name": "punctuation.accessor.dot.ds"
+            },
+            "5": {
+              "name": "variable.other.member.ds"
+            },
+            "6": {
+              "name": "punctuation.section.brackets.end.ds"
+            }
+          }
+        },
+        {
+          "name": "meta.function.definition.ds",
+          "match": "(?x)(?m)^\\s*(?:[#@](?:\\([^\\n)]*\\)|[$A-Za-z_][$A-Za-z0-9_]*(?:\\.[$A-Za-z_][$A-Za-z0-9_]*)*(?:\\s*(?:<[^>\\n]*>\\s*)?\\([^\\n)]*\\))?)\\s+)*(?:\\b(?:public|protected|private|readonly|mut|static|final|accessor|default|abstract|override|export|declare|async)\\s+)*\\b(get|set|move)\\b\\s+([A-Za-z_]\\w*)(?=\\s*(?:<[^>]*>\\s*)?\\()",
           "captures": {
             "1": {
               "name": "keyword.other.accessor.ds"
@@ -1844,10 +2269,16 @@
         },
         {
           "name": "meta.function.definition.ds",
-          "match": "(?x)(?m)^\\s*(?:\\b(?:public|protected|private|readonly|mut|static|final|accessor|default|abstract|override|export|declare|async)\\s+)*([A-Za-z_]\\w*)(?=\\s*(?:<[^>]*>\\s*)?\\()",
+          "match": "(?x)(?m)^\\s*(?:[#@](?:\\([^\\n)]*\\)|[$A-Za-z_][$A-Za-z0-9_]*(?:\\.[$A-Za-z_][$A-Za-z0-9_]*)*(?:\\s*(?:<[^>\\n]*>\\s*)?\\([^\\n)]*\\))?)\\s+)*(?:\\b(?:public|protected|private|readonly|mut|static|final|accessor|default|abstract|override|export|declare|async)\\s+)*(?:(\\*)\\s*)?([$A-Za-z_][$A-Za-z0-9_]*)(\\?)?(?=\\s*(?:<[^>]*>\\s*)?\\()",
           "captures": {
             "1": {
+              "name": "keyword.operator.multiplication.ds"
+            },
+            "2": {
               "name": "entity.name.function.definition.ds"
+            },
+            "3": {
+              "name": "keyword.operator.optional.ds"
             }
           }
         }
@@ -1857,36 +2288,42 @@
       "patterns": [
         {
           "name": "meta.type.definition.ds",
-          "match": "(?x)^([ \\t]*)(?:(export)\\s+)?(?:\\b(?:public|protected|private|readonly|mut|static|final|accessor|default|abstract|override|declare)\\s+)*(?:(newtype)\\s+)?(struct|class|interface)\\b(?:\\s*\\([^)]*\\))*\\s+([A-Za-z_]\\w*)\\s*\\{[^}]*\\}",
+          "match": "(?x)^([ \\t]*)(?:[#@](?:\\([^\\n)]*\\)|[$A-Za-z_][$A-Za-z0-9_]*(?:\\.[$A-Za-z_][$A-Za-z0-9_]*)*(?:\\s*(?:<[^>\\n]*>\\s*)?\\([^\\n)]*\\))?)\\s+)*(?:(export)\\s+)?(?:(default)\\s+)?(?:\\b(?:public|protected|private|readonly|mut|static|final|accessor|abstract|override|declare)\\s+)*(?:(newtype)\\s+)?(struct|class|interface)\\b(?:\\s*\\([^)]*\\))*\\s+([$A-Za-z_][$A-Za-z0-9_]*)\\s*\\{[^}]*\\}",
           "captures": {
             "2": {
               "name": "keyword.declaration.import.ds"
             },
             "3": {
-              "name": "keyword.declaration.type.ds"
+              "name": "keyword.other.modifier.ds"
             },
             "4": {
               "name": "keyword.declaration.type.ds"
             },
             "5": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "6": {
               "name": "entity.name.type.definition.ds"
             }
           }
         },
         {
           "name": "meta.type.definition.ds",
-          "begin": "(?x)^([ \\t]*)(?:(export)\\s+)?(?:\\b(?:public|protected|private|readonly|mut|static|final|accessor|default|abstract|override|declare)\\s+)*(?:(newtype)\\s+)?(struct|class|interface)\\b(?:\\s*\\([^)]*\\))*\\s+([A-Za-z_]\\w*)\\s*\\{",
+          "begin": "(?x)^([ \\t]*)(?:[#@](?:\\([^\\n)]*\\)|[$A-Za-z_][$A-Za-z0-9_]*(?:\\.[$A-Za-z_][$A-Za-z0-9_]*)*(?:\\s*(?:<[^>\\n]*>\\s*)?\\([^\\n)]*\\))?)\\s+)*(?:(export)\\s+)?(?:(default)\\s+)?(?:\\b(?:public|protected|private|readonly|mut|static|final|accessor|abstract|override|declare)\\s+)*(?:(newtype)\\s+)?(struct|class|interface)\\b(?:\\s*\\([^)]*\\))*\\s+([$A-Za-z_][$A-Za-z0-9_]*)(?=\\s*(?:<[^>{}]*>\\s*)?\\{)",
           "beginCaptures": {
             "2": {
               "name": "keyword.declaration.import.ds"
             },
             "3": {
-              "name": "keyword.declaration.type.ds"
+              "name": "keyword.other.modifier.ds"
             },
             "4": {
               "name": "keyword.declaration.type.ds"
             },
             "5": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "6": {
               "name": "entity.name.type.definition.ds"
             }
           },
@@ -1899,6 +2336,27 @@
           "patterns": [
             {
               "include": "#comment"
+            },
+            {
+              "include": "#comptime-block"
+            },
+            {
+              "include": "#type-parameters"
+            },
+            {
+              "include": "#type-index-signature"
+            },
+            {
+              "include": "#type-computed-key"
+            },
+            {
+              "include": "#embedded-type-member"
+            },
+            {
+              "include": "#associated-type-definition"
+            },
+            {
+              "include": "#associated-const-definition"
             },
             {
               "include": "#method-definition"
@@ -1916,11 +2374,33 @@
         }
       ]
     },
+    "embedded-type-member": {
+      "patterns": [
+        {
+          "name": "meta.embedded.type.member.ds",
+          "begin": "(?x)(?m)^\\s*(\\.\\.\\.)(?=\\s*(?:[A-Z][A-Za-z0-9_]*|self\\b|this\\b))",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.operator.prefix.ds"
+            }
+          },
+          "end": "(?=\\s*(?:;|$))",
+          "patterns": [
+            {
+              "include": "#type-expression"
+            },
+            {
+              "include": "#path"
+            }
+          ]
+        }
+      ]
+    },
     "enum-block": {
       "patterns": [
         {
           "name": "meta.enum.definition.ds",
-          "match": "(?x)^([ \\t]*)(?:(export)\\s+)?(?:\\b(?:public|protected|private|readonly|mut|static|final|accessor|default|abstract|override|declare)\\s+)*(?:(newtype)\\s+)?(enum|union)\\b(?:\\s*\\([^)]*\\))*\\s+([A-Za-z_]\\w*)\\s*\\{[^}]*\\}",
+          "match": "(?x)^([ \\t]*)(?:[#@](?:\\([^\\n)]*\\)|[$A-Za-z_][$A-Za-z0-9_]*(?:\\.[$A-Za-z_][$A-Za-z0-9_]*)*(?:\\s*(?:<[^>\\n]*>\\s*)?\\([^\\n)]*\\))?)\\s+)*(?:(export)\\s+)?(?:\\b(?:public|protected|private|readonly|mut|static|final|accessor|default|abstract|override|declare)\\s+)*(?:(newtype)\\s+)?(enum|union)\\b(?:\\s*\\([^)]*\\))*\\s+([$A-Za-z_][$A-Za-z0-9_]*)\\s*\\{[^}]*\\}",
           "captures": {
             "2": {
               "name": "keyword.declaration.import.ds"
@@ -1938,7 +2418,7 @@
         },
         {
           "name": "meta.enum.definition.ds",
-          "begin": "(?x)^([ \\t]*)(?:(export)\\s+)?(?:\\b(?:public|protected|private|readonly|mut|static|final|accessor|default|abstract|override|declare)\\s+)*(?:(newtype)\\s+)?(enum|union)\\b(?:\\s*\\([^)]*\\))*\\s+([A-Za-z_]\\w*)\\s*\\{",
+          "begin": "(?x)^([ \\t]*)(?:[#@](?:\\([^\\n)]*\\)|[$A-Za-z_][$A-Za-z0-9_]*(?:\\.[$A-Za-z_][$A-Za-z0-9_]*)*(?:\\s*(?:<[^>\\n]*>\\s*)?\\([^\\n)]*\\))?)\\s+)*(?:(export)\\s+)?(?:\\b(?:public|protected|private|readonly|mut|static|final|accessor|default|abstract|override|declare)\\s+)*(?:(newtype)\\s+)?(enum|union)\\b(?:\\s*\\([^)]*\\))*\\s+([$A-Za-z_][$A-Za-z0-9_]*)\\s*\\{",
           "beginCaptures": {
             "2": {
               "name": "keyword.declaration.import.ds"
@@ -1964,6 +2444,15 @@
               "include": "#comment"
             },
             {
+              "include": "#comptime-block"
+            },
+            {
+              "include": "#associated-type-definition"
+            },
+            {
+              "include": "#associated-const-definition"
+            },
+            {
               "include": "#enum-member"
             },
             {
@@ -1982,6 +2471,12 @@
     "entity-definition": {
       "patterns": [
         {
+          "include": "#module-definition"
+        },
+        {
+          "include": "#global-definition"
+        },
+        {
           "include": "#type-alias"
         },
         {
@@ -1992,7 +2487,7 @@
         },
         {
           "name": "meta.entity.definition.ds",
-          "match": "(?x)\\b(type)\\s+([A-Za-z_]\\w*)(?=\\s*(?:<[^>]*>\\s*)?=)",
+          "match": "(?x)\\b(type)\\s+([$A-Za-z_][$A-Za-z0-9_]*)(?=\\s*(?:<[^>]*>\\s*)?=)",
           "captures": {
             "1": {
               "name": "keyword.declaration.type.ds"
@@ -2004,7 +2499,7 @@
         },
         {
           "name": "meta.entity.definition.ds",
-          "match": "(?x)\\b(newtype)\\s+(struct|interface|class|enum|union)\\b(?:\\s*\\([^)]*\\))*\\s+([A-Za-z_]\\w*)",
+          "match": "(?x)\\b(newtype)\\s+(struct|interface|class|enum|union)\\b(?:\\s*\\([^)]*\\))*\\s+([$A-Za-z_][$A-Za-z0-9_]*)",
           "captures": {
             "1": {
               "name": "keyword.declaration.type.ds"
@@ -2019,7 +2514,7 @@
         },
         {
           "name": "meta.entity.definition.ds",
-          "match": "(?x)\\b(struct|interface|namespace|class|enum|union|newtype)\\b(?:\\s*\\([^)]*\\))*\\s+([A-Za-z_]\\w*)",
+          "match": "(?x)\\b(struct|interface|namespace|class|enum|union|newtype)\\b(?:\\s*\\([^)]*\\))*\\s+([$A-Za-z_][$A-Za-z0-9_]*)",
           "captures": {
             "1": {
               "name": "keyword.declaration.type.ds"
@@ -2034,11 +2529,65 @@
         }
       ]
     },
+    "module-definition": {
+      "patterns": [
+        {
+          "name": "meta.module.exports.definition.ds",
+          "match": "(?x)\\b(module)\\.(exports)\\b(?=\\s*:)",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "2": {
+              "name": "variable.other.member.ds"
+            }
+          }
+        },
+        {
+          "name": "meta.module.definition.ds",
+          "match": "(?x)\\b(module|namespace)\\s+([$A-Za-z_][$A-Za-z0-9_]*(?:\\.[$A-Za-z_][$A-Za-z0-9_]*)*)",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "2": {
+              "name": "entity.name.type.definition.ds"
+            }
+          }
+        },
+        {
+          "name": "meta.module.definition.ds",
+          "begin": "(?x)\\b(module|namespace)\\s+(\"(?:[^\"\\\\]|\\\\.)*\")",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "2": {
+              "name": "string.quoted.double.ds"
+            }
+          },
+          "end": "(?=\\{|$)"
+        }
+      ]
+    },
+    "global-definition": {
+      "patterns": [
+        {
+          "name": "meta.global.definition.ds",
+          "match": "\\b(global)\\b(?=\\s*\\{)",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.type.ds"
+            }
+          }
+        }
+      ]
+    },
     "extension-definition": {
       "patterns": [
         {
           "name": "meta.extension.definition.ds",
-          "begin": "(?x)\\b(extension)\\b(?=\\s*(?:<[^\\n>{}]*>\\s*)?[A-Za-z_]\\w*\\s+for\\b)",
+          "begin": "(?x)\\b(extension)\\b(?=\\s*(?:<[^\\n>{}]*>\\s*)?[$A-Za-z_][$A-Za-z0-9_]*\\s+for\\b)",
           "beginCaptures": {
             "1": {
               "name": "keyword.declaration.type.ds"
@@ -2051,7 +2600,7 @@
             },
             {
               "name": "entity.name.type.definition.ds",
-              "match": "\\b([A-Za-z_]\\w*)\\b(?=\\s+for\\b)"
+              "match": "(?x)(?<![$\\w])([$A-Za-z_][$A-Za-z0-9_]*)(?![$\\w])(?=\\s+for\\b)"
             },
             {
               "name": "keyword.declaration.type.ds",
@@ -2086,11 +2635,76 @@
         }
       ]
     },
+    "associated-type-definition": {
+      "patterns": [
+        {
+          "name": "meta.associated.type.definition.ds",
+          "begin": "(?x)(?m)^\\s*(type)\\s+([$A-Za-z_][$A-Za-z0-9_]*)(?=\\s*(?:<[^>]*>\\s*)?(?::|=|;|$))",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "2": {
+              "name": "entity.name.type.definition.ds"
+            }
+          },
+          "end": "(?:;|$)",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.separator.semicolon.ds"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#type-parameters"
+            },
+            {
+              "include": "#type-annotation"
+            },
+            {
+              "name": "keyword.operator.assignment.ds",
+              "match": "="
+            },
+            {
+              "include": "#type-expression"
+            },
+            {
+              "include": "#path"
+            }
+          ]
+        }
+      ]
+    },
+    "associated-const-definition": {
+      "patterns": [
+        {
+          "name": "meta.associated.const.definition.ds",
+          "match": "(?x)(?m)^\\s*(?:(abstract)\\s+)?(?:(static)\\s+)?(?:(comptime)\\s+)?(const)\\s+([$A-Za-z_][$A-Za-z0-9_]*)(?=\\s*(?:[?!]?\\s*:(?!:)|=|[,{;]))",
+          "captures": {
+            "1": {
+              "name": "keyword.other.modifier.ds"
+            },
+            "2": {
+              "name": "keyword.other.modifier.ds"
+            },
+            "3": {
+              "name": "keyword.other.comptime.ds"
+            },
+            "4": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "5": {
+              "name": "variable.other.property.ds"
+            }
+          }
+        }
+      ]
+    },
     "function-call": {
       "patterns": [
         {
           "name": "meta.function.call.ds",
-          "match": "(?x)\\b(?!(?:if|match|switch|case|while|for|with|catch)\\b)([A-Za-z_]\\w*)\\b(?=\\s*(?:<[^>]*>\\s*)?\\()",
+          "match": "(?x)(?<![$\\w])(?!(?:if|match|switch|case|while|for|with|catch|where)\\b)([$A-Za-z_][$A-Za-z0-9_]*)(?![$\\w])(?=\\s*(?:<[^>]*>\\s*)?\\()",
           "captures": {
             "1": {
               "name": "entity.name.function.call.ds"
