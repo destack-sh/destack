@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_compiler::{BuildKey, Compiler};
+use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_source::ModuleId;
 use destack_workspace::{ArtifactKey, Program};
@@ -112,9 +112,7 @@ impl CommandContext<'_> {
 fn enqueue_check_tasks(program: &Arc<Program>, compiler: &Arc<Compiler>, modules: &[ModuleId]) {
     for module_id in modules {
         let profile = program.default_profile_id_for_module(*module_id);
-        compiler.enqueue(BuildKey::artifact(ArtifactKey::dir_analyzed(
-            *module_id, profile,
-        )));
+        compiler.enqueue(ArtifactKey::dir_analyzed(*module_id, profile));
     }
 }
 

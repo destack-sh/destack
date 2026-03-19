@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_compiler::{BuildKey, Compiler};
+use destack_compiler::Compiler;
 use destack_runtime::runtime::World;
 use destack_runtime::runtime::engine::Entry;
 use destack_source::ModuleId;
@@ -80,12 +80,11 @@ impl CommandContext<'_> {
             let profile = self
                 .program
                 .profile_id_for_target_or_default(entry_module, &target_id);
-            self.compiler
-                .enqueue(BuildKey::artifact(ArtifactKey::mir_optimized(
-                    entry_module,
-                    profile,
-                    target_id.clone(),
-                )));
+            self.compiler.enqueue(ArtifactKey::mir_optimized(
+                entry_module,
+                profile,
+                target_id.clone(),
+            ));
         }
 
         // compile and collect diagnostics
@@ -182,11 +181,7 @@ fn enqueue_lower_tasks(
     target_id: &TargetId,
 ) {
     let profile = program.profile_id_for_target_or_default(module_id, target_id);
-    compiler.enqueue(BuildKey::artifact(ArtifactKey::mir_base(
-        module_id,
-        profile,
-        target_id.clone(),
-    )));
+    compiler.enqueue(ArtifactKey::mir_base(module_id, profile, target_id.clone()));
 }
 
 /// Execute the entry module in the VM.
@@ -358,13 +353,16 @@ fn create_isolate(
     options: IsolateOptions,
 ) -> super::CommandResult<Isolate> {
     let profile_id = program.default_profile_id_for_module(module_id);
-    let mir = program
+    let (tree, strings) = if let Some(mir) = program
         .artifacts
         .mir_optimized(module_id, profile_id, target_id)
-        .or_else(|| program.artifacts.mir_base(module_id, profile_id, target_id))
-        .ok_or_else(|| format!("missing MIR for target {target_id:?} (run requires lowering)"))?;
-    let tree = mir.tree.clone();
-    let strings = mir.strings.clone().into_immutable();
+    {
+        (mir.tree.clone(), mir.strings.clone().into_immutable())
+    } else if let Some(mir) = program.artifacts.mir_base(module_id, profile_id, target_id) {
+        (mir.tree.clone(), mir.strings.clone().into_immutable())
+    } else {
+        return Err(format!("missing MIR for target {target_id:?} (run requires lowering)").into());
+    };
 
     Ok(Isolate::build_with_options(tree, strings, options).map_err(|error| error.to_string())?)
 }
