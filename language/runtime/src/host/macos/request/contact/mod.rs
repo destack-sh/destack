@@ -7,6 +7,8 @@ mod native;
 #[cfg(all(not(test), target_os = "macos"))]
 mod page;
 #[cfg(all(not(test), target_os = "macos"))]
+pub(super) mod permission;
+#[cfg(all(not(test), target_os = "macos"))]
 mod query;
 #[cfg(all(not(test), target_os = "macos"))]
 mod submit;
@@ -17,6 +19,7 @@ mod unsupported;
 #[cfg(all(not(test), target_os = "macos"))]
 mod write;
 
+#[cfg(all(not(test), target_os = "macos"))]
 /// Submit one macOS contact request when the native backend is available.
 #[cfg(all(not(test), target_os = "macos"))]
 pub(crate) use submit::submit_contact_request;
