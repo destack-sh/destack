@@ -24,11 +24,12 @@ use crate::platform::os::{
     CalendarDescriptorVm, CalendarEvent, CalendarEventDraft, CalendarEventDraftVm,
     CalendarEventQuery, CalendarEventQueryVm, CalendarEventVm, CalendarParticipantStatus,
     CalendarRecurrenceFrequency, CalendarRecurrenceRule, CalendarRecurrenceRuleVm,
-    CalendarRelativeReminder, CalendarRelativeReminderVm, CalendarReminder, CalendarReminderVm,
-    ClipboardBinaryFormat, Contact, ContactAddress, ContactAddressVm, ContactDraft, ContactDraftVm,
-    ContactEmail, ContactEmailVm, ContactName, ContactNameVm, ContactOrganization,
-    ContactOrganizationVm, ContactPage, ContactPageVm, ContactPhone, ContactPhoneVm, ContactQuery,
-    ContactQueryVm, ContactVm, CredentialAccessibility, CredentialAuthenticationMechanism,
+    CalendarRecurrenceWeekday, CalendarRecurrenceWeekdayVm, CalendarRelativeReminder,
+    CalendarRelativeReminderVm, CalendarReminder, CalendarReminderVm, ClipboardBinaryFormat,
+    Contact, ContactAddress, ContactAddressVm, ContactDraft, ContactDraftVm, ContactEmail,
+    ContactEmailVm, ContactName, ContactNameVm, ContactOrganization, ContactOrganizationVm,
+    ContactPage, ContactPageVm, ContactPhone, ContactPhoneVm, ContactQuery, ContactQueryVm,
+    ContactVm, CredentialAccessibility, CredentialAuthenticationMechanism,
     CredentialAuthenticationOptions, CredentialAuthenticationOptionsVm,
     CredentialAuthenticationPolicy, CredentialAuthenticationRequirement,
     CredentialAuthenticationResult, CredentialAuthenticationResultVm, CredentialQuery,
@@ -763,6 +764,8 @@ fn decode_destack_os_calendar_event_create_args(
             2i32 => CalendarAvailability::Free,
             3i32 => CalendarAvailability::Tentative,
             4i32 => CalendarAvailability::OutOfOffice,
+            5i32 => CalendarAvailability::Unavailable,
+            6i32 => CalendarAvailability::Unknown,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "event_availability",
@@ -791,10 +794,10 @@ fn decode_destack_os_calendar_event_create_args(
                 let slots = context
                     .aggregate_slots(slots[10])
                     .map_err(|error| RuntimeError::from(error).boxed())?;
-                if slots.len() != 7 {
+                if slots.len() != 11 {
                     return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                         "event_recurrence_rule_inner",
-                        "expected 7 fields",
+                        "expected 11 fields",
                     ))
                     .boxed());
                 }
@@ -846,17 +849,42 @@ fn decode_destack_os_calendar_event_create_args(
                     "event_recurrence_rule_inner_by_week_days",
                     "byWeekDays",
                 )?;
+                let event_recurrence_rule_inner_by_weekday_ordinals =
+                    decode_array::<CalendarRecurrenceWeekdayVm>(
+                        context,
+                        slots[5],
+                        "event_recurrence_rule_inner_by_weekday_ordinals",
+                        "byWeekdayOrdinals",
+                    )?;
                 let event_recurrence_rule_inner_by_month_days = decode_array::<i8>(
                     context,
-                    slots[5],
+                    slots[6],
                     "event_recurrence_rule_inner_by_month_days",
                     "byMonthDays",
                 )?;
                 let event_recurrence_rule_inner_by_months = decode_array::<u8>(
                     context,
-                    slots[6],
+                    slots[7],
                     "event_recurrence_rule_inner_by_months",
                     "byMonths",
+                )?;
+                let event_recurrence_rule_inner_by_year_days = decode_array::<i16>(
+                    context,
+                    slots[8],
+                    "event_recurrence_rule_inner_by_year_days",
+                    "byYearDays",
+                )?;
+                let event_recurrence_rule_inner_by_week_numbers = decode_array::<i8>(
+                    context,
+                    slots[9],
+                    "event_recurrence_rule_inner_by_week_numbers",
+                    "byWeekNumbers",
+                )?;
+                let event_recurrence_rule_inner_by_set_positions = decode_array::<i16>(
+                    context,
+                    slots[10],
+                    "event_recurrence_rule_inner_by_set_positions",
+                    "bySetPositions",
                 )?;
                 CalendarRecurrenceRuleVm {
                     frequency: event_recurrence_rule_inner_frequency,
@@ -864,8 +892,12 @@ fn decode_destack_os_calendar_event_create_args(
                     count: event_recurrence_rule_inner_count,
                     until_unix_ns: event_recurrence_rule_inner_until_unix_ns,
                     by_week_days: event_recurrence_rule_inner_by_week_days,
+                    by_weekday_ordinals: event_recurrence_rule_inner_by_weekday_ordinals,
                     by_month_days: event_recurrence_rule_inner_by_month_days,
                     by_months: event_recurrence_rule_inner_by_months,
+                    by_year_days: event_recurrence_rule_inner_by_year_days,
+                    by_week_numbers: event_recurrence_rule_inner_by_week_numbers,
+                    by_set_positions: event_recurrence_rule_inner_by_set_positions,
                 }
             };
             Some(event_recurrence_rule_inner)
@@ -1090,11 +1122,18 @@ fn encode_destack_os_calendar_event_read_result(
                         None => Ok(vm::Value::VOID),
                     };
                     let field_4: RuntimeResult<vm::Value> = value.by_week_days.to_value(context);
-                    let field_5: RuntimeResult<vm::Value> = value.by_month_days.to_value(context);
-                    let field_6: RuntimeResult<vm::Value> = value.by_months.to_value(context);
+                    let field_5: RuntimeResult<vm::Value> =
+                        value.by_weekday_ordinals.to_value(context);
+                    let field_6: RuntimeResult<vm::Value> = value.by_month_days.to_value(context);
+                    let field_7: RuntimeResult<vm::Value> = value.by_months.to_value(context);
+                    let field_8: RuntimeResult<vm::Value> = value.by_year_days.to_value(context);
+                    let field_9: RuntimeResult<vm::Value> = value.by_week_numbers.to_value(context);
+                    let field_10: RuntimeResult<vm::Value> =
+                        value.by_set_positions.to_value(context);
                     context
                         .allocate_aggregate(vec![
                             field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+                            field_7?, field_8?, field_9?, field_10?,
                         ])
                         .map_err(Box::<RuntimeError>::from)
                 }
@@ -1177,6 +1216,8 @@ fn decode_destack_os_calendar_event_update_args(
             2i32 => CalendarAvailability::Free,
             3i32 => CalendarAvailability::Tentative,
             4i32 => CalendarAvailability::OutOfOffice,
+            5i32 => CalendarAvailability::Unavailable,
+            6i32 => CalendarAvailability::Unknown,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "event_availability",
@@ -1205,10 +1246,10 @@ fn decode_destack_os_calendar_event_update_args(
                 let slots = context
                     .aggregate_slots(slots[10])
                     .map_err(|error| RuntimeError::from(error).boxed())?;
-                if slots.len() != 7 {
+                if slots.len() != 11 {
                     return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                         "event_recurrence_rule_inner",
-                        "expected 7 fields",
+                        "expected 11 fields",
                     ))
                     .boxed());
                 }
@@ -1260,17 +1301,42 @@ fn decode_destack_os_calendar_event_update_args(
                     "event_recurrence_rule_inner_by_week_days",
                     "byWeekDays",
                 )?;
+                let event_recurrence_rule_inner_by_weekday_ordinals =
+                    decode_array::<CalendarRecurrenceWeekdayVm>(
+                        context,
+                        slots[5],
+                        "event_recurrence_rule_inner_by_weekday_ordinals",
+                        "byWeekdayOrdinals",
+                    )?;
                 let event_recurrence_rule_inner_by_month_days = decode_array::<i8>(
                     context,
-                    slots[5],
+                    slots[6],
                     "event_recurrence_rule_inner_by_month_days",
                     "byMonthDays",
                 )?;
                 let event_recurrence_rule_inner_by_months = decode_array::<u8>(
                     context,
-                    slots[6],
+                    slots[7],
                     "event_recurrence_rule_inner_by_months",
                     "byMonths",
+                )?;
+                let event_recurrence_rule_inner_by_year_days = decode_array::<i16>(
+                    context,
+                    slots[8],
+                    "event_recurrence_rule_inner_by_year_days",
+                    "byYearDays",
+                )?;
+                let event_recurrence_rule_inner_by_week_numbers = decode_array::<i8>(
+                    context,
+                    slots[9],
+                    "event_recurrence_rule_inner_by_week_numbers",
+                    "byWeekNumbers",
+                )?;
+                let event_recurrence_rule_inner_by_set_positions = decode_array::<i16>(
+                    context,
+                    slots[10],
+                    "event_recurrence_rule_inner_by_set_positions",
+                    "bySetPositions",
                 )?;
                 CalendarRecurrenceRuleVm {
                     frequency: event_recurrence_rule_inner_frequency,
@@ -1278,8 +1344,12 @@ fn decode_destack_os_calendar_event_update_args(
                     count: event_recurrence_rule_inner_count,
                     until_unix_ns: event_recurrence_rule_inner_until_unix_ns,
                     by_week_days: event_recurrence_rule_inner_by_week_days,
+                    by_weekday_ordinals: event_recurrence_rule_inner_by_weekday_ordinals,
                     by_month_days: event_recurrence_rule_inner_by_month_days,
                     by_months: event_recurrence_rule_inner_by_months,
+                    by_year_days: event_recurrence_rule_inner_by_year_days,
+                    by_week_numbers: event_recurrence_rule_inner_by_week_numbers,
+                    by_set_positions: event_recurrence_rule_inner_by_set_positions,
                 }
             };
             Some(event_recurrence_rule_inner)

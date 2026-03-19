@@ -15,6 +15,7 @@ pub(crate) enum ExecutionMode {
     /// Run directly on the caller thread.
     Inline,
     /// Run on one existing host-owned loop or affinity thread.
+    #[cfg_attr(target_os = "android", allow(dead_code))]
     Host,
     /// Run on one owned dedicated thread.
     Thread,
@@ -51,6 +52,7 @@ pub(crate) struct ExecutionPolicy {
     pub(crate) affinity: Option<ExecutionAffinity>,
 }
 
+#[allow(clippy::dead_code)]
 impl ExecutionPolicy {
     /// Build one global execution policy.
     pub(crate) const fn global(mode: ExecutionMode) -> Self {
