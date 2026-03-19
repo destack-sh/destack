@@ -85,7 +85,7 @@ node;
 > Open shape spreads are not allowed when dynamic shapes are disabled.
 
 ```json:destack.json
-{ "compilerOptions": { "noDynamicShapes": true } }
+{ "compiler": { "noDynamicShapes": true } }
 ```
 
 ```ds

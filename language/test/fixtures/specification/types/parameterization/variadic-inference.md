@@ -67,5 +67,5 @@ value[0] satisfies "x";
 - contains: not assignable
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```

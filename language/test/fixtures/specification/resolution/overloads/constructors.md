@@ -29,7 +29,7 @@ fromString.value satisfies string | number;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
 ### typescript rejects multiple constructor implementations
@@ -55,7 +55,7 @@ export class Box {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
 - contains: constructor
@@ -81,7 +81,7 @@ export class Box {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
 - contains: overload
@@ -113,7 +113,7 @@ fromNumber.value satisfies string | number;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
 ### constructor call rejects unsupported argument shapes
@@ -139,7 +139,7 @@ new Box(true);
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
 - contains: overload

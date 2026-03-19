@@ -51,7 +51,7 @@ ok satisfies string;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ### infer from function return types rejects mismatches
@@ -65,7 +65,7 @@ let bad: ReturnOf<() => string> = 1;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 - contains: type 1 is not assignable to type returnof<<type>>
@@ -440,7 +440,7 @@ let okNumber: number = value;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ### conditional types with any yield union branches
@@ -458,7 +458,7 @@ const bad: Result = 3;
 - contains: not assignable
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ### infer from unknown falls back

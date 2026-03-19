@@ -18,7 +18,7 @@ x satisfies null;
 > Null is not assignable to non-nullable types when strict null checks are enabled.
 
 ```json:destack.json
-{ "compilerOptions": { "strictNullChecks": true } }
+{ "compiler": { "strictNullChecks": true } }
 ```
 
 ```ds
@@ -43,7 +43,7 @@ x satisfies undefined;
 > Null becomes assignable to other types when strict null checks are disabled.
 
 ```json:destack.json
-{ "compilerOptions": { "strictNullChecks": false } }
+{ "compiler": { "strictNullChecks": false } }
 ```
 
 ```ds:package.json

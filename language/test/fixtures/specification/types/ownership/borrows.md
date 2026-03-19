@@ -225,7 +225,7 @@ function run(): void {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "borrowMode": "hint" } }
+{ "compiler": { "borrowMode": "hint" } }
 ```
 
 ```ds
@@ -257,7 +257,7 @@ function run(): void {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "borrowMode": "strict" } }
+{ "compiler": { "borrowMode": "strict" } }
 ```
 
 ```ds

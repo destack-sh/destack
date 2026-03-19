@@ -9,7 +9,7 @@ Tests for the `any` type.
 > Any type accepts number values.
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ```ds
@@ -22,7 +22,7 @@ value satisfies any;
 > Any type accepts string values.
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ```ds
@@ -35,7 +35,7 @@ value satisfies any;
 > Any type accepts object values.
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ```ds
@@ -50,7 +50,7 @@ value satisfies any;
 > Any is assignable to number (unsafe but allowed).
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ```ds
@@ -64,7 +64,7 @@ numberValue satisfies number;
 > Any is assignable to string (unsafe but allowed).
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ```ds
@@ -80,7 +80,7 @@ stringValue satisfies string;
 > Accessing a member on `any` produces `any`.
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ```ds
@@ -94,7 +94,7 @@ result satisfies any;
 > Indexing into `any` produces `any`.
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ```ds

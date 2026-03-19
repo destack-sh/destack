@@ -66,5 +66,5 @@ drive(input, value => {
 - contains: not assignable
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```

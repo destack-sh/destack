@@ -14,7 +14,7 @@ Strict bind, call, and apply checking should apply to `this` parameter overloads
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strictBindCallApply": true } }
+{ "compiler": { "strictBindCallApply": true } }
 ```
 
 ```ds
@@ -39,7 +39,7 @@ selected satisfies "broad";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strictBindCallApply": true } }
+{ "compiler": { "strictBindCallApply": true } }
 ```
 
 ```ds
@@ -66,7 +66,7 @@ selected satisfies "narrow";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strictBindCallApply": true } }
+{ "compiler": { "strictBindCallApply": true } }
 ```
 
 ```ds
@@ -92,7 +92,7 @@ selected satisfies "broad";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strictBindCallApply": true } }
+{ "compiler": { "strictBindCallApply": true } }
 ```
 
 ```ds
@@ -114,7 +114,7 @@ use.call({ kind: 1 }, 1);
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strictBindCallApply": true } }
+{ "compiler": { "strictBindCallApply": true } }
 ```
 
 ```ds
@@ -139,7 +139,7 @@ selected satisfies "broad";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "strictBindCallApply": true } }
+{ "compiler": { "strictBindCallApply": true } }
 ```
 
 ```ds

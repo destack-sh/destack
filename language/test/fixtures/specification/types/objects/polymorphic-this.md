@@ -76,5 +76,5 @@ run.call({ tag: "bad" }, 1);
 - contains: not assignable
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true, "noImplicitThis": true } }
+{ "compiler": { "allowTs": true, "checkTs": true, "noImplicitThis": true } }
 ```

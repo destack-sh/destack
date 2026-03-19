@@ -85,5 +85,5 @@ segment satisfies "users";
 - contains: not assignable
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```

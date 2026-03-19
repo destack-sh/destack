@@ -17,7 +17,7 @@ let value: any = 1;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": true } }
+{ "compiler": { "noAny": true } }
 ```
 
 - contains: any type is disabled
@@ -35,7 +35,7 @@ let value: any = 1;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ### noAny reports inferred any in catch variables
@@ -55,7 +55,7 @@ try {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": true, "useUnknownInCatchVariables": false } }
+{ "compiler": { "noAny": true, "useUnknownInCatchVariables": false } }
 ```
 
 - contains: any type is disabled
@@ -75,7 +75,7 @@ let value: unknown = 1;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noUnknown": true } }
+{ "compiler": { "noUnknown": true } }
 ```
 
 - contains: unknown type is disabled
@@ -97,7 +97,7 @@ try {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noUnknown": true, "useUnknownInCatchVariables": true } }
+{ "compiler": { "noUnknown": true, "useUnknownInCatchVariables": true } }
 ```
 
 - contains: unknown type is disabled
@@ -115,7 +115,7 @@ let value: unknown = 1;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noUnknown": false } }
+{ "compiler": { "noUnknown": false } }
 ```
 
 ## noImprecisePrimitives
@@ -133,7 +133,7 @@ let value: number = 1;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false, "noImprecisePrimitives": true } }
+{ "compiler": { "noAny": false, "noImprecisePrimitives": true } }
 ```
 
 - contains: imprecise primitive type is disabled
@@ -151,7 +151,7 @@ let value = Number(1);
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false, "noImprecisePrimitives": true } }
+{ "compiler": { "noAny": false, "noImprecisePrimitives": true } }
 ```
 
 - contains: imprecise primitive type is disabled
@@ -169,7 +169,7 @@ let value: number = 1;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false, "noImprecisePrimitives": false } }
+{ "compiler": { "noAny": false, "noImprecisePrimitives": false } }
 ```
 
 ## noImplicitConversions
@@ -187,7 +187,7 @@ let value: float64 = 1;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noImplicitConversions": true } }
+{ "compiler": { "noImplicitConversions": true } }
 ```
 
 - contains: not assignable
@@ -205,7 +205,7 @@ let value: float64 = 1;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noImplicitConversions": false } }
+{ "compiler": { "noImplicitConversions": false } }
 ```
 
 ## exactOptionalPropertyTypes
@@ -226,7 +226,7 @@ const bad: Box = { value: undefined };
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "exactOptionalPropertyTypes": true, "checkTs": true } }
+{ "compiler": { "exactOptionalPropertyTypes": true, "checkTs": true } }
 ```
 
 - contains: not assignable
@@ -247,7 +247,7 @@ ok.value satisfies string | undefined;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "exactOptionalPropertyTypes": true, "checkTs": true } }
+{ "compiler": { "exactOptionalPropertyTypes": true, "checkTs": true } }
 ```
 
 ### exactOptionalPropertyTypes allows undefined when false
@@ -266,7 +266,7 @@ ok.value satisfies string | undefined;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "exactOptionalPropertyTypes": false, "checkTs": true } }
+{ "compiler": { "exactOptionalPropertyTypes": false, "checkTs": true } }
 ```
 
 ## noUncheckedIndexedAccess
@@ -289,7 +289,7 @@ const value: int32 = bag["missing"];
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noUncheckedIndexedAccess": true } }
+{ "compiler": { "noUncheckedIndexedAccess": true } }
 ```
 
 - contains: not assignable
@@ -312,7 +312,7 @@ const value: int32 = bag["missing"];
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noUncheckedIndexedAccess": false } }
+{ "compiler": { "noUncheckedIndexedAccess": false } }
 ```
 
 ### noUncheckedIndexedAccess does not affect arrays
@@ -329,7 +329,7 @@ const value: int32 = values[0];
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noUncheckedIndexedAccess": true } }
+{ "compiler": { "noUncheckedIndexedAccess": true } }
 ```
 
 ## noPropertyAccessFromIndexSignature
@@ -352,7 +352,7 @@ const value = bag.missing;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noPropertyAccessFromIndexSignature": true } }
+{ "compiler": { "noPropertyAccessFromIndexSignature": true } }
 ```
 
 - contains: index signature
@@ -375,7 +375,7 @@ const value = bag.missing;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noPropertyAccessFromIndexSignature": false } }
+{ "compiler": { "noPropertyAccessFromIndexSignature": false } }
 ```
 
 ### noPropertyAccessFromIndexSignature allows declared properties
@@ -397,7 +397,7 @@ const value: int32 = bag.known;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noPropertyAccessFromIndexSignature": true } }
+{ "compiler": { "noPropertyAccessFromIndexSignature": true } }
 ```
 
 ## implicitCollectionConversions
@@ -417,7 +417,7 @@ let value: int32 | undefined = record["alpha"];
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "implicitCollectionConversions": "allow" } }
+{ "compiler": { "implicitCollectionConversions": "allow" } }
 ```
 
 ### implicitCollectionConversions allows sized array conversions when allow
@@ -436,7 +436,7 @@ let value: int32 | undefined = dynamic[0];
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "implicitCollectionConversions": "allow" } }
+{ "compiler": { "implicitCollectionConversions": "allow" } }
 ```
 
 ### implicitCollectionConversions warns on record-like conversions when warn
@@ -454,7 +454,7 @@ let value: int32 | undefined = record["alpha"];
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "implicitCollectionConversions": "warn" } }
+{ "compiler": { "implicitCollectionConversions": "warn" } }
 ```
 
 - warning: implicit collection conversion
@@ -475,7 +475,7 @@ let value: int32 | undefined = dynamic[0];
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "implicitCollectionConversions": "warn" } }
+{ "compiler": { "implicitCollectionConversions": "warn" } }
 ```
 
 - warning: implicit collection conversion
@@ -495,7 +495,7 @@ let value: int32 | undefined = record["alpha"];
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "implicitCollectionConversions": "deny" } }
+{ "compiler": { "implicitCollectionConversions": "deny" } }
 ```
 
 - contains: implicit collection conversions are disabled
@@ -516,7 +516,7 @@ let value: int32 | undefined = dynamic[0];
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "implicitCollectionConversions": "deny" } }
+{ "compiler": { "implicitCollectionConversions": "deny" } }
 ```
 
 - contains: implicit collection conversions are disabled
@@ -537,7 +537,7 @@ let cast = value as int32;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false, "noUnsafeTypeAssertions": true } }
+{ "compiler": { "noAny": false, "noUnsafeTypeAssertions": true } }
 ```
 
 - contains: unsafe type assertions are disabled
@@ -556,7 +556,7 @@ let cast = value as int32;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noUnsafeTypeAssertions": true } }
+{ "compiler": { "noUnsafeTypeAssertions": true } }
 ```
 
 ### noUnsafeTypeAssertions allows unsafe assertions when false
@@ -573,7 +573,7 @@ let cast = value as int32;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false, "noUnsafeTypeAssertions": false } }
+{ "compiler": { "noAny": false, "noUnsafeTypeAssertions": false } }
 ```
 
 ## noMustAssertions
@@ -594,7 +594,7 @@ out;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noMustAssertions": true } }
+{ "compiler": { "noMustAssertions": true } }
 ```
 
 - contains: must assertions are disabled
@@ -615,7 +615,7 @@ out satisfies string;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noMustAssertions": false } }
+{ "compiler": { "noMustAssertions": false } }
 ```
 
 ## noDefiniteAssignmentAssertions
@@ -635,7 +635,7 @@ class User {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noDefiniteAssignmentAssertions": true } }
+{ "compiler": { "noDefiniteAssignmentAssertions": true } }
 ```
 
 - contains: definite assignment assertions are disabled
@@ -655,7 +655,7 @@ class User {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noDefiniteAssignmentAssertions": false } }
+{ "compiler": { "noDefiniteAssignmentAssertions": false } }
 ```
 
 ## noCustomTypeGuards
@@ -673,7 +673,7 @@ declare function isString(value: unknown): value is string;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noCustomTypeGuards": true } }
+{ "compiler": { "noCustomTypeGuards": true } }
 ```
 
 - contains: custom type guards are disabled
@@ -691,7 +691,7 @@ declare function isString(value: unknown): value is string;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noCustomTypeGuards": false } }
+{ "compiler": { "noCustomTypeGuards": false } }
 ```
 
 ## noImplicitManaged
@@ -713,7 +713,7 @@ let value: Box = new Box();
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noImplicitManaged": true } }
+{ "compiler": { "noImplicitManaged": true } }
 ```
 
 - contains: implicit managed types are disabled
@@ -737,7 +737,7 @@ let animals: Animal[] = dogs;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noUnsoundVariance": true } }
+{ "compiler": { "noUnsoundVariance": true } }
 ```
 
 - contains: unsound variance is disabled
@@ -759,7 +759,7 @@ let animals: Animal[] = dogs;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noUnsoundVariance": false } }
+{ "compiler": { "noUnsoundVariance": false } }
 ```
 
 ## noUnsoundNarrowing
@@ -782,7 +782,7 @@ if (value instanceof Animal) {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noUnsoundNarrowing": true } }
+{ "compiler": { "noUnsoundNarrowing": true } }
 ```
 
 - contains: unsound narrowing is disabled
@@ -805,7 +805,7 @@ if (value instanceof Animal) {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noUnsoundNarrowing": false } }
+{ "compiler": { "noUnsoundNarrowing": false } }
 ```
 
 ## deepReadonly
@@ -824,7 +824,7 @@ wrapped[0][0] = 2;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "deepReadonly": true } }
+{ "compiler": { "deepReadonly": true } }
 ```
 
 - contains: cannot assign to readonly property
@@ -843,7 +843,7 @@ wrapped[0][0] = 2;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "deepReadonly": false } }
+{ "compiler": { "deepReadonly": false } }
 ```
 
 ### noImplicitManaged reports implicit managed array types
@@ -859,7 +859,7 @@ let values: int32[] = [1, 2, 3];
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noImplicitManaged": true } }
+{ "compiler": { "noImplicitManaged": true } }
 ```
 
 - contains: implicit managed types are disabled
@@ -877,7 +877,7 @@ let value: { x: int32 } = { x: 1 };
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noImplicitManaged": true } }
+{ "compiler": { "noImplicitManaged": true } }
 ```
 
 - contains: implicit managed types are disabled
@@ -895,7 +895,7 @@ let fn: () => int32 = () => 1;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noImplicitManaged": true } }
+{ "compiler": { "noImplicitManaged": true } }
 ```
 
 - contains: implicit managed types are disabled
@@ -913,7 +913,7 @@ let value: string = "hello";
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noImplicitManaged": true } }
+{ "compiler": { "noImplicitManaged": true } }
 ```
 
 - contains: implicit managed types are disabled
@@ -935,7 +935,7 @@ let value = new Box();
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noImplicitManaged": true } }
+{ "compiler": { "noImplicitManaged": true } }
 ```
 
 - contains: implicit managed values are disabled
@@ -953,7 +953,7 @@ let values = [1, 2, 3];
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noImplicitManaged": true } }
+{ "compiler": { "noImplicitManaged": true } }
 ```
 
 - contains: implicit managed values are disabled
@@ -975,7 +975,7 @@ let value: ^Box = ^(new Box());
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noImplicitManaged": true } }
+{ "compiler": { "noImplicitManaged": true } }
 ```
 
 ### noImplicitManaged allows character literals
@@ -991,5 +991,5 @@ let value: character = 'a';
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noImplicitManaged": true } }
+{ "compiler": { "noImplicitManaged": true } }
 ```

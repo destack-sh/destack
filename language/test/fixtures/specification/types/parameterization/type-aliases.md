@@ -162,7 +162,7 @@ value satisfies true;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
 ### tuple static arguments stay grouped for imported tuple types
@@ -222,7 +222,7 @@ value satisfies true;
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+{ "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
 ## newtypes

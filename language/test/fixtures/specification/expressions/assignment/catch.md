@@ -37,7 +37,7 @@ try {
 > Catch binding mutability is independent from unknown catch variable typing.
 
 ```json:destack.json
-{ "compilerOptions": { "allowTs": true, "checkTs": true, "useUnknownInCatchVariables": true } }
+{ "compiler": { "allowTs": true, "checkTs": true, "useUnknownInCatchVariables": true } }
 ```
 
 ```ts:main.ts

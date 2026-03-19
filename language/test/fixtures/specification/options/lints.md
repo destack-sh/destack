@@ -20,7 +20,7 @@ function unused_local(): int32 {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noUnusedLocals": true } }
+{ "compiler": { "noUnusedLocals": true } }
 ```
 
 - contains: unused local
@@ -41,7 +41,7 @@ function unused_local(): int32 {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noUnusedLocals": false } }
+{ "compiler": { "noUnusedLocals": false } }
 ```
 
 ## noUnusedParameters
@@ -61,7 +61,7 @@ function unused_param(value: int32): int32 {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noUnusedParameters": true } }
+{ "compiler": { "noUnusedParameters": true } }
 ```
 
 - contains: unused parameter
@@ -81,7 +81,7 @@ function unused_param(value: int32): int32 {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noUnusedParameters": false } }
+{ "compiler": { "noUnusedParameters": false } }
 ```
 
 ## allowUnusedLabels
@@ -104,7 +104,7 @@ function unusedLabel(): int32 {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowUnusedLabels": false } }
+{ "compiler": { "allowUnusedLabels": false } }
 ```
 
 - contains: unused label
@@ -127,7 +127,7 @@ function unusedLabel(): int32 {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowUnusedLabels": true } }
+{ "compiler": { "allowUnusedLabels": true } }
 ```
 
 ### allowUnusedLabels warns on unused labels when warn
@@ -148,7 +148,7 @@ function unusedLabel_warn(): int32 {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowUnusedLabels": "warn" } }
+{ "compiler": { "allowUnusedLabels": "warn" } }
 ```
 
 - warning: unused label 'outer'
@@ -171,7 +171,7 @@ function unreachable(): int32 {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowUnreachableCode": false } }
+{ "compiler": { "allowUnreachableCode": false } }
 ```
 
 - contains: unreachable code
@@ -192,7 +192,7 @@ function unreachable(): int32 {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowUnreachableCode": true } }
+{ "compiler": { "allowUnreachableCode": true } }
 ```
 
 ### allowUnreachableCode warns on unreachable code when warn
@@ -211,7 +211,7 @@ function unreachableWarn(): int32 {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "allowUnreachableCode": "warn" } }
+{ "compiler": { "allowUnreachableCode": "warn" } }
 ```
 
 - warning: unreachable code
@@ -238,7 +238,7 @@ function fallthrough(value: int32) {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noFallthroughCasesInSwitch": true } }
+{ "compiler": { "noFallthroughCasesInSwitch": true } }
 ```
 
 - contains: switch case falls through
@@ -262,7 +262,7 @@ function missingReturn(flag: boolean): int32 {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noImplicitReturns": true } }
+{ "compiler": { "noImplicitReturns": true } }
 ```
 
 - contains: missing return
@@ -285,7 +285,7 @@ function missingReturn(flag: boolean): int32 | void {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noImplicitReturns": false } }
+{ "compiler": { "noImplicitReturns": false } }
 ```
 
 ### noFallthroughCasesInSwitch allows fallthrough when false
@@ -308,7 +308,7 @@ function fallthrough(value: int32) {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noFallthroughCasesInSwitch": false } }
+{ "compiler": { "noFallthroughCasesInSwitch": false } }
 ```
 
 ## noRedeclaredLocals
@@ -330,7 +330,7 @@ function redeclared(): int32 {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noRedeclaredLocals": true } }
+{ "compiler": { "noRedeclaredLocals": true } }
 ```
 
 - contains: duplicate identifier
@@ -352,7 +352,7 @@ function redeclared(): int32 {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noRedeclaredLocals": false } }
+{ "compiler": { "noRedeclaredLocals": false } }
 ```
 
 ### noRedeclaredLocals allows shadowing with reuse
@@ -372,5 +372,5 @@ function shadowed(): int32 {
 ```
 
 ```json:destack.json
-{ "compilerOptions": { "noRedeclaredLocals": false } }
+{ "compiler": { "noRedeclaredLocals": false } }
 ```

@@ -7,7 +7,7 @@
 > Catch variables default to unknown when enabled.
 
 ```json:destack.json
-{ "compilerOptions": { "useUnknownInCatchVariables": true } }
+{ "compiler": { "useUnknownInCatchVariables": true } }
 ```
 
 ```ds:package.json
@@ -150,7 +150,7 @@ function read(): int {
 > Catch variables default to any when disabled.
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false, "useUnknownInCatchVariables": false } }
+{ "compiler": { "noAny": false, "useUnknownInCatchVariables": false } }
 ```
 
 ```ds:package.json
@@ -174,7 +174,7 @@ value satisfies int;
 > TypeScript accepts `any` in catch annotations and applies it to the binding.
 
 ```json:destack.json
-{ "compilerOptions": { "noAny": false } }
+{ "compiler": { "noAny": false } }
 ```
 
 ```ts:main.ts
