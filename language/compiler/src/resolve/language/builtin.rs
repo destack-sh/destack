@@ -16,7 +16,7 @@ use crate::{BuildKey, BuildRequirementError, Compiler, ResolveError, ResolveResu
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Return true when one builtin lib module contributes to the early standard lib surface.
+    /// Return true when one builtin lib module contributes to the early language surface.
     pub fn is_standard_lib_environment_module(&self, module_id: ModuleId) -> bool {
         let Some(builtins) = self.program.builtins.as_ref() else {
             return false;
@@ -31,7 +31,7 @@ impl Compiler {
         lib.name.starts_with("es")
             || matches!(
                 lib.name,
-                "js" | "native" | "std" | "globals" | "decorators" | "decorators.legacy"
+                "js" | "native" | "globals" | "decorators" | "decorators.legacy"
             )
     }
 
@@ -168,7 +168,7 @@ impl Compiler {
         let _timing = self.timing_scope(tags::RESOLVE_BUILTINS);
 
         // bind builtin defining modules
-        for &module_id in builtins.core_module_by_path.values() {
+        for &module_id in builtins.intrinsic_module_by_path.values() {
             if module_id == builtins.prelude_module_id {
                 continue;
             }

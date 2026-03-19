@@ -672,7 +672,7 @@ impl RuntimeGenerator {
     /// Return true when one module uri matches one requested domain selector set.
     fn module_matches_requested_domains(module_uri: &str, domains: &BTreeSet<String>) -> bool {
         domains.iter().any(|domain| {
-            let prefix = format!("builtin://lib/platform/{domain}/");
+            let prefix = format!("builtin://library/platform/{domain}/");
             module_uri.starts_with(&prefix)
         })
     }
@@ -691,15 +691,15 @@ mod tests {
         let domains = BTreeSet::from(["crypto".to_string(), "fs".to_string()]);
 
         assert!(RuntimeGenerator::module_matches_requested_domains(
-            "builtin://lib/platform/crypto/key.ds",
+            "builtin://library/platform/crypto/key.ds",
             &domains
         ));
         assert!(RuntimeGenerator::module_matches_requested_domains(
-            "builtin://lib/platform/fs/path.ds",
+            "builtin://library/platform/fs/path.ds",
             &domains
         ));
         assert!(!RuntimeGenerator::module_matches_requested_domains(
-            "builtin://lib/platform/net/socket.ds",
+            "builtin://library/platform/net/socket.ds",
             &domains
         ));
     }

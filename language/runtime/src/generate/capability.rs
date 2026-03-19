@@ -29,7 +29,7 @@ fn language_root() -> PathBuf {
 
 /// Resolve the intrinsic binding declaration path.
 fn intrinsic_binding_path() -> PathBuf {
-    language_root().join("builtin/core/intrinsic/binding.ds")
+    language_root().join("builtin/intrinsic/primitive/binding.ds")
 }
 
 /// Resolve the generated runtime capability kind output path.

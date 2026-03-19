@@ -1,9 +1,9 @@
-mod lib;
+mod language;
+mod library;
 mod resolve;
 mod source;
-mod std;
 
-pub use lib::*;
+pub use language::*;
+pub use library::*;
 pub use resolve::*;
 pub use source::*;
-pub use std::*;

@@ -4,6 +4,17 @@ This file is the canonical support policy for build and runtime targets across t
 Support is keyed by Rust target triple (for now).
 See [TESTING.md](TESTING.md) for the operational gate, workflow, and script mapping that exercises this policy.
 
+This file primarily covers native runtime targets.
+Destack also treats the web as a first-class semantic target.
+At the API level, the intended layering is:
+
+- `platform:*` for raw substrate and host authority
+- `destack:*` for the primary portable systems surface
+- `Web*` for standards compatibility where strong web prior art exists
+
+Userland libraries and the long-term renderer should usually target `destack:*`.
+`platform:*` is the lower-level escape hatch and implementation substrate.
+
 ## Tiers
 
 | Tier | Guarantee |

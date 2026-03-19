@@ -81,7 +81,9 @@ impl Compiler {
         // builtin language and lib modules bootstrap the shared environments themselves
         if !matches!(
             module.source,
-            ModuleSource::Builtin(BuiltinLibKind::Core | BuiltinLibKind::Std | BuiltinLibKind::Lib)
+            ModuleSource::Builtin(
+                BuiltinLibKind::Intrinsic | BuiltinLibKind::Language | BuiltinLibKind::Library
+            )
         ) {
             self.require_lib_environment(profile)
                 .map_err(ResolveError::from)?;

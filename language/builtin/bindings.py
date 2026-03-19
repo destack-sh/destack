@@ -116,7 +116,7 @@ def parse_arguments() -> argparse.Namespace:
     )
     parser.add_argument(
         "--root",
-        default="language/builtin/lib/platform",
+        default="language/builtin/library/platform",
         help="source root directory",
     )
     parser.add_argument(

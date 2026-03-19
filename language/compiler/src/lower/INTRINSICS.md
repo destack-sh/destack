@@ -165,7 +165,7 @@ Lower recognizes these well-known symbols and emits appropriate code for the tar
 | Manual | Explicit weak handle API or unsupported |
 
 ```ds
-// WeakRef<T> is defined in builtin/lib/native/
+// WeakRef<T> is defined in builtin/language/native/
 // Lower recognizes this well-known type
 class WeakRef<T> {
     deref(): T | null { ... }

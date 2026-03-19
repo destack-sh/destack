@@ -166,7 +166,7 @@ log()  // evaluates Date.now() again
 ## Runtime Boundary
 
 Lower does not special-case types like `String` or `Array<T>` as compiler-only concepts.
-These are defined in `language/builtin/lib/native/` as regular Destack types with builtin or intrinsic support where needed.
+These are defined in `language/builtin/language/native/` as regular Destack types with builtin or intrinsic support where needed.
 
 ## Instantiation and Resolution
 
@@ -379,7 +379,7 @@ Optional parameters (`x?: T`) lower as `x: T | undefined` and remain explicit in
 ### BigInt
 
 BigInt (`bigint` type, `42n` literals) is a **library type with operator overloading**.
-It is not a compiler intrinsic; it's defined in `language/builtin/lib/native/` and uses the standard operator interfaces (`Add`, `Subtract`, `Multiply`, etc.).
+It is not a compiler intrinsic; it's defined in `language/builtin/language/native/` and uses the standard operator interfaces (`Add`, `Subtract`, `Multiply`, etc.).
 
 For native, we use a tagged pointer representation with small-integer optimization.
 (This is similar to what many JS runtimes do internally as well.)
@@ -940,7 +940,7 @@ if (comptime User.properties.some(p => p.type == string)) {
 ```
 
 **Runtime:** When type information is needed at runtime, Lower emits `TypeDescriptor` records.
-The exact native representation is still an implementation detail, but the semantic contract is stable: runtime type values are `TypeDescriptor` handles that map to the high-level `Type<T>` API from `language/builtin/core/reflect/type.ds`:
+The exact native representation is still an implementation detail, but the semantic contract is stable: runtime type values are `TypeDescriptor` handles that map to the high-level `Type<T>` API from `language/builtin/intrinsic/reflect/type.ds`:
 
 ```ds
 // high level API
@@ -1714,8 +1714,8 @@ External effects cross the runtime boundary through yield and resume so they can
 | Component | Responsibility | Location |
 |-----------|----------------|----------|
 | **Lower** | Transform async bodies to state machines, emit `yield` terminators | `compiler/src/lower/` |
-| **Async library** | Store state, manage continuations, expose async APIs | `builtin/lib/native/` |
-| **Runtime** | Schedule async work and I/O primitives | `builtin/lib/native/` |
+| **Async library** | Store state, manage continuations, expose async APIs | `builtin/language/native/` |
+| **Runtime** | Schedule async work and I/O primitives | `builtin/library/destack/` |
 
 Lower does not know async library internals.
 Lower emits `yield` terminators, and the runtime hooks them to continuations.

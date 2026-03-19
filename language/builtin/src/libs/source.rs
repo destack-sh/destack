@@ -4,12 +4,12 @@ use std::fmt;
 /// The kind of builtin library, corresponding to the three layers:
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BuiltinLibKind {
-    /// Language primitives (operator traits, Result, etc.)
-    Core,
-    /// Universal Destack extensions (array, async, collections, io, string, time).
-    Std,
-    /// Target-specific type definitions (ES, DOM, Node, etc.).
-    Lib,
+    /// Runtime and compiler intrinsics.
+    Intrinsic,
+    /// Language-level builtin libraries.
+    Language,
+    /// Host and compatibility libraries.
+    Library,
 }
 
 /// Runtime targets for builtin sources.
@@ -130,7 +130,7 @@ impl BuiltinPlatform {
 /// A builtin library source file.
 #[derive(Clone, Copy)]
 pub struct BuiltinLibSource {
-    /// Root directory under builtin ("std" or "lib").
+    /// Root directory under builtin.
     pub root: &'static str,
     /// Module path under the root.
     pub path: &'static str,
@@ -195,7 +195,7 @@ impl BuiltinLibSource {
         }
     }
 
-    /// Return the full virtual path (e.g., "builtin://lib/es/es2024/arraybuffer.d.ts").
+    /// Return the full virtual path.
     pub fn virtual_path(&self) -> String {
         if self.path.is_empty() {
             format!("builtin://{}/{}", self.root, self.name)
@@ -204,7 +204,7 @@ impl BuiltinLibSource {
         }
     }
 
-    /// Return the relative module path (e.g., "lib/es/es2024/arraybuffer.d.ts").
+    /// Return the relative module path.
     pub fn module_path(&self) -> String {
         if self.path.is_empty() {
             format!("{}/{}", self.root, self.name)
@@ -373,7 +373,7 @@ macro_rules! builtin_lib_sources_targeted {
 /// Definition for a builtin library.
 #[derive(Clone, Copy, Debug)]
 pub struct BuiltinLib {
-    /// The kind of builtin library (Core, Std, or Lib).
+    /// The kind of builtin library.
     pub kind: BuiltinLibKind,
     /// Library name (e.g., "es2024", "dom").
     pub name: &'static str,
@@ -393,68 +393,15 @@ pub struct BuiltinLib {
 
 #[allow(dead_code)]
 impl BuiltinLib {
-    /// Create a new ambient core builtin library.
-    pub(crate) const fn ambient_core(
+    /// Create a new builtin library definition.
+    pub(crate) const fn new(
+        kind: BuiltinLibKind,
         name: &'static str,
         sources: &'static [BuiltinLibSource],
         dependencies: &'static [&'static str],
     ) -> Self {
         Self {
-            kind: BuiltinLibKind::Core,
-            name,
-            sources,
-            dependencies,
-            is_ambient: true,
-            specifier_aliases: &[],
-            types_package_names: &[],
-            declared_symbols: &[],
-        }
-    }
-
-    /// Create a new ambient std builtin library.
-    pub(crate) const fn ambient_std(
-        name: &'static str,
-        sources: &'static [BuiltinLibSource],
-        dependencies: &'static [&'static str],
-    ) -> Self {
-        Self {
-            kind: BuiltinLibKind::Std,
-            name,
-            sources,
-            dependencies,
-            is_ambient: true,
-            specifier_aliases: &[],
-            types_package_names: &[],
-            declared_symbols: &[],
-        }
-    }
-
-    /// Create a new ambient lib builtin library.
-    pub(crate) const fn ambient_lib(
-        name: &'static str,
-        sources: &'static [BuiltinLibSource],
-        dependencies: &'static [&'static str],
-    ) -> Self {
-        Self {
-            kind: BuiltinLibKind::Lib,
-            name,
-            sources,
-            dependencies,
-            is_ambient: true,
-            specifier_aliases: &[],
-            types_package_names: &[],
-            declared_symbols: &[],
-        }
-    }
-
-    /// Create a new explicit std builtin library.
-    pub(crate) const fn explicit_std(
-        name: &'static str,
-        sources: &'static [BuiltinLibSource],
-        dependencies: &'static [&'static str],
-    ) -> Self {
-        Self {
-            kind: BuiltinLibKind::Std,
+            kind,
             name,
             sources,
             dependencies,
@@ -465,22 +412,43 @@ impl BuiltinLib {
         }
     }
 
-    /// Create a new explicit lib builtin library.
-    pub(crate) const fn explicit_lib(
+    /// Create a new intrinsic builtin library definition.
+    pub(crate) const fn intrinsic(
         name: &'static str,
         sources: &'static [BuiltinLibSource],
         dependencies: &'static [&'static str],
     ) -> Self {
-        Self {
-            kind: BuiltinLibKind::Lib,
-            name,
-            sources,
-            dependencies,
-            is_ambient: false,
-            specifier_aliases: &[],
-            types_package_names: &[],
-            declared_symbols: &[],
-        }
+        Self::new(BuiltinLibKind::Intrinsic, name, sources, dependencies)
+    }
+
+    /// Create a new language builtin library definition.
+    pub(crate) const fn language(
+        name: &'static str,
+        sources: &'static [BuiltinLibSource],
+        dependencies: &'static [&'static str],
+    ) -> Self {
+        Self::new(BuiltinLibKind::Language, name, sources, dependencies)
+    }
+
+    /// Create a new library builtin definition.
+    pub(crate) const fn library(
+        name: &'static str,
+        sources: &'static [BuiltinLibSource],
+        dependencies: &'static [&'static str],
+    ) -> Self {
+        Self::new(BuiltinLibKind::Library, name, sources, dependencies)
+    }
+
+    /// Mark the builtin library as ambient.
+    pub(crate) const fn ambient(mut self) -> Self {
+        self.is_ambient = true;
+        self
+    }
+
+    /// Mark the builtin library as explicit.
+    pub(crate) const fn explicit(mut self) -> Self {
+        self.is_ambient = false;
+        self
     }
 
     /// Attach declared symbols to the builtin library definition.
