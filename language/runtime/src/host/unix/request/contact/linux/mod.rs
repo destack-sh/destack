@@ -1,5 +1,5 @@
 mod core;
-mod eds;
+mod address_book;
 mod page;
 mod vcard;
 

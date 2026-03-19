@@ -2,7 +2,7 @@ use vobject::Vcard;
 use zbus::blocking::Proxy;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::unix::request::eds::open_address_book_backend;
+use crate::host::unix::request::linux::eds::open_address_book_backend;
 use crate::platform::core::io_operation_error;
 use crate::platform::diagnostic::PlatformErrorCode;
 

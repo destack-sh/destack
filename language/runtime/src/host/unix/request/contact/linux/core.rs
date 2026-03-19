@@ -1,11 +1,11 @@
-use super::eds::{
+use super::address_book::{
     create_contacts, get_contact, get_contact_list, modify_contacts, remove_contacts,
 };
 use super::page::{compare_contacts, paginate_contacts};
 use super::vcard::{contact_value_from_vcard, search_contacts_query, vcard_text_from_draft};
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
-use crate::host::unix::request::eds::{
+use crate::host::unix::request::linux::eds::{
     EdsSourceDescriptor, EdsSourceKind, composite_eds_identifier, list_eds_sources,
     parse_composite_eds_identifier,
 };
@@ -41,7 +41,7 @@ pub(crate) fn request_capabilities() -> PlatformCapabilitySet {
         return capabilities;
     };
 
-    // provider-backed read support
+    // provider read support
     capabilities.insert_capability(PlatformCapability::OsContactRead);
 
     // writable address books
@@ -116,7 +116,7 @@ fn list_contacts(query: &ContactQueryValue) -> RuntimeResult<ContactPageValue> {
     let sources = list_eds_sources(EdsSourceKind::AddressBook, CONTACT_LIST_OPERATION)?;
     let mut contacts = Vec::new();
 
-    // provider-backed source scan
+    // provider source scan
     for source in sources {
         let vcards = get_contact_list(&source.uid, all_contacts_query(), CONTACT_LIST_OPERATION)?;
 
@@ -139,7 +139,7 @@ fn search_contacts(query_text: &str, query: &ContactQueryValue) -> RuntimeResult
     let mut contacts = Vec::new();
     let provider_query = search_contacts_query(query_text);
 
-    // provider-backed source scan
+    // provider source scan
     for source in sources {
         let vcards = get_contact_list(&source.uid, &provider_query, CONTACT_SEARCH_OPERATION)?;
 
