@@ -25,6 +25,6 @@ pub(in crate::host::app::notification) use posted::{
 };
 #[cfg(test)]
 pub(in crate::host::app::notification) use state::desktop_notification_test_mode_enabled;
-pub(in crate::host::app::notification) use state::notification_registry;
+pub(in crate::host::app::notification) use state::notification_runtime_service;
 #[cfg(test)]
 pub(crate) use state::with_notification_test_mode;

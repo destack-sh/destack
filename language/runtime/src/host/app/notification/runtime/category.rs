@@ -4,15 +4,15 @@ use crate::host::app::notification::delivery;
 use crate::host::core::HostRuntimeId;
 use crate::platform::os::abi_generated::NotificationCategoryValue;
 
-use super::state::{DesktopNotificationRuntimeState, notification_registry};
+use super::state::{DesktopNotificationRuntimeState, notification_runtime_service};
 
 /// Return registered notification categories for one runtime.
 pub(in crate::host::app::notification) fn list_notification_categories(
     host_runtime_id: HostRuntimeId,
     platform: Platform,
 ) -> RuntimeResult<Vec<NotificationCategoryValue>> {
-    let registry = notification_registry();
-    let mut registry = registry.lock();
+    let service = notification_runtime_service();
+    let mut registry = service.registry.lock();
     let runtime_state = registry
         .runtimes
         .entry(host_runtime_id)
@@ -27,8 +27,8 @@ pub(in crate::host::app::notification) fn notification_category(
     host_runtime_id: HostRuntimeId,
     category_id: &str,
 ) -> RuntimeResult<Option<NotificationCategoryValue>> {
-    let registry = notification_registry();
-    let registry = registry.lock();
+    let service = notification_runtime_service();
+    let registry = service.registry.lock();
     let category = registry
         .runtimes
         .get(&host_runtime_id)
@@ -51,8 +51,8 @@ pub(in crate::host::app::notification) fn set_notification_categories(
 ) -> RuntimeResult<()> {
     delivery::set_native_notification_categories(platform, &categories)?;
 
-    let registry = notification_registry();
-    let mut registry = registry.lock();
+    let service = notification_runtime_service();
+    let mut registry = service.registry.lock();
     let runtime_state = registry
         .runtimes
         .entry(host_runtime_id)

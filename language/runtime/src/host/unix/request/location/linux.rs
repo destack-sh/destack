@@ -1,8 +1,7 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{RecvTimeoutError, sync_channel};
-use std::sync::{Arc, OnceLock};
-use std::thread::{self, JoinHandle};
+use std::thread;
 use std::time::{Duration, Instant};
 
 use parking_lot::Mutex;
@@ -22,6 +21,7 @@ use crate::platform::os::abi_generated::{
     LocationAccuracy, LocationSampleValue, LocationWatchOptionsValue,
 };
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService, WorkerLoop};
 
 /// The Linux location services-enabled operation name.
 const LOCATION_SERVICES_ENABLED_OPERATION: &str = "destack.os.location.servicesEnabled";
@@ -50,28 +50,43 @@ const GEOCLUE_CLIENT_INTERFACE: &str = "org.freedesktop.GeoClue2.Client";
 /// The GeoClue location interface name.
 const GEOCLUE_LOCATION_INTERFACE: &str = "org.freedesktop.GeoClue2.Location";
 
-/// The maximum wait for one initial GeoClue watch start.
-const GEOCLUE_START_TIMEOUT: Duration = Duration::from_secs(10);
-
 /// The maximum wait for one last-known location sample.
 const GEOCLUE_LAST_KNOWN_TIMEOUT: Duration = Duration::from_secs(15);
 
 /// The sleep slice used while polling GeoClue location updates.
 const GEOCLUE_POLL_SLICE: Duration = Duration::from_millis(250);
 
-/// One active Linux location watch.
-struct LinuxLocationWatch {
-    /// Shared stop flag for the watch worker.
-    stop: Arc<AtomicBool>,
-    /// Worker thread that owns the active GeoClue client.
-    join_handle: JoinHandle<()>,
+struct LinuxLocationService {
+    /// Active runtimes keyed by runtime id.
+    runtimes: Mutex<HashMap<HostRuntimeId, LinuxLocationRuntime>>,
 }
 
-/// One runtime-scoped Linux location watch registry.
-#[derive(Default)]
-struct LinuxLocationService {
-    /// Active watches keyed by runtime id and watch id.
-    watches: HashMap<HostRuntimeId, HashMap<String, LinuxLocationWatch>>,
+/// One runtime-owned Linux location service loop.
+struct LinuxLocationRuntime {
+    /// Shared stop flag for the runtime loop.
+    stop: Arc<AtomicBool>,
+    /// Shared runtime watch state.
+    state: Arc<Mutex<LinuxLocationRuntimeState>>,
+    /// Worker loop that owns the active GeoClue client.
+    worker: WorkerLoop,
+}
+
+/// One runtime-owned Linux location state.
+struct LinuxLocationRuntimeState {
+    /// Stable desktop id used for GeoClue clients.
+    desktop_id: String,
+    /// Active watches keyed by runtime watch id.
+    watches: HashMap<String, LinuxLocationWatchState>,
+    /// Monotonic watch-configuration revision.
+    configuration_revision: u64,
+}
+
+/// One runtime-owned Linux location watch state.
+struct LinuxLocationWatchState {
+    /// Watch option payload.
+    options: LocationWatchOptionsValue,
+    /// The last sample delivered to this watch.
+    last_sample: Option<LocationSampleValue>,
 }
 
 /// One active GeoClue client session.
@@ -82,11 +97,166 @@ struct GeoClueClient {
     client_path: OwnedObjectPath,
 }
 
-/// Return the process-global Linux location service.
-fn linux_location_service() -> &'static Mutex<LinuxLocationService> {
-    static SERVICE: OnceLock<Mutex<LinuxLocationService>> = OnceLock::new();
+impl LinuxLocationService {
+    /// Create one empty Linux location service.
+    fn new() -> Self {
+        Self {
+            runtimes: Mutex::new(HashMap::new()),
+        }
+    }
 
-    SERVICE.get_or_init(|| Mutex::new(LinuxLocationService::default()))
+    /// Open one long-lived location watch worker.
+    fn open_watch(
+        &self,
+        context: &HostRequestContext,
+        watch_id: String,
+        options: LocationWatchOptionsValue,
+    ) -> RuntimeResult<()> {
+        let mut runtimes = self.runtimes.lock();
+
+        // attach one new watch to the active runtime
+        if let Some(runtime) = runtimes.get_mut(&context.host_runtime_id) {
+            let mut state = runtime.state.lock();
+
+            if state.watches.contains_key(&watch_id) {
+                return Err(io_operation_error(
+                    LOCATION_WATCH_OPEN_OPERATION,
+                    Some(PlatformErrorCode::IoAlreadyExists),
+                    format!("location watch `{watch_id}` is already open"),
+                ));
+            }
+
+            state.watches.insert(
+                watch_id,
+                LinuxLocationWatchState {
+                    options,
+                    last_sample: None,
+                },
+            );
+            state.configuration_revision = state.configuration_revision.saturating_add(1);
+
+            return Ok(());
+        }
+
+        let desktop_id = resolved_application_identifier(context)?;
+        let runtime_state = Arc::new(Mutex::new(LinuxLocationRuntimeState {
+            desktop_id: desktop_id.clone(),
+            watches: HashMap::from([(
+                watch_id,
+                LinuxLocationWatchState {
+                    options: options.clone(),
+                    last_sample: None,
+                },
+            )]),
+            configuration_revision: 1,
+        }));
+        let stop = Arc::new(AtomicBool::new(false));
+        let worker_state = Arc::clone(&runtime_state);
+        let worker_shutdown = Arc::clone(&stop);
+        let worker_stop = Arc::clone(&stop);
+        let host_runtime_id = context.host_runtime_id;
+
+        let worker = WorkerLoop::open(
+            &format!("destack-linux-location-{}", host_runtime_id.0),
+            LOCATION_WATCH_OPEN_OPERATION,
+            ExecutionPolicy::global(ExecutionMode::Loop),
+            move || {
+                let configuration =
+                    runtime_watch_configuration(&worker_state).ok_or_else(|| {
+                        io_operation_error(
+                            LOCATION_WATCH_OPEN_OPERATION,
+                            Some(PlatformErrorCode::IoInvalidData),
+                            "linux location runtime has no active watches",
+                        )
+                    })?;
+                let client = geo_clue_client(
+                    LOCATION_WATCH_OPEN_OPERATION,
+                    configuration.desktop_id.as_str(),
+                    Some(configuration.options),
+                )?;
+                client.start(LOCATION_WATCH_OPEN_OPERATION)?;
+
+                Ok((
+                    Box::new(move || {
+                        worker_shutdown.store(true, Ordering::SeqCst);
+                    }),
+                    Box::new(move || {
+                        run_location_runtime(
+                            host_runtime_id,
+                            worker_state,
+                            stop,
+                            client,
+                            configuration.revision,
+                            location_poll_interval(&configuration.options),
+                        )
+                    }),
+                ))
+            },
+        )?;
+
+        runtimes.insert(
+            host_runtime_id,
+            LinuxLocationRuntime {
+                stop,
+                state: runtime_state,
+                worker,
+            },
+        );
+
+        Ok(())
+    }
+
+    /// Close one active Linux location watch.
+    fn close_watch(&self, host_runtime_id: HostRuntimeId, watch_id: &str) -> RuntimeResult<()> {
+        let runtime = {
+            let mut runtimes = self.runtimes.lock();
+            let Some(runtime) = runtimes.get_mut(&host_runtime_id) else {
+                return Err(io_not_found(
+                    LOCATION_WATCH_CLOSE_OPERATION,
+                    "location watch was not found",
+                ));
+            };
+            let mut state = runtime.state.lock();
+            let removed = state.watches.remove(watch_id);
+
+            if removed.is_none() {
+                return Err(io_not_found(
+                    LOCATION_WATCH_CLOSE_OPERATION,
+                    "location watch was not found",
+                ));
+            }
+
+            if !state.watches.is_empty() {
+                state.configuration_revision = state.configuration_revision.saturating_add(1);
+                return Ok(());
+            }
+
+            drop(state);
+            runtimes.remove(&host_runtime_id)
+        };
+
+        if let Some(runtime) = runtime {
+            stop_location_runtime(runtime);
+        }
+
+        Ok(())
+    }
+
+    /// Remove all active Linux location watches for one runtime.
+    fn unregister_runtime(&self, host_runtime_id: HostRuntimeId) {
+        let runtime = {
+            let mut runtimes = self.runtimes.lock();
+            runtimes.remove(&host_runtime_id)
+        };
+
+        if let Some(runtime) = runtime {
+            stop_location_runtime(runtime);
+        }
+    }
+}
+
+impl GlobalService for LinuxLocationService {
+    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
 }
 
 /// Return dynamic Unix location capabilities for Linux hosts.
@@ -144,21 +314,8 @@ pub(crate) fn submit_location_request(
 
 /// Remove all active Linux location watches for one runtime.
 pub(crate) fn unregister_location_runtime(host_runtime_id: HostRuntimeId) {
-    let watches = {
-        let service = linux_location_service();
-        let mut service = service.lock();
-
-        service
-            .watches
-            .remove(&host_runtime_id)
-            .unwrap_or_default()
-            .into_values()
-            .collect::<Vec<_>>()
-    };
-
-    // stop one active worker at a time outside the registry lock
-    for watch in watches {
-        stop_location_watch(watch);
+    if let Some(service) = LinuxLocationService::active() {
+        service.unregister_runtime(host_runtime_id);
     }
 }
 
@@ -215,219 +372,218 @@ fn read_last_known_location(context: &HostRequestContext) -> RuntimeResult<Locat
     result
 }
 
+/// Return the shared Linux location service.
+fn linux_location_service() -> RuntimeResult<Arc<LinuxLocationService>> {
+    LinuxLocationService::global(|| Ok(LinuxLocationService::new()))
+}
+
 /// Open one long-lived location watch worker.
 fn open_location_watch(
     context: &HostRequestContext,
     watch_id: String,
     options: LocationWatchOptionsValue,
 ) -> RuntimeResult<()> {
-    let host_runtime_id = context.host_runtime_id;
-    let desktop_id = resolved_application_identifier(context)?;
-    let stop = Arc::new(AtomicBool::new(false));
-    let thread_stop = Arc::clone(&stop);
-    let thread_watch_id = watch_id.clone();
-    let thread_desktop_id = desktop_id.clone();
-    let (ready_send, ready_recv) = sync_channel(1);
-    let join_handle = thread::Builder::new()
-        .name(format!("destack-linux-location-{watch_id}"))
-        .spawn(move || {
-            run_location_watch(
-                host_runtime_id,
-                thread_watch_id,
-                thread_desktop_id,
-                options,
-                thread_stop,
-                ready_send,
-            );
-        })
-        .map_err(|error| {
-            io_operation_error(
-                LOCATION_WATCH_OPEN_OPERATION,
-                Some(PlatformErrorCode::IoInvalidData),
-                format!("failed to spawn one linux location worker: {error}"),
-            )
-        })?;
+    let service = linux_location_service()?;
 
-    // wait for worker initialization before publishing success
-    match ready_recv.recv_timeout(GEOCLUE_START_TIMEOUT) {
-        Ok(Ok(())) => {}
-        Ok(Err(error)) => {
-            if join_handle.join().is_err() {
-                tracing::warn!(
-                    target: "destack.runtime.host.linux.location",
-                    "linux location worker panicked during startup error handling",
-                );
-            }
-
-            return Err(error);
-        }
-        Err(RecvTimeoutError::Timeout) => {
-            stop.store(true, Ordering::SeqCst);
-            if join_handle.join().is_err() {
-                tracing::warn!(
-                    target: "destack.runtime.host.linux.location",
-                    "linux location worker panicked after startup timeout",
-                );
-            }
-
-            return Err(io_operation_error(
-                LOCATION_WATCH_OPEN_OPERATION,
-                Some(PlatformErrorCode::IoWouldBlock),
-                "linux location watch start timed out",
-            ));
-        }
-        Err(RecvTimeoutError::Disconnected) => {
-            if join_handle.join().is_err() {
-                tracing::warn!(
-                    target: "destack.runtime.host.linux.location",
-                    "linux location worker panicked before reporting readiness",
-                );
-            }
-
-            return Err(io_operation_error(
-                LOCATION_WATCH_OPEN_OPERATION,
-                Some(PlatformErrorCode::IoInvalidData),
-                "linux location worker exited before reporting readiness",
-            ));
-        }
-    }
-
-    let service = linux_location_service();
-    let mut service = service.lock();
-    let runtime_watches = service.watches.entry(host_runtime_id).or_default();
-
-    // reject duplicate watch identifiers per runtime
-    if runtime_watches.contains_key(&watch_id) {
-        stop.store(true, Ordering::SeqCst);
-        if join_handle.join().is_err() {
-            tracing::warn!(
-                target: "destack.runtime.host.linux.location",
-                "linux location worker panicked after duplicate watch rejection",
-            );
-        }
-
-        return Err(io_operation_error(
-            LOCATION_WATCH_OPEN_OPERATION,
-            Some(PlatformErrorCode::IoAlreadyExists),
-            format!("location watch `{watch_id}` is already open"),
-        ));
-    }
-
-    runtime_watches.insert(watch_id, LinuxLocationWatch { stop, join_handle });
-
-    Ok(())
+    service.open_watch(context, watch_id, options)
 }
 
 /// Close one active Linux location watch worker.
 fn close_location_watch(host_runtime_id: HostRuntimeId, watch_id: &str) -> RuntimeResult<()> {
-    let watch = {
-        let service = linux_location_service();
-        let mut service = service.lock();
-        let Some(runtime_watches) = service.watches.get_mut(&host_runtime_id) else {
-            return Err(io_not_found(
-                LOCATION_WATCH_CLOSE_OPERATION,
-                "location watch was not found",
-            ));
-        };
-        let Some(watch) = runtime_watches.remove(watch_id) else {
-            return Err(io_not_found(
-                LOCATION_WATCH_CLOSE_OPERATION,
-                "location watch was not found",
-            ));
-        };
+    let service = linux_location_service()?;
 
-        if runtime_watches.is_empty() {
-            service.watches.remove(&host_runtime_id);
-        }
-
-        watch
-    };
-
-    stop_location_watch(watch);
-
-    Ok(())
+    service.close_watch(host_runtime_id, watch_id)
 }
 
-/// Stop one active Linux location worker.
-fn stop_location_watch(watch: LinuxLocationWatch) {
-    watch.stop.store(true, Ordering::SeqCst);
-
-    if watch.join_handle.join().is_err() {
-        tracing::warn!(
-            target: "destack.runtime.host.linux.location",
-            "linux location worker panicked during shutdown",
-        );
-    }
+/// Stop one active Linux location runtime.
+fn stop_location_runtime(runtime: LinuxLocationRuntime) {
+    runtime.stop.store(true, Ordering::SeqCst);
+    drop(runtime.worker);
 }
 
-/// Run one Linux location watch loop on a dedicated worker.
-fn run_location_watch(
+/// Run one Linux location runtime loop on a dedicated worker.
+fn run_location_runtime(
     host_runtime_id: HostRuntimeId,
-    watch_id: String,
-    desktop_id: String,
-    options: LocationWatchOptionsValue,
+    runtime_state: Arc<Mutex<LinuxLocationRuntimeState>>,
     stop: Arc<AtomicBool>,
-    ready_send: std::sync::mpsc::SyncSender<RuntimeResult<()>>,
-) {
-    let client = match geo_clue_client(LOCATION_WATCH_OPEN_OPERATION, &desktop_id, Some(options)) {
-        Ok(client) => client,
-        Err(error) => {
-            if ready_send.send(Err(error)).is_err() {
-                tracing::warn!(
-                    target: "destack.runtime.host.linux.location",
-                    "linux location readiness receiver dropped during client setup",
-                );
-            }
-
-            return;
-        }
-    };
-
-    if let Err(error) = client.start(LOCATION_WATCH_OPEN_OPERATION) {
-        if ready_send.send(Err(error)).is_err() {
-            tracing::warn!(
-                target: "destack.runtime.host.linux.location",
-                "linux location readiness receiver dropped during client start",
-            );
+    mut client: GeoClueClient,
+    mut configuration_revision: u64,
+    mut poll_interval: Duration,
+) -> RuntimeResult<()> {
+    // keep polling GeoClue until the runtime closes
+    loop {
+        if stop.load(Ordering::SeqCst) {
+            stop_geoclue_client(&client, LOCATION_WATCH_OPEN_OPERATION);
+            return Ok(());
         }
 
-        return;
-    }
+        if let Some(configuration) =
+            runtime_watch_configuration_if_changed(&runtime_state, configuration_revision)
+        {
+            stop_geoclue_client(&client, LOCATION_WATCH_OPEN_OPERATION);
 
-    if ready_send.send(Ok(())).is_err() {
-        tracing::warn!(
-            target: "destack.runtime.host.linux.location",
-            "linux location readiness receiver dropped after startup",
-        );
-    }
-    let poll_interval = location_poll_interval(options);
-    let mut last_timestamp_ns = None;
+            client = geo_clue_client(
+                LOCATION_WATCH_OPEN_OPERATION,
+                configuration.desktop_id.as_str(),
+                Some(configuration.options),
+            )?;
+            client.start(LOCATION_WATCH_OPEN_OPERATION)?;
+            configuration_revision = configuration.revision;
+            poll_interval = location_poll_interval(&configuration.options);
+        }
 
-    // keep polling GeoClue until the watch closes
-    while !stop.load(Ordering::SeqCst) {
         match client.read_sample(LOCATION_WATCH_OPEN_OPERATION) {
-            Ok(Some(sample)) => {
-                if last_timestamp_ns != Some(sample.timestamp_unix_ns) {
-                    last_timestamp_ns = Some(sample.timestamp_unix_ns);
-                    if let Err(error) =
-                        linux_notify_location_sample(host_runtime_id.0, &watch_id, sample)
-                    {
-                        tracing::warn!(
-                            target: "destack.runtime.host.linux.location",
-                            ?error,
-                            "failed to publish one linux location sample",
-                        );
-                    }
-                }
-            }
+            Ok(Some(sample)) => publish_location_sample(host_runtime_id, &runtime_state, &sample),
             Ok(None) => {}
-            Err(_) => break,
+            Err(error) => {
+                stop_geoclue_client(&client, LOCATION_WATCH_OPEN_OPERATION);
+                return Err(error);
+            }
         }
 
         thread::sleep(poll_interval);
     }
+}
 
-    if let Err(error) = client.stop(LOCATION_WATCH_OPEN_OPERATION) {
+/// Return the effective polling interval for one location watch configuration.
+fn location_poll_interval(options: &LocationWatchOptionsValue) -> Duration {
+    let requested_ns = options
+        .minimum_interval_ns
+        .max(GEOCLUE_POLL_SLICE.as_nanos() as u64);
+    let clamped_ns = requested_ns.min(Duration::from_secs(5).as_nanos() as u64);
+
+    Duration::from_nanos(clamped_ns)
+}
+
+/// Return one merged runtime watch configuration when any watches are active.
+fn runtime_watch_configuration(
+    runtime_state: &Arc<Mutex<LinuxLocationRuntimeState>>,
+) -> Option<LinuxLocationWatchConfiguration> {
+    let state = runtime_state.lock();
+    let mut watches = state.watches.values();
+    let first = watches.next()?;
+    let mut options = first.options;
+
+    for watch in watches {
+        if watch.options.accuracy as u8 > options.accuracy as u8 {
+            options.accuracy = watch.options.accuracy;
+        }
+
+        options.minimum_interval_ns = options
+            .minimum_interval_ns
+            .min(watch.options.minimum_interval_ns);
+        options.minimum_distance_meters = options
+            .minimum_distance_meters
+            .min(watch.options.minimum_distance_meters);
+        options.include_heading |= watch.options.include_heading;
+    }
+
+    Some(LinuxLocationWatchConfiguration {
+        desktop_id: state.desktop_id.clone(),
+        options,
+        revision: state.configuration_revision,
+    })
+}
+
+/// Return one merged runtime watch configuration when the revision changed.
+fn runtime_watch_configuration_if_changed(
+    runtime_state: &Arc<Mutex<LinuxLocationRuntimeState>>,
+    revision: u64,
+) -> Option<LinuxLocationWatchConfiguration> {
+    let configuration = runtime_watch_configuration(runtime_state)?;
+
+    (configuration.revision != revision).then_some(configuration)
+}
+
+/// Publish one raw location sample to every matching runtime watch.
+fn publish_location_sample(
+    host_runtime_id: HostRuntimeId,
+    runtime_state: &Arc<Mutex<LinuxLocationRuntimeState>>,
+    sample: &LocationSampleValue,
+) {
+    let notifications = {
+        let mut state = runtime_state.lock();
+        let mut notifications = Vec::new();
+
+        // evaluate one sample against each runtime watch filter
+        for (watch_id, watch) in &mut state.watches {
+            if !watch_should_receive_sample(watch, sample) {
+                continue;
+            }
+
+            let mut sample = *sample;
+            if !watch.options.include_heading {
+                sample.heading_degrees = None;
+            }
+
+            watch.last_sample = Some(sample);
+            notifications.push((watch_id.clone(), sample));
+        }
+
+        notifications
+    };
+
+    for (watch_id, sample) in notifications {
+        if let Err(error) = linux_notify_location_sample(host_runtime_id.0, &watch_id, sample) {
+            tracing::warn!(
+                target: "destack.runtime.host.linux.location",
+                ?error,
+                "failed to publish one linux location sample",
+            );
+        }
+    }
+}
+
+/// Return whether one watch should receive one sample.
+fn watch_should_receive_sample(
+    watch: &LinuxLocationWatchState,
+    sample: &LocationSampleValue,
+) -> bool {
+    let Some(last_sample) = watch.last_sample.as_ref() else {
+        return true;
+    };
+
+    if sample.timestamp_unix_ns <= last_sample.timestamp_unix_ns {
+        return false;
+    }
+
+    if sample
+        .timestamp_unix_ns
+        .saturating_sub(last_sample.timestamp_unix_ns)
+        < watch.options.minimum_interval_ns
+    {
+        return false;
+    }
+
+    if watch.options.minimum_distance_meters > 0.0
+        && location_distance_meters(last_sample, sample) < watch.options.minimum_distance_meters
+    {
+        return false;
+    }
+
+    true
+}
+
+/// Return the approximate distance between two samples in meters.
+fn location_distance_meters(previous: &LocationSampleValue, current: &LocationSampleValue) -> f64 {
+    const EARTH_RADIUS_METERS: f64 = 6_371_000.0;
+
+    let previous_latitude = previous.latitude_degrees.to_radians();
+    let current_latitude = current.latitude_degrees.to_radians();
+    let delta_latitude = current_latitude - previous_latitude;
+    let delta_longitude = (current.longitude_degrees - previous.longitude_degrees).to_radians();
+    let sin_latitude = (delta_latitude / 2.0).sin();
+    let sin_longitude = (delta_longitude / 2.0).sin();
+    let haversine = sin_latitude * sin_latitude
+        + previous_latitude.cos() * current_latitude.cos() * sin_longitude * sin_longitude;
+    let central_angle = 2.0 * haversine.sqrt().asin();
+
+    EARTH_RADIUS_METERS * central_angle
+}
+
+/// Stop one active GeoClue client session loudly when teardown fails.
+fn stop_geoclue_client(client: &GeoClueClient, operation: &str) {
+    if let Err(error) = client.stop(operation) {
         tracing::warn!(
             target: "destack.runtime.host.linux.location",
             ?error,
@@ -436,14 +592,14 @@ fn run_location_watch(
     }
 }
 
-/// Return the effective polling interval for one location watch.
-fn location_poll_interval(options: LocationWatchOptionsValue) -> Duration {
-    let requested_ns = options
-        .minimum_interval_ns
-        .max(GEOCLUE_POLL_SLICE.as_nanos() as u64);
-    let clamped_ns = requested_ns.min(Duration::from_secs(5).as_nanos() as u64);
-
-    Duration::from_nanos(clamped_ns)
+/// One merged Linux runtime watch configuration.
+struct LinuxLocationWatchConfiguration {
+    /// Stable desktop id used for GeoClue clients.
+    desktop_id: String,
+    /// Merged runtime watch options.
+    options: LocationWatchOptionsValue,
+    /// Current runtime watch configuration revision.
+    revision: u64,
 }
 
 impl GeoClueClient {

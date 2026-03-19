@@ -1,6 +1,6 @@
 #[cfg(test)]
 use std::cell::Cell;
-use std::sync::OnceLock;
+use std::sync::Arc;
 #[cfg(test)]
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -19,10 +19,7 @@ use crate::platform::os::NotificationPermissionState;
 use crate::platform::os::abi_generated::{
     NotificationCategoryValue, NotificationRequestValue, NotificationScheduledDescriptorValue,
 };
-
-/// Shared runtime registry for desktop-style notification state.
-static DESKTOP_NOTIFICATION_REGISTRY: OnceLock<Mutex<DesktopNotificationRegistry>> =
-    OnceLock::new();
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService};
 
 #[cfg(test)]
 thread_local! {
@@ -69,6 +66,12 @@ pub(in crate::host::app::notification) struct DesktopNotificationRuntimeState {
     pub(super) next_sequence: u64,
 }
 
+/// Process-global desktop notification runtime service.
+pub(in crate::host::app::notification) struct DesktopNotificationRuntimeService {
+    /// Shared runtime registry for desktop-style notification state.
+    pub(in crate::host::app::notification) registry: Mutex<DesktopNotificationRegistry>,
+}
+
 impl DesktopNotificationRuntimeState {
     /// Create one empty runtime notification state.
     pub(in crate::host::app::notification) fn new(_platform: Platform) -> Self {
@@ -89,6 +92,19 @@ impl DesktopNotificationRuntimeState {
 
         sequence
     }
+}
+
+impl DesktopNotificationRuntimeService {
+    /// Create one empty desktop notification runtime service.
+    fn new() -> Self {
+        Self {
+            registry: Mutex::new(DesktopNotificationRegistry::default()),
+        }
+    }
+}
+
+impl GlobalService for DesktopNotificationRuntimeService {
+    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
 }
 
 /// Run one callback with native notification side effects disabled.
@@ -113,10 +129,16 @@ pub(in crate::host::app::notification) fn desktop_notification_test_mode_enabled
     DESKTOP_NOTIFICATION_TEST_MODE.with(Cell::get)
 }
 
-/// Return the shared desktop notification registry.
-pub(in crate::host::app::notification) fn notification_registry()
--> &'static Mutex<DesktopNotificationRegistry> {
-    DESKTOP_NOTIFICATION_REGISTRY.get_or_init(|| Mutex::new(DesktopNotificationRegistry::default()))
+/// Return the shared desktop notification runtime service.
+pub(in crate::host::app::notification) fn notification_runtime_service()
+-> Arc<DesktopNotificationRuntimeService> {
+    match DesktopNotificationRuntimeService::global(|| Ok(DesktopNotificationRuntimeService::new()))
+    {
+        Ok(service) => service,
+        Err(error) => {
+            panic!("desktop notification runtime service should be infallible: {error}");
+        }
+    }
 }
 
 /// Return the current wall-clock time in Unix nanoseconds.

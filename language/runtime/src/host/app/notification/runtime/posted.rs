@@ -4,15 +4,15 @@ use crate::host::core::{HostRequestContext, HostRuntimeId};
 use crate::platform::core::io_not_found;
 use crate::platform::os::abi_generated::NotificationRequestValue;
 
-use super::state::{DesktopNotificationRuntimeState, notification_registry};
+use super::state::{DesktopNotificationRuntimeState, notification_runtime_service};
 
 /// Cancel one posted notification for this runtime.
 pub(in crate::host::app::notification) fn cancel_notification(
     context: &HostRequestContext,
     id: &str,
 ) -> RuntimeResult<()> {
-    let registry = notification_registry();
-    let mut registry = registry.lock();
+    let service = notification_runtime_service();
+    let mut registry = service.registry.lock();
     let runtime_state = registry
         .runtimes
         .entry(context.host_runtime_id)
@@ -29,8 +29,8 @@ pub(in crate::host::app::notification) fn cancel_notification(
 
     delivery::cancel_native_notification(context, id)?;
 
-    let registry = notification_registry();
-    let mut registry = registry.lock();
+    let service = notification_runtime_service();
+    let mut registry = service.registry.lock();
     let runtime_state = registry
         .runtimes
         .entry(context.host_runtime_id)
@@ -45,8 +45,8 @@ pub(in crate::host::app::notification) fn cancel_all_notifications(
     context: &HostRequestContext,
 ) -> RuntimeResult<()> {
     let posted_ids = {
-        let registry = notification_registry();
-        let mut registry = registry.lock();
+        let service = notification_runtime_service();
+        let mut registry = service.registry.lock();
         let runtime_state = registry
             .runtimes
             .entry(context.host_runtime_id)
@@ -57,8 +57,8 @@ pub(in crate::host::app::notification) fn cancel_all_notifications(
     for id in posted_ids {
         delivery::cancel_native_notification(context, &id)?;
 
-        let registry = notification_registry();
-        let mut registry = registry.lock();
+        let service = notification_runtime_service();
+        let mut registry = service.registry.lock();
         let runtime_state = registry
             .runtimes
             .entry(context.host_runtime_id)
@@ -75,8 +75,8 @@ pub(in crate::host::app::notification) fn remove_posted_notification(
     host_runtime_id: HostRuntimeId,
     id: &str,
 ) {
-    let registry = notification_registry();
-    let mut registry = registry.lock();
+    let service = notification_runtime_service();
+    let mut registry = service.registry.lock();
 
     if let Some(runtime_state) = registry.runtimes.get_mut(&host_runtime_id) {
         runtime_state.posted.remove(id);
@@ -89,8 +89,8 @@ pub(in crate::host::app::notification) fn post_notification(
     request: NotificationRequestValue,
 ) -> RuntimeResult<String> {
     let (id, sequence) = {
-        let registry = notification_registry();
-        let mut registry = registry.lock();
+        let service = notification_runtime_service();
+        let mut registry = service.registry.lock();
         let runtime_state = registry
             .runtimes
             .entry(context.host_runtime_id)
@@ -106,8 +106,8 @@ pub(in crate::host::app::notification) fn post_notification(
 
     // only record posted state after the host accepted delivery
     {
-        let registry = notification_registry();
-        let mut registry = registry.lock();
+        let service = notification_runtime_service();
+        let mut registry = service.registry.lock();
         let runtime_state = registry
             .runtimes
             .entry(context.host_runtime_id)

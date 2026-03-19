@@ -1,8 +1,4 @@
-use std::sync::OnceLock;
-
 use notify_rust::{Hint, Notification, Timeout, Urgency};
-use parking_lot::Mutex;
-use rustc_hash::FxHashMap;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::Platform;
@@ -21,23 +17,9 @@ use super::capability::{
     close_notification, unix_notification_server_available, unix_notification_supports_actions,
 };
 use super::category::set_categories as set_unix_categories;
-use super::response::spawn_notification_response_worker;
-
-static ACTIVE_UNIX_NOTIFICATIONS: OnceLock<Mutex<ActiveUnixNotificationRegistry>> = OnceLock::new();
-
-/// Runtime-scoped Unix notification handles.
-#[derive(Debug, Default)]
-pub(super) struct ActiveUnixNotificationRegistry {
-    /// Active notifications grouped by runtime id.
-    pub(super) runtimes: FxHashMap<HostRuntimeId, FxHashMap<String, ActiveUnixNotification>>,
-}
-
-/// Active Unix notification state.
-#[derive(Debug, Clone, Copy)]
-pub(super) struct ActiveUnixNotification {
-    /// Notification server identifier for CloseNotification.
-    pub(super) server_id: u32,
-}
+use super::response::{
+    register_active_notification, remove_active_notification, unregister_notification_runtime,
+};
 
 /// Return the Unix desktop notification permission state.
 pub(super) fn request_permission(
@@ -97,61 +79,25 @@ pub(super) fn deliver_notification(
     })?;
     let server_id = handle.id();
 
-    // track the server identifier before waiting for response signals
-    {
-        let registry = active_notification_registry();
-        let mut registry = registry.lock();
-        let runtime_notifications = registry
-            .runtimes
-            .entry(context.host_runtime_id)
-            .or_default();
-
-        runtime_notifications.insert(id.to_string(), ActiveUnixNotification { server_id });
-    }
-
-    // then wait for host action or close signals on a detached thread
-    spawn_notification_response_worker(
+    // register the host notification route before response signals arrive
+    register_active_notification(
         context.host_runtime_id,
         context.platform,
         id.to_string(),
         request.clone(),
         server_id,
-    );
+    )?;
 
     Ok(())
 }
 
 /// Cancel one delivered Unix notification by its host identifier when present.
 pub(super) fn cancel_notification(context: &HostRequestContext, id: &str) -> RuntimeResult<()> {
-    let active_notification = {
-        let registry = active_notification_registry();
-        let mut registry = registry.lock();
-        let mut remove_runtime = false;
-        let active_notification = registry
-            .runtimes
-            .get_mut(&context.host_runtime_id)
-            .and_then(|runtime_notifications| {
-                let active_notification = runtime_notifications.remove(id);
-
-                if runtime_notifications.is_empty() {
-                    remove_runtime = true;
-                }
-
-                active_notification
-            });
-
-        if remove_runtime {
-            registry.runtimes.remove(&context.host_runtime_id);
-        }
-
-        active_notification
-    };
-
-    let Some(active_notification) = active_notification else {
+    let Some(server_id) = remove_active_notification(context.host_runtime_id, id)? else {
         return Ok(());
     };
 
-    close_notification(active_notification.server_id)
+    close_notification(server_id)
 }
 
 /// Reject Unix notification scheduling until it is backed by a real host scheduler.
@@ -192,19 +138,12 @@ pub(super) fn set_categories(
 
 /// Remove active Unix notification state for one runtime id.
 pub(super) fn unregister_runtime(host_runtime_id: HostRuntimeId) {
-    let registry = active_notification_registry();
-    let mut registry = registry.lock();
-    registry.runtimes.remove(&host_runtime_id);
+    unregister_notification_runtime(host_runtime_id);
 }
 
 /// Service freedesktop notification ingress.
 pub(super) fn service_notification_ingress(_context: &HostRequestContext) -> RuntimeResult<()> {
     Ok(())
-}
-
-/// Return the shared active Unix notification registry.
-pub(super) fn active_notification_registry() -> &'static Mutex<ActiveUnixNotificationRegistry> {
-    ACTIVE_UNIX_NOTIFICATIONS.get_or_init(|| Mutex::new(ActiveUnixNotificationRegistry::default()))
 }
 
 /// Apply runtime-registered action metadata to one outgoing Unix notification.

@@ -12,7 +12,7 @@ use crate::platform::os::abi_generated::{
     NotificationInteractedPayloadValue,
 };
 
-use super::state::{DesktopNotificationRuntimeState, notification_registry};
+use super::state::{DesktopNotificationRuntimeState, notification_runtime_service};
 
 /// Publish one delivered notification event into the runtime host queue.
 pub(in crate::host::app::notification) fn publish_delivered_notification(
@@ -75,8 +75,8 @@ pub(in crate::host::app::notification) fn next_notification_sequence(
     host_runtime_id: HostRuntimeId,
     platform: Platform,
 ) -> u64 {
-    let registry = notification_registry();
-    let mut registry = registry.lock();
+    let service = notification_runtime_service();
+    let mut registry = service.registry.lock();
     let runtime_state = registry
         .runtimes
         .entry(host_runtime_id)

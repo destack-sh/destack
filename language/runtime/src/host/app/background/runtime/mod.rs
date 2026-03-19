@@ -13,5 +13,5 @@ pub(super) use self::launch::{
 pub(crate) use self::state::with_background_test_mode;
 pub(super) use self::state::{
     DESKTOP_BACKGROUND_TASK_IDENTIFIER_ENV, DesktopBackgroundExecutionState,
-    desktop_background_registry, desktop_background_test_mode_enabled,
+    desktop_background_runtime_service, desktop_background_test_mode_enabled,
 };

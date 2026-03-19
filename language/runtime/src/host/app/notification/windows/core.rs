@@ -1,6 +1,5 @@
 use std::sync::OnceLock;
 
-use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
 use tracing::warn;
 use windows::Win32::Foundation::ERROR_SUCCESS;
@@ -23,13 +22,13 @@ use crate::platform::os::abi_generated::{
 };
 
 use super::activation::{
-    active_windows_notification_registry, drain_pending_windows_notification_activations,
-    unregister_active_notification, unregister_toast_handlers,
+    drain_pending_windows_notification_activations, unregister_active_notification,
+    unregister_notification_runtime, windows_notification_activation_service,
 };
 use super::identity::{
-    WindowsNotificationComRegistration, WindowsPropVariant, WindowsRegistryKey,
-    WindowsToastIdentity, ensure_windows_notification_com_registration, windows_toast_history,
-    windows_toast_identity, windows_toast_notifier,
+    WindowsPropVariant, WindowsRegistryKey, WindowsToastIdentity,
+    ensure_windows_notification_com_registration, windows_toast_history, windows_toast_identity,
+    windows_toast_notifier,
 };
 use super::toast::{
     remove_scheduled_notification_by_id, validate_windows_notification_category,
@@ -49,19 +48,11 @@ pub(super) const WINDOWS_NOTIFICATION_ACTIVATOR_NAMESPACE: windows::core::GUID =
 pub(super) const WINDOWS_NOTIFICATION_REGISTRY_PREFIX: &str = r"Software\Classes\AppUserModelId";
 pub(super) const WINDOWS_NOTIFICATION_TEXT_INPUT_ID_PREFIX: &str = "destack.notification.input";
 
-pub(super) static ACTIVE_WINDOWS_NOTIFICATIONS: OnceLock<Mutex<ActiveWindowsNotificationRegistry>> =
-    OnceLock::new();
-pub(super) static PENDING_WINDOWS_NOTIFICATION_ACTIVATIONS: OnceLock<
-    Mutex<WindowsPendingNotificationActivationRegistry>,
-> = OnceLock::new();
 pub(super) static WINDOWS_NOTIFICATION_ACTIVATOR: StaticComObject<WindowsNotificationActivator> =
     WindowsNotificationActivator.into_static();
 pub(super) static WINDOWS_NOTIFICATION_ACTIVATOR_FACTORY: StaticComObject<
     WindowsNotificationClassFactory,
 > = WindowsNotificationClassFactory.into_static();
-pub(super) static WINDOWS_NOTIFICATION_COM_REGISTRATION: OnceLock<
-    RuntimeResult<WindowsNotificationComRegistration>,
-> = OnceLock::new();
 pub(super) static WINDOWS_TOAST_IDENTITY: OnceLock<RuntimeResult<WindowsToastIdentity>> =
     OnceLock::new();
 
@@ -319,8 +310,8 @@ pub(in crate::host::app::notification) fn deliver_notification(
 
     // keep the toast object alive for event routing and later cleanup
     {
-        let registry = active_windows_notification_registry();
-        let mut registry = registry.lock();
+        let service = windows_notification_activation_service();
+        let mut registry = service.active_notifications.lock();
         let runtime_notifications = registry.runtimes.entry(host_runtime_id).or_default();
 
         runtime_notifications.insert(
@@ -469,17 +460,7 @@ pub(in crate::host::app::notification) fn cancel_pending_notification(
 
 /// Remove Windows notification backend state for one runtime when present.
 pub(in crate::host::app::notification) fn unregister_runtime(host_runtime_id: HostRuntimeId) {
-    let registry = active_windows_notification_registry();
-    let mut registry = registry.lock();
-    let runtime_notifications = registry.runtimes.remove(&host_runtime_id);
-
-    let Some(runtime_notifications) = runtime_notifications else {
-        return;
-    };
-
-    for (_, active_notification) in runtime_notifications {
-        unregister_toast_handlers(&active_notification);
-    }
+    unregister_notification_runtime(host_runtime_id);
 }
 
 /// Service Windows notification ingress.

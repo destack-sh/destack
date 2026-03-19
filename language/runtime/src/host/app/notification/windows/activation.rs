@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
@@ -12,24 +14,52 @@ use crate::host::core::{HostRuntimeId, HostRuntimeRegistry};
 use crate::platform::os::abi_generated::{
     NotificationInteractedPayloadValue, NotificationRequestValue,
 };
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService};
 
 use super::core::{
-    ACTIVE_WINDOWS_NOTIFICATIONS, ActiveWindowsNotification, ActiveWindowsNotificationRegistry,
-    PENDING_WINDOWS_NOTIFICATION_ACTIVATIONS, PendingWindowsNotificationActivation,
-    WindowsNotificationActivator_Impl, WindowsNotificationClassFactory_Impl,
-    WindowsPendingNotificationActivationRegistry, runtime_to_windows_error,
-    windows_notification_utf16_error,
+    ActiveWindowsNotification, ActiveWindowsNotificationRegistry,
+    PendingWindowsNotificationActivation, WindowsNotificationActivator_Impl,
+    WindowsNotificationClassFactory_Impl, WindowsPendingNotificationActivationRegistry,
+    runtime_to_windows_error, windows_notification_utf16_error,
 };
 use super::toast::{
     windows_notification_activation_from_arguments,
     windows_notification_response_text_from_input_data,
 };
 
-/// Return the shared pending Windows notification activation registry.
-fn pending_windows_notification_activation_registry()
--> &'static Mutex<WindowsPendingNotificationActivationRegistry> {
-    PENDING_WINDOWS_NOTIFICATION_ACTIVATIONS
-        .get_or_init(|| Mutex::new(WindowsPendingNotificationActivationRegistry::default()))
+/// Process-global Windows notification activation service.
+pub(super) struct WindowsNotificationActivationService {
+    /// Active Windows notifications grouped by runtime id.
+    pub(super) active_notifications: Mutex<ActiveWindowsNotificationRegistry>,
+    /// Pending Windows notification activations awaiting runtime ingress.
+    pub(super) pending_activations: Mutex<WindowsPendingNotificationActivationRegistry>,
+}
+
+impl WindowsNotificationActivationService {
+    /// Create one empty Windows notification activation service.
+    fn new() -> Self {
+        Self {
+            active_notifications: Mutex::new(ActiveWindowsNotificationRegistry::default()),
+            pending_activations: Mutex::new(WindowsPendingNotificationActivationRegistry::default()),
+        }
+    }
+}
+
+impl GlobalService for WindowsNotificationActivationService {
+    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
+}
+
+/// Return the shared Windows notification activation service.
+pub(super) fn windows_notification_activation_service() -> Arc<WindowsNotificationActivationService>
+{
+    match WindowsNotificationActivationService::global(|| {
+        Ok(WindowsNotificationActivationService::new())
+    }) {
+        Ok(service) => service,
+        Err(error) => {
+            panic!("windows notification activation service should be infallible: {error}");
+        }
+    }
 }
 
 /// Queue one activation until the matching runtime services notification ingress.
@@ -39,8 +69,8 @@ pub(super) fn queue_pending_windows_notification_activation(
     request: NotificationRequestValue,
     payload: NotificationInteractedPayloadValue,
 ) {
-    let registry = pending_windows_notification_activation_registry();
-    let mut registry = registry.lock();
+    let service = windows_notification_activation_service();
+    let mut registry = service.pending_activations.lock();
     let activation = PendingWindowsNotificationActivation {
         notification_id,
         request,
@@ -65,8 +95,8 @@ pub(super) fn drain_pending_windows_notification_activations(
     host_runtime_id: HostRuntimeId,
 ) -> RuntimeResult<()> {
     let pending = {
-        let registry = pending_windows_notification_activation_registry();
-        let mut registry = registry.lock();
+        let service = windows_notification_activation_service();
+        let mut registry = service.pending_activations.lock();
         let mut pending = registry
             .runtimes
             .remove(&host_runtime_id)
@@ -145,17 +175,10 @@ fn publish_windows_notification_activation(
     )
 }
 
-/// Return the shared Windows notification registry.
-pub(super) fn active_windows_notification_registry()
--> &'static Mutex<ActiveWindowsNotificationRegistry> {
-    ACTIVE_WINDOWS_NOTIFICATIONS
-        .get_or_init(|| Mutex::new(ActiveWindowsNotificationRegistry::default()))
-}
-
 /// Remove one active Windows notification and unregister its handlers.
 pub(super) fn unregister_active_notification(host_runtime_id: HostRuntimeId, id: &str) {
-    let registry = active_windows_notification_registry();
-    let mut registry = registry.lock();
+    let service = windows_notification_activation_service();
+    let mut registry = service.active_notifications.lock();
     let mut remove_runtime = false;
     let active_notification =
         registry
@@ -178,6 +201,24 @@ pub(super) fn unregister_active_notification(host_runtime_id: HostRuntimeId, id:
     if let Some(active_notification) = active_notification {
         unregister_toast_handlers(&active_notification);
     }
+}
+
+/// Remove all Windows notification state for one runtime.
+pub(super) fn unregister_notification_runtime(host_runtime_id: HostRuntimeId) {
+    let service = windows_notification_activation_service();
+    let runtime_notifications = {
+        let mut registry = service.active_notifications.lock();
+        registry.runtimes.remove(&host_runtime_id)
+    };
+
+    if let Some(runtime_notifications) = runtime_notifications {
+        for (_, active_notification) in runtime_notifications {
+            unregister_toast_handlers(&active_notification);
+        }
+    }
+
+    let mut pending = service.pending_activations.lock();
+    pending.runtimes.remove(&host_runtime_id);
 }
 
 /// Unregister all Windows toast event handlers for one active notification.

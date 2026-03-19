@@ -1,4 +1,4 @@
-use std::sync::OnceLock;
+use std::sync::Arc;
 
 use parking_lot::Mutex;
 
@@ -7,15 +7,12 @@ use crate::host::app::notification::{runtime, unix};
 use crate::host::core::{HostRequestContext, HostRuntimeId};
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService};
 
 use super::schedule::{cancel_scheduled_notification, notification_trigger_repeats};
 
 /// Environment marker carrying one scheduled desktop notification identifier.
 pub(super) const DESKTOP_NOTIFICATION_IDENTIFIER_ENV: &str = "DESTACK_NOTIFICATION_IDENTIFIER";
-
-/// Process-wide Linux notification launch state.
-static LINUX_NOTIFICATION_LAUNCH_STATE: OnceLock<Mutex<LinuxNotificationLaunchState>> =
-    OnceLock::new();
 
 /// Process-scoped scheduled notification launch state.
 #[derive(Debug)]
@@ -40,12 +37,31 @@ impl Default for LinuxNotificationLaunchState {
     }
 }
 
+/// Process-global Linux notification launch service.
+struct LinuxNotificationLaunchService {
+    /// Process-wide Linux notification launch state.
+    state: Mutex<LinuxNotificationLaunchState>,
+}
+
+impl LinuxNotificationLaunchService {
+    /// Create one Linux notification launch service.
+    fn new() -> Self {
+        Self {
+            state: Mutex::new(LinuxNotificationLaunchState::default()),
+        }
+    }
+}
+
+impl GlobalService for LinuxNotificationLaunchService {
+    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
+}
+
 /// Remove Linux notification backend state for one runtime.
 pub(super) fn unregister_runtime(host_runtime_id: HostRuntimeId) {
     unix::unregister_runtime(host_runtime_id);
 
-    let state = linux_notification_launch_state();
-    let mut state = state.lock();
+    let service = linux_notification_launch_service();
+    let mut state = service.state.lock();
 
     if state.launch_runtime_id == Some(host_runtime_id) {
         state.launch_runtime_id = None;
@@ -57,8 +73,8 @@ pub(super) fn service_notification_ingress(context: &HostRequestContext) -> Runt
     unix::service_notification_ingress(context)?;
 
     let marker_id = {
-        let state = linux_notification_launch_state();
-        let mut state = state.lock();
+        let service = linux_notification_launch_service();
+        let mut state = service.state.lock();
 
         if let Some(error) = state.marker_error.as_ref() {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -131,16 +147,20 @@ pub(super) fn service_notification_ingress(context: &HostRequestContext) -> Runt
     Ok(())
 }
 
-/// Return the shared Linux notification launch state.
-fn linux_notification_launch_state() -> &'static Mutex<LinuxNotificationLaunchState> {
-    LINUX_NOTIFICATION_LAUNCH_STATE
-        .get_or_init(|| Mutex::new(LinuxNotificationLaunchState::default()))
+/// Return the shared Linux notification launch service.
+fn linux_notification_launch_service() -> Arc<LinuxNotificationLaunchService> {
+    match LinuxNotificationLaunchService::global(|| Ok(LinuxNotificationLaunchService::new())) {
+        Ok(service) => service,
+        Err(error) => {
+            panic!("linux notification launch service should be infallible: {error}");
+        }
+    }
 }
 
 /// Clear the runtime that claimed the current process launch marker.
 fn clear_launch_runtime(host_runtime_id: HostRuntimeId) {
-    let state = linux_notification_launch_state();
-    let mut state = state.lock();
+    let service = linux_notification_launch_service();
+    let mut state = service.state.lock();
 
     if state.launch_runtime_id == Some(host_runtime_id) {
         state.launch_runtime_id = None;

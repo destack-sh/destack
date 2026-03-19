@@ -6,7 +6,7 @@ use crate::platform::diagnostic::PlatformErrorCode;
 
 use super::runtime::{
     DesktopBackgroundExecutionState, background_expired_event, background_ready_event,
-    desktop_background_registry, next_background_sequence, publish_background_event,
+    desktop_background_runtime_service, next_background_sequence, publish_background_event,
     wall_clock_now_ns,
 };
 
@@ -17,8 +17,8 @@ pub(crate) fn service_background_ingress(
 ) -> RuntimeResult<()> {
     let now_unix_ns = wall_clock_now_ns()?;
     let (claimed_execution, expired_executions) = {
-        let registry = desktop_background_registry();
-        let mut registry = registry.lock();
+        let service = desktop_background_runtime_service();
+        let mut registry = service.registry.lock();
 
         // surface invalid scheduler launch markers instead of silently discarding them
         if let Some(error) = registry.launch_marker_error.as_ref() {
@@ -92,8 +92,8 @@ pub(crate) fn service_background_ingress(
         let event = background_ready_event(execution.clone(), sequence);
 
         if let Err(error) = publish_background_event(host_runtime_id, platform, event) {
-            let registry = desktop_background_registry();
-            let mut registry = registry.lock();
+            let service = desktop_background_runtime_service();
+            let mut registry = service.registry.lock();
 
             if registry.launch_runtime_id == Some(host_runtime_id) {
                 registry.launch_runtime_id = None;
@@ -102,8 +102,8 @@ pub(crate) fn service_background_ingress(
             return Err(error);
         }
 
-        let registry = desktop_background_registry();
-        let mut registry = registry.lock();
+        let service = desktop_background_runtime_service();
+        let mut registry = service.registry.lock();
         let runtime_state = registry.runtimes.entry(host_runtime_id).or_default();
 
         runtime_state
@@ -116,8 +116,8 @@ pub(crate) fn service_background_ingress(
         let event = background_expired_event(execution.clone(), sequence);
         publish_background_event(host_runtime_id, platform, event)?;
 
-        let registry = desktop_background_registry();
-        let mut registry = registry.lock();
+        let service = desktop_background_runtime_service();
+        let mut registry = service.registry.lock();
 
         if let Some(runtime_state) = registry.runtimes.get_mut(&host_runtime_id)
             && let Some(active_execution) =
@@ -133,8 +133,8 @@ pub(crate) fn service_background_ingress(
 
 /// Remove background state for one runtime id.
 pub(crate) fn unregister_background_runtime(host_runtime_id: HostRuntimeId) {
-    let registry = desktop_background_registry();
-    let mut registry = registry.lock();
+    let service = desktop_background_runtime_service();
+    let mut registry = service.registry.lock();
 
     if registry.launch_runtime_id == Some(host_runtime_id) {
         registry.launch_runtime_id = None;
