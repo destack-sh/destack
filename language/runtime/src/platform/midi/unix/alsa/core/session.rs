@@ -15,15 +15,13 @@ use crate::platform::midi::{
     MidiBackend, MidiDataFormat, MidiEventOverflowPolicy, MidiEventSubscriptionFlags,
     MidiPortDirection, MidiPortDirectionFlags, MidiProtocol,
 };
-use crate::platform::resource;
-use crate::runtime::BindingCallContext;
 use crate::runtime::control::queue::BoundedQueue;
 use crate::runtime::process::service::executor::periodic::PeriodicTaskHandle;
 
 use super::super::abi::{AlsaApi, snd_midi_event_t, snd_seq_t};
 use super::super::service::{AlsaNativeEventRegistry, AlsaService};
 use super::native::{
-    connect_to, delete_simple_port, disconnect_to, free_queue, unsubscribe_from_with_timestamps,
+    delete_simple_port, disconnect_to, free_queue, unsubscribe_from_with_timestamps,
 };
 
 /// Prefix used for internal hidden ALSA clients.

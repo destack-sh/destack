@@ -1,6 +1,5 @@
 use std::ffi::{c_int, c_void};
 use std::sync::Arc;
-use std::time::Duration;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};

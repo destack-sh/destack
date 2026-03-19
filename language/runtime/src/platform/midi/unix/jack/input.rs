@@ -2,7 +2,6 @@ use std::ffi::{c_int, c_void};
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::core::{self as core_platform};
 use crate::platform::midi::core::{
     MidiInputRecordValue, MidiPortDescriptorValue, MidiRecordBytes, binding_timestamp_now,
     input_queue_capacity, read_queued_batch, read_queued_item, remove_midi_input_resource,
@@ -166,7 +165,7 @@ pub(crate) fn midi_input_port_open(
     )?;
 
     // transport selection
-    let (data_format, protocol) = resolve_descriptor_open_transport(
+    let (_data_format, _protocol) = resolve_descriptor_open_transport(
         "destack.midi.input.port.open",
         &endpoint.descriptor,
         options.data_format,

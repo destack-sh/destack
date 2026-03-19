@@ -67,7 +67,7 @@ pub(crate) fn midi_input_port_open(
         "destack.midi.input.port.open",
     )?;
 
-    let (data_format, protocol) = resolve_descriptor_open_transport(
+    let (_data_format, _protocol) = resolve_descriptor_open_transport(
         "destack.midi.input.port.open",
         &endpoint.descriptor,
         options.data_format,

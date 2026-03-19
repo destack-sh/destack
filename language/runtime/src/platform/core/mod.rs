@@ -14,6 +14,7 @@ mod convert;
 mod dll;
 mod errno;
 mod error;
+mod path;
 #[cfg(unix)]
 mod unix;
 mod value;
@@ -53,6 +54,9 @@ pub(crate) use error::{
     ensure_out, ensure_zero_flags, invalid_argument, io_not_found, io_operation_error,
     io_would_block, not_supported, unsupported_flags,
 };
+#[cfg(windows)]
+pub(crate) use path::windows_known_folder_path;
+pub(crate) use path::{file_uri_from_path, pathbuf_from_file_uri};
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub(crate) use unix::io_error_with_errno;
 #[cfg(all(unix, not(target_vendor = "apple")))]

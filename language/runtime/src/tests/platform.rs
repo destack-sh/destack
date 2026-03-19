@@ -157,6 +157,7 @@ pub(crate) fn result_or_skip_not_supported<T>(
         any(target_os = "linux", target_os = "macos", target_os = "ios", windows)
     )
 ))]
+#[cfg_attr(not(any(target_os = "linux", windows)), allow(dead_code))]
 pub(crate) fn assert_not_supported_error(error: &RuntimeError) {
     let code = error_code_from_runtime_error(error).expect("expected one platform error payload");
     assert!(is_not_supported_platform_code(code));

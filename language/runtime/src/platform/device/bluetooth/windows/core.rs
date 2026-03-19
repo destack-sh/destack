@@ -55,8 +55,8 @@ pub(super) use crate::platform::device::{
     BluetoothAdvertisementServiceDataValue, BluetoothDeviceDescriptorValue,
     BluetoothGattCharacteristicProperties, BluetoothGattCharacteristicValue,
     BluetoothGattDescriptorValue, BluetoothGattServiceValue, BluetoothGattValueEventValue,
-    BluetoothLeTransport, BluetoothPairState, BluetoothPhy, BluetoothScanEventValue,
-    BluetoothScanFilterValue, BluetoothScanMode, BluetoothSessionEventValue,
+    BluetoothLeTransport, BluetoothPairState, BluetoothScanEventValue, BluetoothScanFilterValue,
+    BluetoothScanMode, BluetoothSessionEventValue,
 };
 pub(super) use crate::runtime::control::queue::BoundedQueue;
 
