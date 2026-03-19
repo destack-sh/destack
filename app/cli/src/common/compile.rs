@@ -2,9 +2,9 @@ use std::fmt;
 use std::io::Read;
 use std::sync::Arc;
 
-use destack_compiler::{BuildKey, Compiler, CompilerEventHandler, CompilerOptions, StatsSnapshot};
+use destack_compiler::{Compiler, CompilerEventHandler, CompilerOptions, StatsSnapshot};
 use destack_source::{DiagnosticOptions, FileType, ModuleId, Uri};
-use destack_workspace::{ArtifactKey, OutputKey, Program, Session, TargetId};
+use destack_workspace::{ArtifactKey, Program, Session, TargetId};
 
 use crate::common::{DiagnosticArgs, InputArgs, InputSource, ProgramArgs, print_diagnostics};
 use crate::console;
@@ -225,21 +225,18 @@ impl CompilerContext {
             CompilerMode::Check => {
                 let profile = self.program.default_profile_id_for_module(module);
                 self.compiler
-                    .enqueue(BuildKey::artifact(ArtifactKey::dir_analyzed(
-                        module, profile,
-                    )));
+                    .enqueue(ArtifactKey::dir_analyzed(module, profile));
 
                 // TODO #Cleanup: revisit this (?)
                 let diagnostic_target = self.program.ensure_target_for_module(module);
                 let diagnostic_profile = self
                     .program
                     .profile_id_for_target_or_default(module, &diagnostic_target);
-                self.compiler
-                    .enqueue(BuildKey::artifact(ArtifactKey::mir_optimized(
-                        module,
-                        diagnostic_profile,
-                        diagnostic_target,
-                    )));
+                self.compiler.enqueue(ArtifactKey::mir_optimized(
+                    module,
+                    diagnostic_profile,
+                    diagnostic_target,
+                ));
             }
             CompilerMode::Lower { target } => {
                 let module_ref = self.program.modules.get(module);
@@ -249,16 +246,14 @@ impl CompilerContext {
                     .program
                     .profile_id_for_target_or_default(module, &target_id);
                 self.compiler
-                    .enqueue(BuildKey::artifact(ArtifactKey::mir_base(
-                        module, profile, target_id,
-                    )));
+                    .enqueue(ArtifactKey::mir_base(module, profile, target_id));
             }
             CompilerMode::Build { target } => {
                 let module_ref = self.program.modules.get(module);
                 let package_id = module_ref.package_id;
                 let target_id = TargetId::new(package_id, target);
                 self.compiler
-                    .enqueue(BuildKey::output(OutputKey::module(module, target_id)));
+                    .enqueue(ArtifactKey::module_emit(module, target_id));
             }
         }
     }

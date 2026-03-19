@@ -51,17 +51,18 @@ pub fn create_isolate(
 ) -> CliResult<Isolate> {
     // resolve lowered mir for the target
     let profile_id = program.default_profile_id_for_module(module_id);
-    let mir = program
+    let (tree, strings) = if let Some(mir) = program
         .artifacts
         .mir_optimized(module_id, profile_id, target_id)
-        .or_else(|| program.artifacts.mir_base(module_id, profile_id, target_id))
-        .ok_or_else(|| {
-            CliError::message(format!(
-                "missing MIR for target {target_id:?} (run requires lowering)"
-            ))
-        })?;
-    let tree = mir.tree.clone();
-    let strings = mir.strings.clone().into_immutable();
+    {
+        (mir.tree.clone(), mir.strings.clone().into_immutable())
+    } else if let Some(mir) = program.artifacts.mir_base(module_id, profile_id, target_id) {
+        (mir.tree.clone(), mir.strings.clone().into_immutable())
+    } else {
+        return Err(CliError::message(format!(
+            "missing MIR for target {target_id:?} (run requires lowering)"
+        )));
+    };
 
     // construct the isolate from mir state
     Isolate::build_with_options(tree, strings, options)
