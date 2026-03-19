@@ -9,26 +9,26 @@ use super::page::paginate_contacts;
 use super::store::{
     default_contact_list, full_contact_query, get_contact, read_contacts, request_contact_store,
 };
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::core::{io_not_found, io_operation_error};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{
     ContactDraftValue, ContactPageValue, ContactQueryValue, ContactValue,
 };
-use crate::runtime::process::service::affinity::{ServiceAffinity, ServiceThreadBootstrap};
-use crate::runtime::process::service::executor::dedicated::DedicatedThreadExecutor;
+use crate::runtime::process::service::executor::thread::ServiceThreadExecutor;
 use crate::runtime::process::service::global_service;
+use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};
 
 /// One process-global Windows contact service.
 pub(crate) struct WindowsContactService {
     /// Dedicated WinRT executor for contact store work.
-    executor: DedicatedThreadExecutor<()>,
+    executor: ServiceThreadExecutor<()>,
 }
 
 impl WindowsContactService {
-    /// The host-affinity domain for the Windows contact service.
-    pub(crate) const AFFINITY: ServiceAffinity =
-        ServiceAffinity::DedicatedThread(ServiceThreadBootstrap::WindowsMta);
+    /// The execution policy for the Windows contact service.
+    pub(crate) const POLICY: ExecutionPolicy =
+        ExecutionPolicy::global(ExecutionMode::Thread).with_affinity(ExecutionAffinity::WindowsMta);
 
     /// List contacts through the Windows contact store.
     pub(crate) fn list_contacts(
@@ -185,20 +185,14 @@ impl WindowsContactService {
 
 /// Return the shared Windows contact service.
 pub(crate) fn windows_contact_service(
-    operation: &'static str,
+    _operation: &'static str,
 ) -> RuntimeResult<Arc<WindowsContactService>> {
     global_service(|| {
-        let ServiceAffinity::DedicatedThread(thread_bootstrap) = WindowsContactService::AFFINITY
-        else {
-            return Err(io_operation_error(
-                operation,
-                None,
-                "windows contact service requires one dedicated thread affinity domain",
-            ));
-        };
-
-        let executor =
-            DedicatedThreadExecutor::spawn("destack-windows-contact", thread_bootstrap, || Ok(()))?;
+        let executor = ServiceThreadExecutor::spawn(
+            "destack-windows-contact",
+            WindowsContactService::POLICY,
+            || Ok(()),
+        )?;
 
         Ok(WindowsContactService { executor })
     })
@@ -209,7 +203,7 @@ pub(super) fn windows_contact_error(
     operation: &'static str,
     stage: &str,
     error: &WindowsError,
-) -> Box<crate::diagnostic::RuntimeError> {
+) -> Box<RuntimeError> {
     match error.code().0 as u32 {
         0x80070490 => io_not_found(operation, "windows contact was not found"),
         0x80070005 => io_operation_error(

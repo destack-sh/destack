@@ -10,15 +10,16 @@ use super::store::{
     find_appointment_by_id, read_calendar_events, request_appointment_store,
     writable_calendar_for_id,
 };
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::host::core::error::invalid_argument_value;
 use crate::platform::core::{io_not_found, io_operation_error};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{
     CalendarDescriptorValue, CalendarEventDraftValue, CalendarEventQueryValue, CalendarEventValue,
 };
-use crate::runtime::process::service::affinity::{ServiceAffinity, ServiceThreadBootstrap};
-use crate::runtime::process::service::executor::dedicated::DedicatedThreadExecutor;
+use crate::runtime::process::service::executor::thread::ServiceThreadExecutor;
 use crate::runtime::process::service::global_service;
+use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};
 
 /// The Windows epoch offset from 1601 to 1970 in 100ns ticks.
 pub(super) const WINDOWS_EPOCH_OFFSET_100NS: u64 = 116_444_736_000_000_000;
@@ -29,13 +30,13 @@ pub(super) const WINDOWS_APP_CALENDAR_NAME: &str = "Destack";
 /// One process-global Windows calendar service.
 pub(crate) struct WindowsCalendarService {
     /// Dedicated WinRT executor for calendar store work.
-    executor: DedicatedThreadExecutor<()>,
+    executor: ServiceThreadExecutor<()>,
 }
 
 impl WindowsCalendarService {
-    /// The host-affinity domain for the Windows calendar service.
-    pub(crate) const AFFINITY: ServiceAffinity =
-        ServiceAffinity::DedicatedThread(ServiceThreadBootstrap::WindowsMta);
+    /// The execution policy for the Windows calendar service.
+    pub(crate) const POLICY: ExecutionPolicy =
+        ExecutionPolicy::global(ExecutionMode::Thread).with_affinity(ExecutionAffinity::WindowsMta);
 
     /// List calendars through the Windows appointment store.
     pub(crate) fn list_calendars(
@@ -239,21 +240,12 @@ impl WindowsCalendarService {
 
 /// Return the shared Windows calendar service.
 pub(crate) fn windows_calendar_service(
-    operation: &'static str,
+    _operation: &'static str,
 ) -> RuntimeResult<Arc<WindowsCalendarService>> {
     global_service(|| {
-        let ServiceAffinity::DedicatedThread(thread_bootstrap) = WindowsCalendarService::AFFINITY
-        else {
-            return Err(io_operation_error(
-                operation,
-                None,
-                "windows calendar service requires one dedicated thread affinity domain",
-            ));
-        };
-
-        let executor = DedicatedThreadExecutor::spawn(
+        let executor = ServiceThreadExecutor::spawn(
             "destack-windows-calendar",
-            thread_bootstrap,
+            WindowsCalendarService::POLICY,
             || Ok(()),
         )?;
 
@@ -296,7 +288,7 @@ pub(super) fn duration_timespan_from_bounds(
     end_unix_ns: u64,
 ) -> RuntimeResult<TimeSpan> {
     if end_unix_ns <= start_unix_ns {
-        return Err(crate::host::core::error::invalid_argument_value(
+        return Err(invalid_argument_value(
             "event.end_unix_ns",
             "calendar event end timestamp must be greater than the start timestamp",
         ));
@@ -324,7 +316,7 @@ pub(super) fn windows_calendar_error(
     operation: &'static str,
     stage: &str,
     error: &WindowsError,
-) -> Box<crate::diagnostic::RuntimeError> {
+) -> Box<RuntimeError> {
     match error.code().0 as u32 {
         0x80070490 => io_not_found(operation, "windows calendar entity was not found"),
         0x80070005 => io_operation_error(

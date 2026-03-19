@@ -4,7 +4,7 @@ use vobject::write_component;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
-use crate::host::unix::request::eds::{
+use crate::host::unix::request::linux::eds::{
     EdsSourceDescriptor, EdsSourceKind, composite_eds_identifier, list_eds_sources,
     parse_composite_eds_identifier,
 };
@@ -38,7 +38,7 @@ pub(crate) fn request_capabilities() -> PlatformCapabilitySet {
         return capabilities;
     };
 
-    // provider-backed read support
+    // provider read support
     capabilities.insert_capability(PlatformCapability::OsCalendarRead);
 
     // writable calendars
@@ -146,7 +146,7 @@ fn list_events(query: &CalendarEventQueryValue) -> RuntimeResult<Vec<CalendarEve
     let provider_query = event_list_query(query);
     let mut events = Vec::new();
 
-    // provider-backed source scan
+    // provider source scan
     for source in sources {
         let calendars =
             get_calendar_components(&source.uid, &provider_query, CALENDAR_EVENT_LIST_OPERATION)?;
