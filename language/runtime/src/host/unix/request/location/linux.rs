@@ -285,7 +285,7 @@ pub(crate) fn submit_location_request(
             HostRequestResult::Bool(location_services_enabled()?),
         ))),
 
-        // read one best-effort cached sample
+        // read the most recent sample the provider yields within the timeout window
         HostRequest::OsLocationLastKnown => {
             let sample = read_last_known_location(context)?;
 
@@ -338,7 +338,7 @@ fn location_services_enabled() -> RuntimeResult<bool> {
     Ok(geoclue_is_available())
 }
 
-/// Read one last-known location sample from GeoClue.
+/// Read the most recent location sample from GeoClue.
 fn read_last_known_location(context: &HostRequestContext) -> RuntimeResult<LocationSampleValue> {
     let desktop_id = resolved_application_identifier(context)?;
     let client = geo_clue_client(LOCATION_LAST_KNOWN_OPERATION, &desktop_id, None)?;

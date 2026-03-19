@@ -184,7 +184,7 @@ pub(crate) struct LocationWatchStream {
 }
 
 impl PlatformOsState {
-    /// Read one cached location sample for this runtime.
+    /// Read the most recent location sample for this runtime.
     pub(crate) fn last_location_sample(&self) -> Option<LocationSampleValue> {
         *self.last_location_sample.read()
     }

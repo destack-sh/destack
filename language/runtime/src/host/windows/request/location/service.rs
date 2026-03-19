@@ -15,10 +15,10 @@ use crate::platform::core::{io_not_found, io_operation_error};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{LocationSampleValue, LocationWatchOptionsValue};
 use crate::platform::os::{LocationAccuracy, Permission, PermissionState};
-use crate::runtime::process::service::affinity::{ServiceAffinity, ServiceThreadBootstrap};
-use crate::runtime::process::service::executor::dedicated::DedicatedThreadExecutor;
+use crate::runtime::process::service::executor::thread::ServiceThreadExecutor;
 use crate::runtime::process::service::global_service;
 use crate::runtime::process::service::registry::global_service_if_initialized;
+use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};
 
 /// The location last-known maximum age.
 const LOCATION_LAST_KNOWN_MAXIMUM_AGE_NS: u64 = 300_000_000_000;
@@ -32,7 +32,7 @@ const WINDOWS_EPOCH_OFFSET_100NS: u64 = 116_444_736_000_000_000;
 /// One process-global Windows location service.
 pub(crate) struct WindowsLocationService {
     /// Dedicated WinRT executor for Geolocator work.
-    executor: DedicatedThreadExecutor<WindowsLocationServiceState>,
+    executor: ServiceThreadExecutor<WindowsLocationServiceState>,
 }
 
 /// One host-owned Windows location service state.
@@ -86,9 +86,9 @@ impl Drop for ActiveLocationWatch {
 }
 
 impl WindowsLocationService {
-    /// The host-affinity domain for the Windows location service.
-    pub(crate) const AFFINITY: ServiceAffinity =
-        ServiceAffinity::DedicatedThread(ServiceThreadBootstrap::WindowsMta);
+    /// The execution policy for the Windows location service.
+    pub(crate) const POLICY: ExecutionPolicy =
+        ExecutionPolicy::global(ExecutionMode::Thread).with_affinity(ExecutionAffinity::WindowsMta);
 
     /// Return whether host location services are currently enabled.
     pub(crate) fn location_services_enabled(&self, operation: &'static str) -> RuntimeResult<bool> {
@@ -122,7 +122,7 @@ impl WindowsLocationService {
         })
     }
 
-    /// Read one best-effort current Windows location sample.
+    /// Read the most recent Windows location sample within host age and timeout bounds.
     pub(crate) fn read_last_known_location(
         &self,
         host_runtime_id: HostRuntimeId,
@@ -335,21 +335,14 @@ impl WindowsLocationServiceState {
 
 /// Return the shared Windows location service.
 pub(crate) fn windows_location_service(
-    operation: &'static str,
+    _operation: &'static str,
 ) -> RuntimeResult<Arc<WindowsLocationService>> {
     global_service(|| {
-        let ServiceAffinity::DedicatedThread(thread_bootstrap) = WindowsLocationService::AFFINITY
-        else {
-            return Err(io_operation_error(
-                operation,
-                None,
-                "windows location service requires one dedicated thread affinity domain",
-            ));
-        };
-        let executor =
-            DedicatedThreadExecutor::spawn("destack-windows-location", thread_bootstrap, || {
-                Ok(WindowsLocationServiceState::new())
-            })?;
+        let executor = ServiceThreadExecutor::spawn(
+            "destack-windows-location",
+            WindowsLocationService::POLICY,
+            || Ok(WindowsLocationServiceState::new()),
+        )?;
 
         Ok(WindowsLocationService { executor })
     })

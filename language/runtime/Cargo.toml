@@ -219,7 +219,7 @@ x11rb = { workspace = true, features = ["randr", "shape", "xfixes"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 dispatch2 = { workspace = true }
-objc2-app-kit = { workspace = true }
+objc2-app-kit = { workspace = true, features = ["objc2-uniform-type-identifiers"] }
 objc2-av-foundation = { workspace = true, features = ["AVCaptureOutputBase", "AVCapturePhotoOutput", "AVVideoSettings", "objc2-core-media"] }
 objc2-core-bluetooth = { workspace = true }
 objc2-contacts = { workspace = true }
@@ -230,6 +230,7 @@ objc2-core-media = { workspace = true }
 objc2-core-video = { workspace = true }
 objc2-event-kit = { workspace = true }
 objc2-foundation = { workspace = true }
+objc2-uniform-type-identifiers = { workspace = true }
 
 [dev-dependencies]
 rustls-native-certs = { workspace = true }

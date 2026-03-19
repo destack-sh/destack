@@ -1074,7 +1074,7 @@ pub(crate) unsafe fn destack_os_document_access_list(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses persisted desktop grant state backed by local paths on current hosts, with future provider-specific reopen backends layered onto the same handle contract.
+/// Uses persisted runtime document-access state on the current host backend.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1107,7 +1107,7 @@ pub(crate) unsafe fn destack_os_document_access_open(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses host document-grant persistence where available and path-backed grant state on desktop hosts with direct local access.
+/// Uses persisted runtime document-access state on the current host backend.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1251,7 +1251,7 @@ pub(crate) unsafe fn destack_os_document_import(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses local `file://` URI opens on current desktop hosts, with future provider-backed backends layered onto the same handle contract.
+/// Opens document URIs that the current host backend can resolve directly.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1933,7 +1933,7 @@ pub(crate) unsafe fn destack_os_lifecycle_try_read(
 
 /// Read last known location sample.
 ///
-/// Read one cached location sample from the host location service.
+/// Read the most recent location sample from the host location service.
 ///
 /// # Platform
 /// Android, Unix, and Windows.

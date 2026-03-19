@@ -37,7 +37,7 @@ pub(crate) fn submit_location_request(
             )))
         }
 
-        // read one cached sample
+        // read the most recent sample
         HostRequest::OsLocationLastKnown => {
             let sample = read_last_known_location(context.host_runtime_id)?;
 

@@ -86,7 +86,7 @@ pub(super) fn location_services_enabled() -> RuntimeResult<bool> {
     })
 }
 
-/// Read one cached Core Location sample.
+/// Read the most recent Core Location sample.
 pub(super) fn read_last_known_location(
     host_runtime_id: HostRuntimeId,
 ) -> RuntimeResult<LocationSampleValue> {
@@ -100,11 +100,11 @@ pub(super) fn read_last_known_location(
             LOCATION_LAST_KNOWN_OPERATION,
         )?;
 
-        // read the cached sample directly from Core Location
+        // read the most recent sample directly from Core Location
         let Some(location) = (unsafe { manager.location() }) else {
             return Err(io_not_found(
                 LOCATION_LAST_KNOWN_OPERATION,
-                "CoreLocation has no cached location sample for this runtime",
+                "CoreLocation has no location sample for this runtime",
             ));
         };
 
@@ -167,7 +167,7 @@ pub(super) fn open_location_watch(
             }
         }
 
-        // publish any immediately cached sample so the watch starts hot when possible
+        // publish the current sample immediately so the watch starts hot when possible
         if let Some(location) = unsafe { manager.location() } {
             let sample = location_sample_value_from_native(location.as_ref(), None);
             macos_notify_location_sample(host_runtime_id.0, &watch_id, sample)?;

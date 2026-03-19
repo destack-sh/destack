@@ -12,11 +12,10 @@ use crate::platform::os::DocumentAccess;
 use crate::platform::resource::{DocumentHandle, ResourceEntry, ResourceKind};
 use crate::runtime::BindingCallContext;
 
-use super::{
+use super::core::{
     DOCUMENT_FLUSH_OPERATION, DOCUMENT_OPEN_OPERATION, DOCUMENT_READ_OPERATION,
     DOCUMENT_TRY_READ_OPERATION, DOCUMENT_WRITE_OPERATION, DocumentStream,
-    document_access_allows_read, document_access_allows_write, document_io_error,
-    invalid_document_handle,
+    document_access_allows_read, document_access_allows_write, document_io_error, invalid_handle,
 };
 
 /// Open one local document URI.
@@ -39,15 +38,15 @@ pub(crate) fn close(binding: &BindingCallContext, handle: DocumentHandle) -> Run
             .remove(binding.world(), handle.0, Some(binding.engine()));
 
     let Some(entry) = removed else {
-        return Err(invalid_document_handle());
+        return Err(invalid_handle("unknown document handle"));
     };
 
     let Some(payload) = entry.payload else {
-        return Err(invalid_document_handle());
+        return Err(invalid_handle("unknown document handle"));
     };
 
     let Ok(_stream) = payload.downcast::<Arc<Mutex<DocumentStream>>>() else {
-        return Err(invalid_document_handle());
+        return Err(invalid_handle("unknown document handle"));
     };
 
     Ok(())
@@ -235,5 +234,5 @@ fn resolve_document_stream(
             entry.payload_cloned::<Arc<Mutex<DocumentStream>>>()
         })
         .flatten()
-        .ok_or_else(invalid_document_handle)
+        .ok_or_else(|| invalid_handle("unknown document handle"))
 }

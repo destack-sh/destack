@@ -1,10 +1,12 @@
 use objc2_app_kit::{NSModalResponseOK, NSOpenPanel};
 use objc2_foundation::{NSArray, NSString};
+use objc2_uniform_type_identifiers::UTType;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::app::document::pick::{
     HOST_DOCUMENT_PICK_OPERATION, document_descriptor_value_from_path,
-    normalized_document_extensions, validate_document_pick_options,
+    validate_document_pick_options, validated_document_content_types,
+    validated_document_extensions,
 };
 use crate::host::apple::execution::with_process_main_context_marker_if_needed;
 use crate::host::core::HostRequestContext;
@@ -12,22 +14,60 @@ use crate::platform::core::io_operation_error;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{DocumentDescriptorValue, DocumentPickOptionsValue};
 
-/// Build one Cocoa array for allowed extension filters.
-fn allowed_file_types(extensions: &[String]) -> Option<objc2::rc::Retained<NSArray<NSString>>> {
-    if extensions.is_empty() {
-        return None;
+/// Build one Cocoa array for allowed content types.
+fn allowed_content_types(
+    content_types: &[String],
+    extensions: &[String],
+) -> RuntimeResult<Option<objc2::rc::Retained<NSArray<UTType>>>> {
+    if content_types
+        .iter()
+        .any(|content_type| content_type == "*/*")
+    {
+        return Ok(None);
     }
 
-    let values = extensions
+    let mut values = content_types
         .iter()
-        .map(|extension| NSString::from_str(extension))
-        .collect::<Vec<_>>();
+        .map(|content_type| {
+            let content_type = NSString::from_str(content_type);
+
+            UTType::typeWithMIMEType(&content_type).ok_or_else(|| {
+                io_operation_error(
+                    HOST_DOCUMENT_PICK_OPERATION,
+                    Some(PlatformErrorCode::IoInvalidData),
+                    "document picker content type is not recognized on this macOS backend",
+                )
+            })
+        })
+        .collect::<RuntimeResult<Vec<_>>>()?;
+
+    let extension_types = extensions
+        .iter()
+        .map(|extension| {
+            let extension = NSString::from_str(extension);
+
+            UTType::typeWithFilenameExtension(&extension).ok_or_else(|| {
+                io_operation_error(
+                    HOST_DOCUMENT_PICK_OPERATION,
+                    Some(PlatformErrorCode::IoInvalidData),
+                    "document picker extension is not recognized on this macOS backend",
+                )
+            })
+        })
+        .collect::<RuntimeResult<Vec<_>>>()?;
+
+    values.extend(extension_types);
+
+    if values.is_empty() {
+        return Ok(None);
+    }
+
     let references = values
         .iter()
         .map(|value| value.as_ref())
         .collect::<Vec<_>>();
 
-    Some(NSArray::from_slice(&references))
+    Ok(Some(NSArray::from_slice(&references)))
 }
 
 /// Open one macOS document picker on the process main thread.
@@ -36,7 +76,8 @@ fn pick_documents_on_main(
 ) -> RuntimeResult<Vec<DocumentDescriptorValue>> {
     validate_document_pick_options(options)?;
 
-    let extensions = normalized_document_extensions(options)?;
+    let content_types = validated_document_content_types(options)?;
+    let extensions = validated_document_extensions(options)?;
 
     with_process_main_context_marker_if_needed(|mtm| {
         let panel = NSOpenPanel::openPanel(mtm);
@@ -46,9 +87,8 @@ fn pick_documents_on_main(
         panel.setCanChooseFiles(true);
         panel.setAllowsMultipleSelection(options.multiple);
 
-        #[allow(deprecated)]
-        if let Some(allowed_file_types) = allowed_file_types(&extensions) {
-            panel.setAllowedFileTypes(Some(&allowed_file_types));
+        if let Some(allowed_content_types) = allowed_content_types(&content_types, &extensions)? {
+            panel.setAllowedContentTypes(&allowed_content_types);
         }
 
         let response = panel.runModal();

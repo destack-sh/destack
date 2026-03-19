@@ -80,7 +80,7 @@ declare namespace os {
 
     /// Read last known location sample.
     ///
-    /// Read one cached location sample from the host location service.
+    /// Read the most recent location sample from the host location service.
     ///
     /// # Platform
     /// Android, Apple hosts, Linux, and Windows.
