@@ -1,9 +1,10 @@
+use objc2::runtime::ProtocolObject;
 use objc2_app_kit::{NSPasteboard, NSPasteboardTypeHTML, NSPasteboardTypeString};
-use objc2_foundation::NSString;
+use objc2_foundation::{NSArray, NSCopying, NSData, NSString};
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::apple::execution::call_process_main_context_if_needed;
-use crate::platform::core::{io_not_found, io_operation_error};
+use crate::platform::core::{invalid_argument, io_not_found, io_operation_error};
 use crate::platform::os::clipboard::core::{
     CLIPBOARD_READ_BYTES_OPERATION, CLIPBOARD_READ_TEXT_OPERATION, CLIPBOARD_SEQUENCE_OPERATION,
     CLIPBOARD_WRITE_BYTES_OPERATION, CLIPBOARD_WRITE_TEXT_OPERATION,
@@ -48,11 +49,11 @@ pub(crate) fn read_text() -> RuntimeResult<String> {
 pub(crate) fn write_text(text: &str) -> RuntimeResult<()> {
     with_general_pasteboard(|pasteboard| {
         let text = NSString::from_str(text);
+        let text = ProtocolObject::from_retained(text.copy());
+        let objects = NSArray::from_retained_slice(&[text]);
 
-        // clear stale formats before publishing the new text payload
-        pasteboard.clearContents();
-
-        if pasteboard.setString_forType(&text, unsafe { NSPasteboardTypeString }) {
+        // publish plain text through the AppKit pasteboard-writing path
+        if pasteboard.writeObjects(&objects) {
             return Ok(());
         }
 
@@ -67,6 +68,12 @@ pub(crate) fn write_text(text: &str) -> RuntimeResult<()> {
 /// Read one HTML payload from the macOS clipboard backend.
 pub(crate) fn read_html_bytes() -> RuntimeResult<Vec<u8>> {
     with_general_pasteboard(|pasteboard| {
+        // prefer raw typed data for html payloads
+        if let Some(value) = pasteboard.dataForType(unsafe { NSPasteboardTypeHTML }) {
+            return Ok(value.to_vec());
+        }
+
+        // fall back to string decoding for older writers
         let value = pasteboard
             .stringForType(unsafe { NSPasteboardTypeHTML })
             .ok_or_else(|| {
@@ -82,15 +89,17 @@ pub(crate) fn read_html_bytes() -> RuntimeResult<Vec<u8>> {
 
 /// Write one HTML payload through the macOS clipboard backend.
 pub(crate) fn write_html_bytes(bytes: &[u8]) -> RuntimeResult<()> {
-    let html = std::str::from_utf8(bytes).expect("validated html bytes should be utf8");
+    let _html = std::str::from_utf8(bytes)
+        .map_err(|_| invalid_argument("bytes", "clipboard html payload must be utf8"))?;
 
     with_general_pasteboard(|pasteboard| {
-        let html = NSString::from_str(html);
+        let html = NSData::with_bytes(bytes);
 
         // clear stale formats before publishing the new html payload
         pasteboard.clearContents();
 
-        if pasteboard.setString_forType(&html, unsafe { NSPasteboardTypeHTML }) {
+        // publish html through one explicit typed data payload
+        if pasteboard.setData_forType(Some(&html), unsafe { NSPasteboardTypeHTML }) {
             return Ok(());
         }
 
@@ -121,6 +130,7 @@ pub(crate) fn sequence() -> RuntimeResult<u64> {
 /// Clear clipboard contents through the macOS clipboard backend.
 pub(crate) fn clear() -> RuntimeResult<()> {
     with_general_pasteboard(|pasteboard| {
+        // clear the shared pasteboard contents in place
         pasteboard.clearContents();
 
         Ok(())

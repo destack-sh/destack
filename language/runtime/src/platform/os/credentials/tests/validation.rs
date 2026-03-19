@@ -9,7 +9,6 @@ use crate::platform::os::{
 };
 
 /// Verify credentials write rejects empty payload bytes.
-#[cfg(any(unix, windows))]
 #[test]
 fn test_credentials_write_rejects_empty_payload() {
     with_harness_context(|mut context| {
@@ -36,7 +35,6 @@ fn test_credentials_write_rejects_empty_payload() {
 }
 
 /// Verify credentials read rejects empty service identifiers.
-#[cfg(any(unix, windows))]
 #[test]
 fn test_credentials_read_rejects_empty_service() {
     with_harness_context(|mut context| {
@@ -54,7 +52,6 @@ fn test_credentials_read_rejects_empty_service() {
 }
 
 /// Verify credentials contains rejects empty account identifiers.
-#[cfg(any(unix, windows))]
 #[test]
 fn test_credentials_contains_rejects_empty_account() {
     with_harness_context(|mut context| {
@@ -74,7 +71,6 @@ fn test_credentials_contains_rejects_empty_account() {
 }
 
 /// Verify credentials authenticate rejects fully empty prompt payloads.
-#[cfg(any(unix, windows))]
 #[test]
 fn test_credentials_authenticate_rejects_empty_prompt() {
     with_harness_context(|mut context| {

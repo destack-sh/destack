@@ -3,7 +3,7 @@ use destack_vm as vm;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::ClipboardBinaryFormat;
-use crate::platform::os::tests::{HarnessValue, OsHarnessContext};
+use crate::platform::os::tests::{HarnessContext, HarnessValue};
 use crate::platform::{NativeSlice, NativeStringRef, VmSlice};
 use crate::tests::platform::error_code_from_runtime_error;
 
@@ -17,7 +17,7 @@ pub(super) struct ClipboardSnapshot {
 
 /// Build one harness string payload for the active binding lane.
 pub(super) fn string_harness_value(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     value: &str,
 ) -> HarnessValue<NativeStringRef, vm::StringHandle> {
     match context.vm_context {
@@ -37,7 +37,7 @@ pub(super) fn string_harness_value(
 
 /// Build one harness byte-slice payload for the active binding lane.
 pub(super) fn bytes_harness_value(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     value: &[u8],
 ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
     match context.vm_context {
@@ -56,7 +56,7 @@ pub(super) fn bytes_harness_value(
 
 /// Decode one clipboard text harness value into one owned string.
 pub(super) fn decode_clipboard_text(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     value: HarnessValue<NativeStringRef, vm::StringHandle>,
 ) -> RuntimeResult<String> {
     match value {
@@ -69,17 +69,17 @@ pub(super) fn decode_clipboard_text(
                     as *mut vm::ExternalCallContext<'_>)
             };
             let value = vm_context
-                .string_ref(value)
+                .string_value(value.value())
                 .map_err(|error| RuntimeError::from(error).boxed())?;
 
-            Ok(value.as_str().to_string())
+            Ok(value)
         }
     }
 }
 
 /// Decode one clipboard byte payload into one owned byte vector.
 pub(super) fn decode_clipboard_bytes(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     value: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
 ) -> RuntimeResult<Vec<u8>> {
     match value {
@@ -99,7 +99,7 @@ pub(super) fn decode_clipboard_bytes(
 
 /// Snapshot the clipboard text and html payloads when supported.
 pub(super) fn snapshot_clipboard(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
 ) -> RuntimeResult<ClipboardSnapshot> {
     let text = if context.destack_os_clipboard_has_text()? {
         let value = context.destack_os_clipboard_read_text()?;
@@ -127,7 +127,7 @@ pub(super) fn snapshot_clipboard(
 
 /// Restore one prior clipboard snapshot after one destructive test.
 pub(super) fn restore_clipboard(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     snapshot: ClipboardSnapshot,
 ) -> RuntimeResult<()> {
     if let Some(html) = snapshot.html {

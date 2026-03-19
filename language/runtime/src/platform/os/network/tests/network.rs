@@ -5,7 +5,6 @@ use crate::platform::os::{NetworkConnectionType, NetworkState};
 use crate::tests::platform::assert_runtime_error_code;
 
 /// Verify network state returns one coherent snapshot.
-#[cfg(any(unix, windows))]
 #[test]
 fn test_network_state_returns_coherent_snapshot() {
     with_harness_context(|mut context| {
@@ -27,7 +26,6 @@ fn test_network_state_returns_coherent_snapshot() {
 }
 
 /// Verify watch streams start from the current snapshot and wait for changes.
-#[cfg(any(unix, windows))]
 #[test]
 fn test_network_watch_try_read_reports_would_block_without_change() {
     with_harness_context(|mut context| {
@@ -46,7 +44,6 @@ fn test_network_watch_try_read_reports_would_block_without_change() {
 }
 
 /// Verify closing one watch makes later reads reject the handle.
-#[cfg(any(unix, windows))]
 #[test]
 fn test_network_watch_close_invalidates_the_handle() {
     with_harness_context(|mut context| {
@@ -65,7 +62,6 @@ fn test_network_watch_close_invalidates_the_handle() {
 }
 
 /// Verify blocking reads time out cleanly when the snapshot does not change.
-#[cfg(any(unix, windows))]
 #[test]
 fn test_network_watch_read_times_out_without_one_change() {
     with_harness_context(|mut context| {
@@ -84,7 +80,6 @@ fn test_network_watch_read_times_out_without_one_change() {
 }
 
 /// Verify network snapshots remain stable under immediate repeated reads.
-#[cfg(any(unix, windows))]
 #[test]
 fn test_network_state_repeated_reads_remain_well_formed() {
     with_harness_context(|mut context| {

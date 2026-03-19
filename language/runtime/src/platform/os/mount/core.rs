@@ -18,8 +18,6 @@ use crate::platform::fs::{self, core as core_fs};
 use crate::platform::os::{MountEntry, MountEntryVm};
 use crate::runtime::BindingCallContext;
 
-use crate::platform::os::mount::backend;
-
 /// One host-owned mount table entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct MountEntryOwned {
@@ -35,7 +33,7 @@ pub(super) struct MountEntryOwned {
 
 /// Read the current host mount table and encode it for the native ABI.
 pub(crate) fn read_mount_entries(binding: &BindingCallContext) -> RuntimeResult<Vec<MountEntry>> {
-    let entries = backend::read_mount_entries()?;
+    let entries = super::target::read_mount_entries()?;
     let entries = entries
         .iter()
         .map(|entry| native_mount_entry(binding, entry))
@@ -48,7 +46,7 @@ pub(crate) fn read_mount_entries(binding: &BindingCallContext) -> RuntimeResult<
 pub(crate) fn read_mount_entries_vm(
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmArray<MountEntryVm>> {
-    let entries = backend::read_mount_entries()?;
+    let entries = super::target::read_mount_entries()?;
     let entries = entries
         .iter()
         .map(|entry| vm_mount_entry(context, entry))

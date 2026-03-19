@@ -9,6 +9,15 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::mount::core::MountEntryOwned;
 use crate::platform::{PlatformError, core as core_platform};
 
+/// Build one invariant error for impossible host mount row counts.
+fn mount_invariant_error(message: &'static str) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::generic(
+        Some(PlatformErrorCode::Generic),
+        message,
+    ))
+    .boxed()
+}
+
 /// Read Apple or BSD mount entries from `getfsstat`.
 pub(crate) fn read_mount_entries() -> RuntimeResult<Vec<MountEntryOwned>> {
     let count = unsafe { libc::getfsstat(std::ptr::null_mut(), 0, libc::MNT_NOWAIT) };
@@ -16,20 +25,23 @@ pub(crate) fn read_mount_entries() -> RuntimeResult<Vec<MountEntryOwned>> {
         return Err(core_platform::io_error("getfsstat", None));
     }
 
-    let mut rows = vec![
-        unsafe { std::mem::zeroed::<libc::statfs>() };
-        usize::try_from(count).expect("getfsstat count should be non-negative")
-    ];
+    // size one row buffer from the reported count
+    let count = usize::try_from(count)
+        .map_err(|_| mount_invariant_error("getfsstat returned one negative entry count"))?;
+    let mut rows = vec![unsafe { std::mem::zeroed::<libc::statfs>() }; count];
     let size_bytes = rows
         .len()
         .checked_mul(std::mem::size_of::<libc::statfs>())
-        .expect("statfs buffer size should fit in usize");
+        .ok_or_else(|| mount_invariant_error("statfs buffer size exceeded usize"))?;
     let count = unsafe { libc::getfsstat(rows.as_mut_ptr(), size_bytes as _, libc::MNT_NOWAIT) };
     if count < 0 {
         return Err(core_platform::io_error("getfsstat", None));
     }
 
-    rows.truncate(usize::try_from(count).expect("getfsstat count should be non-negative"));
+    // trim to the actual row count
+    let count = usize::try_from(count)
+        .map_err(|_| mount_invariant_error("getfsstat returned one negative entry count"))?;
+    rows.truncate(count);
 
     let mut entries = Vec::with_capacity(rows.len());
     for row in rows {

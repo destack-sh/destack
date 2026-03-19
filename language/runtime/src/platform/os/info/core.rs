@@ -10,8 +10,6 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::{LoadAverage, SystemSnapshot};
 use crate::runtime::BindingCallContext;
 
-use crate::platform::os::info::backend;
-
 /// Binding operation name for system snapshot reads.
 pub(crate) const OS_INFO_SYSTEM_SNAPSHOT_OPERATION: &str = "destack.os.info.systemSnapshot";
 /// Binding operation name for uptime reads.
@@ -135,7 +133,7 @@ pub(crate) unsafe fn destack_os_system_snapshot(
     core_platform::ensure_out(out, "out")?;
 
     // query one backend snapshot and write output
-    let snapshot = backend::read_system_snapshot(binding)?;
+    let snapshot = super::target::read_system_snapshot(binding)?;
     unsafe {
         out.write(snapshot);
     }
@@ -145,7 +143,7 @@ pub(crate) unsafe fn destack_os_system_snapshot(
 
 /// Read host system information through the VM ABI surface.
 pub(crate) fn read_system_snapshot(binding: &BindingCallContext) -> RuntimeResult<SystemSnapshot> {
-    backend::read_system_snapshot(binding)
+    super::target::read_system_snapshot(binding)
 }
 
 /// Read host uptime.
@@ -173,7 +171,7 @@ pub(crate) unsafe fn destack_os_uptime_ns(
     core_platform::ensure_out(out, "out")?;
 
     // query one backend uptime value and write output
-    let uptime_ns = backend::read_uptime_ns(binding)?;
+    let uptime_ns = super::target::read_uptime_ns(binding)?;
     unsafe {
         out.write(uptime_ns);
     }
@@ -183,7 +181,7 @@ pub(crate) unsafe fn destack_os_uptime_ns(
 
 /// Read host uptime through the VM ABI surface.
 pub(crate) fn read_uptime_ns(binding: &BindingCallContext) -> RuntimeResult<u64> {
-    backend::read_uptime_ns(binding)
+    super::target::read_uptime_ns(binding)
 }
 
 /// Read host boot time.
@@ -211,7 +209,7 @@ pub(crate) unsafe fn destack_os_boot_time_unix_ns(
     core_platform::ensure_out(out, "out")?;
 
     // query one backend boot-time value and write output
-    let boot_time_unix_ns = backend::read_boot_time_unix_ns(binding)?;
+    let boot_time_unix_ns = super::target::read_boot_time_unix_ns(binding)?;
     unsafe {
         out.write(boot_time_unix_ns);
     }
@@ -221,7 +219,7 @@ pub(crate) unsafe fn destack_os_boot_time_unix_ns(
 
 /// Read host boot time through the VM ABI surface.
 pub(crate) fn read_boot_time_unix_ns(binding: &BindingCallContext) -> RuntimeResult<u64> {
-    backend::read_boot_time_unix_ns(binding)
+    super::target::read_boot_time_unix_ns(binding)
 }
 
 /// Read host load averages.
@@ -249,7 +247,7 @@ pub(crate) unsafe fn destack_os_load_average(
     core_platform::ensure_out(out, "out")?;
 
     // query one backend load-average payload and write output
-    let load_average = backend::read_load_average(binding)?;
+    let load_average = super::target::read_load_average(binding)?;
     unsafe {
         out.write(load_average);
     }
@@ -259,5 +257,5 @@ pub(crate) unsafe fn destack_os_load_average(
 
 /// Read host load averages through the VM ABI surface.
 pub(crate) fn read_load_average(binding: &BindingCallContext) -> RuntimeResult<LoadAverage> {
-    backend::read_load_average(binding)
+    super::target::read_load_average(binding)
 }
