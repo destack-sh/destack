@@ -1,4 +1,4 @@
-mod backend;
+mod bridge;
 mod core;
 
-pub(crate) use backend::*;
+pub(crate) use bridge::*;
