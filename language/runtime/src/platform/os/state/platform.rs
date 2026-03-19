@@ -371,3 +371,56 @@ impl HostEventObserver for PlatformOsState {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_inserted_streams_are_owned_by_platform_os_state() {
+        let state = PlatformOsState::default();
+        let stream = Arc::new(LifecycleEventStream::default());
+
+        let stream_id = state.insert_lifecycle_stream(stream.clone());
+        let resolved = state
+            .lifecycle_stream(stream_id)
+            .expect("inserted lifecycle stream should resolve by id");
+
+        assert!(Arc::ptr_eq(&stream, &resolved));
+
+        let removed = state
+            .remove_lifecycle_stream(stream_id)
+            .expect("inserted lifecycle stream should remove by id");
+
+        assert!(Arc::ptr_eq(&stream, &removed));
+        assert!(
+            state.lifecycle_stream(stream_id).is_none(),
+            "removed lifecycle stream should no longer resolve"
+        );
+    }
+
+    #[test]
+    fn test_inserted_watches_are_owned_by_platform_os_state() {
+        let state = PlatformOsState::default();
+        let watch_id = state.next_location_watch_id();
+        let stream = Arc::new(LocationWatchStream::new());
+
+        state.insert_location_watch(watch_id.clone(), stream.clone());
+
+        let resolved = state
+            .location_watch(&watch_id)
+            .expect("inserted location watch should resolve by id");
+
+        assert!(Arc::ptr_eq(&stream, &resolved));
+
+        let removed = state
+            .remove_location_watch(&watch_id)
+            .expect("inserted location watch should remove by id");
+
+        assert!(Arc::ptr_eq(&stream, &removed));
+        assert!(
+            state.location_watch(&watch_id).is_none(),
+            "removed location watch should no longer resolve"
+        );
+    }
+}

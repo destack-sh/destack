@@ -35,10 +35,10 @@ pub(crate) struct HostExecutor {
     pub(crate) is_bound: AtomicBool,
     /// Queued callbacks for one windows message loop.
     #[cfg(windows)]
-    pub(crate) windows_queue: Arc<WindowsLoopQueue>,
+    pub(in super::super) windows_queue: Arc<WindowsLoopQueue>,
     /// The bound windows thread id for one windows message loop.
     #[cfg(windows)]
-    pub(crate) windows_thread_id: OnceLock<u32>,
+    pub(in super::super) windows_thread_id: OnceLock<u32>,
 }
 
 impl HostExecutor {
@@ -206,7 +206,7 @@ impl HostExecutor {
         let (result_tx, result_rx) = sync_channel::<RuntimeResult<R>>(1);
 
         // queue one callback for the bound windows message loop
-        self.windows_queue.enqueue_callback(Box::new(move || {
+        self.windows_queue.enqueue(Box::new(move || {
             let _result_delivered = result_tx.send(callback()).is_ok();
         }));
 

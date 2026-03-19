@@ -61,7 +61,6 @@ impl Harness {
             }),
         }
     }
-
 }
 
 /// Build one deterministic OS test runtime.
