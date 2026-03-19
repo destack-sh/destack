@@ -1,5 +1,8 @@
 // SYNTAX TEST "source.ds"
 
+type $ = typeof $
+//   ^ entity.name.type.definition.ds
+
 type Pair<T, U extends Base = Default> = (T, U)
 //   ^^^^ entity.name.type.definition.ds
 //        ^ entity.name.type.parameter.ds
@@ -213,3 +216,16 @@ type RawMut = *mut Foo
 //            ^ keyword.operator.pointer.ds
 //             ^^^ keyword.other.modifier.ds
 //                 ^^^ entity.name.type.ds
+
+type UsesImplements = Vec<number> implements Storage<number>
+//   ^^^^^^^^^^^^^^ entity.name.type.definition.ds
+//                    ^^^ entity.name.type.ds
+//                                ^^^^^^^^^^ keyword.operator.type.binary.ds
+//                                           ^^^^^^^ entity.name.type.ds
+
+type UsesIn = number in (number | string)
+//   ^^^^^^ entity.name.type.definition.ds
+//                   ^ keyword.operator.container.ds
+
+type ShellPromiseAlias = $.ShellPromise
+//                       ^ entity.name.type.ds

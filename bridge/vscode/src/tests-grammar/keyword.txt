@@ -74,6 +74,12 @@ let
 var
 // <- keyword.declaration.type.ds
 
+module
+// <- keyword.declaration.type.ds
+
+global
+// <- keyword.declaration.type.ds
+
 namespace
 // <- keyword.declaration.type.ds
 
@@ -199,6 +205,10 @@ try
 
 catch
 // <- keyword.control.exception.ds
+
+catch match (error) { }
+// <- keyword.control.exception.ds
+//    ^^^^^ keyword.control.conditional.ds
 
 throw
 // <- keyword.control.exception.ds
