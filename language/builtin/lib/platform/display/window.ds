@@ -172,6 +172,26 @@ export enum WindowOcclusionState {
     Occluded = 2,
 }
 
+/// Window render state.
+export enum WindowRenderState {
+    /// Backend cannot determine render state.
+    Unknown = 0,
+    /// Window can currently render and present frames.
+    Renderable = 1,
+    /// Window is hidden and should not render or present.
+    Hidden = 2,
+    /// Window is occluded and can skip rendering until visibility pressure changes.
+    Occluded = 3,
+    /// Window is suspended by host lifecycle policy and should not render or present.
+    Suspended = 4,
+    /// Window has no drawable framebuffer because one dimension is zero and should not render or present.
+    ZeroSized = 5,
+    /// Window lost its drawable host surface.
+    /// Stop rendering until the window becomes renderable again.
+    /// When renderability returns, inspect `gpu.surfaceStatus`: `Unconfigured` or `Outdated` means reconfigure, while `Lost` means reopen the surface.
+    SurfaceLost = 6,
+}
+
 /// Logical window size in platform points.
 export struct WindowLogicalSize {
     /// Logical width.
@@ -186,6 +206,18 @@ export struct WindowPhysicalSize {
     width: uint32;
     /// Pixel height.
     height: uint32;
+}
+
+/// Logical window content rectangle in window-local platform points.
+export struct WindowLogicalRect {
+    /// Logical left coordinate relative to the outer window origin, not desktop coordinates.
+    x: float64;
+    /// Logical top coordinate relative to the outer window origin, not desktop coordinates.
+    y: float64;
+    /// Logical width.
+    width: float64;
+    /// Logical height.
+    height: float64;
 }
 
 /// Window position in desktop coordinates.
@@ -327,6 +359,8 @@ export struct WindowOptions {
 }
 
 /// Window descriptor payload.
+/// This payload describes stable identity and current configuration.
+/// Live geometry and renderability belong in `WindowState`.
 export struct WindowDescriptor {
     /// Resolved backend that owns this window.
     backend: DisplayBackend;
@@ -338,8 +372,9 @@ export struct WindowDescriptor {
     role: WindowRole;
     /// Current mode configuration.
     mode: WindowModeOptions;
-    /// Current display association.
-    display: DisplayHandle | void;
+
+    // current window policy
+
     /// Whether this window is resizable.
     resizable: boolean;
     /// Whether this window uses host decorations.
@@ -354,6 +389,9 @@ export struct WindowDescriptor {
     opacity: float64;
     /// Whether this window is configured as always-on-top.
     alwaysOnTop: boolean;
+
+    // current window relationships
+
     /// Current parent window relationship.
     parent: WindowHandle | void;
     /// Current transient-owner window relationship.
@@ -367,19 +405,30 @@ export struct WindowDescriptor {
 }
 
 /// Window state snapshot.
+/// This payload describes live geometry, display association, and renderability.
 export struct WindowState {
     /// Resolved backend that owns this window.
     backend: DisplayBackend;
-    /// Current host window role.
-    role: WindowRole;
+
+    // geometry
+
     /// Current desktop position.
     position: WindowPosition;
     /// Current logical size.
     sizeLogical: WindowLogicalSize;
     /// Current physical size.
     sizePhysical: WindowPhysicalSize;
+    /// Current logical content rectangle in platform points.
+    contentRectLogical: WindowLogicalRect;
+    /// Current drawable framebuffer size in physical pixels.
+    framebufferSize: WindowPhysicalSize;
     /// Current scale factor in milli-scale units.
     scaleFactorMilli: uint32;
+
+    // display and renderability
+
+    /// Current host window role.
+    role: WindowRole;
     /// Current visibility state.
     visibility: WindowVisibility;
     /// Current display association.
@@ -388,6 +437,11 @@ export struct WindowState {
     focused: boolean;
     /// Current window occlusion state.
     occlusion: WindowOcclusionState;
+    /// Current render state.
+    renderState: WindowRenderState;
+
+    // presentation and appearance
+
     /// Current safe-area insets in physical pixels when provided by the backend.
     safeAreaInsets: WindowSafeAreaInsets | void;
     /// Current theme for this window.
@@ -400,6 +454,9 @@ export struct WindowState {
     opacity: float64;
     /// Whether this window is currently always-on-top.
     alwaysOnTop: boolean;
+
+    // relationships
+
     /// Current parent window relationship.
     parent: WindowHandle | void;
     /// Current transient-owner window relationship.
@@ -414,10 +471,9 @@ export struct WindowState {
 
 /// Window bindings.
 declare namespace display {
-    /// Open one window.
+    /// Open a window.
     ///
-    /// Create one host window with one explicit window configuration payload.
-    /// Window lifecycle and compositor integration follow host window-system semantics.
+    /// Create a host window from an explicit configuration payload.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -444,9 +500,9 @@ declare namespace display {
     })
     export function windowOpen(options: WindowOptions): Result<WindowHandle, PlatformError>;
 
-    /// Close one window.
+    /// Close a window.
     ///
-    /// Close one host window and release associated compositor or window-system resources.
+    /// Close a host window and release associated resources.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -472,9 +528,9 @@ declare namespace display {
     })
     export function windowClose(window: WindowHandle): Result<void, PlatformError>;
 
-    /// Read descriptor metadata for one window.
+    /// Read window descriptor metadata.
     ///
-    /// Read one normalized descriptor snapshot for one opened host window.
+    /// Read the current descriptor snapshot for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -500,9 +556,9 @@ declare namespace display {
     })
     export function windowDescriptor(window: WindowHandle): Result<WindowDescriptor, PlatformError>;
 
-    /// Read one window state snapshot.
+    /// Read a window state snapshot.
     ///
-    /// Read one point-in-time host window state snapshot.
+    /// Read the current host window state snapshot.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -528,10 +584,100 @@ declare namespace display {
     })
     export function windowState(window: WindowHandle): Result<WindowState, PlatformError>;
 
-    /// Read effective capabilities for one opened window.
+    /// Read the logical content rectangle for a window.
     ///
-    /// Read one effective capability set for one opened window after backend and role negotiation.
-    /// This set is one method-level contract and can be one strict subset of backend descriptor capability flags.
+    /// Read the current logical content rectangle.
+    /// This excludes host chrome and uses window-local coordinates.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses Win32 client-rect queries, X11 window geometry, and Wayland configured content-area tracking.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.contentRect", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "never",
+        affinity: "eventLoop",
+    })
+    export function windowContentRect(window: WindowHandle): Result<WindowLogicalRect, PlatformError>;
+
+    /// Read the drawable framebuffer size for a window.
+    ///
+    /// Read the current drawable framebuffer size.
+    /// This is the canonical render and present size for the window.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses drawable pixel-size queries derived from client geometry, compositor scale, and backing-surface extent.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.framebufferSize", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "never",
+        affinity: "eventLoop",
+    })
+    export function windowFramebufferSize(
+        window: WindowHandle,
+    ): Result<WindowPhysicalSize, PlatformError>;
+
+    /// Read the render state for a window.
+    ///
+    /// Read the current renderability state.
+    /// When the state is `SurfaceLost`, stop presenting until the window becomes renderable again.
+    /// Then use `gpu.surfaceStatus(...)` to decide whether to reconfigure or reopen the present surface.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses visibility, occlusion, lifecycle suspension, and host-surface state derived from compositor and window-system state.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.renderState", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "never",
+        affinity: "eventLoop",
+    })
+    export function windowRenderState(window: WindowHandle): Result<WindowRenderState, PlatformError>;
+
+    /// Read the effective capability set for a window.
+    ///
+    /// Read the effective capability set after backend and role negotiation.
+    /// This can be a strict subset of the backend descriptor capability flags.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -557,9 +703,9 @@ declare namespace display {
     })
     export function windowCapabilities(window: WindowHandle): Result<DisplayBackendCapabilityFlags, PlatformError>;
 
-    /// Set one window title string.
+    /// Set a window title string.
     ///
-    /// Update one host window title using host window-system APIs.
+    /// Update a host window title.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -588,9 +734,9 @@ declare namespace display {
         title: string,
     ): Result<void, PlatformError>;
 
-    /// Set one window icon set.
+    /// Set a window icon set.
     ///
-    /// Apply one host window icon set from packed pixel bytes.
+    /// Apply a host window icon set from packed pixel bytes.
     /// Backends can select the closest icon size per host surface.
     /// Passing `void` clears custom icons and restores host default behavior.
     ///
@@ -621,9 +767,9 @@ declare namespace display {
         icons: WindowIconSet | void,
     ): Result<void, PlatformError>;
 
-    /// Set one window position.
+    /// Set a window position.
     ///
-    /// Apply one host window position in desktop coordinates.
+    /// Apply a host window position in desktop coordinates.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -652,9 +798,9 @@ declare namespace display {
         position: WindowPosition,
     ): Result<void, PlatformError>;
 
-    /// Set one logical window size.
+    /// Set a logical window size.
     ///
-    /// Apply one host window size in logical platform points.
+    /// Apply a host window size in logical platform points.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -683,9 +829,9 @@ declare namespace display {
         size: WindowLogicalSize,
     ): Result<void, PlatformError>;
 
-    /// Set one physical window size.
+    /// Set a physical window size.
     ///
-    /// Apply one host window size in physical pixels.
+    /// Apply a host window size in physical pixels.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -716,7 +862,7 @@ declare namespace display {
 
     /// Set logical size constraints.
     ///
-    /// Apply minimum and maximum logical size constraints for one window.
+    /// Apply minimum and maximum logical size constraints for a window.
     /// Passing `void` clears current constraints.
     ///
     /// # Platform
@@ -746,9 +892,9 @@ declare namespace display {
         constraints: WindowSizeConstraints | void,
     ): Result<void, PlatformError>;
 
-    /// Set one window aspect-ratio lock.
+    /// Set a window aspect-ratio lock.
     ///
-    /// Apply one aspect-ratio lock for one opened window.
+    /// Apply an aspect-ratio lock for a window.
     /// Passing `void` clears any currently active aspect-ratio lock.
     ///
     /// # Platform
@@ -778,9 +924,9 @@ declare namespace display {
         aspectRatio: WindowAspectRatio | void,
     ): Result<void, PlatformError>;
 
-    /// Set one window visibility state.
+    /// Set a window visibility state.
     ///
-    /// Apply one window visibility state transition.
+    /// Apply a window visibility state transition.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -809,9 +955,9 @@ declare namespace display {
         visibility: WindowVisibility,
     ): Result<void, PlatformError>;
 
-    /// Minimize one window.
+    /// Minimize a window.
     ///
-    /// Transition one opened window to minimized host state.
+    /// Transition a window to minimized host state.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -837,9 +983,9 @@ declare namespace display {
     })
     export function windowMinimize(window: WindowHandle): Result<void, PlatformError>;
 
-    /// Maximize one window.
+    /// Maximize a window.
     ///
-    /// Transition one opened window to maximized host state.
+    /// Transition a window to maximized host state.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -865,9 +1011,9 @@ declare namespace display {
     })
     export function windowMaximize(window: WindowHandle): Result<void, PlatformError>;
 
-    /// Restore one window.
+    /// Restore a window.
     ///
-    /// Restore one minimized or maximized window to standard visible state.
+    /// Restore a minimized or maximized window to standard visible state.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -893,9 +1039,9 @@ declare namespace display {
     })
     export function windowRestore(window: WindowHandle): Result<void, PlatformError>;
 
-    /// Set one window mode.
+    /// Set a window mode.
     ///
-    /// Apply one host window mode transition for one opened window.
+    /// Apply a host window mode transition for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -926,7 +1072,7 @@ declare namespace display {
 
     /// Set window resizable state.
     ///
-    /// Toggle host resize affordances for one opened window.
+    /// Enable or disable host resize affordances for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -957,7 +1103,7 @@ declare namespace display {
 
     /// Set window decoration state.
     ///
-    /// Toggle host decorations for one opened window.
+    /// Enable or disable host decorations for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -986,9 +1132,9 @@ declare namespace display {
         decorated: boolean,
     ): Result<void, PlatformError>;
 
-    /// Set one window chrome style.
+    /// Set a window chrome style.
     ///
-    /// Apply one backend chrome style policy for one opened window.
+    /// Apply a backend chrome style policy for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1017,9 +1163,9 @@ declare namespace display {
         chrome: WindowChromeKind,
     ): Result<void, PlatformError>;
 
-    /// Set taskbar visibility for one window.
+    /// Set taskbar visibility for a window.
     ///
-    /// Control whether one window is visible in task switching and taskbar surfaces.
+    /// Control whether a window is visible in task switching and taskbar surfaces.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1050,7 +1196,7 @@ declare namespace display {
 
     /// Set always-on-top state.
     ///
-    /// Toggle host always-on-top policy for one opened window.
+    /// Enable or disable host always-on-top policy for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1079,9 +1225,9 @@ declare namespace display {
         alwaysOnTop: boolean,
     ): Result<void, PlatformError>;
 
-    /// Set one window opacity.
+    /// Set a window opacity.
     ///
-    /// Apply one whole-window opacity value in `[0.0, 1.0]`.
+    /// Apply a whole-window opacity value in `[0.0, 1.0]`.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1110,9 +1256,9 @@ declare namespace display {
         opacity: float64,
     ): Result<void, PlatformError>;
 
-    /// Read one window opacity value.
+    /// Read a window opacity value.
     ///
-    /// Read one point-in-time whole-window opacity value in `[0.0, 1.0]`.
+    /// Read the current whole-window opacity value in `[0.0, 1.0]`.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1138,9 +1284,9 @@ declare namespace display {
     })
     export function windowOpacity(window: WindowHandle): Result<float64, PlatformError>;
 
-    /// Focus one window.
+    /// Focus a window.
     ///
-    /// Request keyboard focus for one opened window.
+    /// Request keyboard focus for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1166,9 +1312,9 @@ declare namespace display {
     })
     export function windowFocus(window: WindowHandle): Result<void, PlatformError>;
 
-    /// Raise one window.
+    /// Raise a window.
     ///
-    /// Request that one opened window moves to the top of its stack group.
+    /// Request that a window moves to the top of its stack group.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1194,9 +1340,9 @@ declare namespace display {
     })
     export function windowRaise(window: WindowHandle): Result<void, PlatformError>;
 
-    /// Set one parent window relationship.
+    /// Set a parent window relationship.
     ///
-    /// Apply one parent relationship where backend policy allows.
+    /// Apply a parent relationship where backend policy allows.
     /// This relationship is ignored when `transientFor` is also set.
     /// Passing `void` removes the parent relationship.
     ///
@@ -1227,9 +1373,9 @@ declare namespace display {
         parent: WindowHandle | void,
     ): Result<void, PlatformError>;
 
-    /// Set one transient-owner relationship.
+    /// Set a transient-owner relationship.
     ///
-    /// Apply one transient-owner relationship where backend policy allows.
+    /// Apply a transient-owner relationship where backend policy allows.
     /// This relationship takes precedence over `parent`.
     /// Passing `void` removes the transient-owner relationship.
     ///
@@ -1260,10 +1406,10 @@ declare namespace display {
         transientFor: WindowHandle | void,
     ): Result<void, PlatformError>;
 
-    /// Set one window modal relationship.
+    /// Set a window modal relationship.
     ///
-    /// Enable or disable one modal relationship where backend policy allows.
-    /// Modal mode requires one active `transientFor` or `parent` relationship.
+    /// Enable or disable a modal relationship where backend policy allows.
+    /// Modal mode requires an active `transientFor` or `parent` relationship.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1292,9 +1438,9 @@ declare namespace display {
         modal: boolean,
     ): Result<void, PlatformError>;
 
-    /// Set mouse passthrough behavior for one window.
+    /// Set mouse passthrough behavior for a window.
     ///
-    /// Enable or disable pointer hit-test passthrough for one opened window.
+    /// Enable or disable pointer hit-test passthrough for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1323,13 +1469,15 @@ declare namespace display {
         passthrough: boolean,
     ): Result<void, PlatformError>;
 
-    /// Request one redraw for one window.
+    /// Invalidate a window for redraw.
     ///
-    /// Enqueue one host redraw request for one opened window.
+    /// Enqueue a host invalidation for a window.
+    /// Multiple outstanding invalidations can be coalesced by the backend.
+    /// Call this after scene, layout, animation, or state changes when no host invalidation already guarantees another begin frame.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend redraw request operations.
+    /// Uses Wayland frame callbacks, X11 redraw invalidation, and Win32 `InvalidateRect` or equivalent redraw requests.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1339,7 +1487,7 @@ declare namespace display {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.display.window.requestRefresh", {
+    @binding("destack.display.window.invalidate", {
         effect: "external",
         replay: "recordable",
         capabilities: ["display.window"],
@@ -1349,11 +1497,11 @@ declare namespace display {
         blocking: "never",
         affinity: "eventLoop",
     })
-    export function windowRequestRefresh(window: WindowHandle): Result<void, PlatformError>;
+    export function windowInvalidate(window: WindowHandle): Result<void, PlatformError>;
 
-    /// Request user attention for one window.
+    /// Request user attention for a window.
     ///
-    /// Request host-specific user attention signaling for one opened window.
+    /// Request host-specific user attention signaling for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1382,9 +1530,9 @@ declare namespace display {
         level: WindowAttentionLevel,
     ): Result<void, PlatformError>;
 
-    /// Set cursor interaction mode for one window.
+    /// Set cursor interaction mode for a window.
     ///
-    /// Apply one cursor mode policy for one opened window.
+    /// Apply a cursor mode policy for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1413,9 +1561,9 @@ declare namespace display {
         mode: WindowCursorMode,
     ): Result<void, PlatformError>;
 
-    /// Set cursor icon for one window.
+    /// Set cursor icon for a window.
     ///
-    /// Apply one standard system cursor icon for one opened window.
+    /// Apply a standard system cursor icon for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1444,9 +1592,9 @@ declare namespace display {
         icon: WindowCursorIcon,
     ): Result<void, PlatformError>;
 
-    /// Set cursor visibility for one window.
+    /// Set cursor visibility for a window.
     ///
-    /// Show or hide one window cursor without changing lock or confinement state.
+    /// Show or hide the window cursor without changing lock or confinement state.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1475,10 +1623,10 @@ declare namespace display {
         visible: boolean,
     ): Result<void, PlatformError>;
 
-    /// Set cursor position for one window.
+    /// Set cursor position for a window.
     ///
-    /// Warp cursor position relative to one opened window.
-    /// This is one window-scoped convenience lane for UI interactions.
+    /// Warp cursor position relative to a window.
+    /// This is a window-scoped convenience API for UI and tooling interactions.
     /// Use `input.pointer.warp` for device-target scoped pointer control.
     ///
     /// # Platform
@@ -1508,9 +1656,9 @@ declare namespace display {
         position: WindowPosition,
     ): Result<void, PlatformError>;
 
-    /// Begin one native move-drag interaction.
+    /// Begin a native move-drag interaction.
     ///
-    /// Start one host-controlled move-drag interaction for one opened window.
+    /// Start a host-controlled move-drag interaction for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1536,9 +1684,9 @@ declare namespace display {
     })
     export function windowBeginMoveDrag(window: WindowHandle): Result<void, PlatformError>;
 
-    /// Begin one native resize-drag interaction.
+    /// Begin a native resize-drag interaction.
     ///
-    /// Start one host-controlled resize-drag interaction for one opened window and one selected edge.
+    /// Start a host-controlled resize-drag interaction for a window and the selected edge.
     ///
     /// # Platform
     /// Unix and Windows.
