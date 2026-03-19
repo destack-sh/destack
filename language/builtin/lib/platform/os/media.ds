@@ -11,8 +11,6 @@ export enum MediaAssetKind {
     Video = 2,
     /// Audio asset.
     Audio = 3,
-    /// Other asset class.
-    Other = 4,
 }
 
 /// Media query options.
@@ -37,13 +35,13 @@ export struct MediaAssetSummary {
     filename: string;
     /// Asset class.
     kind: MediaAssetKind;
-    /// Normalized content type when cheap or natively available.
+    /// Normalized content type when the host reports it.
     contentType?: string;
-    /// Asset size in bytes when available.
+    /// Asset size in bytes when the host reports it.
     sizeBytes?: uint64;
-    /// Asset creation timestamp in UTC nanoseconds when available.
+    /// Asset creation timestamp in UTC nanoseconds when the host reports it.
     createdUnixNs?: uint64;
-    /// Asset modification timestamp in UTC nanoseconds when available.
+    /// Asset modification timestamp in UTC nanoseconds when the host reports it.
     modifiedUnixNs?: uint64;
 }
 
@@ -59,9 +57,9 @@ export struct MediaDimensions {
 export struct MediaAssetDescriptor {
     /// Shared asset summary payload.
     asset: MediaAssetSummary;
-    /// Asset dimensions for image and video assets when available.
+    /// Asset dimensions for image and video assets when the host reports them.
     dimensions?: MediaDimensions;
-    /// Asset duration in milliseconds for time-based assets.
+    /// Asset duration in milliseconds for time-based assets when the host reports it.
     durationMs?: uint64;
 }
 
@@ -138,8 +136,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses Photos or related media providers on Apple platforms, MediaStore on Android, and the
-    /// current desktop media roots plus filesystem enumeration on desktop hosts.
+    /// Returns one page of visible media assets for the requested filter.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -167,8 +164,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host media-library detail APIs on mobile and filesystem-backed media descriptors on
-    /// current desktop hosts.
+    /// Returns one richer descriptor for the identified media asset.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -196,8 +192,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host media-library write APIs on mobile and current desktop media-root import flows on
-    /// desktop hosts.
+    /// Imports one runtime-visible file into the host media library.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -228,8 +223,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host media-library delete APIs on mobile and filesystem-backed media-root deletion on
-    /// current desktop hosts.
+    /// Deletes the identified media assets and returns the deleted count.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -257,8 +251,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host media-list queries on mobile and filesystem-backed directory watchers plus
-    /// runtime watch state on current desktop hosts.
+    /// Opens one stream of added, updated, and removed asset events for the filtered asset set.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -286,7 +279,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses runtime watch state cleanup.
+    /// Closes one opened media watch stream and releases host watch state.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -314,7 +307,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses runtime media watch state.
+    /// Waits for one queued media watch event from the opened stream.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -345,7 +338,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses runtime media watch state.
+    /// Returns one queued media watch event when available without waiting.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.

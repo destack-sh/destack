@@ -1332,8 +1332,6 @@ pub enum MediaAssetKind {
     Video = 2,
     /// Audio.
     Audio = 3,
-    /// Other.
-    Other = 4,
 }
 
 impl VmValueCodec for MediaAssetKind {
@@ -1343,7 +1341,6 @@ impl VmValueCodec for MediaAssetKind {
             1i32 => Self::Image,
             2i32 => Self::Video,
             3i32 => Self::Audio,
-            4i32 => Self::Other,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",

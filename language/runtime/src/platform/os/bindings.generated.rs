@@ -4271,7 +4271,6 @@ fn decode_destack_os_media_import_path_args(
         1i32 => MediaAssetKind::Image,
         2i32 => MediaAssetKind::Video,
         3i32 => MediaAssetKind::Audio,
-        4i32 => MediaAssetKind::Other,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "kind",
