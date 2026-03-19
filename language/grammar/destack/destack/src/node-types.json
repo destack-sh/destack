@@ -573,14 +573,6 @@
           "named": true
         },
         {
-          "type": "function_declaration",
-          "named": true
-        },
-        {
-          "type": "generator_function_declaration",
-          "named": true
-        },
-        {
           "type": "internal_module",
           "named": true
         }
@@ -1663,7 +1655,7 @@
     "fields": {},
     "children": {
       "multiple": true,
-      "required": false,
+      "required": true,
       "types": [
         {
           "type": "extends_clause",
@@ -2718,18 +2710,6 @@
       "multiple": true,
       "required": false,
       "types": [
-        {
-          "type": "associated_const_declaration",
-          "named": true
-        },
-        {
-          "type": "associated_type_declaration",
-          "named": true
-        },
-        {
-          "type": "comptime_block_statement",
-          "named": true
-        },
         {
           "type": "enum_assignment",
           "named": true
@@ -4303,7 +4283,7 @@
     "fields": {
       "body": {
         "multiple": false,
-        "required": false,
+        "required": true,
         "types": [
           {
             "type": "interface_body",
@@ -4313,7 +4293,7 @@
       },
       "name": {
         "multiple": false,
-        "required": false,
+        "required": true,
         "types": [
           {
             "type": "type_identifier",
@@ -4349,7 +4329,7 @@
     "fields": {
       "body": {
         "multiple": false,
-        "required": false,
+        "required": true,
         "types": [
           {
             "type": "statement_block",
@@ -4367,10 +4347,6 @@
           },
           {
             "type": "nested_identifier",
-            "named": true
-          },
-          {
-            "type": "string",
             "named": true
           }
         ]
@@ -4995,10 +4971,6 @@
         },
         {
           "type": "number",
-          "named": true
-        },
-        {
-          "type": "object",
           "named": true
         },
         {
@@ -6469,13 +6441,9 @@
       }
     },
     "children": {
-      "multiple": true,
+      "multiple": false,
       "required": false,
       "types": [
-        {
-          "type": "extends_clause",
-          "named": true
-        },
         {
           "type": "implements_clause",
           "named": true
@@ -7962,11 +7930,11 @@
   },
   {
     "type": "number",
-    "named": true
+    "named": false
   },
   {
     "type": "number",
-    "named": false
+    "named": true
   },
   {
     "type": "object",
