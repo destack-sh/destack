@@ -32,15 +32,15 @@ export struct DocumentDescriptor {
     uri: string;
     /// Host-visible document name.
     name: string;
-    /// Normalized content type when cheap or natively available.
+    /// Normalized content type when the host reports it.
     contentType?: string;
-    /// Document size in bytes when available.
+    /// Document size in bytes when the host reports it.
     sizeBytes?: uint64;
-    /// Document modification timestamp in UTC nanoseconds when available.
+    /// Document modification timestamp in UTC nanoseconds when the host reports it.
     modifiedUnixNs?: uint64;
     /// Whether this descriptor represents one directory.
     isDirectory: boolean;
-    /// Runtime-visible local path when the host grants direct local access or one app-storage import exists.
+    /// Runtime-visible local path when the host exposes direct local access or one app-storage import exists.
     localPath?: OsPath;
 }
 
@@ -92,7 +92,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host-local filesystem import after one prior picker or provider selection.
+    /// Imports selected local documents into app-owned storage on the current host backend.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -118,11 +118,11 @@ declare namespace os {
 
     /// Persist external document access for later reopen.
     ///
-    /// Persist host-granted access for selected external documents and return durable grant descriptors.
+    /// Persist durable document-access tokens for selected documents and return grant descriptors.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host document-grant persistence where available and path-backed grant state on desktop hosts with direct local access.
+    /// Uses persisted runtime document-access state on the current host backend.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -153,7 +153,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host document-grant persistence state.
+    /// Uses persisted runtime document-access state.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -181,7 +181,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host document-grant persistence state.
+    /// Uses persisted runtime document-access state.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -209,7 +209,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses local `file://` URI opens on current desktop hosts, with future provider-backed backends layered onto the same handle contract.
+    /// Opens document URIs that the current host backend can resolve directly.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -240,7 +240,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses persisted desktop grant state backed by local paths on current hosts, with future provider-specific reopen backends layered onto the same handle contract.
+    /// Reopens one persisted runtime document-access token on the current host backend.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.

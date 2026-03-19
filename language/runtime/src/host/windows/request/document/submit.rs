@@ -11,10 +11,11 @@ use windows::Win32::UI::Shell::{
 };
 use windows::core::{Error as WindowsError, HRESULT, PCWSTR};
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::app::document::pick::{
     HOST_DOCUMENT_PICK_OPERATION, document_descriptor_value_from_path,
-    normalized_document_extensions, validate_document_pick_options,
+    validate_document_pick_options, validated_document_content_types,
+    validated_document_extensions,
 };
 use crate::host::core::HostRequestContext;
 use crate::platform::PlatformError;
@@ -67,7 +68,16 @@ fn normalized_options(
 ) -> RuntimeResult<WindowsDocumentPickOptions> {
     validate_document_pick_options(options)?;
 
-    let extensions = normalized_document_extensions(options)?;
+    let content_types = validated_document_content_types(options)?;
+    let extensions = validated_document_extensions(options)?;
+
+    // windows common dialogs only expose filesystem pattern filters here
+    if content_types
+        .iter()
+        .any(|content_type| content_type != "*/*")
+    {
+        return Err(not_supported(HOST_DOCUMENT_PICK_OPERATION));
+    }
 
     // windows common dialogs cannot mix folder picking with file-type filters
     if options.allow_directories && !extensions.is_empty() {
@@ -174,7 +184,7 @@ fn configure_dialog(
     Ok(())
 }
 
-/// Decode one path-backed result array from the Windows picker.
+/// Decode one result array from the Windows picker.
 fn pick_results(dialog: &IFileOpenDialog) -> RuntimeResult<Vec<DocumentDescriptorValue>> {
     let results = unsafe { dialog.GetResults() }.map_err(windows_dialog_error)?;
     let count = unsafe { results.GetCount() }.map_err(windows_dialog_error)?;
@@ -206,8 +216,8 @@ fn pick_results(dialog: &IFileOpenDialog) -> RuntimeResult<Vec<DocumentDescripto
 }
 
 /// Map one Windows dialog error into one runtime error.
-fn windows_dialog_error(error: WindowsError) -> Box<crate::diagnostic::RuntimeError> {
-    crate::diagnostic::RuntimeError::from(PlatformError::io_with(
+fn windows_dialog_error(error: WindowsError) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
         Some(PlatformErrorCode::IoInvalidData),
         None,
         None,
@@ -244,4 +254,29 @@ pub(crate) fn pick_documents(
     options: &DocumentPickOptionsValue,
 ) -> RuntimeResult<Vec<DocumentDescriptorValue>> {
     pick_documents_on_windows(options)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalized_options;
+    use crate::platform::os::abi_generated::DocumentPickOptionsValue;
+
+    /// Reject MIME-only document filters that the Windows picker cannot express natively.
+    #[test]
+    fn test_normalized_options_rejects_content_type_filters() {
+        let options = DocumentPickOptionsValue {
+            content_types: vec!["text/plain".to_string()],
+            extensions: Vec::new(),
+            multiple: false,
+            allow_directories: false,
+        };
+
+        let error = normalized_options(&options)
+            .expect_err("windows picker should reject MIME-only filters without native lowering");
+
+        assert_eq!(
+            error.code,
+            Some(crate::platform::diagnostic::PlatformErrorCode::NotSupported)
+        );
+    }
 }

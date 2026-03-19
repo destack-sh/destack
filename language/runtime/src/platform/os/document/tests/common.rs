@@ -10,6 +10,10 @@ use destack_workspace::RuntimeOptions;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::app::document::pick::document_descriptor_value_from_path;
+#[cfg(target_os = "macos")]
+use crate::host::macos::set_macos_document_test_pick_hook;
+#[cfg(windows)]
+use crate::host::windows::set_windows_document_test_pick_hook;
 use crate::platform::core::{NativeAbiCodec, VmAbiCodec};
 #[cfg(not(any(unix, windows)))]
 use crate::platform::fs::abi_generated::{OsPathBytesValue, OsPathValue, PathBytesValue};
@@ -18,12 +22,8 @@ use crate::platform::fs::abi_generated::{OsPathBytesValue, OsPathValue, PathByte
 #[cfg(windows)]
 use crate::platform::fs::abi_generated::{OsPathUtf16Value, OsPathValue, PathUtf16Value};
 use crate::platform::os::abi_generated::{DocumentDescriptorValue, DocumentPickOptionsValue};
-#[cfg(target_os = "macos")]
-use crate::platform::os::document::unix::set_test_pick_hook;
-#[cfg(windows)]
-use crate::platform::os::document::windows::set_test_pick_hook;
 use crate::platform::os::tests::{
-    HarnessValue, OsHarnessContext, with_harness_context, with_harness_context_with_options,
+    HarnessContext, HarnessValue, with_configured_harness_context, with_harness_context,
 };
 use crate::platform::os::{
     DocumentAccessGrant, DocumentAccessGrantVm, DocumentDescriptor, DocumentDescriptorVm,
@@ -41,6 +41,21 @@ static TEST_DOCUMENT_PICK_OPTIONS: OnceLock<Mutex<Option<DocumentPickOptionsValu
 static TEST_DOCUMENT_DATA_DIRECTORY: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
 /// Shared source file override for app-storage import picker tests.
 static TEST_DOCUMENT_SOURCE_PATH: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
+
+/// Install one test picker hook for the active host lane.
+pub(super) fn set_test_pick_hook(
+    hook: Option<fn(DocumentPickOptionsValue) -> RuntimeResult<Vec<DocumentDescriptorValue>>>,
+) {
+    #[cfg(target_os = "macos")]
+    {
+        set_macos_document_test_pick_hook(hook);
+    }
+
+    #[cfg(windows)]
+    {
+        set_windows_document_test_pick_hook(hook);
+    }
+}
 
 /// Reset the installed picker hook after one test case.
 pub(super) struct DocumentPickHookGuard;
@@ -72,7 +87,7 @@ impl Drop for DocumentPickHookGuard {
 
 /// Build one pick-options payload for the active lane.
 pub(super) fn pick_options_harness_value(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     content_types: &[&str],
     extensions: &[&str],
     multiple: bool,
@@ -290,7 +305,7 @@ pub(super) fn set_test_document_source_path(path: PathBuf) {
 
 /// Decode one picked document descriptor array.
 pub(super) fn decode_document_descriptors(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     value: HarnessValue<NativeArray<DocumentDescriptor>, VmArray<DocumentDescriptorVm>>,
 ) -> RuntimeResult<Vec<DocumentDescriptorValue>> {
     match value {
@@ -331,7 +346,7 @@ pub(super) fn decode_document_descriptors(
 
 /// Decode one persisted document-access grant array.
 pub(super) fn decode_document_access_grants(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     value: HarnessValue<NativeArray<DocumentAccessGrant>, VmArray<DocumentAccessGrantVm>>,
 ) -> RuntimeResult<Vec<crate::platform::os::abi_generated::DocumentAccessGrantValue>> {
     match value {
@@ -374,7 +389,7 @@ pub(super) fn decode_document_access_grants(
 
 /// Build one harness string payload for the active document lane.
 pub(super) fn string_harness_value(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     value: &str,
 ) -> HarnessValue<NativeStringRef, vm::StringHandle> {
     match context.vm_context {
@@ -394,7 +409,7 @@ pub(super) fn string_harness_value(
 
 /// Build one harness byte payload for the active document lane.
 pub(super) fn bytes_harness_value(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     value: &[u8],
 ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
     match context.vm_context {
@@ -413,7 +428,7 @@ pub(super) fn bytes_harness_value(
 
 /// Build one descriptor-array payload for the active document lane.
 pub(super) fn descriptor_array_harness_value(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     descriptors: Vec<DocumentDescriptorValue>,
 ) -> RuntimeResult<HarnessValue<NativeArray<DocumentDescriptor>, VmArray<DocumentDescriptorVm>>> {
     match context.vm_context {
@@ -443,7 +458,7 @@ pub(super) fn descriptor_array_harness_value(
 
 /// Build one string-array payload for the active document lane.
 pub(super) fn string_array_harness_value(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     values: &[String],
 ) -> RuntimeResult<HarnessValue<NativeArray<NativeStringRef>, VmArray<vm::StringHandle>>> {
     match context.vm_context {
@@ -477,7 +492,7 @@ pub(super) fn string_array_harness_value(
 
 /// Decode one document byte payload into one owned byte vector.
 pub(super) fn decode_document_bytes(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     value: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
 ) -> RuntimeResult<Vec<u8>> {
     match value {
@@ -497,7 +512,7 @@ pub(super) fn decode_document_bytes(
 
 /// Run one document harness callback on both native and VM lanes.
 pub(super) fn with_document_harness(
-    callback: impl FnMut(OsHarnessContext<'_>) -> RuntimeResult<()> + Copy,
+    callback: impl FnMut(HarnessContext<'_>) -> RuntimeResult<()> + Copy,
 ) {
     with_harness_context(callback);
 }
@@ -505,9 +520,9 @@ pub(super) fn with_document_harness(
 /// Run one document harness callback with runtime options on both native and VM lanes.
 pub(super) fn with_document_harness_with_options(
     configure: fn(&mut RuntimeOptions),
-    callback: impl FnMut(OsHarnessContext<'_>) -> RuntimeResult<()> + Copy,
+    callback: impl FnMut(HarnessContext<'_>) -> RuntimeResult<()> + Copy,
 ) {
-    with_harness_context_with_options(configure, callback);
+    with_configured_harness_context(configure, callback);
 }
 
 /// Return the last picker options payload captured by the active test hook.

@@ -14,14 +14,10 @@ use super::common::{
     configure_document_app_storage_directory, decode_document_descriptors,
     descriptor_array_harness_value, os_path_value_from_path, path_buf_from_os_path_value,
     pick_options_harness_value, set_test_document_app_storage_directory,
-    set_test_document_source_path, test_document_pick_local_file_hook,
+    set_test_document_source_path, set_test_pick_hook, test_document_pick_local_file_hook,
     test_document_pick_success_hook, unique_document_app_storage_directory, with_document_harness,
     with_document_harness_with_options,
 };
-#[cfg(target_os = "macos")]
-use crate::platform::os::document::unix::set_test_pick_hook;
-#[cfg(windows)]
-use crate::platform::os::document::windows::set_test_pick_hook;
 
 /// Verify document pick decodes picker options and descriptor results on both lanes.
 #[test]

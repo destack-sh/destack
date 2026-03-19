@@ -5,14 +5,11 @@ use super::common::{
     DocumentPickHookGuard, TEST_DOCUMENT_PICK_MUTEX, bytes_harness_value,
     configure_document_app_storage_directory, decode_document_access_grants, decode_document_bytes,
     decode_document_descriptors, descriptor_array_harness_value, pick_options_harness_value,
-    set_test_document_app_storage_directory, set_test_document_source_path, string_harness_value,
-    test_document_pick_local_file_hook, unique_document_app_storage_directory,
-    with_document_harness, with_document_harness_with_options,
+    set_test_document_app_storage_directory, set_test_document_source_path, set_test_pick_hook,
+    string_harness_value, test_document_pick_local_file_hook,
+    unique_document_app_storage_directory, with_document_harness,
+    with_document_harness_with_options,
 };
-#[cfg(target_os = "macos")]
-use crate::platform::os::document::unix::set_test_pick_hook;
-#[cfg(windows)]
-use crate::platform::os::document::windows::set_test_pick_hook;
 
 /// Verify local document URIs open as real byte-stream document handles.
 #[test]

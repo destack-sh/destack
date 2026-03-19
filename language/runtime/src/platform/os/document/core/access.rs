@@ -10,10 +10,10 @@ use crate::runtime::BindingCallContext;
 
 use crate::host::operation::document as host_document;
 
-use super::{
-    DOCUMENT_ACCESS_OPEN_OPERATION, local_path_from_document_descriptor, open_document_path,
-    validate_grant_access,
+use super::core::{
+    DOCUMENT_ACCESS_OPEN_OPERATION, local_path_from_document_descriptor, validate_grant_access,
 };
+use super::open_document_path;
 
 /// Open one persisted document-access grant.
 pub(crate) fn access_open(

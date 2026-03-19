@@ -1925,7 +1925,7 @@ pub(crate) unsafe fn destack_os_lifecycle_try_read(
 
 /// Read last known location sample.
 ///
-/// Read one cached location sample from the host location service.
+/// Read the most recent location sample from the host location service.
 ///
 /// # Platform
 /// Unix and Windows.

@@ -2,17 +2,24 @@
 
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{
-    PlatformError,
-    NativeSlice,
-    NativeArray,
-    NativeStringRef,
-};
+use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
 
 use crate::runtime::BindingCallContext;
 
+use crate::platform::os::{
+    BackgroundEvent, BackgroundEventOpenOptions, BackgroundStatus, BackgroundTaskDescriptor,
+    BackgroundTaskOptions, BackgroundTaskResult, CalendarDescriptor, CalendarEvent,
+    CalendarEventDraft, CalendarEventQuery, ClipboardBinaryFormat, Contact, ContactDraft,
+    ContactPage, ContactQuery, CredentialAuthenticationOptions, CredentialAuthenticationResult,
+    CredentialQuery, CredentialRecord, CredentialWriteOptions, DocumentAccess, DocumentDescriptor,
+    DocumentPickOptions, HostIdentity, IntentEvent, IntentOpenOptions, LifecycleEvent,
+    LifecycleState, LoadAverage, LocationSample, LocationWatchOptions, MediaAssetDescriptor,
+    MediaAssetKind, MediaEvent, MediaPage, MediaQuery, MediaWatchOptions, MountEntry, NetworkEvent,
+    NetworkState, NotificationCategory, NotificationEvent, NotificationEventOpenOptions,
+    NotificationPermissionState, NotificationRequest, NotificationScheduledDescriptor, Permission,
+    PermissionEntry, PermissionState, PowerState, SystemSnapshot,
+};
 use crate::platform::{fs, resource};
-use crate::platform::os::{BackgroundEvent, BackgroundEventOpenOptions, BackgroundStatus, BackgroundTaskDescriptor, BackgroundTaskOptions, BackgroundTaskResult, CalendarDescriptor, CalendarEvent, CalendarEventDraft, CalendarEventQuery, ClipboardBinaryFormat, Contact, ContactDraft, ContactPage, ContactQuery, CredentialAuthenticationOptions, CredentialAuthenticationResult, CredentialQuery, CredentialRecord, CredentialWriteOptions, DocumentAccess, DocumentDescriptor, DocumentPickOptions, HostIdentity, IntentEvent, IntentOpenOptions, LifecycleEvent, LifecycleState, LoadAverage, LocationSample, LocationWatchOptions, MediaAssetDescriptor, MediaAssetKind, MediaPage, MediaQuery, MountEntry, NetworkEvent, NetworkState, NotificationCategory, NotificationEvent, NotificationEventOpenOptions, NotificationPermissionState, NotificationRequest, NotificationScheduledDescriptor, Permission, PermissionEntry, PermissionState, PowerState, SystemSnapshot};
 
 /// Report completion for one scheduled background-task execution.
 ///
@@ -30,7 +37,11 @@ use crate::platform::os::{BackgroundEvent, BackgroundEventOpenOptions, Backgroun
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_background_complete(_binding: &BindingCallContext, executionid: NativeStringRef, argument_result: BackgroundTaskResult) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_background_complete(
+    _binding: &BindingCallContext,
+    executionid: NativeStringRef,
+    argument_result: BackgroundTaskResult,
+) -> RuntimeResult<()> {
     let _ = (executionid, argument_result);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -55,7 +66,10 @@ pub(crate) unsafe fn destack_os_background_complete(_binding: &BindingCallContex
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_background_event_close(_binding: &BindingCallContext, handle: resource::BackgroundEventHandle) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_background_event_close(
+    _binding: &BindingCallContext,
+    handle: resource::BackgroundEventHandle,
+) -> RuntimeResult<()> {
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -80,7 +94,11 @@ pub(crate) unsafe fn destack_os_background_event_close(_binding: &BindingCallCon
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_background_event_open(_binding: &BindingCallContext, out: *mut resource::BackgroundEventHandle, options: BackgroundEventOpenOptions) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_background_event_open(
+    _binding: &BindingCallContext,
+    out: *mut resource::BackgroundEventHandle,
+    options: BackgroundEventOpenOptions,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -108,7 +126,12 @@ pub(crate) unsafe fn destack_os_background_event_open(_binding: &BindingCallCont
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_background_event_read(_binding: &BindingCallContext, out: *mut BackgroundEvent, handle: resource::BackgroundEventHandle, timeoutns: u64) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_background_event_read(
+    _binding: &BindingCallContext,
+    out: *mut BackgroundEvent,
+    handle: resource::BackgroundEventHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -136,7 +159,11 @@ pub(crate) unsafe fn destack_os_background_event_read(_binding: &BindingCallCont
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_background_event_try_read(_binding: &BindingCallContext, out: *mut BackgroundEvent, handle: resource::BackgroundEventHandle) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_background_event_try_read(
+    _binding: &BindingCallContext,
+    out: *mut BackgroundEvent,
+    handle: resource::BackgroundEventHandle,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -164,16 +191,16 @@ pub(crate) unsafe fn destack_os_background_event_try_read(_binding: &BindingCall
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_background_list(_binding: &BindingCallContext, out: *mut NativeArray<BackgroundTaskDescriptor>) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_background_list(
+    _binding: &BindingCallContext,
+    out: *mut NativeArray<BackgroundTaskDescriptor>,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.background.list",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.background.list")).boxed())
 }
 
 /// Register one background task.
@@ -192,7 +219,10 @@ pub(crate) unsafe fn destack_os_background_list(_binding: &BindingCallContext, o
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_background_register(_binding: &BindingCallContext, options: BackgroundTaskOptions) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_background_register(
+    _binding: &BindingCallContext,
+    options: BackgroundTaskOptions,
+) -> RuntimeResult<()> {
     let _ = options;
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -217,16 +247,16 @@ pub(crate) unsafe fn destack_os_background_register(_binding: &BindingCallContex
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_background_status(_binding: &BindingCallContext, out: *mut BackgroundStatus) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_background_status(
+    _binding: &BindingCallContext,
+    out: *mut BackgroundStatus,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.background.status",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.background.status")).boxed())
 }
 
 /// Trigger one background task for testing.
@@ -245,7 +275,11 @@ pub(crate) unsafe fn destack_os_background_status(_binding: &BindingCallContext,
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_background_trigger_test(_binding: &BindingCallContext, out: *mut bool, identifier: NativeStringRef) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_background_trigger_test(
+    _binding: &BindingCallContext,
+    out: *mut bool,
+    identifier: NativeStringRef,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -273,7 +307,10 @@ pub(crate) unsafe fn destack_os_background_trigger_test(_binding: &BindingCallCo
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_background_unregister(_binding: &BindingCallContext, identifier: NativeStringRef) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_background_unregister(
+    _binding: &BindingCallContext,
+    identifier: NativeStringRef,
+) -> RuntimeResult<()> {
     let _ = identifier;
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -298,7 +335,11 @@ pub(crate) unsafe fn destack_os_background_unregister(_binding: &BindingCallCont
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_calendar_event_create(_binding: &BindingCallContext, out: *mut NativeStringRef, event: CalendarEventDraft) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_calendar_event_create(
+    _binding: &BindingCallContext,
+    out: *mut NativeStringRef,
+    event: CalendarEventDraft,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -326,7 +367,10 @@ pub(crate) unsafe fn destack_os_calendar_event_create(_binding: &BindingCallCont
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_calendar_event_delete(_binding: &BindingCallContext, id: NativeStringRef) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_calendar_event_delete(
+    _binding: &BindingCallContext,
+    id: NativeStringRef,
+) -> RuntimeResult<()> {
     let _ = id;
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -351,7 +395,11 @@ pub(crate) unsafe fn destack_os_calendar_event_delete(_binding: &BindingCallCont
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_calendar_event_list(_binding: &BindingCallContext, out: *mut NativeArray<CalendarEvent>, query: CalendarEventQuery) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_calendar_event_list(
+    _binding: &BindingCallContext,
+    out: *mut NativeArray<CalendarEvent>,
+    query: CalendarEventQuery,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -379,7 +427,11 @@ pub(crate) unsafe fn destack_os_calendar_event_list(_binding: &BindingCallContex
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_calendar_event_read(_binding: &BindingCallContext, out: *mut CalendarEvent, id: NativeStringRef) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_calendar_event_read(
+    _binding: &BindingCallContext,
+    out: *mut CalendarEvent,
+    id: NativeStringRef,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -407,7 +459,11 @@ pub(crate) unsafe fn destack_os_calendar_event_read(_binding: &BindingCallContex
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_calendar_event_update(_binding: &BindingCallContext, id: NativeStringRef, event: CalendarEventDraft) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_calendar_event_update(
+    _binding: &BindingCallContext,
+    id: NativeStringRef,
+    event: CalendarEventDraft,
+) -> RuntimeResult<()> {
     let _ = (id, event);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -432,16 +488,16 @@ pub(crate) unsafe fn destack_os_calendar_event_update(_binding: &BindingCallCont
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_calendar_list(_binding: &BindingCallContext, out: *mut NativeArray<CalendarDescriptor>) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_calendar_list(
+    _binding: &BindingCallContext,
+    out: *mut NativeArray<CalendarDescriptor>,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.calendar.list",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.calendar.list")).boxed())
 }
 
 /// Clear clipboard payload.
@@ -460,12 +516,10 @@ pub(crate) unsafe fn destack_os_calendar_list(_binding: &BindingCallContext, out
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_clipboard_clear(_binding: &BindingCallContext) -> RuntimeResult<()> {
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.clipboard.clear",
-    ))
-    .boxed())
+pub(crate) unsafe fn destack_os_clipboard_clear(
+    _binding: &BindingCallContext,
+) -> RuntimeResult<()> {
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.clipboard.clear")).boxed())
 }
 
 /// Query whether text clipboard payload exists.
@@ -484,16 +538,16 @@ pub(crate) unsafe fn destack_os_clipboard_clear(_binding: &BindingCallContext) -
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_clipboard_has_text(_binding: &BindingCallContext, out: *mut bool) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_clipboard_has_text(
+    _binding: &BindingCallContext,
+    out: *mut bool,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.clipboard.hasText",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.clipboard.hasText")).boxed())
 }
 
 /// Read binary clipboard payload.
@@ -512,7 +566,11 @@ pub(crate) unsafe fn destack_os_clipboard_has_text(_binding: &BindingCallContext
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_clipboard_read_bytes(_binding: &BindingCallContext, out: *mut NativeSlice<u8>, format: ClipboardBinaryFormat) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_clipboard_read_bytes(
+    _binding: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    format: ClipboardBinaryFormat,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -540,7 +598,10 @@ pub(crate) unsafe fn destack_os_clipboard_read_bytes(_binding: &BindingCallConte
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_clipboard_read_text(_binding: &BindingCallContext, out: *mut NativeStringRef) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_clipboard_read_text(
+    _binding: &BindingCallContext,
+    out: *mut NativeStringRef,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -569,7 +630,10 @@ pub(crate) unsafe fn destack_os_clipboard_read_text(_binding: &BindingCallContex
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_clipboard_sequence(_binding: &BindingCallContext, out: *mut u64) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_clipboard_sequence(
+    _binding: &BindingCallContext,
+    out: *mut u64,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -597,7 +661,11 @@ pub(crate) unsafe fn destack_os_clipboard_sequence(_binding: &BindingCallContext
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_clipboard_write_bytes(_binding: &BindingCallContext, format: ClipboardBinaryFormat, argument_bytes: NativeSlice<u8>) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_clipboard_write_bytes(
+    _binding: &BindingCallContext,
+    format: ClipboardBinaryFormat,
+    argument_bytes: NativeSlice<u8>,
+) -> RuntimeResult<()> {
     let _ = (format, argument_bytes);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -622,7 +690,10 @@ pub(crate) unsafe fn destack_os_clipboard_write_bytes(_binding: &BindingCallCont
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_clipboard_write_text(_binding: &BindingCallContext, text: NativeStringRef) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_clipboard_write_text(
+    _binding: &BindingCallContext,
+    text: NativeStringRef,
+) -> RuntimeResult<()> {
     let _ = text;
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -647,16 +718,17 @@ pub(crate) unsafe fn destack_os_clipboard_write_text(_binding: &BindingCallConte
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_contact_create(_binding: &BindingCallContext, out: *mut NativeStringRef, contact: ContactDraft) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_contact_create(
+    _binding: &BindingCallContext,
+    out: *mut NativeStringRef,
+    contact: ContactDraft,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, contact);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.contact.create",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.contact.create")).boxed())
 }
 
 /// Delete one contact.
@@ -675,13 +747,13 @@ pub(crate) unsafe fn destack_os_contact_create(_binding: &BindingCallContext, ou
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_contact_delete(_binding: &BindingCallContext, id: NativeStringRef) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_contact_delete(
+    _binding: &BindingCallContext,
+    id: NativeStringRef,
+) -> RuntimeResult<()> {
     let _ = id;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.contact.delete",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.contact.delete")).boxed())
 }
 
 /// List contacts.
@@ -700,16 +772,17 @@ pub(crate) unsafe fn destack_os_contact_delete(_binding: &BindingCallContext, id
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_contact_list(_binding: &BindingCallContext, out: *mut ContactPage, query: ContactQuery) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_contact_list(
+    _binding: &BindingCallContext,
+    out: *mut ContactPage,
+    query: ContactQuery,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, query);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.contact.list",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.contact.list")).boxed())
 }
 
 /// Read one contact by identifier.
@@ -728,16 +801,17 @@ pub(crate) unsafe fn destack_os_contact_list(_binding: &BindingCallContext, out:
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_contact_read(_binding: &BindingCallContext, out: *mut Contact, id: NativeStringRef) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_contact_read(
+    _binding: &BindingCallContext,
+    out: *mut Contact,
+    id: NativeStringRef,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, id);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.contact.read",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.contact.read")).boxed())
 }
 
 /// Search contacts.
@@ -756,16 +830,18 @@ pub(crate) unsafe fn destack_os_contact_read(_binding: &BindingCallContext, out:
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_contact_search(_binding: &BindingCallContext, out: *mut ContactPage, querytext: NativeStringRef, query: ContactQuery) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_contact_search(
+    _binding: &BindingCallContext,
+    out: *mut ContactPage,
+    querytext: NativeStringRef,
+    query: ContactQuery,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, querytext, query);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.contact.search",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.contact.search")).boxed())
 }
 
 /// Update one contact.
@@ -784,13 +860,14 @@ pub(crate) unsafe fn destack_os_contact_search(_binding: &BindingCallContext, ou
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_contact_update(_binding: &BindingCallContext, id: NativeStringRef, contact: ContactDraft) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_contact_update(
+    _binding: &BindingCallContext,
+    id: NativeStringRef,
+    contact: ContactDraft,
+) -> RuntimeResult<()> {
     let _ = (id, contact);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.contact.update",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.contact.update")).boxed())
 }
 
 /// Request one host credential authentication challenge.
@@ -812,7 +889,11 @@ pub(crate) unsafe fn destack_os_contact_update(_binding: &BindingCallContext, id
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_credentials_authenticate(_binding: &BindingCallContext, out: *mut CredentialAuthenticationResult, options: CredentialAuthenticationOptions) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_credentials_authenticate(
+    _binding: &BindingCallContext,
+    out: *mut CredentialAuthenticationResult,
+    options: CredentialAuthenticationOptions,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -842,7 +923,13 @@ pub(crate) unsafe fn destack_os_credentials_authenticate(_binding: &BindingCallC
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_credentials_contains(_binding: &BindingCallContext, out: *mut bool, service: NativeStringRef, account: NativeStringRef, accessgroup: Option<NativeStringRef>) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_credentials_contains(
+    _binding: &BindingCallContext,
+    out: *mut bool,
+    service: NativeStringRef,
+    account: NativeStringRef,
+    accessgroup: Option<NativeStringRef>,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -872,7 +959,12 @@ pub(crate) unsafe fn destack_os_credentials_contains(_binding: &BindingCallConte
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_credentials_delete(_binding: &BindingCallContext, service: NativeStringRef, account: NativeStringRef, accessgroup: Option<NativeStringRef>) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_credentials_delete(
+    _binding: &BindingCallContext,
+    service: NativeStringRef,
+    account: NativeStringRef,
+    accessgroup: Option<NativeStringRef>,
+) -> RuntimeResult<()> {
     let _ = (service, account, accessgroup);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -897,16 +989,17 @@ pub(crate) unsafe fn destack_os_credentials_delete(_binding: &BindingCallContext
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_credentials_read(_binding: &BindingCallContext, out: *mut CredentialRecord, query: CredentialQuery) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_credentials_read(
+    _binding: &BindingCallContext,
+    out: *mut CredentialRecord,
+    query: CredentialQuery,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, query);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.credentials.read",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.credentials.read")).boxed())
 }
 
 /// Write one credential record.
@@ -926,13 +1019,13 @@ pub(crate) unsafe fn destack_os_credentials_read(_binding: &BindingCallContext, 
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_credentials_write(_binding: &BindingCallContext, options: CredentialWriteOptions) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_credentials_write(
+    _binding: &BindingCallContext,
+    options: CredentialWriteOptions,
+) -> RuntimeResult<()> {
     let _ = options;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.credentials.write",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.credentials.write")).boxed())
 }
 
 /// Close one opened document handle.
@@ -951,13 +1044,13 @@ pub(crate) unsafe fn destack_os_credentials_write(_binding: &BindingCallContext,
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_document_close(_binding: &BindingCallContext, handle: resource::DocumentHandle) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_document_close(
+    _binding: &BindingCallContext,
+    handle: resource::DocumentHandle,
+) -> RuntimeResult<()> {
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.document.close",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.document.close")).boxed())
 }
 
 /// Flush one opened document handle.
@@ -976,13 +1069,13 @@ pub(crate) unsafe fn destack_os_document_close(_binding: &BindingCallContext, ha
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_document_flush(_binding: &BindingCallContext, handle: resource::DocumentHandle) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_document_flush(
+    _binding: &BindingCallContext,
+    handle: resource::DocumentHandle,
+) -> RuntimeResult<()> {
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.document.flush",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.document.flush")).boxed())
 }
 
 /// Open one document URI.
@@ -1001,16 +1094,18 @@ pub(crate) unsafe fn destack_os_document_flush(_binding: &BindingCallContext, ha
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_document_open(_binding: &BindingCallContext, out: *mut resource::DocumentHandle, uri: NativeStringRef, access: DocumentAccess) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_document_open(
+    _binding: &BindingCallContext,
+    out: *mut resource::DocumentHandle,
+    uri: NativeStringRef,
+    access: DocumentAccess,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, uri, access);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.document.open",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.document.open")).boxed())
 }
 
 /// Pick documents from host picker UI.
@@ -1029,16 +1124,17 @@ pub(crate) unsafe fn destack_os_document_open(_binding: &BindingCallContext, out
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_document_pick(_binding: &BindingCallContext, out: *mut NativeArray<DocumentDescriptor>, options: DocumentPickOptions) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_document_pick(
+    _binding: &BindingCallContext,
+    out: *mut NativeArray<DocumentDescriptor>,
+    options: DocumentPickOptions,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, options);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.document.pick",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.document.pick")).boxed())
 }
 
 /// Read one chunk of document bytes.
@@ -1057,16 +1153,19 @@ pub(crate) unsafe fn destack_os_document_pick(_binding: &BindingCallContext, out
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_document_read(_binding: &BindingCallContext, out: *mut NativeSlice<u8>, handle: resource::DocumentHandle, maxbytes: u32, timeoutns: u64) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_document_read(
+    _binding: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    handle: resource::DocumentHandle,
+    maxbytes: u32,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, handle, maxbytes, timeoutns);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.document.read",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.document.read")).boxed())
 }
 
 /// Poll one chunk of document bytes without blocking.
@@ -1085,16 +1184,18 @@ pub(crate) unsafe fn destack_os_document_read(_binding: &BindingCallContext, out
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_document_try_read(_binding: &BindingCallContext, out: *mut NativeSlice<u8>, handle: resource::DocumentHandle, maxbytes: u32) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_document_try_read(
+    _binding: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    handle: resource::DocumentHandle,
+    maxbytes: u32,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, handle, maxbytes);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.document.tryRead",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.document.tryRead")).boxed())
 }
 
 /// Write one chunk of document bytes.
@@ -1113,16 +1214,19 @@ pub(crate) unsafe fn destack_os_document_try_read(_binding: &BindingCallContext,
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_document_write(_binding: &BindingCallContext, out: *mut u32, handle: resource::DocumentHandle, argument_bytes: NativeSlice<u8>, timeoutns: u64) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_document_write(
+    _binding: &BindingCallContext,
+    out: *mut u32,
+    handle: resource::DocumentHandle,
+    argument_bytes: NativeSlice<u8>,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, handle, argument_bytes, timeoutns);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.document.write",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.document.write")).boxed())
 }
 
 /// Read host identity.
@@ -1142,16 +1246,16 @@ pub(crate) unsafe fn destack_os_document_write(_binding: &BindingCallContext, ou
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_host_identity(_binding: &BindingCallContext, out: *mut HostIdentity) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_host_identity(
+    _binding: &BindingCallContext,
+    out: *mut HostIdentity,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.host.identity",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.host.identity")).boxed())
 }
 
 /// Read host boot time.
@@ -1171,7 +1275,10 @@ pub(crate) unsafe fn destack_os_host_identity(_binding: &BindingCallContext, out
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_boot_time_unix_ns(_binding: &BindingCallContext, out: *mut u64) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_boot_time_unix_ns(
+    _binding: &BindingCallContext,
+    out: *mut u64,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -1200,16 +1307,16 @@ pub(crate) unsafe fn destack_os_boot_time_unix_ns(_binding: &BindingCallContext,
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_load_average(_binding: &BindingCallContext, out: *mut LoadAverage) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_load_average(
+    _binding: &BindingCallContext,
+    out: *mut LoadAverage,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.info.loadAverage",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.info.loadAverage")).boxed())
 }
 
 /// Read host system information.
@@ -1229,7 +1336,10 @@ pub(crate) unsafe fn destack_os_load_average(_binding: &BindingCallContext, out:
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_system_snapshot(_binding: &BindingCallContext, out: *mut SystemSnapshot) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_system_snapshot(
+    _binding: &BindingCallContext,
+    out: *mut SystemSnapshot,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -1258,16 +1368,16 @@ pub(crate) unsafe fn destack_os_system_snapshot(_binding: &BindingCallContext, o
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_uptime_ns(_binding: &BindingCallContext, out: *mut u64) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_uptime_ns(
+    _binding: &BindingCallContext,
+    out: *mut u64,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.info.uptimeNs",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.info.uptimeNs")).boxed())
 }
 
 /// Query whether host can route one URL target.
@@ -1286,16 +1396,17 @@ pub(crate) unsafe fn destack_os_uptime_ns(_binding: &BindingCallContext, out: *m
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_intent_can_open_url(_binding: &BindingCallContext, out: *mut bool, url: NativeStringRef) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_intent_can_open_url(
+    _binding: &BindingCallContext,
+    out: *mut bool,
+    url: NativeStringRef,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, url);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.intent.canOpenUrl",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.canOpenUrl")).boxed())
 }
 
 /// Close one host intent stream.
@@ -1314,13 +1425,13 @@ pub(crate) unsafe fn destack_os_intent_can_open_url(_binding: &BindingCallContex
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_intent_close(_binding: &BindingCallContext, handle: resource::IntentHandle) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_intent_close(
+    _binding: &BindingCallContext,
+    handle: resource::IntentHandle,
+) -> RuntimeResult<()> {
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.intent.close",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.close")).boxed())
 }
 
 /// Open one host intent stream.
@@ -1339,16 +1450,17 @@ pub(crate) unsafe fn destack_os_intent_close(_binding: &BindingCallContext, hand
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_intent_open(_binding: &BindingCallContext, out: *mut resource::IntentHandle, options: IntentOpenOptions) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_intent_open(
+    _binding: &BindingCallContext,
+    out: *mut resource::IntentHandle,
+    options: IntentOpenOptions,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, options);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.intent.open",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.open")).boxed())
 }
 
 /// Request host to open one file path target.
@@ -1367,13 +1479,13 @@ pub(crate) unsafe fn destack_os_intent_open(_binding: &BindingCallContext, out: 
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_intent_open_path(_binding: &BindingCallContext, path: fs::OsPath) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_intent_open_path(
+    _binding: &BindingCallContext,
+    path: fs::OsPath,
+) -> RuntimeResult<()> {
     let _ = path;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.intent.openPath",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.openPath")).boxed())
 }
 
 /// Request host to open one URL target.
@@ -1392,13 +1504,13 @@ pub(crate) unsafe fn destack_os_intent_open_path(_binding: &BindingCallContext, 
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_intent_open_url(_binding: &BindingCallContext, url: NativeStringRef) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_intent_open_url(
+    _binding: &BindingCallContext,
+    url: NativeStringRef,
+) -> RuntimeResult<()> {
     let _ = url;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.intent.openUrl",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.openUrl")).boxed())
 }
 
 /// Wait for one inbound intent event.
@@ -1417,16 +1529,18 @@ pub(crate) unsafe fn destack_os_intent_open_url(_binding: &BindingCallContext, u
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_intent_read(_binding: &BindingCallContext, out: *mut IntentEvent, handle: resource::IntentHandle, timeoutns: u64) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_intent_read(
+    _binding: &BindingCallContext,
+    out: *mut IntentEvent,
+    handle: resource::IntentHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, handle, timeoutns);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.intent.read",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.read")).boxed())
 }
 
 /// Share file paths through host share routing.
@@ -1445,13 +1559,14 @@ pub(crate) unsafe fn destack_os_intent_read(_binding: &BindingCallContext, out: 
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_intent_share_paths(_binding: &BindingCallContext, paths: NativeArray<fs::OsPath>, mimetype: Option<NativeStringRef>) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_intent_share_paths(
+    _binding: &BindingCallContext,
+    paths: NativeArray<fs::OsPath>,
+    mimetype: Option<NativeStringRef>,
+) -> RuntimeResult<()> {
     let _ = (paths, mimetype);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.intent.sharePaths",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.sharePaths")).boxed())
 }
 
 /// Share one text payload through host share routing.
@@ -1470,13 +1585,14 @@ pub(crate) unsafe fn destack_os_intent_share_paths(_binding: &BindingCallContext
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_intent_share_text(_binding: &BindingCallContext, text: NativeStringRef, mimetype: Option<NativeStringRef>) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_intent_share_text(
+    _binding: &BindingCallContext,
+    text: NativeStringRef,
+    mimetype: Option<NativeStringRef>,
+) -> RuntimeResult<()> {
     let _ = (text, mimetype);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.intent.shareText",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.shareText")).boxed())
 }
 
 /// Poll one inbound intent event without blocking.
@@ -1495,16 +1611,17 @@ pub(crate) unsafe fn destack_os_intent_share_text(_binding: &BindingCallContext,
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_intent_try_read(_binding: &BindingCallContext, out: *mut IntentEvent, handle: resource::IntentHandle) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_intent_try_read(
+    _binding: &BindingCallContext,
+    out: *mut IntentEvent,
+    handle: resource::IntentHandle,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, handle);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.intent.tryRead",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.tryRead")).boxed())
 }
 
 /// Close lifecycle event stream.
@@ -1523,13 +1640,13 @@ pub(crate) unsafe fn destack_os_intent_try_read(_binding: &BindingCallContext, o
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_lifecycle_close(_binding: &BindingCallContext, handle: resource::LifecycleEventHandle) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_lifecycle_close(
+    _binding: &BindingCallContext,
+    handle: resource::LifecycleEventHandle,
+) -> RuntimeResult<()> {
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.lifecycle.close",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.lifecycle.close")).boxed())
 }
 
 /// Open lifecycle event stream.
@@ -1548,16 +1665,16 @@ pub(crate) unsafe fn destack_os_lifecycle_close(_binding: &BindingCallContext, h
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_lifecycle_open(_binding: &BindingCallContext, out: *mut resource::LifecycleEventHandle) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_lifecycle_open(
+    _binding: &BindingCallContext,
+    out: *mut resource::LifecycleEventHandle,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.lifecycle.open",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.lifecycle.open")).boxed())
 }
 
 /// Wait for one lifecycle event.
@@ -1576,16 +1693,18 @@ pub(crate) unsafe fn destack_os_lifecycle_open(_binding: &BindingCallContext, ou
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_lifecycle_read(_binding: &BindingCallContext, out: *mut LifecycleEvent, handle: resource::LifecycleEventHandle, timeoutns: u64) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_lifecycle_read(
+    _binding: &BindingCallContext,
+    out: *mut LifecycleEvent,
+    handle: resource::LifecycleEventHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, handle, timeoutns);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.lifecycle.read",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.lifecycle.read")).boxed())
 }
 
 /// Read current lifecycle state.
@@ -1604,16 +1723,16 @@ pub(crate) unsafe fn destack_os_lifecycle_read(_binding: &BindingCallContext, ou
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_lifecycle_state(_binding: &BindingCallContext, out: *mut LifecycleState) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_lifecycle_state(
+    _binding: &BindingCallContext,
+    out: *mut LifecycleState,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.lifecycle.state",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.lifecycle.state")).boxed())
 }
 
 /// Poll one lifecycle event without blocking.
@@ -1632,21 +1751,22 @@ pub(crate) unsafe fn destack_os_lifecycle_state(_binding: &BindingCallContext, o
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_lifecycle_try_read(_binding: &BindingCallContext, out: *mut LifecycleEvent, handle: resource::LifecycleEventHandle) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_lifecycle_try_read(
+    _binding: &BindingCallContext,
+    out: *mut LifecycleEvent,
+    handle: resource::LifecycleEventHandle,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, handle);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.lifecycle.tryRead",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.lifecycle.tryRead")).boxed())
 }
 
 /// Read last known location sample.
 ///
-/// Read one cached location sample from the host location service.
+/// Read the most recent location sample from the host location service.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1660,7 +1780,10 @@ pub(crate) unsafe fn destack_os_lifecycle_try_read(_binding: &BindingCallContext
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_location_last_known(_binding: &BindingCallContext, out: *mut LocationSample) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_location_last_known(
+    _binding: &BindingCallContext,
+    out: *mut LocationSample,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -1688,7 +1811,10 @@ pub(crate) unsafe fn destack_os_location_last_known(_binding: &BindingCallContex
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_location_services_enabled(_binding: &BindingCallContext, out: *mut bool) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_location_services_enabled(
+    _binding: &BindingCallContext,
+    out: *mut bool,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -1716,7 +1842,10 @@ pub(crate) unsafe fn destack_os_location_services_enabled(_binding: &BindingCall
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_location_watch_close(_binding: &BindingCallContext, handle: resource::LocationWatchHandle) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_location_watch_close(
+    _binding: &BindingCallContext,
+    handle: resource::LocationWatchHandle,
+) -> RuntimeResult<()> {
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1741,7 +1870,11 @@ pub(crate) unsafe fn destack_os_location_watch_close(_binding: &BindingCallConte
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_location_watch_open(_binding: &BindingCallContext, out: *mut resource::LocationWatchHandle, options: LocationWatchOptions) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_location_watch_open(
+    _binding: &BindingCallContext,
+    out: *mut resource::LocationWatchHandle,
+    options: LocationWatchOptions,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -1769,7 +1902,12 @@ pub(crate) unsafe fn destack_os_location_watch_open(_binding: &BindingCallContex
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_location_watch_read(_binding: &BindingCallContext, out: *mut LocationSample, handle: resource::LocationWatchHandle, timeoutns: u64) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_location_watch_read(
+    _binding: &BindingCallContext,
+    out: *mut LocationSample,
+    handle: resource::LocationWatchHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -1797,7 +1935,11 @@ pub(crate) unsafe fn destack_os_location_watch_read(_binding: &BindingCallContex
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_location_watch_try_read(_binding: &BindingCallContext, out: *mut LocationSample, handle: resource::LocationWatchHandle) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_location_watch_try_read(
+    _binding: &BindingCallContext,
+    out: *mut LocationSample,
+    handle: resource::LocationWatchHandle,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -1814,8 +1956,9 @@ pub(crate) unsafe fn destack_os_location_watch_try_read(_binding: &BindingCallCo
 /// Delete host media assets and return deleted asset count.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host media-library delete APIs.
+/// Android, Unix, and Windows.
+/// Uses host media-library delete APIs on mobile and filesystem-backed media-root deletion on
+/// current desktop hosts.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1825,81 +1968,27 @@ pub(crate) unsafe fn destack_os_location_watch_try_read(_binding: &BindingCallCo
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_media_delete(_binding: &BindingCallContext, out: *mut u32, ids: NativeArray<NativeStringRef>) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_media_delete(
+    _binding: &BindingCallContext,
+    out: *mut u32,
+    ids: NativeArray<NativeStringRef>,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, ids);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.media.delete",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.media.delete")).boxed())
 }
 
-/// Import one file path into host media library.
+/// Describe one media asset.
 ///
-/// Import one file from one runtime-visible path and return one created media identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host media-library write APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.media.write`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_os_media_import_path(_binding: &BindingCallContext, out: *mut NativeStringRef, path: fs::OsPath, kind: MediaAssetKind) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, path, kind);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.media.importPath",
-    ))
-    .boxed())
-}
-
-/// List media assets.
-///
-/// Return one page of host media assets for one query.
+/// Return one richer host media asset descriptor by stable identifier.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses Photos framework on Apple platforms, MediaStore on Android, and host media-library bridges on desktop hosts.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.media.read`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_os_media_list(_binding: &BindingCallContext, out: *mut MediaPage, query: MediaQuery) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, query);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.media.list",
-    ))
-    .boxed())
-}
-
-/// Read one media asset descriptor.
-///
-/// Read one host media asset descriptor by stable identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host media-library read APIs.
+/// Android, Unix, and Windows.
+/// Uses host media-library detail APIs on mobile and filesystem-backed media descriptors on
+/// current desktop hosts.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1909,14 +1998,193 @@ pub(crate) unsafe fn destack_os_media_list(_binding: &BindingCallContext, out: *
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_media_read(_binding: &BindingCallContext, out: *mut MediaAssetDescriptor, id: NativeStringRef) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_media_describe(
+    _binding: &BindingCallContext,
+    out: *mut MediaAssetDescriptor,
+    id: NativeStringRef,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, id);
 
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.media.describe")).boxed())
+}
+
+/// Import one file path into host media library.
+///
+/// Import one file from one runtime-visible path and return one created media identifier.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+/// Uses host media-library write APIs on mobile and current desktop media-root import flows on
+/// desktop hosts.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.media.write`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_os_media_import_path(
+    _binding: &BindingCallContext,
+    out: *mut NativeStringRef,
+    path: fs::OsPath,
+    kind: MediaAssetKind,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, path, kind);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.media.importPath")).boxed())
+}
+
+/// List media assets.
+///
+/// Return one page of host media assets for one query.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+/// Uses Photos or related media providers on Apple platforms, MediaStore on Android, and the
+/// current desktop media roots plus filesystem enumeration on desktop hosts.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.media.read`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_os_media_list(
+    _binding: &BindingCallContext,
+    out: *mut MediaPage,
+    query: MediaQuery,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, query);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.media.list")).boxed())
+}
+
+/// Close media watch stream.
+///
+/// Close one media watch stream and release runtime watch state.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+/// Uses runtime watch state cleanup.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.media.read`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_os_media_watch_close(
+    _binding: &BindingCallContext,
+    handle: resource::MediaWatchHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.media.watchClose")).boxed())
+}
+
+/// Open media watch stream.
+///
+/// Open one runtime-owned media watch stream and track add or update or remove events for one filtered asset set.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+/// Uses host media-list queries on mobile and filesystem-backed directory watchers plus
+/// runtime watch state on current desktop hosts.
+///
+/// # Errors
+/// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.media.read`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_os_media_watch_open(
+    _binding: &BindingCallContext,
+    out: *mut resource::MediaWatchHandle,
+    options: MediaWatchOptions,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, options);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.media.watchOpen")).boxed())
+}
+
+/// Wait for one media watch event.
+///
+/// Wait for one queued media watch event from one opened watch stream.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+/// Uses runtime media watch state.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+///
+/// # Security
+/// Requires `os.media.read`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_os_media_watch_read(
+    _binding: &BindingCallContext,
+    out: *mut MediaEvent,
+    handle: resource::MediaWatchHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle, timeoutns);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.media.watchRead")).boxed())
+}
+
+/// Poll one media watch event without blocking.
+///
+/// Poll one queued media watch event from one opened watch stream without waiting.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+/// Uses runtime media watch state.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `os.media.read`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_os_media_watch_try_read(
+    _binding: &BindingCallContext,
+    out: *mut MediaEvent,
+    handle: resource::MediaWatchHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle);
+
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.media.read",
+        "destack.os.media.watchTryRead",
     ))
     .boxed())
 }
@@ -1938,16 +2206,16 @@ pub(crate) unsafe fn destack_os_media_read(_binding: &BindingCallContext, out: *
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_mount_list(_binding: &BindingCallContext, out: *mut NativeArray<MountEntry>) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_mount_list(
+    _binding: &BindingCallContext,
+    out: *mut NativeArray<MountEntry>,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.mount.list",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.mount.list")).boxed())
 }
 
 /// Read host network state.
@@ -1966,16 +2234,16 @@ pub(crate) unsafe fn destack_os_mount_list(_binding: &BindingCallContext, out: *
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_network_state(_binding: &BindingCallContext, out: *mut NetworkState) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_network_state(
+    _binding: &BindingCallContext,
+    out: *mut NetworkState,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.network.state",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.network.state")).boxed())
 }
 
 /// Close host network watch stream.
@@ -1994,7 +2262,10 @@ pub(crate) unsafe fn destack_os_network_state(_binding: &BindingCallContext, out
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_network_watch_close(_binding: &BindingCallContext, handle: resource::NetworkWatchHandle) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_network_watch_close(
+    _binding: &BindingCallContext,
+    handle: resource::NetworkWatchHandle,
+) -> RuntimeResult<()> {
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2019,16 +2290,16 @@ pub(crate) unsafe fn destack_os_network_watch_close(_binding: &BindingCallContex
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_network_watch_open(_binding: &BindingCallContext, out: *mut resource::NetworkWatchHandle) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_network_watch_open(
+    _binding: &BindingCallContext,
+    out: *mut resource::NetworkWatchHandle,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.network.watchOpen",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.network.watchOpen")).boxed())
 }
 
 /// Wait for one host network event.
@@ -2047,16 +2318,18 @@ pub(crate) unsafe fn destack_os_network_watch_open(_binding: &BindingCallContext
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_network_watch_read(_binding: &BindingCallContext, out: *mut NetworkEvent, handle: resource::NetworkWatchHandle, timeoutns: u64) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_network_watch_read(
+    _binding: &BindingCallContext,
+    out: *mut NetworkEvent,
+    handle: resource::NetworkWatchHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, handle, timeoutns);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.network.watchRead",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.network.watchRead")).boxed())
 }
 
 /// Poll one host network event without blocking.
@@ -2075,7 +2348,11 @@ pub(crate) unsafe fn destack_os_network_watch_read(_binding: &BindingCallContext
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_network_watch_try_read(_binding: &BindingCallContext, out: *mut NetworkEvent, handle: resource::NetworkWatchHandle) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_network_watch_try_read(
+    _binding: &BindingCallContext,
+    out: *mut NetworkEvent,
+    handle: resource::NetworkWatchHandle,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -2103,7 +2380,10 @@ pub(crate) unsafe fn destack_os_network_watch_try_read(_binding: &BindingCallCon
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_notification_cancel(_binding: &BindingCallContext, id: NativeStringRef) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_notification_cancel(
+    _binding: &BindingCallContext,
+    id: NativeStringRef,
+) -> RuntimeResult<()> {
     let _ = id;
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2128,8 +2408,9 @@ pub(crate) unsafe fn destack_os_notification_cancel(_binding: &BindingCallContex
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_notification_cancel_all(_binding: &BindingCallContext) -> RuntimeResult<()> {
-
+pub(crate) unsafe fn destack_os_notification_cancel_all(
+    _binding: &BindingCallContext,
+) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.os.notification.cancelAll",
     ))
@@ -2152,7 +2433,10 @@ pub(crate) unsafe fn destack_os_notification_cancel_all(_binding: &BindingCallCo
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_notification_category_list(_binding: &BindingCallContext, out: *mut NativeArray<NotificationCategory>) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_notification_category_list(
+    _binding: &BindingCallContext,
+    out: *mut NativeArray<NotificationCategory>,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -2180,7 +2464,10 @@ pub(crate) unsafe fn destack_os_notification_category_list(_binding: &BindingCal
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_notification_category_set(_binding: &BindingCallContext, categories: NativeArray<NotificationCategory>) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_notification_category_set(
+    _binding: &BindingCallContext,
+    categories: NativeArray<NotificationCategory>,
+) -> RuntimeResult<()> {
     let _ = categories;
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2205,7 +2492,10 @@ pub(crate) unsafe fn destack_os_notification_category_set(_binding: &BindingCall
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_notification_event_close(_binding: &BindingCallContext, handle: resource::NotificationEventHandle) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_notification_event_close(
+    _binding: &BindingCallContext,
+    handle: resource::NotificationEventHandle,
+) -> RuntimeResult<()> {
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2230,7 +2520,11 @@ pub(crate) unsafe fn destack_os_notification_event_close(_binding: &BindingCallC
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_notification_event_open(_binding: &BindingCallContext, out: *mut resource::NotificationEventHandle, options: NotificationEventOpenOptions) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_notification_event_open(
+    _binding: &BindingCallContext,
+    out: *mut resource::NotificationEventHandle,
+    options: NotificationEventOpenOptions,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -2258,7 +2552,12 @@ pub(crate) unsafe fn destack_os_notification_event_open(_binding: &BindingCallCo
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_notification_event_read(_binding: &BindingCallContext, out: *mut NotificationEvent, handle: resource::NotificationEventHandle, timeoutns: u64) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_notification_event_read(
+    _binding: &BindingCallContext,
+    out: *mut NotificationEvent,
+    handle: resource::NotificationEventHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -2286,7 +2585,11 @@ pub(crate) unsafe fn destack_os_notification_event_read(_binding: &BindingCallCo
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_notification_event_try_read(_binding: &BindingCallContext, out: *mut NotificationEvent, handle: resource::NotificationEventHandle) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_notification_event_try_read(
+    _binding: &BindingCallContext,
+    out: *mut NotificationEvent,
+    handle: resource::NotificationEventHandle,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -2314,7 +2617,10 @@ pub(crate) unsafe fn destack_os_notification_event_try_read(_binding: &BindingCa
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_notification_pending_cancel(_binding: &BindingCallContext, id: NativeStringRef) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_notification_pending_cancel(
+    _binding: &BindingCallContext,
+    id: NativeStringRef,
+) -> RuntimeResult<()> {
     let _ = id;
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2339,8 +2645,9 @@ pub(crate) unsafe fn destack_os_notification_pending_cancel(_binding: &BindingCa
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_notification_pending_cancel_all(_binding: &BindingCallContext) -> RuntimeResult<()> {
-
+pub(crate) unsafe fn destack_os_notification_pending_cancel_all(
+    _binding: &BindingCallContext,
+) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.os.notification.pendingCancelAll",
     ))
@@ -2363,7 +2670,10 @@ pub(crate) unsafe fn destack_os_notification_pending_cancel_all(_binding: &Bindi
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_notification_pending_list(_binding: &BindingCallContext, out: *mut NativeArray<NotificationScheduledDescriptor>) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_notification_pending_list(
+    _binding: &BindingCallContext,
+    out: *mut NativeArray<NotificationScheduledDescriptor>,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -2391,7 +2701,10 @@ pub(crate) unsafe fn destack_os_notification_pending_list(_binding: &BindingCall
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_notification_permission_state(_binding: &BindingCallContext, out: *mut NotificationPermissionState) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_notification_permission_state(
+    _binding: &BindingCallContext,
+    out: *mut NotificationPermissionState,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -2419,16 +2732,17 @@ pub(crate) unsafe fn destack_os_notification_permission_state(_binding: &Binding
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_notification_post(_binding: &BindingCallContext, out: *mut NativeStringRef, request: NotificationRequest) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_notification_post(
+    _binding: &BindingCallContext,
+    out: *mut NativeStringRef,
+    request: NotificationRequest,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, request);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.notification.post",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.notification.post")).boxed())
 }
 
 /// Request host notification permission.
@@ -2447,7 +2761,10 @@ pub(crate) unsafe fn destack_os_notification_post(_binding: &BindingCallContext,
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_notification_request_permission(_binding: &BindingCallContext, out: *mut NotificationPermissionState) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_notification_request_permission(
+    _binding: &BindingCallContext,
+    out: *mut NotificationPermissionState,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -2475,7 +2792,11 @@ pub(crate) unsafe fn destack_os_notification_request_permission(_binding: &Bindi
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_notification_schedule(_binding: &BindingCallContext, out: *mut NativeStringRef, request: NotificationRequest) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_notification_schedule(
+    _binding: &BindingCallContext,
+    out: *mut NativeStringRef,
+    request: NotificationRequest,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -2503,8 +2824,9 @@ pub(crate) unsafe fn destack_os_notification_schedule(_binding: &BindingCallCont
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_permission_open_settings(_binding: &BindingCallContext) -> RuntimeResult<()> {
-
+pub(crate) unsafe fn destack_os_permission_open_settings(
+    _binding: &BindingCallContext,
+) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.os.permission.openSettings",
     ))
@@ -2527,7 +2849,11 @@ pub(crate) unsafe fn destack_os_permission_open_settings(_binding: &BindingCallC
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_permission_request(_binding: &BindingCallContext, out: *mut PermissionState, permission: Permission) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_permission_request(
+    _binding: &BindingCallContext,
+    out: *mut PermissionState,
+    permission: Permission,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -2555,7 +2881,11 @@ pub(crate) unsafe fn destack_os_permission_request(_binding: &BindingCallContext
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_permission_request_many(_binding: &BindingCallContext, out: *mut NativeArray<PermissionEntry>, permissions: NativeArray<Permission>) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_permission_request_many(
+    _binding: &BindingCallContext,
+    out: *mut NativeArray<PermissionEntry>,
+    permissions: NativeArray<Permission>,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -2583,16 +2913,17 @@ pub(crate) unsafe fn destack_os_permission_request_many(_binding: &BindingCallCo
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_permission_state(_binding: &BindingCallContext, out: *mut PermissionState, permission: Permission) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_permission_state(
+    _binding: &BindingCallContext,
+    out: *mut PermissionState,
+    permission: Permission,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, permission);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.permission.state",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.permission.state")).boxed())
 }
 
 /// Read permission states.
@@ -2611,7 +2942,11 @@ pub(crate) unsafe fn destack_os_permission_state(_binding: &BindingCallContext, 
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_permission_state_many(_binding: &BindingCallContext, out: *mut NativeArray<PermissionEntry>, permissions: NativeArray<Permission>) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_permission_state_many(
+    _binding: &BindingCallContext,
+    out: *mut NativeArray<PermissionEntry>,
+    permissions: NativeArray<Permission>,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -2641,16 +2976,16 @@ pub(crate) unsafe fn destack_os_permission_state_many(_binding: &BindingCallCont
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_os_power_state(_binding: &BindingCallContext, out: *mut PowerState) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_power_state(
+    _binding: &BindingCallContext,
+    out: *mut PowerState,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.power.state",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.power.state")).boxed())
 }
 
 /// Request host suspend.
@@ -2674,9 +3009,5 @@ pub(crate) unsafe fn destack_os_power_state(_binding: &BindingCallContext, out: 
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_os_suspend(_binding: &BindingCallContext) -> RuntimeResult<()> {
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.power.suspend",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.power.suspend")).boxed())
 }

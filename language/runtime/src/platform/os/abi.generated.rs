@@ -9709,7 +9709,7 @@ pub struct DocumentDescriptorAbi<A: BindingAbi> {
     pub uri: A::String,
     /// Host-visible document name.
     pub name: A::String,
-    /// Normalized content type when cheap or natively available.
+    /// Normalized content type when the host reports it.
     pub content_type: Option<A::String>,
     /// Document size in bytes when available.
     pub size_bytes: Option<u64>,
@@ -9827,7 +9827,7 @@ pub struct DocumentDescriptorValue {
     pub uri: String,
     /// Host-visible document name.
     pub name: String,
-    /// Normalized content type when cheap or natively available.
+    /// Normalized content type when the host reports it.
     pub content_type: Option<String>,
     /// Document size in bytes when available.
     pub size_bytes: Option<u64>,
@@ -14181,7 +14181,7 @@ pub struct MediaAssetSummaryAbi<A: BindingAbi> {
     pub filename: A::String,
     /// Asset class.
     pub kind: MediaAssetKind,
-    /// Normalized content type when cheap or natively available.
+    /// Normalized content type when the host reports it.
     pub content_type: Option<A::String>,
     /// Asset size in bytes when available.
     pub size_bytes: Option<u64>,
@@ -14301,7 +14301,7 @@ pub struct MediaAssetSummaryValue {
     pub filename: String,
     /// Asset class.
     pub kind: MediaAssetKind,
-    /// Normalized content type when cheap or natively available.
+    /// Normalized content type when the host reports it.
     pub content_type: Option<String>,
     /// Asset size in bytes when available.
     pub size_bytes: Option<u64>,
@@ -19101,7 +19101,7 @@ pub struct DocumentdescriptorReplayRecord {
     pub uri: String,
     /// Host-visible document name.
     pub name: String,
-    /// Normalized content type when cheap or natively available.
+    /// Normalized content type when the host reports it.
     pub content_type: Option<String>,
     /// Document size in bytes when available.
     pub size_bytes: Option<u64>,
@@ -19363,7 +19363,7 @@ pub struct MediaassetsummaryReplayRecord {
     pub filename: String,
     /// Asset class.
     pub kind: MediaAssetKind,
-    /// Normalized content type when cheap or natively available.
+    /// Normalized content type when the host reports it.
     pub content_type: Option<String>,
     /// Asset size in bytes when available.
     pub size_bytes: Option<u64>,

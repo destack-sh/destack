@@ -4,7 +4,7 @@ use crate::platform::{VmAbiCodec, resource};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
-/// Read one cached location sample through runtime-owned OS state.
+/// Read the most recent location sample through runtime-owned OS state.
 pub(crate) fn last_known(binding: &BindingCallContext) -> RuntimeResult<LocationSample> {
     state::location_last_known(binding)
 }
