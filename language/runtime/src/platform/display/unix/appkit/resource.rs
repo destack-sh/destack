@@ -36,7 +36,7 @@ pub(crate) fn open_display_handle_for_runtime(
 ) -> resource::DisplayHandle {
     let entry = ResourceEntry::new(ResourceKind::Display)
         .with_label(core::DISPLAY_RESOURCE_LABEL)
-        .with_affinity(ResourceAffinity::Loop)
+        .with_affinity(ResourceAffinity::EventLoop)
         .with_payload(AppKitDisplayHostState { id });
     let resource_id = runtime_state.resource_table().insert(
         runtime_state.world(),
