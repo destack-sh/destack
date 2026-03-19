@@ -1,9 +1,9 @@
 mod calendar;
 mod contact;
+mod dispatch;
 mod document;
 mod intent;
 mod location;
-mod submit;
 
 #[cfg(all(test, windows))]
 pub(crate) use crate::host::windows::request::{
@@ -15,6 +15,6 @@ pub(crate) use crate::host::windows::request::{
 pub(crate) use crate::host::windows::tests::{
     WindowsLocationHooks, set_windows_location_test_hooks,
 };
+pub(crate) use dispatch::*;
 #[cfg(windows)]
 pub(crate) use location::unregister_location_runtime;
-pub(crate) use submit::*;
