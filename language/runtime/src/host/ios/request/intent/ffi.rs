@@ -4,7 +4,7 @@ use crate::runtime::{NativeStringRef, NativeStringSlice};
 
 /// Query whether the iOS host can open one URL.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_intent_can_open_url(
+pub(crate) unsafe extern "C" fn destack_host_ios_intent_can_open_url(
     runtime_id: u64,
     url: NativeStringRef,
     is_supported: *mut bool,
@@ -24,7 +24,7 @@ pub unsafe extern "C" fn destack_host_ios_intent_can_open_url(
 
 /// Open one URL through the iOS host.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_intent_open_url(
+pub(crate) unsafe extern "C" fn destack_host_ios_intent_open_url(
     runtime_id: u64,
     url: NativeStringRef,
 ) -> u32 {
@@ -37,7 +37,7 @@ pub unsafe extern "C" fn destack_host_ios_intent_open_url(
 
 /// Open one path through the iOS host.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_intent_open_path(
+pub(crate) unsafe extern "C" fn destack_host_ios_intent_open_path(
     runtime_id: u64,
     path: NativeStringRef,
 ) -> u32 {
@@ -50,7 +50,7 @@ pub unsafe extern "C" fn destack_host_ios_intent_open_path(
 
 /// Share one text payload through the iOS host.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_intent_share_text(
+pub(crate) unsafe extern "C" fn destack_host_ios_intent_share_text(
     runtime_id: u64,
     text: NativeStringRef,
     has_mime_type: bool,
@@ -65,7 +65,7 @@ pub unsafe extern "C" fn destack_host_ios_intent_share_text(
 
 /// Share one path list through the iOS host.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_intent_share_paths(
+pub(crate) unsafe extern "C" fn destack_host_ios_intent_share_paths(
     runtime_id: u64,
     paths: NativeStringSlice,
     has_mime_type: bool,

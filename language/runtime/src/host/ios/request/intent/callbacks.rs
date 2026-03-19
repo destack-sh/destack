@@ -2,19 +2,19 @@ use crate::host::ios::bridge::bindings::invoke_ios_binding_callback;
 use crate::runtime::{NativeStringRef, NativeStringSlice};
 
 /// Host callback for querying one outbound iOS URL route.
-pub type IosHostIntentCanOpenUrlCallback =
+pub(crate) type IosHostIntentCanOpenUrlCallback =
     unsafe extern "C" fn(runtime_id: u64, url: NativeStringRef, is_supported: *mut bool) -> u32;
 
 /// Host callback for opening one outbound iOS URL route.
-pub type IosHostIntentOpenUrlCallback =
+pub(crate) type IosHostIntentOpenUrlCallback =
     unsafe extern "C" fn(runtime_id: u64, url: NativeStringRef) -> u32;
 
 /// Host callback for opening one outbound iOS path route.
-pub type IosHostIntentOpenPathCallback =
+pub(crate) type IosHostIntentOpenPathCallback =
     unsafe extern "C" fn(runtime_id: u64, path: NativeStringRef) -> u32;
 
 /// Host callback for sharing one outbound iOS text payload.
-pub type IosHostIntentShareTextCallback = unsafe extern "C" fn(
+pub(crate) type IosHostIntentShareTextCallback = unsafe extern "C" fn(
     runtime_id: u64,
     text: NativeStringRef,
     has_mime_type: bool,
@@ -22,7 +22,7 @@ pub type IosHostIntentShareTextCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// Host callback for sharing one outbound iOS path list.
-pub type IosHostIntentSharePathsCallback = unsafe extern "C" fn(
+pub(crate) type IosHostIntentSharePathsCallback = unsafe extern "C" fn(
     runtime_id: u64,
     paths: NativeStringSlice,
     has_mime_type: bool,
@@ -32,7 +32,7 @@ pub type IosHostIntentSharePathsCallback = unsafe extern "C" fn(
 /// Callback table for iOS host intent request interop.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct IosHostIntentCallbacks {
+pub(crate) struct IosHostIntentCallbacks {
     /// Callback for `intentCanOpenUrl`.
     pub can_open_url: Option<IosHostIntentCanOpenUrlCallback>,
     /// Callback for `intentOpenUrl`.

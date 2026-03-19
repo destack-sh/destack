@@ -2,7 +2,7 @@ use std::sync::{Mutex, OnceLock};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::app::document::pick::{
-    normalized_document_extensions, validate_document_pick_options,
+    validate_document_pick_options, validated_document_content_types, validated_document_extensions,
 };
 use crate::host::core::{
     HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult, HostRuntimeId,
@@ -317,8 +317,8 @@ pub(crate) fn pick_documents(
     options: &DocumentPickOptionsValue,
 ) -> RuntimeResult<Vec<DocumentDescriptorValue>> {
     validate_document_pick_options(options)?;
-
-    normalized_document_extensions(options)?;
+    validated_document_content_types(options)?;
+    validated_document_extensions(options)?;
     let hook = require_test_pick_hook()?;
     hook(options.clone())
 }
@@ -406,7 +406,7 @@ pub(crate) fn request_location_permission(
 pub(crate) fn unregister_location_runtime(_host_runtime_id: HostRuntimeId) {}
 
 /// Build one missing-hook error for macOS location tests.
-fn missing_location_test_hook(kind: &str) -> Box<crate::diagnostic::RuntimeError> {
+fn missing_location_test_hook(kind: &str) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::generic(
         Some(PlatformErrorCode::Generic),
         format!("macOS location tests must install one {kind} hook before calling the host lane"),
@@ -415,7 +415,7 @@ fn missing_location_test_hook(kind: &str) -> Box<crate::diagnostic::RuntimeError
 }
 
 /// Build one missing-hook error for macOS calendar tests.
-fn missing_calendar_test_hook(kind: &str) -> Box<crate::diagnostic::RuntimeError> {
+fn missing_calendar_test_hook(kind: &str) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::generic(
         Some(PlatformErrorCode::Generic),
         format!("macOS calendar tests must install one {kind} hook before calling the host lane"),
@@ -424,7 +424,7 @@ fn missing_calendar_test_hook(kind: &str) -> Box<crate::diagnostic::RuntimeError
 }
 
 /// Build one missing-hook error for macOS contact tests.
-fn missing_contact_test_hook(kind: &str) -> Box<crate::diagnostic::RuntimeError> {
+fn missing_contact_test_hook(kind: &str) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::generic(
         Some(PlatformErrorCode::Generic),
         format!("macOS contact tests must install one {kind} hook before calling the host lane"),

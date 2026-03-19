@@ -20,7 +20,7 @@ fn call_android_midi_callback<T: Copy>(
 
 /// Describe Android MIDI backend support.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_midi_describe_backend(
+pub(crate) unsafe extern "C" fn destack_host_android_midi_describe_backend(
     runtime_id: u64,
     capability_flags: *mut u64,
     supported_data_formats: *mut u32,
@@ -49,7 +49,7 @@ pub unsafe extern "C" fn destack_host_android_midi_describe_backend(
 
 /// List Android MIDI input ports.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_midi_input_port_list(
+pub(crate) unsafe extern "C" fn destack_host_android_midi_input_port_list(
     runtime_id: u64,
     flags: u32,
     headers: NativeSlice<AndroidHostMidiPortDescriptorHeader>,
@@ -79,7 +79,7 @@ pub unsafe extern "C" fn destack_host_android_midi_input_port_list(
 
 /// List Android MIDI output ports.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_midi_output_port_list(
+pub(crate) unsafe extern "C" fn destack_host_android_midi_output_port_list(
     runtime_id: u64,
     flags: u32,
     headers: NativeSlice<AndroidHostMidiPortDescriptorHeader>,
@@ -109,7 +109,7 @@ pub unsafe extern "C" fn destack_host_android_midi_output_port_list(
 
 /// Open one Android MIDI input port.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_midi_input_port_open(
+pub(crate) unsafe extern "C" fn destack_host_android_midi_input_port_open(
     runtime_id: u64,
     id: NativeStringRef,
     data_format: u32,
@@ -143,7 +143,7 @@ pub unsafe extern "C" fn destack_host_android_midi_input_port_open(
 
 /// Open one Android MIDI output port.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_midi_output_port_open(
+pub(crate) unsafe extern "C" fn destack_host_android_midi_output_port_open(
     runtime_id: u64,
     id: NativeStringRef,
     data_format: u32,
@@ -175,7 +175,7 @@ pub unsafe extern "C" fn destack_host_android_midi_output_port_open(
 
 /// Create one Android virtual MIDI input port.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_midi_input_virtual_create(
+pub(crate) unsafe extern "C" fn destack_host_android_midi_input_virtual_create(
     runtime_id: u64,
     name: NativeStringRef,
     manufacturer: NativeStringRef,
@@ -215,7 +215,7 @@ pub unsafe extern "C" fn destack_host_android_midi_input_virtual_create(
 
 /// Create one Android virtual MIDI output port.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_midi_output_virtual_create(
+pub(crate) unsafe extern "C" fn destack_host_android_midi_output_virtual_create(
     runtime_id: u64,
     name: NativeStringRef,
     manufacturer: NativeStringRef,
@@ -253,7 +253,7 @@ pub unsafe extern "C" fn destack_host_android_midi_output_virtual_create(
 
 /// Close one Android MIDI input session.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_midi_input_port_close(
+pub(crate) unsafe extern "C" fn destack_host_android_midi_input_port_close(
     runtime_id: u64,
     session_id: u64,
 ) -> u32 {
@@ -266,7 +266,7 @@ pub unsafe extern "C" fn destack_host_android_midi_input_port_close(
 
 /// Close one Android MIDI output session.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_midi_output_port_close(
+pub(crate) unsafe extern "C" fn destack_host_android_midi_output_port_close(
     runtime_id: u64,
     session_id: u64,
 ) -> u32 {
@@ -279,7 +279,7 @@ pub unsafe extern "C" fn destack_host_android_midi_output_port_close(
 
 /// Read Android MIDI input records.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_midi_input_read(
+pub(crate) unsafe extern "C" fn destack_host_android_midi_input_read(
     runtime_id: u64,
     session_id: u64,
     max_records: u32,
@@ -313,7 +313,7 @@ pub unsafe extern "C" fn destack_host_android_midi_input_read(
 
 /// Open one Android MIDI event subscription.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_midi_event_open(
+pub(crate) unsafe extern "C" fn destack_host_android_midi_event_open(
     runtime_id: u64,
     flags: u32,
     direction_mask: u32,
@@ -332,7 +332,7 @@ pub unsafe extern "C" fn destack_host_android_midi_event_open(
 
 /// Read Android MIDI topology events.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_midi_event_read(
+pub(crate) unsafe extern "C" fn destack_host_android_midi_event_read(
     runtime_id: u64,
     session_id: u64,
     max_events: u32,
@@ -366,7 +366,7 @@ pub unsafe extern "C" fn destack_host_android_midi_event_read(
 
 /// Close one Android MIDI event subscription.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_midi_event_close(
+pub(crate) unsafe extern "C" fn destack_host_android_midi_event_close(
     runtime_id: u64,
     session_id: u64,
 ) -> u32 {
@@ -379,7 +379,7 @@ pub unsafe extern "C" fn destack_host_android_midi_event_close(
 
 /// Write Android MIDI output records.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_midi_output_write(
+pub(crate) unsafe extern "C" fn destack_host_android_midi_output_write(
     runtime_id: u64,
     session_id: u64,
     headers: NativeSlice<AndroidHostMidiOutputRecordHeader>,

@@ -2,13 +2,15 @@ use std::sync::Arc;
 
 use crate::host::core::registry::{HostRegistrationGuard, next_host_runtime_id};
 use crate::host::core::{HostQueue, HostRuntimeRegistry};
-use crate::host::ios::unregister_ios_bindings;
-use crate::host::{
-    HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
-    IosHostBindings, IosHostIntentCallbacks, Platform, destack_host_ios_intent_can_open_url,
+use crate::host::ios::{
+    IosHostBindings, IosHostIntentCallbacks, destack_host_ios_intent_can_open_url,
     destack_host_ios_intent_open_path, destack_host_ios_intent_open_url,
     destack_host_ios_intent_share_paths, destack_host_ios_intent_share_text,
-    destack_host_ios_register_bindings,
+    destack_host_ios_register_bindings, unregister_ios_bindings,
+};
+use crate::host::{
+    HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
+    Platform,
 };
 use crate::runtime::{NativeStringRef, NativeStringSlice};
 
@@ -19,7 +21,7 @@ pub(crate) fn register_ios_runtime() -> (Arc<HostQueue>, HostRegistrationGuard, 
     let registration = HostRuntimeRegistry::register_queue(
         Platform::IOS,
         runtime_id,
-        Arc::downgrade(&queue),
+        Arc::clone(&queue),
         Some(unregister_ios_bindings),
     );
     let runtime_id = registration.host_runtime_id().0;
