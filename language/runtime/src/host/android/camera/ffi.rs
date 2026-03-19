@@ -23,7 +23,7 @@ macro_rules! camera_callback {
     ($name:ident ($($arg:ident : $ty:ty),* $(,)?) -> $resolve:ident $(; guard $guard:expr)? ) => {
         #[doc = "Route one Android host camera callback through the registered callback table."]
         #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn $name(runtime_id: u64, $($arg: $ty),*) -> u32 {
+        pub(crate) unsafe extern "C" fn $name(runtime_id: u64, $($arg: $ty),*) -> u32 {
             $(if !($guard) { return HostStatus::InvalidArgument.code(); })?
             call_android_camera_callback(runtime_id, |callbacks| callbacks.$resolve, |callback| unsafe {
                 callback(runtime_id, $($arg),*)
@@ -72,7 +72,11 @@ macro_rules! camera_getter_alias {
     ($name:ident, $selector:expr, u64) => {
         #[doc = "Route one Android host camera getter alias through the shared selector lane."]
         #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn $name(runtime_id: u64, stream_id: u64, value: *mut u64) -> u32 {
+        pub(crate) unsafe extern "C" fn $name(
+            runtime_id: u64,
+            stream_id: u64,
+            value: *mut u64,
+        ) -> u32 {
             // shared selector forwarding
             unsafe {
                 destack_host_android_camera_stream_get_u64(runtime_id, stream_id, $selector, value)
@@ -82,7 +86,11 @@ macro_rules! camera_getter_alias {
     ($name:ident, $selector:expr, u32) => {
         #[doc = "Route one Android host camera getter alias through the shared selector lane."]
         #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn $name(runtime_id: u64, stream_id: u64, value: *mut u32) -> u32 {
+        pub(crate) unsafe extern "C" fn $name(
+            runtime_id: u64,
+            stream_id: u64,
+            value: *mut u32,
+        ) -> u32 {
             // shared selector forwarding
             unsafe {
                 destack_host_android_camera_stream_get_u32(runtime_id, stream_id, $selector, value)
@@ -92,7 +100,11 @@ macro_rules! camera_getter_alias {
     ($name:ident, $selector:expr, f64) => {
         #[doc = "Route one Android host camera getter alias through the shared selector lane."]
         #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn $name(runtime_id: u64, stream_id: u64, value: *mut f64) -> u32 {
+        pub(crate) unsafe extern "C" fn $name(
+            runtime_id: u64,
+            stream_id: u64,
+            value: *mut f64,
+        ) -> u32 {
             // shared selector forwarding
             unsafe {
                 destack_host_android_camera_stream_get_f64(runtime_id, stream_id, $selector, value)
@@ -105,7 +117,7 @@ macro_rules! camera_setter_alias {
     ($name:ident, $selector:expr, u64, $ty:ty) => {
         #[doc = "Route one Android host camera setter alias through the shared selector lane."]
         #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn $name(runtime_id: u64, stream_id: u64, value: $ty) -> u32 {
+        pub(crate) unsafe extern "C" fn $name(runtime_id: u64, stream_id: u64, value: $ty) -> u32 {
             // shared selector forwarding
             unsafe {
                 destack_host_android_camera_stream_set_u64(
@@ -120,7 +132,7 @@ macro_rules! camera_setter_alias {
     ($name:ident, $selector:expr, u32, $ty:ty) => {
         #[doc = "Route one Android host camera setter alias through the shared selector lane."]
         #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn $name(runtime_id: u64, stream_id: u64, value: $ty) -> u32 {
+        pub(crate) unsafe extern "C" fn $name(runtime_id: u64, stream_id: u64, value: $ty) -> u32 {
             // shared selector forwarding
             unsafe {
                 destack_host_android_camera_stream_set_u32(
@@ -135,7 +147,7 @@ macro_rules! camera_setter_alias {
     ($name:ident, $selector:expr, f64, $ty:ty) => {
         #[doc = "Route one Android host camera setter alias through the shared selector lane."]
         #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn $name(runtime_id: u64, stream_id: u64, value: $ty) -> u32 {
+        pub(crate) unsafe extern "C" fn $name(runtime_id: u64, stream_id: u64, value: $ty) -> u32 {
             // shared selector forwarding
             unsafe {
                 destack_host_android_camera_stream_set_f64(
@@ -153,7 +165,7 @@ macro_rules! camera_range_alias {
     ($name:ident, $selector:expr, u64) => {
         #[doc = "Route one Android host camera range alias through the shared selector lane."]
         #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn $name(
+        pub(crate) unsafe extern "C" fn $name(
             runtime_id: u64,
             stream_id: u64,
             minimum: *mut u64,
@@ -171,7 +183,7 @@ macro_rules! camera_range_alias {
     ($name:ident, $selector:expr, u32) => {
         #[doc = "Route one Android host camera range alias through the shared selector lane."]
         #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn $name(
+        pub(crate) unsafe extern "C" fn $name(
             runtime_id: u64,
             stream_id: u64,
             minimum: *mut u32,
@@ -189,7 +201,7 @@ macro_rules! camera_range_alias {
     ($name:ident, $selector:expr, f64) => {
         #[doc = "Route one Android host camera range alias through the shared selector lane."]
         #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn $name(
+        pub(crate) unsafe extern "C" fn $name(
             runtime_id: u64,
             stream_id: u64,
             minimum: *mut f64,

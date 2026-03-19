@@ -23,7 +23,7 @@ macro_rules! bluetooth_callback {
     ($name:ident ($($arg:ident : $ty:ty),* $(,)?) -> $resolve:ident $(; guard $guard:expr)? ) => {
         #[doc = "Route one Android host bluetooth callback through the registered callback table."]
         #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn $name(runtime_id: u64, $($arg: $ty),*) -> u32 {
+        pub(crate) unsafe extern "C" fn $name(runtime_id: u64, $($arg: $ty),*) -> u32 {
             $(if !($guard) { return HostStatus::InvalidArgument.code(); })?
             call_android_bluetooth_callback(runtime_id, |callbacks| callbacks.$resolve, |callback| unsafe {
                 callback(runtime_id, $($arg),*)

@@ -11,7 +11,7 @@ use crate::host::ios::request::notification::IosHostNotificationCallbacks;
 /// iOS host bindings container for callback-backed lanes.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct IosHostBindings {
+pub(crate) struct IosHostBindings {
     /// Background host callbacks.
     pub background: IosHostBackgroundCallbacks,
     /// Calendar host callbacks.
@@ -30,7 +30,7 @@ pub struct IosHostBindings {
 
 /// Register one callback table for iOS host interop through one C ABI entrypoint.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_register_bindings(
+pub(crate) unsafe extern "C" fn destack_host_ios_register_bindings(
     runtime_id: u64,
     bindings: IosHostBindings,
 ) -> u32 {

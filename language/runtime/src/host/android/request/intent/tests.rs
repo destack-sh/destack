@@ -1,13 +1,14 @@
-use crate::host::android::AndroidHostBindings;
 use crate::host::android::tests::{
     callback_test_lock, register_android_bindings, register_android_runtime,
 };
-use crate::host::core::registry::next_host_runtime_id;
-use crate::host::{
-    AndroidHostIntentCallbacks, HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND,
-    HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK, destack_host_android_intent_can_open_url,
+use crate::host::android::{
+    AndroidHostBindings, AndroidHostIntentCallbacks, destack_host_android_intent_can_open_url,
     destack_host_android_intent_open_path, destack_host_android_intent_open_url,
     destack_host_android_intent_share_paths, destack_host_android_intent_share_text,
+};
+use crate::host::core::registry::next_host_runtime_id;
+use crate::host::{
+    HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
 };
 use crate::runtime::{NativeStringRef, NativeStringSlice};
 

@@ -5,5 +5,5 @@ pub(crate) mod submit;
 #[cfg(test)]
 pub(crate) mod tests;
 
-pub use callbacks::*;
-pub use ffi::*;
+pub(crate) use callbacks::*;
+pub(crate) use ffi::*;

@@ -2,19 +2,19 @@ use crate::host::android::bridge::bindings::invoke_android_binding_callback;
 use crate::runtime::{NativeStringRef, NativeStringSlice};
 
 /// Host callback for querying one outbound Android URL route.
-pub type AndroidHostIntentCanOpenUrlCallback =
+pub(crate) type AndroidHostIntentCanOpenUrlCallback =
     unsafe extern "C" fn(runtime_id: u64, url: NativeStringRef, is_supported: *mut bool) -> u32;
 
 /// Host callback for opening one outbound Android URL route.
-pub type AndroidHostIntentOpenUrlCallback =
+pub(crate) type AndroidHostIntentOpenUrlCallback =
     unsafe extern "C" fn(runtime_id: u64, url: NativeStringRef) -> u32;
 
 /// Host callback for opening one outbound Android path route.
-pub type AndroidHostIntentOpenPathCallback =
+pub(crate) type AndroidHostIntentOpenPathCallback =
     unsafe extern "C" fn(runtime_id: u64, path: NativeStringRef) -> u32;
 
 /// Host callback for sharing one outbound Android text payload.
-pub type AndroidHostIntentShareTextCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostIntentShareTextCallback = unsafe extern "C" fn(
     runtime_id: u64,
     text: NativeStringRef,
     has_mime_type: bool,
@@ -22,7 +22,7 @@ pub type AndroidHostIntentShareTextCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// Host callback for sharing one outbound Android path list.
-pub type AndroidHostIntentSharePathsCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostIntentSharePathsCallback = unsafe extern "C" fn(
     runtime_id: u64,
     paths: NativeStringSlice,
     has_mime_type: bool,
@@ -32,7 +32,7 @@ pub type AndroidHostIntentSharePathsCallback = unsafe extern "C" fn(
 /// Callback table for Android host intent request interop.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct AndroidHostIntentCallbacks {
+pub(crate) struct AndroidHostIntentCallbacks {
     /// Callback for `intentCanOpenUrl`.
     pub can_open_url: Option<AndroidHostIntentCanOpenUrlCallback>,
     /// Callback for `intentOpenUrl`.
