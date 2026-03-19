@@ -458,6 +458,10 @@ pub enum CalendarAvailability {
     Tentative = 3,
     /// OutOfOffice.
     OutOfOffice = 4,
+    /// Unavailable.
+    Unavailable = 5,
+    /// Unknown.
+    Unknown = 6,
 }
 
 impl VmValueCodec for CalendarAvailability {
@@ -468,6 +472,8 @@ impl VmValueCodec for CalendarAvailability {
             2i32 => Self::Free,
             3i32 => Self::Tentative,
             4i32 => Self::OutOfOffice,
+            5i32 => Self::Unavailable,
+            6i32 => Self::Unknown,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -523,24 +529,36 @@ impl VmAbiCodec for CalendarAvailability {
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CalendarParticipantStatus {
+    /// Unknown.
+    Unknown = 1,
     /// Pending.
-    Pending = 1,
+    Pending = 2,
     /// Accepted.
-    Accepted = 2,
+    Accepted = 3,
     /// Tentative.
-    Tentative = 3,
+    Tentative = 4,
     /// Declined.
-    Declined = 4,
+    Declined = 5,
+    /// Delegated.
+    Delegated = 6,
+    /// Completed.
+    Completed = 7,
+    /// InProcess.
+    InProcess = 8,
 }
 
 impl VmValueCodec for CalendarParticipantStatus {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1i32 => Self::Pending,
-            2i32 => Self::Accepted,
-            3i32 => Self::Tentative,
-            4i32 => Self::Declined,
+            1i32 => Self::Unknown,
+            2i32 => Self::Pending,
+            3i32 => Self::Accepted,
+            4i32 => Self::Tentative,
+            5i32 => Self::Declined,
+            6i32 => Self::Delegated,
+            7i32 => Self::Completed,
+            8i32 => Self::InProcess,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -6326,10 +6344,18 @@ pub struct CalendarRecurrenceRuleAbi<A: BindingAbi> {
     pub until_unix_ns: Option<u64>,
     /// Weekday numbers in ISO-8601 encoding, 1 to 7.
     pub by_week_days: A::Array<u8>,
+    /// Structured weekday selectors with optional ordinal positions.
+    pub by_weekday_ordinals: A::Array<CalendarRecurrenceWeekday>,
     /// Day-of-month set.
     pub by_month_days: A::Array<i8>,
     /// Month set, 1 to 12.
     pub by_months: A::Array<u8>,
+    /// Day-of-year set.
+    pub by_year_days: A::Array<i16>,
+    /// Week-of-year set.
+    pub by_week_numbers: A::Array<i8>,
+    /// Final set-position filters.
+    pub by_set_positions: A::Array<i16>,
 }
 
 pub type CalendarRecurrenceRule = CalendarRecurrenceRuleAbi<NativeAbi>;
@@ -6371,10 +6397,10 @@ impl VmAggregateCodec for CalendarRecurrenceRuleAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
+        if slots.len() != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 7 fields",
+                "expected 11 fields",
             ))
             .boxed());
         }
@@ -6389,18 +6415,32 @@ impl VmAggregateCodec for CalendarRecurrenceRuleAbi<VmAbi> {
             <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_by_week_days =
             <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_by_weekday_ordinals =
+            <VmArray<CalendarRecurrenceWeekdayVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[5],
+            )?;
         let field_by_month_days =
-            <VmArray<i8> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <VmArray<i8> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         let field_by_months =
-            <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_by_year_days =
+            <VmArray<i16> as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_by_week_numbers =
+            <VmArray<i8> as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_by_set_positions =
+            <VmArray<i16> as VmAggregateCodec>::decode_with_context(context, slots[10])?;
         Ok(Self {
             frequency: field_frequency,
             interval: field_interval,
             count: field_count,
             until_unix_ns: field_until_unix_ns,
             by_week_days: field_by_week_days,
+            by_weekday_ordinals: field_by_weekday_ordinals,
             by_month_days: field_by_month_days,
             by_months: field_by_months,
+            by_year_days: field_by_year_days,
+            by_week_numbers: field_by_week_numbers,
+            by_set_positions: field_by_set_positions,
         })
     }
 
@@ -6417,8 +6457,18 @@ impl VmAggregateCodec for CalendarRecurrenceRuleAbi<VmAbi> {
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.count, context)?,
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.until_unix_ns, context)?,
             <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.by_week_days, context)?,
+            <VmArray<CalendarRecurrenceWeekdayVm> as VmAggregateCodec>::encode_with_context(
+                self.by_weekday_ordinals,
+                context,
+            )?,
             <VmArray<i8> as VmAggregateCodec>::encode_with_context(self.by_month_days, context)?,
             <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.by_months, context)?,
+            <VmArray<i16> as VmAggregateCodec>::encode_with_context(self.by_year_days, context)?,
+            <VmArray<i8> as VmAggregateCodec>::encode_with_context(self.by_week_numbers, context)?,
+            <VmArray<i16> as VmAggregateCodec>::encode_with_context(
+                self.by_set_positions,
+                context,
+            )?,
         ];
         context
             .allocate_aggregate(slots)
@@ -6441,10 +6491,18 @@ pub struct CalendarRecurrenceRuleValue {
     pub until_unix_ns: Option<u64>,
     /// Weekday numbers in ISO-8601 encoding, 1 to 7.
     pub by_week_days: Vec<u8>,
+    /// Structured weekday selectors with optional ordinal positions.
+    pub by_weekday_ordinals: Vec<CalendarRecurrenceWeekday>,
     /// Day-of-month set.
     pub by_month_days: Vec<i8>,
     /// Month set, 1 to 12.
     pub by_months: Vec<u8>,
+    /// Day-of-year set.
+    pub by_year_days: Vec<i16>,
+    /// Week-of-year set.
+    pub by_week_numbers: Vec<i8>,
+    /// Final set-position filters.
+    pub by_set_positions: Vec<i16>,
 }
 
 impl NativeAbiCodec for CalendarRecurrenceRuleAbi<NativeAbi> {
@@ -6463,10 +6521,24 @@ impl NativeAbiCodec for CalendarRecurrenceRuleAbi<NativeAbi> {
             by_week_days: unsafe {
                 <NativeArray<u8> as NativeAbiCodec>::into_value(self.by_week_days)?
             },
+            by_weekday_ordinals: unsafe {
+                <NativeArray<CalendarRecurrenceWeekday> as NativeAbiCodec>::into_value(
+                    self.by_weekday_ordinals,
+                )?
+            },
             by_month_days: unsafe {
                 <NativeArray<i8> as NativeAbiCodec>::into_value(self.by_month_days)?
             },
             by_months: unsafe { <NativeArray<u8> as NativeAbiCodec>::into_value(self.by_months)? },
+            by_year_days: unsafe {
+                <NativeArray<i16> as NativeAbiCodec>::into_value(self.by_year_days)?
+            },
+            by_week_numbers: unsafe {
+                <NativeArray<i8> as NativeAbiCodec>::into_value(self.by_week_numbers)?
+            },
+            by_set_positions: unsafe {
+                <NativeArray<i16> as NativeAbiCodec>::into_value(self.by_set_positions)?
+            },
         })
     }
 
@@ -6486,11 +6558,28 @@ impl NativeAbiCodec for CalendarRecurrenceRuleAbi<NativeAbi> {
                 binding,
                 value.by_week_days,
             ),
+            by_weekday_ordinals:
+                <NativeArray<CalendarRecurrenceWeekday> as NativeAbiCodec>::from_value(
+                    binding,
+                    value.by_weekday_ordinals,
+                ),
             by_month_days: <NativeArray<i8> as NativeAbiCodec>::from_value(
                 binding,
                 value.by_month_days,
             ),
             by_months: <NativeArray<u8> as NativeAbiCodec>::from_value(binding, value.by_months),
+            by_year_days: <NativeArray<i16> as NativeAbiCodec>::from_value(
+                binding,
+                value.by_year_days,
+            ),
+            by_week_numbers: <NativeArray<i8> as NativeAbiCodec>::from_value(
+                binding,
+                value.by_week_numbers,
+            ),
+            by_set_positions: <NativeArray<i16> as NativeAbiCodec>::from_value(
+                binding,
+                value.by_set_positions,
+            ),
         }
     }
 }
@@ -6511,8 +6600,21 @@ impl VmAbiCodec for CalendarRecurrenceRuleAbi<VmAbi> {
             count: <Option<u32> as VmAbiCodec>::into_value(self.count, context)?,
             until_unix_ns: <Option<u64> as VmAbiCodec>::into_value(self.until_unix_ns, context)?,
             by_week_days: <VmArray<u8> as VmAbiCodec>::into_value(self.by_week_days, context)?,
+            by_weekday_ordinals: <VmArray<CalendarRecurrenceWeekdayVm> as VmAbiCodec>::into_value(
+                self.by_weekday_ordinals,
+                context,
+            )?,
             by_month_days: <VmArray<i8> as VmAbiCodec>::into_value(self.by_month_days, context)?,
             by_months: <VmArray<u8> as VmAbiCodec>::into_value(self.by_months, context)?,
+            by_year_days: <VmArray<i16> as VmAbiCodec>::into_value(self.by_year_days, context)?,
+            by_week_numbers: <VmArray<i8> as VmAbiCodec>::into_value(
+                self.by_week_numbers,
+                context,
+            )?,
+            by_set_positions: <VmArray<i16> as VmAbiCodec>::into_value(
+                self.by_set_positions,
+                context,
+            )?,
         })
     }
 
@@ -6529,11 +6631,116 @@ impl VmAbiCodec for CalendarRecurrenceRuleAbi<VmAbi> {
             count: <Option<u32> as VmAbiCodec>::from_value(context, value.count)?,
             until_unix_ns: <Option<u64> as VmAbiCodec>::from_value(context, value.until_unix_ns)?,
             by_week_days: <VmArray<u8> as VmAbiCodec>::from_value(context, value.by_week_days)?,
+            by_weekday_ordinals: <VmArray<CalendarRecurrenceWeekdayVm> as VmAbiCodec>::from_value(
+                context,
+                value.by_weekday_ordinals,
+            )?,
             by_month_days: <VmArray<i8> as VmAbiCodec>::from_value(context, value.by_month_days)?,
             by_months: <VmArray<u8> as VmAbiCodec>::from_value(context, value.by_months)?,
+            by_year_days: <VmArray<i16> as VmAbiCodec>::from_value(context, value.by_year_days)?,
+            by_week_numbers: <VmArray<i8> as VmAbiCodec>::from_value(
+                context,
+                value.by_week_numbers,
+            )?,
+            by_set_positions: <VmArray<i16> as VmAbiCodec>::from_value(
+                context,
+                value.by_set_positions,
+            )?,
         })
     }
 }
+
+/// ABI struct for CalendarRecurrenceWeekday.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct CalendarRecurrenceWeekday {
+    /// Weekday number in ISO-8601 encoding, 1 to 7.
+    pub day: u8,
+    /// Week occurrence within the recurrence range when needed.
+    pub week_number: Option<i8>,
+}
+
+pub type CalendarRecurrenceWeekdayVm = CalendarRecurrenceWeekday;
+
+impl VmAggregateCodec for CalendarRecurrenceWeekday {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CalendarRecurrenceWeekday",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_day = <u8 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_week_number =
+            <Option<i8> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            day: field_day,
+            week_number: field_week_number,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u8 as VmAggregateCodec>::encode_with_context(self.day, context)?,
+            <Option<i8> as VmAggregateCodec>::encode_with_context(self.week_number, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for CalendarRecurrenceWeekday.
+pub type CalendarRecurrenceWeekdayValue = CalendarRecurrenceWeekday;
+
+impl NativeAbiCodec for CalendarRecurrenceWeekday {
+    type Value = CalendarRecurrenceWeekdayValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for CalendarRecurrenceWeekday {
+    type Value = CalendarRecurrenceWeekdayValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for CalendarRecurrenceWeekday {}
 
 /// ABI struct for CalendarRelativeReminder.
 #[repr(C)]
@@ -17498,10 +17705,18 @@ pub struct CalendarrecurrenceruleReplayRecord {
     pub until_unix_ns: Option<u64>,
     /// Weekday numbers in ISO-8601 encoding, 1 to 7.
     pub by_week_days: Vec<u8>,
+    /// Structured weekday selectors with optional ordinal positions.
+    pub by_weekday_ordinals: Vec<CalendarRecurrenceWeekday>,
     /// Day-of-month set.
     pub by_month_days: Vec<i8>,
     /// Month set, 1 to 12.
     pub by_months: Vec<u8>,
+    /// Day-of-year set.
+    pub by_year_days: Vec<i16>,
+    /// Week-of-year set.
+    pub by_week_numbers: Vec<i8>,
+    /// Final set-position filters.
+    pub by_set_positions: Vec<i16>,
 }
 
 /// Replay struct for CalendarRelativeReminder.
