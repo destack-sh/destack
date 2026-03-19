@@ -8,8 +8,7 @@ use destack_core::StringPool;
 use destack_mir as mir;
 use destack_source::{FileType, ModuleId};
 use destack_workspace::{
-    Output, OutputContent, OutputFormat, OutputId, OutputScope, OutputVersion, Program, Target,
-    TargetId,
+    ArtifactContent, ArtifactFile, ModuleEmit, OutputFormat, Program, Target, TargetId,
 };
 use target_lexicon::Triple;
 
@@ -19,8 +18,8 @@ use crate::{CodegenCraneliftError, CodegenCraneliftResult, CodegenCraneliftWarni
 /// Output from Cranelift code generation.
 #[derive(Debug)]
 pub struct CodegenCraneliftOutput {
-    /// Generated outputs.
-    pub outputs: Vec<Output>,
+    /// Generated module emit payload.
+    pub emit: ModuleEmit,
     /// Warnings encountered during generation.
     pub warnings: Vec<CodegenCraneliftWarning>,
     /// Non-fatal errors encountered during generation.
@@ -194,7 +193,6 @@ pub fn generate_module(
     program: Arc<Program>,
     module_id: ModuleId,
     target: &Target,
-    registry_next_id: impl Fn() -> OutputId,
 ) -> CodegenCraneliftResult<CodegenCraneliftOutput> {
     // validate target
     match target.output {
@@ -234,10 +232,10 @@ pub fn generate_module(
 
     // determine file type and create output
     let (file_type, content) = match target.output {
-        OutputFormat::Wasm => (FileType::Wasm, OutputContent::wasm(compile_output.bytes)),
+        OutputFormat::Wasm => (FileType::Wasm, ArtifactContent::wasm(compile_output.bytes)),
         OutputFormat::Native => (
             FileType::Object,
-            OutputContent::object(compile_output.bytes),
+            ArtifactContent::object(compile_output.bytes),
         ),
         _ => {
             return Err(CodegenCraneliftError::UnsupportedTarget {
@@ -250,18 +248,14 @@ pub fn generate_module(
     let extension = file_type.extension().unwrap_or("o");
     let uri = module.uri.without_extension().with_extension(extension);
 
-    let output = Output {
-        id: registry_next_id(),
-        version: OutputVersion::INITIAL,
-        scope: OutputScope::Module(module_id),
-        target: target_id,
+    let output = ArtifactFile {
         uri,
         content,
         source: None,
     };
 
     Ok(CodegenCraneliftOutput {
-        outputs: vec![output],
+        emit: ModuleEmit::new(vec![output]),
         warnings: compile_output.warnings,
         errors: compile_output.errors,
     })

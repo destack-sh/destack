@@ -73,6 +73,5 @@ pub fn generate_module(
     lowerer.lower_module()?;
 
     // finish and get outputs + warnings
-    let registry_next_id = || program.outputs.next_id();
-    lowerer.finish(registry_next_id, &package_dir, root_dir.as_deref())
+    lowerer.finish(&package_dir, root_dir.as_deref())
 }
