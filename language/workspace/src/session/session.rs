@@ -10,10 +10,10 @@ use destack_source::{
 use parking_lot::RwLock;
 
 use crate::{
-    Builtins, CacheStore, Destack, DiskCacheStore, FormatterOptions, LinterOptions,
-    ModuleRegistry, PackageRegistry, ProfileKey, Program, SessionOptions, TsConfigRegistry,
-    Workspace, WorkspaceFileEntry, WorkspaceIndexHeader, WorkspaceIndexSnapshot,
-    WorkspaceModuleEntry, file_content_hash_for_path, resolve_workspace_cache_root,
+    Builtins, CacheStore, Destack, DiskCacheStore, FormatterOptions, LinterOptions, ModuleRegistry,
+    PackageRegistry, ProfileKey, Program, SessionOptions, TsConfigRegistry, Workspace,
+    WorkspaceFileEntry, WorkspaceIndexHeader, WorkspaceIndexSnapshot, WorkspaceModuleEntry,
+    file_content_hash_for_path, resolve_workspace_cache_root,
 };
 
 /// A session is the persistent state for a workspace.

@@ -312,10 +312,7 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
 
     let skipped_variant = variants.iter().find(|variant| variant.name == "Skipped");
     let Some(skipped_variant) = skipped_variant else {
-        return Err(Error::new(
-            Span::call_site(),
-            "missing `Skipped` variant",
-        ));
+        return Err(Error::new(Span::call_site(), "missing `Skipped` variant"));
     };
     if !skipped_variant.fields.is_empty() {
         return Err(Error::new(
@@ -551,7 +548,7 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
 
     Ok(quote! {
         // Import the DiagnosticFormat trait for field formatting in messages.
-        use crate::DiagnosticFormat as _;
+        use crate::{DiagnosticFormat as _, TaskSkip, TaskSkipError};
 
         impl #enum_name {
             /// Phase letter for this error type.
@@ -654,13 +651,13 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
             }
         }
 
-        impl crate::TaskSkip for #enum_name {
+        impl TaskSkip for #enum_name {
             fn is_skipped(&self) -> bool {
                 matches!(self, Self::Skipped)
             }
         }
 
-        impl crate::TaskSkipError for #enum_name {
+        impl TaskSkipError for #enum_name {
             fn skipped() -> Self {
                 Self::Skipped
             }

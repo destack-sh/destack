@@ -13,12 +13,11 @@ use indexmap::IndexMap;
 use crate::{
     ArtifactKey, ArtifactRegistry, Ast, Builtins, CompilerOptions, DestackOptions, DsPathAliases,
     EnvSnapshot, FormatterOptions, LinterOptions, Loader, Module, ModuleDetection, ModuleFormat,
-    ModuleRegistry, ModuleSource, OutputRegistry, Package, PackageKind, PackageRegistry,
-    Platform, Profile, ProfileConfig, ProfileEnv, ProfileFlags, ProfileId, ProfileKey,
-    ProfileRegistry, Runtime, SourceType, Target, TargetId, TsConfig, TsConfigId,
-    TsConfigOptions, TsConfigRegistry, builtin_libs_for_type_entries,
-    discover_typescript_type_entries, normalize_typescript_lib_names,
-    normalize_typescript_type_entries, typescript_default_libs,
+    ModuleRegistry, ModuleSource, OutputRegistry, Package, PackageKind, PackageRegistry, Platform,
+    Profile, ProfileConfig, ProfileEnv, ProfileFlags, ProfileId, ProfileKey, ProfileRegistry,
+    Runtime, SourceType, Target, TargetId, TsConfig, TsConfigId, TsConfigOptions, TsConfigRegistry,
+    builtin_libs_for_type_entries, discover_typescript_type_entries,
+    normalize_typescript_lib_names, normalize_typescript_type_entries, typescript_default_libs,
 };
 
 /// Tsconfig context for one module profile decision.

@@ -26,14 +26,14 @@ use destack_source::{
 };
 use destack_vm::{Heap, Isolate, IsolateOptions, MemoryContext, SharedSpace, Value};
 use destack_workspace::{
-    ArtifactKey, CacheMode, CacheStore, Destack, DestackJson, DestackOptions, DiskCacheStore,
-    DirAnalyzed, DirBase, DirDeclared, DirElaborated, DirInterface, DirPatched, DirPrepared,
-    DirResolved, DiskCacheStore, ExportedSymbolTable, MemoryCacheStore, Module, OutputFormat,
-    ProfileId, Program, Session, Target, TargetId,
+    ArtifactKey, CacheMode, CacheStore, Destack, DestackJson, DestackOptions, DirAnalyzed, DirBase,
+    DirDeclared, DirElaborated, DirInterface, DirPatched, DirPrepared, DirResolved, DiskCacheStore,
+    DiskCacheStore, ExportedSymbolTable, MemoryCacheStore, Module, OutputFormat, ProfileId,
+    Program, Session, Target, TargetId,
 };
 use serde_json::json;
 
-use crate::{BuildKey, Compiler, CompilerOptions, TaskPhase, default_workers};
+use crate::{AnalyzeOptions, BuildKey, Compiler, CompilerOptions, TaskPhase, default_workers};
 
 use super::tracing::init_tracing;
 
@@ -489,7 +489,7 @@ impl TestProgram {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-    ) -> (Arc<Module>, TestDir, LocalNodeIdAny, crate::AnalyzeOptions) {
+    ) -> (Arc<Module>, TestDir, LocalNodeIdAny, AnalyzeOptions) {
         let module = self.program.modules.get(module_id);
         let dir = self.artifact_dir(module_id, profile);
         let source_id = dir.roots[0].into_any();

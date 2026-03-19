@@ -218,9 +218,15 @@ pub fn generate_module(
     let name = module.uri.last_segment().unwrap_or("module");
     let profile_id = program.default_profile_id_for_module(module_id);
     let target_id = TargetId::new(module.package_id, target.name.clone());
-    let compile_output = if let Some(mir) = program.artifacts.mir_optimized(module_id, profile_id, &target_id) {
+    let compile_output = if let Some(mir) = program
+        .artifacts
+        .mir_optimized(module_id, profile_id, &target_id)
+    {
         backend.compile_module(&mir.tree, &mir.strings, name)?
-    } else if let Some(mir) = program.artifacts.mir_base(module_id, profile_id, &target_id) {
+    } else if let Some(mir) = program
+        .artifacts
+        .mir_base(module_id, profile_id, &target_id)
+    {
         backend.compile_module(&mir.tree, &mir.strings, name)?
     } else {
         panic!("codegen requires committed MIR artifact");

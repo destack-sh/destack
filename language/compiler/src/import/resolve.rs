@@ -47,8 +47,8 @@ enum SourceImportResolvePolicy {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Refresh package dsconfig state from the filesystem.
-    fn refresh_package_dsconfig(
+    /// Refresh package destack config state from the filesystem.
+    fn refresh_package_destack_config(
         &self,
         package_id: PackageId,
         directory: &Path,
@@ -60,24 +60,35 @@ impl Compiler {
             .packages
             .get(package_id)
             .read()
-            .dsconfig
+            .config
             .is_some()
         {
             return;
         }
 
-        // search parent directories until a package boundary
+        // load and attach the discovered config
+        let Some(config_path) = self.find_destack_config_path(directory, resolver) else {
+            return;
+        };
+        let Some(config) = self.session.load_destack_for_path(&config_path) else {
+            return;
+        };
+
+        let package = self.program.packages.get(package_id);
+        package.write().config = Some(config);
+    }
+
+    /// Find the nearest `destack.json` for one directory before crossing a package boundary.
+    fn find_destack_config_path(&self, directory: &Path, resolver: &Resolver) -> Option<PathBuf> {
         let mut current = directory.to_path_buf();
-        let mut dsconfig_path = None;
         loop {
-            let candidate = current.join("dsconfig.json");
+            let candidate = current.join("destack.json");
             if resolver
                 .fs()
                 .metadata(&candidate)
                 .is_ok_and(|meta| meta.is_file)
             {
-                dsconfig_path = Some(candidate);
-                break;
+                return Some(candidate);
             }
 
             let package_json_path = current.join("package.json");
@@ -86,25 +97,12 @@ impl Compiler {
                 .metadata(&package_json_path)
                 .is_ok_and(|meta| meta.is_file)
             {
-                break;
+                return None;
             }
 
-            let Some(parent) = current.parent() else {
-                break;
-            };
+            let parent = current.parent()?;
             current = parent.to_path_buf();
         }
-
-        // load and attach the discovered config
-        let Some(dsconfig_path) = dsconfig_path else {
-            return;
-        };
-        let Some(dsconfig) = self.session.load_dsconfig_for_path(&dsconfig_path) else {
-            return;
-        };
-
-        let package = self.program.packages.get(package_id);
-        package.write().dsconfig = Some(dsconfig);
     }
 
     /// Resolve a specifier to a ModuleId, registering a blank module if needed.
@@ -852,7 +850,7 @@ impl Compiler {
             let package = self.program.packages.get(package_id);
             let package_root = package.read().path.clone();
             if let Some(package_root) = package_root.as_deref() {
-                self.refresh_package_dsconfig(package_id, package_root, resolver);
+                self.refresh_package_destack_config(package_id, package_root, resolver);
             }
             return Ok((package_id, package_root));
         }
@@ -863,47 +861,14 @@ impl Compiler {
 
         // check if synthetic package already exists
         if self.program.packages.contains(package_id) {
-            self.refresh_package_dsconfig(package_id, directory, resolver);
+            self.refresh_package_destack_config(package_id, directory, resolver);
             return Ok((package_id, Some(directory.to_path_buf())));
         }
 
         // load destack.json for synthetic packages when present
-        let config = {
-            // walk up directories for config until a package boundary
-            let mut current = directory.to_path_buf();
-            let mut config_path = None;
-            loop {
-                let candidate = current.join("destack.json");
-                if resolver
-                    .fs()
-                    .metadata(&candidate)
-                    .is_ok_and(|meta| meta.is_file)
-                {
-                    config_path = Some(candidate);
-                    break;
-                }
-
-                let package_json_path = current.join("package.json");
-                if resolver
-                    .fs()
-                    .metadata(&package_json_path)
-                    .is_ok_and(|meta| meta.is_file)
-                {
-                    break;
-                }
-
-                let Some(parent) = current.parent() else {
-                    break;
-                };
-                current = parent.to_path_buf();
-            }
-
-            config_path.and_then(|path| {
-                resolver
-                    .read_destack_config(&path, CachePolicy::UseCache)
-                    .ok()
-            })
-        };
+        let config = self
+            .find_destack_config_path(directory, resolver)
+            .and_then(|path| self.session.load_destack_for_path(&path));
         // create and insert synthetic package
         let package_name = self.synthetic_package_name(directory);
         let package = Package {
@@ -920,7 +885,7 @@ impl Compiler {
             targets: Default::default(),
         };
         self.program.packages.insert(package);
-        self.refresh_package_dsconfig(package_id, directory, resolver);
+        self.refresh_package_destack_config(package_id, directory, resolver);
 
         Ok((package_id, Some(directory.to_path_buf())))
     }
