@@ -5,17 +5,9 @@ use parking_lot::Mutex;
 
 /// Shared callback queue for one windows loop service.
 #[derive(Default)]
-pub(crate) struct WindowsLoopQueue {
+pub(in super::super) struct WindowsLoopQueue {
     /// Pending callbacks for one bound windows thread.
-    pub(super) callbacks: Mutex<VecDeque<WindowsLoopCallback>>,
-}
-
-impl WindowsLoopQueue {
-    /// Queue one callback for later delivery on the bound windows loop thread.
-    pub(crate) fn enqueue_callback(&self, callback: WindowsLoopCallback) {
-        let mut callbacks = self.callbacks.lock();
-        callbacks.push_back(callback);
-    }
+    callbacks: Mutex<VecDeque<WindowsLoopCallback>>,
 }
 
 /// One queued windows loop callback.
@@ -35,7 +27,10 @@ pub(crate) const WINDOWS_HOST_LOOP_SERVICE_MESSAGE_ID: u32 =
     windows_sys::Win32::UI::WindowsAndMessaging::WM_APP + 0x2541;
 
 /// Register one windows loop callback queue.
-pub(crate) fn register_windows_loop_queue(thread_id: u32, queue: &Arc<WindowsLoopQueue>) {
+pub(in super::super) fn register_windows_loop_queue(
+    thread_id: u32,
+    queue: &Arc<WindowsLoopQueue>,
+) {
     let registry = windows_loop_registry();
     let mut queues_by_thread = registry.queues_by_thread.lock();
 
@@ -77,8 +72,17 @@ pub(crate) fn process_windows_loop_callbacks() -> bool {
 }
 
 /// Return one shared windows loop queue.
-pub(crate) fn windows_loop_queue() -> Arc<WindowsLoopQueue> {
+pub(in super::super) fn windows_loop_queue() -> Arc<WindowsLoopQueue> {
     Arc::new(WindowsLoopQueue::default())
+}
+
+impl WindowsLoopQueue {
+    /// Enqueue one callback for later service on the bound windows loop.
+    pub(in super::super) fn enqueue(&self, callback: WindowsLoopCallback) {
+        let mut callbacks = self.callbacks.lock();
+
+        callbacks.push_back(callback);
+    }
 }
 
 /// Return the shared windows loop callback registry.

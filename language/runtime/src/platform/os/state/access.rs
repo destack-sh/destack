@@ -27,7 +27,7 @@ fn bootstrap_live_state(
     let platform = binding.host().platform();
     let queue = HostRuntimeRegistry::queue_for_runtime(host_runtime_id, platform);
 
-    // lifecycle state can still function without queue catchup if callback routing
+    // lifecycle state can still function without queue catchup if ingress routing
     // is not registered yet, or if tests are dispatching host events directly
     match queue {
         Ok(queue) => state.reconcile_host_queue(&queue, &observer),
