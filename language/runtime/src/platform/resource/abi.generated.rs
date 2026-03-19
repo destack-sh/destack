@@ -18,6 +18,61 @@ use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
+/// ABI newtype for AccessibilityActionHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AccessibilityActionHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type AccessibilityActionHandleVm = AccessibilityActionHandle;
+
+impl VmValueCodec for AccessibilityActionHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl VmCollectionElement for AccessibilityActionHandle {}
+
+/// Value type for AccessibilityActionHandle.
+pub type AccessibilityActionHandleValue = AccessibilityActionHandle;
+
+impl NativeAbiCodec for AccessibilityActionHandle {
+    type Value = AccessibilityActionHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for AccessibilityActionHandle {
+    type Value = AccessibilityActionHandleValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI newtype for AudioDeviceHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1118,6 +1173,61 @@ impl VmAbiCodec for DirectoryHandle {
     }
 }
 
+/// ABI newtype for DisplayBeginFrameHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DisplayBeginFrameHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type DisplayBeginFrameHandleVm = DisplayBeginFrameHandle;
+
+impl VmValueCodec for DisplayBeginFrameHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl VmCollectionElement for DisplayBeginFrameHandle {}
+
+/// Value type for DisplayBeginFrameHandle.
+pub type DisplayBeginFrameHandleValue = DisplayBeginFrameHandle;
+
+impl NativeAbiCodec for DisplayBeginFrameHandle {
+    type Value = DisplayBeginFrameHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for DisplayBeginFrameHandle {
+    type Value = DisplayBeginFrameHandleValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI newtype for DisplayEventHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1558,17 +1668,17 @@ impl VmAbiCodec for GpuBufferHandle {
     }
 }
 
-/// ABI newtype for GpuCommandListHandle.
+/// ABI newtype for GpuCommandBufferHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct GpuCommandListHandle(
+pub struct GpuCommandBufferHandle(
     /// Inner value.
     pub ResourceId,
 );
 
-pub type GpuCommandListHandleVm = GpuCommandListHandle;
+pub type GpuCommandBufferHandleVm = GpuCommandBufferHandle;
 
-impl VmValueCodec for GpuCommandListHandle {
+impl VmValueCodec for GpuCommandBufferHandle {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
@@ -1578,13 +1688,13 @@ impl VmValueCodec for GpuCommandListHandle {
     }
 }
 
-impl VmCollectionElement for GpuCommandListHandle {}
+impl VmCollectionElement for GpuCommandBufferHandle {}
 
-/// Value type for GpuCommandListHandle.
-pub type GpuCommandListHandleValue = GpuCommandListHandle;
+/// Value type for GpuCommandBufferHandle.
+pub type GpuCommandBufferHandleValue = GpuCommandBufferHandle;
 
-impl NativeAbiCodec for GpuCommandListHandle {
-    type Value = GpuCommandListHandleValue;
+impl NativeAbiCodec for GpuCommandBufferHandle {
+    type Value = GpuCommandBufferHandleValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(self)
@@ -1595,8 +1705,63 @@ impl NativeAbiCodec for GpuCommandListHandle {
     }
 }
 
-impl VmAbiCodec for GpuCommandListHandle {
-    type Value = GpuCommandListHandleValue;
+impl VmAbiCodec for GpuCommandBufferHandle {
+    type Value = GpuCommandBufferHandleValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuCommandEncoderHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuCommandEncoderHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuCommandEncoderHandleVm = GpuCommandEncoderHandle;
+
+impl VmValueCodec for GpuCommandEncoderHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl VmCollectionElement for GpuCommandEncoderHandle {}
+
+/// Value type for GpuCommandEncoderHandle.
+pub type GpuCommandEncoderHandleValue = GpuCommandEncoderHandle;
+
+impl NativeAbiCodec for GpuCommandEncoderHandle {
+    type Value = GpuCommandEncoderHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuCommandEncoderHandle {
+    type Value = GpuCommandEncoderHandleValue;
 
     fn into_value(
         self,
@@ -1707,6 +1872,61 @@ impl NativeAbiCodec for GpuDeviceHandle {
 
 impl VmAbiCodec for GpuDeviceHandle {
     type Value = GpuDeviceHandleValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuExternalTextureHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuExternalTextureHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuExternalTextureHandleVm = GpuExternalTextureHandle;
+
+impl VmValueCodec for GpuExternalTextureHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl VmCollectionElement for GpuExternalTextureHandle {}
+
+/// Value type for GpuExternalTextureHandle.
+pub type GpuExternalTextureHandleValue = GpuExternalTextureHandle;
+
+impl NativeAbiCodec for GpuExternalTextureHandle {
+    type Value = GpuExternalTextureHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuExternalTextureHandle {
+    type Value = GpuExternalTextureHandleValue;
 
     fn into_value(
         self,
@@ -2367,6 +2587,61 @@ impl NativeAbiCodec for GpuSurfaceHandle {
 
 impl VmAbiCodec for GpuSurfaceHandle {
     type Value = GpuSurfaceHandleValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuSurfacePresentationHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuSurfacePresentationHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuSurfacePresentationHandleVm = GpuSurfacePresentationHandle;
+
+impl VmValueCodec for GpuSurfacePresentationHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl VmCollectionElement for GpuSurfacePresentationHandle {}
+
+/// Value type for GpuSurfacePresentationHandle.
+pub type GpuSurfacePresentationHandleValue = GpuSurfacePresentationHandle;
+
+impl NativeAbiCodec for GpuSurfacePresentationHandle {
+    type Value = GpuSurfacePresentationHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuSurfacePresentationHandle {
+    type Value = GpuSurfacePresentationHandleValue;
 
     fn into_value(
         self,

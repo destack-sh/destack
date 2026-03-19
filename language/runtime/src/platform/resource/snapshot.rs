@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
+use crate::platform::device::MidiBackend;
 use crate::platform::diagnostic::PlatformError;
-use crate::platform::midi::MidiBackend;
 use crate::platform::resource::table::ResourceEntry;
 use crate::platform::resource::{ResourceAffinity, ResourceId, ResourceKind};
 

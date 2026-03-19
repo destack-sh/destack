@@ -1,0 +1,4 @@
+export declare namespace accessibility {}
+
+export * from "./tree.ds";
+export * from "./action.ds";

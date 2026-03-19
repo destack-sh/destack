@@ -8,6 +8,7 @@ pub(crate) use bindings_generated::*;
 mod bluetooth;
 mod camera;
 mod host;
+pub mod midi;
 pub mod native;
 mod serial;
 pub(crate) mod simulation;

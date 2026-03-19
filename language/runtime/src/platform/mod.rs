@@ -1,5 +1,7 @@
 /// Native platform ABI for bindings.
 pub mod abi;
+/// Accessibility bindings.
+pub mod accessibility;
 /// Audio bindings.
 pub mod audio;
 /// Cross-domain platform helpers.
@@ -32,8 +34,6 @@ pub mod io;
 pub mod ipc;
 /// Memory bindings.
 pub mod memory;
-/// MIDI bindings.
-pub mod midi;
 /// Network bindings.
 pub mod net;
 /// OS bindings.

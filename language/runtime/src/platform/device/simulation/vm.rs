@@ -20,6 +20,8 @@ use crate::platform::{PlatformError, VmSlice, resource};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
+pub(crate) use super::super::midi::simulation::vm::*;
+
 /// List Bluetooth adapters.
 ///
 /// Enumerate Bluetooth adapters that can perform BLE scan or session work and return stable descriptor snapshots for them.
