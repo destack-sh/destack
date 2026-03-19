@@ -3593,10 +3593,6 @@
           "named": true
         },
         {
-          "type": "object",
-          "named": true
-        },
-        {
           "type": "object_pattern",
           "named": true
         },
