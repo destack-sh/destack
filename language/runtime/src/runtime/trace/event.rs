@@ -132,7 +132,7 @@ pub enum TraceError {
         resource_kind: Option<String>,
     },
     /// Event-loop-idle runtime error payload.
-    LoopIdle {
+    EventLoopIdle {
         /// Task identifier for the idle event.
         task_id: u64,
     },
@@ -192,7 +192,7 @@ impl From<&RuntimeError> for TraceError {
                 resource_id: *resource_id,
                 resource_kind: resource_kind.clone(),
             },
-            RuntimeError::LoopIdle { task_id } => Self::LoopIdle { task_id: *task_id },
+            RuntimeError::EventLoopIdle { task_id } => Self::EventLoopIdle { task_id: *task_id },
             RuntimeError::TraceExhausted { sequence } => Self::TraceExhausted {
                 sequence: *sequence,
             },
@@ -237,7 +237,7 @@ impl From<TraceError> for RuntimeError {
                 resource_id,
                 resource_kind,
             },
-            TraceError::LoopIdle { task_id } => Self::LoopIdle { task_id },
+            TraceError::EventLoopIdle { task_id } => Self::EventLoopIdle { task_id },
             TraceError::TraceExhausted { sequence } => Self::TraceExhausted { sequence },
             TraceError::TraceMismatch { name } => Self::TraceMismatch { name },
             TraceError::TracePayloadUnsupported { name } => Self::TracePayloadUnsupported { name },

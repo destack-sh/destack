@@ -44,7 +44,7 @@ pub enum RuntimeError {
         resource_kind: Option<String>,
     } = 103,
     /// Event loop became idle before completing a task.
-    LoopIdle { task_id: u64 } = 104,
+    EventLoopIdle { task_id: u64 } = 104,
     /// Trace ended before the requested event.
     TraceExhausted {
         /// Sequence number of the missing event.
@@ -279,7 +279,7 @@ impl RuntimeError {
                     format!("resource not found: {resource_id}")
                 }
             }
-            RuntimeError::LoopIdle { task_id } => {
+            RuntimeError::EventLoopIdle { task_id } => {
                 format!("event loop idle before completing task {task_id}")
             }
             RuntimeError::TraceExhausted { sequence } => {

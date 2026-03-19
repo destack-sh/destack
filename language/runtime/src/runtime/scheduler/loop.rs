@@ -16,7 +16,7 @@ use crate::runtime::{DropCounts, ExecutionContext, ExecutionContextId};
 
 /// Watch payload that can be dispatched as one event loop task.
 #[derive(Debug)]
-pub struct LoopWatch {
+pub struct EventLoopWatch {
     /// Runnable continuation to execute when dispatched.
     pub runnable: EngineContinuation,
     /// Resume value passed into the continuation.
@@ -27,7 +27,7 @@ pub struct LoopWatch {
 
 /// Event loop for task queues, microtasks, timers, and platform events.
 #[derive(Debug, Default)]
-pub struct Loop {
+pub struct EventLoop {
     /// Pending macrotasks.
     pub(super) tasks: VecDeque<Task>,
     /// Pending microtasks that drain before macrotasks.
@@ -44,11 +44,11 @@ pub struct Loop {
     pub(super) canceled_timers: Mutex<FxHashSet<TimerHandle>>,
 
     /// Timer watch dispatch table keyed by timer handle.
-    pub(super) timer_watches: FxHashMap<ResourceId, LoopWatch>,
+    pub(super) timer_watches: FxHashMap<ResourceId, EventLoopWatch>,
     /// External event watch dispatch table keyed by poller token.
-    pub(super) poller_event_watches: FxHashMap<PollerToken, LoopWatch>,
+    pub(super) poller_event_watches: FxHashMap<PollerToken, EventLoopWatch>,
     /// Host event watch dispatch table keyed by host event kind.
-    pub(super) host_event_watches: FxHashMap<HostEventKind, LoopWatch>,
+    pub(super) host_event_watches: FxHashMap<HostEventKind, EventLoopWatch>,
     /// Configured event loop options.
     pub(super) options: SchedulerOptions,
 
@@ -66,7 +66,7 @@ pub struct Loop {
     pub(super) execution_context_id: OnceLock<ExecutionContextId>,
 }
 
-impl Loop {
+impl EventLoop {
     /// Configure event loop options.
     pub fn configure(&mut self, options: SchedulerOptions) -> RuntimeResult<()> {
         // validate options before applying them
