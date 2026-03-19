@@ -3,9 +3,9 @@ import { ResourceId } from "../resource/index.ds";
 
 /// GPU debug bindings.
 declare namespace gpu {
-    /// Set one debug label on one GPU resource object.
+    /// Set a debug label on a GPU resource object.
     ///
-    /// Set one human-readable label on one GPU resource or pipeline object.
+    /// Set a human-readable label on a GPU resource or pipeline object.
     /// Label visibility and truncation behavior are backend-defined.
     ///
     /// # Platform

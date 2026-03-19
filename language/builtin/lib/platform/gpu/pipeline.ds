@@ -7,6 +7,7 @@ import {
     GpuPipelineLayoutHandle,
     GpuShaderHandle,
 } from "../resource/index.ds";
+import { GpuCompareFunction, GpuTextureFormat } from "./resource.ds";
 
 /// GPU shader module options.
 export struct GpuShaderOptions {
@@ -14,8 +15,12 @@ export struct GpuShaderOptions {
     format: GpuShaderFormat;
     /// Shader option flags.
     flags: uint32;
-    /// Human-readable debug label, empty when unspecified.
+    /// Debug label.
     label: string;
+    /// Native workgroup counts for passthrough shader formats when required.
+    numWorkgroups: uint32[3 as comptime] | void;
+    /// Shader runtime-check policy when one nondefault policy is requested.
+    runtimeChecks: GpuShaderRuntimeChecks | void;
 }
 
 /// Shader binary format selector.
@@ -64,10 +69,118 @@ export struct GpuCompilationInfo {
     messages: Slice<GpuCompilationMessage>;
 }
 
+/// Shader runtime-check policy.
+export struct GpuShaderRuntimeChecks {
+    /// Whether shader buffer bounds checks are enforced.
+    boundsChecks: boolean;
+    /// Whether loop bounding is enforced.
+    forceLoopBounding: boolean;
+    /// Whether ray-query initialization tracking is enforced.
+    rayQueryInitializationTracking: boolean;
+    /// Whether task-shader dispatch tracking is enforced.
+    taskShaderDispatchTracking: boolean;
+    /// Whether mesh-shader primitive indices are clamped.
+    meshShaderPrimitiveIndicesClamp: boolean;
+}
+
+/// Typed GPU vertex-format identifier.
+export newtype GpuVertexFormat = uint32;
+
+/// Unsigned 8-bit x2 vertex format.
+export const GPU_VERTEX_FORMAT_UINT8X2: GpuVertexFormat = GpuVertexFormat(1);
+/// Unsigned 8-bit x4 vertex format.
+export const GPU_VERTEX_FORMAT_UINT8X4: GpuVertexFormat = GpuVertexFormat(2);
+/// Signed 8-bit x2 vertex format.
+export const GPU_VERTEX_FORMAT_SINT8X2: GpuVertexFormat = GpuVertexFormat(3);
+/// Signed 8-bit x4 vertex format.
+export const GPU_VERTEX_FORMAT_SINT8X4: GpuVertexFormat = GpuVertexFormat(4);
+/// Unsigned normalized 8-bit x2 vertex format.
+export const GPU_VERTEX_FORMAT_UNORM8X2: GpuVertexFormat = GpuVertexFormat(5);
+/// Unsigned normalized 8-bit x4 vertex format.
+export const GPU_VERTEX_FORMAT_UNORM8X4: GpuVertexFormat = GpuVertexFormat(6);
+/// Signed normalized 8-bit x2 vertex format.
+export const GPU_VERTEX_FORMAT_SNORM8X2: GpuVertexFormat = GpuVertexFormat(7);
+/// Signed normalized 8-bit x4 vertex format.
+export const GPU_VERTEX_FORMAT_SNORM8X4: GpuVertexFormat = GpuVertexFormat(8);
+/// Unsigned 16-bit x2 vertex format.
+export const GPU_VERTEX_FORMAT_UINT16X2: GpuVertexFormat = GpuVertexFormat(9);
+/// Unsigned 16-bit x4 vertex format.
+export const GPU_VERTEX_FORMAT_UINT16X4: GpuVertexFormat = GpuVertexFormat(10);
+/// Signed 16-bit x2 vertex format.
+export const GPU_VERTEX_FORMAT_SINT16X2: GpuVertexFormat = GpuVertexFormat(11);
+/// Signed 16-bit x4 vertex format.
+export const GPU_VERTEX_FORMAT_SINT16X4: GpuVertexFormat = GpuVertexFormat(12);
+/// Unsigned normalized 16-bit x2 vertex format.
+export const GPU_VERTEX_FORMAT_UNORM16X2: GpuVertexFormat = GpuVertexFormat(13);
+/// Unsigned normalized 16-bit x4 vertex format.
+export const GPU_VERTEX_FORMAT_UNORM16X4: GpuVertexFormat = GpuVertexFormat(14);
+/// Signed normalized 16-bit x2 vertex format.
+export const GPU_VERTEX_FORMAT_SNORM16X2: GpuVertexFormat = GpuVertexFormat(15);
+/// Signed normalized 16-bit x4 vertex format.
+export const GPU_VERTEX_FORMAT_SNORM16X4: GpuVertexFormat = GpuVertexFormat(16);
+/// 16-bit float x2 vertex format.
+export const GPU_VERTEX_FORMAT_FLOAT16X2: GpuVertexFormat = GpuVertexFormat(17);
+/// 16-bit float x4 vertex format.
+export const GPU_VERTEX_FORMAT_FLOAT16X4: GpuVertexFormat = GpuVertexFormat(18);
+/// 32-bit float vertex format.
+export const GPU_VERTEX_FORMAT_FLOAT32: GpuVertexFormat = GpuVertexFormat(19);
+/// 32-bit float x2 vertex format.
+export const GPU_VERTEX_FORMAT_FLOAT32X2: GpuVertexFormat = GpuVertexFormat(20);
+/// 32-bit float x3 vertex format.
+export const GPU_VERTEX_FORMAT_FLOAT32X3: GpuVertexFormat = GpuVertexFormat(21);
+/// 32-bit float x4 vertex format.
+export const GPU_VERTEX_FORMAT_FLOAT32X4: GpuVertexFormat = GpuVertexFormat(22);
+/// Unsigned 32-bit vertex format.
+export const GPU_VERTEX_FORMAT_UINT32: GpuVertexFormat = GpuVertexFormat(23);
+/// Unsigned 32-bit x2 vertex format.
+export const GPU_VERTEX_FORMAT_UINT32X2: GpuVertexFormat = GpuVertexFormat(24);
+/// Unsigned 32-bit x3 vertex format.
+export const GPU_VERTEX_FORMAT_UINT32X3: GpuVertexFormat = GpuVertexFormat(25);
+/// Unsigned 32-bit x4 vertex format.
+export const GPU_VERTEX_FORMAT_UINT32X4: GpuVertexFormat = GpuVertexFormat(26);
+/// Signed 32-bit vertex format.
+export const GPU_VERTEX_FORMAT_SINT32: GpuVertexFormat = GpuVertexFormat(27);
+/// Signed 32-bit x2 vertex format.
+export const GPU_VERTEX_FORMAT_SINT32X2: GpuVertexFormat = GpuVertexFormat(28);
+/// Signed 32-bit x3 vertex format.
+export const GPU_VERTEX_FORMAT_SINT32X3: GpuVertexFormat = GpuVertexFormat(29);
+/// Signed 32-bit x4 vertex format.
+export const GPU_VERTEX_FORMAT_SINT32X4: GpuVertexFormat = GpuVertexFormat(30);
+/// Packed normalized 10:10:10:2 vertex format.
+export const GPU_VERTEX_FORMAT_UNORM10_10_10_2: GpuVertexFormat = GpuVertexFormat(31);
+/// 8-bit BGRA normalized vertex format.
+export const GPU_VERTEX_FORMAT_UNORM8X4_BGRA: GpuVertexFormat = GpuVertexFormat(32);
+/// Unsigned 8-bit scalar vertex format.
+export const GPU_VERTEX_FORMAT_UINT8: GpuVertexFormat = GpuVertexFormat(33);
+/// Signed 8-bit scalar vertex format.
+export const GPU_VERTEX_FORMAT_SINT8: GpuVertexFormat = GpuVertexFormat(34);
+/// Unsigned normalized 8-bit scalar vertex format.
+export const GPU_VERTEX_FORMAT_UNORM8: GpuVertexFormat = GpuVertexFormat(35);
+/// Signed normalized 8-bit scalar vertex format.
+export const GPU_VERTEX_FORMAT_SNORM8: GpuVertexFormat = GpuVertexFormat(36);
+/// Unsigned 16-bit scalar vertex format.
+export const GPU_VERTEX_FORMAT_UINT16: GpuVertexFormat = GpuVertexFormat(37);
+/// Signed 16-bit scalar vertex format.
+export const GPU_VERTEX_FORMAT_SINT16: GpuVertexFormat = GpuVertexFormat(38);
+/// Unsigned normalized 16-bit scalar vertex format.
+export const GPU_VERTEX_FORMAT_UNORM16: GpuVertexFormat = GpuVertexFormat(39);
+/// Signed normalized 16-bit scalar vertex format.
+export const GPU_VERTEX_FORMAT_SNORM16: GpuVertexFormat = GpuVertexFormat(40);
+/// 16-bit float scalar vertex format.
+export const GPU_VERTEX_FORMAT_FLOAT16: GpuVertexFormat = GpuVertexFormat(41);
+/// 64-bit float scalar vertex format.
+export const GPU_VERTEX_FORMAT_FLOAT64: GpuVertexFormat = GpuVertexFormat(42);
+/// 64-bit float x2 vertex format.
+export const GPU_VERTEX_FORMAT_FLOAT64X2: GpuVertexFormat = GpuVertexFormat(43);
+/// 64-bit float x3 vertex format.
+export const GPU_VERTEX_FORMAT_FLOAT64X3: GpuVertexFormat = GpuVertexFormat(44);
+/// 64-bit float x4 vertex format.
+export const GPU_VERTEX_FORMAT_FLOAT64X4: GpuVertexFormat = GpuVertexFormat(45);
+
 /// Vertex attribute descriptor.
 export struct GpuVertexAttribute {
     /// Vertex attribute format selector.
-    format: uint32;
+    format: GpuVertexFormat;
     /// Byte offset for this attribute within one vertex element.
     offset: uint64;
     /// Shader location index.
@@ -96,118 +209,96 @@ export enum GpuVertexStepMode {
 
 /// Primitive topology selector.
 export enum GpuPrimitiveTopology {
-    /// Topology is unspecified.
-    Undefined = 0,
     /// Point-list topology.
-    PointList = 1,
+    PointList = 0,
     /// Line-list topology.
-    LineList = 2,
+    LineList = 1,
     /// Line-strip topology.
-    LineStrip = 3,
+    LineStrip = 2,
     /// Triangle-list topology.
-    TriangleList = 4,
+    TriangleList = 3,
     /// Triangle-strip topology.
-    TriangleStrip = 5,
+    TriangleStrip = 4,
 }
 
 /// Front-face winding selector.
 export enum GpuFrontFace {
-    /// Front-face winding is unspecified.
-    Undefined = 0,
     /// Counter-clockwise front-face winding.
-    Ccw = 1,
+    Ccw = 0,
     /// Clockwise front-face winding.
-    Cw = 2,
+    Cw = 1,
 }
 
 /// Face-culling selector.
 export enum GpuCullMode {
-    /// Culling mode is unspecified.
-    Undefined = 0,
     /// Disable face culling.
-    None = 1,
+    None = 0,
     /// Cull front faces.
-    Front = 2,
+    Front = 1,
     /// Cull back faces.
-    Back = 3,
+    Back = 2,
 }
 
-/// Depth or stencil compare selector.
-export enum GpuCompareFunction {
-    /// Comparison function is unspecified.
-    Undefined = 0,
-    /// Comparison always fails.
-    Never = 1,
-    /// Pass when source is less than destination.
-    Less = 2,
-    /// Pass when source equals destination.
-    Equal = 3,
-    /// Pass when source is less than or equal to destination.
-    LessEqual = 4,
-    /// Pass when source is greater than destination.
-    Greater = 5,
-    /// Pass when source does not equal destination.
-    NotEqual = 6,
-    /// Pass when source is greater than or equal to destination.
-    GreaterEqual = 7,
-    /// Comparison always passes.
-    Always = 8,
+/// Polygon rasterization selector.
+export enum GpuPolygonMode {
+    /// Rasterize filled polygons.
+    Fill = 0,
+    /// Rasterize polygon edges as lines.
+    Line = 1,
+    /// Rasterize polygon vertices as points.
+    Point = 2,
 }
 
 /// Blend factor selector.
 export enum GpuBlendFactor {
-    /// Blend factor is unspecified.
-    Undefined = 0,
     /// Zero factor.
-    Zero = 1,
+    Zero = 0,
     /// One factor.
-    One = 2,
+    One = 1,
     /// Source color factor.
-    Src = 3,
+    Src = 2,
     /// One-minus source color factor.
-    OneMinusSrc = 4,
+    OneMinusSrc = 3,
     /// Source alpha factor.
-    SrcAlpha = 5,
+    SrcAlpha = 4,
     /// One-minus source alpha factor.
-    OneMinusSrcAlpha = 6,
+    OneMinusSrcAlpha = 5,
     /// Destination color factor.
-    Dst = 7,
+    Dst = 6,
     /// One-minus destination color factor.
-    OneMinusDst = 8,
+    OneMinusDst = 7,
     /// Destination alpha factor.
-    DstAlpha = 9,
+    DstAlpha = 8,
     /// One-minus destination alpha factor.
-    OneMinusDstAlpha = 10,
+    OneMinusDstAlpha = 9,
     /// Source-alpha-saturated factor.
-    SrcAlphaSaturated = 11,
+    SrcAlphaSaturated = 10,
     /// Constant-blend-color factor.
-    Constant = 12,
+    Constant = 11,
     /// One-minus constant-blend-color factor.
-    OneMinusConstant = 13,
+    OneMinusConstant = 12,
     /// Secondary source color factor.
-    Src1 = 14,
+    Src1 = 13,
     /// One-minus secondary source color factor.
-    OneMinusSrc1 = 15,
+    OneMinusSrc1 = 14,
     /// Secondary source alpha factor.
-    Src1Alpha = 16,
+    Src1Alpha = 15,
     /// One-minus secondary source alpha factor.
-    OneMinusSrc1Alpha = 17,
+    OneMinusSrc1Alpha = 16,
 }
 
 /// Blend operation selector.
 export enum GpuBlendOperation {
-    /// Blend operation is unspecified.
-    Undefined = 0,
     /// Additive blend operation.
-    Add = 1,
+    Add = 0,
     /// Source minus destination operation.
-    Subtract = 2,
+    Subtract = 1,
     /// Destination minus source operation.
-    ReverseSubtract = 3,
+    ReverseSubtract = 2,
     /// Minimum operation.
-    Min = 4,
+    Min = 3,
     /// Maximum operation.
-    Max = 5,
+    Max = 4,
 }
 
 /// Blend component descriptor.
@@ -231,10 +322,23 @@ export struct GpuBlendState {
 /// Color-write channel mask.
 export newtype GpuColorWriteMask = uint32;
 
+/// Color-write bit for red.
+export const GPU_COLOR_WRITE_RED: GpuColorWriteMask = GpuColorWriteMask(0x1);
+/// Color-write bit for green.
+export const GPU_COLOR_WRITE_GREEN: GpuColorWriteMask = GpuColorWriteMask(0x2);
+/// Color-write bit for blue.
+export const GPU_COLOR_WRITE_BLUE: GpuColorWriteMask = GpuColorWriteMask(0x4);
+/// Color-write bit for alpha.
+export const GPU_COLOR_WRITE_ALPHA: GpuColorWriteMask = GpuColorWriteMask(0x8);
+/// Color-write bits for RGB.
+export const GPU_COLOR_WRITE_COLOR: GpuColorWriteMask = GpuColorWriteMask(0x7);
+/// Color-write bits for RGBA.
+export const GPU_COLOR_WRITE_ALL: GpuColorWriteMask = GpuColorWriteMask(0xf);
+
 /// Color-target descriptor.
 export struct GpuColorTargetState {
     /// Render-target texture format identifier.
-    format: uint32;
+    format: GpuTextureFormat;
     /// Blend-state descriptor when provided.
     blend: GpuBlendState | void;
     /// Color-write channel mask.
@@ -245,36 +349,46 @@ export struct GpuColorTargetState {
 export struct GpuPrimitiveState {
     /// Primitive topology selector.
     topology: GpuPrimitiveTopology;
-    /// Strip index format selector, zero when not used.
-    stripIndexFormat: uint32;
+    /// Strip index format selector when one strip topology uses indices.
+    stripIndexFormat: GpuIndexFormat | void;
     /// Front-face winding selector.
     frontFace: GpuFrontFace;
     /// Face-culling selector.
     cullMode: GpuCullMode;
     /// Whether unclipped depth is enabled.
     unclippedDepth: boolean;
+    /// Polygon rasterization selector.
+    polygonMode: GpuPolygonMode;
+    /// Whether conservative rasterization is enabled.
+    conservative: boolean;
 }
 
 /// Stencil operation selector.
 export enum GpuStencilOperation {
-    /// Stencil operation is unspecified.
-    Undefined = 0,
     /// Keep the current stencil value.
-    Keep = 1,
+    Keep = 0,
     /// Set stencil to zero.
-    Zero = 2,
+    Zero = 1,
     /// Replace stencil with the reference value.
-    Replace = 3,
+    Replace = 2,
     /// Bitwise invert the current stencil value.
-    Invert = 4,
+    Invert = 3,
     /// Increment and clamp stencil.
-    IncrementClamp = 5,
+    IncrementClamp = 4,
     /// Decrement and clamp stencil.
-    DecrementClamp = 6,
+    DecrementClamp = 5,
     /// Increment and wrap stencil.
-    IncrementWrap = 7,
+    IncrementWrap = 6,
     /// Decrement and wrap stencil.
-    DecrementWrap = 8,
+    DecrementWrap = 7,
+}
+
+/// Index element format selector.
+export enum GpuIndexFormat {
+    /// Unsigned 16-bit indices.
+    Uint16 = 0,
+    /// Unsigned 32-bit indices.
+    Uint32 = 1,
 }
 
 /// Stencil-face-state descriptor.
@@ -292,7 +406,7 @@ export struct GpuStencilFaceState {
 /// Depth-stencil-state descriptor.
 export struct GpuDepthStencilState {
     /// Depth-stencil texture format identifier.
-    format: uint32;
+    format: GpuTextureFormat;
     /// Whether depth writes are enabled.
     depthWriteEnabled: boolean;
     /// Depth compare selector.
@@ -318,7 +432,7 @@ export struct GpuMultisampleState {
     /// Sample count.
     count: uint32;
     /// Active sample mask.
-    mask: uint32;
+    mask: uint64;
     /// Whether alpha-to-coverage is enabled.
     alphaToCoverageEnabled: boolean;
 }
@@ -375,26 +489,22 @@ export struct GpuRenderState {
     multisample: GpuMultisampleState;
 }
 
-/// Pipeline creation metadata.
-export struct GpuPipelineMetadata {
-    /// Human-readable debug label, empty when unspecified.
-    label: string;
-}
-
 /// Compute pipeline creation options.
 export struct GpuComputePipelineOptions {
+    /// Debug label.
+    label: string;
     /// Explicit pipeline layout handle when provided.
     layout: GpuPipelineLayoutHandle | void;
     /// Compute stage descriptor.
     compute: GpuComputeState;
-    /// Pipeline creation metadata.
-    metadata: GpuPipelineMetadata;
     /// Pipeline option flags.
     flags: uint32;
 }
 
 /// Render pipeline creation options.
 export struct GpuRenderPipelineOptions {
+    /// Debug label.
+    label: string;
     /// Explicit pipeline layout handle when provided.
     layout: GpuPipelineLayoutHandle | void;
     /// Vertex stage descriptor.
@@ -405,17 +515,15 @@ export struct GpuRenderPipelineOptions {
     render: GpuRenderState;
     /// Multiview mask when configured.
     multiviewMask: uint32 | void;
-    /// Pipeline creation metadata.
-    metadata: GpuPipelineMetadata;
     /// Pipeline option flags.
     flags: uint32;
 }
 
 /// GPU pipeline bindings.
 declare namespace gpu {
-    /// Create one shader module.
+    /// Create a shader module.
     ///
-    /// Create one shader module from one source or binary payload and module metadata.
+    /// Create a shader module from source or binary payload bytes and module metadata.
     /// Stage and entry-point selection are defined by pipeline stage descriptors, not by shader-module creation.
     ///
     /// # Platform
@@ -446,9 +554,9 @@ declare namespace gpu {
         bytes: Slice<uint8>,
     ): Result<GpuShaderHandle, PlatformError>;
 
-    /// Destroy one shader module.
+    /// Destroy a shader module.
     ///
-    /// Destroy one shader module and release backend compiler or cache resources.
+    /// Destroy a shader module and release backend compiler or cache resources.
     /// The shader handle becomes invalid after destroy.
     ///
     /// # Platform
@@ -475,9 +583,9 @@ declare namespace gpu {
     })
     export function shaderDestroy(handle: GpuShaderHandle): Result<void, PlatformError>;
 
-    /// Read one shader-compilation diagnostics snapshot.
+    /// Read a shader-compilation diagnostics snapshot.
     ///
-    /// Read one snapshot of compilation diagnostics for one shader module.
+    /// Read compilation diagnostics for a shader module.
     /// Diagnostics are backend-defined and can include warnings and informational messages.
     ///
     /// # Platform
@@ -507,9 +615,9 @@ declare namespace gpu {
         timeoutNs: uint64,
     ): Result<GpuCompilationInfo, PlatformError>;
 
-    /// Create one compute pipeline.
+    /// Create a compute pipeline.
     ///
-    /// Create one compute pipeline from one compute stage descriptor and one explicit or inferred layout.
+    /// Create a compute pipeline from a compute stage descriptor and an explicit or inferred layout.
     /// Pipeline compilation and cache behavior follow host backend semantics.
     ///
     /// # Platform
@@ -539,9 +647,9 @@ declare namespace gpu {
         options: GpuComputePipelineOptions,
     ): Result<GpuPipelineHandle, PlatformError>;
 
-    /// Create one render pipeline.
+    /// Create a render pipeline.
     ///
-    /// Create one render pipeline with explicit shader stages, one explicit or inferred layout, and render-state descriptors.
+    /// Create a render pipeline with explicit shader stages, an explicit or inferred layout, and render-state descriptors.
     /// Pipeline compilation and backend render-state linkage follow host API semantics.
     ///
     /// # Platform
@@ -573,7 +681,7 @@ declare namespace gpu {
 
     /// Resolve one bind-group layout from one pipeline.
     ///
-    /// Resolve one bind-group layout at the requested group index from one pipeline object.
+    /// Resolve a bind-group layout at the requested group index from a pipeline.
     /// This follows pipeline-layout reflection rules of the selected backend.
     ///
     /// # Platform
@@ -603,10 +711,10 @@ declare namespace gpu {
         groupIndex: uint32,
     ): Result<GpuBindGroupLayoutHandle, PlatformError>;
 
-    /// Destroy one pipeline object.
+    /// Destroy a pipeline object.
     ///
-    /// Destroy one pipeline object and release backend compiled state.
-    /// Outstanding command lists referencing the pipeline must be synchronized by callers.
+    /// Destroy a pipeline object and release backend compiled state.
+    /// Outstanding command buffers, render bundles, and active passes referencing the pipeline must be synchronized by callers.
     ///
     /// # Platform
     /// Unix and Windows.
