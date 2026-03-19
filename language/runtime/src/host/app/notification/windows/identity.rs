@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
-use std::sync::mpsc;
-use std::thread::{self, JoinHandle};
+use std::sync::Arc;
 
 use windows::Win32::Foundation::{
     APPMODEL_ERROR_NO_PACKAGE, ERROR_INSUFFICIENT_BUFFER, ERROR_SUCCESS, WIN32_ERROR,
@@ -37,14 +36,15 @@ use crate::host::core::HostRequestContext;
 use crate::platform::PlatformError;
 use crate::platform::core::windows_known_folder_path;
 use crate::platform::diagnostic::PlatformErrorCode;
+use crate::runtime::process::service::executor::thread::ServiceThreadExecutor;
+use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy, GlobalService};
 
 use super::core::{
     WINDOWS_NOTIFICATION_ACTIVATOR_FACTORY, WINDOWS_NOTIFICATION_APP_ID_MAX_LENGTH,
-    WINDOWS_NOTIFICATION_APP_LINK_EXTENSION, WINDOWS_NOTIFICATION_COM_REGISTRATION,
-    WINDOWS_NOTIFICATION_ICON_BACKGROUND_COLOR, WINDOWS_NOTIFICATION_LOCAL_SERVER_REGISTRY_PREFIX,
-    WINDOWS_NOTIFICATION_REGISTRY_PREFIX, WINDOWS_TOAST_IDENTITY, fnv1a64,
-    sanitized_windows_notification_component, truncated_windows_notification_app_id,
-    windows_notification_error,
+    WINDOWS_NOTIFICATION_APP_LINK_EXTENSION, WINDOWS_NOTIFICATION_ICON_BACKGROUND_COLOR,
+    WINDOWS_NOTIFICATION_LOCAL_SERVER_REGISTRY_PREFIX, WINDOWS_NOTIFICATION_REGISTRY_PREFIX,
+    WINDOWS_TOAST_IDENTITY, fnv1a64, sanitized_windows_notification_component,
+    truncated_windows_notification_app_id, windows_notification_error,
 };
 
 /// Desktop toast identity metadata for the current Windows process.
@@ -72,10 +72,10 @@ pub(super) struct WindowsPropVariant {
     pub(super) value: PROPVARIANT,
 }
 
-/// Process-global Windows COM notification registration.
-pub(super) struct WindowsNotificationComRegistration {
-    /// Dedicated COM server thread that owns the local-server class registration.
-    pub(super) _thread: JoinHandle<()>,
+/// Process-global Windows COM notification service.
+pub(super) struct WindowsNotificationComService {
+    /// Dedicated COM service thread that owns the local-server class registration.
+    pub(super) _executor: ServiceThreadExecutor<WindowsNotificationComServerState>,
 }
 
 /// Live COM server state held for the lifetime of the dedicated server thread.
@@ -88,8 +88,13 @@ pub(super) struct WindowsNotificationComServerState {
     pub(super) _class_factory: IClassFactory,
 }
 
-/// Result sent back from the dedicated COM server thread.
-pub(super) type WindowsNotificationComRegistrationResult = RuntimeResult<()>;
+/// The execution policy for the Windows notification COM service.
+const WINDOWS_NOTIFICATION_COM_POLICY: ExecutionPolicy =
+    ExecutionPolicy::global(ExecutionMode::Thread).with_affinity(ExecutionAffinity::WindowsMta);
+
+impl GlobalService for WindowsNotificationComService {
+    const POLICY: ExecutionPolicy = WINDOWS_NOTIFICATION_COM_POLICY;
+}
 
 /// Return one Windows toast notifier configured for packaged or unpackaged hosts.
 pub(super) fn windows_toast_notifier(
@@ -312,12 +317,9 @@ pub(super) fn ensure_windows_notification_com_registration(
         return Ok(());
     }
 
-    match WINDOWS_NOTIFICATION_COM_REGISTRATION
-        .get_or_init(|| start_windows_notification_com_server(identity.activator_clsid))
-    {
-        Ok(_) => Ok(()),
-        Err(error) => Err(error.clone()),
-    }
+    let _service = windows_notification_com_service(identity.activator_clsid)?;
+
+    Ok(())
 }
 
 /// Return one stable unpackaged toast app id for the current executable.
@@ -530,50 +532,14 @@ pub(super) fn windows_notification_shortcut_path(app_id: &str) -> RuntimeResult<
 /// Start the dedicated COM server thread for unpackaged Windows notification activation.
 fn start_windows_notification_com_server(
     activator_clsid: windows::core::GUID,
-) -> RuntimeResult<WindowsNotificationComRegistration> {
-    let (ready_send, ready_recv) = mpsc::channel::<WindowsNotificationComRegistrationResult>();
-    let thread = thread::Builder::new()
-        .name("destack-notification-com".to_string())
-        .spawn(move || {
-            let registration_state = run_windows_notification_com_server_state(activator_clsid);
-            let send_result = ready_send.send(match registration_state.as_ref() {
-                Ok(_) => Ok(()),
-                Err(error) => Err(error.clone()),
-            });
+) -> RuntimeResult<WindowsNotificationComService> {
+    let executor = WindowsNotificationComService::thread("destack-notification-com", move || {
+        run_windows_notification_com_server_state(activator_clsid)
+    })?;
 
-            if send_result.is_err() {
-                return;
-            }
-
-            let Ok(_registration_state) = registration_state else {
-                return;
-            };
-
-            loop {
-                thread::park();
-            }
-        })
-        .map_err(|error| {
-            RuntimeError::from(PlatformError::generic(
-                Some(PlatformErrorCode::Generic),
-                format!(
-                    "destack.os.notification failed to start one Windows COM server thread: {error}"
-                ),
-            ))
-            .boxed()
-        })?;
-
-    ready_recv.recv().map_err(|error| {
-        RuntimeError::from(PlatformError::generic(
-            Some(PlatformErrorCode::Generic),
-            format!(
-                "destack.os.notification failed to receive one Windows COM server status: {error}"
-            ),
-        ))
-        .boxed()
-    })??;
-
-    Ok(WindowsNotificationComRegistration { _thread: thread })
+    Ok(WindowsNotificationComService {
+        _executor: executor,
+    })
 }
 
 /// Build the live COM server state for the dedicated server thread.
@@ -599,6 +565,13 @@ fn run_windows_notification_com_server_state(
         _registration_cookie: registration_cookie,
         _class_factory: class_factory,
     })
+}
+
+/// Return the shared Windows COM notification service.
+fn windows_notification_com_service(
+    activator_clsid: windows::core::GUID,
+) -> RuntimeResult<Arc<WindowsNotificationComService>> {
+    WindowsNotificationComService::global(|| start_windows_notification_com_server(activator_clsid))
 }
 
 /// Return one deterministic activation CLSID for the current Windows app identity.

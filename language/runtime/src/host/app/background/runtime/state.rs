@@ -1,20 +1,18 @@
 #[cfg(test)]
 use std::cell::Cell;
-use std::sync::OnceLock;
+use std::sync::Arc;
 
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
 
 use crate::host::core::HostRuntimeId;
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService};
 
 use super::launch::desktop_background_registry_launch_marker_state;
 
 /// Environment marker carrying one desktop background task identifier.
 pub(in crate::host::app::background) const DESKTOP_BACKGROUND_TASK_IDENTIFIER_ENV: &str =
     "DESTACK_BACKGROUND_TASK_IDENTIFIER";
-
-/// Shared desktop background state.
-static DESKTOP_BACKGROUND_REGISTRY: OnceLock<Mutex<DesktopBackgroundRegistry>> = OnceLock::new();
 
 #[cfg(test)]
 thread_local! {
@@ -100,6 +98,25 @@ pub(in crate::host::app::background) struct DesktopBackgroundExecutionState {
     pub(in crate::host::app::background) is_expired: bool,
 }
 
+/// Process-global desktop background runtime service.
+pub(in crate::host::app::background) struct DesktopBackgroundRuntimeService {
+    /// Shared desktop background state.
+    pub(in crate::host::app::background) registry: Mutex<DesktopBackgroundRegistry>,
+}
+
+impl DesktopBackgroundRuntimeService {
+    /// Create one empty desktop background runtime service.
+    fn new() -> Self {
+        Self {
+            registry: Mutex::new(DesktopBackgroundRegistry::default()),
+        }
+    }
+}
+
+impl GlobalService for DesktopBackgroundRuntimeService {
+    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
+}
+
 /// Run one callback with external background scheduler side effects disabled.
 #[cfg(test)]
 pub(crate) fn with_background_test_mode<T>(callback: impl FnOnce() -> T) -> T {
@@ -129,8 +146,13 @@ pub(in crate::host::app::background) fn desktop_background_test_mode_enabled() -
     }
 }
 
-/// Return the shared desktop background registry.
-pub(in crate::host::app::background) fn desktop_background_registry()
--> &'static Mutex<DesktopBackgroundRegistry> {
-    DESKTOP_BACKGROUND_REGISTRY.get_or_init(|| Mutex::new(DesktopBackgroundRegistry::default()))
+/// Return the shared desktop background runtime service.
+pub(in crate::host::app::background) fn desktop_background_runtime_service()
+-> Arc<DesktopBackgroundRuntimeService> {
+    match DesktopBackgroundRuntimeService::global(|| Ok(DesktopBackgroundRuntimeService::new())) {
+        Ok(service) => service,
+        Err(error) => {
+            panic!("desktop background runtime service should be infallible: {error}");
+        }
+    }
 }

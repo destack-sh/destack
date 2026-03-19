@@ -1,7 +1,7 @@
 use super::posted::{
     notification_identifier_belongs_to_runtime, notification_identifier_for_request,
 };
-use super::state::{DesktopNotificationRuntimeState, notification_registry};
+use super::state::{DesktopNotificationRuntimeState, notification_runtime_service};
 #[cfg(test)]
 use super::state::{desktop_notification_test_mode_enabled, wall_clock_now_ns};
 use crate::diagnostic::RuntimeResult;
@@ -24,8 +24,8 @@ pub(in crate::host::app::notification) fn list_pending_notifications(
 ) -> RuntimeResult<Vec<NotificationScheduledDescriptorValue>> {
     #[cfg(test)]
     if desktop_notification_test_mode_enabled() {
-        let registry = notification_registry();
-        let mut registry = registry.lock();
+        let service = notification_runtime_service();
+        let mut registry = service.registry.lock();
         let runtime_state = registry
             .runtimes
             .entry(context.host_runtime_id)
@@ -54,8 +54,8 @@ pub(in crate::host::app::notification) fn cancel_pending_notification(
 ) -> RuntimeResult<()> {
     #[cfg(test)]
     if desktop_notification_test_mode_enabled() {
-        let registry = notification_registry();
-        let mut registry = registry.lock();
+        let service = notification_runtime_service();
+        let mut registry = service.registry.lock();
         let runtime_state = registry
             .runtimes
             .entry(context.host_runtime_id)
@@ -74,8 +74,8 @@ pub(in crate::host::app::notification) fn cancel_pending_notification(
 
     delivery::cancel_native_pending_notification(context, id)?;
 
-    let registry = notification_registry();
-    let mut registry = registry.lock();
+    let service = notification_runtime_service();
+    let mut registry = service.registry.lock();
     let runtime_state = registry
         .runtimes
         .entry(context.host_runtime_id)
@@ -91,8 +91,8 @@ pub(in crate::host::app::notification) fn cancel_all_pending_notifications(
 ) -> RuntimeResult<()> {
     #[cfg(test)]
     if desktop_notification_test_mode_enabled() {
-        let registry = notification_registry();
-        let mut registry = registry.lock();
+        let service = notification_runtime_service();
+        let mut registry = service.registry.lock();
         let runtime_state = registry
             .runtimes
             .entry(context.host_runtime_id)
@@ -114,8 +114,8 @@ pub(in crate::host::app::notification) fn cancel_all_pending_notifications(
         delivery::cancel_native_pending_notification(context, &id)?;
     }
 
-    let registry = notification_registry();
-    let mut registry = registry.lock();
+    let service = notification_runtime_service();
+    let mut registry = service.registry.lock();
     let runtime_state = registry
         .runtimes
         .entry(context.host_runtime_id)
@@ -139,8 +139,8 @@ pub(in crate::host::app::notification) fn schedule_notification(
 
     #[cfg(test)]
     if desktop_notification_test_mode_enabled() {
-        let registry = notification_registry();
-        let mut registry = registry.lock();
+        let service = notification_runtime_service();
+        let mut registry = service.registry.lock();
         let runtime_state = registry
             .runtimes
             .entry(context.host_runtime_id)
@@ -161,8 +161,8 @@ pub(in crate::host::app::notification) fn schedule_notification(
     }
 
     let id = {
-        let registry = notification_registry();
-        let mut registry = registry.lock();
+        let service = notification_runtime_service();
+        let mut registry = service.registry.lock();
         let runtime_state = registry
             .runtimes
             .entry(context.host_runtime_id)

@@ -10,7 +10,8 @@ use crate::platform::os::abi_generated::{
 };
 
 use super::state::{
-    DesktopBackgroundExecutionState, DesktopBackgroundRuntimeState, desktop_background_registry,
+    DesktopBackgroundExecutionState, DesktopBackgroundRuntimeState,
+    desktop_background_runtime_service,
 };
 
 /// Mark one active desktop background execution as complete.
@@ -18,8 +19,8 @@ pub(in crate::host::app::background) fn complete_execution(
     host_runtime_id: HostRuntimeId,
     execution_id: &str,
 ) -> RuntimeResult<()> {
-    let registry = desktop_background_registry();
-    let mut registry = registry.lock();
+    let service = desktop_background_runtime_service();
+    let mut registry = service.registry.lock();
     let Some(runtime_state) = registry.runtimes.get_mut(&host_runtime_id) else {
         return Err(not_supported("destack.os.background.complete"));
     };

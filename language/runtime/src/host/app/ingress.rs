@@ -1,5 +1,7 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::{HostRequestContext, HostRuntimeId};
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+use crate::platform::os::credentials::unregister_credential_runtime;
 
 use super::background::{service_background_ingress, unregister_background_runtime};
 use super::location::unregister_location_runtime;
@@ -30,4 +32,8 @@ pub(crate) fn unregister_app_runtime(host_runtime_id: HostRuntimeId) {
 
     // clear notification state
     unregister_notification_runtime(host_runtime_id);
+
+    // clear credential create-only state
+    #[cfg(any(target_os = "linux", target_os = "windows"))]
+    unregister_credential_runtime(host_runtime_id.0);
 }

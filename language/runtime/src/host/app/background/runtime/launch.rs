@@ -9,7 +9,7 @@ use crate::platform::diagnostic::PlatformErrorCode;
 
 use super::state::{
     DESKTOP_BACKGROUND_TASK_IDENTIFIER_ENV, DesktopBackgroundLaunchMarker,
-    desktop_background_registry,
+    desktop_background_runtime_service,
 };
 
 /// Environment marker carrying one desktop background execution identifier.
@@ -93,8 +93,8 @@ pub(in crate::host::app::background) fn enqueue_test_background_launch(
     let execution_id = format!("desktop-trigger-{}", monotonic_now_ns());
     let deadline_unix_ns =
         wall_clock_now_ns()?.saturating_add(DESKTOP_BACKGROUND_TRIGGER_DEADLINE_NS);
-    let registry = desktop_background_registry();
-    let mut registry = registry.lock();
+    let service = desktop_background_runtime_service();
+    let mut registry = service.registry.lock();
 
     registry.launch_marker = Some(DesktopBackgroundLaunchMarker {
         identifier: identifier.to_string(),
