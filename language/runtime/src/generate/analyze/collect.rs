@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::path::Path;
 use std::str::FromStr;
 
 use destack_builtin::LanguageSymbol;
@@ -183,6 +184,13 @@ pub(crate) fn collect_platform_bindings(
             })
             .unwrap_or_else(|| panic!("binding-decorated symbol is missing @binding payload"));
             let implementation_name = symbol.name().map(|name| strings.get(name).to_string());
+            let implementation_name = implementation_name.map(|implementation_name| {
+                qualify_platform_implementation_name(
+                    module.path.as_deref(),
+                    module.uri.as_ref(),
+                    &implementation_name,
+                )
+            });
             let extern_name = binding
                 .extern_name
                 .or_else(|| symbol.name().map(|name| strings.get(name).to_string()));
@@ -437,7 +445,7 @@ fn binding_type_supports_integer_constants(binding_type: &BindingType) -> bool {
 
 /// Resolve one platform domain name from one builtin platform module uri.
 fn module_platform_domain(module_uri: &str) -> Option<String> {
-    const PLATFORM_URI_PREFIX: &str = "builtin://lib/platform/";
+    const PLATFORM_URI_PREFIX: &str = "builtin://library/platform/";
 
     let trimmed = module_uri.strip_prefix(PLATFORM_URI_PREFIX)?;
     let domain = trimmed.split('/').next().unwrap_or_default().trim();
@@ -446,6 +454,93 @@ fn module_platform_domain(module_uri: &str) -> Option<String> {
     }
 
     Some(domain.to_string())
+}
+
+/// Return the nested implementation prefix for one builtin platform module uri.
+fn module_platform_implementation_prefix(module_uri: &str) -> Option<String> {
+    const PLATFORM_URI_PREFIX: &str = "builtin://library/platform/";
+
+    let trimmed = module_uri.strip_prefix(PLATFORM_URI_PREFIX)?;
+    let mut parts = trimmed.split('/');
+
+    // skip the top level platform domain
+    let _domain = parts.next()?;
+
+    // keep the nested directories below the domain
+    let mut prefix_parts = Vec::new();
+    for part in parts {
+        if part.ends_with(".ds") {
+            break;
+        }
+
+        let part = part.trim();
+        if !part.is_empty() {
+            prefix_parts.push(part);
+        }
+    }
+
+    if prefix_parts.is_empty() {
+        return None;
+    }
+
+    Some(prefix_parts.join("."))
+}
+
+/// Return the nested implementation prefix for one builtin platform module path.
+fn module_platform_implementation_prefix_from_path(module_path: &Path) -> Option<String> {
+    let mut components = module_path.components().peekable();
+
+    // find the platform directory in the builtin source tree
+    while let Some(component) = components.next() {
+        let component = component.as_os_str().to_str()?;
+        if component == "platform" {
+            break;
+        }
+    }
+
+    // skip the top level platform domain
+    let _domain = components.next()?;
+
+    // keep the nested directories below the domain
+    let mut prefix_parts = Vec::new();
+    for component in components {
+        let component = component.as_os_str().to_str()?;
+        if component.ends_with(".ds") {
+            break;
+        }
+
+        let component = component.trim();
+        if !component.is_empty() {
+            prefix_parts.push(component);
+        }
+    }
+
+    if prefix_parts.is_empty() {
+        return None;
+    }
+
+    Some(prefix_parts.join("."))
+}
+
+/// Prefix one implementation name with nested platform path segments when needed.
+fn qualify_platform_implementation_name(
+    module_path: Option<&Path>,
+    module_uri: &str,
+    implementation_name: &str,
+) -> String {
+    let prefix = module_path
+        .and_then(module_platform_implementation_prefix_from_path)
+        .or_else(|| module_platform_implementation_prefix(module_uri));
+    let Some(prefix) = prefix else {
+        return implementation_name.to_string();
+    };
+
+    // keep existing qualified names stable
+    if implementation_name == prefix || implementation_name.starts_with(&format!("{prefix}.")) {
+        return implementation_name.to_string();
+    }
+
+    format!("{prefix}.{implementation_name}")
 }
 
 /// Evaluate one integer constant expression payload.
@@ -1385,23 +1480,91 @@ mod tests {
 
     use super::{
         binding_replay_kind_for_name, binding_type_supports_integer_constants,
-        module_platform_domain,
+        module_platform_domain, module_platform_implementation_prefix,
+        module_platform_implementation_prefix_from_path, qualify_platform_implementation_name,
     };
 
     /// Parse platform domain names from builtin platform module uris.
     #[test]
     fn test_module_platform_domain_parses_builtin_uri() {
         assert_eq!(
-            module_platform_domain("builtin://lib/platform/display/window.ds"),
+            module_platform_domain("builtin://library/platform/display/window.ds"),
             Some("display".to_string())
         );
         assert_eq!(
-            module_platform_domain("builtin://lib/platform/crypto/key.ds"),
+            module_platform_domain("builtin://library/platform/crypto/key.ds"),
             Some("crypto".to_string())
         );
         assert_eq!(
-            module_platform_domain("builtin://lib/other/window.ds"),
+            module_platform_domain("builtin://library/other/window.ds"),
             None
+        );
+    }
+
+    /// Preserve nested builtin platform paths for implementation naming.
+    #[test]
+    fn test_module_platform_implementation_prefix_parses_nested_paths() {
+        assert_eq!(
+            module_platform_implementation_prefix(
+                "builtin://library/platform/device/midi/backend.ds"
+            ),
+            Some("midi".to_string())
+        );
+        assert_eq!(
+            module_platform_implementation_prefix("builtin://library/platform/display/window.ds"),
+            None
+        );
+    }
+
+    /// Preserve nested builtin platform paths from filesystem locations.
+    #[test]
+    fn test_module_platform_implementation_prefix_from_path_parses_nested_paths() {
+        assert_eq!(
+            module_platform_implementation_prefix_from_path(Path::new(
+                "/tmp/destack/language/builtin/library/platform/device/midi/backend.ds"
+            )),
+            Some("midi".to_string())
+        );
+        assert_eq!(
+            module_platform_implementation_prefix_from_path(Path::new(
+                "/tmp/destack/language/builtin/library/platform/display/window.ds"
+            )),
+            None
+        );
+    }
+
+    /// Prefix implementation names with nested platform path segments once.
+    #[test]
+    fn test_qualify_platform_implementation_name_keeps_nested_path_segments() {
+        assert_eq!(
+            qualify_platform_implementation_name(
+                Some(Path::new(
+                    "/tmp/destack/language/builtin/library/platform/device/midi/backend.ds"
+                )),
+                "builtin://library/platform/device/midi/backend.ds",
+                "backend.list"
+            ),
+            "midi.backend.list".to_string()
+        );
+        assert_eq!(
+            qualify_platform_implementation_name(
+                Some(Path::new(
+                    "/tmp/destack/language/builtin/library/platform/device/midi/backend.ds"
+                )),
+                "builtin://library/platform/device/midi/backend.ds",
+                "midi.backend.list"
+            ),
+            "midi.backend.list".to_string()
+        );
+        assert_eq!(
+            qualify_platform_implementation_name(
+                Some(Path::new(
+                    "/tmp/destack/language/builtin/library/platform/device/bluetooth.ds"
+                )),
+                "builtin://library/platform/device/bluetooth.ds",
+                "bluetooth.session.open"
+            ),
+            "bluetooth.session.open".to_string()
         );
     }
 

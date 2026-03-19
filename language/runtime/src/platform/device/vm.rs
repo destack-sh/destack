@@ -137,6 +137,8 @@ where
     }
 }
 
+pub(crate) use super::midi::vm::*;
+
 /// List Bluetooth adapters.
 ///
 /// Enumerate host Bluetooth adapters and return stable identifiers.

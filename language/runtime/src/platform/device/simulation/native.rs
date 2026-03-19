@@ -22,6 +22,8 @@ use crate::platform::device::{
 };
 use crate::platform::resource;
 
+pub(crate) use super::super::midi::simulation::native::*;
+
 /// List Bluetooth adapters.
 ///
 /// Enumerate Bluetooth adapters that can perform BLE scan or session work and return stable descriptor snapshots for them.

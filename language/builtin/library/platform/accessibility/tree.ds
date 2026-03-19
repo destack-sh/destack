@@ -1,0 +1,484 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { WindowLogicalRect } from "../display/window.ds";
+import { WindowHandle } from "../resource/index.ds";
+
+/// Stable identifier for one accessibility-tree node.
+export newtype AccessibilityNodeId = uint64;
+
+/// WAI-ARIA role selector.
+export enum AccessibilityRole {
+    /// `alert`.
+    Alert = 1,
+    /// `alertdialog`.
+    AlertDialog = 2,
+    /// `application`.
+    Application = 3,
+    /// `article`.
+    Article = 4,
+    /// `banner`.
+    Banner = 5,
+    /// `button`.
+    Button = 6,
+    /// `caption`.
+    Caption = 7,
+    /// `cell`.
+    Cell = 8,
+    /// `checkbox`.
+    Checkbox = 9,
+    /// `code`.
+    Code = 10,
+    /// `columnheader`.
+    ColumnHeader = 11,
+    /// `combobox`.
+    ComboBox = 12,
+    /// `complementary`.
+    Complementary = 13,
+    /// `contentinfo`.
+    ContentInfo = 14,
+    /// `definition`.
+    Definition = 15,
+    /// `deletion`.
+    Deletion = 16,
+    /// `dialog`.
+    Dialog = 17,
+    /// `directory`.
+    Directory = 18,
+    /// `document`.
+    Document = 19,
+    /// `emphasis`.
+    Emphasis = 20,
+    /// `feed`.
+    Feed = 21,
+    /// `figure`.
+    Figure = 22,
+    /// `form`.
+    Form = 23,
+    /// `generic`.
+    Generic = 24,
+    /// `grid`.
+    Grid = 25,
+    /// `gridcell`.
+    GridCell = 26,
+    /// `group`.
+    Group = 27,
+    /// `heading`.
+    Heading = 28,
+    /// `img`.
+    Image = 29,
+    /// `insertion`.
+    Insertion = 30,
+    /// `link`.
+    Link = 31,
+    /// `list`.
+    List = 32,
+    /// `listbox`.
+    ListBox = 33,
+    /// `listitem`.
+    ListItem = 34,
+    /// `log`.
+    Log = 35,
+    /// `main`.
+    Main = 36,
+    /// `mark`.
+    Mark = 37,
+    /// `marquee`.
+    Marquee = 38,
+    /// `math`.
+    Math = 39,
+    /// `menu`.
+    Menu = 40,
+    /// `menubar`.
+    MenuBar = 41,
+    /// `menuitem`.
+    MenuItem = 42,
+    /// `menuitemcheckbox`.
+    MenuItemCheckbox = 43,
+    /// `menuitemradio`.
+    MenuItemRadio = 44,
+    /// `meter`.
+    Meter = 45,
+    /// `navigation`.
+    Navigation = 46,
+    /// `none`.
+    None = 47,
+    /// `note`.
+    Note = 48,
+    /// `option`.
+    Option = 49,
+    /// `paragraph`.
+    Paragraph = 50,
+    /// `presentation`.
+    Presentation = 51,
+    /// `progressbar`.
+    ProgressBar = 52,
+    /// `radio`.
+    Radio = 53,
+    /// `radiogroup`.
+    RadioGroup = 54,
+    /// `region`.
+    Region = 55,
+    /// `row`.
+    Row = 56,
+    /// `rowgroup`.
+    RowGroup = 57,
+    /// `rowheader`.
+    RowHeader = 58,
+    /// `scrollbar`.
+    ScrollBar = 59,
+    /// `search`.
+    Search = 60,
+    /// `searchbox`.
+    SearchBox = 61,
+    /// `separator`.
+    Separator = 62,
+    /// `slider`.
+    Slider = 63,
+    /// `spinbutton`.
+    SpinButton = 64,
+    /// `status`.
+    Status = 65,
+    /// `strong`.
+    Strong = 66,
+    /// `subscript`.
+    Subscript = 67,
+    /// `suggestion`.
+    Suggestion = 68,
+    /// `superscript`.
+    Superscript = 69,
+    /// `switch`.
+    Switch = 70,
+    /// `tab`.
+    Tab = 71,
+    /// `table`.
+    Table = 72,
+    /// `tablist`.
+    TabList = 73,
+    /// `tabpanel`.
+    TabPanel = 74,
+    /// `term`.
+    Term = 75,
+    /// `textbox`.
+    TextBox = 76,
+    /// `time`.
+    Time = 77,
+    /// `timer`.
+    Timer = 78,
+    /// `toolbar`.
+    ToolBar = 79,
+    /// `tooltip`.
+    ToolTip = 80,
+    /// `tree`.
+    Tree = 81,
+    /// `treegrid`.
+    TreeGrid = 82,
+    /// `treeitem`.
+    TreeItem = 83,
+}
+
+/// Tri-state value for `aria-checked` and `aria-pressed`.
+export enum AccessibilityTristate {
+    /// `false`.
+    False = 1,
+    /// `true`.
+    True = 2,
+    /// `mixed`.
+    Mixed = 3,
+}
+
+/// `aria-current` selector.
+export enum AccessibilityCurrentKind {
+    /// `true`.
+    True = 1,
+    /// `page`.
+    Page = 2,
+    /// `step`.
+    Step = 3,
+    /// `location`.
+    Location = 4,
+    /// `date`.
+    Date = 5,
+    /// `time`.
+    Time = 6,
+}
+
+/// `aria-invalid` selector.
+export enum AccessibilityInvalidKind {
+    /// `true`.
+    True = 1,
+    /// `grammar`.
+    Grammar = 2,
+    /// `spelling`.
+    Spelling = 3,
+}
+
+/// `aria-autocomplete` selector.
+export enum AccessibilityAutoComplete {
+    /// `inline`.
+    Inline = 1,
+    /// `list`.
+    List = 2,
+    /// `both`.
+    Both = 3,
+}
+
+/// `aria-haspopup` selector.
+export enum AccessibilityHasPopup {
+    /// `menu` or `true`.
+    Menu = 1,
+    /// `listbox`.
+    ListBox = 2,
+    /// `tree`.
+    Tree = 3,
+    /// `grid`.
+    Grid = 4,
+    /// `dialog`.
+    Dialog = 5,
+}
+
+/// `aria-orientation` selector.
+export enum AccessibilityOrientation {
+    /// `horizontal`.
+    Horizontal = 1,
+    /// `vertical`.
+    Vertical = 2,
+}
+
+/// `aria-live` politeness selector.
+export enum AccessibilityLiveRegionPoliteness {
+    /// `off`.
+    Off = 1,
+    /// `polite`.
+    Polite = 2,
+    /// `assertive`.
+    Assertive = 3,
+}
+
+/// `aria-sort` selector.
+export enum AccessibilitySortDirection {
+    /// `ascending`.
+    Ascending = 1,
+    /// `descending`.
+    Descending = 2,
+    /// `other`.
+    Other = 3,
+}
+
+/// `aria-relevant` flags.
+export newtype AccessibilityRelevantFlags = uint32;
+
+/// No `aria-relevant` tokens.
+export const ACCESSIBILITY_RELEVANT_NONE: AccessibilityRelevantFlags = AccessibilityRelevantFlags(0x0);
+
+/// `additions`.
+export const ACCESSIBILITY_RELEVANT_ADDITIONS: AccessibilityRelevantFlags = AccessibilityRelevantFlags(0x1);
+
+/// `removals`.
+export const ACCESSIBILITY_RELEVANT_REMOVALS: AccessibilityRelevantFlags = AccessibilityRelevantFlags(0x2);
+
+/// `text`.
+export const ACCESSIBILITY_RELEVANT_TEXT: AccessibilityRelevantFlags = AccessibilityRelevantFlags(0x4);
+
+/// `all`.
+export const ACCESSIBILITY_RELEVANT_ALL: AccessibilityRelevantFlags = AccessibilityRelevantFlags(0x7);
+
+/// Numeric range value for widgets such as sliders, meters, and spin buttons.
+export struct AccessibilityRangeValue {
+    /// `aria-valuemin`.
+    min: float64 | void;
+    /// `aria-valuemax`.
+    max: float64 | void;
+    /// `aria-valuenow`.
+    now: float64 | void;
+    /// `aria-valuetext`.
+    text: string | void;
+}
+
+/// Editable text selection.
+export struct AccessibilityTextSelection {
+    /// Selection anchor offset in UTF-16 code units.
+    anchorOffset: uint32;
+    /// Selection focus offset in UTF-16 code units.
+    focusOffset: uint32;
+}
+
+/// Accessibility relations that correspond to ARIA id reference properties.
+export struct AccessibilityNodeRelations {
+    /// `aria-activedescendant`.
+    activeDescendantId: AccessibilityNodeId | void;
+    /// `aria-controls`.
+    controlledIds: Slice<AccessibilityNodeId>;
+    /// `aria-describedby`.
+    describedByIds: Slice<AccessibilityNodeId>;
+    /// `aria-details`.
+    detailsIds: Slice<AccessibilityNodeId>;
+    /// `aria-errormessage`.
+    errorMessageIds: Slice<AccessibilityNodeId>;
+    /// `aria-flowto`.
+    flowToIds: Slice<AccessibilityNodeId>;
+    /// `aria-labelledby`.
+    labeledByIds: Slice<AccessibilityNodeId>;
+}
+
+/// One accessibility node descriptor.
+export struct AccessibilityNode {
+    /// Stable node identifier.
+    id: AccessibilityNodeId;
+    /// WAI-ARIA role selector.
+    role: AccessibilityRole;
+    /// Accessibility-tree child order for this node.
+    childIds: Slice<AccessibilityNodeId>;
+    /// Window-local bounds in logical points when the node has a physical hit target.
+    bounds: WindowLogicalRect | void;
+    /// Accessible name.
+    name: string | void;
+    /// Accessible description.
+    description: string | void;
+    /// `aria-roledescription`.
+    roleDescription: string | void;
+    /// `aria-placeholder`.
+    placeholder: string | void;
+    /// `aria-keyshortcuts`.
+    keyShortcuts: string | void;
+    /// Current value description for text and choice widgets.
+    valueText: string | void;
+    /// `aria-checked`.
+    checked: AccessibilityTristate | void;
+    /// `aria-pressed`.
+    pressed: AccessibilityTristate | void;
+    /// `aria-current`.
+    current: AccessibilityCurrentKind | void;
+    /// `aria-invalid`.
+    invalid: AccessibilityInvalidKind | void;
+    /// `aria-autocomplete`.
+    autoComplete: AccessibilityAutoComplete | void;
+    /// `aria-haspopup`.
+    hasPopup: AccessibilityHasPopup | void;
+    /// `aria-orientation`.
+    orientation: AccessibilityOrientation | void;
+    /// `aria-live`.
+    live: AccessibilityLiveRegionPoliteness | void;
+    /// `aria-relevant`.
+    relevant: AccessibilityRelevantFlags;
+    /// `aria-sort`.
+    sort: AccessibilitySortDirection | void;
+    /// Whether `aria-atomic` is true.
+    isAtomic: boolean;
+    /// Whether `aria-busy` is true.
+    isBusy: boolean;
+    /// Whether `aria-disabled` is true.
+    isDisabled: boolean;
+    /// Whether `aria-expanded` is true.
+    isExpanded: boolean;
+    /// Whether `aria-modal` is true.
+    isModal: boolean;
+    /// Whether `aria-multiline` is true.
+    isMultiline: boolean;
+    /// Whether `aria-multiselectable` is true.
+    isMultiselectable: boolean;
+    /// Whether `aria-readonly` is true.
+    isReadOnly: boolean;
+    /// Whether `aria-required` is true.
+    isRequired: boolean;
+    /// Whether `aria-selected` is true.
+    isSelected: boolean;
+    /// `aria-level`.
+    level: uint32 | void;
+    /// `aria-posinset`.
+    positionInSet: uint32 | void;
+    /// `aria-setsize`.
+    setSize: uint32 | void;
+    /// `aria-rowcount`.
+    rowCount: int32 | void;
+    /// `aria-colcount`.
+    columnCount: int32 | void;
+    /// `aria-rowindex`.
+    rowIndex: uint32 | void;
+    /// `aria-colindex`.
+    columnIndex: uint32 | void;
+    /// `aria-rowspan`.
+    rowSpan: uint32 | void;
+    /// `aria-colspan`.
+    columnSpan: uint32 | void;
+    /// Numeric range state for widgets that expose `aria-value*`.
+    rangeValue: AccessibilityRangeValue | void;
+    /// Editable text selection when the node represents one text control.
+    textSelection: AccessibilityTextSelection | void;
+    /// ARIA relation state.
+    relations: AccessibilityNodeRelations;
+}
+
+/// One tree update payload.
+export struct AccessibilityTreeUpdate {
+    /// Root node identifier for this window, or void to clear the tree.
+    rootNodeId: AccessibilityNodeId | void;
+    /// Focused node identifier for this window, or void when nothing is focused.
+    focusedNodeId: AccessibilityNodeId | void;
+    /// Added or replaced node descriptors.
+    /// Each listed node replaces the previously published descriptor for the same `id`.
+    nodes: Slice<AccessibilityNode>;
+    /// Removed node identifiers.
+    removedNodeIds: Slice<AccessibilityNodeId>;
+}
+
+/// Accessibility tree bindings.
+declare namespace accessibility {
+    /// Apply one accessibility-tree update for one window.
+    ///
+    /// Publish one accessibility-tree diff for the window's current semantic root.
+    /// Listed nodes replace the current descriptor for the same identifier, and removed identifiers are detached from the published tree.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `accessibility.publish`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.accessibility.tree.apply", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["accessibility.publish"],
+        platforms: ["android", "windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function treeApply(
+        window: WindowHandle,
+        update: AccessibilityTreeUpdate,
+    ): Result<void, PlatformError>;
+
+    /// Clear the published accessibility tree for one window.
+    ///
+    /// Remove the current semantic root and all published nodes for the window.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `accessibility.publish`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.accessibility.tree.clear", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["accessibility.publish"],
+        platforms: ["android", "windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function treeClear(window: WindowHandle): Result<void, PlatformError>;
+
+}
