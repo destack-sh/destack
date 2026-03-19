@@ -83,7 +83,7 @@ pub(crate) fn service_registered_runtimes_until(
 
         // notify runtime observers after one handled source
         if status == KCF_RUN_LOOP_RUN_HANDLED_SOURCE {
-            HostRuntimeRegistry::process_all_runtime_ingress()?;
+            HostRuntimeRegistry::service_all_runtime_ingress()?;
             continue;
         }
 

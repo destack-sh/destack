@@ -56,7 +56,7 @@ pub enum HostPowerMode {
     LowPower,
 }
 
-/// Host semantic event kind key for scheduler watches.
+/// Host semantic event kind for queue coalescing and routing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum HostEventKind {
     /// Lifecycle transitions.
@@ -215,22 +215,22 @@ pub enum HostIntentPayload {
     OpenFile {
         /// Path payload from the host.
         path: String,
-        /// MIME type when provided by the host.
-        mime_type: Option<String>,
+        /// Normalized content type when provided by the host.
+        content_type: Option<String>,
     },
     /// Host delivered one shared text payload.
     ShareText {
         /// Shared text payload from the host.
         text: String,
-        /// MIME type when provided by the host.
-        mime_type: Option<String>,
+        /// Normalized content type when provided by the host.
+        content_type: Option<String>,
     },
     /// Host delivered one shared file list.
     ShareFiles {
         /// Shared file path payloads from the host.
         paths: Vec<String>,
-        /// MIME type when provided by the host.
-        mime_type: Option<String>,
+        /// Normalized content type when provided by the host.
+        content_type: Option<String>,
     },
     /// Host delivered one custom action payload.
     CustomAction {
@@ -242,8 +242,8 @@ pub enum HostIntentPayload {
         paths: Vec<String>,
         /// Shared text payload when provided by the host.
         text: Option<String>,
-        /// MIME type when provided by the host.
-        mime_type: Option<String>,
+        /// Normalized content type when provided by the host.
+        content_type: Option<String>,
     },
 }
 

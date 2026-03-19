@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
 use destack_workspace::Platform;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostIngressHandle, HostRuntimeId, HostRuntimeRegistry};
+use crate::host::core::{HostQueue, HostRuntimeId, HostRuntimeRegistry};
 use crate::host::{
     HostBackgroundEvent, HostEvent, HostIntentEvent, HostIntentPayload, HostInterruptionEvent,
     HostLifecycleEvent, HostLifecycleState, HostLocationEvent, HostMediaEvent, HostMediaEventKind,
@@ -13,7 +15,7 @@ use crate::platform::os::{
 };
 /// iOS application lifecycle transitions from native callbacks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum IosApplicationLifecycle {
+pub(crate) enum IosApplicationLifecycle {
     /// App launch finished and normal processing can begin.
     DidFinishLaunching,
     /// App became active in the foreground.
@@ -29,30 +31,30 @@ pub enum IosApplicationLifecycle {
 }
 
 /// Return the active iOS host queue for this process.
-fn ios_host_bridge(runtime_id: u64) -> RuntimeResult<HostIngressHandle> {
-    HostRuntimeRegistry::ingress_handle_for_runtime(HostRuntimeId(runtime_id), Platform::IOS)
+fn ios_host_bridge(runtime_id: u64) -> RuntimeResult<Arc<HostQueue>> {
+    HostRuntimeRegistry::queue_for_runtime(HostRuntimeId(runtime_id), Platform::IOS)
 }
 
 /// Submit one iOS application lifecycle callback.
-pub fn ios_notify_application_lifecycle(
+pub(crate) fn ios_notify_application_lifecycle(
     runtime_id: u64,
     lifecycle: IosApplicationLifecycle,
 ) -> RuntimeResult<()> {
     let bridge = ios_host_bridge(runtime_id)?;
     let state = host_lifecycle_state_for_application_lifecycle(lifecycle);
-    bridge.publish_event(HostEvent::Lifecycle(HostLifecycleEvent { state }));
+    bridge.enqueue(HostEvent::Lifecycle(HostLifecycleEvent { state }));
 
     Ok(())
 }
 
 /// Submit one iOS permission-result callback.
-pub fn ios_notify_permission_result(
+pub(crate) fn ios_notify_permission_result(
     runtime_id: u64,
     permission: &str,
     granted: bool,
 ) -> RuntimeResult<()> {
     let bridge = ios_host_bridge(runtime_id)?;
-    bridge.publish_event(HostEvent::Permission(HostPermissionEvent {
+    bridge.enqueue(HostEvent::Permission(HostPermissionEvent {
         permission: permission.to_string(),
         granted,
     }));
@@ -61,13 +63,13 @@ pub fn ios_notify_permission_result(
 }
 
 /// Submit one iOS open-url intent callback.
-pub fn ios_notify_intent_open_url(
+pub(crate) fn ios_notify_intent_open_url(
     runtime_id: u64,
     source: Option<&str>,
     url: &str,
 ) -> RuntimeResult<()> {
     let bridge = ios_host_bridge(runtime_id)?;
-    bridge.publish_event(HostEvent::Intent(HostIntentEvent {
+    bridge.enqueue(HostEvent::Intent(HostIntentEvent {
         source: source.map(str::to_string),
         payload: HostIntentPayload::OpenUrl {
             url: url.to_string(),
@@ -78,14 +80,14 @@ pub fn ios_notify_intent_open_url(
 }
 
 /// Submit one iOS open-file intent callback.
-pub fn ios_notify_intent_open_file(
+pub(crate) fn ios_notify_intent_open_file(
     runtime_id: u64,
     source: Option<&str>,
     path: &str,
     mime_type: Option<&str>,
 ) -> RuntimeResult<()> {
     let bridge = ios_host_bridge(runtime_id)?;
-    bridge.publish_event(HostEvent::Intent(HostIntentEvent {
+    bridge.enqueue(HostEvent::Intent(HostIntentEvent {
         source: source.map(str::to_string),
         payload: HostIntentPayload::OpenFile {
             path: path.to_string(),
@@ -97,14 +99,14 @@ pub fn ios_notify_intent_open_file(
 }
 
 /// Submit one iOS shared-text intent callback.
-pub fn ios_notify_intent_share_text(
+pub(crate) fn ios_notify_intent_share_text(
     runtime_id: u64,
     source: Option<&str>,
     text: &str,
     mime_type: Option<&str>,
 ) -> RuntimeResult<()> {
     let bridge = ios_host_bridge(runtime_id)?;
-    bridge.publish_event(HostEvent::Intent(HostIntentEvent {
+    bridge.enqueue(HostEvent::Intent(HostIntentEvent {
         source: source.map(str::to_string),
         payload: HostIntentPayload::ShareText {
             text: text.to_string(),
@@ -116,14 +118,14 @@ pub fn ios_notify_intent_share_text(
 }
 
 /// Submit one iOS shared-file intent callback.
-pub fn ios_notify_intent_share_files(
+pub(crate) fn ios_notify_intent_share_files(
     runtime_id: u64,
     source: Option<&str>,
     paths: &[String],
     mime_type: Option<&str>,
 ) -> RuntimeResult<()> {
     let bridge = ios_host_bridge(runtime_id)?;
-    bridge.publish_event(HostEvent::Intent(HostIntentEvent {
+    bridge.enqueue(HostEvent::Intent(HostIntentEvent {
         source: source.map(str::to_string),
         payload: HostIntentPayload::ShareFiles {
             paths: paths.to_vec(),
@@ -135,7 +137,7 @@ pub fn ios_notify_intent_share_files(
 }
 
 /// Submit one iOS custom-action intent callback.
-pub fn ios_notify_intent_custom_action(
+pub(crate) fn ios_notify_intent_custom_action(
     runtime_id: u64,
     source: Option<&str>,
     action: &str,
@@ -145,7 +147,7 @@ pub fn ios_notify_intent_custom_action(
     mime_type: Option<&str>,
 ) -> RuntimeResult<()> {
     let bridge = ios_host_bridge(runtime_id)?;
-    bridge.publish_event(HostEvent::Intent(HostIntentEvent {
+    bridge.enqueue(HostEvent::Intent(HostIntentEvent {
         source: source.map(str::to_string),
         payload: HostIntentPayload::CustomAction {
             action: action.to_string(),
@@ -160,9 +162,12 @@ pub fn ios_notify_intent_custom_action(
 }
 
 /// Submit one iOS interruption callback.
-pub fn ios_notify_interruption_changed(runtime_id: u64, interrupted: bool) -> RuntimeResult<()> {
+pub(crate) fn ios_notify_interruption_changed(
+    runtime_id: u64,
+    interrupted: bool,
+) -> RuntimeResult<()> {
     let bridge = ios_host_bridge(runtime_id)?;
-    bridge.publish_event(HostEvent::Interruption(HostInterruptionEvent {
+    bridge.enqueue(HostEvent::Interruption(HostInterruptionEvent {
         interrupted,
     }));
 
@@ -170,12 +175,12 @@ pub fn ios_notify_interruption_changed(runtime_id: u64, interrupted: bool) -> Ru
 }
 
 /// Submit one iOS notification callback.
-pub fn ios_notify_notification_event(
+pub(crate) fn ios_notify_notification_event(
     runtime_id: u64,
     event: NotificationEventValue,
 ) -> RuntimeResult<()> {
     let bridge = ios_host_bridge(runtime_id)?;
-    bridge.publish_event(HostEvent::Notification(Box::new(HostNotificationEvent {
+    bridge.enqueue(HostEvent::Notification(Box::new(HostNotificationEvent {
         event,
     })));
 
@@ -183,12 +188,12 @@ pub fn ios_notify_notification_event(
 }
 
 /// Submit one iOS background callback.
-pub fn ios_notify_background_event(
+pub(crate) fn ios_notify_background_event(
     runtime_id: u64,
     event: BackgroundEventValue,
 ) -> RuntimeResult<()> {
     let bridge = ios_host_bridge(runtime_id)?;
-    bridge.publish_event(HostEvent::Background(Box::new(HostBackgroundEvent {
+    bridge.enqueue(HostEvent::Background(Box::new(HostBackgroundEvent {
         event,
     })));
 
@@ -196,13 +201,13 @@ pub fn ios_notify_background_event(
 }
 
 /// Submit one iOS location callback.
-pub fn ios_notify_location_sample(
+pub(crate) fn ios_notify_location_sample(
     runtime_id: u64,
     watch_id: &str,
     sample: LocationSampleValue,
 ) -> RuntimeResult<()> {
     let bridge = ios_host_bridge(runtime_id)?;
-    bridge.publish_event(HostEvent::Location(Box::new(HostLocationEvent {
+    bridge.enqueue(HostEvent::Location(Box::new(HostLocationEvent {
         watch_id: watch_id.to_string(),
         sample,
     })));
@@ -211,60 +216,63 @@ pub fn ios_notify_location_sample(
 }
 
 /// Submit one iOS media callback.
-pub fn ios_notify_media_event(
+pub(crate) fn ios_notify_media_event(
     runtime_id: u64,
     watch_id: &str,
     event: MediaEventValue,
 ) -> RuntimeResult<()> {
     let bridge = ios_host_bridge(runtime_id)?;
     let event = host_media_event(watch_id, event);
-    bridge.publish_event(HostEvent::Media(Box::new(event)));
+    bridge.enqueue(HostEvent::Media(Box::new(event)));
 
     Ok(())
 }
 
 /// Submit one iOS memory pressure callback.
-pub fn ios_notify_memory_pressure_changed(
+pub(crate) fn ios_notify_memory_pressure_changed(
     runtime_id: u64,
     level: HostMemoryPressureLevel,
 ) -> RuntimeResult<()> {
     let bridge = ios_host_bridge(runtime_id)?;
-    bridge.publish_event(HostEvent::MemoryPressure(HostMemoryPressureEvent { level }));
+    bridge.enqueue(HostEvent::MemoryPressure(HostMemoryPressureEvent { level }));
 
     Ok(())
 }
 
 /// Submit one iOS thermal state callback.
-pub fn ios_notify_thermal_state_changed(
+pub(crate) fn ios_notify_thermal_state_changed(
     runtime_id: u64,
     state: HostThermalState,
 ) -> RuntimeResult<()> {
     let bridge = ios_host_bridge(runtime_id)?;
-    bridge.publish_event(HostEvent::ThermalState(HostThermalEvent { state }));
+    bridge.enqueue(HostEvent::ThermalState(HostThermalEvent { state }));
 
     Ok(())
 }
 
 /// Submit one iOS power mode callback.
-pub fn ios_notify_power_mode_changed(runtime_id: u64, mode: HostPowerMode) -> RuntimeResult<()> {
+pub(crate) fn ios_notify_power_mode_changed(
+    runtime_id: u64,
+    mode: HostPowerMode,
+) -> RuntimeResult<()> {
     let bridge = ios_host_bridge(runtime_id)?;
-    bridge.publish_event(HostEvent::PowerMode(HostPowerModeEvent { mode }));
+    bridge.enqueue(HostEvent::PowerMode(HostPowerModeEvent { mode }));
 
     Ok(())
 }
 
 /// Submit one iOS wall clock callback.
-pub fn ios_notify_wall_clock_changed(runtime_id: u64) -> RuntimeResult<()> {
+pub(crate) fn ios_notify_wall_clock_changed(runtime_id: u64) -> RuntimeResult<()> {
     let bridge = ios_host_bridge(runtime_id)?;
-    bridge.publish_event(HostEvent::WallClock(HostWallClockEvent));
+    bridge.enqueue(HostEvent::WallClock(HostWallClockEvent));
 
     Ok(())
 }
 
 /// Wake one blocked host poll operation for iOS.
-pub fn ios_notify_wake(runtime_id: u64) -> RuntimeResult<()> {
+pub(crate) fn ios_notify_wake(runtime_id: u64) -> RuntimeResult<()> {
     let bridge = ios_host_bridge(runtime_id)?;
-    bridge.wake()?;
+    bridge.poll_wake_handle().wake()?;
 
     Ok(())
 }

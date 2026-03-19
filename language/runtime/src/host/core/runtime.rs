@@ -26,11 +26,11 @@ pub struct HostSession {
     adapter: Arc<dyn HostAdapter>,
     /// Shared host queue for this runtime instance.
     queue: Arc<HostQueue>,
-    /// Shared registration guard for callback routing.
+    /// Shared registration guard for host ingress routing.
     registration_guard: HostRegistrationGuard,
     /// Logical runtime id used by the world/runtime layer.
     runtime_id: RuntimeId,
-    /// Process-global routing id used for host callback routing and ingress observers.
+    /// Process-global routing id used for host ingress routing and queue servicing.
     host_runtime_id: HostRuntimeId,
     /// Static host capability set reported by the adapter.
     adapter_capabilities: PlatformCapabilitySet,
@@ -103,11 +103,11 @@ impl HostSession {
         let host_runtime_id = next_host_runtime_id();
         let queue = Arc::new(HostQueue::new(host_runtime_id));
 
-        // register callback routing before this host starts serving callers
+        // register host ingress routing before this host starts serving callers
         let registration_guard = HostRuntimeRegistry::register_queue(
             platform,
             host_runtime_id,
-            Arc::downgrade(&queue),
+            Arc::clone(&queue),
             cleanup,
         );
 
@@ -248,7 +248,7 @@ impl HostSession {
         self.queue.poll_wake_handle()
     }
 
-    /// Return the runtime id used for host callback routing.
+    /// Return the runtime id used for host ingress routing.
     pub const fn runtime_id(&self) -> RuntimeId {
         self.runtime_id
     }
@@ -275,7 +275,7 @@ impl HostSession {
     }
     /// Service host-owned ingress for this runtime session.
     pub fn service_ingress(&self) -> RuntimeResult<()> {
-        // service immediately ready native ingress from the adapter
+        // service immediately ready adapter ingress
         if self.is_native_ingress_enabled {
             self.adapter.process_native_ingress()?;
         }
@@ -285,8 +285,8 @@ impl HostSession {
         // service app-owned ingress for this runtime
         service_app_ingress(&request_context)?;
 
-        // service runtime-owned ingress observers registered for this session
-        HostRuntimeRegistry::process_runtime_ingress(self.host_runtime_id)
+        // service queue-owned runtime ingress handlers for this session
+        HostRuntimeRegistry::service_runtime_ingress(self.host_runtime_id)
     }
 }
 

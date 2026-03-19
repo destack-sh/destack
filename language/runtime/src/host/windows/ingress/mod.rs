@@ -1,9 +1,8 @@
-pub(crate) mod callback;
 pub(crate) mod ffi;
 #[cfg(windows)]
 pub(crate) mod message;
+pub(crate) mod notify;
 
-pub use callback::*;
-pub use ffi::*;
 #[cfg(windows)]
 pub(crate) use message::process_ingress_loop;
+pub(crate) use notify::*;

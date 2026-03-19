@@ -37,7 +37,7 @@ mod tests;
     target_os = "openbsd",
     target_os = "solaris",
 ))]
-pub use ingress::callback::{
+pub use ingress::notify::{
     UnixApplicationLifecycle, unix_notify_application_lifecycle, unix_notify_interruption_changed,
     unix_notify_location_sample, unix_notify_memory_pressure_changed,
     unix_notify_permission_result, unix_notify_power_mode_changed,

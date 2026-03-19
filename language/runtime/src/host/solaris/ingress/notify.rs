@@ -9,10 +9,10 @@ use crate::host::unix::{
 };
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 
-/// Solaris application lifecycle transitions from native callbacks.
+/// Solaris application lifecycle transitions from native ingress hooks.
 pub type SolarisApplicationLifecycle = UnixApplicationLifecycle;
 
-/// Submit one Solaris application lifecycle callback.
+/// Route one Solaris application lifecycle ingress notification.
 pub fn solaris_notify_application_lifecycle(
     runtime_id: u64,
     lifecycle: SolarisApplicationLifecycle,
@@ -20,7 +20,7 @@ pub fn solaris_notify_application_lifecycle(
     unix_notify_application_lifecycle(runtime_id, Platform::Solaris, lifecycle)
 }
 
-/// Submit one Solaris permission-result callback.
+/// Route one Solaris permission-result ingress notification.
 pub fn solaris_notify_permission_result(
     runtime_id: u64,
     permission: &str,
@@ -29,7 +29,7 @@ pub fn solaris_notify_permission_result(
     unix_notify_permission_result(runtime_id, Platform::Solaris, permission, granted)
 }
 
-/// Submit one Solaris interruption callback.
+/// Route one Solaris interruption ingress notification.
 pub fn solaris_notify_interruption_changed(
     runtime_id: u64,
     interrupted: bool,
@@ -37,7 +37,7 @@ pub fn solaris_notify_interruption_changed(
     unix_notify_interruption_changed(runtime_id, Platform::Solaris, interrupted)
 }
 
-/// Submit one Solaris memory pressure callback.
+/// Route one Solaris memory pressure ingress notification.
 pub fn solaris_notify_memory_pressure_changed(
     runtime_id: u64,
     level: HostMemoryPressureLevel,
@@ -45,7 +45,7 @@ pub fn solaris_notify_memory_pressure_changed(
     unix_notify_memory_pressure_changed(runtime_id, Platform::Solaris, level)
 }
 
-/// Submit one Solaris thermal state callback.
+/// Route one Solaris thermal state ingress notification.
 pub fn solaris_notify_thermal_state_changed(
     runtime_id: u64,
     state: HostThermalState,
@@ -53,7 +53,7 @@ pub fn solaris_notify_thermal_state_changed(
     unix_notify_thermal_state_changed(runtime_id, Platform::Solaris, state)
 }
 
-/// Submit one Solaris power mode callback.
+/// Route one Solaris power mode ingress notification.
 pub fn solaris_notify_power_mode_changed(
     runtime_id: u64,
     mode: HostPowerMode,
@@ -61,7 +61,7 @@ pub fn solaris_notify_power_mode_changed(
     unix_notify_power_mode_changed(runtime_id, Platform::Solaris, mode)
 }
 
-/// Submit one Solaris wall clock callback.
+/// Route one Solaris wall clock ingress notification.
 pub fn solaris_notify_wall_clock_changed(runtime_id: u64) -> RuntimeResult<()> {
     unix_notify_wall_clock_changed(runtime_id, Platform::Solaris)
 }

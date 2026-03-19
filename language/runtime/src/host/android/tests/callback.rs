@@ -1,9 +1,11 @@
 use crate::host::android::tests::register_android_runtime;
+use crate::host::android::{
+    android_notify_background_event, android_notify_intent_open_url,
+    android_notify_location_sample, android_notify_media_event, android_notify_notification_event,
+};
 use crate::host::{
     HostBackgroundEvent, HostEvent, HostIntentEvent, HostIntentPayload, HostLocationEvent,
-    HostMediaEvent, HostMediaEventKind, HostNotificationEvent, android_notify_background_event,
-    android_notify_intent_open_url, android_notify_location_sample, android_notify_media_event,
-    android_notify_notification_event,
+    HostMediaEvent, HostMediaEventKind, HostNotificationEvent,
 };
 use crate::platform::os::{
     BackgroundEventMetadataValue, BackgroundEventValue, BackgroundTaskReadyEventValue,

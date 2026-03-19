@@ -9,10 +9,10 @@ use crate::host::unix::{
 };
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 
-/// OpenBsd application lifecycle transitions from native callbacks.
+/// OpenBsd application lifecycle transitions from native ingress hooks.
 pub type OpenBsdApplicationLifecycle = UnixApplicationLifecycle;
 
-/// Submit one OpenBsd application lifecycle callback.
+/// Route one OpenBsd application lifecycle ingress notification.
 pub fn openbsd_notify_application_lifecycle(
     runtime_id: u64,
     lifecycle: OpenBsdApplicationLifecycle,
@@ -20,7 +20,7 @@ pub fn openbsd_notify_application_lifecycle(
     unix_notify_application_lifecycle(runtime_id, Platform::OpenBsd, lifecycle)
 }
 
-/// Submit one OpenBsd permission-result callback.
+/// Route one OpenBsd permission-result ingress notification.
 pub fn openbsd_notify_permission_result(
     runtime_id: u64,
     permission: &str,
@@ -29,7 +29,7 @@ pub fn openbsd_notify_permission_result(
     unix_notify_permission_result(runtime_id, Platform::OpenBsd, permission, granted)
 }
 
-/// Submit one OpenBsd interruption callback.
+/// Route one OpenBsd interruption ingress notification.
 pub fn openbsd_notify_interruption_changed(
     runtime_id: u64,
     interrupted: bool,
@@ -37,7 +37,7 @@ pub fn openbsd_notify_interruption_changed(
     unix_notify_interruption_changed(runtime_id, Platform::OpenBsd, interrupted)
 }
 
-/// Submit one OpenBsd memory pressure callback.
+/// Route one OpenBsd memory pressure ingress notification.
 pub fn openbsd_notify_memory_pressure_changed(
     runtime_id: u64,
     level: HostMemoryPressureLevel,
@@ -45,7 +45,7 @@ pub fn openbsd_notify_memory_pressure_changed(
     unix_notify_memory_pressure_changed(runtime_id, Platform::OpenBsd, level)
 }
 
-/// Submit one OpenBsd thermal state callback.
+/// Route one OpenBsd thermal state ingress notification.
 pub fn openbsd_notify_thermal_state_changed(
     runtime_id: u64,
     state: HostThermalState,
@@ -53,7 +53,7 @@ pub fn openbsd_notify_thermal_state_changed(
     unix_notify_thermal_state_changed(runtime_id, Platform::OpenBsd, state)
 }
 
-/// Submit one OpenBsd power mode callback.
+/// Route one OpenBsd power mode ingress notification.
 pub fn openbsd_notify_power_mode_changed(
     runtime_id: u64,
     mode: HostPowerMode,
@@ -61,7 +61,7 @@ pub fn openbsd_notify_power_mode_changed(
     unix_notify_power_mode_changed(runtime_id, Platform::OpenBsd, mode)
 }
 
-/// Submit one OpenBsd wall clock callback.
+/// Route one OpenBsd wall clock ingress notification.
 pub fn openbsd_notify_wall_clock_changed(runtime_id: u64) -> RuntimeResult<()> {
     unix_notify_wall_clock_changed(runtime_id, Platform::OpenBsd)
 }

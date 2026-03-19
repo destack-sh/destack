@@ -21,14 +21,15 @@ mod illumos;
 #[cfg(any(test, target_os = "ios"))]
 mod ios;
 #[cfg(target_os = "linux")]
-mod linux;
+pub(crate) mod linux;
 #[cfg(target_os = "macos")]
-mod macos;
+pub(crate) mod macos;
 #[cfg(target_os = "netbsd")]
 mod netbsd;
 #[cfg(target_os = "openbsd")]
 mod openbsd;
 pub(crate) mod operation;
+pub(crate) mod policy;
 #[cfg(target_os = "solaris")]
 mod solaris;
 #[cfg(any(
@@ -59,7 +60,7 @@ pub mod unix;
 )))]
 mod unsupported;
 #[cfg(any(test, windows))]
-mod windows;
+pub(crate) mod windows;
 
 pub(crate) use core::HostAdapter;
 pub use core::{
@@ -75,63 +76,3 @@ pub use core::{
 pub use destack_workspace::Platform;
 #[cfg(windows)]
 pub(crate) use windows::process_ingress_loop;
-
-#[cfg(any(test, target_os = "android"))]
-pub use android::*;
-
-#[cfg(all(test, target_os = "macos"))]
-pub(crate) use macos::MacosCalendarHooks;
-#[cfg(all(test, target_os = "macos"))]
-pub(crate) use macos::MacosContactHooks;
-#[cfg(all(test, target_os = "macos"))]
-pub(crate) use macos::MacosLocationHooks;
-#[cfg(all(test, target_os = "macos"))]
-pub(crate) use macos::set_macos_calendar_test_hooks;
-#[cfg(all(test, target_os = "macos"))]
-pub(crate) use macos::set_macos_contact_test_hooks;
-#[cfg(all(test, target_os = "macos"))]
-pub(crate) use macos::set_macos_document_test_pick_hook;
-#[cfg(all(test, target_os = "macos"))]
-pub(crate) use macos::set_macos_location_test_hooks;
-#[cfg(target_os = "macos")]
-pub use macos::*;
-
-#[cfg(any(test, target_os = "ios"))]
-pub use ios::*;
-
-#[cfg(all(test, windows))]
-pub(crate) use windows::WindowsCalendarHooks;
-#[cfg(all(test, windows))]
-pub(crate) use windows::WindowsContactHooks;
-#[cfg(all(test, windows))]
-pub(crate) use windows::set_windows_calendar_test_hooks;
-#[cfg(all(test, windows))]
-pub(crate) use windows::set_windows_contact_test_hooks;
-#[cfg(all(test, windows))]
-pub(crate) use windows::set_windows_document_test_pick_hook;
-#[cfg(any(test, windows))]
-pub use windows::*;
-
-#[cfg(target_os = "linux")]
-pub use linux::*;
-
-#[cfg(target_os = "freebsd")]
-pub use freebsd::*;
-
-#[cfg(target_os = "dragonfly")]
-pub use dragonfly::*;
-
-#[cfg(target_os = "netbsd")]
-pub use netbsd::*;
-
-#[cfg(target_os = "openbsd")]
-pub use openbsd::*;
-
-#[cfg(target_os = "illumos")]
-pub use illumos::*;
-
-#[cfg(target_os = "solaris")]
-pub use solaris::*;
-
-#[cfg(target_os = "haiku")]
-pub use haiku::*;

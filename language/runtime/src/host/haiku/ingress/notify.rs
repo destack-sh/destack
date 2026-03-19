@@ -9,10 +9,10 @@ use crate::host::unix::{
 };
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 
-/// Haiku application lifecycle transitions from native callbacks.
+/// Haiku application lifecycle transitions from native ingress hooks.
 pub type HaikuApplicationLifecycle = UnixApplicationLifecycle;
 
-/// Submit one Haiku application lifecycle callback.
+/// Route one Haiku application lifecycle ingress notification.
 pub fn haiku_notify_application_lifecycle(
     runtime_id: u64,
     lifecycle: HaikuApplicationLifecycle,
@@ -20,7 +20,7 @@ pub fn haiku_notify_application_lifecycle(
     unix_notify_application_lifecycle(runtime_id, Platform::Haiku, lifecycle)
 }
 
-/// Submit one Haiku permission-result callback.
+/// Route one Haiku permission-result ingress notification.
 pub fn haiku_notify_permission_result(
     runtime_id: u64,
     permission: &str,
@@ -29,12 +29,12 @@ pub fn haiku_notify_permission_result(
     unix_notify_permission_result(runtime_id, Platform::Haiku, permission, granted)
 }
 
-/// Submit one Haiku interruption callback.
+/// Route one Haiku interruption ingress notification.
 pub fn haiku_notify_interruption_changed(runtime_id: u64, interrupted: bool) -> RuntimeResult<()> {
     unix_notify_interruption_changed(runtime_id, Platform::Haiku, interrupted)
 }
 
-/// Submit one Haiku memory pressure callback.
+/// Route one Haiku memory pressure ingress notification.
 pub fn haiku_notify_memory_pressure_changed(
     runtime_id: u64,
     level: HostMemoryPressureLevel,
@@ -42,7 +42,7 @@ pub fn haiku_notify_memory_pressure_changed(
     unix_notify_memory_pressure_changed(runtime_id, Platform::Haiku, level)
 }
 
-/// Submit one Haiku thermal state callback.
+/// Route one Haiku thermal state ingress notification.
 pub fn haiku_notify_thermal_state_changed(
     runtime_id: u64,
     state: HostThermalState,
@@ -50,12 +50,12 @@ pub fn haiku_notify_thermal_state_changed(
     unix_notify_thermal_state_changed(runtime_id, Platform::Haiku, state)
 }
 
-/// Submit one Haiku power mode callback.
+/// Route one Haiku power mode ingress notification.
 pub fn haiku_notify_power_mode_changed(runtime_id: u64, mode: HostPowerMode) -> RuntimeResult<()> {
     unix_notify_power_mode_changed(runtime_id, Platform::Haiku, mode)
 }
 
-/// Submit one Haiku wall clock callback.
+/// Route one Haiku wall clock ingress notification.
 pub fn haiku_notify_wall_clock_changed(runtime_id: u64) -> RuntimeResult<()> {
     unix_notify_wall_clock_changed(runtime_id, Platform::Haiku)
 }

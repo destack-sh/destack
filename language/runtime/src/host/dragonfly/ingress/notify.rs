@@ -9,10 +9,10 @@ use crate::host::unix::{
 };
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 
-/// Dragonfly application lifecycle transitions from native callbacks.
+/// Dragonfly application lifecycle transitions from native ingress hooks.
 pub type DragonflyApplicationLifecycle = UnixApplicationLifecycle;
 
-/// Submit one Dragonfly application lifecycle callback.
+/// Route one Dragonfly application lifecycle ingress notification.
 pub fn dragonfly_notify_application_lifecycle(
     runtime_id: u64,
     lifecycle: DragonflyApplicationLifecycle,
@@ -20,7 +20,7 @@ pub fn dragonfly_notify_application_lifecycle(
     unix_notify_application_lifecycle(runtime_id, Platform::DragonFly, lifecycle)
 }
 
-/// Submit one Dragonfly permission-result callback.
+/// Route one Dragonfly permission-result ingress notification.
 pub fn dragonfly_notify_permission_result(
     runtime_id: u64,
     permission: &str,
@@ -29,7 +29,7 @@ pub fn dragonfly_notify_permission_result(
     unix_notify_permission_result(runtime_id, Platform::DragonFly, permission, granted)
 }
 
-/// Submit one Dragonfly interruption callback.
+/// Route one Dragonfly interruption ingress notification.
 pub fn dragonfly_notify_interruption_changed(
     runtime_id: u64,
     interrupted: bool,
@@ -37,7 +37,7 @@ pub fn dragonfly_notify_interruption_changed(
     unix_notify_interruption_changed(runtime_id, Platform::DragonFly, interrupted)
 }
 
-/// Submit one Dragonfly memory pressure callback.
+/// Route one Dragonfly memory pressure ingress notification.
 pub fn dragonfly_notify_memory_pressure_changed(
     runtime_id: u64,
     level: HostMemoryPressureLevel,
@@ -45,7 +45,7 @@ pub fn dragonfly_notify_memory_pressure_changed(
     unix_notify_memory_pressure_changed(runtime_id, Platform::DragonFly, level)
 }
 
-/// Submit one Dragonfly thermal state callback.
+/// Route one Dragonfly thermal state ingress notification.
 pub fn dragonfly_notify_thermal_state_changed(
     runtime_id: u64,
     state: HostThermalState,
@@ -53,7 +53,7 @@ pub fn dragonfly_notify_thermal_state_changed(
     unix_notify_thermal_state_changed(runtime_id, Platform::DragonFly, state)
 }
 
-/// Submit one Dragonfly power mode callback.
+/// Route one Dragonfly power mode ingress notification.
 pub fn dragonfly_notify_power_mode_changed(
     runtime_id: u64,
     mode: HostPowerMode,
@@ -61,7 +61,7 @@ pub fn dragonfly_notify_power_mode_changed(
     unix_notify_power_mode_changed(runtime_id, Platform::DragonFly, mode)
 }
 
-/// Submit one Dragonfly wall clock callback.
+/// Route one Dragonfly wall clock ingress notification.
 pub fn dragonfly_notify_wall_clock_changed(runtime_id: u64) -> RuntimeResult<()> {
     unix_notify_wall_clock_changed(runtime_id, Platform::DragonFly)
 }

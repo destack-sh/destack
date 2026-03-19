@@ -19,17 +19,23 @@ pub(crate) fn open_path(path: fs::OsPath) -> HostOperation<()> {
 }
 
 /// Build one share-text operation.
-pub(crate) fn share_text(text: String, mime_type: Option<String>) -> HostOperation<()> {
+pub(crate) fn share_text(text: String, content_type: Option<String>) -> HostOperation<()> {
     HostOperation::new(
-        HostRequest::OsIntentShareText { text, mime_type },
+        HostRequest::OsIntentShareText { text, content_type },
         decode::none,
     )
 }
 
 /// Build one share-paths operation.
-pub(crate) fn share_paths(paths: Vec<fs::OsPath>, mime_type: Option<String>) -> HostOperation<()> {
+pub(crate) fn share_paths(
+    paths: Vec<fs::OsPath>,
+    content_type: Option<String>,
+) -> HostOperation<()> {
     HostOperation::new(
-        HostRequest::OsIntentSharePaths { paths, mime_type },
+        HostRequest::OsIntentSharePaths {
+            paths,
+            content_type,
+        },
         decode::none,
     )
 }

@@ -22,7 +22,7 @@ fn register_ios_runtime() -> (Arc<HostQueue>, HostRegistrationGuard, u64) {
     let registration = HostRuntimeRegistry::register_queue(
         Platform::IOS,
         runtime_id,
-        Arc::downgrade(&queue),
+        Arc::clone(&queue),
         Some(unregister_ios_bindings),
     );
     let runtime_id = registration.host_runtime_id().0;

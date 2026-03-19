@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, OnceLock, Weak};
+use std::sync::{Arc, OnceLock};
 
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
@@ -28,10 +28,10 @@ pub(crate) type HostCleanup = fn(host_runtime_id: HostRuntimeId);
 /// Shared process-global host runtime registry.
 static HOST_RUNTIME_REGISTRY: OnceLock<RwLock<HostRuntimeRegistry>> = OnceLock::new();
 
-/// Observer notified when one runtime ingress path should make progress.
-pub(crate) trait RuntimeIngressObserver: std::fmt::Debug + Send + Sync {
+/// Handler that services one runtime-owned ingress lane.
+pub(crate) trait RuntimeIngressHandler: std::fmt::Debug + Send + Sync {
     /// Service runtime-owned ingress.
-    fn process_runtime_ingress(&self) -> RuntimeResult<()>;
+    fn service_runtime_ingress(&self) -> RuntimeResult<()>;
 }
 
 /// Observer notified when one host semantic event is enqueued for one runtime.
@@ -59,8 +59,8 @@ pub(crate) struct HostRuntimeRegistry {
 struct HostRuntimeRegistryEntry {
     /// Platform tag for this queue.
     platform: Platform,
-    /// Weak reference to one runtime-owned queue.
-    queue: Weak<HostQueue>,
+    /// Shared runtime-owned queue.
+    queue: Arc<HostQueue>,
     /// Optional platform-specific cleanup hook for this runtime id.
     cleanup: Option<HostCleanup>,
 }
@@ -88,21 +88,17 @@ impl HostRuntimeRegistry {
     pub(crate) fn register_queue(
         platform: Platform,
         host_runtime_id: HostRuntimeId,
-        queue: Weak<HostQueue>,
+        queue: Arc<HostQueue>,
         cleanup: Option<HostCleanup>,
     ) -> HostRegistrationGuard {
         let mut registry = Self::shared().write();
 
         // duplicate runtime ids are a registry contract violation
-        if let Some(existing) = registry.runtime_queues.get(&host_runtime_id) {
-            if existing.queue.upgrade().is_some() {
-                panic!(
-                    "duplicate host runtime queue registration for runtime id {}",
-                    host_runtime_id.0
-                );
-            }
-
-            registry.runtime_queues.remove(&host_runtime_id);
+        if registry.runtime_queues.contains_key(&host_runtime_id) {
+            panic!(
+                "duplicate host runtime queue registration for runtime id {}",
+                host_runtime_id.0
+            );
         }
 
         let entry = HostRuntimeRegistryEntry {
@@ -125,17 +121,17 @@ impl HostRuntimeRegistry {
         registry.queue_for_runtime_inner(host_runtime_id, platform)
     }
 
-    /// Register one runtime ingress observer.
-    pub(crate) fn register_runtime_ingress_observer(
+    /// Register one runtime ingress handler.
+    pub(crate) fn register_runtime_ingress_handler(
         host_runtime_id: HostRuntimeId,
-        observer: &Arc<dyn RuntimeIngressObserver>,
+        handler: &Arc<dyn RuntimeIngressHandler>,
     ) -> RuntimeResult<()> {
         let queue = {
             let mut registry = Self::shared().write();
             registry.queue_for_runtime_id_inner(host_runtime_id)?
         };
 
-        queue.register_runtime_ingress_observer(observer);
+        queue.register_runtime_ingress_handler(handler);
 
         Ok(())
     }
@@ -157,27 +153,27 @@ impl HostRuntimeRegistry {
     }
 
     /// Service ingress for one runtime id.
-    pub(crate) fn process_runtime_ingress(host_runtime_id: HostRuntimeId) -> RuntimeResult<()> {
+    pub(crate) fn service_runtime_ingress(host_runtime_id: HostRuntimeId) -> RuntimeResult<()> {
         let queue = {
             let mut registry = Self::shared().write();
             registry.queue_for_runtime_id_inner(host_runtime_id)?
         };
 
-        queue.process_runtime_ingress()?;
+        queue.service_runtime_ingress()?;
 
         Ok(())
     }
 
     /// Service ingress for every registered runtime.
     #[cfg(feature = "execution")]
-    pub(crate) fn process_all_runtime_ingress() -> RuntimeResult<()> {
+    pub(crate) fn service_all_runtime_ingress() -> RuntimeResult<()> {
         let queues = {
             let mut registry = Self::shared().write();
             registry.collect_all_runtime_queues()
         };
 
         for queue in queues {
-            queue.process_runtime_ingress()?;
+            queue.service_runtime_ingress()?;
         }
 
         Ok(())
@@ -212,12 +208,7 @@ impl HostRuntimeRegistry {
             return Err(missing_host_queue(host_runtime_id.0, platform));
         }
 
-        let Some(queue) = entry.queue.upgrade() else {
-            self.runtime_queues.remove(&host_runtime_id);
-            return Err(missing_host_queue(host_runtime_id.0, platform));
-        };
-
-        Ok(queue)
+        Ok(Arc::clone(&entry.queue))
     }
 
     /// Resolve one queue entry from the current registry state without platform filtering.
@@ -228,31 +219,17 @@ impl HostRuntimeRegistry {
         let Some(entry) = self.runtime_queues.get(&host_runtime_id) else {
             return Err(missing_host_queue_registration(host_runtime_id.0));
         };
-        let platform = entry.platform;
 
-        let Some(queue) = entry.queue.upgrade() else {
-            self.runtime_queues.remove(&host_runtime_id);
-            return Err(missing_host_queue(host_runtime_id.0, platform));
-        };
-
-        Ok(queue)
+        Ok(Arc::clone(&entry.queue))
     }
 
-    /// Collect live ingress observers for every runtime id.
+    /// Collect registered ingress queues for every runtime id.
     #[cfg(feature = "execution")]
     fn collect_all_runtime_queues(&mut self) -> Vec<Arc<HostQueue>> {
-        let mut queues = Vec::new();
-
-        self.runtime_queues.retain(|_, entry| {
-            let Some(queue) = entry.queue.upgrade() else {
-                return false;
-            };
-
-            queues.push(queue);
-            true
-        });
-
-        queues
+        self.runtime_queues
+            .values()
+            .map(|entry| Arc::clone(&entry.queue))
+            .collect()
     }
 }
 
@@ -264,7 +241,7 @@ mod tests {
     use crate::diagnostic::RuntimeResult;
     use crate::host::core::queue::HostQueue;
     use crate::host::core::registry::{
-        HostEventObserver, HostRuntimeRegistry, RuntimeIngressObserver, next_host_runtime_id,
+        HostEventObserver, HostRuntimeRegistry, RuntimeIngressHandler, next_host_runtime_id,
     };
     use crate::host::{HostEvent, HostLifecycleEvent, HostLifecycleState, Platform};
     /// Shared mutex that serializes registry tests.
@@ -272,11 +249,11 @@ mod tests {
     /// Shared runtime id captured by one cleanup hook invocation in tests.
     static TEST_CLEANUP_RUNTIME_ID: AtomicU64 = AtomicU64::new(0);
 
-    /// One test observer that counts ingress callbacks.
+    /// One test handler that counts ingress service calls.
     #[derive(Debug)]
-    struct TestIngressObserver {
-        /// Callback counter for this observer.
-        callback_count: Arc<AtomicU64>,
+    struct TestIngressHandler {
+        /// Service counter for this handler.
+        service_count: Arc<AtomicU64>,
     }
 
     /// One test observer that counts host event callbacks.
@@ -299,10 +276,10 @@ mod tests {
         TEST_CLEANUP_RUNTIME_ID.store(host_runtime_id.0, Ordering::Relaxed);
     }
 
-    impl RuntimeIngressObserver for TestIngressObserver {
-        /// Count one ingress callback.
-        fn process_runtime_ingress(&self) -> RuntimeResult<()> {
-            self.callback_count.fetch_add(1, Ordering::Relaxed);
+    impl RuntimeIngressHandler for TestIngressHandler {
+        /// Count one ingress service call.
+        fn service_runtime_ingress(&self) -> RuntimeResult<()> {
+            self.service_count.fetch_add(1, Ordering::Relaxed);
             Ok(())
         }
     }
@@ -323,7 +300,7 @@ mod tests {
         let registration = HostRuntimeRegistry::register_queue(
             Platform::Android,
             runtime_id,
-            Arc::downgrade(&queue),
+            Arc::clone(&queue),
             None,
         );
 
@@ -346,7 +323,7 @@ mod tests {
         let registration = HostRuntimeRegistry::register_queue(
             Platform::Android,
             runtime_id,
-            Arc::downgrade(&queue),
+            Arc::clone(&queue),
             None,
         );
         let duplicate_queue = Arc::new(HostQueue::new(runtime_id));
@@ -356,7 +333,7 @@ mod tests {
             HostRuntimeRegistry::register_queue(
                 Platform::Android,
                 runtime_id,
-                Arc::downgrade(&duplicate_queue),
+                Arc::clone(&duplicate_queue),
                 None,
             )
         }));
@@ -374,7 +351,7 @@ mod tests {
         let registration = HostRuntimeRegistry::register_queue(
             Platform::MacOS,
             runtime_id,
-            Arc::downgrade(&queue),
+            Arc::clone(&queue),
             None,
         );
 
@@ -392,7 +369,7 @@ mod tests {
         let registration = HostRuntimeRegistry::register_queue(
             Platform::Windows,
             runtime_id,
-            Arc::downgrade(&queue),
+            Arc::clone(&queue),
             None,
         );
 
@@ -411,7 +388,7 @@ mod tests {
         let registration = HostRuntimeRegistry::register_queue(
             Platform::Android,
             runtime_id,
-            Arc::downgrade(&queue),
+            Arc::clone(&queue),
             Some(test_cleanup_hook),
         );
 
@@ -422,27 +399,27 @@ mod tests {
     }
 
     #[test]
-    fn test_process_runtime_ingress_notifies_registered_runtime() {
+    fn test_service_runtime_ingress_notifies_registered_runtime() {
         let _guard = test_lock();
         let runtime_id = next_host_runtime_id();
-        let callback_count = Arc::new(AtomicU64::new(0));
-        let observer: Arc<dyn RuntimeIngressObserver> = Arc::new(TestIngressObserver {
-            callback_count: Arc::clone(&callback_count),
+        let service_count = Arc::new(AtomicU64::new(0));
+        let handler: Arc<dyn RuntimeIngressHandler> = Arc::new(TestIngressHandler {
+            service_count: Arc::clone(&service_count),
         });
 
         let queue = Arc::new(HostQueue::new(runtime_id));
         let registration = HostRuntimeRegistry::register_queue(
             Platform::Android,
             runtime_id,
-            Arc::downgrade(&queue),
+            Arc::clone(&queue),
             None,
         );
 
-        HostRuntimeRegistry::register_runtime_ingress_observer(runtime_id, &observer).unwrap();
-        HostRuntimeRegistry::process_runtime_ingress(runtime_id).unwrap();
+        HostRuntimeRegistry::register_runtime_ingress_handler(runtime_id, &handler).unwrap();
+        HostRuntimeRegistry::service_runtime_ingress(runtime_id).unwrap();
 
-        let callback_count = callback_count.load(Ordering::Relaxed);
-        assert_eq!(callback_count, 1);
+        let service_count = service_count.load(Ordering::Relaxed);
+        assert_eq!(service_count, 1);
 
         drop(registration);
     }
@@ -460,7 +437,7 @@ mod tests {
         let registration = HostRuntimeRegistry::register_queue(
             Platform::Android,
             runtime_id,
-            Arc::downgrade(&queue),
+            Arc::clone(&queue),
             None,
         );
 
@@ -481,18 +458,18 @@ mod tests {
 
     #[cfg(feature = "execution")]
     #[test]
-    fn test_process_all_runtime_ingress_notifies_all_registered_runtimes() {
+    fn test_service_all_runtime_ingress_notifies_all_registered_runtimes() {
         let _guard = test_lock();
         let first_runtime_id = next_host_runtime_id();
         let second_runtime_id = next_host_runtime_id();
-        let first_callback_count = Arc::new(AtomicU64::new(0));
-        let second_callback_count = Arc::new(AtomicU64::new(0));
+        let first_service_count = Arc::new(AtomicU64::new(0));
+        let second_service_count = Arc::new(AtomicU64::new(0));
 
-        let first_observer: Arc<dyn RuntimeIngressObserver> = Arc::new(TestIngressObserver {
-            callback_count: Arc::clone(&first_callback_count),
+        let first_handler: Arc<dyn RuntimeIngressHandler> = Arc::new(TestIngressHandler {
+            service_count: Arc::clone(&first_service_count),
         });
-        let second_observer: Arc<dyn RuntimeIngressObserver> = Arc::new(TestIngressObserver {
-            callback_count: Arc::clone(&second_callback_count),
+        let second_handler: Arc<dyn RuntimeIngressHandler> = Arc::new(TestIngressHandler {
+            service_count: Arc::clone(&second_service_count),
         });
 
         let first_queue = Arc::new(HostQueue::new(first_runtime_id));
@@ -500,26 +477,26 @@ mod tests {
         let first_registration = HostRuntimeRegistry::register_queue(
             Platform::Android,
             first_runtime_id,
-            Arc::downgrade(&first_queue),
+            Arc::clone(&first_queue),
             None,
         );
         let second_registration = HostRuntimeRegistry::register_queue(
             Platform::Android,
             second_runtime_id,
-            Arc::downgrade(&second_queue),
+            Arc::clone(&second_queue),
             None,
         );
 
-        HostRuntimeRegistry::register_runtime_ingress_observer(first_runtime_id, &first_observer)
+        HostRuntimeRegistry::register_runtime_ingress_handler(first_runtime_id, &first_handler)
             .unwrap();
-        HostRuntimeRegistry::register_runtime_ingress_observer(second_runtime_id, &second_observer)
+        HostRuntimeRegistry::register_runtime_ingress_handler(second_runtime_id, &second_handler)
             .unwrap();
-        HostRuntimeRegistry::process_all_runtime_ingress().unwrap();
+        HostRuntimeRegistry::service_all_runtime_ingress().unwrap();
 
-        let first_callback_count = first_callback_count.load(Ordering::Relaxed);
-        let second_callback_count = second_callback_count.load(Ordering::Relaxed);
-        assert_eq!(first_callback_count, 1);
-        assert_eq!(second_callback_count, 1);
+        let first_service_count = first_service_count.load(Ordering::Relaxed);
+        let second_service_count = second_service_count.load(Ordering::Relaxed);
+        assert_eq!(first_service_count, 1);
+        assert_eq!(second_service_count, 1);
 
         drop(first_registration);
         drop(second_registration);

@@ -9,10 +9,10 @@ use crate::host::unix::{
 };
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 
-/// NetBsd application lifecycle transitions from native callbacks.
+/// NetBsd application lifecycle transitions from native ingress hooks.
 pub type NetBsdApplicationLifecycle = UnixApplicationLifecycle;
 
-/// Submit one NetBsd application lifecycle callback.
+/// Route one NetBsd application lifecycle ingress notification.
 pub fn netbsd_notify_application_lifecycle(
     runtime_id: u64,
     lifecycle: NetBsdApplicationLifecycle,
@@ -20,7 +20,7 @@ pub fn netbsd_notify_application_lifecycle(
     unix_notify_application_lifecycle(runtime_id, Platform::NetBsd, lifecycle)
 }
 
-/// Submit one NetBsd permission-result callback.
+/// Route one NetBsd permission-result ingress notification.
 pub fn netbsd_notify_permission_result(
     runtime_id: u64,
     permission: &str,
@@ -29,12 +29,12 @@ pub fn netbsd_notify_permission_result(
     unix_notify_permission_result(runtime_id, Platform::NetBsd, permission, granted)
 }
 
-/// Submit one NetBsd interruption callback.
+/// Route one NetBsd interruption ingress notification.
 pub fn netbsd_notify_interruption_changed(runtime_id: u64, interrupted: bool) -> RuntimeResult<()> {
     unix_notify_interruption_changed(runtime_id, Platform::NetBsd, interrupted)
 }
 
-/// Submit one NetBsd memory pressure callback.
+/// Route one NetBsd memory pressure ingress notification.
 pub fn netbsd_notify_memory_pressure_changed(
     runtime_id: u64,
     level: HostMemoryPressureLevel,
@@ -42,7 +42,7 @@ pub fn netbsd_notify_memory_pressure_changed(
     unix_notify_memory_pressure_changed(runtime_id, Platform::NetBsd, level)
 }
 
-/// Submit one NetBsd thermal state callback.
+/// Route one NetBsd thermal state ingress notification.
 pub fn netbsd_notify_thermal_state_changed(
     runtime_id: u64,
     state: HostThermalState,
@@ -50,12 +50,12 @@ pub fn netbsd_notify_thermal_state_changed(
     unix_notify_thermal_state_changed(runtime_id, Platform::NetBsd, state)
 }
 
-/// Submit one NetBsd power mode callback.
+/// Route one NetBsd power mode ingress notification.
 pub fn netbsd_notify_power_mode_changed(runtime_id: u64, mode: HostPowerMode) -> RuntimeResult<()> {
     unix_notify_power_mode_changed(runtime_id, Platform::NetBsd, mode)
 }
 
-/// Submit one NetBsd wall clock callback.
+/// Route one NetBsd wall clock ingress notification.
 pub fn netbsd_notify_wall_clock_changed(runtime_id: u64) -> RuntimeResult<()> {
     unix_notify_wall_clock_changed(runtime_id, Platform::NetBsd)
 }

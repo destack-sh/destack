@@ -47,7 +47,7 @@ pub(crate) const IOS_POWER_MODE_NORMAL: u32 = 0;
 pub(crate) const IOS_POWER_MODE_LOW_POWER: u32 = 1;
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_notify_application_lifecycle(
+pub(crate) unsafe extern "C" fn destack_host_ios_notify_application_lifecycle(
     runtime_id: u64,
     lifecycle_code: u32,
 ) -> RuntimeStatus {
@@ -58,7 +58,7 @@ pub unsafe extern "C" fn destack_host_ios_notify_application_lifecycle(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_notify_permission_result(
+pub(crate) unsafe extern "C" fn destack_host_ios_notify_permission_result(
     runtime_id: u64,
     permission: NativeStringRef,
     granted: bool,
@@ -71,7 +71,7 @@ pub unsafe extern "C" fn destack_host_ios_notify_permission_result(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_notify_intent_open_url(
+pub(crate) unsafe extern "C" fn destack_host_ios_notify_intent_open_url(
     runtime_id: u64,
     has_source: bool,
     source: NativeStringRef,
@@ -86,7 +86,7 @@ pub unsafe extern "C" fn destack_host_ios_notify_intent_open_url(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_notify_intent_open_file(
+pub(crate) unsafe extern "C" fn destack_host_ios_notify_intent_open_file(
     runtime_id: u64,
     has_source: bool,
     source: NativeStringRef,
@@ -111,7 +111,7 @@ pub unsafe extern "C" fn destack_host_ios_notify_intent_open_file(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_notify_intent_share_text(
+pub(crate) unsafe extern "C" fn destack_host_ios_notify_intent_share_text(
     runtime_id: u64,
     has_source: bool,
     source: NativeStringRef,
@@ -136,7 +136,7 @@ pub unsafe extern "C" fn destack_host_ios_notify_intent_share_text(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_notify_intent_share_files(
+pub(crate) unsafe extern "C" fn destack_host_ios_notify_intent_share_files(
     runtime_id: u64,
     has_source: bool,
     source: NativeStringRef,
@@ -161,7 +161,7 @@ pub unsafe extern "C" fn destack_host_ios_notify_intent_share_files(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_notify_intent_custom_action(
+pub(crate) unsafe extern "C" fn destack_host_ios_notify_intent_custom_action(
     runtime_id: u64,
     has_source: bool,
     source: NativeStringRef,
@@ -202,7 +202,7 @@ pub unsafe extern "C" fn destack_host_ios_notify_intent_custom_action(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_notify_interruption_changed(
+pub(crate) unsafe extern "C" fn destack_host_ios_notify_interruption_changed(
     runtime_id: u64,
     interrupted: bool,
 ) -> RuntimeStatus {
@@ -210,7 +210,7 @@ pub unsafe extern "C" fn destack_host_ios_notify_interruption_changed(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_notify_notification_event(
+pub(crate) unsafe extern "C" fn destack_host_ios_notify_notification_event(
     runtime_id: u64,
     payload: NativeSlice<u8>,
 ) -> RuntimeStatus {
@@ -222,7 +222,7 @@ pub unsafe extern "C" fn destack_host_ios_notify_notification_event(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_notify_background_event(
+pub(crate) unsafe extern "C" fn destack_host_ios_notify_background_event(
     runtime_id: u64,
     payload: NativeSlice<u8>,
 ) -> RuntimeStatus {
@@ -233,7 +233,7 @@ pub unsafe extern "C" fn destack_host_ios_notify_background_event(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_notify_location_sample(
+pub(crate) unsafe extern "C" fn destack_host_ios_notify_location_sample(
     runtime_id: u64,
     watch_id: NativeStringRef,
     sample: *const LocationSampleValue,
@@ -255,7 +255,7 @@ pub unsafe extern "C" fn destack_host_ios_notify_location_sample(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_notify_media_event(
+pub(crate) unsafe extern "C" fn destack_host_ios_notify_media_event(
     runtime_id: u64,
     watch_id: NativeStringRef,
     payload: NativeSlice<u8>,
@@ -269,7 +269,7 @@ pub unsafe extern "C" fn destack_host_ios_notify_media_event(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_notify_memory_pressure_changed(
+pub(crate) unsafe extern "C" fn destack_host_ios_notify_memory_pressure_changed(
     runtime_id: u64,
     level_code: u32,
 ) -> RuntimeStatus {
@@ -280,7 +280,7 @@ pub unsafe extern "C" fn destack_host_ios_notify_memory_pressure_changed(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_notify_thermal_state_changed(
+pub(crate) unsafe extern "C" fn destack_host_ios_notify_thermal_state_changed(
     runtime_id: u64,
     thermal_code: u32,
 ) -> RuntimeStatus {
@@ -291,7 +291,7 @@ pub unsafe extern "C" fn destack_host_ios_notify_thermal_state_changed(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_notify_power_mode_changed(
+pub(crate) unsafe extern "C" fn destack_host_ios_notify_power_mode_changed(
     runtime_id: u64,
     power_mode_code: u32,
 ) -> RuntimeStatus {
@@ -302,14 +302,14 @@ pub unsafe extern "C" fn destack_host_ios_notify_power_mode_changed(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_notify_wall_clock_changed(
+pub(crate) unsafe extern "C" fn destack_host_ios_notify_wall_clock_changed(
     runtime_id: u64,
 ) -> RuntimeStatus {
     runtime_status(ios_notify_wall_clock_changed(runtime_id))
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_ios_notify_wake(runtime_id: u64) -> RuntimeStatus {
+pub(crate) unsafe extern "C" fn destack_host_ios_notify_wake(runtime_id: u64) -> RuntimeStatus {
     runtime_status(ios_notify_wake(runtime_id))
 }
 

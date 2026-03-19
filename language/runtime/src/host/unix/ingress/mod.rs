@@ -1,2 +1,2 @@
-pub(crate) mod callback;
 pub(crate) mod ffi;
+pub(crate) mod notify;

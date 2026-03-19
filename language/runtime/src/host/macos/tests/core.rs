@@ -2,7 +2,7 @@ use std::sync::{Mutex, OnceLock};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::app::document::pick::{
-    normalized_document_extensions, postprocess_picked_documents, validate_document_pick_options,
+    normalized_document_extensions, validate_document_pick_options,
 };
 use crate::host::core::{
     HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult, HostRuntimeId,
@@ -313,16 +313,14 @@ pub(crate) fn submit_contact_request(
 
 /// Pick documents from the macOS host request lane in tests.
 pub(crate) fn pick_documents(
-    context: &HostRequestContext,
+    _context: &HostRequestContext,
     options: &DocumentPickOptionsValue,
 ) -> RuntimeResult<Vec<DocumentDescriptorValue>> {
     validate_document_pick_options(options)?;
 
     normalized_document_extensions(options)?;
     let hook = require_test_pick_hook()?;
-    let descriptors = hook(options.clone())?;
-
-    postprocess_picked_documents(context, options, descriptors)
+    hook(options.clone())
 }
 
 /// Submit one macOS location request from the host request lane in tests.

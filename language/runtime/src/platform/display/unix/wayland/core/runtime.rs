@@ -4,7 +4,7 @@ use std::sync::{Arc, Condvar, Mutex, OnceLock, Weak};
 
 use super::WaylandConnectionState;
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRuntimeRegistry, RuntimeIngressObserver};
+use crate::host::core::{HostRuntimeRegistry, RuntimeIngressHandler};
 use crate::platform::display::DisplayBackend;
 use crate::platform::display::unix::wayland::event::{
     self as wayland_event, DisplayEventRecord, MonitorEventStream, WindowEventRecord,
@@ -64,7 +64,7 @@ pub(crate) struct WaylandRuntimeState {
     /// Monotonic id generator for backend-local host window identifiers.
     next_window_host_id: AtomicU64,
     /// Registered host-owned ingress observer for this runtime.
-    runtime_ingress_observer: OnceLock<Arc<WaylandRuntimeIngressObserver>>,
+    runtime_ingress_handler: OnceLock<Arc<WaylandRuntimeIngressHandler>>,
     /// One-time service registration guard for this runtime.
     service_registration: OnceLock<()>,
 }
@@ -94,7 +94,7 @@ impl WaylandRuntimeState {
             monitor_topology_snapshot: RuntimeSnapshotCache::default(),
             gamma_ramps_by_display_id: Mutex::new(HashMap::new()),
             next_window_host_id: AtomicU64::new(1),
-            runtime_ingress_observer: OnceLock::new(),
+            runtime_ingress_handler: OnceLock::new(),
             service_registration: OnceLock::new(),
         }
     }
@@ -256,16 +256,16 @@ impl WaylandRuntimeState {
         let host_runtime_id = context.host().host_runtime_id();
 
         let observer = self
-            .runtime_ingress_observer
+            .runtime_ingress_handler
             .get_or_init(|| {
-                Arc::new(WaylandRuntimeIngressObserver {
+                Arc::new(WaylandRuntimeIngressHandler {
                     runtime_state: Arc::downgrade(self),
                 })
             })
             .clone();
-        let observer: Arc<dyn RuntimeIngressObserver> = observer;
+        let handler: Arc<dyn RuntimeIngressHandler> = observer;
 
-        HostRuntimeRegistry::register_runtime_ingress_observer(host_runtime_id, &observer)
+        HostRuntimeRegistry::register_runtime_ingress_handler(host_runtime_id, &handler)
     }
 
     /// Register this runtime with the wayland display service once.
@@ -280,14 +280,14 @@ impl WaylandRuntimeState {
 
 /// Host-owned ingress observer for one wayland runtime.
 #[derive(Debug)]
-struct WaylandRuntimeIngressObserver {
+struct WaylandRuntimeIngressHandler {
     /// Weak runtime state used for ingress-driven event publication.
     runtime_state: Weak<WaylandRuntimeState>,
 }
 
-impl RuntimeIngressObserver for WaylandRuntimeIngressObserver {
+impl RuntimeIngressHandler for WaylandRuntimeIngressHandler {
     /// Service wayland ingress and publish runtime-owned event deltas.
-    fn process_runtime_ingress(&self) -> RuntimeResult<()> {
+    fn service_runtime_ingress(&self) -> RuntimeResult<()> {
         let Some(runtime_state) = self.runtime_state.upgrade() else {
             return Ok(());
         };

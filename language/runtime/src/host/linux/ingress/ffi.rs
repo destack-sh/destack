@@ -1,3 +1,5 @@
+#![allow(unreachable_pub)]
+
 use crate::diagnostic::RuntimeStatus;
 use crate::host::linux::ingress::{
     LinuxApplicationLifecycle, linux_notify_application_lifecycle,

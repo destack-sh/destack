@@ -9,10 +9,10 @@ use crate::host::unix::{
 };
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 
-/// FreeBsd application lifecycle transitions from native callbacks.
+/// FreeBsd application lifecycle transitions from native ingress hooks.
 pub type FreeBsdApplicationLifecycle = UnixApplicationLifecycle;
 
-/// Submit one FreeBsd application lifecycle callback.
+/// Route one FreeBsd application lifecycle ingress notification.
 pub fn freebsd_notify_application_lifecycle(
     runtime_id: u64,
     lifecycle: FreeBsdApplicationLifecycle,
@@ -20,7 +20,7 @@ pub fn freebsd_notify_application_lifecycle(
     unix_notify_application_lifecycle(runtime_id, Platform::FreeBsd, lifecycle)
 }
 
-/// Submit one FreeBsd permission-result callback.
+/// Route one FreeBsd permission-result ingress notification.
 pub fn freebsd_notify_permission_result(
     runtime_id: u64,
     permission: &str,
@@ -29,7 +29,7 @@ pub fn freebsd_notify_permission_result(
     unix_notify_permission_result(runtime_id, Platform::FreeBsd, permission, granted)
 }
 
-/// Submit one FreeBsd interruption callback.
+/// Route one FreeBsd interruption ingress notification.
 pub fn freebsd_notify_interruption_changed(
     runtime_id: u64,
     interrupted: bool,
@@ -37,7 +37,7 @@ pub fn freebsd_notify_interruption_changed(
     unix_notify_interruption_changed(runtime_id, Platform::FreeBsd, interrupted)
 }
 
-/// Submit one FreeBsd memory pressure callback.
+/// Route one FreeBsd memory pressure ingress notification.
 pub fn freebsd_notify_memory_pressure_changed(
     runtime_id: u64,
     level: HostMemoryPressureLevel,
@@ -45,7 +45,7 @@ pub fn freebsd_notify_memory_pressure_changed(
     unix_notify_memory_pressure_changed(runtime_id, Platform::FreeBsd, level)
 }
 
-/// Submit one FreeBsd thermal state callback.
+/// Route one FreeBsd thermal state ingress notification.
 pub fn freebsd_notify_thermal_state_changed(
     runtime_id: u64,
     state: HostThermalState,
@@ -53,7 +53,7 @@ pub fn freebsd_notify_thermal_state_changed(
     unix_notify_thermal_state_changed(runtime_id, Platform::FreeBsd, state)
 }
 
-/// Submit one FreeBsd power mode callback.
+/// Route one FreeBsd power mode ingress notification.
 pub fn freebsd_notify_power_mode_changed(
     runtime_id: u64,
     mode: HostPowerMode,
@@ -61,7 +61,7 @@ pub fn freebsd_notify_power_mode_changed(
     unix_notify_power_mode_changed(runtime_id, Platform::FreeBsd, mode)
 }
 
-/// Submit one FreeBsd wall clock callback.
+/// Route one FreeBsd wall clock ingress notification.
 pub fn freebsd_notify_wall_clock_changed(runtime_id: u64) -> RuntimeResult<()> {
     unix_notify_wall_clock_changed(runtime_id, Platform::FreeBsd)
 }

@@ -19,7 +19,7 @@ pub use event::{
 };
 pub(crate) use queue::HostQueue;
 pub(crate) use registry::{
-    HostEventObserver, HostRuntimeId, HostRuntimeRegistry, RuntimeIngressObserver,
+    HostEventObserver, HostRuntimeId, HostRuntimeRegistry, RuntimeIngressHandler,
 };
 pub(crate) use request::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
 pub use runtime::HostSession;
