@@ -1,4 +1,4 @@
-mod backend;
 mod core;
+mod keyring;
 
-pub(crate) use backend::*;
+pub(crate) use keyring::*;

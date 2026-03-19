@@ -1,6 +1,6 @@
 use std::ptr::copy_nonoverlapping;
 
-use windows_sys::Win32::Foundation::{GetLastError, GlobalFree, HGLOBAL};
+use windows_sys::Win32::Foundation::{GetLastError, GlobalFree, HGLOBAL, NO_ERROR};
 use windows_sys::Win32::System::DataExchange::{
     CloseClipboard, EmptyClipboard, GetClipboardData, GetClipboardSequenceNumber,
     IsClipboardFormatAvailable, OpenClipboard, RegisterClipboardFormatW, SetClipboardData,
@@ -60,14 +60,15 @@ pub(crate) fn write_text(text: &str) -> RuntimeResult<()> {
     let published = unsafe { SetClipboardData(CF_UNICODETEXT as u32, handle as isize) };
     if published == 0 {
         let error_code = unsafe { GetLastError() };
-        unsafe {
-            let _ = GlobalFree(handle);
-        }
+        let cleanup_error = windows_global_free(CLIPBOARD_WRITE_TEXT_OPERATION, handle).err();
+        let cleanup_detail = cleanup_error
+            .map(|error| format!(", cleanup also failed: {error}"))
+            .unwrap_or_default();
 
         return Err(io_operation_error(
             CLIPBOARD_WRITE_TEXT_OPERATION,
             None,
-            format!("SetClipboardData failed with code {error_code}"),
+            format!("SetClipboardData failed with code {error_code}{cleanup_detail}"),
         ));
     }
 
@@ -108,14 +109,15 @@ pub(crate) fn write_html_bytes(bytes: &[u8]) -> RuntimeResult<()> {
     let published = unsafe { SetClipboardData(format, handle as isize) };
     if published == 0 {
         let error_code = unsafe { GetLastError() };
-        unsafe {
-            let _ = GlobalFree(handle);
-        }
+        let cleanup_error = windows_global_free(CLIPBOARD_WRITE_BYTES_OPERATION, handle).err();
+        let cleanup_detail = cleanup_error
+            .map(|error| format!(", cleanup also failed: {error}"))
+            .unwrap_or_default();
 
         return Err(io_operation_error(
             CLIPBOARD_WRITE_BYTES_OPERATION,
             None,
-            format!("SetClipboardData failed with code {error_code}"),
+            format!("SetClipboardData failed with code {error_code}{cleanup_detail}"),
         ));
     }
 
@@ -219,9 +221,7 @@ fn windows_string_from_global(operation: &'static str, handle: HGLOBAL) -> Runti
         )
     })?;
 
-    unsafe {
-        let _ = GlobalUnlock(handle);
-    }
+    windows_global_unlock(operation, handle)?;
 
     Ok(text)
 }
@@ -249,9 +249,7 @@ fn windows_bytes_from_global(operation: &'static str, handle: HGLOBAL) -> Runtim
     let size_bytes = unsafe { GlobalSize(handle) };
     let bytes = unsafe { std::slice::from_raw_parts(pointer, size_bytes) }.to_vec();
 
-    unsafe {
-        let _ = GlobalUnlock(handle);
-    }
+    windows_global_unlock(operation, handle)?;
 
     Ok(bytes)
 }
@@ -272,21 +270,57 @@ fn windows_global_from_bytes(operation: &'static str, bytes: &[u8]) -> RuntimeRe
     let pointer = unsafe { GlobalLock(handle) } as *mut u8;
     if pointer.is_null() {
         let error_code = unsafe { GetLastError() };
-        unsafe {
-            let _ = GlobalFree(handle);
-        }
+        let cleanup_error = windows_global_free(operation, handle).err();
+        let cleanup_detail = cleanup_error
+            .map(|error| format!(", cleanup also failed: {error}"))
+            .unwrap_or_default();
 
         return Err(io_operation_error(
             operation,
             None,
-            format!("GlobalLock failed with code {error_code}"),
+            format!("GlobalLock failed with code {error_code}{cleanup_detail}"),
         ));
     }
 
     unsafe {
         copy_nonoverlapping(bytes.as_ptr(), pointer, bytes.len());
-        let _ = GlobalUnlock(handle);
     }
 
+    windows_global_unlock(operation, handle)?;
+
     Ok(handle)
+}
+
+/// Unlock one Win32 global handle.
+fn windows_global_unlock(operation: &'static str, handle: HGLOBAL) -> RuntimeResult<()> {
+    let unlock_result = unsafe { GlobalUnlock(handle) };
+    if unlock_result != 0 {
+        return Ok(());
+    }
+
+    let error_code = unsafe { GetLastError() };
+    if error_code == NO_ERROR {
+        return Ok(());
+    }
+
+    Err(io_operation_error(
+        operation,
+        None,
+        format!("GlobalUnlock failed with code {error_code}"),
+    ))
+}
+
+/// Free one Win32 global handle.
+fn windows_global_free(operation: &'static str, handle: HGLOBAL) -> RuntimeResult<()> {
+    let free_result = unsafe { GlobalFree(handle) };
+    if free_result.is_null() {
+        return Ok(());
+    }
+
+    let error_code = unsafe { GetLastError() };
+    Err(io_operation_error(
+        operation,
+        None,
+        format!("GlobalFree failed with code {error_code}"),
+    ))
 }

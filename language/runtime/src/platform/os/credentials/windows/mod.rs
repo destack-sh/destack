@@ -1,3 +1,3 @@
-mod backend;
+mod credential_manager;
 
-pub(crate) use backend::*;
+pub(crate) use credential_manager::*;

@@ -37,7 +37,7 @@ use crate::platform::os::credentials::core::{
     CredentialWriteOptionsOwned, OS_CREDENTIALS_AUTHENTICATE_OPERATION,
     OS_CREDENTIALS_CONTAINS_OPERATION, OS_CREDENTIALS_DELETE_OPERATION,
     OS_CREDENTIALS_READ_OPERATION, OS_CREDENTIALS_WRITE_OPERATION, already_exists, invalid_data,
-    permission_denied, with_no_replace_write_guard, would_block,
+    permission_denied, with_credential_create_guard, would_block,
 };
 use crate::platform::os::{
     CredentialAccessibility, CredentialAuthenticationMechanism, CredentialAuthenticationPolicy,
@@ -198,7 +198,7 @@ pub(crate) fn write_credentials(
     // reject duplicate writes when replacement is disabled
     if !options.replace_existing {
         // serialize check-then-write in-runtime: this is strict per runtime, not cross-process atomic
-        return with_no_replace_write_guard(binding, || {
+        return with_credential_create_guard(binding, || {
             let already_present =
                 contains_credentials(binding, &options.service, &options.account, None)?;
             if already_present {
