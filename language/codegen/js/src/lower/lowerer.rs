@@ -10,8 +10,7 @@ use destack_fir::format as fir_format;
 use destack_fir::prelude::format_with;
 use destack_source::{File, FileType, Uri};
 use destack_workspace::{
-    Ast, Module, Output, OutputContent, OutputFormat, OutputId, OutputScope, OutputVersion, Target,
-    TargetId,
+    ArtifactContent, ArtifactFile, Ast, Module, ModuleEmit, OutputFormat, Target,
 };
 
 use crate::tree::NodeTree as JsTree;
@@ -23,8 +22,8 @@ use crate::{
 /// Output from JS code generation.
 #[derive(Debug)]
 pub struct CodegenJsOutput {
-    /// Generated outputs.
-    pub outputs: Vec<Output>,
+    /// Generated module emit payload.
+    pub emit: ModuleEmit,
     /// Warnings encountered during generation.
     pub warnings: Vec<CodegenJsWarning>,
     /// Non-fatal errors encountered during generation.
@@ -114,14 +113,13 @@ impl<'a> ModuleLowerer<'a> {
     /// Finish lowering and produce output.
     pub fn finish(
         self,
-        registry_next_id: impl Fn() -> OutputId,
         package_dir: &std::path::Path,
         root_dir: Option<&std::path::Path>,
     ) -> CodegenJsResult<CodegenJsOutput>
     where
         Self: Sized,
     {
-        let mut outputs = Vec::new();
+        let mut files = Vec::new();
 
         // determine what files to generate based on target
         let file_types = match self.target.output {
@@ -135,7 +133,7 @@ impl<'a> ModuleLowerer<'a> {
             OutputFormat::Ts => vec![FileType::TypeScript],
             _ => {
                 return Ok(CodegenJsOutput {
-                    outputs,
+                    emit: ModuleEmit::new(files),
                     warnings: self.warnings,
                     errors: self.errors,
                 });
@@ -199,9 +197,9 @@ impl<'a> ModuleLowerer<'a> {
 
             // create output
             let content = match file_type {
-                FileType::JavaScript => OutputContent::javascript(code),
-                FileType::TypeScript => OutputContent::typescript(code),
-                FileType::TypeScriptDeclaration => OutputContent::declaration(code),
+                FileType::JavaScript => ArtifactContent::javascript(code),
+                FileType::TypeScript => ArtifactContent::typescript(code),
+                FileType::TypeScriptDeclaration => ArtifactContent::declaration(code),
                 _ => {
                     return Err(CodegenJsError::Internal {
                         message: format!("unsupported file type: {file_type:?}"),
@@ -209,20 +207,16 @@ impl<'a> ModuleLowerer<'a> {
                 }
             };
 
-            let output = Output {
-                id: registry_next_id(),
-                version: OutputVersion::INITIAL,
-                scope: OutputScope::Module(self.module.id),
-                target: TargetId::new(self.module.package_id, self.target.name.clone()),
+            let output = ArtifactFile {
                 uri,
                 content,
                 source: None,
             };
-            outputs.push(output);
+            files.push(output);
         }
 
         Ok(CodegenJsOutput {
-            outputs,
+            emit: ModuleEmit::new(files),
             warnings: self.warnings,
             errors: self.errors,
         })
