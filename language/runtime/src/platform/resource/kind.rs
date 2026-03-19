@@ -109,6 +109,7 @@ macro_rules! for_each_resource_handle_kind {
             (IntentHandle, Intent, "resource.intent", "intent", "The handle for one intent session."),
             (LifecycleEventHandle, LifecycleEvent, "resource.lifecycle.event", "lifecycle_event", "The handle for one lifecycle event stream."),
             (LocationWatchHandle, LocationWatch, "resource.location.watch", "location_watch", "The handle for one location watch stream."),
+            (MediaWatchHandle, MediaWatch, "resource.media.watch", "media_watch", "The handle for one media watch stream."),
             (MidiEventHandle, MidiEvent, "resource.midi.event", "midi_event", "The handle for one MIDI topology event stream."),
             (MidiInputPortHandle, MidiInputPort, "resource.midi.input.port", "midi_input_port", "The handle for one opened MIDI input endpoint."),
             (MidiOutputPortHandle, MidiOutputPort, "resource.midi.output.port", "midi_output_port", "The handle for one opened MIDI output endpoint."),
@@ -184,6 +185,7 @@ macro_rules! define_resource_kind {
                     | Self::BluetoothSubscription
                     | Self::CameraWatch
                     | Self::LocationWatch
+                    | Self::MediaWatch
                     | Self::NetworkWatch
                     | Self::NotificationEvent
                     | Self::SerialWatch
