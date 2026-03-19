@@ -6,14 +6,19 @@
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_dir::{SymbolTable, TypeTable};
-use destack_source::FileType;
+use destack_fir::format as fir_format;
+use destack_fir::prelude::format_with;
+use destack_source::{File, FileType, Uri};
 use destack_workspace::{
-    Module, Ast, Output, OutputContent, OutputFormat, OutputId, OutputScope, OutputVersion,
-    Target, TargetId,
+    Ast, Module, Output, OutputContent, OutputFormat, OutputId, OutputScope, OutputVersion, Target,
+    TargetId,
 };
 
 use crate::tree::NodeTree as JsTree;
-use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning, LocalNodeIdAny, format_statements};
+use crate::{
+    CodegenJsError, CodegenJsFormatContext, CodegenJsFormatOptions, CodegenJsResult,
+    CodegenJsWarning, LocalNodeIdAny, format_statements,
+};
 
 /// Output from JS code generation.
 #[derive(Debug)]
@@ -116,11 +121,6 @@ impl<'a> ModuleLowerer<'a> {
     where
         Self: Sized,
     {
-        use crate::{CodegenJsFormatContext, CodegenJsFormatOptions};
-        use destack_fir::format as fir_format;
-        use destack_fir::prelude::format_with;
-        use destack_source::{File, Uri};
-
         let mut outputs = Vec::new();
 
         // determine what files to generate based on target

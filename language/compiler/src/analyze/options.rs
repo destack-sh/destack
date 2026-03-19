@@ -1,8 +1,6 @@
 use destack_dir::SymbolDecorators;
 use destack_source::{ModuleId, TargetId};
-use destack_workspace::{
-    CompilerOptions, DiagnosticPolicy, Module, Program, TsCompilerOptions,
-};
+use destack_workspace::{CompilerOptions, DiagnosticPolicy, Module, Program, TsCompilerOptions};
 
 use crate::{AnalyzeError, Compiler};
 
