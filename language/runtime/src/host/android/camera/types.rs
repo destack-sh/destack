@@ -1,5 +1,65 @@
 use super::callbacks::*;
 
+/// Fixed-size Android camera recording capability header.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub(crate) struct AndroidHostCameraRecordingCapabilitiesHeader {
+    /// Supported container flags.
+    pub container_flags: u32,
+    /// Supported video codec flags.
+    pub video_codec_flags: u32,
+    /// Whether audio recording is supported.
+    pub audio_supported: u32,
+    /// Supported audio codec flags.
+    pub audio_codec_flags: u32,
+    /// Whether pause and resume are supported.
+    pub pause_supported: u32,
+    /// Maximum supported video bit rate in bits per second.
+    pub maximum_video_bit_rate: u64,
+    /// Whether the maximum video bit rate is present.
+    pub has_maximum_video_bit_rate: u32,
+    /// Maximum supported audio bit rate in bits per second.
+    pub maximum_audio_bit_rate: u64,
+    /// Whether the maximum audio bit rate is present.
+    pub has_maximum_audio_bit_rate: u32,
+}
+
+/// Fixed-size Android camera recording options header.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub(crate) struct AndroidHostCameraRecordingOptionsHeader {
+    /// Preferred recording container code.
+    pub container: u32,
+    /// Preferred video codec code.
+    pub video_codec: u32,
+    /// Whether the audio-enabled flag is present.
+    pub has_audio_enabled: u32,
+    /// Requested audio-enabled value when present.
+    pub audio_enabled: u32,
+    /// Preferred audio codec code.
+    pub audio_codec: u32,
+    /// Requested video bit rate in bits per second.
+    pub video_bit_rate: u64,
+    /// Whether the video bit rate is present.
+    pub has_video_bit_rate: u32,
+    /// Requested audio bit rate in bits per second.
+    pub audio_bit_rate: u64,
+    /// Whether the audio bit rate is present.
+    pub has_audio_bit_rate: u32,
+    /// Requested key-frame interval in frames.
+    pub key_frame_interval_frames: u32,
+    /// Whether the key-frame interval is present.
+    pub has_key_frame_interval_frames: u32,
+    /// Requested maximum duration in nanoseconds.
+    pub maximum_duration_ns: u64,
+    /// Whether the maximum duration is present.
+    pub has_maximum_duration_ns: u32,
+    /// Requested maximum output size in bytes.
+    pub maximum_bytes: u64,
+    /// Whether the maximum output size is present.
+    pub has_maximum_bytes: u32,
+}
+
 /// Fixed-size Android camera device descriptor header.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
@@ -122,8 +182,20 @@ pub(crate) struct AndroidHostCameraCallbacks {
     pub stream_read: Option<AndroidHostCameraStreamReadCallback>,
     /// Callback for nonblocking frame reads.
     pub stream_try_read: Option<AndroidHostCameraStreamTryReadCallback>,
+    /// Callback for still-photo capture.
+    pub stream_take_photo: Option<AndroidHostCameraStreamTakePhotoCallback>,
     /// Callback for active stream config queries.
     pub stream_config: Option<AndroidHostCameraStreamConfigCallback>,
+    /// Callback for recording capability queries.
+    pub stream_recording_capabilities: Option<AndroidHostCameraStreamRecordingCapabilitiesCallback>,
+    /// Callback for recording start.
+    pub stream_start_recording: Option<AndroidHostCameraStreamStartRecordingCallback>,
+    /// Callback for recording pause.
+    pub stream_pause_recording: Option<AndroidHostCameraStreamPauseRecordingCallback>,
+    /// Callback for recording resume.
+    pub stream_resume_recording: Option<AndroidHostCameraStreamResumeRecordingCallback>,
+    /// Callback for recording stop.
+    pub stream_stop_recording: Option<AndroidHostCameraStreamStopRecordingCallback>,
     /// Callback for `u64` control reads.
     pub stream_get_u64: Option<AndroidHostCameraStreamGetU64Callback>,
     /// Callback for `u64` control writes.

@@ -3,7 +3,8 @@ use std::sync::{Arc, Mutex, OnceLock};
 use crate::host::abi::HostStatus;
 use crate::host::android::camera::types::{
     AndroidHostCameraCallbacks, AndroidHostCameraDeviceDescriptorHeader,
-    AndroidHostCameraFrameHeader, AndroidHostCameraStreamCapabilityHeader,
+    AndroidHostCameraFrameHeader, AndroidHostCameraRecordingCapabilitiesHeader,
+    AndroidHostCameraRecordingOptionsHeader, AndroidHostCameraStreamCapabilityHeader,
     AndroidHostCameraStreamConfigHeader,
 };
 use crate::host::android::tests::{
@@ -23,6 +24,20 @@ pub(super) const TEST_MANUFACTURER: &str = "Destack";
 pub(super) const TEST_DEVICE_SESSION_ID: u64 = 401;
 /// One deterministic Android camera stream session id.
 pub(super) const TEST_STREAM_ID: u64 = 402;
+/// One deterministic Android camera recording output path.
+pub(super) const TEST_RECORDING_OUTPUT_PATH: &str = "/tmp/destack-android-camera-recording.mp4";
+/// One deterministic Android camera `u64` control selector.
+pub(super) const TEST_CONTROL_SELECTOR_U64: u32 = 3;
+/// One deterministic Android camera `u32` control selector.
+pub(super) const TEST_CONTROL_SELECTOR_U32: u32 = 4;
+/// One deterministic Android camera `f64` control selector.
+pub(super) const TEST_CONTROL_SELECTOR_F64: u32 = 9;
+/// One deterministic Android camera `u64` control value.
+pub(super) const TEST_CONTROL_VALUE_U64: u64 = 90_000_000;
+/// One deterministic Android camera `u32` control value.
+pub(super) const TEST_CONTROL_VALUE_U32: u32 = 320;
+/// One deterministic Android camera `f64` control value.
+pub(super) const TEST_CONTROL_VALUE_F64: f64 = 1.5;
 /// One deterministic Android camera not-supported status.
 pub(super) const TEST_STATUS_NOT_SUPPORTED: u32 = HostStatus::NotSupported.code();
 /// One deterministic Android camera not-found status.
@@ -56,8 +71,77 @@ pub(super) struct RecordedStreamOpenCall {
     pub frame_rate_milli_hz: u32,
 }
 
-/// One snapshot of recorded Android camera callback traffic.
+/// One recorded Android camera recording-start call.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(super) struct RecordedStreamStartRecordingCall {
+    /// The forwarded stream id.
+    pub stream_id: u64,
+    /// The forwarded output path.
+    pub output_path: String,
+}
+
+/// One recorded Android camera photo-capture call.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(super) struct RecordedStreamTakePhotoCall {
+    /// The forwarded stream id.
+    pub stream_id: u64,
+    /// The forwarded timeout in nanoseconds.
+    pub timeout_ns: u64,
+}
+
+/// One recorded Android camera blocking frame-read call.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(super) struct RecordedStreamReadCall {
+    /// The forwarded stream id.
+    pub stream_id: u64,
+    /// The forwarded timeout in nanoseconds.
+    pub timeout_ns: Option<u64>,
+}
+
+/// One recorded Android camera control get call.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(super) struct RecordedControlGetCall {
+    /// The forwarded stream id.
+    pub stream_id: u64,
+    /// The forwarded selector.
+    pub selector: u32,
+}
+
+/// One recorded Android camera `u64` control set call.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(super) struct RecordedControlSetU64Call {
+    /// The forwarded stream id.
+    pub stream_id: u64,
+    /// The forwarded selector.
+    pub selector: u32,
+    /// The forwarded value.
+    pub value: u64,
+}
+
+/// One recorded Android camera `u32` control set call.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(super) struct RecordedControlSetU32Call {
+    /// The forwarded stream id.
+    pub stream_id: u64,
+    /// The forwarded selector.
+    pub selector: u32,
+    /// The forwarded value.
+    pub value: u32,
+}
+
+/// One recorded Android camera `f64` control set call.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(super) struct RecordedControlSetF64Call {
+    /// The forwarded stream id.
+    pub stream_id: u64,
+    /// The forwarded selector.
+    pub selector: u32,
+    /// The forwarded value.
+    pub value: f64,
+}
+
+/// One snapshot of recorded Android camera callback traffic.
+#[derive(Clone, Debug, Default, PartialEq)]
 pub(super) struct AndroidCameraTestState {
     /// The most recent device-open call.
     pub device_open: Option<RecordedDeviceOpenCall>,
@@ -71,6 +155,36 @@ pub(super) struct AndroidCameraTestState {
     pub started_streams: Vec<u64>,
     /// Stopped stream session ids.
     pub stopped_streams: Vec<u64>,
+    /// The most recent blocking frame-read call.
+    pub stream_read: Option<RecordedStreamReadCall>,
+    /// The most recent still-photo capture call.
+    pub photo_capture: Option<RecordedStreamTakePhotoCall>,
+    /// The most recent recording-start call.
+    pub recording_start: Option<RecordedStreamStartRecordingCall>,
+    /// Recording pause stream ids.
+    pub paused_recordings: Vec<u64>,
+    /// Recording resume stream ids.
+    pub resumed_recordings: Vec<u64>,
+    /// Recording stop stream ids.
+    pub stopped_recordings: Vec<u64>,
+    /// The most recent `u64` control get call.
+    pub control_get_u64: Option<RecordedControlGetCall>,
+    /// The most recent `u64` control set call.
+    pub control_set_u64: Option<RecordedControlSetU64Call>,
+    /// The most recent `u32` control get call.
+    pub control_get_u32: Option<RecordedControlGetCall>,
+    /// The most recent `u32` control set call.
+    pub control_set_u32: Option<RecordedControlSetU32Call>,
+    /// The most recent `f64` control get call.
+    pub control_get_f64: Option<RecordedControlGetCall>,
+    /// The most recent `f64` control set call.
+    pub control_set_f64: Option<RecordedControlSetF64Call>,
+    /// The most recent `f64` control range query.
+    pub control_range_f64: Option<RecordedControlGetCall>,
+    /// The most recent `u64` control range query.
+    pub control_range_u64: Option<RecordedControlGetCall>,
+    /// The most recent `u32` control range query.
+    pub control_range_u32: Option<RecordedControlGetCall>,
 }
 
 /// Return the shared Android camera test state.
@@ -179,6 +293,21 @@ fn test_stream_capability_header() -> AndroidHostCameraStreamCapabilityHeader {
         focus_mode_flags: 1 << 0,
         stabilization_mode_flags: 1 << 0,
         torch_mode_flags: 1 << 0,
+    }
+}
+
+/// Return one deterministic recording capability header.
+pub(super) fn test_recording_capabilities_header() -> AndroidHostCameraRecordingCapabilitiesHeader {
+    AndroidHostCameraRecordingCapabilitiesHeader {
+        container_flags: 1 << 0,
+        video_codec_flags: 1 << 0,
+        audio_supported: 0,
+        audio_codec_flags: 0,
+        pause_supported: 1,
+        maximum_video_bit_rate: 0,
+        has_maximum_video_bit_rate: 0,
+        maximum_audio_bit_rate: 0,
+        has_maximum_audio_bit_rate: 0,
     }
 }
 
@@ -429,6 +558,104 @@ unsafe extern "C" fn test_stream_config(
     HostStatus::Ok.code()
 }
 
+/// Handle one recording-capability callback.
+unsafe extern "C" fn test_stream_recording_capabilities(
+    _runtime_id: u64,
+    _stream_id: u64,
+    capabilities: *mut AndroidHostCameraRecordingCapabilitiesHeader,
+) -> u32 {
+    // require one writable capabilities output
+    if capabilities.is_null() {
+        return HostStatus::InvalidArgument.code();
+    }
+
+    // return the deterministic recording capabilities
+    unsafe {
+        *capabilities = test_recording_capabilities_header();
+    }
+
+    HostStatus::Ok.code()
+}
+
+/// Handle one recording-start callback.
+unsafe extern "C" fn test_stream_start_recording(
+    _runtime_id: u64,
+    stream_id: u64,
+    _options: AndroidHostCameraRecordingOptionsHeader,
+    output_path: NativeStringRef,
+) -> u32 {
+    // record the forwarded recording request
+    let mut state = test_state()
+        .lock()
+        .expect("android camera test state should not be poisoned");
+    state.recording_start = Some(RecordedStreamStartRecordingCall {
+        stream_id,
+        output_path: decode_native_string(output_path),
+    });
+
+    HostStatus::Ok.code()
+}
+
+/// Handle one recording-pause callback.
+unsafe extern "C" fn test_stream_pause_recording(_runtime_id: u64, stream_id: u64) -> u32 {
+    // record the paused stream id
+    test_state()
+        .lock()
+        .expect("android camera test state should not be poisoned")
+        .paused_recordings
+        .push(stream_id);
+
+    HostStatus::Ok.code()
+}
+
+/// Handle one recording-resume callback.
+unsafe extern "C" fn test_stream_resume_recording(_runtime_id: u64, stream_id: u64) -> u32 {
+    // record the resumed stream id
+    test_state()
+        .lock()
+        .expect("android camera test state should not be poisoned")
+        .resumed_recordings
+        .push(stream_id);
+
+    HostStatus::Ok.code()
+}
+
+/// Handle one recording-stop callback.
+unsafe extern "C" fn test_stream_stop_recording(
+    _runtime_id: u64,
+    stream_id: u64,
+    _timeout_ns: u64,
+) -> u32 {
+    // record the stopped stream id
+    test_state()
+        .lock()
+        .expect("android camera test state should not be poisoned")
+        .stopped_recordings
+        .push(stream_id);
+
+    HostStatus::Ok.code()
+}
+
+/// Handle one blocking frame read callback.
+unsafe extern "C" fn test_stream_read(
+    runtime_id: u64,
+    stream_id: u64,
+    timeout_ns: u64,
+    header: *mut AndroidHostCameraFrameHeader,
+    bytes: NativeSlice<u8>,
+    bytes_written: *mut u32,
+) -> u32 {
+    test_state()
+        .lock()
+        .expect("android camera test state should not be poisoned")
+        .stream_read = Some(RecordedStreamReadCall {
+        stream_id,
+        timeout_ns: Some(timeout_ns),
+    });
+
+    unsafe { test_stream_try_read(runtime_id, stream_id, header, bytes, bytes_written) }
+}
+
 /// Handle one nonblocking frame read callback.
 unsafe extern "C" fn test_stream_try_read(
     _runtime_id: u64,
@@ -476,6 +703,253 @@ unsafe extern "C" fn test_stream_try_read(
     HostStatus::Ok.code()
 }
 
+/// Handle one `u64` camera control get callback.
+unsafe extern "C" fn test_stream_get_u64(
+    _runtime_id: u64,
+    stream_id: u64,
+    selector: u32,
+    value: *mut u64,
+) -> u32 {
+    if value.is_null() {
+        return HostStatus::InvalidArgument.code();
+    }
+
+    test_state()
+        .lock()
+        .expect("android camera test state should not be poisoned")
+        .control_get_u64 = Some(RecordedControlGetCall {
+        stream_id,
+        selector,
+    });
+
+    unsafe {
+        *value = TEST_CONTROL_VALUE_U64;
+    }
+
+    HostStatus::Ok.code()
+}
+
+/// Handle one `u64` camera control set callback.
+unsafe extern "C" fn test_stream_set_u64(
+    _runtime_id: u64,
+    stream_id: u64,
+    selector: u32,
+    value: u64,
+) -> u32 {
+    test_state()
+        .lock()
+        .expect("android camera test state should not be poisoned")
+        .control_set_u64 = Some(RecordedControlSetU64Call {
+        stream_id,
+        selector,
+        value,
+    });
+
+    HostStatus::Ok.code()
+}
+
+/// Handle one `u32` camera control get callback.
+unsafe extern "C" fn test_stream_get_u32(
+    _runtime_id: u64,
+    stream_id: u64,
+    selector: u32,
+    value: *mut u32,
+) -> u32 {
+    if value.is_null() {
+        return HostStatus::InvalidArgument.code();
+    }
+
+    test_state()
+        .lock()
+        .expect("android camera test state should not be poisoned")
+        .control_get_u32 = Some(RecordedControlGetCall {
+        stream_id,
+        selector,
+    });
+
+    unsafe {
+        *value = TEST_CONTROL_VALUE_U32;
+    }
+
+    HostStatus::Ok.code()
+}
+
+/// Handle one `u32` camera control set callback.
+unsafe extern "C" fn test_stream_set_u32(
+    _runtime_id: u64,
+    stream_id: u64,
+    selector: u32,
+    value: u32,
+) -> u32 {
+    test_state()
+        .lock()
+        .expect("android camera test state should not be poisoned")
+        .control_set_u32 = Some(RecordedControlSetU32Call {
+        stream_id,
+        selector,
+        value,
+    });
+
+    HostStatus::Ok.code()
+}
+
+/// Handle one `f64` camera control get callback.
+unsafe extern "C" fn test_stream_get_f64(
+    _runtime_id: u64,
+    stream_id: u64,
+    selector: u32,
+    value: *mut f64,
+) -> u32 {
+    if value.is_null() {
+        return HostStatus::InvalidArgument.code();
+    }
+
+    test_state()
+        .lock()
+        .expect("android camera test state should not be poisoned")
+        .control_get_f64 = Some(RecordedControlGetCall {
+        stream_id,
+        selector,
+    });
+
+    unsafe {
+        *value = TEST_CONTROL_VALUE_F64;
+    }
+
+    HostStatus::Ok.code()
+}
+
+/// Handle one `f64` camera control set callback.
+unsafe extern "C" fn test_stream_set_f64(
+    _runtime_id: u64,
+    stream_id: u64,
+    selector: u32,
+    value: f64,
+) -> u32 {
+    test_state()
+        .lock()
+        .expect("android camera test state should not be poisoned")
+        .control_set_f64 = Some(RecordedControlSetF64Call {
+        stream_id,
+        selector,
+        value,
+    });
+
+    HostStatus::Ok.code()
+}
+
+/// Handle one `f64` camera control range callback.
+unsafe extern "C" fn test_stream_get_range_f64(
+    _runtime_id: u64,
+    stream_id: u64,
+    selector: u32,
+    minimum: *mut f64,
+    maximum: *mut f64,
+    step: *mut f64,
+) -> u32 {
+    if minimum.is_null() || maximum.is_null() || step.is_null() {
+        return HostStatus::InvalidArgument.code();
+    }
+
+    test_state()
+        .lock()
+        .expect("android camera test state should not be poisoned")
+        .control_range_f64 = Some(RecordedControlGetCall {
+        stream_id,
+        selector,
+    });
+
+    unsafe {
+        *minimum = 0.5;
+        *maximum = 2.5;
+        *step = 0.25;
+    }
+
+    HostStatus::Ok.code()
+}
+
+/// Handle one `u64` camera control range callback.
+unsafe extern "C" fn test_stream_get_range_u64(
+    _runtime_id: u64,
+    stream_id: u64,
+    selector: u32,
+    minimum: *mut u64,
+    maximum: *mut u64,
+    step: *mut u64,
+) -> u32 {
+    if minimum.is_null() || maximum.is_null() || step.is_null() {
+        return HostStatus::InvalidArgument.code();
+    }
+
+    test_state()
+        .lock()
+        .expect("android camera test state should not be poisoned")
+        .control_range_u64 = Some(RecordedControlGetCall {
+        stream_id,
+        selector,
+    });
+
+    unsafe {
+        *minimum = 1;
+        *maximum = TEST_CONTROL_VALUE_U64;
+        *step = 1;
+    }
+
+    HostStatus::Ok.code()
+}
+
+/// Handle one `u32` camera control range callback.
+unsafe extern "C" fn test_stream_get_range_u32(
+    _runtime_id: u64,
+    stream_id: u64,
+    selector: u32,
+    minimum: *mut u32,
+    maximum: *mut u32,
+    step: *mut u32,
+) -> u32 {
+    if minimum.is_null() || maximum.is_null() || step.is_null() {
+        return HostStatus::InvalidArgument.code();
+    }
+
+    test_state()
+        .lock()
+        .expect("android camera test state should not be poisoned")
+        .control_range_u32 = Some(RecordedControlGetCall {
+        stream_id,
+        selector,
+    });
+
+    unsafe {
+        *minimum = 100;
+        *maximum = TEST_CONTROL_VALUE_U32;
+        *step = 10;
+    }
+
+    HostStatus::Ok.code()
+}
+
+/// Handle one still-photo capture callback.
+unsafe extern "C" fn test_stream_take_photo(
+    _runtime_id: u64,
+    stream_id: u64,
+    timeout_ns: u64,
+    header: *mut AndroidHostCameraFrameHeader,
+    bytes: NativeSlice<u8>,
+    bytes_written: *mut u32,
+) -> u32 {
+    // record the forwarded photo-capture request
+    test_state()
+        .lock()
+        .expect("android camera test state should not be poisoned")
+        .photo_capture = Some(RecordedStreamTakePhotoCall {
+        stream_id,
+        timeout_ns,
+    });
+
+    // reuse the deterministic frame payload for still-photo capture
+    unsafe { test_stream_try_read(0, stream_id, header, bytes, bytes_written) }
+}
+
 /// Build one complete Android camera callback table.
 fn test_callbacks() -> AndroidHostCameraCallbacks {
     AndroidHostCameraCallbacks {
@@ -488,9 +962,24 @@ fn test_callbacks() -> AndroidHostCameraCallbacks {
         stream_close: Some(test_stream_close),
         stream_start: Some(test_stream_start),
         stream_stop: Some(test_stream_stop),
+        stream_read: Some(test_stream_read),
         stream_try_read: Some(test_stream_try_read),
+        stream_take_photo: Some(test_stream_take_photo),
         stream_config: Some(test_stream_config),
-        ..AndroidHostCameraCallbacks::default()
+        stream_recording_capabilities: Some(test_stream_recording_capabilities),
+        stream_start_recording: Some(test_stream_start_recording),
+        stream_pause_recording: Some(test_stream_pause_recording),
+        stream_resume_recording: Some(test_stream_resume_recording),
+        stream_stop_recording: Some(test_stream_stop_recording),
+        stream_get_u64: Some(test_stream_get_u64),
+        stream_set_u64: Some(test_stream_set_u64),
+        stream_get_u32: Some(test_stream_get_u32),
+        stream_set_u32: Some(test_stream_set_u32),
+        stream_get_f64: Some(test_stream_get_f64),
+        stream_set_f64: Some(test_stream_set_f64),
+        stream_get_range_f64: Some(test_stream_get_range_f64),
+        stream_get_range_u64: Some(test_stream_get_range_u64),
+        stream_get_range_u32: Some(test_stream_get_range_u32),
     }
 }
 
