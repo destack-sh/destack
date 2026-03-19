@@ -2,7 +2,8 @@
 
 use super::types::{
     AndroidHostCameraCallbacks, AndroidHostCameraDeviceDescriptorHeader,
-    AndroidHostCameraFrameHeader, AndroidHostCameraStreamCapabilityHeader,
+    AndroidHostCameraFrameHeader, AndroidHostCameraRecordingCapabilitiesHeader,
+    AndroidHostCameraRecordingOptionsHeader, AndroidHostCameraStreamCapabilityHeader,
     AndroidHostCameraStreamConfigHeader,
 };
 use crate::host::abi::HostStatus;
@@ -50,7 +51,13 @@ camera_callback!(destack_host_android_camera_stream_start(stream_id: u64) -> str
 camera_callback!(destack_host_android_camera_stream_stop(stream_id: u64) -> stream_stop);
 camera_callback!(destack_host_android_camera_stream_read(stream_id: u64, timeout_ns: u64, header: *mut AndroidHostCameraFrameHeader, bytes: NativeSlice<u8>, bytes_written: *mut u32) -> stream_read; guard !header.is_null() && !bytes_written.is_null());
 camera_callback!(destack_host_android_camera_stream_try_read(stream_id: u64, header: *mut AndroidHostCameraFrameHeader, bytes: NativeSlice<u8>, bytes_written: *mut u32) -> stream_try_read; guard !header.is_null() && !bytes_written.is_null());
+camera_callback!(destack_host_android_camera_stream_take_photo(stream_id: u64, timeout_ns: u64, header: *mut AndroidHostCameraFrameHeader, bytes: NativeSlice<u8>, bytes_written: *mut u32) -> stream_take_photo; guard !header.is_null() && !bytes_written.is_null());
 camera_callback!(destack_host_android_camera_stream_config(stream_id: u64, config: *mut AndroidHostCameraStreamConfigHeader) -> stream_config; guard !config.is_null());
+camera_callback!(destack_host_android_camera_stream_recording_capabilities(stream_id: u64, capabilities: *mut AndroidHostCameraRecordingCapabilitiesHeader) -> stream_recording_capabilities; guard !capabilities.is_null());
+camera_callback!(destack_host_android_camera_stream_start_recording(stream_id: u64, options: AndroidHostCameraRecordingOptionsHeader, output_path: NativeStringRef) -> stream_start_recording);
+camera_callback!(destack_host_android_camera_stream_pause_recording(stream_id: u64) -> stream_pause_recording);
+camera_callback!(destack_host_android_camera_stream_resume_recording(stream_id: u64) -> stream_resume_recording);
+camera_callback!(destack_host_android_camera_stream_stop_recording(stream_id: u64, timeout_ns: u64) -> stream_stop_recording);
 camera_callback!(destack_host_android_camera_stream_get_u64(stream_id: u64, selector: u32, value: *mut u64) -> stream_get_u64; guard !value.is_null());
 camera_callback!(destack_host_android_camera_stream_set_u64(stream_id: u64, selector: u32, value: u64) -> stream_set_u64);
 camera_callback!(destack_host_android_camera_stream_get_u32(stream_id: u64, selector: u32, value: *mut u32) -> stream_get_u32; guard !value.is_null());

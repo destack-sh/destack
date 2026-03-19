@@ -2,6 +2,7 @@ use crate::runtime::{NativeSlice, NativeStringRef};
 
 use super::types::{
     AndroidHostCameraDeviceDescriptorHeader, AndroidHostCameraFrameHeader,
+    AndroidHostCameraRecordingCapabilitiesHeader, AndroidHostCameraRecordingOptionsHeader,
     AndroidHostCameraStreamCapabilityHeader, AndroidHostCameraStreamConfigHeader,
 };
 
@@ -77,12 +78,49 @@ pub(crate) type AndroidHostCameraStreamTryReadCallback = unsafe extern "C" fn(
     bytes_written: *mut u32,
 ) -> u32;
 
+/// Host callback for capturing one Android camera still photo.
+pub(crate) type AndroidHostCameraStreamTakePhotoCallback = unsafe extern "C" fn(
+    runtime_id: u64,
+    stream_id: u64,
+    timeout_ns: u64,
+    header: *mut AndroidHostCameraFrameHeader,
+    bytes: NativeSlice<u8>,
+    bytes_written: *mut u32,
+) -> u32;
+
 /// Host callback for querying one active Android camera stream config.
 pub(crate) type AndroidHostCameraStreamConfigCallback = unsafe extern "C" fn(
     runtime_id: u64,
     stream_id: u64,
     config: *mut AndroidHostCameraStreamConfigHeader,
 ) -> u32;
+
+/// Host callback for querying one Android camera recording capability descriptor.
+pub(crate) type AndroidHostCameraStreamRecordingCapabilitiesCallback = unsafe extern "C" fn(
+    runtime_id: u64,
+    stream_id: u64,
+    capabilities: *mut AndroidHostCameraRecordingCapabilitiesHeader,
+) -> u32;
+
+/// Host callback for starting one Android camera recording session.
+pub(crate) type AndroidHostCameraStreamStartRecordingCallback = unsafe extern "C" fn(
+    runtime_id: u64,
+    stream_id: u64,
+    options: AndroidHostCameraRecordingOptionsHeader,
+    output_path: NativeStringRef,
+) -> u32;
+
+/// Host callback for pausing one active Android camera recording session.
+pub(crate) type AndroidHostCameraStreamPauseRecordingCallback =
+    unsafe extern "C" fn(runtime_id: u64, stream_id: u64) -> u32;
+
+/// Host callback for resuming one paused Android camera recording session.
+pub(crate) type AndroidHostCameraStreamResumeRecordingCallback =
+    unsafe extern "C" fn(runtime_id: u64, stream_id: u64) -> u32;
+
+/// Host callback for stopping one active Android camera recording session.
+pub(crate) type AndroidHostCameraStreamStopRecordingCallback =
+    unsafe extern "C" fn(runtime_id: u64, stream_id: u64, timeout_ns: u64) -> u32;
 
 /// Host callback for reading one `u64` Android camera control value.
 pub(crate) type AndroidHostCameraStreamGetU64Callback =
