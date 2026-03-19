@@ -8,7 +8,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::diagnostic::{DiagnosticStore, RuntimeResult};
-use crate::host::core::{HostRuntimeId, HostRuntimeRegistry, RuntimeIngressObserver};
+use crate::host::core::{HostRuntimeId, HostRuntimeRegistry, RuntimeIngressHandler};
 use crate::platform::display::WindowCursorMode;
 use crate::platform::display::windows::win32::event::{
     DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
@@ -48,7 +48,7 @@ pub(crate) struct Win32RuntimeState {
     /// Registered window-event streams for this runtime.
     pub(crate) window_streams: RuntimeStreamRegistry<WindowEventStream>,
     /// Registered host-owned ingress observer for this runtime.
-    runtime_ingress_observer: OnceLock<Arc<Win32RuntimeIngressObserver>>,
+    runtime_ingress_handler: OnceLock<Arc<Win32RuntimeIngressHandler>>,
     /// One-time Win32 service registration guard for this runtime.
     service_registration: OnceLock<()>,
 }
@@ -76,7 +76,7 @@ impl Win32RuntimeState {
             window_events: Mutex::new(RuntimeEventLog::default()),
             window_event_signal: Condvar::new(),
             window_streams: RuntimeStreamRegistry::default(),
-            runtime_ingress_observer: OnceLock::new(),
+            runtime_ingress_handler: OnceLock::new(),
             service_registration: OnceLock::new(),
         }
     }
@@ -254,14 +254,14 @@ pub(crate) struct CursorPolicyState {
 
 /// Host-owned ingress observer for one Win32 display runtime.
 #[derive(Debug)]
-struct Win32RuntimeIngressObserver {
+struct Win32RuntimeIngressHandler {
     /// Weak runtime state used for monitor-topology publication.
     runtime_state: Weak<Win32RuntimeState>,
 }
 
-impl RuntimeIngressObserver for Win32RuntimeIngressObserver {
+impl RuntimeIngressHandler for Win32RuntimeIngressHandler {
     /// Publish monitor-topology deltas after one host ingress service step.
-    fn process_runtime_ingress(&self) -> RuntimeResult<()> {
+    fn service_runtime_ingress(&self) -> RuntimeResult<()> {
         let Some(runtime_state) = self.runtime_state.upgrade() else {
             return Ok(());
         };
@@ -282,16 +282,16 @@ impl Win32RuntimeState {
         host_runtime_id: HostRuntimeId,
     ) -> RuntimeResult<()> {
         let observer = self
-            .runtime_ingress_observer
+            .runtime_ingress_handler
             .get_or_init(|| {
-                Arc::new(Win32RuntimeIngressObserver {
+                Arc::new(Win32RuntimeIngressHandler {
                     runtime_state: Arc::downgrade(self),
                 })
             })
             .clone();
-        let observer: Arc<dyn RuntimeIngressObserver> = observer;
+        let handler: Arc<dyn RuntimeIngressHandler> = observer;
 
-        HostRuntimeRegistry::register_runtime_ingress_observer(host_runtime_id, &observer)
+        HostRuntimeRegistry::register_runtime_ingress_handler(host_runtime_id, &handler)
     }
 
     /// Register this runtime with the Win32 display service once.

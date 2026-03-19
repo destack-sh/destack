@@ -1,5 +1,4 @@
-pub(crate) mod callback;
 pub(crate) mod ffi;
+pub(crate) mod notify;
 
-pub use callback::*;
-pub use ffi::*;
+pub(crate) use notify::*;

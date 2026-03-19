@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::host::core::registry::next_host_runtime_id;
 use crate::host::core::{HostQueue, HostRuntimeRegistry};
-use crate::host::macos::ingress::callback::host_lifecycle_state_for_application_lifecycle;
+use crate::host::macos::ingress::notify::host_lifecycle_state_for_application_lifecycle;
 use crate::host::macos::{
     MacosApplicationLifecycle, macos_notify_intent_open_url, macos_notify_location_sample,
     macos_notify_permission_result,
@@ -46,12 +46,8 @@ fn test_map_application_lifecycle_to_destroyed() {
 fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() {
     let runtime_id = next_host_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
-    let registration = HostRuntimeRegistry::register_queue(
-        Platform::MacOS,
-        runtime_id,
-        Arc::downgrade(&queue),
-        None,
-    );
+    let registration =
+        HostRuntimeRegistry::register_queue(Platform::MacOS, runtime_id, Arc::clone(&queue), None);
     let runtime_id = registration.host_runtime_id();
 
     macos_notify_permission_result(runtime_id.0, "camera", true).unwrap();
@@ -70,12 +66,8 @@ fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() 
 fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
     let runtime_id = next_host_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
-    let registration = HostRuntimeRegistry::register_queue(
-        Platform::MacOS,
-        runtime_id,
-        Arc::downgrade(&queue),
-        None,
-    );
+    let registration =
+        HostRuntimeRegistry::register_queue(Platform::MacOS, runtime_id, Arc::clone(&queue), None);
     let runtime_id = registration.host_runtime_id();
 
     macos_notify_intent_open_url(
@@ -101,12 +93,8 @@ fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
 fn test_notify_location_sample_enqueues_location_event_for_runtime_bridge() {
     let runtime_id = next_host_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
-    let registration = HostRuntimeRegistry::register_queue(
-        Platform::MacOS,
-        runtime_id,
-        Arc::downgrade(&queue),
-        None,
-    );
+    let registration =
+        HostRuntimeRegistry::register_queue(Platform::MacOS, runtime_id, Arc::clone(&queue), None);
     let runtime_id = registration.host_runtime_id();
     let sample = test_location_sample();
 
@@ -127,11 +115,11 @@ fn test_location_sample() -> LocationSampleValue {
     LocationSampleValue {
         latitude_degrees: 47.3769,
         longitude_degrees: 8.5417,
-        altitude_meters: 408.0,
-        horizontal_accuracy_meters: 12.0,
-        vertical_accuracy_meters: 18.0,
-        speed_meters_per_second: 2.5,
-        heading_degrees: 180.0,
+        altitude_meters: Some(408.0),
+        horizontal_accuracy_meters: Some(12.0),
+        vertical_accuracy_meters: Some(18.0),
+        speed_meters_per_second: Some(2.5),
+        heading_degrees: Some(180.0),
         timestamp_unix_ns: 123_000_000_000,
     }
 }

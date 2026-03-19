@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::host::core::registry::next_host_runtime_id;
 use crate::host::core::{HostQueue, HostRuntimeRegistry};
-use crate::host::windows::ingress::callback::host_lifecycle_state_for_windows_application;
+use crate::host::windows::ingress::notify::host_lifecycle_state_for_windows_application;
 use crate::host::windows::{
     WindowsApplicationLifecycle, windows_notify_intent_open_url, windows_notify_location_sample,
     windows_notify_permission_result,
@@ -56,7 +56,7 @@ fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() 
     let registration = HostRuntimeRegistry::register_queue(
         Platform::Windows,
         runtime_id,
-        Arc::downgrade(&queue),
+        Arc::clone(&queue),
         None,
     );
     let runtime_id = registration.host_runtime_id();
@@ -80,7 +80,7 @@ fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
     let registration = HostRuntimeRegistry::register_queue(
         Platform::Windows,
         runtime_id,
-        Arc::downgrade(&queue),
+        Arc::clone(&queue),
         None,
     );
     let runtime_id = registration.host_runtime_id();
@@ -111,18 +111,18 @@ fn test_notify_location_sample_enqueues_location_event_for_runtime_bridge() {
     let registration = HostRuntimeRegistry::register_queue(
         Platform::Windows,
         runtime_id,
-        Arc::downgrade(&queue),
+        Arc::clone(&queue),
         None,
     );
     let runtime_id = registration.host_runtime_id();
     let sample = LocationSampleValue {
         latitude_degrees: 1.0,
         longitude_degrees: 2.0,
-        altitude_meters: 3.0,
-        horizontal_accuracy_meters: 4.0,
-        vertical_accuracy_meters: 5.0,
-        speed_meters_per_second: 6.0,
-        heading_degrees: 7.0,
+        altitude_meters: Some(3.0),
+        horizontal_accuracy_meters: Some(4.0),
+        vertical_accuracy_meters: Some(5.0),
+        speed_meters_per_second: Some(6.0),
+        heading_degrees: Some(7.0),
         timestamp_unix_ns: 8,
     };
 

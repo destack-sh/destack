@@ -5,7 +5,7 @@ use std::sync::{Arc, Condvar, Mutex, OnceLock, Weak};
 use super::delegate::AppKitWindowDelegate;
 use crate::diagnostic::{DiagnosticStore, RuntimeResult};
 use crate::host::apple::execution::with_process_main_context_marker_if_needed;
-use crate::host::core::{HostRuntimeId, HostRuntimeRegistry, RuntimeIngressObserver};
+use crate::host::core::{HostRuntimeId, HostRuntimeRegistry, RuntimeIngressHandler};
 use crate::platform::display::unix::appkit::event::{
     DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
 };
@@ -69,14 +69,14 @@ unsafe impl Sync for AppKitWorldRef {}
 
 /// Host-owned thread-message observer for one AppKit runtime.
 #[derive(Debug)]
-struct AppKitIngressObserver {
+struct AppKitIngressHandler {
     /// Weak runtime state used for post-pump reconciliation.
     runtime_state: Weak<AppKitRuntimeState>,
 }
 
-impl RuntimeIngressObserver for AppKitIngressObserver {
+impl RuntimeIngressHandler for AppKitIngressHandler {
     /// Service AppKit ingress after one host message pump step.
-    fn process_runtime_ingress(&self) -> RuntimeResult<()> {
+    fn service_runtime_ingress(&self) -> RuntimeResult<()> {
         let Some(runtime_state) = self.runtime_state.upgrade() else {
             return Ok(());
         };
@@ -132,7 +132,7 @@ pub(crate) struct AppKitRuntimeState {
     /// Whether the process-global AppKit cursor is currently hidden.
     pub(crate) cursor_hidden: Mutex<bool>,
     /// Registered host-owned observer for post-pump AppKit reconciliation.
-    runtime_ingress_observer: OnceLock<Arc<AppKitIngressObserver>>,
+    runtime_ingress_handler: OnceLock<Arc<AppKitIngressHandler>>,
     /// One-time AppKit service registration guard for this runtime.
     service_registration: OnceLock<()>,
 }
@@ -177,7 +177,7 @@ impl AppKitRuntimeState {
             window_streams: RuntimeStreamRegistry::default(),
             monitor_topology_snapshot: RuntimeSnapshotCache::default(),
             cursor_hidden: Mutex::new(false),
-            runtime_ingress_observer: OnceLock::new(),
+            runtime_ingress_handler: OnceLock::new(),
             service_registration: OnceLock::new(),
         }
     }
@@ -273,16 +273,16 @@ impl AppKitRuntimeState {
         host_runtime_id: HostRuntimeId,
     ) -> RuntimeResult<()> {
         let observer = self
-            .runtime_ingress_observer
+            .runtime_ingress_handler
             .get_or_init(|| {
-                Arc::new(AppKitIngressObserver {
+                Arc::new(AppKitIngressHandler {
                     runtime_state: Arc::downgrade(self),
                 })
             })
             .clone();
-        let observer: Arc<dyn RuntimeIngressObserver> = observer;
+        let handler: Arc<dyn RuntimeIngressHandler> = observer;
 
-        HostRuntimeRegistry::register_runtime_ingress_observer(host_runtime_id, &observer)
+        HostRuntimeRegistry::register_runtime_ingress_handler(host_runtime_id, &handler)
     }
 
     /// Register this runtime with the AppKit display service once.

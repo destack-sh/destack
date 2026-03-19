@@ -1,3 +1,4 @@
+use crate::host::android::AndroidActivityLifecycle;
 use crate::host::android::ingress::ffi::{
     ANDROID_LIFECYCLE_CREATED, ANDROID_LIFECYCLE_DESTROYED, ANDROID_LIFECYCLE_PAUSED,
     ANDROID_LIFECYCLE_RESUMED, ANDROID_LIFECYCLE_STARTED, ANDROID_LIFECYCLE_STOPPED,
@@ -7,9 +8,7 @@ use crate::host::android::ingress::ffi::{
     ANDROID_THERMAL_SERIOUS, decode_android_activity_lifecycle,
     decode_android_memory_pressure_level, decode_android_power_mode, decode_android_thermal_state,
 };
-use crate::host::{
-    AndroidActivityLifecycle, HostMemoryPressureLevel, HostPowerMode, HostThermalState,
-};
+use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 
 #[test]
 fn test_decode_lifecycle_created() {

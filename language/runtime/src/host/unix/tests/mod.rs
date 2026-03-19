@@ -1,2 +1,2 @@
-mod callback;
 mod ffi;
+mod notify;

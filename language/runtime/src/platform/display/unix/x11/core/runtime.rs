@@ -6,7 +6,7 @@ use x11rb::connection::Connection;
 use super::connection::X11ConnectionState;
 use super::ingress;
 use crate::diagnostic::{DiagnosticStore, RuntimeResult};
-use crate::host::core::{HostRuntimeRegistry, RuntimeIngressObserver};
+use crate::host::core::{HostRuntimeRegistry, RuntimeIngressHandler};
 use crate::platform::display::unix::x11::event::{
     self as x11_event, DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
 };
@@ -39,7 +39,7 @@ pub(crate) struct X11RuntimeState {
     /// Cached monitor topology snapshot for monitor-event delta publication.
     pub(crate) monitor_topology_snapshot: RuntimeSnapshotCache<Vec<MonitorSnapshot>>,
     /// Registered host-owned ingress observer for this runtime.
-    pub(crate) runtime_ingress_observer: OnceLock<Arc<X11RuntimeIngressObserver>>,
+    pub(crate) runtime_ingress_handler: OnceLock<Arc<X11RuntimeIngressHandler>>,
     /// One-time service registration guard for this runtime.
     service_registration: OnceLock<()>,
 }
@@ -55,14 +55,14 @@ pub(crate) struct X11WindowDispatchEntry {
 
 /// Host-owned ingress observer for one X11 runtime.
 #[derive(Debug)]
-pub(crate) struct X11RuntimeIngressObserver {
+pub(crate) struct X11RuntimeIngressHandler {
     /// Weak runtime state used for ingress-driven event publication.
     runtime_state: Weak<X11RuntimeState>,
 }
 
-impl RuntimeIngressObserver for X11RuntimeIngressObserver {
+impl RuntimeIngressHandler for X11RuntimeIngressHandler {
     /// Service X11 ingress and publish runtime-owned event deltas.
-    fn process_runtime_ingress(&self) -> RuntimeResult<()> {
+    fn service_runtime_ingress(&self) -> RuntimeResult<()> {
         let Some(runtime_state) = self.runtime_state.upgrade() else {
             return Ok(());
         };
@@ -94,7 +94,7 @@ impl X11RuntimeState {
             window_streams: RuntimeStreamRegistry::default(),
             windows_by_xid: Mutex::new(HashMap::new()),
             monitor_topology_snapshot: RuntimeSnapshotCache::default(),
-            runtime_ingress_observer: OnceLock::new(),
+            runtime_ingress_handler: OnceLock::new(),
             service_registration: OnceLock::new(),
         }
     }
@@ -243,16 +243,16 @@ impl X11RuntimeState {
         let host_runtime_id = context.host().host_runtime_id();
 
         let observer = self
-            .runtime_ingress_observer
+            .runtime_ingress_handler
             .get_or_init(|| {
-                Arc::new(X11RuntimeIngressObserver {
+                Arc::new(X11RuntimeIngressHandler {
                     runtime_state: Arc::downgrade(self),
                 })
             })
             .clone();
-        let observer: Arc<dyn RuntimeIngressObserver> = observer;
+        let handler: Arc<dyn RuntimeIngressHandler> = observer;
 
-        HostRuntimeRegistry::register_runtime_ingress_observer(host_runtime_id, &observer)
+        HostRuntimeRegistry::register_runtime_ingress_handler(host_runtime_id, &handler)
     }
 
     /// Register this runtime with the x11 display service once.

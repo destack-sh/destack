@@ -24,6 +24,6 @@ pub(crate) use bridge::bindings::AndroidHostBindings;
 #[cfg(any(test, target_os = "android"))]
 pub(crate) use bridge::unregister_android_bindings;
 #[cfg(any(test, target_os = "android"))]
-pub use ingress::*;
+pub(crate) use ingress::*;
 #[cfg(any(test, target_os = "android"))]
-pub use request::*;
+pub(crate) use request::*;

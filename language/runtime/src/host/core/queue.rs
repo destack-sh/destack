@@ -7,7 +7,7 @@ use tracing::error;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::event::{HostEvent, HostEventKind};
-use crate::host::core::registry::{HostEventObserver, HostRuntimeId, RuntimeIngressObserver};
+use crate::host::core::registry::{HostEventObserver, HostRuntimeId, RuntimeIngressHandler};
 use crate::runtime::poller::PollerWakeHandle;
 
 /// Shared host event queue for adapter event delivery.
@@ -22,8 +22,8 @@ pub(crate) struct HostQueue {
 struct HostQueueState {
     /// Event payload queue and wake sequence metadata.
     queue: Mutex<HostQueuePayload>,
-    /// Runtime-owned ingress observers for this queue.
-    runtime_ingress_observers: Mutex<Vec<Arc<dyn RuntimeIngressObserver>>>,
+    /// Runtime-owned ingress handlers for this queue.
+    runtime_ingress_handlers: Mutex<Vec<Arc<dyn RuntimeIngressHandler>>>,
     /// Host semantic event observers for this queue.
     host_event_observers: Mutex<Vec<Arc<dyn HostEventObserver>>>,
     /// Condition variable for blocking poll operations.
@@ -139,12 +139,12 @@ impl HostQueue {
         payload.events.iter().cloned().collect()
     }
 
-    /// Register one runtime ingress observer for this queue.
-    pub(crate) fn register_runtime_ingress_observer(
+    /// Register one runtime ingress handler for this queue.
+    pub(crate) fn register_runtime_ingress_handler(
         &self,
-        observer: &Arc<dyn RuntimeIngressObserver>,
+        handler: &Arc<dyn RuntimeIngressHandler>,
     ) {
-        register_observer(&self.state.runtime_ingress_observers, observer);
+        register_observer(&self.state.runtime_ingress_handlers, handler);
     }
 
     /// Dispatch one host event to queue-owned observers.
@@ -158,12 +158,12 @@ impl HostQueue {
         Ok(())
     }
 
-    /// Service queue-owned runtime ingress observers.
-    pub(crate) fn process_runtime_ingress(&self) -> RuntimeResult<()> {
-        let observers = self.state.runtime_ingress_observers.lock().clone();
+    /// Service queue-owned runtime ingress handlers.
+    pub(crate) fn service_runtime_ingress(&self) -> RuntimeResult<()> {
+        let handlers = self.state.runtime_ingress_handlers.lock().clone();
 
-        for observer in observers {
-            observer.process_runtime_ingress()?;
+        for handler in handlers {
+            handler.service_runtime_ingress()?;
         }
 
         Ok(())

@@ -29,7 +29,7 @@ pub(crate) fn register_android_runtime() -> (Arc<HostQueue>, HostRegistrationGua
     let registration = HostRuntimeRegistry::register_queue(
         Platform::Android,
         runtime_id,
-        Arc::downgrade(&queue),
+        Arc::clone(&queue),
         Some(unregister_android_bindings_for_runtime),
     );
     let runtime_id = registration.host_runtime_id().0;

@@ -10,7 +10,7 @@ mod tests;
 #[cfg(target_os = "macos")]
 pub(crate) use adapter::MacosHost;
 #[cfg(any(test, target_os = "macos"))]
-pub use ingress::*;
+pub(crate) use ingress::*;
 #[cfg(target_os = "macos")]
 pub(crate) use request::unregister_location_runtime;
 #[cfg(all(test, target_os = "macos"))]

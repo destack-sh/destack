@@ -1,3 +1,4 @@
+use crate::host::windows::WindowsApplicationLifecycle;
 use crate::host::windows::ingress::ffi::{
     WINDOWS_LIFECYCLE_ACTIVATED, WINDOWS_LIFECYCLE_CREATED, WINDOWS_LIFECYCLE_DESTROYED,
     WINDOWS_LIFECYCLE_RESUMED, WINDOWS_LIFECYCLE_STOPPING, WINDOWS_LIFECYCLE_SUSPENDED,
@@ -7,9 +8,7 @@ use crate::host::windows::ingress::ffi::{
     WINDOWS_THERMAL_SERIOUS, decode_windows_application_lifecycle,
     decode_windows_memory_pressure_level, decode_windows_power_mode, decode_windows_thermal_state,
 };
-use crate::host::{
-    HostMemoryPressureLevel, HostPowerMode, HostThermalState, WindowsApplicationLifecycle,
-};
+use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 
 #[test]
 fn test_decode_windows_lifecycle_created() {

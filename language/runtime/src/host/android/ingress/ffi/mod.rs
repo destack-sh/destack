@@ -2,4 +2,4 @@ mod core;
 #[cfg(test)]
 mod tests;
 
-pub use core::*;
+pub(crate) use core::*;

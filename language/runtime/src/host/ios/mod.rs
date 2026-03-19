@@ -14,8 +14,8 @@ pub(crate) use adapter::IosHost;
 #[cfg(any(test, target_os = "ios"))]
 pub(crate) use bridge::unregister_ios_bindings;
 #[cfg(any(test, target_os = "ios"))]
-pub use bridge::*;
+pub(crate) use bridge::*;
 #[cfg(any(test, target_os = "ios"))]
-pub use ingress::*;
+pub(crate) use ingress::*;
 #[cfg(any(test, target_os = "ios"))]
-pub use request::*;
+pub(crate) use request::*;

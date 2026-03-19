@@ -1,3 +1,5 @@
+#![allow(unreachable_pub)]
+
 use crate::diagnostic::{RuntimeResult, RuntimeStatus};
 use crate::host::core::error::invalid_argument_value;
 use crate::host::macos::{

@@ -62,12 +62,8 @@ fn test_map_application_lifecycle_to_destroyed() {
 fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() {
     let runtime_id = next_host_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
-    let registration = HostRuntimeRegistry::register_queue(
-        Platform::IOS,
-        runtime_id,
-        Arc::downgrade(&queue),
-        None,
-    );
+    let registration =
+        HostRuntimeRegistry::register_queue(Platform::IOS, runtime_id, Arc::clone(&queue), None);
     let runtime_id = registration.host_runtime_id();
 
     ios_notify_permission_result(runtime_id.0, "camera", true).unwrap();
@@ -86,12 +82,8 @@ fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() 
 fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
     let runtime_id = next_host_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
-    let registration = HostRuntimeRegistry::register_queue(
-        Platform::IOS,
-        runtime_id,
-        Arc::downgrade(&queue),
-        None,
-    );
+    let registration =
+        HostRuntimeRegistry::register_queue(Platform::IOS, runtime_id, Arc::clone(&queue), None);
     let runtime_id = registration.host_runtime_id();
 
     ios_notify_intent_open_url(
@@ -117,12 +109,8 @@ fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
 fn test_notify_notification_event_enqueues_notification_event_for_runtime_bridge() {
     let runtime_id = next_host_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
-    let registration = HostRuntimeRegistry::register_queue(
-        Platform::IOS,
-        runtime_id,
-        Arc::downgrade(&queue),
-        None,
-    );
+    let registration =
+        HostRuntimeRegistry::register_queue(Platform::IOS, runtime_id, Arc::clone(&queue), None);
     let runtime_id = registration.host_runtime_id();
     let event = test_notification_event();
 
@@ -141,12 +129,8 @@ fn test_notify_notification_event_enqueues_notification_event_for_runtime_bridge
 fn test_notify_background_event_enqueues_background_event_for_runtime_bridge() {
     let runtime_id = next_host_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
-    let registration = HostRuntimeRegistry::register_queue(
-        Platform::IOS,
-        runtime_id,
-        Arc::downgrade(&queue),
-        None,
-    );
+    let registration =
+        HostRuntimeRegistry::register_queue(Platform::IOS, runtime_id, Arc::clone(&queue), None);
     let runtime_id = registration.host_runtime_id();
     let event = test_background_event();
 
@@ -165,12 +149,8 @@ fn test_notify_background_event_enqueues_background_event_for_runtime_bridge() {
 fn test_notify_location_sample_enqueues_location_event_for_runtime_bridge() {
     let runtime_id = next_host_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
-    let registration = HostRuntimeRegistry::register_queue(
-        Platform::IOS,
-        runtime_id,
-        Arc::downgrade(&queue),
-        None,
-    );
+    let registration =
+        HostRuntimeRegistry::register_queue(Platform::IOS, runtime_id, Arc::clone(&queue), None);
     let runtime_id = registration.host_runtime_id();
     let sample = test_location_sample();
 
@@ -190,12 +170,8 @@ fn test_notify_location_sample_enqueues_location_event_for_runtime_bridge() {
 fn test_notify_media_event_enqueues_media_event_for_runtime_bridge() {
     let runtime_id = next_host_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
-    let registration = HostRuntimeRegistry::register_queue(
-        Platform::IOS,
-        runtime_id,
-        Arc::downgrade(&queue),
-        None,
-    );
+    let registration =
+        HostRuntimeRegistry::register_queue(Platform::IOS, runtime_id, Arc::clone(&queue), None);
     let runtime_id = registration.host_runtime_id();
     let asset = MediaAssetSummaryValue {
         id: "asset-1".to_string(),

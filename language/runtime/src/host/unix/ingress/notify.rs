@@ -1,14 +1,16 @@
+use std::sync::Arc;
+
 use destack_workspace::Platform;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostIngressHandle, HostRuntimeId, HostRuntimeRegistry};
+use crate::host::core::{HostQueue, HostRuntimeId, HostRuntimeRegistry};
 use crate::host::{
     HostEvent, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState, HostLocationEvent,
     HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent, HostPowerMode,
     HostPowerModeEvent, HostThermalEvent, HostThermalState, HostWallClockEvent,
 };
 use crate::platform::os::abi_generated::LocationSampleValue;
-/// Unix application lifecycle transitions from native callbacks.
+/// Unix application lifecycle transitions from native ingress hooks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum UnixApplicationLifecycle {
     /// Process and windowing resources are initializing.
@@ -24,11 +26,11 @@ pub enum UnixApplicationLifecycle {
 }
 
 /// Return the active Unix host queue for this process and platform.
-fn unix_host_bridge(runtime_id: u64, platform: Platform) -> RuntimeResult<HostIngressHandle> {
-    HostRuntimeRegistry::ingress_handle_for_runtime(HostRuntimeId(runtime_id), platform)
+fn unix_host_bridge(runtime_id: u64, platform: Platform) -> RuntimeResult<Arc<HostQueue>> {
+    HostRuntimeRegistry::queue_for_runtime(HostRuntimeId(runtime_id), platform)
 }
 
-/// Submit one Unix application lifecycle callback.
+/// Route one Unix application lifecycle ingress notification.
 pub fn unix_notify_application_lifecycle(
     runtime_id: u64,
     platform: Platform,
@@ -36,12 +38,12 @@ pub fn unix_notify_application_lifecycle(
 ) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
     let state = host_lifecycle_state_for_unix_application(lifecycle);
-    bridge.publish_event(HostEvent::Lifecycle(HostLifecycleEvent { state }));
+    bridge.enqueue(HostEvent::Lifecycle(HostLifecycleEvent { state }));
 
     Ok(())
 }
 
-/// Submit one Unix permission-result callback.
+/// Route one Unix permission-result ingress notification.
 pub fn unix_notify_permission_result(
     runtime_id: u64,
     platform: Platform,
@@ -49,7 +51,7 @@ pub fn unix_notify_permission_result(
     granted: bool,
 ) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
-    bridge.publish_event(HostEvent::Permission(HostPermissionEvent {
+    bridge.enqueue(HostEvent::Permission(HostPermissionEvent {
         permission: permission.to_string(),
         granted,
     }));
@@ -57,7 +59,7 @@ pub fn unix_notify_permission_result(
     Ok(())
 }
 
-/// Submit one Unix location sample callback.
+/// Route one Unix location sample ingress notification.
 pub fn unix_notify_location_sample(
     runtime_id: u64,
     platform: Platform,
@@ -65,7 +67,7 @@ pub fn unix_notify_location_sample(
     sample: LocationSampleValue,
 ) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
-    bridge.publish_event(HostEvent::Location(Box::new(HostLocationEvent {
+    bridge.enqueue(HostEvent::Location(Box::new(HostLocationEvent {
         watch_id: watch_id.to_string(),
         sample,
     })));
@@ -73,60 +75,60 @@ pub fn unix_notify_location_sample(
     Ok(())
 }
 
-/// Submit one Unix interruption callback.
+/// Route one Unix interruption ingress notification.
 pub fn unix_notify_interruption_changed(
     runtime_id: u64,
     platform: Platform,
     interrupted: bool,
 ) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
-    bridge.publish_event(HostEvent::Interruption(HostInterruptionEvent {
+    bridge.enqueue(HostEvent::Interruption(HostInterruptionEvent {
         interrupted,
     }));
 
     Ok(())
 }
 
-/// Submit one Unix memory pressure callback.
+/// Route one Unix memory pressure ingress notification.
 pub fn unix_notify_memory_pressure_changed(
     runtime_id: u64,
     platform: Platform,
     level: HostMemoryPressureLevel,
 ) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
-    bridge.publish_event(HostEvent::MemoryPressure(HostMemoryPressureEvent { level }));
+    bridge.enqueue(HostEvent::MemoryPressure(HostMemoryPressureEvent { level }));
 
     Ok(())
 }
 
-/// Submit one Unix thermal state callback.
+/// Route one Unix thermal state ingress notification.
 pub fn unix_notify_thermal_state_changed(
     runtime_id: u64,
     platform: Platform,
     state: HostThermalState,
 ) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
-    bridge.publish_event(HostEvent::ThermalState(HostThermalEvent { state }));
+    bridge.enqueue(HostEvent::ThermalState(HostThermalEvent { state }));
 
     Ok(())
 }
 
-/// Submit one Unix power mode callback.
+/// Route one Unix power mode ingress notification.
 pub fn unix_notify_power_mode_changed(
     runtime_id: u64,
     platform: Platform,
     mode: HostPowerMode,
 ) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
-    bridge.publish_event(HostEvent::PowerMode(HostPowerModeEvent { mode }));
+    bridge.enqueue(HostEvent::PowerMode(HostPowerModeEvent { mode }));
 
     Ok(())
 }
 
-/// Submit one Unix wall clock callback.
+/// Route one Unix wall clock ingress notification.
 pub fn unix_notify_wall_clock_changed(runtime_id: u64, platform: Platform) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
-    bridge.publish_event(HostEvent::WallClock(HostWallClockEvent));
+    bridge.enqueue(HostEvent::WallClock(HostWallClockEvent));
 
     Ok(())
 }
@@ -134,7 +136,7 @@ pub fn unix_notify_wall_clock_changed(runtime_id: u64, platform: Platform) -> Ru
 /// Wake one blocked host poll operation for Unix platforms.
 pub fn unix_notify_wake(runtime_id: u64, platform: Platform) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
-    bridge.wake()?;
+    bridge.poll_wake_handle().wake()?;
 
     Ok(())
 }

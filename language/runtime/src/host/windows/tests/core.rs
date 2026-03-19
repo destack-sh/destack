@@ -2,8 +2,7 @@ use std::sync::{Mutex, OnceLock};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::app::document::pick::{
-    HOST_DOCUMENT_PICK_OPERATION, normalized_document_extensions, postprocess_picked_documents,
-    validate_document_pick_options,
+    HOST_DOCUMENT_PICK_OPERATION, normalized_document_extensions, validate_document_pick_options,
 };
 use crate::host::core::{
     HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult, HostRuntimeId,
@@ -177,6 +176,15 @@ pub(crate) fn set_windows_calendar_test_hooks(hooks: WindowsCalendarHooks) {
 /// Install one Windows contact hook set for tests.
 pub(crate) fn set_windows_contact_test_hooks(hooks: WindowsContactHooks) {
     let mut slot = windows_contact_hook_slot()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+
+    *slot = hooks;
+}
+
+/// Install one Windows location hook set for tests.
+pub(crate) fn set_windows_location_test_hooks(hooks: WindowsLocationHooks) {
+    let mut slot = windows_location_hook_slot()
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 
@@ -379,14 +387,12 @@ fn normalized_options(options: &DocumentPickOptionsValue) -> RuntimeResult<()> {
 
 /// Pick documents from the Windows host request lane in tests.
 pub(crate) fn pick_documents(
-    context: &HostRequestContext,
+    _context: &HostRequestContext,
     options: &DocumentPickOptionsValue,
 ) -> RuntimeResult<Vec<DocumentDescriptorValue>> {
     normalized_options(options)?;
     let hook = require_test_pick_hook()?;
-    let descriptors = hook(options.clone())?;
-
-    postprocess_picked_documents(context, options, descriptors)
+    hook(options.clone())
 }
 
 /// Submit one Windows location request from the host request lane in tests.

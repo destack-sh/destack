@@ -1,3 +1,4 @@
+use crate::host::ios::IosApplicationLifecycle;
 use crate::host::ios::ingress::ffi::{
     IOS_LIFECYCLE_DID_BECOME_ACTIVE, IOS_LIFECYCLE_DID_ENTER_BACKGROUND,
     IOS_LIFECYCLE_DID_FINISH_LAUNCHING, IOS_LIFECYCLE_WILL_ENTER_FOREGROUND,
@@ -7,9 +8,7 @@ use crate::host::ios::ingress::ffi::{
     IOS_THERMAL_SERIOUS, decode_ios_application_lifecycle, decode_ios_memory_pressure_level,
     decode_ios_power_mode, decode_ios_thermal_state,
 };
-use crate::host::{
-    HostMemoryPressureLevel, HostPowerMode, HostThermalState, IosApplicationLifecycle,
-};
+use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 
 #[test]
 fn test_decode_lifecycle_did_finish_launching() {

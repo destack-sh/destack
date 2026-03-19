@@ -1,3 +1,5 @@
+#![allow(unreachable_pub)]
+
 use crate::diagnostic::{RuntimeResult, RuntimeStatus};
 use crate::host::core::error::invalid_argument_value;
 use crate::host::windows::{
@@ -57,10 +59,20 @@ pub unsafe extern "C" fn destack_host_windows_notify_permission_result(
 pub unsafe extern "C" fn destack_host_windows_notify_location_sample(
     runtime_id: u64,
     watch_id: NativeStringRef,
-    sample: LocationSampleValue,
+    sample: *const LocationSampleValue,
 ) -> RuntimeStatus {
-    let result = decode_string(watch_id, "watch_id")
-        .and_then(|watch_id| windows_notify_location_sample(runtime_id, &watch_id, sample));
+    let result = decode_string(watch_id, "watch_id").and_then(|watch_id| {
+        if sample.is_null() {
+            return Err(invalid_argument_value(
+                "sample",
+                "sample pointer must not be null",
+            ));
+        }
+
+        let sample = unsafe { *sample };
+
+        windows_notify_location_sample(runtime_id, &watch_id, sample)
+    });
 
     runtime_status(result)
 }
