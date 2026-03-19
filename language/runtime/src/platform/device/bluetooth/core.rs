@@ -33,12 +33,15 @@ pub(super) const BLUETOOTH_DEVICE_RESOURCE_LABEL: &str = "device.bluetooth.devic
 pub(super) const BLUETOOTH_SUBSCRIPTION_RESOURCE_LABEL: &str = "device.bluetooth.subscription";
 
 /// One scan event queue capacity.
+#[cfg(not(target_os = "android"))]
 pub(super) const BLUETOOTH_SCAN_EVENT_QUEUE_CAPACITY: usize = 256;
 
 /// One session event queue capacity.
+#[cfg(not(target_os = "android"))]
 pub(super) const BLUETOOTH_SESSION_EVENT_QUEUE_CAPACITY: usize = 128;
 
 /// One notification queue capacity.
+#[cfg(not(target_os = "android"))]
 pub(super) const BLUETOOTH_NOTIFICATION_QUEUE_CAPACITY: usize = 256;
 
 /// Monotonic event sequencing for one bluetooth queue-backed resource.
