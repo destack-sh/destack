@@ -1,3 +1,7 @@
+use super::tests::{
+    bytes_harness_value, decode_clipboard_bytes, decode_clipboard_text, restore_clipboard,
+    snapshot_clipboard, string_harness_value,
+};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::ClipboardBinaryFormat;
 use crate::platform::os::tests::with_harness_context;
@@ -5,17 +9,25 @@ use crate::platform::os::tests::with_harness_context;
 use crate::tests::execution::run_execution_case_or_return;
 use crate::tests::platform::assert_runtime_error_code;
 
-use super::tests::{
-    bytes_harness_value, decode_clipboard_bytes, decode_clipboard_text, restore_clipboard,
-    snapshot_clipboard, string_harness_value,
-};
+/// Return whether one clipboard roundtrip test should defer to the execution harness.
+fn should_skip_clipboard_roundtrip(test_name: &str) -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        run_execution_case_or_return(test_name)
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = test_name;
+
+        false
+    }
+}
 
 /// Verify clipboard text and `TextUtf8` bytes roundtrip on supported hosts.
-#[cfg(any(target_os = "macos", windows))]
 #[cfg_attr(test, test)]
 pub(crate) fn test_clipboard_text_roundtrip() {
-    #[cfg(target_os = "macos")]
-    if run_execution_case_or_return(concat!(
+    if should_skip_clipboard_roundtrip(concat!(
         "destack_runtime::platform::os::clipboard::tests::",
         stringify!(test_clipboard_text_roundtrip)
     )) {
@@ -47,11 +59,9 @@ pub(crate) fn test_clipboard_text_roundtrip() {
 }
 
 /// Verify clipboard html bytes roundtrip on supported hosts.
-#[cfg(any(target_os = "macos", windows))]
 #[cfg_attr(test, test)]
 pub(crate) fn test_clipboard_html_roundtrip() {
-    #[cfg(target_os = "macos")]
-    if run_execution_case_or_return(concat!(
+    if should_skip_clipboard_roundtrip(concat!(
         "destack_runtime::platform::os::clipboard::tests::",
         stringify!(test_clipboard_html_roundtrip)
     )) {
@@ -74,11 +84,9 @@ pub(crate) fn test_clipboard_html_roundtrip() {
 }
 
 /// Verify clipboard clear empties text availability on supported hosts.
-#[cfg(any(target_os = "macos", windows))]
 #[cfg_attr(test, test)]
 pub(crate) fn test_clipboard_clear_resets_text_payload() {
-    #[cfg(target_os = "macos")]
-    if run_execution_case_or_return(concat!(
+    if should_skip_clipboard_roundtrip(concat!(
         "destack_runtime::platform::os::clipboard::tests::",
         stringify!(test_clipboard_clear_resets_text_payload)
     )) {

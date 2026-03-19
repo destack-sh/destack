@@ -1,7 +1,6 @@
 use crate::platform::os::tests::{decode_mount_entries_value, with_harness_context};
 
 /// Verify mount table enumeration returns usable normalized entries.
-#[cfg(any(unix, windows))]
 #[test]
 fn test_mount_list_returns_non_empty_targets() {
     with_harness_context(|mut context| {

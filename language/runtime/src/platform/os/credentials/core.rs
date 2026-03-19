@@ -1,3 +1,8 @@
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+use std::collections::HashMap;
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+use std::sync::{Arc, OnceLock};
+
 use destack_vm as vm;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 use parking_lot::Mutex;
@@ -12,8 +17,6 @@ use crate::platform::os::{
 };
 use crate::platform::{PlatformError, VmSlice, core as core_platform};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
-
-use crate::platform::os::credentials::backend;
 
 /// Operation name for credentials read.
 pub(crate) const OS_CREDENTIALS_READ_OPERATION: &str = "destack.os.credentials.read";
@@ -508,7 +511,7 @@ pub(crate) fn read_credentials(
     )?;
 
     // dispatch to the host backend
-    backend::read_credentials(binding, query)
+    super::target::read_credentials(binding, query)
 }
 
 /// Write one credential record to the active host backend.
@@ -533,7 +536,7 @@ pub(crate) fn write_credentials(
     }
 
     // dispatch to the host backend
-    backend::write_credentials(binding, options)
+    super::target::write_credentials(binding, options)
 }
 
 /// Delete one credential record from the active host backend.
@@ -552,7 +555,7 @@ pub(crate) fn delete_credentials(
     )?;
 
     // dispatch to the host backend
-    backend::delete_credentials(binding, service, account, access_group)
+    super::target::delete_credentials(binding, service, account, access_group)
 }
 
 /// Return whether one credential record exists on the active host backend.
@@ -571,7 +574,7 @@ pub(crate) fn contains_credentials(
     )?;
 
     // dispatch to the host backend
-    backend::contains_credentials(binding, service, account, access_group)
+    super::target::contains_credentials(binding, service, account, access_group)
 }
 
 /// Run one host authentication challenge.
@@ -583,7 +586,7 @@ pub(crate) fn authenticate_credentials(
     validate_authentication_prompt(options)?;
 
     // dispatch to the host backend
-    backend::authenticate_credentials(binding, options)
+    super::target::authenticate_credentials(binding, options)
 }
 
 /// Build one ioInvalidData runtime error.
@@ -674,29 +677,61 @@ pub(crate) fn interrupted(
     .boxed()
 }
 
-/// Runtime-local guard state for no-replace credential writes.
+/// Runtime-local guard state for create-only credential writes.
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 #[derive(Debug, Default)]
-pub(crate) struct NoReplaceWriteRuntimeState {
+pub(crate) struct CredentialCreateGuard {
     /// In-process mutex for check-then-write serialization.
     lock: Mutex<()>,
 }
 
-/// Execute one closure under one runtime-local no-replace write guard.
+/// Shared runtime-local create-only guard registry.
 #[cfg(any(target_os = "linux", target_os = "windows"))]
-pub(crate) fn with_no_replace_write_guard<R>(
+static CREDENTIAL_CREATE_GUARDS: OnceLock<Mutex<HashMap<u64, Arc<CredentialCreateGuard>>>> =
+    OnceLock::new();
+
+/// Return the create-only guard for one host runtime.
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+fn credential_create_guard(binding: &BindingCallContext) -> Arc<CredentialCreateGuard> {
+    // resolve the runtime-local guard registry
+    let registry = CREDENTIAL_CREATE_GUARDS.get_or_init(|| Mutex::new(HashMap::new()));
+
+    // resolve the current host runtime id
+    let runtime_id = binding.host().host_runtime_id().0;
+    let mut registry = registry.lock();
+
+    // reuse the live guard when this runtime already owns one
+    if let Some(guard) = registry.get(&runtime_id) {
+        return Arc::clone(guard);
+    }
+
+    // otherwise create and cache a new runtime-local guard
+    let guard = Arc::new(CredentialCreateGuard::default());
+    registry.insert(runtime_id, Arc::clone(&guard));
+
+    guard
+}
+
+/// Remove one runtime-local credential create guard.
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+pub(crate) fn unregister_credential_runtime(host_runtime_id: u64) {
+    let registry = CREDENTIAL_CREATE_GUARDS.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut registry = registry.lock();
+
+    registry.remove(&host_runtime_id);
+}
+
+/// Execute one closure under one runtime-local create-only write guard.
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+pub(crate) fn with_credential_create_guard<R>(
     binding: &BindingCallContext,
     execute: impl FnOnce() -> RuntimeResult<R>,
 ) -> RuntimeResult<R> {
     // resolve one runtime-local lock holder for credential writes
-    let runtime_state = binding
-        .agent()
-        .platform_state
-        .os
-        .no_replace_write_runtime_state(NoReplaceWriteRuntimeState::default);
+    let guard = credential_create_guard(binding);
 
     // serialize one check-then-write sequence for this runtime
-    let _guard = runtime_state.lock.lock();
+    let _guard = guard.lock.lock();
 
     execute()
 }

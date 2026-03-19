@@ -6,7 +6,6 @@ use crate::platform::os::tests::{decode_system_snapshot_value, now_unix_ns, with
 const UPTIME_PROJECTION_DRIFT_NS: u64 = 10_000_000_000;
 
 /// Verify system snapshot fields are structurally valid across native and VM bindings.
-#[cfg(any(unix, windows))]
 #[test]
 fn test_system_snapshot_returns_valid_fields() {
     with_harness_context(|mut context| {
@@ -25,7 +24,6 @@ fn test_system_snapshot_returns_valid_fields() {
 }
 
 /// Verify uptime and boot-time lanes return stable monotonic values across native and VM bindings.
-#[cfg(any(unix, windows))]
 #[test]
 fn test_uptime_and_boot_time_return_monotonic_values() {
     with_harness_context(|mut context| {

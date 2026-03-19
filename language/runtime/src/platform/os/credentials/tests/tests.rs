@@ -11,13 +11,13 @@ use crate::platform::os::{
 };
 use crate::runtime::NativeStringRef;
 pub(super) use crate::tests::platform::{
-    assert_not_supported_error, assert_runtime_error_code, vm_test_byte_slice, vm_test_string,
+    assert_runtime_error_code, vm_test_byte_slice, vm_test_string,
 };
 
-use crate::platform::os::tests::{HarnessValue, OsHarnessContext};
+use crate::platform::os::tests::{HarnessContext, HarnessValue};
 
 /// Return one raw VM context pointer when this harness run uses vm bindings.
-fn vm_context_pointer(context: &OsHarnessContext<'_>) -> Option<*mut ()> {
+fn vm_context_pointer(context: &HarnessContext<'_>) -> Option<*mut ()> {
     context.vm_context
 }
 
@@ -31,7 +31,7 @@ pub(super) fn unique_suffix() -> u128 {
 
 /// Build one harness string value for native and vm calls.
 pub(super) fn string_value(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     text: &str,
 ) -> HarnessValue<NativeStringRef, destack_vm::StringHandle> {
     // build one vm string value for vm runs
@@ -46,7 +46,7 @@ pub(super) fn string_value(
 
 /// Build one optional harness string value for native and vm calls.
 pub(super) fn optional_string_value(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     text: Option<&str>,
 ) -> HarnessValue<Option<NativeStringRef>, Option<destack_vm::StringHandle>> {
     // build one vm string value for vm runs
@@ -61,7 +61,7 @@ pub(super) fn optional_string_value(
 
 /// Build one harness write-options payload for native and vm calls.
 pub(super) fn credential_write_options_value(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     service: &str,
     account: &str,
     access_group: Option<&str>,
@@ -103,7 +103,7 @@ pub(super) fn credential_write_options_value(
 
 /// Build one harness query payload for native and vm calls.
 pub(super) fn credential_query_value(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     service: &str,
     account: &str,
     access_group: Option<&str>,
@@ -136,7 +136,7 @@ pub(super) fn credential_query_value(
 
 /// Build one harness authentication-options payload for native and vm calls.
 pub(super) fn credential_authentication_options_value(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     title: &str,
     subtitle: &str,
     message: &str,
@@ -168,7 +168,7 @@ pub(super) fn credential_authentication_options_value(
 
 /// Decode one harness credential-record payload into owned fields.
 pub(super) fn decode_credential_record_value(
-    context: &mut OsHarnessContext<'_>,
+    context: &mut HarnessContext<'_>,
     record: HarnessValue<CredentialRecord, CredentialRecordVm>,
 ) -> RuntimeResult<(String, String, Vec<u8>)> {
     // decode the variant that matches this harness mode

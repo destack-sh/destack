@@ -3,8 +3,6 @@ use crate::platform::core as core_platform;
 use crate::platform::os::PowerState;
 use crate::runtime::BindingCallContext;
 
-use crate::platform::os::power::backend;
-
 /// Binding operation name for power-state reads.
 #[cfg(not(target_os = "android"))]
 pub(crate) const OS_POWER_STATE_OPERATION: &str = "destack.os.power.state";
@@ -36,7 +34,7 @@ pub(crate) unsafe fn destack_os_power_state(
     core_platform::ensure_out(out, "out")?;
 
     // read one normalized host power state and write output
-    let state = backend::read_power_state(binding)?;
+    let state = super::target::read_power_state(binding)?;
     unsafe {
         out.write(state);
     }
@@ -46,15 +44,15 @@ pub(crate) unsafe fn destack_os_power_state(
 
 /// Read current host power state through the VM ABI surface.
 pub(crate) fn read_power_state(binding: &BindingCallContext) -> RuntimeResult<PowerState> {
-    backend::read_power_state(binding)
+    super::target::read_power_state(binding)
 }
 
 /// Request one host suspend transition through the active backend.
 pub(crate) unsafe fn destack_os_suspend(binding: &BindingCallContext) -> RuntimeResult<()> {
-    backend::request_suspend(binding)
+    super::target::request_suspend(binding)
 }
 
 /// Request one host suspend transition through the VM ABI surface.
 pub(crate) fn suspend(binding: &BindingCallContext) -> RuntimeResult<()> {
-    backend::request_suspend(binding)
+    super::target::request_suspend(binding)
 }

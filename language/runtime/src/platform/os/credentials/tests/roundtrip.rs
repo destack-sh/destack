@@ -7,7 +7,6 @@ use crate::platform::os::tests::with_harness_context;
 use crate::platform::os::{CredentialAccessibility, CredentialAuthenticationPolicy};
 
 /// Verify credentials roundtrip behavior and parity across native and vm bindings.
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "ios", windows))]
 #[test]
 fn test_credentials_roundtrip() {
     with_harness_context(|mut context| {

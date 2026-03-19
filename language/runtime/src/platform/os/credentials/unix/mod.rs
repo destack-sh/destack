@@ -2,7 +2,6 @@
 mod android;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 mod apple;
-mod backend;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(not(any(
@@ -12,5 +11,6 @@ mod linux;
     target_os = "macos",
 )))]
 mod posix;
+mod target;
 
-pub(crate) use backend::*;
+pub(crate) use target::*;

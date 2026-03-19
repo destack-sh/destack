@@ -9,8 +9,6 @@ use crate::platform::os::{HostIdentity, HostIdentityVm};
 use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
-use crate::platform::os::host::backend;
-
 /// Binding operation name for host identity reads.
 pub(crate) const OS_HOST_IDENTITY_OPERATION: &str = "destack.os.host.identity";
 
@@ -106,7 +104,7 @@ pub(crate) unsafe fn destack_os_host_identity(
     core_platform::ensure_out(out, "out")?;
 
     // read one normalized host identity payload
-    let identity = backend::read_host_identity(binding)?;
+    let identity = super::target::read_host_identity(binding)?;
 
     // encode output payload in call-local runtime storage
     let output = HostIdentity {
@@ -130,7 +128,7 @@ pub(crate) fn destack_os_host_identity_vm(
     context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<HostIdentityVm> {
     // read one normalized host identity payload
-    let identity = backend::read_host_identity(binding)?;
+    let identity = super::target::read_host_identity(binding)?;
 
     // encode the payload in the VM call context
     let output = HostIdentityVm {

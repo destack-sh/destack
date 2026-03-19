@@ -14,7 +14,6 @@ use crate::platform::{NativeAbiCodec, resource};
 use crate::runtime::BindingCallContext;
 use crate::runtime::process::RuntimeScheduledCallbackControl;
 
-use crate::platform::os::network::backend;
 use crate::platform::os::state::{NetworkWatchStream, PlatformOsState, invalid_handle, os_state};
 use crate::platform::os::{
     NetworkConnectionType, NetworkEvent, NetworkEventVm, NetworkState, NetworkStateVm,
@@ -25,7 +24,7 @@ const NETWORK_WATCH_SLICE_NS: u64 = 100_000_000;
 
 /// Read one point-in-time host network state snapshot.
 pub(crate) fn state(binding: &BindingCallContext) -> RuntimeResult<NetworkState> {
-    backend::read_network_state(binding)
+    super::target::read_network_state(binding)
 }
 
 /// Read one point-in-time host network state snapshot from the audited net substrate.
