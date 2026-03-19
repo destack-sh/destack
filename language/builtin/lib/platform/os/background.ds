@@ -99,8 +99,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses BGTaskScheduler on Apple platforms, WorkManager or JobScheduler on Android, and the
-    /// current desktop scheduler bridges plus persisted task records on desktop hosts.
+    /// Returns whether the host currently exposes usable background scheduling for this runtime.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -128,8 +127,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host background scheduler registration queries on mobile and persisted scheduler
-    /// records on current desktop hosts.
+    /// Returns the task registrations currently associated with this runtime identity.
     ///
     /// # Errors
     /// Returns ioWouldBlock, ioInvalidData, notSupported.
@@ -158,8 +156,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host background scheduler registration APIs on mobile and the current desktop
-    /// scheduler bridges on desktop hosts.
+    /// Registers or replaces one persisted background task for this runtime identity.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -187,8 +184,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host background scheduler unregistration APIs on mobile and the current desktop
-    /// scheduler bridges plus persisted task cleanup on desktop hosts.
+    /// Removes one persisted background task registration by identifier.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -216,8 +212,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host developer test hooks where available and runtime-controlled desktop scheduler
-    /// trigger flows on current desktop hosts.
+    /// Requests immediate execution for one registered task where the host exposes a developer trigger path.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -245,8 +240,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host background scheduler completion APIs on mobile and runtime-owned execution
-    /// bookkeeping on current desktop hosts.
+    /// Reports final status for one scheduled background execution.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -277,8 +271,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host background scheduler callback bridges on mobile and runtime-owned ingress for the
-    /// current desktop scheduler bridges.
+    /// Opens one stream of task-ready and task-expired events for this runtime.
     ///
     /// # Errors
     /// Returns ioWouldBlock, notSupported.
@@ -306,7 +299,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host callback unregistration APIs.
+    /// Closes one opened background event stream and releases host routing state.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -334,7 +327,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host background event queues.
+    /// Waits for one queued background event from the opened stream.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -365,7 +358,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Android, Unix, and Windows.
-    /// Uses host nonblocking background event queue reads.
+    /// Returns one queued background event when available without waiting.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
