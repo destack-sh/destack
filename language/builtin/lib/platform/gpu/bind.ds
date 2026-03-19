@@ -5,10 +5,12 @@ import {
     GpuBindGroupLayoutHandle,
     GpuBufferHandle,
     GpuDeviceHandle,
+    GpuExternalTextureHandle,
     GpuPipelineLayoutHandle,
     GpuSamplerHandle,
     GpuTextureViewHandle,
 } from "../resource/index.ds";
+import { GpuTextureFormat, GpuTextureViewDimension } from "./resource.ds";
 
 /// Shader stage visibility bitset.
 export newtype GpuShaderVisibilityMask = uint32;
@@ -27,80 +29,48 @@ export enum GpuShaderVisibilityFlag {
 
 /// Buffer binding layout selector.
 export enum GpuBufferBindingType {
-    /// Buffer lane is not used by this entry.
-    BindingNotUsed = 0,
-    /// Buffer binding type is unspecified.
-    Undefined = 1,
     /// Uniform buffer binding.
-    Uniform = 2,
+    Uniform = 1,
     /// Storage buffer binding.
-    Storage = 3,
+    Storage = 2,
     /// Read-only storage buffer binding.
-    ReadOnlyStorage = 4,
+    ReadOnlyStorage = 3,
 }
 
 /// Sampler binding layout selector.
 export enum GpuSamplerBindingType {
-    /// Sampler lane is not used by this entry.
-    BindingNotUsed = 0,
-    /// Sampler binding type is unspecified.
-    Undefined = 1,
     /// Filtering sampler binding.
-    Filtering = 2,
+    Filtering = 1,
     /// Non-filtering sampler binding.
-    NonFiltering = 3,
+    NonFiltering = 2,
     /// Comparison sampler binding.
-    Comparison = 4,
+    Comparison = 3,
 }
 
 /// Texture sample-type selector.
 export enum GpuTextureSampleType {
-    /// Texture lane is not used by this entry.
-    BindingNotUsed = 0,
-    /// Texture sample type is unspecified.
-    Undefined = 1,
     /// Filterable floating-point sample type.
-    Float = 2,
+    Float = 1,
     /// Non-filterable floating-point sample type.
-    UnfilterableFloat = 3,
+    UnfilterableFloat = 2,
     /// Depth sample type.
-    Depth = 4,
+    Depth = 3,
     /// Signed integer sample type.
-    Sint = 5,
+    Sint = 4,
     /// Unsigned integer sample type.
-    Uint = 6,
-}
-
-/// Texture view-dimension selector.
-export enum GpuTextureViewDimension {
-    /// View dimension is unspecified.
-    Undefined = 0,
-    /// One-dimensional texture view.
-    D1 = 1,
-    /// Two-dimensional texture view.
-    D2 = 2,
-    /// Two-dimensional texture-array view.
-    D2Array = 3,
-    /// Cube texture view.
-    Cube = 4,
-    /// Cube texture-array view.
-    CubeArray = 5,
-    /// Three-dimensional texture view.
-    D3 = 6,
+    Uint = 5,
 }
 
 /// Storage-texture access selector.
 export enum GpuStorageTextureAccess {
-    /// Storage-texture lane is not used by this entry.
-    BindingNotUsed = 0,
-    /// Storage-texture access is unspecified.
-    Undefined = 1,
     /// Write-only storage-texture access.
-    WriteOnly = 2,
+    WriteOnly = 1,
     /// Read-only storage-texture access.
-    ReadOnly = 3,
+    ReadOnly = 2,
     /// Read-write storage-texture access.
-    ReadWrite = 4,
+    ReadWrite = 3,
+    /// Atomic storage-texture access.
+    Atomic = 4,
 }
 
 /// Buffer bind group layout resource payload.
@@ -134,7 +104,7 @@ export struct GpuBindGroupLayoutStorageTextureResource {
     /// Storage-texture access selector.
     storageTextureAccess: GpuStorageTextureAccess;
     /// Storage-texture format identifier.
-    storageTextureFormat: uint32;
+    storageTextureFormat: GpuTextureFormat;
     /// Texture view dimension selector.
     textureViewDimension: GpuTextureViewDimension;
 }
@@ -147,12 +117,19 @@ export struct GpuBindGroupLayoutSamplerResource {
     samplerBindingType: GpuSamplerBindingType;
 }
 
+/// External-texture bind group layout resource payload.
+export struct GpuBindGroupLayoutExternalTextureResource {
+    /// Discriminator for this bind-group-layout resource variant.
+    kind: "externalTexture";
+}
+
 /// Bind group layout resource payload.
 export newtype GpuBindGroupLayoutResource =
     | GpuBindGroupLayoutBufferResource
     | GpuBindGroupLayoutSampledTextureResource
     | GpuBindGroupLayoutStorageTextureResource
-    | GpuBindGroupLayoutSamplerResource;
+    | GpuBindGroupLayoutSamplerResource
+    | GpuBindGroupLayoutExternalTextureResource;
 
 /// Bind group layout entry.
 export struct GpuBindGroupLayoutEntry {
@@ -160,8 +137,8 @@ export struct GpuBindGroupLayoutEntry {
     binding: uint32;
     /// Shader stage visibility mask.
     visibility: GpuShaderVisibilityMask;
-    /// Binding array length, zero when not an array binding.
-    bindingArrayCount: uint32;
+    /// Binding array length when this entry is array-backed.
+    bindingArrayCount: uint32 | void;
     /// Typed resource payload.
     resource: GpuBindGroupLayoutResource;
 }
@@ -194,24 +171,43 @@ export struct GpuBindGroupSamplerResource {
     sampler: GpuSamplerHandle;
 }
 
+/// External-texture bind group resource payload.
+export struct GpuBindGroupExternalTextureResource {
+    /// Discriminator for this bind-group resource variant.
+    kind: "externalTexture";
+    /// External-texture handle.
+    externalTexture: GpuExternalTextureHandle;
+}
+
 /// Bind group resource payload.
 export newtype GpuBindGroupResource =
     | GpuBindGroupBufferResource
     | GpuBindGroupTextureResource
-    | GpuBindGroupSamplerResource;
+    | GpuBindGroupSamplerResource
+    | GpuBindGroupExternalTextureResource;
 
 /// Bind group resource entry.
 export struct GpuBindGroupEntry {
     /// Binding index.
     binding: uint32;
-    /// Binding array element index, zero when not array-indexed.
-    bindingArrayElement: uint32;
+    /// Binding array element index when this entry targets one array element.
+    bindingArrayElement: uint32 | void;
     /// Typed resource payload.
     resource: GpuBindGroupResource;
 }
 
+/// Bind-group-layout creation options.
+export struct GpuBindGroupLayoutOptions {
+    /// Debug label.
+    label: string;
+    /// Bind-group-layout option flags.
+    flags: uint32;
+}
+
 /// Pipeline layout options.
 export struct GpuPipelineLayoutOptions {
+    /// Debug label.
+    label: string;
     /// Ordered bind group layouts for this pipeline layout.
     bindGroupLayouts: Slice<GpuBindGroupLayoutHandle>;
     /// Immediate-data byte size when supported.
@@ -220,11 +216,19 @@ export struct GpuPipelineLayoutOptions {
     flags: uint32;
 }
 
+/// Bind-group creation options.
+export struct GpuBindGroupOptions {
+    /// Debug label.
+    label: string;
+    /// Bind-group option flags.
+    flags: uint32;
+}
+
 /// GPU bind bindings.
 declare namespace gpu {
-    /// Create one bind group layout.
+    /// Create a bind group layout.
     ///
-    /// Create one bind group layout descriptor from ordered binding entries.
+    /// Create a bind group layout from ordered binding entries.
     /// Validation rules follow backend pipeline-layout contracts.
     ///
     /// # Platform
@@ -252,12 +256,12 @@ declare namespace gpu {
     export function bindGroupLayoutCreate(
         device: GpuDeviceHandle,
         entries: Slice<GpuBindGroupLayoutEntry>,
-        flags: uint32,
+        options: GpuBindGroupLayoutOptions,
     ): Result<GpuBindGroupLayoutHandle, PlatformError>;
 
-    /// Destroy one bind group layout.
+    /// Destroy a bind group layout.
     ///
-    /// Destroy one bind group layout and release backend descriptor-layout resources.
+    /// Destroy a bind group layout and release backend descriptor-layout resources.
     /// The layout handle becomes invalid after destroy.
     ///
     /// # Platform
@@ -284,9 +288,9 @@ declare namespace gpu {
     })
     export function bindGroupLayoutDestroy(handle: GpuBindGroupLayoutHandle): Result<void, PlatformError>;
 
-    /// Create one pipeline layout.
+    /// Create a pipeline layout.
     ///
-    /// Create one pipeline layout from ordered bind group layouts.
+    /// Create a pipeline layout from ordered bind group layouts.
     /// Backend layout compatibility checks occur during creation.
     ///
     /// # Platform
@@ -316,9 +320,9 @@ declare namespace gpu {
         options: GpuPipelineLayoutOptions,
     ): Result<GpuPipelineLayoutHandle, PlatformError>;
 
-    /// Destroy one pipeline layout.
+    /// Destroy a pipeline layout.
     ///
-    /// Destroy one pipeline layout and release backend layout resources.
+    /// Destroy a pipeline layout and release backend layout resources.
     /// The layout handle becomes invalid after destroy.
     ///
     /// # Platform
@@ -345,9 +349,9 @@ declare namespace gpu {
     })
     export function pipelineLayoutDestroy(handle: GpuPipelineLayoutHandle): Result<void, PlatformError>;
 
-    /// Create one bind group.
+    /// Create a bind group.
     ///
-    /// Create one bind group from one layout and explicit resource entries.
+    /// Create a bind group from a layout and explicit resource entries.
     /// Resource compatibility is validated against the target layout.
     ///
     /// # Platform
@@ -376,12 +380,12 @@ declare namespace gpu {
         device: GpuDeviceHandle,
         layout: GpuBindGroupLayoutHandle,
         entries: Slice<GpuBindGroupEntry>,
-        flags: uint32,
+        options: GpuBindGroupOptions,
     ): Result<GpuBindGroupHandle, PlatformError>;
 
-    /// Destroy one bind group.
+    /// Destroy a bind group.
     ///
-    /// Destroy one bind group and release backend descriptor allocation resources.
+    /// Destroy a bind group and release backend descriptor allocation resources.
     /// The bind group handle becomes invalid after destroy.
     ///
     /// # Platform

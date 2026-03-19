@@ -1,6 +1,7 @@
 import { Array, Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { GpuAdapterHandle, GpuSurfaceHandle } from "../resource/index.ds";
+import { GpuTextureFormat, GpuTextureUsageMask } from "./resource.ds";
 
 /// GPU backend selector.
 export enum GpuBackend {
@@ -11,15 +12,13 @@ export enum GpuBackend {
     /// Metal backend.
     Metal = 2,
     /// Direct3D 12 backend.
-    D3D12 = 3,
-    /// OpenGL backend.
-    OpenGL = 4,
-    /// OpenGL ES backend.
-    OpenGles = 5,
-    /// WebGPU backend.
-    WebGpu = 6,
-    /// Null backend for tests and simulation.
-    Null = 255,
+    Dx12 = 3,
+    /// OpenGL or OpenGL ES backend.
+    Gl = 4,
+    /// Browser WebGPU backend.
+    BrowserWebGpu = 5,
+    /// No-op backend for tests and simulation.
+    Noop = 255,
 }
 
 /// GPU adapter category.
@@ -47,7 +46,184 @@ export enum GpuPowerPreference {
 }
 
 /// Stable GPU feature identifier.
-export newtype GpuFeatureId = uint32;
+///
+/// These identifiers map one-to-one to WebGPU and `wgpu` feature names.
+/// Values are grouped into one web feature bank and one native feature bank.
+export enum GpuFeatureId {
+    /// Enables depth clip control.
+    DepthClipControl = 0x10000,
+    /// Enables `depth32float-stencil8`.
+    Depth32FloatStencil8 = 0x10001,
+    /// Enables BC texture compression.
+    TextureCompressionBc = 0x10002,
+    /// Enables 3D BC texture compression.
+    TextureCompressionBcSliced3D = 0x10003,
+    /// Enables ETC2 texture compression.
+    TextureCompressionEtc2 = 0x10004,
+    /// Enables ASTC texture compression.
+    TextureCompressionAstc = 0x10005,
+    /// Enables 3D ASTC texture compression.
+    TextureCompressionAstcSliced3D = 0x10006,
+    /// Enables timestamp queries.
+    TimestampQuery = 0x10007,
+    /// Enables nonzero indirect first instance.
+    IndirectFirstInstance = 0x10008,
+    /// Enables shader `f16`.
+    ShaderF16 = 0x10009,
+    /// Enables `rg11b10ufloat` render targets.
+    Rg11B10UfloatRenderable = 0x1000a,
+    /// Enables `bgra8unorm` storage textures.
+    Bgra8UnormStorage = 0x1000b,
+    /// Enables filterable 32-bit float textures.
+    Float32Filterable = 0x1000c,
+    /// Enables blendable 32-bit float textures.
+    Float32Blendable = 0x1000d,
+    /// Enables dual-source blending.
+    DualSourceBlending = 0x1000e,
+    /// Enables clip distances.
+    ClipDistances = 0x1000f,
+    /// Enables immediate data.
+    Immediates = 0x10010,
+
+    /// Enables shader `atomic<f32>`.
+    ShaderFloat32Atomic = 0x20000,
+    /// Enables 16-bit normalized texture formats.
+    TextureFormat16BitNorm = 0x20001,
+    /// Enables ASTC HDR texture formats.
+    TextureCompressionAstcHdr = 0x20002,
+    /// Enables adapter-specific texture format features.
+    TextureAdapterSpecificFormatFeatures = 0x20003,
+    /// Enables pipeline statistics queries.
+    PipelineStatisticsQuery = 0x20004,
+    /// Enables timestamp writes inside command encoders.
+    TimestampQueryInsideEncoders = 0x20005,
+    /// Enables timestamp writes inside passes.
+    TimestampQueryInsidePasses = 0x20006,
+    /// Enables mappable primary buffers.
+    MappablePrimaryBuffers = 0x20007,
+    /// Enables texture binding arrays.
+    TextureBindingArray = 0x20008,
+    /// Enables buffer binding arrays.
+    BufferBindingArray = 0x20009,
+    /// Enables storage resource binding arrays.
+    StorageResourceBindingArray = 0x2000a,
+    /// Enables nonuniform indexing for sampled-texture and storage-buffer arrays.
+    SampledTextureAndStorageBufferArrayNonUniformIndexing = 0x2000b,
+    /// Enables nonuniform indexing for storage-texture arrays.
+    StorageTextureArrayNonUniformIndexing = 0x2000c,
+    /// Enables partially bound binding arrays.
+    PartiallyBoundBindingArray = 0x2000d,
+    /// Enables multi-draw indirect count.
+    MultiDrawIndirectCount = 0x2000f,
+    /// Enables clamp-to-zero address mode.
+    AddressModeClampToZero = 0x20011,
+    /// Enables clamp-to-border address mode.
+    AddressModeClampToBorder = 0x20012,
+    /// Enables line polygon mode.
+    PolygonModeLine = 0x20013,
+    /// Enables point polygon mode.
+    PolygonModePoint = 0x20014,
+    /// Enables conservative rasterization.
+    ConservativeRasterization = 0x20015,
+    /// Enables writable storage from vertex shaders.
+    VertexWritableStorage = 0x20016,
+    /// Enables explicit texture clears.
+    ClearTexture = 0x20017,
+    /// Enables multiview rendering.
+    Multiview = 0x2001a,
+    /// Enables 64-bit vertex attributes.
+    VertexAttribute64Bit = 0x2001b,
+    /// Enables texture atomics.
+    TextureAtomic = 0x2001c,
+    /// Enables NV12 texture format support.
+    TextureFormatNv12 = 0x2001d,
+    /// Enables P010 texture format support.
+    TextureFormatP010 = 0x2001e,
+    /// Enables external textures.
+    ExternalTexture = 0x2001f,
+    /// Enables experimental ray queries.
+    ExperimentalRayQuery = 0x20020,
+    /// Enables shader `f64`.
+    ShaderF64 = 0x20021,
+    /// Enables shader `i16`.
+    ShaderI16 = 0x20022,
+    /// Enables shader primitive index builtins.
+    ShaderPrimitiveIndex = 0x20023,
+    /// Enables early depth tests in shaders.
+    ShaderEarlyDepthTest = 0x20024,
+    /// Enables shader `i64`.
+    ShaderInt64 = 0x20025,
+    /// Enables subgroup operations.
+    Subgroup = 0x20026,
+    /// Enables subgroup operations in vertex shaders.
+    SubgroupVertex = 0x20027,
+    /// Enables subgroup barriers.
+    SubgroupBarrier = 0x20028,
+    /// Enables pipeline caches.
+    PipelineCache = 0x20029,
+    /// Enables `i64` atomic min and max.
+    ShaderInt64AtomicMinMax = 0x2002a,
+    /// Enables full `i64` atomic operations.
+    ShaderInt64AtomicAllOps = 0x2002b,
+    /// Enables Vulkan Google display timing.
+    VulkanGoogleDisplayTiming = 0x2002c,
+    /// Enables Vulkan external memory on Win32.
+    VulkanExternalMemoryWin32 = 0x2002d,
+    /// Enables 64-bit texture atomics.
+    TextureInt64Atomic = 0x2002e,
+    /// Enables uniform buffer binding arrays.
+    UniformBufferBindingArrays = 0x2002f,
+    /// Enables experimental mesh shaders.
+    ExperimentalMeshShader = 0x20030,
+    /// Enables experimental ray hit vertex return.
+    ExperimentalRayHitVertexReturn = 0x20031,
+    /// Enables experimental mesh-shader multiview.
+    ExperimentalMeshShaderMultiview = 0x20032,
+    /// Enables extended acceleration-structure vertex formats.
+    ExtendedAccelerationStructureVertexFormats = 0x20033,
+    /// Enables experimental passthrough shaders.
+    ExperimentalPassthroughShaders = 0x20034,
+    /// Enables shader barycentrics.
+    ShaderBarycentrics = 0x20035,
+    /// Enables selective multiview.
+    SelectiveMultiview = 0x20036,
+    /// Enables experimental mesh-shader points.
+    ExperimentalMeshShaderPoints = 0x20037,
+    /// Enables multisample arrays.
+    MultisampleArray = 0x20038,
+    /// Enables experimental cooperative matrices.
+    ExperimentalCooperativeMatrix = 0x20039,
+    /// Enables per-vertex shader outputs.
+    ShaderPerVertex = 0x2003a,
+    /// Enables shader draw index builtins.
+    ShaderDrawIndex = 0x2003b,
+}
+
+/// Texture-format feature bitset.
+export newtype GpuTextureFormatFeatureFlags = uint32;
+
+/// Texture-format feature bit for filterable sampling.
+export const GPU_TEXTURE_FORMAT_FEATURE_FILTERABLE: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x1);
+/// Texture-format feature bit for sample count 2.
+export const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_X2: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x2);
+/// Texture-format feature bit for sample count 4.
+export const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_X4: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x4);
+/// Texture-format feature bit for sample count 8.
+export const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_X8: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x8);
+/// Texture-format feature bit for sample count 16.
+export const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_X16: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x10);
+/// Texture-format feature bit for multisample resolve targets.
+export const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_RESOLVE: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x20);
+/// Texture-format feature bit for read-only storage access.
+export const GPU_TEXTURE_FORMAT_FEATURE_STORAGE_READ_ONLY: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x40);
+/// Texture-format feature bit for write-only storage access.
+export const GPU_TEXTURE_FORMAT_FEATURE_STORAGE_WRITE_ONLY: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x80);
+/// Texture-format feature bit for read-write storage access.
+export const GPU_TEXTURE_FORMAT_FEATURE_STORAGE_READ_WRITE: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x100);
+/// Texture-format feature bit for atomic storage access.
+export const GPU_TEXTURE_FORMAT_FEATURE_STORAGE_ATOMIC: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x200);
+/// Texture-format feature bit for blendable render attachments.
+export const GPU_TEXTURE_FORMAT_FEATURE_BLENDABLE: GpuTextureFormatFeatureFlags = GpuTextureFormatFeatureFlags(0x400);
 
 /// Adapter discovery options.
 export struct GpuAdapterRequest {
@@ -84,15 +260,19 @@ export struct GpuAdapterLimits {
     /// Maximum color-attachment bytes written per sample.
     maxColorAttachmentBytesPerSample: uint32;
     /// Maximum sampled textures per shader stage.
-    maxSampledTexturesPerStage: uint32;
+    maxSampledTexturesPerShaderStage: uint32;
     /// Maximum samplers per shader stage.
-    maxSamplersPerStage: uint32;
+    maxSamplersPerShaderStage: uint32;
     /// Maximum storage buffers per shader stage.
-    maxStorageBuffersPerStage: uint32;
+    maxStorageBuffersPerShaderStage: uint32;
     /// Maximum storage textures per shader stage.
-    maxStorageTexturesPerStage: uint32;
+    maxStorageTexturesPerShaderStage: uint32;
     /// Maximum uniform buffers per shader stage.
-    maxUniformBuffersPerStage: uint32;
+    maxUniformBuffersPerShaderStage: uint32;
+    /// Maximum non-sampler binding-array elements per shader stage.
+    maxBindingArrayElementsPerShaderStage: uint32;
+    /// Maximum sampler binding-array elements per shader stage.
+    maxBindingArraySamplerElementsPerShaderStage: uint32;
     /// Maximum dynamic uniform buffers per pipeline layout.
     maxDynamicUniformBuffersPerPipelineLayout: uint32;
     /// Maximum dynamic storage buffers per pipeline layout.
@@ -129,6 +309,42 @@ export struct GpuAdapterLimits {
     maxComputeWorkgroupSizeZ: uint32;
     /// Maximum compute workgroups per dispatch dimension.
     maxComputeWorkgroupsPerDimension: uint32;
+    /// Maximum immediate-data bytes.
+    maxImmediateSize: uint32;
+    /// Maximum live non-sampler bindings.
+    maxNonSamplerBindings: uint32;
+    /// Maximum total mesh-task workgroup count.
+    maxTaskMeshWorkgroupTotalCount: uint32;
+    /// Maximum mesh-task workgroups per dimension.
+    maxTaskMeshWorkgroupsPerDimension: uint32;
+    /// Maximum task-shader invocations per workgroup.
+    maxTaskInvocationsPerWorkgroup: uint32;
+    /// Maximum task-shader invocations per dimension.
+    maxTaskInvocationsPerDimension: uint32;
+    /// Maximum mesh-shader invocations per workgroup.
+    maxMeshInvocationsPerWorkgroup: uint32;
+    /// Maximum mesh-shader invocations per dimension.
+    maxMeshInvocationsPerDimension: uint32;
+    /// Maximum task-shader payload size in bytes.
+    maxTaskPayloadSize: uint32;
+    /// Maximum mesh-shader output vertices.
+    maxMeshOutputVertices: uint32;
+    /// Maximum mesh-shader output primitives.
+    maxMeshOutputPrimitives: uint32;
+    /// Maximum mesh-shader output layers.
+    maxMeshOutputLayers: uint32;
+    /// Maximum mesh-shader multiview view count.
+    maxMeshMultiviewViewCount: uint32;
+    /// Maximum bottom-level acceleration-structure primitive count.
+    maxBlasPrimitiveCount: uint32;
+    /// Maximum bottom-level acceleration-structure geometry count.
+    maxBlasGeometryCount: uint32;
+    /// Maximum top-level acceleration-structure instance count.
+    maxTlasInstanceCount: uint32;
+    /// Maximum acceleration structures per shader stage.
+    maxAccelerationStructuresPerShaderStage: uint32;
+    /// Maximum multiview view count.
+    maxMultiviewViewCount: uint32;
 }
 
 /// GPU adapter information.
@@ -143,6 +359,8 @@ export struct GpuAdapterInfo {
     driver: string;
     /// Host driver version when available.
     driverVersion: string;
+    /// Additional driver metadata when available.
+    driverInfo: string;
     /// Backend API kind.
     backend: GpuBackend;
     /// Adapter category.
@@ -151,10 +369,14 @@ export struct GpuAdapterInfo {
     vendorId: uint32;
     /// Device identifier when available.
     deviceId: uint32;
+    /// Backend-specific PCI bus identifier when available.
+    pciBusId: string;
     /// Minimum subgroup size when available.
     subgroupMinSize: uint32;
     /// Maximum subgroup size when available.
     subgroupMaxSize: uint32;
+    /// Whether transient attachments can reduce backing-memory usage on this adapter.
+    transientSavesMemory: boolean;
     /// Whether this adapter is a fallback implementation.
     isFallback: boolean;
     /// Supported feature identifiers.
@@ -166,25 +388,18 @@ export struct GpuAdapterInfo {
 /// Adapter texture-format capability snapshot.
 export struct GpuAdapterFormatCapabilities {
     /// Texture format identifier.
-    format: uint32;
-    /// Supported usage bitset for this format.
-    usageMask: uint64;
-    /// Whether this format can be used as render attachment.
-    renderable: boolean;
-    /// Whether this format can be blended when used as render attachment.
-    blendable: boolean;
-    /// Whether this format supports multisampling.
-    multisample: boolean;
-    /// Supported sample-count bitset.
-    sampleCountMask: uint32;
+    format: GpuTextureFormat;
+    /// Allowed usages for this format.
+    allowedUsages: GpuTextureUsageMask;
+    /// Additional texture-format feature flags.
+    flags: GpuTextureFormatFeatureFlags;
 }
 
 /// GPU adapter bindings.
 declare namespace gpu {
     /// List available GPU adapters.
     ///
-    /// Enumerate host GPU adapters and return stable identifiers with normalized capability metadata.
-    /// Adapter visibility and ordering follow host graphics API enumeration behavior.
+    /// List host GPU adapters with stable identifiers and normalized capability metadata.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -210,10 +425,9 @@ declare namespace gpu {
     })
     export function adapterList(request: GpuAdapterRequest): Result<Array<GpuAdapterInfo>, PlatformError>;
 
-    /// Open one GPU adapter.
+    /// Open a GPU adapter.
     ///
-    /// Open one host GPU adapter endpoint for device creation and capability queries.
-    /// Handle lifetime follows host backend object ownership semantics.
+    /// Open a GPU adapter for device creation and capability queries.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -239,10 +453,9 @@ declare namespace gpu {
     })
     export function adapterOpen(id: string): Result<GpuAdapterHandle, PlatformError>;
 
-    /// Read metadata for one opened adapter.
+    /// Read adapter metadata.
     ///
-    /// Query the current normalized adapter metadata through an opened adapter handle.
-    /// Returned values reflect host backend limits and feature reporting.
+    /// Read the current normalized adapter metadata.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -268,10 +481,10 @@ declare namespace gpu {
     })
     export function adapterInfo(handle: GpuAdapterHandle): Result<GpuAdapterInfo, PlatformError>;
 
-    /// Read one adapter feature snapshot.
+    /// Read an adapter feature snapshot.
     ///
-    /// Read one feature identifier snapshot from one opened adapter.
-    /// Feature identifiers follow runtime GPU feature contracts.
+    /// Read the enabled feature identifiers for an adapter.
+    /// Feature identifiers follow the runtime GPU feature registry.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -297,9 +510,9 @@ declare namespace gpu {
     })
     export function adapterFeatures(handle: GpuAdapterHandle): Result<Slice<GpuFeatureId>, PlatformError>;
 
-    /// Read one adapter limits snapshot.
+    /// Read an adapter limits snapshot.
     ///
-    /// Read one normalized limits snapshot from one opened adapter.
+    /// Read the normalized limits for an adapter.
     /// Limits remain stable for the adapter lifetime.
     ///
     /// # Platform
@@ -326,10 +539,10 @@ declare namespace gpu {
     })
     export function adapterLimits(handle: GpuAdapterHandle): Result<GpuAdapterLimits, PlatformError>;
 
-    /// Check whether one adapter supports one feature.
+    /// Check whether an adapter supports a feature.
     ///
-    /// Check one feature identifier against one opened adapter feature set.
-    /// Feature identifiers follow runtime GPU feature contracts.
+    /// Check one feature identifier against the adapter feature set.
+    /// Feature identifiers follow the runtime GPU feature registry.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -358,10 +571,9 @@ declare namespace gpu {
         feature: GpuFeatureId,
     ): Result<boolean, PlatformError>;
 
-    /// Query one adapter texture-format capability snapshot.
+    /// Query texture-format capabilities for an adapter.
     ///
-    /// Query one texture format on one adapter and return normalized format capability data.
-    /// Capabilities can vary by backend and device generation.
+    /// Query one texture format on an adapter and return normalized capability data.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -387,12 +599,12 @@ declare namespace gpu {
     })
     export function adapterFormatCapabilities(
         handle: GpuAdapterHandle,
-        format: uint32,
+        format: GpuTextureFormat,
     ): Result<GpuAdapterFormatCapabilities, PlatformError>;
 
-    /// Close one GPU adapter.
+    /// Close a GPU adapter.
     ///
-    /// Close one opened adapter endpoint and release host backend references.
+    /// Close an adapter and release host backend references.
     /// The adapter handle becomes invalid after close.
     ///
     /// # Platform
