@@ -12,7 +12,7 @@ use crate::runtime::{BindingCallContext, NativeStringRef};
 
 use super::constants::{
     AUDIO_DEVICE_RESOURCE_LABEL, AUDIO_EVENT_RESOURCE_LABEL, AUDIO_STREAM_RESOURCE_LABEL,
-    KNOWN_STREAM_FLAGS_MASK, KNOWN_STREAM_REQUIREMENT_FLAGS_MASK, STREAM_FLAG_NON_INTERLEAVED,
+    KNOWN_STREAM_FLAGS_MASK, KNOWN_STREAM_REQUIREMENT_FLAGS_MASK,
 };
 use super::model::{
     AudioDeviceHostState, AudioEventStream, AudioStreamHostState, AudioStreamStateInner,
@@ -292,9 +292,11 @@ pub(crate) fn validate_stream_open_options_for_backend(
     backend: AudioBackend,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    if (options.flags.0 & STREAM_FLAG_NON_INTERLEAVED.0) != 0 && backend != AudioBackend::Asio {
+    let supported_flags = super::device::supported_backend_stream_flags(backend);
+    let unsupported_flags = options.flags.0 & !supported_flags.0;
+    if unsupported_flags != 0 {
         return Err(RuntimeError::from(PlatformError::not_supported(format!(
-            "{operation} stream flag: non interleaved"
+            "{operation} unsupported stream flags for backend {backend:?}: 0x{unsupported_flags:08x}"
         )))
         .boxed());
     }

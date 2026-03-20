@@ -56,12 +56,6 @@ pub(crate) const KNOWN_DEVICE_LIST_FLAGS_MASK: u32 = DEVICE_LIST_INCLUDE_DISCONN
     | DEVICE_LIST_INCLUDE_LOOPBACK.0
     | DEVICE_LIST_INCLUDE_DUPLICATES.0;
 
-/// Follow default-route migrations for default endpoint identifiers.
-pub(crate) const DEVICE_OPEN_FOLLOW_DEFAULT_ROUTE: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x1);
-/// Request low-latency scheduling policy where supported.
-pub(crate) const DEVICE_OPEN_LOW_LATENCY: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x2);
-/// Request realtime callback thread scheduling where available.
-pub(crate) const DEVICE_OPEN_REALTIME_THREAD: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x4);
 /// Request raw endpoint mode where available.
 pub(crate) const DEVICE_OPEN_RAW: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x8);
 /// Request ALSA no-resample mode when the backend supports it.
@@ -71,12 +65,8 @@ pub(crate) const BACKEND_OPEN_ALSA_NO_RESAMPLE: AudioBackendOpenFlags =
 pub(crate) const BACKEND_OPEN_JACK_NO_AUTOCONNECT: AudioBackendOpenFlags =
     AudioDeviceOpenFlags(0x2_0000);
 /// Mask for all known device-open option bits.
-pub(crate) const KNOWN_DEVICE_OPEN_FLAGS_MASK: u32 = DEVICE_OPEN_FOLLOW_DEFAULT_ROUTE.0
-    | DEVICE_OPEN_LOW_LATENCY.0
-    | DEVICE_OPEN_REALTIME_THREAD.0
-    | DEVICE_OPEN_RAW.0
-    | BACKEND_OPEN_ALSA_NO_RESAMPLE.0
-    | BACKEND_OPEN_JACK_NO_AUTOCONNECT.0;
+pub(crate) const KNOWN_DEVICE_OPEN_FLAGS_MASK: u32 =
+    DEVICE_OPEN_RAW.0 | BACKEND_OPEN_ALSA_NO_RESAMPLE.0 | BACKEND_OPEN_JACK_NO_AUTOCONNECT.0;
 
 /// Backend supports hotplug notifications.
 pub(crate) const BACKEND_CAPABILITY_HOTPLUG_EVENTS: AudioBackendCapabilityFlags =
@@ -105,6 +95,9 @@ pub(crate) const BACKEND_CAPABILITY_DEVICE_CLOCK: AudioBackendCapabilityFlags =
 /// Backend supports scheduled write or presentation-time submission.
 pub(crate) const BACKEND_CAPABILITY_SCHEDULED_WRITE: AudioBackendCapabilityFlags =
     AudioBackendCapabilityFlags(0x100);
+/// Backend supports native device-event ingress in addition to polling fallback.
+pub(crate) const BACKEND_CAPABILITY_NATIVE_EVENT_FEED: AudioBackendCapabilityFlags =
+    AudioBackendCapabilityFlags(0x200);
 /// Device supports shared stream mode.
 pub(crate) const DEVICE_CAPABILITY_SHARED_MODE: AudioDeviceCapabilityFlags =
     AudioDeviceCapabilityFlags(0x1);
@@ -147,27 +140,18 @@ pub(crate) const DEVICE_CAPABILITY_BIT_EXACT_PCM: AudioDeviceCapabilityFlags =
 pub(crate) const STREAM_FLAG_NON_INTERLEAVED: AudioStreamFlags = AudioStreamFlags(0x1);
 /// Request minimized callback period where supported.
 pub(crate) const STREAM_FLAG_MINIMIZE_LATENCY: AudioStreamFlags = AudioStreamFlags(0x2);
-/// Request realtime callback scheduling where supported.
-pub(crate) const STREAM_FLAG_SCHEDULE_REALTIME: AudioStreamFlags = AudioStreamFlags(0x4);
 /// Request explicit sample-format matching with no backend substitution.
 pub(crate) const STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT: AudioStreamFlags = AudioStreamFlags(0x8);
 /// Disable backend-side automatic format conversion where possible.
 pub(crate) const STREAM_FLAG_NO_AUTO_CONVERT: AudioStreamFlags = AudioStreamFlags(0x10);
 /// Request backend xrun status reporting where available.
 pub(crate) const STREAM_FLAG_REPORT_XRUN: AudioStreamFlags = AudioStreamFlags(0x20);
-/// Request input no-drop capture behavior where available.
-pub(crate) const STREAM_FLAG_NEVER_DROP_INPUT: AudioStreamFlags = AudioStreamFlags(0x40);
-/// Request backend output-buffer priming behavior where available.
-pub(crate) const STREAM_FLAG_PRIME_OUTPUT_BUFFERS: AudioStreamFlags = AudioStreamFlags(0x80);
 /// Mask for all known stream option bits.
 pub(crate) const KNOWN_STREAM_FLAGS_MASK: u32 = STREAM_FLAG_NON_INTERLEAVED.0
     | STREAM_FLAG_MINIMIZE_LATENCY.0
-    | STREAM_FLAG_SCHEDULE_REALTIME.0
     | STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT.0
     | STREAM_FLAG_NO_AUTO_CONVERT.0
-    | STREAM_FLAG_REPORT_XRUN.0
-    | STREAM_FLAG_NEVER_DROP_INPUT.0
-    | STREAM_FLAG_PRIME_OUTPUT_BUFFERS.0;
+    | STREAM_FLAG_REPORT_XRUN.0;
 
 /// Require one non-interleaved stream layout.
 pub(crate) const STREAM_REQUIRE_NON_INTERLEAVED: AudioStreamRequirementFlags =
@@ -194,36 +178,18 @@ pub(crate) const KNOWN_STREAM_REQUIREMENT_FLAGS_MASK: u32 = STREAM_REQUIRE_NON_I
 /// Supported-stream-flag bit for non-interleaved buffers.
 pub(crate) const SUPPORTED_STREAM_FLAG_NON_INTERLEAVED: AudioSupportedStreamFlags =
     AudioSupportedStreamFlags(0x1);
-/// Supported-stream-flag bit for low-latency policy.
+/// Supported-stream-flag bit for low-latency callback policy.
 pub(crate) const SUPPORTED_STREAM_FLAG_MINIMIZE_LATENCY: AudioSupportedStreamFlags =
     AudioSupportedStreamFlags(0x2);
-/// Supported-stream-flag bit for realtime scheduling.
-pub(crate) const SUPPORTED_STREAM_FLAG_SCHEDULE_REALTIME: AudioSupportedStreamFlags =
-    AudioSupportedStreamFlags(0x4);
-/// Supported-stream-flag bit for explicit format selection.
+/// Supported-stream-flag bit for explicit sample-format matching.
 pub(crate) const SUPPORTED_STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT: AudioSupportedStreamFlags =
     AudioSupportedStreamFlags(0x8);
-/// Supported-stream-flag bit for no auto-convert policy.
+/// Supported-stream-flag bit for disabling backend auto-convert.
 pub(crate) const SUPPORTED_STREAM_FLAG_NO_AUTO_CONVERT: AudioSupportedStreamFlags =
     AudioSupportedStreamFlags(0x10);
 /// Supported-stream-flag bit for xrun reporting.
 pub(crate) const SUPPORTED_STREAM_FLAG_REPORT_XRUN: AudioSupportedStreamFlags =
     AudioSupportedStreamFlags(0x20);
-/// Supported-stream-flag bit for never-drop-input policy.
-pub(crate) const SUPPORTED_STREAM_FLAG_NEVER_DROP_INPUT: AudioSupportedStreamFlags =
-    AudioSupportedStreamFlags(0x40);
-/// Supported-stream-flag bit for output priming.
-pub(crate) const SUPPORTED_STREAM_FLAG_PRIME_OUTPUT_BUFFERS: AudioSupportedStreamFlags =
-    AudioSupportedStreamFlags(0x80);
-/// All supported-stream-flag bits known by this runtime.
-pub(crate) const KNOWN_SUPPORTED_STREAM_FLAGS_MASK: u32 = SUPPORTED_STREAM_FLAG_NON_INTERLEAVED.0
-    | SUPPORTED_STREAM_FLAG_MINIMIZE_LATENCY.0
-    | SUPPORTED_STREAM_FLAG_SCHEDULE_REALTIME.0
-    | SUPPORTED_STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT.0
-    | SUPPORTED_STREAM_FLAG_NO_AUTO_CONVERT.0
-    | SUPPORTED_STREAM_FLAG_REPORT_XRUN.0
-    | SUPPORTED_STREAM_FLAG_NEVER_DROP_INPUT.0
-    | SUPPORTED_STREAM_FLAG_PRIME_OUTPUT_BUFFERS.0;
 
 /// Supported stream requirement bit for non-interleaved buffers.
 pub(crate) const SUPPORTED_STREAM_REQUIREMENT_NON_INTERLEAVED:

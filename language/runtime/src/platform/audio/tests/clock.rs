@@ -19,11 +19,18 @@ use super::core::{
     stream_open_with_default_options, string_from_harness_value,
 };
 use super::{
-    assert_code_is_not_not_supported, assert_not_supported_result, assert_ok_or_expected_error,
+    assert_code_is_one_of, assert_not_supported_result, assert_ok_or_expected_error,
     error_code_from_runtime_error, is_not_supported_code, with_harness_context,
 };
 use crate::platform::core::BackendSupport;
 use crate::platform::diagnostic::PlatformErrorCode;
+
+const HOST_AUDIO_CLOCK_ALLOWED_ERRORS: [PlatformErrorCode; 4] = [
+    PlatformErrorCode::IoInvalidData,
+    PlatformErrorCode::IoPermissionDenied,
+    PlatformErrorCode::AudioUnavailable,
+    PlatformErrorCode::DeviceUnavailable,
+];
 
 #[cfg(any(unix, windows))]
 #[test]
@@ -263,10 +270,11 @@ fn test_audio_stream_clock_domain_support_matches_device_descriptor_for_availabl
                 if is_supported {
                     if let Err(error) = result {
                         let code = error_code_from_runtime_error(&error);
-                        assert_code_is_not_not_supported(
+                        assert_code_is_one_of(
                             code,
+                            &HOST_AUDIO_CLOCK_ALLOWED_ERRORS,
                             &format!(
-                                "backend {backend:?} advertises clock domain {domain:?} but stream.clock returned notSupported"
+                                "backend {backend:?} advertises clock domain {domain:?} but stream.clock failed outside the allowed host error set"
                             ),
                         )?;
                     }

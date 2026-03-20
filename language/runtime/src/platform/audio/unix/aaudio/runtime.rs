@@ -177,6 +177,8 @@ pub(super) fn open_stream(
     device_info: &audio_core::HostDeviceDescriptor,
     config: audio_types::AudioStreamConfig,
     share_mode: audio_types::AudioShareMode,
+    requested_flags: audio_types::AudioStreamFlags,
+    requested_requirements: audio_types::AudioStreamRequirementFlags,
 ) -> RuntimeResult<Arc<audio_core::AudioStreamHostState>> {
     // reject unsupported direction requests
     if device_info.direction == audio_types::AudioDeviceDirection::Loopback {
@@ -224,6 +226,7 @@ pub(super) fn open_stream(
             sample_format,
             sharing_mode,
             config,
+            requested_flags,
             "destack.audio.stream.open",
         )?)
     } else {
@@ -238,6 +241,7 @@ pub(super) fn open_stream(
             sample_format,
             sharing_mode,
             config,
+            requested_flags,
             "destack.audio.stream.open",
         )?)
     } else {
@@ -311,6 +315,8 @@ pub(super) fn open_stream(
         device: device_info.clone(),
         direction: device_info.direction,
         requested: config,
+        requested_flags,
+        requested_requirements,
         sample_rate: runtime.sample_rate,
         channels: runtime.channels,
         period_frames: runtime.period_frames,
@@ -356,6 +362,7 @@ fn open_stream_lane(
     sample_format: c_int,
     sharing_mode: c_int,
     config: audio_types::AudioStreamConfig,
+    requested_flags: audio_types::AudioStreamFlags,
     operation: &'static str,
 ) -> RuntimeResult<OpenedStreamLane> {
     let mut builder = ptr::null_mut::<AAudioStreamBuilder>();
@@ -375,6 +382,10 @@ fn open_stream_lane(
         library: library.clone(),
     };
 
+    // use the tighter builder knobs only for explicit low-latency requests
+    let request_minimize_latency =
+        (requested_flags.0 & audio_core::STREAM_FLAG_MINIMIZE_LATENCY.0) != 0;
+
     // configure one stream builder with requested lane properties
     unsafe {
         (library.api.stream_builder_set_direction)(builder_guard.builder, direction);
@@ -388,14 +399,22 @@ fn open_stream_lane(
         );
         (library.api.stream_builder_set_format)(builder_guard.builder, sample_format);
         (library.api.stream_builder_set_sharing_mode)(builder_guard.builder, sharing_mode);
-        (library.api.stream_builder_set_performance_mode)(
-            builder_guard.builder,
-            AAUDIO_PERFORMANCE_MODE_LOW_LATENCY,
-        );
         (library.api.stream_builder_set_buffer_capacity_frames)(
             builder_guard.builder,
-            config.period_frames.saturating_mul(4) as c_int,
+            config
+                .period_frames
+                .saturating_mul(if request_minimize_latency { 2 } else { 4 }) as c_int,
         );
+    }
+
+    // request low-latency mode only when the caller asks for it
+    if request_minimize_latency {
+        unsafe {
+            (library.api.stream_builder_set_performance_mode)(
+                builder_guard.builder,
+                AAUDIO_PERFORMANCE_MODE_LOW_LATENCY,
+            );
+        }
     }
 
     let mut stream = ptr::null_mut::<AAudioStream>();
