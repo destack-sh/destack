@@ -64,8 +64,7 @@ impl LanguageType {
     pub fn supports_declaration_merging(&self) -> bool {
         matches!(
             self,
-            Self::Destack
-                | Self::DestackDeclaration
+            Self::DestackDeclaration
                 | Self::TypeScript
                 | Self::TypeScriptDeclaration
                 | Self::TypeScriptXml

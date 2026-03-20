@@ -16,7 +16,7 @@ use proc_macro::TokenStream;
 /// pub enum ResolveError {
 ///     /// Wait for a build requirement.
 ///     #[error(code = "ER000", r#yield)]
-///     Yield { requirement: BuildRequirementSet },
+///     Yield { requirement: ArtifactRequirementSet },
 ///
 ///     /// Use of undeclared symbol.
 ///     #[error(code = "ER004", message = "missing symbol {key}")]

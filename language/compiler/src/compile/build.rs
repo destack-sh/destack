@@ -1,81 +1,29 @@
-use destack_workspace::{ArtifactDependency, ArtifactKey, OutputDependency, OutputKey};
+use destack_workspace::{ArtifactDependency, ArtifactKey};
 
 use crate::{DiagnosticAnchor, TaskError};
 
-/// Unified build graph key.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum BuildKey {
-    /// Semantic compiler product.
-    Artifact(ArtifactKey),
-    /// Build product.
-    Output(OutputKey),
-}
-
-impl BuildKey {
-    /// Create one build key for an artifact.
-    pub fn artifact(key: ArtifactKey) -> Self {
-        Self::Artifact(key)
-    }
-
-    /// Create one build key for an output.
-    pub fn output(key: OutputKey) -> Self {
-        Self::Output(key)
-    }
-}
-
-/// Dependency stamp for one build key.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum BuildDependency {
-    /// Dependency for a semantic compiler product.
-    Artifact(ArtifactDependency),
-    /// Dependency for a build product.
-    Output(OutputDependency),
-}
-
-/// Requirement for one build key.
+/// Requirement for one artifact key.
 #[derive(Debug, Clone, PartialEq)]
-pub struct BuildRequirement {
+pub struct ArtifactRequirement {
     /// The diagnostic anchor for this requirement.
     pub anchor: DiagnosticAnchor,
-    /// The required build key.
-    pub key: BuildKey,
+    /// The required artifact key.
+    pub key: ArtifactKey,
     /// The expected dependency for that key.
-    pub dependency: BuildDependency,
+    pub dependency: ArtifactDependency,
     /// Optional fallback error if the requirement cannot be satisfied.
     pub error: Option<Box<TaskError>>,
 }
 
-impl BuildRequirement {
-    /// Create a new build requirement.
-    pub fn new(anchor: DiagnosticAnchor, key: BuildKey, dependency: BuildDependency) -> Self {
+impl ArtifactRequirement {
+    /// Create a new artifact requirement.
+    pub fn new(anchor: DiagnosticAnchor, key: ArtifactKey, dependency: ArtifactDependency) -> Self {
         Self {
             anchor,
             key,
             dependency,
             error: None,
         }
-    }
-
-    /// Create one artifact build requirement.
-    pub fn artifact(
-        anchor: DiagnosticAnchor,
-        key: ArtifactKey,
-        dependency: ArtifactDependency,
-    ) -> Self {
-        Self::new(
-            anchor,
-            BuildKey::artifact(key),
-            BuildDependency::Artifact(dependency),
-        )
-    }
-
-    /// Create one output build requirement.
-    pub fn output(anchor: DiagnosticAnchor, key: OutputKey, dependency: OutputDependency) -> Self {
-        Self::new(
-            anchor,
-            BuildKey::output(key),
-            BuildDependency::Output(dependency),
-        )
     }
 
     /// Attach a fallback error to this requirement.
@@ -87,23 +35,23 @@ impl BuildRequirement {
     }
 }
 
-/// Requirement algebra for the unified build graph.
+/// Requirement algebra for the unified artifact graph.
 #[derive(Debug, Clone, PartialEq)]
-pub enum BuildRequirementSet {
-    /// Require one build key.
-    One(BuildRequirement),
-    /// Require all listed build keys.
-    All(Vec<BuildRequirement>),
+pub enum ArtifactRequirementSet {
+    /// Require one artifact key.
+    One(ArtifactRequirement),
+    /// Require all listed artifact keys.
+    All(Vec<ArtifactRequirement>),
 }
 
-impl BuildRequirementSet {
-    /// Create a requirement set for one build key.
-    pub fn one(requirement: BuildRequirement) -> Self {
+impl ArtifactRequirementSet {
+    /// Create a requirement set for one artifact key.
+    pub fn one(requirement: ArtifactRequirement) -> Self {
         Self::One(requirement)
     }
 
     /// Return the first concrete requirement for diagnostics and tracing.
-    pub fn first(&self) -> Option<&BuildRequirement> {
+    pub fn first(&self) -> Option<&ArtifactRequirement> {
         match self {
             Self::One(requirement) => Some(requirement),
             Self::All(requirements) => requirements.first(),
@@ -131,7 +79,7 @@ impl BuildRequirementSet {
     }
 
     /// Visit each concrete requirement in this set.
-    pub fn for_each(&self, mut handle: impl FnMut(&BuildRequirement)) {
+    pub fn for_each(&self, mut handle: impl FnMut(&ArtifactRequirement)) {
         match self {
             Self::One(requirement) => handle(requirement),
             Self::All(requirements) => {
@@ -143,7 +91,7 @@ impl BuildRequirementSet {
     }
 
     /// Return true when any concrete requirement matches the predicate.
-    pub fn any(&self, mut predicate: impl FnMut(&BuildRequirement) -> bool) -> bool {
+    pub fn any(&self, mut predicate: impl FnMut(&ArtifactRequirement) -> bool) -> bool {
         match self {
             Self::One(requirement) => predicate(requirement),
             Self::All(requirements) => requirements.iter().any(predicate),
@@ -151,7 +99,7 @@ impl BuildRequirementSet {
     }
 
     /// Return true when all concrete requirements match the predicate.
-    pub fn all(&self, mut predicate: impl FnMut(&BuildRequirement) -> bool) -> bool {
+    pub fn all(&self, mut predicate: impl FnMut(&ArtifactRequirement) -> bool) -> bool {
         match self {
             Self::One(requirement) => predicate(requirement),
             Self::All(requirements) => requirements.iter().all(predicate),
@@ -159,7 +107,10 @@ impl BuildRequirementSet {
     }
 
     /// Return the first mapped value from the concrete requirements.
-    pub fn find_map<T>(&self, mut handle: impl FnMut(&BuildRequirement) -> Option<T>) -> Option<T> {
+    pub fn find_map<T>(
+        &self,
+        mut handle: impl FnMut(&ArtifactRequirement) -> Option<T>,
+    ) -> Option<T> {
         match self {
             Self::One(requirement) => handle(requirement),
             Self::All(requirements) => requirements.iter().find_map(handle),
@@ -167,7 +118,7 @@ impl BuildRequirementSet {
     }
 
     /// Convert this requirement set into a flat vector.
-    pub fn into_requirements(self) -> Vec<BuildRequirement> {
+    pub fn into_requirements(self) -> Vec<ArtifactRequirement> {
         match self {
             Self::One(requirement) => vec![requirement],
             Self::All(requirements) => requirements,
@@ -175,49 +126,49 @@ impl BuildRequirementSet {
     }
 }
 
-/// Error when a build requirement is not satisfied.
+/// Error when an artifact requirement is not satisfied.
 #[derive(Debug, Clone, PartialEq)]
-pub enum BuildRequirementError {
-    /// Build is not yet complete, need to yield.
-    NotReady { requirement: BuildRequirementSet },
-    /// Build has failed.
-    Failed { requirement: BuildRequirementSet },
+pub enum ArtifactRequirementError {
+    /// Artifact is not yet available, need to yield.
+    NotReady { requirement: ArtifactRequirementSet },
+    /// Upstream artifact build has failed.
+    Failed { requirement: ArtifactRequirementSet },
 }
 
-impl BuildRequirementError {
+impl ArtifactRequirementError {
     /// Return the carried requirement.
-    pub fn requirement(&self) -> &BuildRequirementSet {
+    pub fn requirement(&self) -> &ArtifactRequirementSet {
         match self {
             Self::NotReady { requirement } | Self::Failed { requirement } => requirement,
         }
     }
 
     /// Convert into the carried requirement.
-    pub fn into_requirement(self) -> BuildRequirementSet {
+    pub fn into_requirement(self) -> ArtifactRequirementSet {
         match self {
             Self::NotReady { requirement } | Self::Failed { requirement } => requirement,
         }
     }
 }
 
-impl TryFrom<BuildRequirementError> for BuildRequirementSet {
-    type Error = BuildRequirementError;
+impl TryFrom<ArtifactRequirementError> for ArtifactRequirementSet {
+    type Error = ArtifactRequirementError;
 
-    fn try_from(error: BuildRequirementError) -> Result<Self, Self::Error> {
+    fn try_from(error: ArtifactRequirementError) -> Result<Self, Self::Error> {
         match error {
-            BuildRequirementError::NotReady { requirement } => Ok(requirement),
-            BuildRequirementError::Failed { .. } => Err(error),
+            ArtifactRequirementError::NotReady { requirement } => Ok(requirement),
+            ArtifactRequirementError::Failed { .. } => Err(error),
         }
     }
 }
 
-/// Collector for coalescing build requirements from multiple operations.
+/// Collector for coalescing artifact requirements from multiple operations.
 #[derive(Debug, Default)]
-pub struct BuildRequirementCollector {
-    requirements: Vec<BuildRequirement>,
+pub struct ArtifactRequirementCollector {
+    requirements: Vec<ArtifactRequirement>,
 }
 
-impl BuildRequirementCollector {
+impl ArtifactRequirementCollector {
     /// Create a new empty collector.
     pub fn new() -> Self {
         Self {
@@ -225,10 +176,10 @@ impl BuildRequirementCollector {
         }
     }
 
-    /// Collect a result as a build requirement.
+    /// Collect a result as an artifact requirement.
     pub fn try_collect<T, E>(&mut self, result: Result<T, E>) -> Option<E>
     where
-        E: TryInto<BuildRequirementSet, Error = E>,
+        E: TryInto<ArtifactRequirementSet, Error = E>,
     {
         match result {
             Ok(_) => None,
@@ -248,15 +199,15 @@ impl BuildRequirementCollector {
     }
 
     /// Finish collection and require all collected requirements.
-    pub fn try_into_requirement(self) -> Option<BuildRequirementSet> {
+    pub fn try_into_requirement(self) -> Option<ArtifactRequirementSet> {
         match self.requirements.len() {
             0 => None,
             1 => self
                 .requirements
                 .into_iter()
                 .next()
-                .map(BuildRequirementSet::One),
-            _ => Some(BuildRequirementSet::All(self.requirements)),
+                .map(ArtifactRequirementSet::One),
+            _ => Some(ArtifactRequirementSet::All(self.requirements)),
         }
     }
 }

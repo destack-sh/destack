@@ -1,7 +1,7 @@
-use destack_workspace::{ArtifactKey, OutputKey, OutputScope, Program};
+use destack_workspace::{ArtifactKey, Program};
 
 use crate::{
-    BuildKey, BuildRequirement, BuildRequirementSet, DiagnosticAnchor, DiagnosticFormat, TaskError,
+    ArtifactRequirement, ArtifactRequirementSet, DiagnosticAnchor, DiagnosticFormat, TaskError,
 };
 
 /// Phase label for diagnostics, tracing, and stats.
@@ -22,9 +22,9 @@ pub enum TaskPhase {
     Lower = 6,
     /// Optimize MIR.
     Optimize = 7,
-    /// Generate build products from compiler products.
+    /// Generate emitted artifacts from compiler products.
     Generate = 8,
-    /// Link generated products into final outputs.
+    /// Link emitted artifacts into package artifacts.
     Link = 9,
 }
 
@@ -65,8 +65,8 @@ impl TaskPhase {
             Self::Execute => "execute comptime code and patch DIR",
             Self::Lower => "lower DIR into MIR",
             Self::Optimize => "optimize MIR",
-            Self::Generate => "generate build products",
-            Self::Link => "link build products",
+            Self::Generate => "generate emitted artifacts",
+            Self::Link => "link emitted artifacts",
         }
     }
 
@@ -104,157 +104,142 @@ impl TaskPhase {
     }
 }
 
-impl BuildKey {
-    /// Return the phase label for this build key.
-    pub fn phase(&self) -> TaskPhase {
+/// Helper methods for treating artifact keys as scheduler tasks.
+pub trait ArtifactTaskKeyExt {
+    /// Return the phase label for this artifact key.
+    fn phase(&self) -> TaskPhase;
+
+    /// Return the diagnostic anchor for this artifact key.
+    fn anchor(&self) -> DiagnosticAnchor;
+
+    /// Return a stable short name for this artifact key.
+    fn name(&self) -> &'static str;
+
+    /// Return trace arguments for this artifact key.
+    fn trace_args(&self, program: &Program) -> String;
+}
+
+impl ArtifactTaskKeyExt for ArtifactKey {
+    /// Return the phase label for this artifact key.
+    fn phase(&self) -> TaskPhase {
         match self {
-            BuildKey::Artifact(ArtifactKey::ModuleGraph { .. }) => TaskPhase::Resolve,
-            BuildKey::Artifact(ArtifactKey::Ast { .. } | ArtifactKey::DirBase { .. }) => {
-                TaskPhase::Import
-            }
-            BuildKey::Artifact(
-                ArtifactKey::LanguageEnvironment { .. }
-                | ArtifactKey::LibEnvironment { .. }
-                | ArtifactKey::DirPrepared { .. }
-                | ArtifactKey::DirResolved { .. },
-            ) => TaskPhase::Resolve,
-            BuildKey::Artifact(
-                ArtifactKey::IntrinsicEnvironment { .. }
-                | ArtifactKey::DirDeclared { .. }
-                | ArtifactKey::DirInterface { .. }
-                | ArtifactKey::DirAnalyzed { .. },
-            ) => TaskPhase::Analyze,
-            BuildKey::Artifact(ArtifactKey::DirElaborated { .. }) => TaskPhase::Elaborate,
-            BuildKey::Artifact(ArtifactKey::DirPatched { .. }) => TaskPhase::Execute,
-            BuildKey::Artifact(ArtifactKey::MirBase { .. }) => TaskPhase::Lower,
-            BuildKey::Artifact(ArtifactKey::MirOptimized { .. }) => TaskPhase::Optimize,
-            BuildKey::Output(OutputKey {
-                scope: OutputScope::Module(..),
-                ..
-            }) => TaskPhase::Generate,
-            BuildKey::Output(OutputKey {
-                scope: OutputScope::Package(..),
-                ..
-            }) => TaskPhase::Link,
+            ArtifactKey::ModuleGraph { .. } => TaskPhase::Resolve,
+            ArtifactKey::Ast { .. } | ArtifactKey::DirBase { .. } => TaskPhase::Import,
+            ArtifactKey::LanguageEnvironment { .. }
+            | ArtifactKey::LibraryEnvironment { .. }
+            | ArtifactKey::DirPrepared { .. }
+            | ArtifactKey::DirResolved { .. } => TaskPhase::Resolve,
+            ArtifactKey::IntrinsicEnvironment { .. }
+            | ArtifactKey::DirDeclared { .. }
+            | ArtifactKey::DirInterface { .. }
+            | ArtifactKey::DirAnalyzed { .. } => TaskPhase::Analyze,
+            ArtifactKey::DirElaborated { .. } => TaskPhase::Elaborate,
+            ArtifactKey::DirPatched { .. } => TaskPhase::Execute,
+            ArtifactKey::MirBase { .. } => TaskPhase::Lower,
+            ArtifactKey::MirOptimized { .. } => TaskPhase::Optimize,
+            ArtifactKey::ModuleOutput { .. } => TaskPhase::Generate,
+            ArtifactKey::PackageOutput { .. } => TaskPhase::Link,
         }
     }
 
-    /// Return the diagnostic anchor for this build key.
-    pub fn anchor(&self) -> DiagnosticAnchor {
+    /// Return the diagnostic anchor for this artifact key.
+    fn anchor(&self) -> DiagnosticAnchor {
         match self {
-            BuildKey::Artifact(ArtifactKey::ModuleGraph { .. }) => DiagnosticAnchor::Global,
-            BuildKey::Artifact(ArtifactKey::Ast { module })
-            | BuildKey::Artifact(ArtifactKey::DirBase { module })
-            | BuildKey::Artifact(ArtifactKey::DirPrepared { module, .. })
-            | BuildKey::Artifact(ArtifactKey::DirResolved { module, .. })
-            | BuildKey::Artifact(ArtifactKey::DirDeclared { module, .. })
-            | BuildKey::Artifact(ArtifactKey::DirInterface { module, .. })
-            | BuildKey::Artifact(ArtifactKey::DirAnalyzed { module, .. })
-            | BuildKey::Artifact(ArtifactKey::DirElaborated { module, .. })
-            | BuildKey::Artifact(ArtifactKey::DirPatched { module, .. })
-            | BuildKey::Artifact(ArtifactKey::MirBase { module, .. })
-            | BuildKey::Artifact(ArtifactKey::MirOptimized { module, .. }) => {
-                DiagnosticAnchor::from(*module)
-            }
-            BuildKey::Artifact(ArtifactKey::LanguageEnvironment { .. })
-            | BuildKey::Artifact(ArtifactKey::IntrinsicEnvironment { .. })
-            | BuildKey::Artifact(ArtifactKey::LibEnvironment { .. }) => DiagnosticAnchor::Global,
-            BuildKey::Output(OutputKey {
-                scope: OutputScope::Module(module),
-                ..
-            }) => DiagnosticAnchor::from(*module),
-            BuildKey::Output(OutputKey {
-                scope: OutputScope::Package(package),
-                ..
-            }) => DiagnosticAnchor::from(*package),
+            ArtifactKey::ModuleGraph { .. } => DiagnosticAnchor::Global,
+            ArtifactKey::Ast { module }
+            | ArtifactKey::DirBase { module }
+            | ArtifactKey::DirPrepared { module, .. }
+            | ArtifactKey::DirResolved { module, .. }
+            | ArtifactKey::DirDeclared { module, .. }
+            | ArtifactKey::DirInterface { module, .. }
+            | ArtifactKey::DirAnalyzed { module, .. }
+            | ArtifactKey::DirElaborated { module, .. }
+            | ArtifactKey::DirPatched { module, .. }
+            | ArtifactKey::MirBase { module, .. }
+            | ArtifactKey::MirOptimized { module, .. }
+            | ArtifactKey::ModuleOutput { module, .. } => DiagnosticAnchor::from(*module),
+            ArtifactKey::LanguageEnvironment { .. }
+            | ArtifactKey::IntrinsicEnvironment { .. }
+            | ArtifactKey::LibraryEnvironment { .. } => DiagnosticAnchor::Global,
+            ArtifactKey::PackageOutput { package, .. } => DiagnosticAnchor::from(*package),
         }
     }
 
-    /// Return a stable short name for this build key.
-    pub fn name(&self) -> &'static str {
+    /// Return a stable short name for this artifact key.
+    fn name(&self) -> &'static str {
         match self {
-            BuildKey::Artifact(ArtifactKey::ModuleGraph { .. }) => "module_graph",
-            BuildKey::Artifact(ArtifactKey::Ast { .. }) => "ast",
-            BuildKey::Artifact(ArtifactKey::DirBase { .. }) => "dir_base",
-            BuildKey::Artifact(ArtifactKey::LanguageEnvironment { .. }) => "language_environment",
-            BuildKey::Artifact(ArtifactKey::IntrinsicEnvironment { .. }) => "intrinsic_environment",
-            BuildKey::Artifact(ArtifactKey::LibEnvironment { .. }) => "lib_environment",
-            BuildKey::Artifact(ArtifactKey::DirPrepared { .. }) => "dir_prepared",
-            BuildKey::Artifact(ArtifactKey::DirResolved { .. }) => "dir_resolved",
-            BuildKey::Artifact(ArtifactKey::DirDeclared { .. }) => "dir_declared",
-            BuildKey::Artifact(ArtifactKey::DirInterface { .. }) => "dir_interface",
-            BuildKey::Artifact(ArtifactKey::DirAnalyzed { .. }) => "dir_analyzed",
-            BuildKey::Artifact(ArtifactKey::DirElaborated { .. }) => "dir_elaborated",
-            BuildKey::Artifact(ArtifactKey::DirPatched { .. }) => "dir_patched",
-            BuildKey::Artifact(ArtifactKey::MirBase { .. }) => "mir_base",
-            BuildKey::Artifact(ArtifactKey::MirOptimized { .. }) => "mir_optimized",
-            BuildKey::Output(OutputKey {
-                scope: OutputScope::Module(..),
-                ..
-            }) => "module_output",
-            BuildKey::Output(OutputKey {
-                scope: OutputScope::Package(..),
-                ..
-            }) => "package_output",
+            ArtifactKey::ModuleGraph { .. } => "module_graph",
+            ArtifactKey::Ast { .. } => "ast",
+            ArtifactKey::DirBase { .. } => "dir_base",
+            ArtifactKey::LanguageEnvironment { .. } => "language_environment",
+            ArtifactKey::IntrinsicEnvironment { .. } => "intrinsic_environment",
+            ArtifactKey::LibraryEnvironment { .. } => "library_environment",
+            ArtifactKey::DirPrepared { .. } => "dir_prepared",
+            ArtifactKey::DirResolved { .. } => "dir_resolved",
+            ArtifactKey::DirDeclared { .. } => "dir_declared",
+            ArtifactKey::DirInterface { .. } => "dir_interface",
+            ArtifactKey::DirAnalyzed { .. } => "dir_analyzed",
+            ArtifactKey::DirElaborated { .. } => "dir_elaborated",
+            ArtifactKey::DirPatched { .. } => "dir_patched",
+            ArtifactKey::MirBase { .. } => "mir_base",
+            ArtifactKey::MirOptimized { .. } => "mir_optimized",
+            ArtifactKey::ModuleOutput { .. } => "module_output",
+            ArtifactKey::PackageOutput { .. } => "package_output",
         }
     }
 
-    /// Return trace arguments for this build key.
-    pub fn trace_args(&self, program: &Program) -> String {
+    /// Return trace arguments for this artifact key.
+    fn trace_args(&self, program: &Program) -> String {
         match self {
-            BuildKey::Artifact(ArtifactKey::ModuleGraph { profile }) => {
+            ArtifactKey::ModuleGraph { profile } => {
                 let profile = profile.diagnostic_fmt(program);
                 format!("profile={profile}")
             }
-            BuildKey::Artifact(ArtifactKey::Ast { module })
-            | BuildKey::Artifact(ArtifactKey::DirBase { module }) => {
+            ArtifactKey::Ast { module } | ArtifactKey::DirBase { module } => {
                 let module = module.diagnostic_fmt(program);
                 format!("module={module}")
             }
-            BuildKey::Artifact(ArtifactKey::LanguageEnvironment { profile })
-            | BuildKey::Artifact(ArtifactKey::IntrinsicEnvironment { profile })
-            | BuildKey::Artifact(ArtifactKey::LibEnvironment { profile }) => {
+            ArtifactKey::LanguageEnvironment { profile }
+            | ArtifactKey::IntrinsicEnvironment { profile }
+            | ArtifactKey::LibraryEnvironment { profile } => {
                 let profile = profile.diagnostic_fmt(program);
                 format!("profile={profile}")
             }
-            BuildKey::Artifact(ArtifactKey::DirPrepared { module, profile })
-            | BuildKey::Artifact(ArtifactKey::DirResolved { module, profile })
-            | BuildKey::Artifact(ArtifactKey::DirDeclared { module, profile })
-            | BuildKey::Artifact(ArtifactKey::DirInterface { module, profile })
-            | BuildKey::Artifact(ArtifactKey::DirAnalyzed { module, profile })
-            | BuildKey::Artifact(ArtifactKey::DirElaborated { module, profile })
-            | BuildKey::Artifact(ArtifactKey::DirPatched { module, profile }) => {
+            ArtifactKey::DirPrepared { module, profile }
+            | ArtifactKey::DirResolved { module, profile }
+            | ArtifactKey::DirDeclared { module, profile }
+            | ArtifactKey::DirInterface { module, profile }
+            | ArtifactKey::DirAnalyzed { module, profile }
+            | ArtifactKey::DirElaborated { module, profile }
+            | ArtifactKey::DirPatched { module, profile } => {
                 let module = module.diagnostic_fmt(program);
                 let profile = profile.diagnostic_fmt(program);
                 format!("module={module} profile={profile}")
             }
-            BuildKey::Artifact(ArtifactKey::MirBase {
+            ArtifactKey::MirBase {
                 module,
                 profile,
                 target,
-            })
-            | BuildKey::Artifact(ArtifactKey::MirOptimized {
+            }
+            | ArtifactKey::MirOptimized {
                 module,
                 profile,
                 target,
-            }) => {
+            } => {
                 let module = module.diagnostic_fmt(program);
                 let profile = profile.diagnostic_fmt(program);
                 let target = target.diagnostic_fmt(program);
                 format!("module={module} profile={profile} target={target}")
             }
-            BuildKey::Output(OutputKey { scope, target }) => {
+            ArtifactKey::ModuleOutput { module, target } => {
                 let target = target.diagnostic_fmt(program);
-                match scope {
-                    OutputScope::Module(module) => {
-                        let module = module.diagnostic_fmt(program);
-                        format!("module={module} target={target}")
-                    }
-                    OutputScope::Package(package) => {
-                        let package = package.diagnostic_fmt(program);
-                        format!("package={package} target={target}")
-                    }
-                }
+                let module = module.diagnostic_fmt(program);
+                format!("module={module} target={target}")
+            }
+            ArtifactKey::PackageOutput { package, target } => {
+                let package = package.diagnostic_fmt(program);
+                let target = target.diagnostic_fmt(program);
+                format!("package={package} target={target}")
             }
         }
     }
@@ -296,8 +281,8 @@ pub enum TaskStatus {
     Queued,
     /// The task is running.
     Running,
-    /// The task is waiting for more build requirements.
-    Yielded { requirement: BuildRequirementSet },
+    /// The task is waiting for more artifact requirements.
+    Yielded { requirement: ArtifactRequirementSet },
     /// The task was skipped because the running attempt became obsolete.
     Skipped,
     /// The task completed successfully.
@@ -341,22 +326,22 @@ pub struct TaskHandle {
     pub status: TaskStatus,
     /// The previous outcome for repeat-yield detection.
     pub last_outcome: Option<TaskOutcome>,
-    /// The build key realized by this task.
-    pub build_key: BuildKey,
+    /// The artifact key realized by this task.
+    pub artifact_key: ArtifactKey,
     /// The number of times this task has yielded.
     pub yield_count: u32,
     /// The exact requirements satisfied by the last completed build.
-    pub final_requirements: Vec<BuildRequirement>,
+    pub final_requirements: Vec<ArtifactRequirement>,
 }
 
 impl TaskHandle {
     /// Create a new task handle.
-    pub fn new(id: TaskId, build_key: BuildKey) -> Self {
+    pub fn new(id: TaskId, artifact_key: ArtifactKey) -> Self {
         Self {
             id,
             status: TaskStatus::Queued,
             last_outcome: None,
-            build_key,
+            artifact_key,
             yield_count: 0,
             final_requirements: Vec::new(),
         }
@@ -364,7 +349,7 @@ impl TaskHandle {
 
     /// Return the phase label for this task.
     pub fn phase(&self) -> TaskPhase {
-        self.build_key.phase()
+        self.artifact_key.phase()
     }
 }
 
@@ -372,7 +357,7 @@ impl TaskHandle {
 #[derive(Debug, Clone)]
 pub enum TaskOutcome {
     /// The task yielded more requirements.
-    Yield { requirement: BuildRequirementSet },
+    Yield { requirement: ArtifactRequirementSet },
     /// The task became obsolete while running.
     Skipped,
     /// The task failed.
@@ -384,7 +369,7 @@ pub enum TaskOutcome {
 impl<E> From<Result<(), E>> for TaskOutcome
 where
     E: Into<TaskError> + TaskSkip,
-    E: TryInto<BuildRequirementSet, Error = E>,
+    E: TryInto<ArtifactRequirementSet, Error = E>,
 {
     fn from(result: Result<(), E>) -> Self {
         match result {

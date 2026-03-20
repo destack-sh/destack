@@ -1,8 +1,8 @@
 use destack_builtin::LanguageSymbol;
 use destack_core::StringPool;
 use destack_dir::{
-    GlobalSymbolId, StaticKey, SymbolKey, SymbolSpace, SymbolSpaceOrder, WellKnownSymbol,
-    WellKnownSymbolKey,
+    GlobalSymbolId, StaticKey, SymbolKey, SymbolSpace, SymbolSpaceOrder, SymbolType,
+    WellKnownSymbol, WellKnownSymbolKey,
 };
 use destack_source::ModuleId;
 use indexmap::IndexMap;
@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 /// A symbol group containing type and value space entries.
 /// Used to track both spaces for dual-space symbols like interfaces with constructors.
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct SymbolGroup {
     /// The type-space symbol, if any.
     pub ty: Option<GlobalSymbolId>,
@@ -64,9 +64,9 @@ impl CanonicalStaticKey {
     }
 }
 
-/// A symbol key for selected lib sources.
+/// A symbol key for selected library sources.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct LibSymbolKey {
+pub struct LibrarySymbolKey {
     /// The symbol key.
     pub key: CanonicalStaticKey,
     /// The symbol space.
@@ -126,7 +126,7 @@ impl SymbolGroup {
 }
 
 /// Well-known symbol key metadata.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct WellKnownKey {
     /// The base symbol for the key.
     pub symbol: GlobalSymbolId,
@@ -137,7 +137,7 @@ pub struct WellKnownKey {
 }
 
 /// Resolved compiler-known symbols for a profile.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default)]
 pub struct WellKnownSymbols {
     /// Top-level builtin symbols by well-known id.
     pub symbols: IndexMap<WellKnownSymbol, SymbolGroup>,
@@ -146,43 +146,6 @@ pub struct WellKnownSymbols {
 }
 
 impl WellKnownSymbols {
-    /// Build the well-known symbol map from resolved lib symbols.
-    pub fn build(lib_symbols: &IndexMap<String, SymbolGroup>) -> Self {
-        let mut symbols = IndexMap::new();
-        let mut keys = IndexMap::new();
-
-        for item in WellKnownSymbol::all() {
-            let Some(group) = lib_symbols.get(item.export_name()).copied() else {
-                continue;
-            };
-            if group.is_empty() {
-                continue;
-            }
-            symbols.insert(item, group);
-        }
-
-        // for well-known keys, use the value symbol as the base
-        for item in WellKnownSymbolKey::all() {
-            let base_symbol = item.base_symbol();
-            let Some(group) = symbols.get(&base_symbol) else {
-                continue;
-            };
-            let Some(base_symbol_id) = group.value.or(group.ty) else {
-                continue;
-            };
-            keys.insert(
-                item,
-                WellKnownKey {
-                    symbol: base_symbol_id,
-                    member: item.member_name().to_string(),
-                    global_name: item.global_symbol_name().to_string(),
-                },
-            );
-        }
-
-        Self { symbols, keys }
-    }
-
     /// Get the symbol group for a well-known symbol.
     pub fn get_group(&self, item: WellKnownSymbol) -> Option<SymbolGroup> {
         self.symbols.get(&item).copied()
@@ -287,62 +250,204 @@ pub struct IntrinsicEnvironment {
 /// Library semantic environment for one profile.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct LibraryEnvironment {
-    /// Selected lib modules in load order.
+    /// Selected library modules in load order.
     pub modules: Vec<ModuleId>,
-    /// Ambient lib modules selected for this profile.
+    /// Ambient library modules selected for this profile.
     pub ambient_modules: Vec<ModuleId>,
-    /// Declared lib symbols for this profile.
-    pub declared_symbols: IndexMap<String, SymbolGroup>,
-    /// Selected lib symbols for this profile.
-    pub symbols: IndexMap<String, SymbolGroup>,
-    /// Selected lib symbol sources for this profile.
-    pub symbol_sources: IndexMap<LibSymbolKey, Vec<GlobalSymbolId>>,
-    /// Well known symbols for this profile.
-    pub well_known_symbols: WellKnownSymbols,
+    /// Declared library symbol sources for this profile.
+    pub declared_library_symbol_sources: IndexMap<LibrarySymbolKey, Vec<GlobalSymbolId>>,
+    /// Selected library symbol sources for this profile.
+    pub library_symbol_sources: IndexMap<LibrarySymbolKey, Vec<GlobalSymbolId>>,
 }
 
 impl LibraryEnvironment {
+    /// Build one canonical name key for library symbol lookup.
+    fn library_name_key(name: &str) -> CanonicalStaticKey {
+        CanonicalStaticKey::Name(name.to_string())
+    }
+
+    /// Collect ordered candidates for one key and space order.
+    fn collect_symbol_sources_for_space_order(
+        &self,
+        key: &CanonicalStaticKey,
+        order: SymbolSpaceOrder,
+        declared_only: bool,
+    ) -> Vec<GlobalSymbolId> {
+        let mut sources = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        let mut push_sources = |space| {
+            let group = if declared_only {
+                self.declared_symbol_sources(key, space)
+            } else {
+                self.symbol_sources(key, space)
+            };
+
+            if let Some(group) = group {
+                for &symbol in group {
+                    if seen.insert(symbol) {
+                        sources.push(symbol);
+                    }
+                }
+            }
+        };
+
+        for space in order.spaces() {
+            push_sources(*space);
+            if matches!(space, SymbolSpace::Type | SymbolSpace::Value) {
+                push_sources(SymbolSpace::TypeValue);
+            }
+        }
+
+        sources
+    }
+
+    /// Return the first concrete declaration candidate.
+    fn first_concrete_symbol(sources: &[GlobalSymbolId]) -> Option<GlobalSymbolId> {
+        sources
+            .iter()
+            .copied()
+            .find(|symbol| {
+                matches!(
+                    symbol.ty(),
+                    SymbolType::Struct | SymbolType::Class | SymbolType::Enum | SymbolType::Newtype
+                )
+            })
+            .or_else(|| sources.first().copied())
+    }
+
     /// Return the supporting modules needed to consume this environment.
     pub fn supporting_modules(&self) -> Vec<ModuleId> {
         self.modules.clone()
     }
 
-    /// Return one declared symbol group.
-    pub fn declared_symbol_group(&self, name: &str) -> Option<SymbolGroup> {
-        self.declared_symbols.get(name).copied()
+    /// Return declared library symbol sources for one key and space.
+    pub fn declared_symbol_sources(
+        &self,
+        key: &CanonicalStaticKey,
+        space: SymbolSpace,
+    ) -> Option<&[GlobalSymbolId]> {
+        self.declared_library_symbol_sources
+            .get(&LibrarySymbolKey {
+                key: key.clone(),
+                space,
+            })
+            .map(Vec::as_slice)
     }
 
-    /// Return one declared symbol by space order.
+    /// Return selected library symbol sources for one key and space.
+    pub fn symbol_sources(
+        &self,
+        key: &CanonicalStaticKey,
+        space: SymbolSpace,
+    ) -> Option<&[GlobalSymbolId]> {
+        self.library_symbol_sources
+            .get(&LibrarySymbolKey {
+                key: key.clone(),
+                space,
+            })
+            .map(Vec::as_slice)
+    }
+
+    /// Return one declared symbol using semantic selection.
     pub fn declared_symbol_from(
         &self,
         name: &str,
         order: SymbolSpaceOrder,
     ) -> Option<GlobalSymbolId> {
-        self.declared_symbol_group(name)
-            .and_then(|group| group.symbol_for_space_order(order))
+        let key = Self::library_name_key(name);
+        self.declared_symbol_from_key(&key, order)
     }
 
-    /// Return selected lib symbol sources for one key and space.
-    pub fn symbol_sources(
+    /// Return one declared symbol using semantic selection for a canonical key.
+    pub fn declared_symbol_from_key(
         &self,
         key: &CanonicalStaticKey,
-        space: SymbolSpace,
-    ) -> Option<&Vec<GlobalSymbolId>> {
-        self.symbol_sources.get(&LibSymbolKey {
-            key: key.clone(),
-            space,
-        })
+        order: SymbolSpaceOrder,
+    ) -> Option<GlobalSymbolId> {
+        let sources = self.collect_symbol_sources_for_space_order(key, order, true);
+        sources.first().copied()
     }
 
-    /// Return one selected lib symbol group.
-    pub fn symbol_group(&self, name: &str) -> Option<SymbolGroup> {
-        self.symbols.get(name).copied()
+    /// Return one declared symbol using concrete runtime selection.
+    pub fn declared_concrete_symbol_from(
+        &self,
+        name: &str,
+        order: SymbolSpaceOrder,
+    ) -> Option<GlobalSymbolId> {
+        let key = Self::library_name_key(name);
+        self.declared_concrete_symbol_from_key(&key, order)
     }
 
-    /// Return one selected lib symbol by space order.
+    /// Return one declared symbol using concrete selection for a canonical key.
+    pub fn declared_concrete_symbol_from_key(
+        &self,
+        key: &CanonicalStaticKey,
+        order: SymbolSpaceOrder,
+    ) -> Option<GlobalSymbolId> {
+        let sources = self.collect_symbol_sources_for_space_order(key, order, true);
+        Self::first_concrete_symbol(&sources)
+    }
+
+    /// Return one selected symbol using semantic selection.
     pub fn symbol_from(&self, name: &str, order: SymbolSpaceOrder) -> Option<GlobalSymbolId> {
-        self.symbol_group(name)
-            .and_then(|group| group.symbol_for_space_order(order))
+        let key = Self::library_name_key(name);
+        self.symbol_from_key(&key, order)
+    }
+
+    /// Return one selected symbol using semantic selection for a canonical key.
+    pub fn symbol_from_key(
+        &self,
+        key: &CanonicalStaticKey,
+        order: SymbolSpaceOrder,
+    ) -> Option<GlobalSymbolId> {
+        let sources = self.collect_symbol_sources_for_space_order(key, order, false);
+        sources.first().copied()
+    }
+
+    /// Return selected symbol sources using a space order for a canonical key.
+    pub fn symbol_sources_for_space_order(
+        &self,
+        key: &CanonicalStaticKey,
+        order: SymbolSpaceOrder,
+    ) -> Vec<GlobalSymbolId> {
+        self.collect_symbol_sources_for_space_order(key, order, false)
+    }
+
+    /// Build the derived well-known symbol view from cached library facts.
+    pub fn well_known_symbols(&self) -> WellKnownSymbols {
+        let mut symbols = IndexMap::new();
+        for item in WellKnownSymbol::all() {
+            let group = SymbolGroup {
+                ty: self.declared_symbol_from(item.export_name(), SymbolSpaceOrder::TypeThenValue),
+                value: self
+                    .declared_symbol_from(item.export_name(), SymbolSpaceOrder::ValueThenType),
+            };
+
+            if !group.is_empty() {
+                symbols.insert(item, group);
+            }
+        }
+
+        let mut keys = IndexMap::new();
+        for item in WellKnownSymbolKey::all() {
+            let Some(base_symbol) = symbols
+                .get(&item.base_symbol())
+                .and_then(|group| group.value.or(group.ty))
+            else {
+                continue;
+            };
+
+            keys.insert(
+                item,
+                WellKnownKey {
+                    symbol: base_symbol,
+                    member: item.member_name().to_string(),
+                    global_name: item.global_symbol_name().to_string(),
+                },
+            );
+        }
+
+        WellKnownSymbols { symbols, keys }
     }
 }
 
@@ -387,39 +492,36 @@ mod tests {
 
     /// Library environments resolve names and sources without ambient string ids.
     #[test]
-    fn test_lib_environment_uses_owned_names() {
+    fn test_library_environment_uses_owned_names() {
         let module_id = ModuleId::new(PackageId::new(1), 2);
         let symbol_id = LocalSymbolId::new_typed(3, SymbolType::Void).into_global(module_id);
         let source_key = CanonicalStaticKey::Name("value".to_string());
         let environment = LibraryEnvironment {
             modules: vec![module_id],
             ambient_modules: vec![],
-            declared_symbols: IndexMap::from([(
-                "value".to_string(),
-                SymbolGroup::from_value(symbol_id),
-            )]),
-            symbols: IndexMap::from([("value".to_string(), SymbolGroup::from_value(symbol_id))]),
-            symbol_sources: IndexMap::from([(
-                LibSymbolKey {
+            declared_library_symbol_sources: IndexMap::from([(
+                LibrarySymbolKey {
                     key: source_key.clone(),
                     space: SymbolSpace::Value,
                 },
                 vec![symbol_id],
             )]),
-            well_known_symbols: WellKnownSymbols::default(),
+            library_symbol_sources: IndexMap::from([(
+                LibrarySymbolKey {
+                    key: source_key.clone(),
+                    space: SymbolSpace::Value,
+                },
+                vec![symbol_id],
+            )]),
         };
 
         assert_eq!(
-            environment.declared_symbol_from("value", SymbolSpaceOrder::ValueOnly),
-            Some(symbol_id)
-        );
-        assert_eq!(
-            environment.symbol_from("value", SymbolSpaceOrder::ValueOnly),
-            Some(symbol_id)
+            environment.declared_symbol_sources(&source_key, SymbolSpace::Value),
+            Some([symbol_id].as_slice())
         );
         assert_eq!(
             environment.symbol_sources(&source_key, SymbolSpace::Value),
-            Some(&vec![symbol_id])
+            Some([symbol_id].as_slice())
         );
     }
 }

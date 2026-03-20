@@ -59,6 +59,13 @@ impl Compiler {
                         }
                         let other_symbol = symbols.get_symbol(*other_symbol_id);
 
+                        // keep global augmentations isolated from module-local duplicates
+                        if symbol.origin.is_global_augmentation()
+                            != other_symbol.origin.is_global_augmentation()
+                        {
+                            continue;
+                        }
+
                         // check if symbols conflict based on space and merging rules
                         let import_kind_conflict =
                             self.is_type_value_import_conflict(&tree, symbol, other_symbol);
@@ -969,6 +976,24 @@ mod tests {
         assert_import_no_conflicting_binding_in(
             "test.d.ts",
             "export {};\ndeclare abstract class Iterator<T> {}\ndeclare global { var Iterator: { new<T>(): Iterator<T> }; }",
+        );
+    }
+
+    /// Allow declared module exports to coexist with nested global augmentations.
+    #[test]
+    fn test_allow_module_binding_class_with_global_var_augmentation() {
+        assert_import_no_conflicting_binding_in(
+            "test.d.ts",
+            r#"
+declare module "url" {
+    class URL {}
+
+    global {
+        interface URL {}
+        var URL: { new(): URL };
+    }
+}
+"#,
         );
     }
 

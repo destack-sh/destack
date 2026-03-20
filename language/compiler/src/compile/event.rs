@@ -1,7 +1,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::{BuildKey, StatsSnapshot, TaskError, TaskId, TaskPhase};
+use destack_workspace::ArtifactKey;
+
+use crate::{StatsSnapshot, TaskError, TaskId, TaskPhase};
 
 /// Event emitted by the compiler during compilation.
 #[derive(Debug, Clone)]
@@ -9,14 +11,14 @@ pub enum CompilerEvent {
     /// Task started processing.
     TaskStarted {
         task_id: TaskId,
-        build_key: BuildKey,
+        artifact_key: ArtifactKey,
         phase: TaskPhase,
         description: String,
     },
     /// Task completed successfully.
     TaskCompleted {
         task_id: TaskId,
-        build_key: BuildKey,
+        artifact_key: ArtifactKey,
         phase: TaskPhase,
         elapsed: Duration,
         description: String,
@@ -24,27 +26,27 @@ pub enum CompilerEvent {
     /// Task failed with an error.
     TaskFailed {
         task_id: TaskId,
-        build_key: BuildKey,
+        artifact_key: ArtifactKey,
         phase: TaskPhase,
         error: TaskError,
     },
     /// Task was skipped.
     TaskSkipped {
         task_id: TaskId,
-        build_key: BuildKey,
+        artifact_key: ArtifactKey,
         phase: TaskPhase,
         description: String,
     },
-    /// Task yielded waiting for one build requirement.
+    /// Task yielded waiting for one artifact requirement.
     TaskYielded {
         task_id: TaskId,
-        build_key: BuildKey,
+        artifact_key: ArtifactKey,
         phase: TaskPhase,
     },
     /// Task was slow (exceeded threshold).
     TaskSlow {
         task_id: TaskId,
-        build_key: BuildKey,
+        artifact_key: ArtifactKey,
         phase: TaskPhase,
         elapsed: Duration,
         description: String,

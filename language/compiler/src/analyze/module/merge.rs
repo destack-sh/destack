@@ -4,7 +4,7 @@ use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace};
 use destack_workspace::{Module, ProfileId};
 
 use crate::analyze::common::ModuleSymbolView;
-use crate::{BuildRequirementError, Compiler};
+use crate::{ArtifactRequirementError, Compiler};
 
 /// Select merge source categories for global declaration merging.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -54,7 +54,8 @@ impl Compiler {
         // collect ambient symbols from compatible spaces for user modules
         if !self.module_is_ambient_lib(module) {
             for space in self.global_merge_spaces_for_category(anchor_space, category) {
-                if let Some(group) = self.get_lib_symbol_sources_for_merge(profile, key, *space) {
+                if let Some(group) = self.get_library_symbol_sources_for_merge(profile, key, *space)
+                {
                     symbols.extend(group);
                 }
             }
@@ -92,7 +93,8 @@ impl Compiler {
         {
             candidates.extend(group);
         }
-        if let Some(group) = self.get_lib_symbol_sources_for_merge(profile, key, SymbolSpace::Type)
+        if let Some(group) =
+            self.get_library_symbol_sources_for_merge(profile, key, SymbolSpace::Type)
         {
             candidates.extend(group);
         }
@@ -115,7 +117,7 @@ impl Compiler {
         &self,
         view: ModuleSymbolView<'_>,
         symbol: GlobalSymbolId,
-    ) -> Result<GlobalSymbolId, BuildRequirementError> {
+    ) -> Result<GlobalSymbolId, ArtifactRequirementError> {
         let normalize_local_symbol =
             |candidate| self.normalize_reference_symbol_id(view, candidate);
         let symbol = normalize_local_symbol(symbol);

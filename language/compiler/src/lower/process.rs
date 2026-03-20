@@ -2,9 +2,9 @@ use std::mem;
 use std::str::FromStr;
 
 use crate::timing::tags;
-use crate::{BuildKey, BuildRequirementError, Compiler, LowerError, LowerResult, ModuleLowerer};
+use crate::{ArtifactRequirementError, Compiler, LowerError, LowerResult, ModuleLowerer};
 
-use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
+use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{
     ArtifactKey, MirBase, OutputFormat, ProfileId, Target, TargetArch, TargetId,
 };
@@ -26,6 +26,18 @@ impl Compiler {
             profile,
             profile_version,
         )?;
+        let artifact_key = ArtifactKey::mir_base(module, profile, target.clone());
+
+        // reuse one persisted mir image when available
+        if self
+            .load_published_artifact(artifact_key.clone(), |compiler| {
+                compiler.load_mir_base_image(module, module_version, profile, &target)
+            })
+            .is_some()
+        {
+            return Ok(());
+        }
+
         let payload = self.lower_module(
             module,
             profile,
@@ -37,14 +49,12 @@ impl Compiler {
             self.stats.record_lower();
         }
 
-        self.program.artifacts.publish(
-            ArtifactKey::MirBase {
-                module,
-                profile,
-                target,
-            },
-            payload,
-        );
+        self.program
+            .artifacts
+            .publish(artifact_key.clone(), payload.clone());
+        self.store_artifact(&artifact_key, &payload, |compiler, mir| {
+            compiler.store_mir_base_image(module, profile, &target, mir)
+        });
 
         Ok(())
     }
@@ -55,7 +65,7 @@ impl Compiler {
         module_id: ModuleId,
         profile: ProfileId,
         module_version: ModuleVersion,
-        profile_version: ProfileVersion,
+        _profile_version: ProfileVersion,
         target_id: TargetId,
     ) -> LowerResult<MirBase> {
         let resolved_profile = self
@@ -75,30 +85,15 @@ impl Compiler {
         }
         let _timing = self.timing_scope(tags::LOWER_MODULE);
 
-        // try to load MIR from cache
-        let cache_handle = self.cache_handle_for_module(
-            module_id,
-            Some(profile),
-            Some(&target_id),
-            CacheKind::Mir,
-        );
-        if let Some(cache) = cache_handle.as_ref()
-            && let Ok(Some(entry)) = cache.read_mir()
-        {
-            self.ensure_module_profile_matches::<LowerError>(
-                module_id,
-                module_version,
-                profile,
-                profile_version,
-            )?;
-            tracing::trace!(?module_id, ?target_id, "lower.module.cache");
-            return Ok(entry.payload);
-        }
-
         self.require_dir_elaborated(module_id, profile)?;
         self.require_dir_patched(module_id, profile)?;
         self.require_intrinsic_environment(profile)
             .map_err(LowerError::from)?;
+
+        // lowering depends on the selected library surface for well known layouts
+        self.require_library_environment(profile)
+            .map_err(LowerError::from)?;
+
         if !self.is_code_module(module_id) {
             return Err(LowerError::Internal {
                 module: module_id,
@@ -164,13 +159,6 @@ impl Compiler {
             profile: None,
         };
 
-        // write MIR to cache
-        if let Some(cache) = cache_handle.as_ref() {
-            if let Err(error) = cache.write_mir(payload.clone()) {
-                tracing::debug!(?module_id, ?target_id, ?error, "lower.module.cache.write");
-            }
-        }
-
         Ok(payload)
     }
 
@@ -180,12 +168,8 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
         target: &TargetId,
-    ) -> Result<(), BuildRequirementError> {
-        self.require_build_key(BuildKey::artifact(ArtifactKey::mir_base(
-            module,
-            profile,
-            target.clone(),
-        )))
+    ) -> Result<(), ArtifactRequirementError> {
+        self.require_artifact(ArtifactKey::mir_base(module, profile, target.clone()))
     }
 
     /// Resolve the pointer size in bytes for a lowering target.

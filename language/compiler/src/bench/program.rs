@@ -6,7 +6,7 @@ use std::time::Duration;
 use destack_source::{DiagnosticSeverity, ModuleId, ProfileStamp, ProfileVersion};
 use destack_workspace::{ArtifactKey, CacheStore, MemoryCacheStore, ProfileId, Program, Session};
 
-use crate::{BuildKey, Compiler, CompilerOptions, TaskPhase};
+use crate::{Compiler, CompilerOptions, TaskPhase};
 
 /// Program wrapper for compiler bench runs.
 pub(super) struct BenchProgram {
@@ -20,7 +20,7 @@ pub(super) struct BenchProgram {
 
 impl BenchProgram {
     /// Create a new in-memory bench program.
-    pub(super) fn new(workers: u16, inject_prelude: bool, load_libs: bool) -> Self {
+    pub(super) fn new(workers: u16, inject_prelude: bool, load_libraries: bool) -> Self {
         let root_directory = current_dir().unwrap_or_else(|error| {
             panic!("failed to read current directory: {error}");
         });
@@ -41,7 +41,7 @@ impl BenchProgram {
         let compiler_options = CompilerOptions {
             workers,
             inject_prelude,
-            load_libs,
+            load_libraries,
             ..CompilerOptions::default()
         };
         let compiler = Arc::new(Compiler::new(
@@ -108,15 +108,13 @@ impl BenchProgram {
 
     /// Enqueue Import task for a module.
     pub(super) fn import_module(&self, module: ModuleId) {
-        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_base(module)));
+        self.enqueue(ArtifactKey::dir_base(module));
     }
 
     /// Enqueue Analyze task for a module.
     pub(super) fn analyze_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_analyzed(
-            module, profile,
-        )));
+        self.enqueue(ArtifactKey::dir_analyzed(module, profile));
     }
 
     /// Resolve the language environment for the default root profile.
@@ -131,18 +129,13 @@ impl BenchProgram {
     pub(super) fn resolve_libs(&self) {
         let profile = self.default_profile_id_for_root();
         self.compiler
-            .drive(|compiler| compiler.require_lib_environment(profile))
+            .drive(|compiler| compiler.require_library_environment(profile))
             .unwrap_or_else(|error| panic!("failed to resolve libs: {error:?}"));
     }
 
-    /// Enqueue one build key (does not run it).
-    pub(super) fn enqueue<T: Into<BuildKey>>(&self, build_key: T) {
-        self.compiler.enqueue(build_key);
-    }
-
-    /// Enqueue the producer task for one build key.
-    pub(super) fn enqueue_build_key(&self, build_key: BuildKey) {
-        self.compiler.enqueue_build_key(build_key);
+    /// Enqueue one artifact key (does not run it).
+    pub(super) fn enqueue<T: Into<ArtifactKey>>(&self, artifact_key: T) {
+        self.compiler.enqueue(artifact_key);
     }
 
     /// Run all queued tasks to completion with a custom timeout.

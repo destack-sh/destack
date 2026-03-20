@@ -38,24 +38,27 @@ impl Compiler {
         // ensure linking is complete
         self.require_package_output(package_id, target_id)?;
 
-        // get all outputs for this package + target
-        let outputs = self
+        // get the package output artifact
+        let emit = self
             .program
-            .outputs
-            .get_by_package_target(package_id, target_id);
+            .artifacts
+            .package_output(package_id, target_id)
+            .ok_or_else(|| EmitError::TargetNotFound {
+                package: package_id,
+                target: target_id.clone(),
+            })?;
 
-        // emit each output using its precomputed output path
-        for output in outputs {
+        // emit each file using its precomputed output path
+        for entry in &emit.entries {
             let output_path =
-                output
+                entry
                     .uri
                     .to_path_buf()
                     .ok_or_else(|| EmitError::InvalidOutputPath {
-                        output: output.id,
-                        uri: output.uri.clone(),
+                        uri: entry.uri.clone(),
                     })?;
 
-            self.write_output(&output, &output_path)?;
+            self.write_output_entry(entry, &output_path)?;
         }
 
         Ok(())

@@ -504,7 +504,7 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
     let try_from_impl = if let Some(yv) = yield_variant {
         let yield_name = &yv.name;
         quote! {
-            impl TryFrom<#enum_name> for BuildRequirementSet {
+            impl TryFrom<#enum_name> for ArtifactRequirementSet {
                 type Error = #enum_name;
 
                 fn try_from(error: #enum_name) -> Result<Self, Self::Error> {
@@ -517,7 +517,7 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
         }
     } else {
         quote! {
-            impl TryFrom<#enum_name> for BuildRequirementSet {
+            impl TryFrom<#enum_name> for ArtifactRequirementSet {
                 type Error = #enum_name;
 
                 fn try_from(error: #enum_name) -> Result<Self, Self::Error> {
@@ -533,11 +533,11 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
         let yield_name = &yv.name;
         let yield_failed_name = &yfv.name;
         quote! {
-            impl From<BuildRequirementError> for #enum_name {
-                fn from(error: BuildRequirementError) -> Self {
+            impl From<ArtifactRequirementError> for #enum_name {
+                fn from(error: ArtifactRequirementError) -> Self {
                     match error {
-                        BuildRequirementError::NotReady { requirement } => Self::#yield_name { requirement },
-                        BuildRequirementError::Failed { requirement } => Self::#yield_failed_name { requirement },
+                        ArtifactRequirementError::NotReady { requirement } => Self::#yield_name { requirement },
+                        ArtifactRequirementError::Failed { requirement } => Self::#yield_failed_name { requirement },
                     }
                 }
             }

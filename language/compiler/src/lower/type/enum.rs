@@ -4,7 +4,7 @@ use destack_dir::{
 };
 use destack_workspace::ProfileId;
 
-use crate::{BuildRequirementError, Compiler, LowerError, LowerResult};
+use crate::{ArtifactRequirementError, Compiler, LowerError, LowerResult};
 
 use crate::lower::ModuleLowerer;
 
@@ -28,10 +28,10 @@ pub(crate) fn enum_field_value_for_symbol(
     let snapshot = compiler.require_artifact_dir_analyzed(member_symbol.module_id, profile);
     let snapshot = match snapshot {
         Ok(snapshot) => snapshot,
-        Err(BuildRequirementError::NotReady { requirement }) => {
+        Err(ArtifactRequirementError::NotReady { requirement }) => {
             return Err(LowerError::Yield { requirement });
         }
-        Err(BuildRequirementError::Failed { requirement }) => {
+        Err(ArtifactRequirementError::Failed { requirement }) => {
             return Err(LowerError::UnsatisfiedRequirement { requirement });
         }
     };

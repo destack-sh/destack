@@ -2,7 +2,7 @@ use destack_dir::SymbolTable;
 use destack_workspace::{Module, ProfileId};
 
 use crate::timing::tags;
-use crate::{BuildRequirementCollector, Compiler, ResolveError, ResolveResult};
+use crate::{ArtifactRequirementCollector, Compiler, ResolveError, ResolveResult};
 
 impl Compiler {
     /// Compute canonical_symbol for all symbols (phase 2).
@@ -44,7 +44,7 @@ impl Compiler {
         }
         // resolve canonical symbols
         // (this may yield for cross module resolution)
-        let mut collector = BuildRequirementCollector::new();
+        let mut collector = ArtifactRequirementCollector::new();
         for (symbol_id, node) in symbols_to_resolve {
             self.collect(
                 &mut collector,

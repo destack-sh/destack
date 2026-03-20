@@ -21,4 +21,4 @@ export {
     atomicFetchXor,
     atomicLoad,
     atomicStore,
-} from "../../../intrinsic/primitive/atomic.ds";
+} from "../../primitive/atomic.ds";

@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use destack_builtin::BuiltinLibKind;
+use destack_builtin::BuiltinLibraryKind;
 use destack_dir::{
     Argument, Declaration, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId,
     LocalScopeMark, LocalSymbolId, NodeTree, NodeType, Path, Scope, ScopeKind, StaticKey, StringId,
@@ -171,8 +171,10 @@ impl Compiler {
     fn module_uses_prelude(&self, module: &Module) -> bool {
         match module.source {
             ModuleSource::User => true,
-            ModuleSource::Builtin(BuiltinLibKind::Language | BuiltinLibKind::Library) => true,
-            ModuleSource::Builtin(BuiltinLibKind::Intrinsic) => false,
+            ModuleSource::Builtin(BuiltinLibraryKind::Language | BuiltinLibraryKind::Library) => {
+                true
+            }
+            ModuleSource::Builtin(BuiltinLibraryKind::Intrinsic) => false,
         }
     }
 
@@ -597,7 +599,7 @@ impl Compiler {
         tree: &mut NodeTree,
         mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<Option<Expression>> {
-        if !self.is_selected_lib_module(pass.profile_id, pass.module.id) {
+        if !self.is_selected_library_module(pass.profile_id, pass.module.id) {
             return Ok(None);
         }
 
@@ -687,12 +689,14 @@ impl Compiler {
         key: StaticKey,
         order: SymbolSpaceOrder,
     ) -> ResolveResult<Option<Vec<GlobalSymbolId>>> {
-        if let Some(sources) = self.get_lib_symbol_sources_for_space_order(profile_id, key, order) {
+        if let Some(sources) =
+            self.get_library_symbol_sources_for_space_order(profile_id, key, order)
+        {
             return Ok(Some(sources));
         }
 
-        let selected_lib_modules = self.selected_lib_modules(profile_id);
-        if selected_lib_modules.is_empty() {
+        let selected_library_modules = self.selected_library_modules(profile_id);
+        if selected_library_modules.is_empty() {
             return Ok(None);
         }
 
@@ -700,7 +704,7 @@ impl Compiler {
         let mut sources = Vec::new();
         let mut seen = HashSet::new();
 
-        for module_id in selected_lib_modules {
+        for module_id in selected_library_modules {
             let is_current_module = module_id == pass.module.id;
             let selected_module = self.program.modules.get(module_id);
             let selected_context = selected_module.clone();
@@ -976,8 +980,8 @@ impl Compiler {
         tree: &mut NodeTree,
         mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<Option<Expression>> {
-        let selected_lib_modules = self.selected_lib_modules(pass.profile_id);
-        if selected_lib_modules.is_empty() {
+        let selected_library_modules = self.selected_library_modules(pass.profile_id);
+        if selected_library_modules.is_empty() {
             return Ok(None);
         }
         let first_segment = path.first_segment().expect("path is empty");
@@ -985,7 +989,7 @@ impl Compiler {
 
         // prefer cached declared lib symbols when available
         if let Some(symbol_id) =
-            self.get_declared_lib_symbol_from(pass.profile_id, first_segment, pass.space_order)
+            self.get_declared_library_symbol_from(pass.profile_id, first_segment, pass.space_order)
         {
             let is_current_module = symbol_id.module_id == pass.module.id;
             let ambient_artifact = if is_current_module {
@@ -1091,7 +1095,7 @@ impl Compiler {
         }
 
         // search selected lib namespace scopes in order
-        for module_id in selected_lib_modules {
+        for module_id in selected_library_modules {
             // skip self
             if module_id == pass.module.id {
                 continue;
@@ -1229,9 +1233,9 @@ impl Compiler {
         space_order: SymbolSpaceOrder,
         mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
-        let selected_lib_modules = self.selected_lib_modules(profile_id);
+        let selected_library_modules = self.selected_library_modules(profile_id);
 
-        for module_id in selected_lib_modules {
+        for module_id in selected_library_modules {
             if module_id == module.id {
                 continue;
             }
@@ -1358,8 +1362,8 @@ impl Compiler {
             Err(error) => return Err(error),
         };
 
-        // stop if the module is not in the selected lib environment
-        if !self.is_selected_lib_module(pass.profile_id, pass.module.id) {
+        // stop if the module is not in the selected library environment
+        if !self.is_selected_library_module(pass.profile_id, pass.module.id) {
             return Err(missing);
         }
 

@@ -3,6 +3,7 @@ use crate::{
     typescript_commonjs_default_interop_is_enabled,
 };
 use destack_ast::StringId;
+use destack_builtin::resolve_profile_builtin_library_name;
 use destack_dir::{DependencyKind, DependencySource, ModuleResolution, ModuleTarget};
 use destack_source::ModuleId;
 use destack_workspace::{
@@ -63,6 +64,17 @@ impl BuiltinNamespace {
             Self::Node | Self::Bun | Self::Deno => None,
         }
     }
+
+    /// Return the protocol scheme string for this namespace.
+    fn scheme(self) -> &'static str {
+        match self {
+            Self::Destack => "destack",
+            Self::Platform => "platform",
+            Self::Node => "node",
+            Self::Bun => "bun",
+            Self::Deno => "deno",
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -74,9 +86,9 @@ impl Compiler {
         node: destack_dir::GlobalNodeIdAny,
         target: StringId,
     ) -> ResolveResult<ModuleTarget> {
-        let target_text = self.program.strings.get(target);
+        let target_text = self.program.strings.get(target).to_string();
         let module_id = self
-            .resolve_reference_lib_to_module(profile, target_text.as_ref())
+            .resolve_reference_lib_to_module(profile, target_text.as_str())
             .map_err(|_| ResolveError::UnresolvedModule {
                 node: node.into_anchored(Some(profile)),
                 target,
@@ -557,6 +569,42 @@ impl Compiler {
         let resolve_target = self.resolve_target_for_dependency_source(source, target);
         let resolve_target =
             self.canonical_import_specifier(module, profile, node, resolve_target)?;
+        let resolve_target_text = self.program.strings.get(resolve_target).to_string();
+
+        // explicit runtime builtin protocols resolve through ambient bindings only
+        if !module.is_builtin()
+            && loader_override.is_none()
+            && let Some(namespace) =
+                self.builtin_namespace_for_specifier(resolve_target_text.as_str())
+            && matches!(
+                namespace,
+                BuiltinNamespace::Node | BuiltinNamespace::Bun | BuiltinNamespace::Deno
+            )
+        {
+            let protocol_modules = self.protocol_binding_module_ids(profile, namespace)?;
+            if self.module_binding_exists_in_modules(&protocol_modules, resolve_target)? {
+                let binding_targets =
+                    ModuleResolution::from_target(ModuleTarget::Binding(resolve_target));
+                let Some(remote_target) =
+                    self.select_import_target_for_kind(module, binding_targets, kind)
+                else {
+                    return Ok(ImportResolutionResult {
+                        target: ModuleTarget::Binding(resolve_target),
+                        cache: binding_targets,
+                    });
+                };
+
+                return Ok(ImportResolutionResult {
+                    target: remote_target,
+                    cache: binding_targets,
+                });
+            }
+
+            return Err(ResolveError::UnknownBuiltinModule {
+                node: node.into_anchored(Some(profile)),
+                target: resolve_target,
+            });
+        }
 
         // builtin libs prefer ambient module bindings before package resolution
         if module.is_builtin()
@@ -602,11 +650,8 @@ impl Compiler {
         // only user modules get bare node builtin compatibility
         if !module.is_builtin()
             && loader_override.is_none()
-            && let Some(prefixed_target) = self.ambient_node_builtin_prefixed_specifier_for_bare(
-                module.id,
-                profile,
-                resolve_target,
-            )?
+            && let Some(prefixed_target) =
+                self.ambient_node_builtin_prefixed_specifier_for_bare(profile, resolve_target)?
         {
             let runtime = self.program.profile(profile).key.runtime;
             if !self.node_bare_builtin_compat_enabled_for_runtime(runtime) {
@@ -700,7 +745,7 @@ impl Compiler {
             return false;
         };
 
-        builtins.has_lib_for_profile(lib_name, &profile_key)
+        builtins.has_library_for_profile(lib_name, &profile_key)
     }
 
     /// Describe one active target profile for protocol diagnostics.
@@ -738,10 +783,37 @@ impl Compiler {
         matches!(runtime, Runtime::Node | Runtime::Deno | Runtime::Bun)
     }
 
+    /// Resolve protocol binding modules for one builtin namespace.
+    fn protocol_binding_module_ids(
+        &self,
+        profile: ProfileId,
+        namespace: BuiltinNamespace,
+    ) -> ResolveResult<Vec<ModuleId>> {
+        let Some(builtins) = self.program.builtins.as_ref() else {
+            return Ok(Vec::new());
+        };
+
+        let profile_key = self.program.profile(profile).key.clone();
+        let Some(lib_name) =
+            resolve_profile_builtin_library_name(namespace.scheme(), &profile_key.lib)
+        else {
+            return Ok(Vec::new());
+        };
+        let Some(module_ids) = builtins.load_library(
+            &lib_name,
+            self.program.files.clone(),
+            self.program.modules.clone(),
+            &profile_key,
+        ) else {
+            return Ok(Vec::new());
+        };
+
+        Ok(module_ids)
+    }
+
     /// Resolve the canonical `node:` target for one bare ambient node builtin.
     fn ambient_node_builtin_prefixed_specifier_for_bare(
         &self,
-        module_id: destack_source::ModuleId,
         profile: ProfileId,
         target: StringId,
     ) -> ResolveResult<Option<StringId>> {
@@ -758,7 +830,7 @@ impl Compiler {
         // build canonical node protocol form
         let prefixed_target = self.program.strings.intern(&format!("node:{target_text}"));
         let has_ambient_node_binding =
-            self.module_bindings_include_ambient_module(module_id, profile, prefixed_target)?;
+            self.module_bindings_include_ambient_module(profile, prefixed_target)?;
         if !has_ambient_node_binding {
             return Ok(None);
         }
@@ -769,19 +841,11 @@ impl Compiler {
     /// Return true when a specifier has at least one ambient binding module.
     fn module_bindings_include_ambient_module(
         &self,
-        module_id: destack_source::ModuleId,
         profile: ProfileId,
         specifier: StringId,
     ) -> ResolveResult<bool> {
-        let bindings = self.module_bindings_for_specifier(module_id, profile, specifier)?;
-        let Some(bindings) = bindings else {
-            return Ok(false);
-        };
-
         let ambient_modules = self.ambient_binding_module_ids(profile)?;
-        Ok(bindings
-            .iter()
-            .any(|binding| ambient_modules.contains(&binding.module_id)))
+        self.module_binding_exists_in_modules(&ambient_modules, specifier)
     }
 
     /// Select the unresolved import error for one target specifier.
@@ -792,9 +856,9 @@ impl Compiler {
         target: StringId,
         resolve_target: StringId,
     ) -> ResolveError {
-        let resolve_target_text = self.program.strings.get(resolve_target);
+        let resolve_target_text = self.program.strings.get(resolve_target).to_string();
         if self
-            .builtin_namespace_for_specifier(resolve_target_text.as_ref())
+            .builtin_namespace_for_specifier(resolve_target_text.as_str())
             .is_some()
         {
             return ResolveError::UnknownBuiltinModule {

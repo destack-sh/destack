@@ -32,9 +32,9 @@ pub const BUILTIN_PACKAGE_ID: PackageId = PackageId(1);
 /// Well-known package name for builtins.
 pub const BUILTIN_PACKAGE_NAME: &str = "@destack/builtin";
 
-/// Key for builtin lib and symbol data.
+/// Key for builtin library and symbol data.
 /// This intentionally excludes profile diagnostic flags so runtime policy variants
-///  can reuse the same builtin lib graph and symbols, since builtins do not depend on those.
+/// can reuse the same builtin library graph and symbols, since builtins do not depend on those.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct BuiltinLibraryKey {
     /// Output format for builtin selection.
@@ -49,7 +49,7 @@ struct BuiltinLibraryKey {
     target_vendor: Option<TargetVendor>,
     /// Target environment for builtin selection.
     target_env: Option<TargetEnv>,
-    /// Normalized lib set.
+    /// Normalized library set.
     lib: Vec<String>,
 }
 
@@ -68,16 +68,16 @@ impl BuiltinLibraryKey {
     }
 }
 
-/// Input-side builtin lib selection for one profile key.
+/// Input-side builtin library selection for one profile key.
 #[derive(Debug, Clone, Default)]
 pub struct BuiltinLibrarySelection {
-    /// Builtin libs in dependency order.
+    /// Builtin libraries in dependency order.
     pub ordered_libraries: Vec<String>,
-    /// Module batches in lib dependency order.
+    /// Module batches in library dependency order.
     pub modules_to_resolve: Vec<Vec<ModuleId>>,
-    /// All selected lib modules in load order without duplicates.
+    /// All selected library modules in load order without duplicates.
     pub library_modules: Vec<ModuleId>,
-    /// Ambient lib modules in load order without duplicates.
+    /// Ambient library modules in load order without duplicates.
     pub ambient_modules: Vec<ModuleId>,
 }
 
@@ -93,13 +93,13 @@ pub struct Builtins {
     /// The prelude module ID (re-exports items available without imports).
     pub prelude_module_id: ModuleId,
 
-    /// Lib modules cache ((profile, "dom") -> modules).
+    /// Library modules cache ((profile, "dom") -> modules).
     library_module_by_name: DashMap<(BuiltinLibraryKey, String), Vec<ModuleId>>,
-    /// Selected builtin lib modules for one profile key.
+    /// Selected builtin library modules for one profile key.
     library_selection_by_key: DashMap<BuiltinLibraryKey, BuiltinLibrarySelection>,
-    /// Input-side lock for builtin lib registration.
+    /// Input-side lock for builtin library registration.
     library_load_lock: Mutex<()>,
-    /// Lib name for each registered lib module.
+    /// Library name for each registered library module.
     pub library_name_by_module: DashMap<ModuleId, &'static str>,
 }
 
@@ -149,11 +149,7 @@ impl Builtins {
             files.insert(file);
 
             // create module id from path
-            let module_path = if source.path.is_empty() {
-                source.name.to_string()
-            } else {
-                format!("{}/{}", source.path, source.name)
-            };
+            let module_path = source.module_path();
             let module_id = ModuleId::from_relative_path(
                 BUILTIN_PACKAGE_ID,
                 std::path::Path::new(&module_path),
@@ -195,14 +191,7 @@ impl Builtins {
         }
 
         // look up prelude module ID (must be registered)
-        let prelude_path = if PRELUDE_BUILTIN_SOURCE.path.is_empty() {
-            PRELUDE_BUILTIN_SOURCE.name.to_string()
-        } else {
-            format!(
-                "{}/{}",
-                PRELUDE_BUILTIN_SOURCE.path, PRELUDE_BUILTIN_SOURCE.name
-            )
-        };
+        let prelude_path = PRELUDE_BUILTIN_SOURCE.module_path();
         let prelude_module_id = *intrinsic_modules.get(&prelude_path).unwrap_or_else(|| {
             panic!("prelude module '{prelude_path}' is not in INTRINSIC_SOURCES")
         });
@@ -227,12 +216,12 @@ impl Builtins {
             .unwrap_or_else(|| panic!("language item {item:?} not registered"))
     }
 
-    /// Build a builtin lib key from a profile key.
+    /// Build a builtin library key from a profile key.
     fn library_key(profile_key: &ProfileKey) -> BuiltinLibraryKey {
         BuiltinLibraryKey::from_profile_key(profile_key)
     }
 
-    /// Return the cached builtin lib selection for one profile key.
+    /// Return the cached builtin library selection for one profile key.
     pub fn library_selection(&self, profile_key: &ProfileKey) -> Option<BuiltinLibrarySelection> {
         let lib_cache_key = Self::library_key(profile_key);
         self.library_selection_by_key
@@ -240,7 +229,7 @@ impl Builtins {
             .map(|selection| selection.clone())
     }
 
-    /// Return whether one builtin lib has sources for one profile key.
+    /// Return whether one builtin library has sources for one profile key.
     pub fn has_library_for_profile(&self, name: &str, profile_key: &ProfileKey) -> bool {
         let Some(lib) = builtin_library(name) else {
             return false;
@@ -255,7 +244,7 @@ impl Builtins {
             .any(|source| source.matches_target(runtime, output, platform))
     }
 
-    /// Cache the builtin lib selection for one profile key.
+    /// Cache the builtin library selection for one profile key.
     pub fn set_library_selection(
         &self,
         profile_key: &ProfileKey,
@@ -266,8 +255,8 @@ impl Builtins {
             .insert(lib_cache_key, selection);
     }
 
-    /// Load a lib module set (e.g., "dom", "es2024").
-    /// Returns None if the lib name is not registered.
+    /// Load a library module set (e.g., "dom", "es2024").
+    /// Returns None if the library name is not registered.
     pub fn load_library(
         &self,
         name: &str,
@@ -281,11 +270,11 @@ impl Builtins {
         // create a local cycle guard
         let mut loading = HashSet::new();
 
-        // load the lib with cycle tracking
+        // load the library with cycle tracking
         self.load_library_inner(&name, files, modules, profile_key, &mut loading)
     }
 
-    /// Load a lib module set with cycle tracking.
+    /// Load a library module set with cycle tracking.
     fn load_library_inner(
         &self,
         name: &str,
@@ -307,10 +296,10 @@ impl Builtins {
             return Some(Vec::new());
         }
 
-        // load the lib metadata
+        // load the library metadata
         let lib = builtin_library(name)?;
 
-        // check if the lib has any sources for this target
+        // check if the library has any sources for this target
         let runtime = BuiltinRuntime::from(profile_key.runtime);
         let output = BuiltinOutputFormat::from(profile_key.output);
         let platform = BuiltinPlatform::from(profile_key.platform);
@@ -324,14 +313,14 @@ impl Builtins {
             return None;
         }
 
-        // track this lib for the current load chain
+        // track this library for the current load chain
         loading.insert(name.to_string());
 
         // recursively load dependencies
         let mut dependencies = Vec::new();
         let mut seen_dependencies = HashSet::new();
 
-        // seed dependencies from lib metadata
+        // seed dependencies from library metadata
         for &dependency in lib.dependencies {
             let dependency = self.profile_builtin_library_name(dependency, profile_key);
             if seen_dependencies.insert(dependency.clone()) {
@@ -370,7 +359,7 @@ impl Builtins {
             }
         }
 
-        // register lib sources
+        // register library sources
         let mut module_ids = Vec::with_capacity(filtered_sources.len());
         for source in filtered_sources {
             let module_id =
@@ -378,7 +367,7 @@ impl Builtins {
             module_ids.push(module_id);
         }
 
-        // register module to lib name mappings
+        // register module to library name mappings
         for module_id in &module_ids {
             self.library_name_by_module.insert(*module_id, lib.name);
         }
@@ -394,13 +383,13 @@ impl Builtins {
         Some(module_ids)
     }
 
-    /// Resolve one builtin lib name against the active profile lib set.
+    /// Resolve one builtin library name against the active profile library set.
     fn profile_builtin_library_name(&self, name: &str, profile_key: &ProfileKey) -> String {
         resolve_profile_builtin_library_name(name, &profile_key.lib)
             .unwrap_or_else(|| name.to_string())
     }
 
-    /// Clone cached module ids and refresh lib name mappings.
+    /// Clone cached module ids and refresh library name mappings.
     fn cached_library_modules(
         &self,
         name: &str,
@@ -411,16 +400,17 @@ impl Builtins {
             .library_module_by_name
             .get(&(lib_cache_key.clone(), name.to_string()))?;
 
-        // refresh module to lib name mappings when possible
-        if let Some(lib) = builtin_library(name) {
+        // refresh module to library name mappings when possible
+        if let Some(library) = builtin_library(name) {
             for module_id in cached.iter() {
-                self.library_name_by_module.insert(*module_id, lib.name);
+                self.library_name_by_module.insert(*module_id, library.name);
             }
         }
 
         Some(cached.clone())
     }
-    /// Get the lib name for a module, if any.
+
+    /// Get the library name for a module, if any.
     pub fn library_name_for_module(&self, module_id: ModuleId) -> Option<&'static str> {
         self.library_name_by_module
             .get(&module_id)
@@ -443,7 +433,7 @@ impl Builtins {
         module_ids
     }
 
-    /// Register a lib source as a module.
+    /// Register a library source as a module.
     fn register_lib_source(
         &self,
         source: &BuiltinLibrarySource,

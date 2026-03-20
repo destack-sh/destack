@@ -1,18 +1,24 @@
-mod context;
-mod disk;
-mod handle;
+mod ast;
+mod dir;
+mod environment;
+mod graph;
 mod hasher;
-mod memory;
-mod options;
-mod registry;
+mod mir;
+mod output;
+mod store;
+#[cfg(test)]
+mod tests;
+mod workspace;
 
-pub use context::CacheContext;
 pub use destack_workspace::{
     DEFAULT_CACHE_DIR, DEFAULT_COMPILER_CACHE_NAMESPACE, DEFAULT_GLOBAL_CACHE_DIR,
 };
-pub use handle::CacheHandle;
-pub use options::CacheOptions;
-pub use registry::{CacheKey, CacheRegistry};
+pub(crate) use hasher::CacheHasher;
 
-#[cfg(test)]
-mod tests;
+/// The compiler version embedded in persisted cache headers.
+pub(crate) const COMPILER_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Return the compiler version embedded in persisted cache headers.
+pub(crate) fn compiler_version() -> String {
+    COMPILER_VERSION.to_string()
+}

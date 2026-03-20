@@ -1,4 +1,4 @@
-use crate::{AnalyzeError, AnalyzeResult, BuildDependency, BuildKey, Compiler};
+use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::CaptureTable;
 use destack_source::ModuleId;
 use destack_workspace::{ArtifactKey, DirAnalyzed, DirDeclared, ProfileId};
@@ -14,6 +14,17 @@ impl Compiler {
             profile,
             profile_version,
         )?;
+
+        // reuse a persisted declared dir when it is still valid
+        let artifact_key = ArtifactKey::DirDeclared { module, profile };
+        if self
+            .load_published_artifact(artifact_key.clone(), |compiler| {
+                compiler.load_dir_declared_image(module, module_version, profile)
+            })
+            .is_some()
+        {
+            return Ok(());
+        }
 
         // transient declared builder
         let resolved = self
@@ -33,10 +44,13 @@ impl Compiler {
             profile_version,
         )?;
 
-        self.program.artifacts.publish(
-            ArtifactKey::DirDeclared { module, profile },
-            DirDeclared::from_resolved_with(resolved.as_ref(), symbols, types, captures),
-        );
+        let payload = DirDeclared::from_resolved_with(resolved.as_ref(), symbols, types, captures);
+        self.program
+            .artifacts
+            .publish(artifact_key.clone(), payload.clone());
+        self.store_artifact(&artifact_key, &payload, |compiler, payload| {
+            compiler.store_dir_declared_image(module, profile, payload)
+        });
 
         Ok(())
     }
@@ -52,6 +66,17 @@ impl Compiler {
             profile_version,
         )?;
 
+        // reuse a persisted interface dir when it is still valid
+        let artifact_key = ArtifactKey::DirInterface { module, profile };
+        if self
+            .load_published_artifact(artifact_key, |compiler| {
+                compiler.load_dir_interface_image(module, module_version, profile)
+            })
+            .is_some()
+        {
+            return Ok(());
+        }
+
         let entries =
             self.analyze_module_interface(module, profile, module_version, profile_version)?;
 
@@ -60,21 +85,23 @@ impl Compiler {
                 module: module_id,
                 profile: profile_id,
             };
-            let build_key = BuildKey::artifact(artifact_key.clone());
-            let dependency = self.build_dependency_for_key(&build_key);
+            let build_key = artifact_key.clone();
+            let dependency = self.artifact_dependency_for_key(&build_key);
 
             self.program.artifacts.publish(
                 ArtifactKey::DirInterface {
                     module: module_id,
                     profile: profile_id,
                 },
-                dir,
+                dir.clone(),
             );
-            if let BuildDependency::Artifact(dependency) = dependency {
-                self.program
-                    .artifacts
-                    .set_dependency(artifact_key, dependency);
-            }
+            self.program
+                .artifacts
+                .set_dependency(artifact_key.clone(), dependency);
+
+            self.store_artifact(&artifact_key, dir.as_ref(), |compiler, dir| {
+                compiler.store_dir_interface_image(module_id, profile_id, dir)
+            });
         }
 
         Ok(())
@@ -90,6 +117,17 @@ impl Compiler {
             profile,
             profile_version,
         )?;
+
+        // reuse a persisted analyzed dir when it is still valid
+        let artifact_key = ArtifactKey::DirAnalyzed { module, profile };
+        if self
+            .load_published_artifact(artifact_key.clone(), |compiler| {
+                compiler.load_dir_analyzed_image(module, module_version, profile)
+            })
+            .is_some()
+        {
+            return Ok(());
+        }
 
         // transient analyzed builder
         let interface = self
@@ -165,25 +203,16 @@ impl Compiler {
             captures,
         );
 
-        let cache_handle = self.cache_handle_for_module(
-            module,
-            Some(profile),
-            None,
-            destack_source::CacheKind::DirAnalyzed,
-        );
-        if let Some(cache) = cache_handle.as_ref() {
-            if let Err(error) = cache.write_dir_analyzed(payload.clone()) {
-                tracing::debug!(?module, ?profile, ?error, "analyze.module.cache.write");
-            }
-        }
-
         if self.is_code_module(module) {
             self.stats.record_analyze();
         }
 
         self.program
             .artifacts
-            .publish(ArtifactKey::DirAnalyzed { module, profile }, payload);
+            .publish(artifact_key.clone(), payload.clone());
+        self.store_artifact(&artifact_key, &payload, |compiler, payload| {
+            compiler.store_dir_analyzed_image(module, profile, payload)
+        });
 
         Ok(())
     }

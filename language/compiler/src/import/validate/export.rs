@@ -372,8 +372,7 @@ impl Compiler {
         default_name: StringId,
     ) -> Option<StringId> {
         match declaration {
-            Declaration::Global { descriptor, .. }
-            | Declaration::Namespace { descriptor, .. }
+            Declaration::Namespace { descriptor, .. }
             | Declaration::Struct { descriptor, .. }
             | Declaration::Class { descriptor, .. }
             | Declaration::Enum { descriptor, .. }
@@ -384,6 +383,7 @@ impl Compiler {
                 Some(DependencyMode::Namespace) | None => None,
             },
             Declaration::Type { .. }
+            | Declaration::Global { .. }
             | Declaration::ImportAlias { .. }
             | Declaration::Interface { .. } => None,
         }
@@ -721,6 +721,19 @@ export default function convert(value: string | number): string | number {
         test.check_no_diagnostic_code("EI201");
     }
 
+    /// Allow runtime function and namespace export merges in Destack modules.
+    #[test]
+    fn test_allow_runtime_function_then_namespace_export_merge_in_destack() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            "export function inspect(): string { return \"ok\"; } export namespace inspect { export const custom = 1; }",
+        );
+        test.import_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EI201");
+    }
+
     /// Reject runtime namespace and function exports when namespace appears first.
     #[test]
     fn test_reject_runtime_namespace_then_function_export_merge() {
@@ -841,6 +854,28 @@ export const { Tag } = source;
 export declare namespace Tag {
     export type Inner = string;
 }
+"#,
+        );
+        test.import_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EI201");
+    }
+
+    /// Ignore global augmentation declarations when collecting module exports.
+    #[test]
+    fn test_ignore_global_augmentations_for_duplicate_module_exports() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.d.ts",
+            r#"
+export {};
+
+declare global {
+    interface URL {}
+    var URL: { new(): URL };
+}
+
+export class URL {}
 "#,
         );
         test.import_module(module_id);

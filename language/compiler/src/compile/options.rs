@@ -41,7 +41,7 @@ pub struct CompilerOptions {
     /// When true, prelude items resolve without explicit imports.
     pub inject_prelude: bool,
     /// Whether to load profile libraries (es*, dom, std, etc.) by default.
-    pub load_libs: bool,
+    pub load_libraries: bool,
 
     /// Whether to generate source maps.
     pub source_map: bool,
@@ -96,7 +96,7 @@ impl Default for CompilerOptions {
             default_int_width: 32,
             default_float_width: 64,
             inject_prelude: true,
-            load_libs: true,
+            load_libraries: true,
 
             source_map: true,
 
@@ -134,7 +134,7 @@ impl std::fmt::Debug for CompilerOptions {
             .field("default_int_width", &self.default_int_width)
             .field("default_float_width", &self.default_float_width)
             .field("inject_prelude", &self.inject_prelude)
-            .field("load_libs", &self.load_libs)
+            .field("load_libraries", &self.load_libraries)
             .field("source_map", &self.source_map)
             .field("elaborate_with_ternary", &self.elaborate_with_ternary)
             .field(

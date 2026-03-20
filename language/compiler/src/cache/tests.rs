@@ -1,597 +1,80 @@
-use std::collections::HashSet;
 use std::sync::Arc;
 
-use super::hasher::CacheHasher;
-use crate::{
-    BuildKey, CacheContext, CacheKey, CacheOptions, CacheRegistry, Compiler, CompilerOptions,
-    TaskOutcome, TaskStatus, TestFileSystem, TestProgram,
-};
-use destack_resolver::TypeScriptOptionsDiscovery;
-use destack_source::{
-    CacheKind, DiagnosticSeverity, File, FileId, FileType, FileVersion, ModuleId, ModuleVersion,
-    PackageId, TemporaryPhysicalFileSystem, Uri,
-};
+use destack_core::StringPool;
+use destack_dir::{Dumper, DumperOptions, NodeVisitor};
+use destack_source::{File, FileId, FileType, FileVersion, TemporaryPhysicalFileSystem, Uri};
 use destack_workspace::{
-    ArtifactKey, Ast, CacheMode, CachePolicy, CacheScope, CacheValidate, Destack, DiskCacheStore,
-    FileUpdate, MemoryCacheStore, ModuleGraphKey, Session, Workspace, WorkspaceIndexHeader,
-    WorkspaceIndexStore, hash_workspace_config,
+    ArtifactImage, ArtifactImageHeader, ArtifactImageKey, ArtifactStore, Ast, AstImage, CacheStore,
+    Destack, DirPrepared, DirResolved, EnvSnapshot, LanguageEnvironment, MemoryCacheStore,
+    OutputFormat, Platform, ProfileFlags, ProfileKey, Program, Runtime, Session, Workspace,
 };
 
-impl TestProgram {
-    /// Compile and analyze the provided modules.
-    fn compile_analyze_modules(&self, modules: &[ModuleId]) {
-        // reset diagnostics for a clean assertion pass
-        let _ = self.program.diagnostics.drain();
+use crate::{Compiler, CompilerOptions};
 
-        // build a fresh compiler so tasks rerun
-        let options = self.compiler.options.clone();
-        let compiler = Compiler::new(self.session.clone(), self.program.clone(), options);
-
-        // enqueue analyze tasks for the requested modules
-        for module_id in modules {
-            let profile = self.default_profile_id(*module_id);
-            compiler.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_analyzed(
-                *module_id, profile,
-            )));
-        }
-
-        // run compilation and check diagnostics
-        compiler.compile();
-        self.check_no_diagnostic(DiagnosticSeverity::Note);
-    }
-
-    /// Compile and analyze the provided modules with one retained compiler.
-    fn compile_analyze_modules_with(&self, compiler: &Compiler, modules: &[ModuleId]) {
-        // reset diagnostics for a clean assertion pass
-        let _ = self.program.diagnostics.drain();
-
-        // enqueue analyze tasks for the requested modules
-        for module_id in modules {
-            let profile = self.default_profile_id(*module_id);
-            compiler.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_analyzed(
-                *module_id, profile,
-            )));
-        }
-
-        // run compilation and check diagnostics
-        compiler.compile();
-        self.check_no_diagnostic(DiagnosticSeverity::Note);
-    }
-
-    /// Replace module source and invalidate program state.
-    fn replace_module_source(&self, module_id: ModuleId, content: &str) {
-        // capture the module path for filesystem updates
-        let module_path = {
-            let module = self.program.modules.get(module_id);
-            let module = module.as_ref();
-            if !module.is_code() {
-                panic!("expected a code module for source replacement");
-            }
-            module
-                .path
-                .clone()
-                .unwrap_or_else(|| panic!("module path missing for {module_id:?}"))
-        };
-
-        // update the memory filesystem content
-        match &self.fs {
-            TestFileSystem::Memory { fs } => {
-                fs.add_file(&module_path, content.as_bytes())
-                    .unwrap_or_else(|error| panic!("failed to write module file: {error}"));
-            }
-            TestFileSystem::Physical { .. } => {
-                panic!("incremental tests require memory filesystem");
-            }
-        }
-
-        // invalidate the module via program api
-        let file_id = self.program.modules.get(module_id).file_id;
-        self.program
-            .invalidate_file(
-                file_id,
-                FileUpdate::Text {
-                    content: content.to_string(),
-                },
-            )
-            .unwrap_or_else(|error| panic!("failed to invalidate file: {error}"));
-    }
+/// Build one stable profile key for cache image tests.
+fn test_profile_key() -> ProfileKey {
+    ProfileKey::new(
+        OutputFormat::Js,
+        Runtime::Node,
+        Platform::Web,
+        None,
+        None,
+        None,
+        Vec::new(),
+        false,
+        false,
+        false,
+        EnvSnapshot::Whitelist {
+            keys: Vec::new(),
+            hash: 0,
+        },
+        ProfileFlags::default(),
+    )
 }
 
-/// Rebuild tasks when module versions change.
-#[test]
-fn test_task_rebuilds_after_module_version_change() {
-    // set up a program and register a module
-    let test = TestProgram::memory_sequential();
-    let module_id = test.add_module("main.ts", "export const value = 1;");
-    let build_key = BuildKey::artifact(ArtifactKey::ast(module_id));
-    let artifact_key = ArtifactKey::ast(module_id);
-
-    // seed the initial artifact
-    let outcome = test.compiler.run_build_key(build_key.clone());
-    assert!(matches!(outcome, TaskOutcome::Complete { .. }));
-
-    let initial_dependency = test
-        .program
-        .artifacts
-        .dependency(&artifact_key)
-        .unwrap_or_else(|| panic!("missing dependency for {artifact_key:?}"));
-
-    // invalidate the module to bump its version
-    let file_id = test.program.modules.get(module_id).file_id;
-    test.program
-        .invalidate_file(file_id, FileUpdate::Touch)
-        .unwrap_or_else(|error| panic!("failed to invalidate file: {error}"));
-
-    // rebuild the same build key against the new input version
-    let outcome = test.compiler.run_build_key(build_key.clone());
-
-    // check that the task completed again under a new dependency
-    assert!(matches!(outcome, TaskOutcome::Complete { .. }));
-    let status = test
-        .compiler
-        .get_status(&build_key)
-        .unwrap_or_else(|| panic!("missing task status"));
-    assert!(matches!(status, TaskStatus::Complete));
-
-    let updated_dependency = test
-        .program
-        .artifacts
-        .dependency(&artifact_key)
-        .unwrap_or_else(|| panic!("missing dependency for {artifact_key:?}"));
-
-    assert_ne!(
-        updated_dependency, initial_dependency,
-        "expected artifact dependency to change after module invalidation"
-    );
-}
-
-/// Exact build requirements mark dependent DIR artifacts stale.
-#[test]
-fn test_exact_requirements_mark_dependent_dir_stale() {
-    let test = TestProgram::memory_sequential();
-    let compiler = Compiler::new(
-        test.session.clone(),
-        test.program.clone(),
-        test.compiler.options.clone(),
-    );
-    let module_a_id = test.add_module(
-        "a.ts",
-        r#"
-export const value: number = 1;
-"#,
-    );
-    let module_b_id = test.add_module(
-        "b.ts",
-        r#"
-import { value } from "./a.ts";
-
-value;
-"#,
-    );
-
-    // seed analyzed artifacts and exact requirements
-    test.compile_analyze_modules_with(&compiler, &[module_a_id, module_b_id]);
-
-    let profile = test.default_profile_id(module_a_id);
-    let build_key = BuildKey::artifact(ArtifactKey::dir_analyzed(module_b_id, profile));
-    let b_has_dir_before = test
-        .program
-        .artifacts
-        .dir_analyzed(module_b_id, profile)
-        .is_some();
-    assert!(
-        compiler.build_key_is_available(&build_key),
-        "expected dependent dir to be available before edits"
-    );
-
-    // update module a without changing its export surface
-    test.replace_module_source(
-        module_a_id,
-        r#"
-export const value: number = 2;
-"#,
-    );
-    test.compile_analyze_modules_with(&compiler, &[module_a_id]);
-
-    let b_has_dir_after_internal = test
-        .program
-        .artifacts
-        .dir_analyzed(module_b_id, profile)
-        .is_some();
-
-    assert_eq!(
-        b_has_dir_after_internal, b_has_dir_before,
-        "expected dependent dir artifact to remain published"
-    );
-    assert!(
-        !compiler.build_key_is_available(&build_key),
-        "expected dependent dir to become stale after dependency change"
-    );
-
-    // rerun the dependent build and restore availability
-    let outcome = compiler.run_build_key(build_key.clone());
-    assert!(
-        matches!(outcome, TaskOutcome::Complete { .. }),
-        "expected dependent dir rebuild to complete"
-    );
-    assert!(
-        compiler.build_key_is_available(&build_key),
-        "expected dependent dir to be available after rebuild"
-    );
-}
-
-/// Module graph updates when imports change.
-#[test]
-fn test_module_graph_updates_on_import_change() {
-    let test = TestProgram::memory_sequential();
-    let module_b_id = test.add_module(
-        "b.ts",
-        r#"
-export const value: number = 1;
-"#,
-    );
-    let module_c_id = test.add_module(
-        "c.ts",
-        r#"
-export const value: number = 2;
-"#,
-    );
-    let module_a_id = test.add_module(
-        "a.ts",
-        r#"
-import { value } from "./b.ts";
-
-value;
-"#,
-    );
-
-    // seed module graph
-    test.compile_analyze_modules(&[module_a_id, module_b_id, module_c_id]);
-
-    let profile = test.default_profile_id(module_a_id);
-    let graph = test
-        .program
-        .artifacts
-        .module_graph(profile)
-        .unwrap_or_else(|| panic!("missing module graph for {profile:?}"));
-    let deps_before: HashSet<_> = graph.dependencies_for(module_a_id).into_iter().collect();
-    let dependents_b_before: HashSet<_> = graph.dependents_for(module_b_id).into_iter().collect();
-    let dependents_c_before: HashSet<_> = graph.dependents_for(module_c_id).into_iter().collect();
-    drop(graph);
-
-    // check that the module graph is updated
-    assert!(
-        deps_before.contains(&module_b_id),
-        "expected module b to be a dependency before edits"
-    );
-    assert!(
-        !deps_before.contains(&module_c_id),
-        "expected module c to be absent before edits"
-    );
-    assert!(
-        dependents_b_before.contains(&module_a_id),
-        "expected module a to depend on module b before edits"
-    );
-    assert!(
-        dependents_c_before.is_empty(),
-        "expected module c to have no dependents before edits"
-    );
-
-    // update module a to import module c instead
-    test.replace_module_source(
-        module_a_id,
-        r#"
-import { value } from "./c.ts";
-
-value;
-"#,
-    );
-    test.compile_analyze_modules(&[module_a_id, module_c_id]);
-
-    let graph = test
-        .program
-        .artifacts
-        .module_graph(profile)
-        .unwrap_or_else(|| panic!("missing module graph for {profile:?}"));
-    let deps_after: HashSet<_> = graph.dependencies_for(module_a_id).into_iter().collect();
-    let dependents_b_after: HashSet<_> = graph.dependents_for(module_b_id).into_iter().collect();
-    let dependents_c_after: HashSet<_> = graph.dependents_for(module_c_id).into_iter().collect();
-    drop(graph);
-
-    // check that the module graph is updated
-    assert!(
-        deps_after.contains(&module_c_id),
-        "expected module c to be a dependency after edits"
-    );
-    assert!(
-        !deps_after.contains(&module_b_id),
-        "expected module b to be removed after edits"
-    );
-    assert!(
-        !dependents_b_after.contains(&module_a_id),
-        "expected module a removed from module b dependents"
-    );
-    assert!(
-        dependents_c_after.contains(&module_a_id),
-        "expected module a to depend on module c after edits"
-    );
-}
-
-/// Exact build requirements propagate staleness through reexports.
-#[test]
-fn test_exact_requirements_propagate_through_reexports() {
-    let test = TestProgram::memory_sequential();
-    let compiler = Compiler::new(
-        test.session.clone(),
-        test.program.clone(),
-        test.compiler.options.clone(),
-    );
-    let module_b_id = test.add_module(
-        "b.ts",
-        r#"
-export const value: number = 1;
-"#,
-    );
-    let module_a_id = test.add_module(
-        "a.ts",
-        r#"
-export { value } from "./b.ts";
-"#,
-    );
-    let module_c_id = test.add_module(
-        "c.ts",
-        r#"
-import { value } from "./a.ts";
-
-value;
-"#,
-    );
-
-    // seed analyzed artifacts and exact requirements
-    test.compile_analyze_modules_with(&compiler, &[module_b_id, module_a_id, module_c_id]);
-
-    let profile = test.default_profile_id(module_a_id);
-    let a_build_key = BuildKey::artifact(ArtifactKey::dir_analyzed(module_a_id, profile));
-    let c_build_key = BuildKey::artifact(ArtifactKey::dir_analyzed(module_c_id, profile));
-    assert!(compiler.build_key_is_available(&a_build_key));
-    assert!(compiler.build_key_is_available(&c_build_key));
-
-    // update module b without changing its export surface
-    test.replace_module_source(
-        module_b_id,
-        r#"
-export const value: number = 2;
-"#,
-    );
-    test.compile_analyze_modules_with(&compiler, &[module_b_id]);
-
-    let a_has_dir_after_b = test
-        .program
-        .artifacts
-        .dir_analyzed(module_a_id, profile)
-        .is_some();
-    let c_has_dir_after_b = test
-        .program
-        .artifacts
-        .dir_analyzed(module_c_id, profile)
-        .is_some();
-
-    // check that both downstream artifacts remain published but stale
-    assert!(
-        a_has_dir_after_b,
-        "expected reexporting module dir artifact to remain published"
-    );
-    assert!(
-        c_has_dir_after_b,
-        "expected transitive dependent dir artifact to remain published"
-    );
-    assert!(
-        !compiler.build_key_is_available(&a_build_key),
-        "expected reexporting module dir to become stale"
-    );
-    assert!(
-        !compiler.build_key_is_available(&c_build_key),
-        "expected transitive dependent dir to become stale"
-    );
-}
-
-/// Exact build requirements mark dependent patched DIR artifacts stale.
-#[test]
-fn test_exact_requirements_mark_dependent_patched_dir_stale() {
-    let test = TestProgram::memory_sequential();
-    let compiler = Compiler::new(
-        test.session.clone(),
-        test.program.clone(),
-        test.compiler.options.clone(),
-    );
-    let module_a_id = test.add_module(
-        "a.ts",
-        r#"
-export const value: number = 1;
-"#,
-    );
-    let module_b_id = test.add_module(
-        "b.ts",
-        r#"
-import { value } from "./a.ts";
-
-value;
-"#,
-    );
-
-    // seed analyzed artifacts first
-    test.compile_analyze_modules_with(&compiler, &[module_a_id, module_b_id]);
-
-    // seed a patched dir artifact to validate freshness behavior
-    let profile = test.default_profile_id(module_b_id);
-    let build_key = BuildKey::artifact(ArtifactKey::dir_patched(module_b_id, profile));
-    let outcome = compiler.run_build_key(build_key.clone());
-    assert!(matches!(outcome, TaskOutcome::Complete { .. }));
-
-    let b_has_patched_dir_before = test
-        .program
-        .artifacts
-        .dir_patched(module_b_id, profile)
-        .is_some();
-
-    // check that the patched dir is seeded before edits
-    assert!(
-        b_has_patched_dir_before,
-        "expected patched dir to be seeded before edits"
-    );
-    assert!(compiler.build_key_is_available(&build_key));
-
-    // update module a without changing its export surface
-    test.replace_module_source(
-        module_a_id,
-        r#"
-export const value: number = 2;
-"#,
-    );
-    test.compile_analyze_modules_with(&compiler, &[module_a_id]);
-
-    let b_has_patched_dir_after = test
-        .program
-        .artifacts
-        .dir_patched(module_b_id, profile)
-        .is_some();
-
-    // check that the patched dir artifact remains published but stale
-    assert!(
-        b_has_patched_dir_after,
-        "expected dependent patched dir artifact to remain published"
-    );
-    assert!(
-        !compiler.build_key_is_available(&build_key),
-        "expected dependent patched dir to become stale after dependency change"
-    );
-}
-
-/// Cache entries roundtrip through disk storage.
-#[test]
-#[ignore]
-fn test_cache_roundtrip_disk() {
-    let cache_root = TemporaryPhysicalFileSystem::new_with_prefix("cache_roundtrip_disk");
-
-    let options = CacheOptions {
-        mode: CacheMode::Disk,
-        dir: cache_root.root().to_path_buf(),
-        policy: CachePolicy::Lru,
-        validate: CacheValidate::Strict,
-        scope: CacheScope::Workspace,
-        max_size_mb: None,
-    };
-    let context = CacheContext {
-        compiler_version: "test".to_string(),
-        file_version: FileVersion::INITIAL,
-        profile_id: None,
-        profile_version: None,
-        source_hash: 1,
-        config_hash: 2,
-        target_hash: 3,
-        dependency_hash: 0,
-    };
-    let module_id = ModuleId::new(PackageId::new(1), 1);
-    let payload = Ast::new(module_id, ModuleVersion::INITIAL);
-
-    let cache_store = DiskCacheStore::new();
-    let registry = CacheRegistry::new();
-    registry
-        .write_ast_cache(&cache_store, &options, &context, module_id, payload.clone())
-        .unwrap_or_else(|error| panic!("failed to write cache entry: {error}"));
-
-    // check that the ast cache entry is read from disk
-    let entry = registry
-        .read_ast_cache(&cache_store, &options, &context, module_id)
-        .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
-    assert!(entry.is_some(), "expected ast cache entry");
-
-    let fresh_registry = CacheRegistry::new();
-    let entry = fresh_registry
-        .read_ast_cache(&cache_store, &options, &context, module_id)
-        .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
-
-    // check that the ast cache entry is read from disk
-    assert!(entry.is_some(), "expected ast cache entry from disk");
-}
-
-/// Disk cache hits should update access markers for LRU eviction.
-#[test]
-#[ignore]
-fn test_cache_disk_access_markers() {
-    let cache_root = TemporaryPhysicalFileSystem::new_with_prefix("cache_access");
-
-    let options = CacheOptions {
-        mode: CacheMode::Disk,
-        dir: cache_root.root().to_path_buf(),
-        policy: CachePolicy::Lru,
-        validate: CacheValidate::Strict,
-        scope: CacheScope::Workspace,
-        max_size_mb: None,
-    };
-    let context = CacheContext {
-        compiler_version: "test".to_string(),
-        file_version: FileVersion::INITIAL,
-        profile_id: None,
-        profile_version: None,
-        source_hash: 10,
-        config_hash: 20,
-        target_hash: 30,
-        dependency_hash: 0,
-    };
-    let module_id = ModuleId::new(PackageId::new(2), 3);
-    let payload = Ast::new(module_id, ModuleVersion::INITIAL);
-
-    let cache_store = DiskCacheStore::new();
-    let registry = CacheRegistry::new();
-    registry
-        .write_ast_cache(&cache_store, &options, &context, module_id, payload)
-        .unwrap_or_else(|error| panic!("failed to write cache entry: {error}"));
-
-    let read_registry = CacheRegistry::new();
-    let entry = read_registry
-        .read_ast_cache(&cache_store, &options, &context, module_id)
-        .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
-    assert!(entry.is_some(), "expected ast cache entry");
-
-    let key = CacheKey::new(CacheKind::Ast, module_id, &context);
-    let entry_path = read_registry.cache_entry_path(&options, &key);
-    let access_path = read_registry.cache_access_path(&entry_path);
-
-    // check that the access marker is written
-    assert!(access_path.exists(), "expected access marker to be written");
-}
-
-/// Workspace index snapshots roundtrip through disk.
-#[test]
-fn test_workspace_index_roundtrip_disk() {
-    // set up a physical workspace
-    let root = TemporaryPhysicalFileSystem::new_with_prefix("workspace_index_disk");
-    let root_path = root.root().to_path_buf();
-    root.write_bytes("package.json", br#"{ "name": "workspace-index-test" }"#)
-        .unwrap();
-    let config_path = root.path_for("destack.json");
-    let config_content = r#"{ "cache": { "mode": "disk" } }"#;
-    root.write_text("destack.json", config_content).unwrap();
-    let module_path = root.path_for("main.ts");
-    root.write_text("main.ts", "export const value: number = 1;")
-        .unwrap();
-
-    // parse workspace config
-    let config_file = File::from_text_as_jsonc(
+/// Parse one workspace config file.
+fn parse_workspace_config(config_path: &std::path::Path, config_content: &str) -> Destack {
+    let file = File::from_text_as_jsonc(
         FileId::new(1),
         "destack.json".to_string(),
-        Uri::from_path(&config_path),
-        Some(config_path.clone()),
+        Uri::from_path(config_path),
+        Some(config_path.to_path_buf()),
         FileType::Json,
         config_content.to_string(),
     )
     .unwrap_or_else(|error| panic!("failed to parse destack.json: {error}"));
-    let config = Destack::parse(&Arc::new(config_file))
-        .unwrap_or_else(|error| panic!("failed to build destack.json: {error}"));
+    let file = Arc::new(file.with_version(FileVersion::INITIAL));
 
-    // register a module and flush the workspace index
-    let workspace = Workspace::single_package(root_path.clone()).with_config(config.clone());
+    Destack::parse(&file).unwrap_or_else(|error| panic!("failed to build destack.json: {error}"))
+}
+
+/// Build one compiler over a disk-cache-enabled temporary workspace.
+fn build_disk_cache_compiler(
+    root: &TemporaryPhysicalFileSystem,
+) -> (Arc<Session>, Arc<Program>, Compiler, std::path::PathBuf) {
+    let root_path = root.root().to_path_buf();
+    let config_path = root.path_for("destack.json");
+    let config_content = r#"{ "cache": { "mode": "disk" } }"#;
+    let package_manifest_path = root.path_for("package.json");
+    let source_path = root.path_for("main.ts");
+
+    // workspace files
+    if !package_manifest_path.exists() {
+        root.write_bytes("package.json", br#"{ "name": "artifact-image-test" }"#)
+            .unwrap_or_else(|error| panic!("failed to write package.json: {error}"));
+    }
+    if !config_path.exists() {
+        root.write_text("destack.json", config_content)
+            .unwrap_or_else(|error| panic!("failed to write destack.json: {error}"));
+    }
+    if !source_path.exists() {
+        root.write_text("main.ts", "export const value: number = 1;")
+            .unwrap_or_else(|error| panic!("failed to write main.ts: {error}"));
+    }
+
+    // workspace config
+    let config = parse_workspace_config(&config_path, config_content);
+    let workspace = Workspace::single_package(root_path.clone()).with_config(config);
     let session = Arc::new(Session::workspace(root_path.clone(), Arc::new(workspace)));
     let program = session.add_root(root_path.clone());
     let compiler = Compiler::new(
@@ -602,423 +85,822 @@ fn test_workspace_index_roundtrip_disk() {
             ..CompilerOptions::default()
         },
     );
+
+    (session, program, compiler, root.path_for("main.ts"))
+}
+
+/// Build one compiler over a temporary workspace without persistent artifact caching.
+fn build_memory_cache_compiler(
+    root: &TemporaryPhysicalFileSystem,
+) -> (Arc<Session>, Arc<Program>, Compiler, std::path::PathBuf) {
+    let root_path = root.root().to_path_buf();
+    let package_manifest_path = root.path_for("package.json");
+    let source_path = root.path_for("main.ts");
+
+    // workspace files
+    if !package_manifest_path.exists() {
+        root.write_bytes("package.json", br#"{ "name": "artifact-image-test" }"#)
+            .unwrap_or_else(|error| panic!("failed to write package.json: {error}"));
+    }
+    if !source_path.exists() {
+        root.write_text("main.ts", "export const value: number = 1;")
+            .unwrap_or_else(|error| panic!("failed to write main.ts: {error}"));
+    }
+
+    // workspace config
+    let workspace = Workspace::single_package(root_path.clone());
+    let session = Arc::new(Session::workspace(root_path.clone(), Arc::new(workspace)));
+    let program = session.add_root(root_path.clone());
+    let compiler = Compiler::new(
+        session.clone(),
+        program.clone(),
+        CompilerOptions {
+            workers: 1,
+            ..CompilerOptions::default()
+        },
+    );
+
+    (session, program, compiler, root.path_for("main.ts"))
+}
+
+/// Normalize one AST for stable cross-session comparison.
+fn normalize_ast(mut ast: Ast) -> Ast {
+    ast.tree.source_map.rebind_file(FileId::new(0));
+
+    for token in &mut ast.tokens {
+        token.span = token.span.with_file(FileId::new(0));
+    }
+
+    for token in &mut ast.side_tokens {
+        token.span = token.span.with_file(FileId::new(0));
+    }
+
+    ast
+}
+
+/// Dump one prepared DIR node surface deterministically.
+fn dump_dir_prepared_nodes(strings: &StringPool, dir: &DirPrepared) -> String {
+    let strings = strings.clone().into_immutable();
+    let mut dumper = Dumper::new(&strings, &dir.tree, DumperOptions::default());
+
+    for expression_id in dir.roots.iter().copied() {
+        let expression = dir.tree.get(expression_id);
+        dumper.visit_expression(&dir.tree, expression_id, expression);
+    }
+
+    dumper.finish()
+}
+
+/// Dump one prepared DIR symbol surface deterministically.
+fn dump_dir_prepared_symbols(strings: &StringPool, dir: &DirPrepared) -> String {
+    let strings = strings.clone().into_immutable();
+    let mut dumper = Dumper::new(&strings, &dir.tree, DumperOptions::default());
+    let scope = dir.symbols.get_scope_by_id(dir.namespace_scope);
+    dumper.visit_scope(&dir.tree, &dir.symbols, dir.namespace_scope, scope);
+    dumper.finish()
+}
+
+/// Dump one resolved DIR node surface deterministically.
+fn dump_dir_resolved_nodes(strings: &StringPool, dir: &DirResolved) -> String {
+    let strings = strings.clone().into_immutable();
+    let mut dumper = Dumper::new(&strings, &dir.tree, DumperOptions::default());
+
+    for expression_id in dir.roots.iter().copied() {
+        let expression = dir.tree.get(expression_id);
+        dumper.visit_expression(&dir.tree, expression_id, expression);
+    }
+
+    dumper.finish()
+}
+
+/// Dump one resolved DIR symbol surface deterministically.
+fn dump_dir_resolved_symbols(strings: &StringPool, dir: &DirResolved) -> String {
+    let strings = strings.clone().into_immutable();
+    let mut dumper = Dumper::new(&strings, &dir.tree, DumperOptions::default());
+    let scope = dir.symbols.get_scope_by_id(dir.namespace_scope);
+    dumper.visit_scope(&dir.tree, &dir.symbols, dir.namespace_scope, scope);
+    dumper.finish()
+}
+
+/// Persist and load one language environment image through the artifact store.
+#[test]
+fn test_artifact_store_roundtrips_language_environment_image() {
+    let cache_root = std::path::PathBuf::from("/artifact-store-test");
+    let cache_store: Arc<dyn CacheStore> = Arc::new(MemoryCacheStore::new());
+    let artifact_store = ArtifactStore::new(cache_store.as_ref(), &cache_root);
+    let profile = test_profile_key();
+    let header = ArtifactImageHeader::new(
+        ArtifactImageKey::LanguageEnvironment { profile },
+        "test".to_string(),
+        None,
+        0,
+        None,
+        0,
+    );
+    let image = ArtifactImage::new(header, LanguageEnvironment::default())
+        .unwrap_or_else(|error| panic!("failed to build artifact image: {error}"));
+
+    // write the image first
+    artifact_store
+        .save(&image)
+        .unwrap_or_else(|error| panic!("failed to save artifact image: {error}"));
+
+    // load the same image back
+    let loaded = artifact_store
+        .load::<LanguageEnvironment>(&image.header.artifact_image_key)
+        .unwrap_or_else(|error| panic!("failed to load artifact image: {error}"))
+        .unwrap_or_else(|| panic!("expected stored artifact image"));
+
+    // compare the full image contract
+    assert_eq!(loaded.header, image.header);
+    assert_eq!(loaded.payload.items, image.payload.items);
+    assert_eq!(loaded.payload.symbols, image.payload.symbols);
+}
+
+/// Reuse one persisted language environment across a fresh compiler session.
+#[test]
+fn test_compiler_reuses_language_environment_image_across_sessions() {
+    let root = TemporaryPhysicalFileSystem::new_with_prefix("language_environment_image");
+    let (session, program, compiler, module_path) = build_disk_cache_compiler(&root);
+
+    // build and persist the environment in the first session
     let module_id = compiler
         .resolve_path_to_module(&module_path)
-        .unwrap_or_else(|error| panic!("failed to register module: {error:?}"));
+        .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
+    let profile_id = program.default_profile_id_for_module(module_id);
+    compiler
+        .drive(|compiler| compiler.process_language_environment(profile_id))
+        .unwrap_or_else(|error| panic!("failed to persist language environment: {error:?}"));
+    let expected = compiler
+        .program
+        .artifacts
+        .language_environment(profile_id)
+        .unwrap_or_else(|| panic!("expected published language environment"))
+        .as_ref()
+        .clone();
+
+    drop(compiler);
+    drop(program);
+    drop(session);
+
+    let (_session, program, compiler, module_path) = build_disk_cache_compiler(&root);
+
+    // build the same stable profile in a fresh session
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| {
+            panic!("failed to resolve main module in fresh session: {error:?}")
+        });
+    let profile_id = program.default_profile_id_for_module(module_id);
+
+    // verify the persisted image is available before any rebuild
+    let loaded = compiler
+        .load_language_environment_image(profile_id)
+        .unwrap_or_else(|error| panic!("failed to load persisted language environment: {error}"))
+        .unwrap_or_else(|| panic!("expected persisted language environment image"));
+
+    // compare the full semantic surface
+    assert_eq!(loaded.items, expected.items);
+    assert_eq!(loaded.symbols, expected.symbols);
+
+    // validate the public compiler path too
+    let resolved = compiler
+        .resolve_language_environment(profile_id)
+        .unwrap_or_else(|error| panic!("failed to load language environment: {error:?}"));
+    assert_eq!(resolved.items, expected.items);
+    assert_eq!(resolved.symbols, expected.symbols);
+}
+
+/// Persist and load one AST image through the artifact store.
+#[test]
+fn test_artifact_store_roundtrips_ast_image() {
+    let cache_root = std::path::PathBuf::from("/artifact-store-test");
+    let cache_store: Arc<dyn CacheStore> = Arc::new(MemoryCacheStore::new());
+    let artifact_store = ArtifactStore::new(cache_store.as_ref(), &cache_root);
+    let module = destack_source::ModuleId::EPHEMERAL;
+    let header = ArtifactImageHeader::new(
+        ArtifactImageKey::Ast { module },
+        "test".to_string(),
+        None,
+        0,
+        None,
+        0,
+    );
+    let payload = AstImage::from_ast(
+        &Ast::new(module, destack_source::ModuleVersion::INITIAL),
+        destack_source::FileKey::EPHEMERAL,
+        FileVersion::INITIAL,
+        0,
+    );
+    let image = ArtifactImage::new(header, payload)
+        .unwrap_or_else(|error| panic!("failed to build ast image: {error}"));
+
+    // write the image first
+    artifact_store
+        .save(&image)
+        .unwrap_or_else(|error| panic!("failed to save ast image: {error}"));
+
+    // load the same image back
+    let loaded = artifact_store
+        .load::<AstImage>(&image.header.artifact_image_key)
+        .unwrap_or_else(|error| panic!("failed to load ast image: {error}"))
+        .unwrap_or_else(|| panic!("expected stored ast image"));
+
+    // compare the full image contract
+    assert_eq!(loaded.header, image.header);
+    assert_eq!(loaded.payload.file_key, image.payload.file_key);
+    assert_eq!(loaded.payload.file_version, image.payload.file_version);
+    assert_eq!(loaded.payload.source_hash, image.payload.source_hash);
+    assert_eq!(loaded.payload.module_version, image.payload.module_version);
+}
+
+/// Reuse one persisted AST image across a fresh compiler session.
+#[test]
+fn test_compiler_reuses_ast_image_across_sessions() {
+    let root = TemporaryPhysicalFileSystem::new_with_prefix("ast_image");
+    let (session, program, compiler, module_path) = build_disk_cache_compiler(&root);
+
+    // build and persist the ast in the first session
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
+    compiler
+        .drive(|compiler| compiler.process_ast(module_id))
+        .unwrap_or_else(|error| panic!("failed to build ast: {error:?}"));
+    let expected = compiler
+        .program
+        .artifacts
+        .ast(module_id)
+        .unwrap_or_else(|| panic!("expected published ast"))
+        .as_ref()
+        .clone();
+
+    drop(compiler);
+    drop(program);
+    drop(session);
+
+    let (_session, program, compiler, module_path) = build_disk_cache_compiler(&root);
+
+    // build the same module in a fresh session
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| {
+            panic!("failed to resolve main module in fresh session: {error:?}")
+        });
+    let file_id = program.modules.get(module_id).file_id;
+    let file = program.files.get(file_id);
+
+    // load the source file before the direct image read
+    if !file.is_loaded() {
+        let content = compiler
+            .program
+            .fs
+            .read_to_string(&module_path)
+            .unwrap_or_else(|error| panic!("failed to load main.ts: {error}"));
+        let loaded_file = File::from_text(
+            file_id,
+            file.name.clone(),
+            file.uri.clone(),
+            file.path.clone(),
+            file.ty,
+            content,
+        );
+        program.files.replace(loaded_file);
+    }
+    let file = program.files.get(file_id);
+
+    // verify the persisted image is available before any rebuild
+    let loaded = compiler
+        .load_ast_image(
+            module_id,
+            compiler.module_version(module_id),
+            file.as_ref(),
+            Some(destack_source::LanguageType::TypeScript),
+        )
+        .unwrap_or_else(|error| panic!("failed to load persisted ast image: {error}"))
+        .unwrap_or_else(|| panic!("expected persisted ast image"));
+
+    // compare the full normalized artifact
+    let expected_bytes = postcard::to_allocvec(&normalize_ast(expected))
+        .unwrap_or_else(|error| panic!("failed to encode expected ast: {error}"));
+    let loaded_bytes = postcard::to_allocvec(&normalize_ast(loaded.clone()))
+        .unwrap_or_else(|error| panic!("failed to encode loaded ast: {error}"));
+    assert_eq!(loaded_bytes, expected_bytes);
+
+    // validate the public compiler path too
+    compiler
+        .drive(|compiler| compiler.process_ast(module_id))
+        .unwrap_or_else(|error| panic!("failed to load ast: {error:?}"));
+    let resolved = compiler
+        .program
+        .artifacts
+        .ast(module_id)
+        .unwrap_or_else(|| panic!("expected published ast after load"))
+        .as_ref()
+        .clone();
+    let resolved_bytes = postcard::to_allocvec(&normalize_ast(resolved))
+        .unwrap_or_else(|error| panic!("failed to encode resolved ast: {error}"));
+    assert_eq!(resolved_bytes, expected_bytes);
+}
+
+/// Reject one persisted AST image when the source content changes across sessions.
+#[test]
+fn test_compiler_invalidates_ast_image_when_source_changes() {
+    let root = TemporaryPhysicalFileSystem::new_with_prefix("ast_image_invalidation");
+    let (session, program, compiler, module_path) = build_disk_cache_compiler(&root);
+
+    // build and persist the initial ast
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
+    compiler
+        .drive(|compiler| compiler.process_ast(module_id))
+        .unwrap_or_else(|error| panic!("failed to build ast: {error:?}"));
+    let expected = compiler
+        .program
+        .artifacts
+        .ast(module_id)
+        .unwrap_or_else(|| panic!("expected published ast"))
+        .as_ref()
+        .clone();
+    let expected_bytes = postcard::to_allocvec(&normalize_ast(expected))
+        .unwrap_or_else(|error| panic!("failed to encode expected ast: {error}"));
+
+    drop(compiler);
+    drop(program);
+    drop(session);
+
+    let (_session, program, compiler, module_path) = build_disk_cache_compiler(&root);
+
+    // change the module source on disk after the fresh session is created
+    root.write_text("main.ts", "export const value: string = 'updated';")
+        .unwrap_or_else(|error| panic!("failed to update main.ts: {error}"));
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| {
+            panic!("failed to resolve main module in fresh session: {error:?}")
+        });
+    let file_id = program.modules.get(module_id).file_id;
+    let file = program.files.get(file_id);
+
+    // load the changed source file before the direct image read
+    if !file.is_loaded() {
+        let content = compiler
+            .program
+            .fs
+            .read_to_string(&module_path)
+            .unwrap_or_else(|error| panic!("failed to load changed main.ts: {error}"));
+        let loaded_file = File::from_text(
+            file_id,
+            file.name.clone(),
+            file.uri.clone(),
+            file.path.clone(),
+            file.ty,
+            content,
+        );
+        program.files.replace(loaded_file);
+    }
+    let file = program.files.get(file_id);
+
+    // reject the persisted ast image for the changed file
+    let loaded = compiler
+        .load_ast_image(
+            module_id,
+            compiler.module_version(module_id),
+            file.as_ref(),
+            Some(destack_source::LanguageType::TypeScript),
+        )
+        .unwrap_or_else(|error| panic!("failed to load persisted ast image: {error}"));
+    assert!(
+        loaded.is_none(),
+        "expected changed source to invalidate ast image"
+    );
+
+    // rebuild and confirm the ast really changed
+    compiler
+        .drive(|compiler| compiler.process_ast(module_id))
+        .unwrap_or_else(|error| panic!("failed to rebuild ast: {error:?}"));
+    let rebuilt = compiler
+        .program
+        .artifacts
+        .ast(module_id)
+        .unwrap_or_else(|| panic!("expected rebuilt ast"))
+        .as_ref()
+        .clone();
+    let rebuilt_bytes = postcard::to_allocvec(&normalize_ast(rebuilt))
+        .unwrap_or_else(|error| panic!("failed to encode rebuilt ast: {error}"));
+    assert_ne!(rebuilt_bytes, expected_bytes);
+}
+
+/// Reuse one persisted prepared DIR image across a fresh compiler session.
+#[test]
+fn test_compiler_reuses_dir_prepared_image_across_sessions() {
+    let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_prepared_image");
+    let (session, program, compiler, module_path) = build_disk_cache_compiler(&root);
+
+    // build and persist the prepared dir in the first session
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
+    let profile_id = program.default_profile_id_for_module(module_id);
+    compiler
+        .drive(|compiler| compiler.process_dir_prepared(module_id, profile_id))
+        .unwrap_or_else(|error| panic!("failed to build prepared dir: {error:?}"));
+    let expected = compiler
+        .program
+        .artifacts
+        .dir_prepared(module_id, profile_id)
+        .unwrap_or_else(|| panic!("expected published prepared dir"))
+        .as_ref()
+        .clone();
+    let direct_loaded = compiler
+        .load_dir_prepared_image(module_id, compiler.module_version(module_id), profile_id)
+        .unwrap_or_else(|error| {
+            panic!("failed to read prepared dir image in same session: {error}")
+        })
+        .unwrap_or_else(|| panic!("expected prepared dir image in same session"));
+    let expected_nodes = dump_dir_prepared_nodes(&program.strings, &expected);
+    let expected_symbols = dump_dir_prepared_symbols(&program.strings, &expected);
+    let loaded_nodes = dump_dir_prepared_nodes(&program.strings, &direct_loaded);
+    let loaded_symbols = dump_dir_prepared_symbols(&program.strings, &direct_loaded);
+    assert_eq!(loaded_nodes, expected_nodes);
+    assert_eq!(loaded_symbols, expected_symbols);
     compiler
         .flush_workspace_index()
         .unwrap_or_else(|error| panic!("failed to flush workspace index: {error}"));
 
-    // load workspace index from disk
-    let cache_root = session.workspace_cache_dir();
-    let index_store = WorkspaceIndexStore::new(session.cache_store.as_ref(), &cache_root);
-    let workspace = session.workspace_snapshot();
-    let config_hash = hash_workspace_config(&workspace, session.fs.as_ref())
-        .unwrap_or_else(|error| panic!("failed to hash config: {error}"));
-    let mut compiler_hasher = CacheHasher::new();
-    compiler_hasher.hash_compiler_options(&compiler.options);
-    let compiler_options_hash = compiler_hasher.finish();
+    drop(compiler);
+    drop(program);
+    drop(session);
 
-    let mut resolve_hasher = CacheHasher::new();
-    resolve_hasher.hash_resolve_options(&compiler.options.import_resolve);
-    let resolve_options_hash = resolve_hasher.finish();
+    let (_session, program, compiler, module_path) = build_disk_cache_compiler(&root);
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| {
+            panic!("failed to resolve main module in fresh session: {error:?}")
+        });
+    let profile_id = program.default_profile_id_for_module(module_id);
 
-    let header = WorkspaceIndexHeader::new(
-        env!("CARGO_PKG_VERSION").to_string(),
-        root_path.clone(),
-        config_hash,
-        compiler_options_hash,
-        resolve_options_hash,
-        CacheValidate::Strict,
-    );
-    let snapshot = index_store
-        .load(&header)
-        .unwrap_or_else(|error| panic!("failed to read workspace index: {error}"))
-        .unwrap_or_else(|| panic!("expected workspace index snapshot"));
+    // load current source state before attempting direct dir image reuse
+    compiler
+        .drive(|compiler| compiler.process_dir_base(module_id))
+        .unwrap_or_else(|error| {
+            panic!("failed to build dir base for prepared dir reuse: {error:?}")
+        });
 
-    // check that the workspace index snapshot is loaded
-    assert!(
-        snapshot.files.contains_key(&module_path),
-        "expected snapshot to include module file"
-    );
-    assert!(
-        snapshot.modules.contains_key(&module_id),
-        "expected snapshot to include module id"
-    );
+    // verify the persisted image is available before any rebuild
+    let loaded = compiler
+        .load_dir_prepared_image(module_id, compiler.module_version(module_id), profile_id)
+        .unwrap_or_else(|error| panic!("failed to load persisted prepared dir image: {error}"))
+        .unwrap_or_else(|| panic!("expected persisted prepared dir image"));
 
-    // reload workspace index into a new program
-    let workspace = Workspace::single_package(root_path.clone()).with_config(config);
-    let session = Arc::new(Session::workspace(root_path.clone(), Arc::new(workspace)));
-    let program = session.add_root(root_path.clone());
-    let _compiler = Compiler::new(session.clone(), program.clone(), CompilerOptions::default());
+    // compare the full dumped artifact surface
+    let loaded_nodes = dump_dir_prepared_nodes(&program.strings, &loaded);
+    let loaded_symbols = dump_dir_prepared_symbols(&program.strings, &loaded);
+    assert_eq!(loaded_nodes, expected_nodes);
+    assert_eq!(loaded_symbols, expected_symbols);
 
-    // check that the workspace index is loaded
-    assert!(
-        session.has_workspace_index_file_entry(&module_path),
-        "expected workspace index to load file entry"
-    );
-    assert!(
-        session.has_workspace_index_module_entry(module_id),
-        "expected workspace index to load module entry"
-    );
-}
-
-/// Memory cache entries roundtrip within the same registry.
-#[test]
-fn test_cache_roundtrip_memory() {
-    let options = CacheOptions {
-        mode: CacheMode::Memory,
-        dir: std::env::temp_dir(),
-        policy: CachePolicy::Lru,
-        validate: CacheValidate::Strict,
-        scope: CacheScope::Workspace,
-        max_size_mb: None,
-    };
-    let context = CacheContext {
-        compiler_version: "test".to_string(),
-        file_version: FileVersion::INITIAL,
-        profile_id: None,
-        profile_version: None,
-        source_hash: 1,
-        config_hash: 2,
-        target_hash: 3,
-        dependency_hash: 0,
-    };
-    let module_id = ModuleId::new(PackageId::new(2), 2);
-    let payload = Ast::new(module_id, ModuleVersion::INITIAL);
-
-    let cache_store = MemoryCacheStore::new();
-    let registry = CacheRegistry::new();
-    registry
-        .write_ast_cache(&cache_store, &options, &context, module_id, payload)
-        .unwrap_or_else(|error| panic!("failed to write cache entry: {error}"));
-
-    // check that the ast cache entry is read from disk
-    let entry = registry
-        .read_ast_cache(&cache_store, &options, &context, module_id)
-        .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
-    assert!(entry.is_some(), "expected ast cache entry");
-
-    // check that the ast cache entry is not read from disk
-    let fresh_registry = CacheRegistry::new();
-    let entry = fresh_registry
-        .read_ast_cache(&cache_store, &options, &context, module_id)
-        .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
-    assert!(
-        entry.is_none(),
-        "expected no ast cache entry in fresh registry"
-    );
-}
-
-/// Cache entries are invalidated when the context changes.
-#[test]
-fn test_cache_miss_on_context_change() {
-    let cache_root = TemporaryPhysicalFileSystem::new_with_prefix("cache_miss_context");
-
-    let options = CacheOptions {
-        mode: CacheMode::Disk,
-        dir: cache_root.root().to_path_buf(),
-        policy: CachePolicy::Lru,
-        validate: CacheValidate::Strict,
-        scope: CacheScope::Workspace,
-        max_size_mb: None,
-    };
-    let context = CacheContext {
-        compiler_version: "test".to_string(),
-        file_version: FileVersion::INITIAL,
-        profile_id: None,
-        profile_version: None,
-        source_hash: 1,
-        config_hash: 2,
-        target_hash: 3,
-        dependency_hash: 0,
-    };
-    let module_id = ModuleId::new(PackageId::new(3), 3);
-    let payload = Ast::new(module_id, ModuleVersion::INITIAL);
-
-    let cache_store = DiskCacheStore::new();
-    let registry = CacheRegistry::new();
-    registry
-        .write_ast_cache(&cache_store, &options, &context, module_id, payload)
-        .unwrap_or_else(|error| panic!("failed to write cache entry: {error}"));
-
-    let mismatched_context = CacheContext {
-        compiler_version: "test".to_string(),
-        file_version: FileVersion::INITIAL,
-        profile_id: None,
-        profile_version: None,
-        source_hash: 10,
-        config_hash: 2,
-        target_hash: 3,
-        dependency_hash: 0,
-    };
-
-    // check that the ast cache entry is read from disk
-    let entry = registry
-        .read_ast_cache(&cache_store, &options, &mismatched_context, module_id)
-        .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
-    assert!(
-        entry.is_none(),
-        "expected cache miss for mismatched context"
-    );
-}
-
-/// Cache entries are invalidated when dependency hashes change.
-#[test]
-fn test_cache_miss_on_dependency_change() {
-    let options = CacheOptions {
-        mode: CacheMode::Memory,
-        dir: std::env::temp_dir(),
-        policy: CachePolicy::Lru,
-        validate: CacheValidate::Strict,
-        scope: CacheScope::Workspace,
-        max_size_mb: None,
-    };
-    let context = CacheContext {
-        compiler_version: "test".to_string(),
-        file_version: FileVersion::INITIAL,
-        profile_id: None,
-        profile_version: None,
-        source_hash: 1,
-        config_hash: 2,
-        target_hash: 3,
-        dependency_hash: 10,
-    };
-    let module_id = ModuleId::new(PackageId::new(4), 4);
-    let payload = Ast::new(module_id, ModuleVersion::INITIAL);
-
-    let cache_store = MemoryCacheStore::new();
-    let registry = CacheRegistry::new();
-    registry
-        .write_ast_cache(&cache_store, &options, &context, module_id, payload)
-        .unwrap_or_else(|error| panic!("failed to write cache entry: {error}"));
-
-    let mismatched_context = CacheContext {
-        compiler_version: "test".to_string(),
-        file_version: FileVersion::INITIAL,
-        profile_id: None,
-        profile_version: None,
-        source_hash: 1,
-        config_hash: 2,
-        target_hash: 3,
-        dependency_hash: 999,
-    };
-
-    // check that the ast cache entry is not read from disk
-    let entry = registry
-        .read_ast_cache(&cache_store, &options, &mismatched_context, module_id)
-        .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
-    assert!(
-        entry.is_none(),
-        "expected dependency hash mismatch to invalidate cache entry"
-    );
-}
-
-/// Cache entries are invalidated when file versions change.
-#[test]
-fn test_cache_miss_on_file_version_bump() {
-    // set up a cached module context
-    let test = TestProgram::memory_sequential().with_cache_mode(CacheMode::Memory, None);
-    let module_id = test.add_module("main.ts", "export const value = 1;");
-    test.compiler
-        .import_module_parse(module_id, test.module_version(module_id))
-        .unwrap_or_else(|error| panic!("failed to parse module: {error:?}"));
-    let context_before = test
-        .compiler
-        .cache_context_for_module(module_id, None, None, CacheKind::Ast)
-        .unwrap_or_else(|error| panic!("failed to build cache context: {error:?}"));
-
-    let options = CacheOptions {
-        mode: CacheMode::Memory,
-        dir: std::env::temp_dir(),
-        policy: CachePolicy::Lru,
-        validate: CacheValidate::Strict,
-        scope: CacheScope::Workspace,
-        max_size_mb: None,
-    };
-    let cache_store = test.session.cache_store.as_ref();
-    let registry = CacheRegistry::new();
-    let payload = Ast::new(module_id, ModuleVersion::INITIAL);
-    registry
-        .write_ast_cache(cache_store, &options, &context_before, module_id, payload)
-        .unwrap_or_else(|error| panic!("failed to write ast cache entry: {error}"));
-
-    // update file content and rebuild cache context
-    test.replace_module_source(module_id, "export const value = 2;");
-    let context_after = test
-        .compiler
-        .cache_context_for_module(module_id, None, None, CacheKind::Ast)
-        .unwrap_or_else(|error| panic!("failed to build cache context: {error:?}"));
-
-    // check that the file version is bumped
-    assert!(
-        context_after.file_version > context_before.file_version,
-        "expected file version to bump after source update"
-    );
-    assert_ne!(
-        context_after.source_hash, context_before.source_hash,
-        "expected source hash to change after source update"
-    );
-
-    // check that the ast cache entry is not read from disk
-    let entry = registry
-        .read_ast_cache(cache_store, &options, &context_after, module_id)
-        .unwrap_or_else(|error| panic!("failed to read ast cache entry: {error}"));
-    assert!(
-        entry.is_none(),
-        "expected cache miss after file version change"
-    );
-}
-
-/// Cache entries are invalidated when tsconfig changes.
-#[test]
-fn test_cache_miss_on_tsconfig_change() {
-    // set up a cached module context with a tsconfig
-    let test = TestProgram::memory_sequential()
-        .with_options_mut(|options| {
-            options.import_resolve.tsconfig = Some(TypeScriptOptionsDiscovery::Automatic);
-        })
-        .with_cache_mode(CacheMode::Memory, None);
-    let root = test.program.cwd.clone();
-    let tsconfig_path = root.join("tsconfig.json");
-    let tsconfig_path_str = tsconfig_path.to_string_lossy().to_string();
-    test.add_file(
-        &tsconfig_path_str,
-        r#"{ "compilerOptions": { "strict": true } }"#,
-    );
-    let module_path = root.join("main.ts");
-    let module_path_str = module_path.to_string_lossy().to_string();
-    let module_id = test.add_module(&module_path_str, "export const value = 1;");
-    test.compiler
-        .import_module_parse(module_id, test.module_version(module_id))
-        .unwrap_or_else(|error| panic!("failed to parse module: {error:?}"));
-    let context_before = test
-        .compiler
-        .cache_context_for_module(module_id, None, None, CacheKind::Ast)
-        .unwrap_or_else(|error| panic!("failed to build cache context: {error:?}"));
-
-    let options = CacheOptions {
-        mode: CacheMode::Memory,
-        dir: std::env::temp_dir(),
-        policy: CachePolicy::Lru,
-        validate: CacheValidate::Strict,
-        scope: CacheScope::Workspace,
-        max_size_mb: None,
-    };
-    let cache_store = test.session.cache_store.as_ref();
-    let registry = CacheRegistry::new();
-    let payload = Ast::new(module_id, ModuleVersion::INITIAL);
-    registry
-        .write_ast_cache(cache_store, &options, &context_before, module_id, payload)
-        .unwrap_or_else(|error| panic!("failed to write ast cache entry: {error}"));
-
-    // update tsconfig content
-    let tsconfig_id = test
-        .program
-        .modules
-        .tsconfig_id(module_id)
-        .unwrap_or_else(|| panic!("expected tsconfig for {module_id:?}"));
-    let tsconfig = test.program.tsconfigs.get(tsconfig_id);
-    let tsconfig = tsconfig.read();
-    let tsconfig_file_id = tsconfig.file_id;
-    drop(tsconfig);
-    test.program
-        .invalidate_file(
-            tsconfig_file_id,
-            FileUpdate::Text {
-                content: r#"{ "compilerOptions": { "strict": false } }"#.to_string(),
-            },
-        )
-        .unwrap_or_else(|error| panic!("failed to invalidate tsconfig: {error}"));
-
-    let context_after = test
-        .compiler
-        .cache_context_for_module(module_id, None, None, CacheKind::Ast)
-        .unwrap_or_else(|error| panic!("failed to build cache context: {error:?}"));
-
-    // check that the config hash is changed
-    assert_ne!(
-        context_after.config_hash, context_before.config_hash,
-        "expected config hash to change after tsconfig update"
-    );
-
-    // check that the ast cache entry is not read from disk
-    let entry = registry
-        .read_ast_cache(cache_store, &options, &context_after, module_id)
-        .unwrap_or_else(|error| panic!("failed to read ast cache entry: {error}"));
-    assert!(entry.is_none(), "expected cache miss after tsconfig change");
-}
-
-/// Cache entries are invalidated when dir dependencies change.
-#[test]
-fn test_cache_miss_on_dir_dependency_change() {
-    // set up modules and cache a profile dir
-    let test = TestProgram::memory_sequential().with_cache_mode(CacheMode::Memory, None);
-    let module_a_id = test.add_module("a.ts", "export const value = 1;");
-    let module_b_id = test.add_module(
-        "b.ts",
-        r#"
-import { value } from "./a.ts";
-
-value;
-"#,
-    );
-    let profile_id = test.default_profile_id(module_b_id);
-    // seed module graph and resolved dir artifacts
-    test.compile_analyze_modules(&[module_a_id, module_b_id]);
-    let context_before = test
-        .compiler
-        .cache_context_for_module(module_b_id, Some(profile_id), None, CacheKind::DirResolved)
-        .unwrap_or_else(|error| panic!("failed to build cache context: {error:?}"));
-
-    let options = CacheOptions {
-        mode: CacheMode::Memory,
-        dir: std::env::temp_dir(),
-        policy: CachePolicy::Lru,
-        validate: CacheValidate::Strict,
-        scope: CacheScope::Workspace,
-        max_size_mb: None,
-    };
-    let cache_store = test.session.cache_store.as_ref();
-    let registry = CacheRegistry::new();
-    let dir_payload = test
+    // validate the public compiler path too
+    compiler
+        .drive(|compiler| compiler.process_dir_prepared(module_id, profile_id))
+        .unwrap_or_else(|error| panic!("failed to load prepared dir: {error:?}"));
+    let resolved = compiler
         .program
         .artifacts
-        .dir_resolved(module_b_id, profile_id)
-        .unwrap_or_else(|| panic!("missing resolved dir for {module_b_id:?}"))
+        .dir_prepared(module_id, profile_id)
+        .unwrap_or_else(|| panic!("expected published prepared dir after load"))
         .as_ref()
         .clone();
-    registry
-        .write_dir_resolved_cache(
-            cache_store,
-            &options,
-            &context_before,
-            module_b_id,
-            dir_payload,
-        )
-        .unwrap_or_else(|error| panic!("failed to write dir cache entry: {error}"));
+    let resolved_nodes = dump_dir_prepared_nodes(&program.strings, &resolved);
+    let resolved_symbols = dump_dir_prepared_symbols(&program.strings, &resolved);
+    assert_eq!(resolved_nodes, expected_nodes);
+    assert_eq!(resolved_symbols, expected_symbols);
+}
 
-    // update the dependency without changing its export surface
-    test.replace_module_source(module_a_id, "export const value = 2;");
-    test.compile_analyze_modules(&[module_a_id]);
+/// Reject one persisted prepared DIR image when the source changes across sessions.
+#[test]
+fn test_compiler_invalidates_dir_prepared_image_when_source_changes() {
+    let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_prepared_image_invalidation");
+    let (session, program, compiler, module_path) = build_disk_cache_compiler(&root);
 
-    let context_after = test
-        .compiler
-        .cache_context_for_module(module_b_id, Some(profile_id), None, CacheKind::DirResolved)
-        .unwrap_or_else(|error| panic!("failed to build cache context: {error:?}"));
+    // build and persist the initial prepared dir
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
+    let profile_id = program.default_profile_id_for_module(module_id);
+    compiler
+        .drive(|compiler| compiler.process_dir_prepared(module_id, profile_id))
+        .unwrap_or_else(|error| panic!("failed to build prepared dir: {error:?}"));
+    let expected = compiler
+        .program
+        .artifacts
+        .dir_prepared(module_id, profile_id)
+        .unwrap_or_else(|| panic!("expected published prepared dir"))
+        .as_ref()
+        .clone();
+    let expected_nodes = dump_dir_prepared_nodes(&program.strings, &expected);
+    let expected_symbols = dump_dir_prepared_symbols(&program.strings, &expected);
+    compiler
+        .flush_workspace_index()
+        .unwrap_or_else(|error| panic!("failed to flush workspace index: {error}"));
 
-    // check that the dependency hash is changed
-    assert_ne!(
-        context_after.dependency_hash, context_before.dependency_hash,
-        "expected dependency hash to change after dependency artifact update"
-    );
+    drop(compiler);
+    drop(program);
+    drop(session);
 
-    // check that the dir cache entry is not read from disk
-    let entry = registry
-        .read_dir_resolved_cache(cache_store, &options, &context_after, module_b_id)
-        .unwrap_or_else(|error| panic!("failed to read dir cache entry: {error}"));
+    // change the module source before the fresh session is created
+    root.write_text("main.ts", "export const changed = 'updated';")
+        .unwrap_or_else(|error| panic!("failed to update main.ts: {error}"));
+    let (_session, program, compiler, module_path) = build_disk_cache_compiler(&root);
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| {
+            panic!("failed to resolve main module in fresh session: {error:?}")
+        });
+    let profile_id = program.default_profile_id_for_module(module_id);
+
+    // load current source state before attempting direct dir image reuse
+    compiler
+        .drive(|compiler| compiler.process_dir_base(module_id))
+        .unwrap_or_else(|error| {
+            panic!("failed to build dir base for invalidation check: {error:?}")
+        });
+
+    // reject the stale prepared image directly
+    let loaded = compiler
+        .load_dir_prepared_image(module_id, compiler.module_version(module_id), profile_id)
+        .unwrap_or_else(|error| panic!("failed to load prepared dir image: {error}"));
     assert!(
-        entry.is_none(),
-        "expected cache miss after dependency artifact change"
+        loaded.is_none(),
+        "expected changed source to invalidate prepared dir image"
     );
+
+    // rebuild through the public compiler path and confirm the prepared dir changed
+    compiler
+        .drive(|compiler| compiler.process_dir_prepared(module_id, profile_id))
+        .unwrap_or_else(|error| panic!("failed to rebuild prepared dir: {error:?}"));
+    let rebuilt = compiler
+        .program
+        .artifacts
+        .dir_prepared(module_id, profile_id)
+        .unwrap_or_else(|| panic!("expected rebuilt prepared dir"))
+        .as_ref()
+        .clone();
+    let rebuilt_nodes = dump_dir_prepared_nodes(&program.strings, &rebuilt);
+    let rebuilt_symbols = dump_dir_prepared_symbols(&program.strings, &rebuilt);
+    assert_ne!(rebuilt_nodes, expected_nodes);
+    assert_ne!(rebuilt_symbols, expected_symbols);
+}
+
+/// Reject one persisted prepared DIR image when the workspace string universe changes.
+#[test]
+fn test_compiler_invalidates_dir_prepared_image_when_workspace_strings_change() {
+    let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_prepared_image_strings");
+    let (_session, program, compiler, module_path) = build_disk_cache_compiler(&root);
+
+    // build and persist the prepared dir first
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
+    let profile_id = program.default_profile_id_for_module(module_id);
+    compiler
+        .drive(|compiler| compiler.process_dir_prepared(module_id, profile_id))
+        .unwrap_or_else(|error| panic!("failed to build prepared dir: {error:?}"));
+
+    // mutate the shared string universe after the image was produced
+    let _new_string = program.strings.intern("new-cache-boundary-string");
+
+    // reject the stale prepared image directly
+    let loaded = compiler
+        .load_dir_prepared_image(module_id, compiler.module_version(module_id), profile_id)
+        .unwrap_or_else(|error| panic!("failed to load prepared dir image: {error}"));
+    assert!(
+        loaded.is_none(),
+        "expected changed workspace strings to invalidate prepared dir image"
+    );
+}
+
+/// Reuse one persisted resolved DIR image across a fresh compiler session.
+#[test]
+fn test_compiler_reuses_dir_resolved_image_across_sessions() {
+    let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_resolved_image");
+    let (session, program, compiler, module_path) = build_disk_cache_compiler(&root);
+
+    // build and persist the resolved dir in the first session
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
+    let profile_id = program.default_profile_id_for_module(module_id);
+    compiler
+        .drive(|compiler| compiler.process_dir_resolved(module_id, profile_id))
+        .unwrap_or_else(|error| panic!("failed to build resolved dir: {error:?}"));
+    let expected = compiler
+        .program
+        .artifacts
+        .dir_resolved(module_id, profile_id)
+        .unwrap_or_else(|| panic!("expected published resolved dir"))
+        .as_ref()
+        .clone();
+    let direct_loaded = compiler
+        .load_dir_resolved_image(module_id, compiler.module_version(module_id), profile_id)
+        .unwrap_or_else(|error| {
+            panic!("failed to read resolved dir image in same session: {error}")
+        })
+        .unwrap_or_else(|| panic!("expected resolved dir image in same session"));
+    let expected_nodes = dump_dir_resolved_nodes(&program.strings, &expected);
+    let expected_symbols = dump_dir_resolved_symbols(&program.strings, &expected);
+    let loaded_nodes = dump_dir_resolved_nodes(&program.strings, &direct_loaded);
+    let loaded_symbols = dump_dir_resolved_symbols(&program.strings, &direct_loaded);
+    assert_eq!(loaded_nodes, expected_nodes);
+    assert_eq!(loaded_symbols, expected_symbols);
+    compiler
+        .flush_workspace_index()
+        .unwrap_or_else(|error| panic!("failed to flush workspace index: {error}"));
+
+    drop(compiler);
+    drop(program);
+    drop(session);
+
+    let (_session, program, compiler, module_path) = build_disk_cache_compiler(&root);
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| {
+            panic!("failed to resolve main module in fresh session: {error:?}")
+        });
+    let profile_id = program.default_profile_id_for_module(module_id);
+
+    // load current source state before attempting direct dir image reuse
+    compiler
+        .drive(|compiler| compiler.process_dir_base(module_id))
+        .unwrap_or_else(|error| {
+            panic!("failed to build dir base for resolved dir reuse: {error:?}")
+        });
+
+    // verify the persisted image is available before any rebuild
+    let loaded = compiler
+        .load_dir_resolved_image(module_id, compiler.module_version(module_id), profile_id)
+        .unwrap_or_else(|error| panic!("failed to load persisted resolved dir image: {error}"))
+        .unwrap_or_else(|| panic!("expected persisted resolved dir image"));
+
+    // compare the full dumped artifact surface
+    let loaded_nodes = dump_dir_resolved_nodes(&program.strings, &loaded);
+    let loaded_symbols = dump_dir_resolved_symbols(&program.strings, &loaded);
+    assert_eq!(loaded_nodes, expected_nodes);
+    assert_eq!(loaded_symbols, expected_symbols);
+
+    // validate the public compiler path too
+    compiler
+        .drive(|compiler| compiler.process_dir_resolved(module_id, profile_id))
+        .unwrap_or_else(|error| panic!("failed to load resolved dir: {error:?}"));
+    let resolved = compiler
+        .program
+        .artifacts
+        .dir_resolved(module_id, profile_id)
+        .unwrap_or_else(|| panic!("expected published resolved dir after load"))
+        .as_ref()
+        .clone();
+    let resolved_nodes = dump_dir_resolved_nodes(&program.strings, &resolved);
+    let resolved_symbols = dump_dir_resolved_symbols(&program.strings, &resolved);
+    assert_eq!(resolved_nodes, expected_nodes);
+    assert_eq!(resolved_symbols, expected_symbols);
+}
+
+/// Reject one persisted resolved DIR image when the source changes across sessions.
+#[test]
+fn test_compiler_invalidates_dir_resolved_image_when_source_changes() {
+    let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_resolved_image_invalidation");
+    let (session, program, compiler, module_path) = build_disk_cache_compiler(&root);
+
+    // build and persist the initial resolved dir
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
+    let profile_id = program.default_profile_id_for_module(module_id);
+    compiler
+        .drive(|compiler| compiler.process_dir_resolved(module_id, profile_id))
+        .unwrap_or_else(|error| panic!("failed to build resolved dir: {error:?}"));
+    let expected = compiler
+        .program
+        .artifacts
+        .dir_resolved(module_id, profile_id)
+        .unwrap_or_else(|| panic!("expected published resolved dir"))
+        .as_ref()
+        .clone();
+    let expected_nodes = dump_dir_resolved_nodes(&program.strings, &expected);
+    let expected_symbols = dump_dir_resolved_symbols(&program.strings, &expected);
+    compiler
+        .flush_workspace_index()
+        .unwrap_or_else(|error| panic!("failed to flush workspace index: {error}"));
+
+    drop(compiler);
+    drop(program);
+    drop(session);
+
+    // change the module source before the fresh session is created
+    root.write_text("main.ts", "export const changed = 'updated';")
+        .unwrap_or_else(|error| panic!("failed to update main.ts: {error}"));
+    let (_session, program, compiler, module_path) = build_disk_cache_compiler(&root);
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| {
+            panic!("failed to resolve main module in fresh session: {error:?}")
+        });
+    let profile_id = program.default_profile_id_for_module(module_id);
+
+    // load current source state before attempting direct dir image reuse
+    compiler
+        .drive(|compiler| compiler.process_dir_base(module_id))
+        .unwrap_or_else(|error| {
+            panic!("failed to build dir base for invalidation check: {error:?}")
+        });
+
+    // reject the stale resolved image directly
+    let loaded = compiler
+        .load_dir_resolved_image(module_id, compiler.module_version(module_id), profile_id)
+        .unwrap_or_else(|error| panic!("failed to load resolved dir image: {error}"));
+    assert!(
+        loaded.is_none(),
+        "expected changed source to invalidate resolved dir image"
+    );
+
+    // rebuild through the public compiler path and confirm the resolved dir changed
+    compiler
+        .drive(|compiler| compiler.process_dir_resolved(module_id, profile_id))
+        .unwrap_or_else(|error| panic!("failed to rebuild resolved dir: {error:?}"));
+    let rebuilt = compiler
+        .program
+        .artifacts
+        .dir_resolved(module_id, profile_id)
+        .unwrap_or_else(|| panic!("expected rebuilt resolved dir"))
+        .as_ref()
+        .clone();
+    let rebuilt_nodes = dump_dir_resolved_nodes(&program.strings, &rebuilt);
+    let rebuilt_symbols = dump_dir_resolved_symbols(&program.strings, &rebuilt);
+    assert_ne!(rebuilt_nodes, expected_nodes);
+    assert_ne!(rebuilt_symbols, expected_symbols);
+}
+
+/// Reject one persisted resolved DIR image when the workspace string universe changes.
+#[test]
+fn test_compiler_invalidates_dir_resolved_image_when_workspace_strings_change() {
+    let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_resolved_image_strings");
+    let (_session, program, compiler, module_path) = build_disk_cache_compiler(&root);
+
+    // build and persist the resolved dir first
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
+    let profile_id = program.default_profile_id_for_module(module_id);
+    compiler
+        .drive(|compiler| compiler.process_dir_resolved(module_id, profile_id))
+        .unwrap_or_else(|error| panic!("failed to build resolved dir: {error:?}"));
+
+    // mutate the shared string universe after the image was produced
+    let _new_string = program.strings.intern("new-cache-boundary-string");
+
+    // reject the stale resolved image directly
+    let loaded = compiler
+        .load_dir_resolved_image(module_id, compiler.module_version(module_id), profile_id)
+        .unwrap_or_else(|error| panic!("failed to load resolved dir image: {error}"));
+    assert!(
+        loaded.is_none(),
+        "expected changed workspace strings to invalidate resolved dir image"
+    );
+}
+
+/// Skip artifact image loads when persistent cache is disabled.
+#[test]
+fn test_compiler_skips_artifact_image_loads_when_disk_cache_is_disabled() {
+    let root = TemporaryPhysicalFileSystem::new_with_prefix("artifact_image_load_off");
+    let (_session, _program, compiler, module_path) = build_memory_cache_compiler(&root);
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
+    let artifact_key = destack_workspace::ArtifactKey::ast(module_id);
+
+    // the image loader closure should not run at all
+    let loaded = compiler.load_artifact::<(), _>(&artifact_key, |_| {
+        panic!("artifact image load should be skipped when disk cache is disabled")
+    });
+
+    assert!(
+        loaded.is_none(),
+        "expected no image load when disk cache is off"
+    );
+}
+
+/// Skip artifact image writes when persistent cache is disabled.
+#[test]
+fn test_compiler_skips_artifact_image_writes_when_disk_cache_is_disabled() {
+    let root = TemporaryPhysicalFileSystem::new_with_prefix("artifact_image_store_off");
+    let (_session, _program, compiler, module_path) = build_memory_cache_compiler(&root);
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
+    let artifact_key = destack_workspace::ArtifactKey::ast(module_id);
+
+    // the image store closure should not run at all
+    compiler.store_artifact(&artifact_key, &(), |_, _| {
+        panic!("artifact image store should be skipped when disk cache is disabled")
+    });
 }

@@ -1,7 +1,7 @@
-use crate::{BuildRequirementCollector, Compiler, LinkError, LinkResult, TargetDiscoveryIssue};
+use crate::{ArtifactRequirementCollector, Compiler, LinkError, LinkResult, TargetDiscoveryIssue};
 
 use destack_source::{ModuleId, PackageId};
-use destack_workspace::{TargetDiscovery, TargetId};
+use destack_workspace::{ArtifactKey, PackageOutput, TargetDiscovery, TargetId};
 
 impl Compiler {
     /// Link all modules for a target.
@@ -63,7 +63,8 @@ impl Compiler {
         };
 
         // generate all discovered modules
-        let mut collector = BuildRequirementCollector::new();
+        let mut collector = ArtifactRequirementCollector::new();
+        let mut module_output_keys = Vec::new();
         for module_id in modules {
             let profile_id = self
                 .program
@@ -74,6 +75,7 @@ impl Compiler {
                 })?;
             let result = self.require_module_output(module_id, profile_id, target_id);
             collector.try_collect(result);
+            module_output_keys.push(module_id);
         }
 
         // yield if any dependencies are pending
@@ -88,6 +90,28 @@ impl Compiler {
                 message: "single-file target linking not yet implemented".to_string(),
             });
         }
+
+        // aggregate module outputs for the package target
+        let mut entries = Vec::new();
+        for module_id in module_output_keys {
+            let output = self
+                .program
+                .artifacts
+                .module_output(module_id, target_id)
+                .ok_or_else(|| LinkError::Internal {
+                    package: package_id,
+                    message: format!(
+                        "missing module output for module {:?} target '{}'",
+                        module_id, target_id.name
+                    ),
+                })?;
+            entries.extend(output.entries.iter().cloned());
+        }
+
+        self.program.artifacts.publish(
+            ArtifactKey::package_output(package_id, target_id.clone()),
+            PackageOutput::for_target(&target, entries),
+        );
 
         Ok(())
     }

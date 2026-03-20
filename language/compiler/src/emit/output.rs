@@ -1,11 +1,11 @@
 use std::path::Path;
 
 use crate::{Compiler, EmitError, EmitResult};
-use destack_workspace::{Output, OutputContent};
+use destack_workspace::{OutputContent, OutputEntry};
 
 impl Compiler {
-    /// Write an output to disk.
-    pub(super) fn write_output(&self, output: &Output, path: &Path) -> EmitResult<()> {
+    /// Write one output entry to disk.
+    pub(super) fn write_output_entry(&self, entry: &OutputEntry, path: &Path) -> EmitResult<()> {
         // check dry run mode
         if self.options.emit_dry_run {
             return Ok(());
@@ -19,7 +19,6 @@ impl Compiler {
                 .fs
                 .create_dir_all(parent)
                 .map_err(|error| EmitError::FailedWrite {
-                    output: output.id,
                     path: parent.to_path_buf(),
                     message: Some(error.to_string()),
                 })?;
@@ -30,18 +29,16 @@ impl Compiler {
             && let Ok(true) = self.program.fs.exists(path)
         {
             return Err(EmitError::FailedWrite {
-                output: output.id,
                 path: path.to_path_buf(),
                 message: Some("file already exists and overwrite is disabled".to_string()),
             });
         }
 
         // write the content
-        match &output.content {
+        match &entry.content {
             OutputContent::Text { code, .. } => {
                 self.program.fs.write_string(path, code).map_err(|error| {
                     EmitError::FailedWrite {
-                        output: output.id,
                         path: path.to_path_buf(),
                         message: Some(error.to_string()),
                     }
@@ -52,7 +49,6 @@ impl Compiler {
                     .fs
                     .write_string(path, content)
                     .map_err(|error| EmitError::FailedWrite {
-                        output: output.id,
                         path: path.to_path_buf(),
                         message: Some(error.to_string()),
                     })?;
@@ -62,7 +58,6 @@ impl Compiler {
                     .fs
                     .write(path, bytes)
                     .map_err(|error| EmitError::FailedWrite {
-                        output: output.id,
                         path: path.to_path_buf(),
                         message: Some(error.to_string()),
                     })?;

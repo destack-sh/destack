@@ -217,7 +217,7 @@ impl ModuleLowerer<'_> {
         let name = self.compiler.program.strings.intern("takePlatformError");
         let symbol = self
             .compiler
-            .get_declared_lib_symbol_from(self.profile, name, SymbolSpaceOrder::ValueThenType)
+            .get_declared_library_symbol_from(self.profile, name, SymbolSpaceOrder::ValueThenType)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
                     .into_global_any(self.module_id)
@@ -234,7 +234,7 @@ impl ModuleLowerer<'_> {
         let name = self.compiler.program.strings.intern("PlatformError");
         let symbol = self
             .compiler
-            .get_declared_lib_symbol_from(self.profile, name, SymbolSpaceOrder::ValueThenType)
+            .get_declared_library_symbol_from(self.profile, name, SymbolSpaceOrder::ValueThenType)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
                     .into_global_any(self.module_id)

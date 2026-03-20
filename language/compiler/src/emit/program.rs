@@ -1,4 +1,4 @@
-use crate::{BuildRequirementCollector, Compiler, EmitError, EmitResult};
+use crate::{ArtifactRequirementCollector, Compiler, EmitError, EmitResult};
 
 use destack_source::PackageId;
 use destack_workspace::TargetId;
@@ -6,7 +6,7 @@ use destack_workspace::TargetId;
 impl Compiler {
     /// Emit all outputs for the entire program.
     pub fn emit_program(&self, target_id: &TargetId) -> EmitResult<()> {
-        let mut collector = BuildRequirementCollector::new();
+        let mut collector = ArtifactRequirementCollector::new();
 
         // collect all packages that have this target (by name)
         let target_name = &target_id.name;

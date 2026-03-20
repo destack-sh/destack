@@ -1,13 +1,12 @@
 use destack_dir::{
-    self as dir, Declaration, Member, StringId, SymbolSpaceOrder, SymbolType, TypeKind,
-    WellKnownSymbol,
+    self as dir, Declaration, Member, SymbolSpaceOrder, SymbolType, TypeKind, WellKnownSymbol,
 };
 use destack_mir as mir;
 use destack_source::ModuleId;
 use destack_workspace::{DirAnalyzed, DirDeclared, ProfileId};
 use std::sync::Arc;
 
-use crate::{BuildRequirementError, Compiler, LowerError, LowerResult};
+use crate::{ArtifactRequirementError, Compiler, LowerError, LowerResult};
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};
 use crate::lower::static_key_to_field_name;
@@ -48,10 +47,10 @@ impl<'a> BuiltinTypeLayouts<'a> {
 
         match snapshot {
             Ok(snapshot) => Ok(snapshot),
-            Err(BuildRequirementError::NotReady { requirement }) => {
+            Err(ArtifactRequirementError::NotReady { requirement }) => {
                 Err(LowerError::Yield { requirement })
             }
-            Err(BuildRequirementError::Failed { requirement }) => {
+            Err(ArtifactRequirementError::Failed { requirement }) => {
                 Err(LowerError::UnsatisfiedRequirement { requirement })
             }
         }
@@ -76,7 +75,9 @@ impl<'a> BuiltinTypeLayouts<'a> {
         }
 
         // resolve the builtin string symbol
-        let Some(string_symbol) = self.resolve_well_known_symbol(WellKnownSymbol::String) else {
+        let Some(string_symbol) = self
+            .resolve_well_known_symbol(WellKnownSymbol::String, SymbolSpaceOrder::TypeThenValue)?
+        else {
             return Ok(None);
         };
 
@@ -101,32 +102,24 @@ impl<'a> BuiltinTypeLayouts<'a> {
     pub(crate) fn resolve_well_known_symbol(
         &self,
         symbol: WellKnownSymbol,
-    ) -> Option<dir::GlobalSymbolId> {
+        order: SymbolSpaceOrder,
+    ) -> LowerResult<Option<dir::GlobalSymbolId>> {
         // resolve the canonical well-known symbol
-        let resolved = self.compiler.get_well_known_symbol_from(
-            self.profile,
-            symbol,
-            SymbolSpaceOrder::TypeThenValue,
-        );
+        let resolved =
+            self.compiler
+                .get_well_known_concrete_symbol_from(self.profile, symbol, order);
 
         // fall back to declared lib symbols when not registered
         let Some(resolved) = resolved else {
             let name = self.compiler.program.strings.intern(symbol.export_name());
-            return self.resolve_declared_lib_symbol(name, SymbolSpaceOrder::ValueThenType);
+            return Ok(self.compiler.get_declared_concrete_library_symbol_from(
+                self.profile,
+                name,
+                order,
+            ));
         };
 
-        Some(resolved)
-    }
-
-    /// Resolve a declared lib symbol for this profile.
-    pub(crate) fn resolve_declared_lib_symbol(
-        &self,
-        name: StringId,
-        order: SymbolSpaceOrder,
-    ) -> Option<dir::GlobalSymbolId> {
-        // resolve the declared lib symbol for the profile
-        self.compiler
-            .get_declared_lib_symbol_from(self.profile, name, order)
+        Ok(Some(resolved))
     }
 
     /// Ensure the module has been analyzed for this profile.
@@ -139,10 +132,10 @@ impl<'a> BuiltinTypeLayouts<'a> {
 
         // forward dependency failures as lower errors
         match error {
-            BuildRequirementError::NotReady { requirement } => {
+            ArtifactRequirementError::NotReady { requirement } => {
                 Err(LowerError::Yield { requirement })
             }
-            BuildRequirementError::Failed { requirement } => {
+            ArtifactRequirementError::Failed { requirement } => {
                 Err(LowerError::UnsatisfiedRequirement { requirement })
             }
         }
@@ -191,7 +184,8 @@ impl<'a> BuiltinTypeLayouts<'a> {
         let mut field_inputs = Vec::new();
         let pointer_bytes = self.type_lowerer.pointer_bytes();
 
-        let vector_symbol = self.resolve_well_known_symbol(WellKnownSymbol::Vector);
+        let vector_symbol = self
+            .resolve_well_known_symbol(WellKnownSymbol::Vector, SymbolSpaceOrder::TypeThenValue)?;
         let mut field_lowerer = TypeLowerer::new(
             self.builder,
             pointer_bytes,

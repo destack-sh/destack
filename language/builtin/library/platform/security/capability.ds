@@ -1,7 +1,7 @@
 import { Slice } from "native";
 import type {
     PlatformCapability as IntrinsicPlatformCapability,
-} from "../../../intrinsic/primitive/binding.ds";
+} from "../../primitive/binding.ds";
 import type { PlatformError } from "../error/index.ds";
 
 /// Platform capability selector.

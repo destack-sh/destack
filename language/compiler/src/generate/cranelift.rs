@@ -2,7 +2,7 @@ use crate::{Compiler, GenerateError, GenerateResult, GenerateWarning};
 use destack_codegen_native::{CodegenCraneliftError, CodegenCraneliftWarning};
 use destack_dir::{AnchoredGlobalNodeId, LocalNodeIdAny};
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Target, TargetId};
+use destack_workspace::{ArtifactKey, ModuleOutput, ProfileId, Target, TargetId};
 
 impl Compiler {
     /// Generate native/WASM code for a module using Cranelift.
@@ -21,17 +21,13 @@ impl Compiler {
         self.require_mir_optimized(module_id, profile, &target_id)?;
 
         // generate artifact
-        let registry_next_id = || self.program.outputs.next_id();
-        let output = destack_codegen_native::generate_module(
-            self.program.clone(),
-            module_id,
-            target,
-            registry_next_id,
-        )
-        .map_err(|e| self.map_cranelift_error(module_id, &target.name, profile, e))?;
-        for output in output.outputs {
-            self.program.outputs.insert(output);
-        }
+        let output =
+            destack_codegen_native::generate_module(self.program.clone(), module_id, target)
+                .map_err(|e| self.map_cranelift_error(module_id, &target.name, profile, e))?;
+        self.program.artifacts.publish(
+            ArtifactKey::module_output(module_id, target_id.clone()),
+            ModuleOutput::for_target(target, output.emit.entries),
+        );
 
         // map warnings/errors
         for warning in output.warnings {

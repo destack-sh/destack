@@ -265,7 +265,7 @@ impl Compiler {
         // prefer the builtin template strings array type when available
         let name = self.program.strings.intern("TemplateStringsArray");
         if let Some(symbol) =
-            self.get_declared_lib_symbol_from(profile, name, SymbolSpaceOrder::TypeThenValue)
+            self.get_declared_library_symbol_from(profile, name, SymbolSpaceOrder::TypeThenValue)
         {
             return types.insert_type_from_any(
                 Type::Reference {

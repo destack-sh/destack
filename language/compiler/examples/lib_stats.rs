@@ -9,7 +9,7 @@ use destack_ast::{
     EnumField, Expression, MatchCase, Member, Parameter, Pattern, PatternField, Property,
     WhereClause,
 };
-use destack_builtin::{BuiltinLib, BuiltinLibKind, builtin_lib};
+use destack_builtin::{BuiltinLibrary, BuiltinLibraryKind, builtin_library};
 use destack_parser::Parser as DestackParser;
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
 
@@ -253,20 +253,25 @@ fn style_for_args(args: &Args) -> Style {
 fn collect_stats_for_lib(lib_name: &str, include_modules: bool) -> LibStats {
     // build the seed list used by the bench runner
     let seed_libs = seed_libs_for_bench(lib_name);
-    let version_overrides = collect_lib_version_overrides(&seed_libs);
+    let version_overrides = collect_library_version_overrides(&seed_libs);
 
     // collect dependency libs in order
-    let mut ordered_libs = Vec::new();
+    let mut ordered_libraries = Vec::new();
     let mut seen_libs = HashSet::new();
     for name in seed_libs {
-        collect_lib_dependencies(name, &version_overrides, &mut ordered_libs, &mut seen_libs);
+        collect_library_dependencies(
+            name,
+            &version_overrides,
+            &mut ordered_libraries,
+            &mut seen_libs,
+        );
     }
 
     // parse each unique source module
     let mut stats = LibStats::default();
     let mut seen_modules = HashSet::new();
     let mut next_file_id = 0u32;
-    for lib in ordered_libs {
+    for lib in ordered_libraries {
         for source in lib.sources {
             if !seen_modules.insert(source.module_path()) {
                 continue;
@@ -311,11 +316,11 @@ fn collect_stats_for_lib(lib_name: &str, include_modules: bool) -> LibStats {
 /// Seed the lib list for a bench style run.
 fn seed_libs_for_bench(lib_name: &str) -> Vec<&'static str> {
     // include the primary lib
-    let lib = builtin_lib(lib_name).unwrap_or_else(|| panic!("missing lib {lib_name}"));
+    let lib = builtin_library(lib_name).unwrap_or_else(|| panic!("missing lib {lib_name}"));
     let mut libs = Vec::new();
 
     // include baseline es2020 for non es libs
-    if lib.kind == BuiltinLibKind::Library
+    if lib.kind == BuiltinLibraryKind::Library
         && !lib.name.starts_with("es")
         && !lib.name.starts_with("decorators")
     {
@@ -343,19 +348,19 @@ fn split_versioned_lib_name(name: &str) -> Option<(&str, &str)> {
 }
 
 /// Collect explicit lib version overrides from the seed list.
-fn collect_lib_version_overrides(libs: &[&str]) -> HashMap<String, String> {
+fn collect_library_version_overrides(libs: &[&str]) -> HashMap<String, String> {
     let mut overrides = HashMap::new();
     let mut seen = HashSet::new();
 
     for lib in libs {
-        collect_lib_version_overrides_for_lib(lib, &mut overrides, &mut seen);
+        collect_library_version_overrides_for_lib(lib, &mut overrides, &mut seen);
     }
 
     overrides
 }
 
 /// Collect versioned libs that should override unversioned dependencies.
-fn collect_lib_version_overrides_for_lib(
+fn collect_library_version_overrides_for_lib(
     name: &str,
     overrides: &mut HashMap<String, String>,
     seen: &mut HashSet<String>,
@@ -373,11 +378,11 @@ fn collect_lib_version_overrides_for_lib(
     }
 
     // load the lib for dependencies
-    let lib = builtin_lib(name).unwrap_or_else(|| panic!("missing lib {name}"));
+    let lib = builtin_library(name).unwrap_or_else(|| panic!("missing lib {name}"));
 
     // walk dependencies only
     for &dependency in lib.dependencies {
-        collect_lib_version_overrides_for_lib(dependency, overrides, seen);
+        collect_library_version_overrides_for_lib(dependency, overrides, seen);
     }
 }
 
@@ -394,10 +399,10 @@ fn resolve_lib_dependency_name(name: &str, overrides: &HashMap<String, String>) 
 }
 
 /// Collect builtin lib dependencies in order.
-fn collect_lib_dependencies(
+fn collect_library_dependencies(
     lib_name: &str,
     version_overrides: &HashMap<String, String>,
-    ordered: &mut Vec<&'static BuiltinLib>,
+    ordered: &mut Vec<&'static BuiltinLibrary>,
     seen: &mut HashSet<String>,
 ) {
     // avoid duplicate work
@@ -406,18 +411,18 @@ fn collect_lib_dependencies(
     }
 
     // resolve the lib
-    let lib = builtin_lib(lib_name).unwrap_or_else(|| panic!("missing lib {lib_name}"));
+    let lib = builtin_library(lib_name).unwrap_or_else(|| panic!("missing lib {lib_name}"));
 
     // collect explicit dependencies
     for dependency in lib.dependencies {
         let dependency = resolve_lib_dependency_name(dependency, version_overrides);
-        collect_lib_dependencies(&dependency, version_overrides, ordered, seen);
+        collect_library_dependencies(&dependency, version_overrides, ordered, seen);
     }
 
     // collect reference lib dependencies
-    for reference in lib.reference_libs() {
+    for &reference in lib.reference_libs {
         let reference = resolve_lib_dependency_name(reference, version_overrides);
-        collect_lib_dependencies(&reference, version_overrides, ordered, seen);
+        collect_library_dependencies(&reference, version_overrides, ordered, seen);
     }
 
     // append the lib once dependencies are recorded
@@ -425,7 +430,7 @@ fn collect_lib_dependencies(
 }
 
 /// Build a File from a builtin lib source.
-fn file_from_source(file_id: FileId, source: destack_builtin::BuiltinLibSource) -> File {
+fn file_from_source(file_id: FileId, source: destack_builtin::BuiltinLibrarySource) -> File {
     // build a virtual path
     let module_path = source.module_path();
     let path = Path::new(&module_path).to_path_buf();

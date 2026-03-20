@@ -141,12 +141,12 @@ impl Compiler {
             candidates.extend(group);
         }
         if let Some(ambient) =
-            self.get_lib_symbol_sources_for_merge(view.profile, key, SymbolSpace::Type)
+            self.get_library_symbol_sources_for_merge(view.profile, key, SymbolSpace::Type)
         {
             candidates.extend(ambient);
         }
         if let Some(ambient) =
-            self.get_lib_symbol_sources_for_merge(view.profile, key, SymbolSpace::TypeValue)
+            self.get_library_symbol_sources_for_merge(view.profile, key, SymbolSpace::TypeValue)
         {
             candidates.extend(ambient);
         }

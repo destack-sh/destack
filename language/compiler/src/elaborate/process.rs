@@ -3,8 +3,7 @@ use destack_workspace::{ArtifactKey, DirElaborated, ProfileId};
 
 use crate::timing::tags;
 use crate::{
-    AnalyzeError, BuildKey, BuildRequirementError, Compiler, ElaborateError, ElaborateResult,
-    ResolveError,
+    AnalyzeError, ArtifactRequirementError, Compiler, ElaborateError, ElaborateResult, ResolveError,
 };
 use destack_dir::AnchoredGlobalNodeId;
 
@@ -12,13 +11,13 @@ impl Compiler {
     /// Map one build requirement failure into an elaborate error.
     pub(crate) fn elaborate_error_from_requirement(
         &self,
-        error: BuildRequirementError,
+        error: ArtifactRequirementError,
     ) -> ElaborateError {
         match error {
-            BuildRequirementError::NotReady { requirement } => {
+            ArtifactRequirementError::NotReady { requirement } => {
                 ElaborateError::Yield { requirement }
             }
-            BuildRequirementError::Failed { requirement } => {
+            ArtifactRequirementError::Failed { requirement } => {
                 ElaborateError::UnsatisfiedRequirement { requirement }
             }
         }
@@ -70,6 +69,18 @@ impl Compiler {
             profile,
             profile_version,
         )?;
+
+        // reuse a persisted elaborated dir when it is still valid
+        let artifact_key = ArtifactKey::DirElaborated { module, profile };
+        if self
+            .load_published_artifact(artifact_key.clone(), |compiler| {
+                compiler.load_dir_elaborated_image(module, module_version, profile)
+            })
+            .is_some()
+        {
+            return Ok(());
+        }
+
         let analyzed = self
             .require_artifact_dir_analyzed(module, profile)
             .map_err(|error| self.elaborate_error_from_requirement(error))?;
@@ -96,7 +107,10 @@ impl Compiler {
 
         self.program
             .artifacts
-            .publish(ArtifactKey::DirElaborated { module, profile }, payload);
+            .publish(artifact_key.clone(), payload.clone());
+        self.store_artifact(&artifact_key, &payload, |compiler, payload| {
+            compiler.store_dir_elaborated_image(module, profile, payload)
+        });
 
         Ok(())
     }
@@ -106,9 +120,7 @@ impl Compiler {
         &self,
         module: ModuleId,
         profile: ProfileId,
-    ) -> Result<(), BuildRequirementError> {
-        self.require_build_key(BuildKey::artifact(ArtifactKey::dir_elaborated(
-            module, profile,
-        )))
+    ) -> Result<(), ArtifactRequirementError> {
+        self.require_artifact(ArtifactKey::dir_elaborated(module, profile))
     }
 }

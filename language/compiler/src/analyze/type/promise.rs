@@ -161,7 +161,7 @@ impl Compiler {
         );
 
         let generator_name = self.program.strings.intern("Generator");
-        let generator_symbol = self.get_declared_lib_symbol_from(
+        let generator_symbol = self.get_declared_library_symbol_from(
             ctx.profile,
             generator_name,
             SymbolSpaceOrder::TypeThenValue,

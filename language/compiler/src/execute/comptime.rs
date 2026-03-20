@@ -24,10 +24,10 @@ impl Compiler {
     ) -> ExecuteResult<Arc<DirElaborated>> {
         self.require_artifact_dir_elaborated(module_id, profile)
             .map_err(|error| match error {
-                crate::BuildRequirementError::NotReady { requirement } => {
+                crate::ArtifactRequirementError::NotReady { requirement } => {
                     ExecuteError::Yield { requirement }
                 }
-                crate::BuildRequirementError::Failed { requirement } => {
+                crate::ArtifactRequirementError::Failed { requirement } => {
                     ExecuteError::UnsatisfiedRequirement { requirement }
                 }
             })
@@ -179,7 +179,7 @@ impl<'a> ComptimeLowerer<'a> {
                 message: format!("{error}"),
             })?;
         // resolve vector builtin symbols for SIMD lowering
-        let vector_symbol = compiler.get_well_known_symbol_from(
+        let vector_symbol = compiler.get_well_known_concrete_symbol_from(
             profile,
             dir::WellKnownSymbol::Vector,
             dir::SymbolSpaceOrder::TypeThenValue,
@@ -353,7 +353,7 @@ impl<'a> ComptimeLowerer<'a> {
                 module: self.module.id,
                 error: Box::new(LowerError::Internal {
                     module: self.module.id,
-                    message: "missing builtin String layout (load lib/native)".to_string(),
+                    message: "missing builtin String layout (load library/native)".to_string(),
                 }),
                 message: "missing builtin String layout".to_string(),
             });

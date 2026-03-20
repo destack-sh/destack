@@ -1,9 +1,9 @@
-use destack_workspace::{ProfileId, Program};
+use destack_workspace::{ArtifactKey, ProfileId, Program};
 
 use crate::{
-    AnalyzeError, BuildKey, BuildRequirementSet, DiagnosticAnchor, ElaborateError, EmitError,
-    ExecuteError, GenerateError, ImportError, LinkError, LowerError, OptimizeError, ResolveError,
-    TaskId, TaskPhase,
+    AnalyzeError, ArtifactRequirementSet, ArtifactTaskKeyExt, DiagnosticAnchor, ElaborateError,
+    EmitError, ExecuteError, GenerateError, ImportError, LinkError, LowerError, OptimizeError,
+    ResolveError, TaskId, TaskPhase,
 };
 /// Error during compilation.
 #[derive(Debug, Clone, PartialEq)]
@@ -40,16 +40,16 @@ pub enum InternalError {
     /// Task yielded to the same requirement twice in a row.
     SuspiciousYield {
         task_id: TaskId,
-        requirement: BuildRequirementSet,
+        requirement: ArtifactRequirementSet,
     },
     /// Task exceeded maximum yield count.
     ExcessiveYield {
         task_id: TaskId,
-        build_key: BuildKey,
-        requirement: BuildRequirementSet,
+        artifact_key: ArtifactKey,
+        requirement: ArtifactRequirementSet,
         yield_count: u32,
     },
-    /// Circular build dependency detected in the scheduler.
+    /// Circular artifact dependency detected in the scheduler.
     CircularDependency { task_id: TaskId, cycle: Vec<TaskId> },
     /// Missing profile data for a profile id.
     MissingProfile { profile_id: ProfileId },
@@ -81,7 +81,7 @@ impl InternalError {
             }
             Self::ExcessiveYield {
                 task_id,
-                build_key,
+                artifact_key,
                 requirement,
                 yield_count,
                 ..
@@ -98,7 +98,7 @@ impl InternalError {
 
                 format!(
                     "internal error: task {task_id} ({}) yielded {yield_count} times on {requirement_description}",
-                    build_key.name(),
+                    artifact_key.name(),
                 )
             }
 
@@ -109,7 +109,7 @@ impl InternalError {
                     .collect::<Vec<_>>()
                     .join(" -> ");
                 format!(
-                    "internal error: circular build requirement involving {task_id}: {cycle_str}"
+                    "internal error: circular artifact requirement involving {task_id}: {cycle_str}"
                 )
             }
             Self::MissingProfile { profile_id } => {
@@ -233,8 +233,8 @@ impl TaskError {
         }
     }
 
-    /// Get the yielded build requirement, if any.
-    pub fn yielded_to(&self) -> Option<&BuildRequirementSet> {
+    /// Get the yielded artifact requirement, if any.
+    pub fn yielded_to(&self) -> Option<&ArtifactRequirementSet> {
         match self {
             Self::Import(ImportError::Yield { requirement }) => Some(requirement),
             Self::Resolve(ResolveError::Yield { requirement }) => Some(requirement),

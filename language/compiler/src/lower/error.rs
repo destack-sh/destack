@@ -1,5 +1,6 @@
 use crate::{
-    BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition, TaskError,
+    ArtifactRequirementError, ArtifactRequirementSet, DiagnosticAnchor, DiagnosticDefinition,
+    TaskError,
 };
 use destack_compiler_macros::DefineError;
 use destack_core::StringId;
@@ -14,18 +15,18 @@ pub enum LowerError {
     // -------------------------------------------------------------------------
     // 0xx: Yield / requirement
     // -------------------------------------------------------------------------
-    /// Wait for build requirement.
+    /// Wait for artifact requirement.
     #[error(code = "EM000", r#yield)]
     Yield {
         /// Carry the requirement that must be satisfied before lowering can proceed.
-        requirement: BuildRequirementSet,
+        requirement: ArtifactRequirementSet,
     },
 
     /// Yield requirement has failed.
     #[error(code = "EM001", yield_failed)]
     UnsatisfiedRequirement {
         /// Carry the requirement that failed to resolve.
-        requirement: BuildRequirementSet,
+        requirement: ArtifactRequirementSet,
     },
 
     /// Task was skipped due to stale versions.

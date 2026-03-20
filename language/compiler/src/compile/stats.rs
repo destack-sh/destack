@@ -107,34 +107,22 @@ pub struct MirOptimizationStats {
 pub struct CacheStats {
     /// Cache hits for AST entries from memory.
     pub ast_hits_memory: AtomicUsize,
-    /// Cache hits for AST entries from disk.
-    pub ast_hits_disk: AtomicUsize,
     /// Cache misses for AST entries.
     pub ast_misses: AtomicUsize,
     /// Cache writes for AST entries to memory.
     pub ast_writes_memory: AtomicUsize,
-    /// Cache writes for AST entries to disk.
-    pub ast_writes_disk: AtomicUsize,
     /// Cache hits for DIR entries from memory.
     pub dir_hits_memory: AtomicUsize,
-    /// Cache hits for DIR entries from disk.
-    pub dir_hits_disk: AtomicUsize,
     /// Cache misses for DIR entries.
     pub dir_misses: AtomicUsize,
     /// Cache writes for DIR entries to memory.
     pub dir_writes_memory: AtomicUsize,
-    /// Cache writes for DIR entries to disk.
-    pub dir_writes_disk: AtomicUsize,
     /// Cache hits for MIR entries from memory.
     pub mir_hits_memory: AtomicUsize,
-    /// Cache hits for MIR entries from disk.
-    pub mir_hits_disk: AtomicUsize,
     /// Cache misses for MIR entries.
     pub mir_misses: AtomicUsize,
     /// Cache writes for MIR entries to memory.
     pub mir_writes_memory: AtomicUsize,
-    /// Cache writes for MIR entries to disk.
-    pub mir_writes_disk: AtomicUsize,
     /// Cache errors.
     pub errors: AtomicUsize,
 }
@@ -372,12 +360,6 @@ impl CompilerStats {
         self.cache.ast_hits_memory.fetch_add(1, Ordering::Relaxed);
     }
 
-    /// Record an AST cache hit from disk.
-    #[inline]
-    pub fn record_cache_ast_hit_disk(&self) {
-        self.cache.ast_hits_disk.fetch_add(1, Ordering::Relaxed);
-    }
-
     /// Record an AST cache miss.
     #[inline]
     pub fn record_cache_ast_miss(&self) {
@@ -390,22 +372,10 @@ impl CompilerStats {
         self.cache.ast_writes_memory.fetch_add(1, Ordering::Relaxed);
     }
 
-    /// Record an AST cache write to disk.
-    #[inline]
-    pub fn record_cache_ast_write_disk(&self) {
-        self.cache.ast_writes_disk.fetch_add(1, Ordering::Relaxed);
-    }
-
     /// Record a DIR cache hit from memory.
     #[inline]
     pub fn record_cache_dir_hit_memory(&self) {
         self.cache.dir_hits_memory.fetch_add(1, Ordering::Relaxed);
-    }
-
-    /// Record a DIR cache hit from disk.
-    #[inline]
-    pub fn record_cache_dir_hit_disk(&self) {
-        self.cache.dir_hits_disk.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a DIR cache miss.
@@ -420,22 +390,10 @@ impl CompilerStats {
         self.cache.dir_writes_memory.fetch_add(1, Ordering::Relaxed);
     }
 
-    /// Record a DIR cache write to disk.
-    #[inline]
-    pub fn record_cache_dir_write_disk(&self) {
-        self.cache.dir_writes_disk.fetch_add(1, Ordering::Relaxed);
-    }
-
     /// Record a MIR cache hit from memory.
     #[inline]
     pub fn record_cache_mir_hit_memory(&self) {
         self.cache.mir_hits_memory.fetch_add(1, Ordering::Relaxed);
-    }
-
-    /// Record a MIR cache hit from disk.
-    #[inline]
-    pub fn record_cache_mir_hit_disk(&self) {
-        self.cache.mir_hits_disk.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a MIR cache miss.
@@ -448,12 +406,6 @@ impl CompilerStats {
     #[inline]
     pub fn record_cache_mir_write_memory(&self) {
         self.cache.mir_writes_memory.fetch_add(1, Ordering::Relaxed);
-    }
-
-    /// Record a MIR cache write to disk.
-    #[inline]
-    pub fn record_cache_mir_write_disk(&self) {
-        self.cache.mir_writes_disk.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a cache error.
@@ -623,20 +575,14 @@ impl CompilerStats {
             },
             cache: CacheStatsSnapshot {
                 ast_hits_memory: self.cache.ast_hits_memory.load(Ordering::Relaxed),
-                ast_hits_disk: self.cache.ast_hits_disk.load(Ordering::Relaxed),
                 ast_misses: self.cache.ast_misses.load(Ordering::Relaxed),
                 ast_writes_memory: self.cache.ast_writes_memory.load(Ordering::Relaxed),
-                ast_writes_disk: self.cache.ast_writes_disk.load(Ordering::Relaxed),
                 dir_hits_memory: self.cache.dir_hits_memory.load(Ordering::Relaxed),
-                dir_hits_disk: self.cache.dir_hits_disk.load(Ordering::Relaxed),
                 dir_misses: self.cache.dir_misses.load(Ordering::Relaxed),
                 dir_writes_memory: self.cache.dir_writes_memory.load(Ordering::Relaxed),
-                dir_writes_disk: self.cache.dir_writes_disk.load(Ordering::Relaxed),
                 mir_hits_memory: self.cache.mir_hits_memory.load(Ordering::Relaxed),
-                mir_hits_disk: self.cache.mir_hits_disk.load(Ordering::Relaxed),
                 mir_misses: self.cache.mir_misses.load(Ordering::Relaxed),
                 mir_writes_memory: self.cache.mir_writes_memory.load(Ordering::Relaxed),
-                mir_writes_disk: self.cache.mir_writes_disk.load(Ordering::Relaxed),
                 errors: self.cache.errors.load(Ordering::Relaxed),
             },
             mir: MirOptimizationStatsSnapshot {
@@ -751,34 +697,22 @@ pub struct ModuleStatsSnapshot {
 pub struct CacheStatsSnapshot {
     /// Cache hits for AST entries from memory.
     pub ast_hits_memory: usize,
-    /// Cache hits for AST entries from disk.
-    pub ast_hits_disk: usize,
     /// Cache misses for AST entries.
     pub ast_misses: usize,
     /// Cache writes for AST entries to memory.
     pub ast_writes_memory: usize,
-    /// Cache writes for AST entries to disk.
-    pub ast_writes_disk: usize,
     /// Cache hits for DIR entries from memory.
     pub dir_hits_memory: usize,
-    /// Cache hits for DIR entries from disk.
-    pub dir_hits_disk: usize,
     /// Cache misses for DIR entries.
     pub dir_misses: usize,
     /// Cache writes for DIR entries to memory.
     pub dir_writes_memory: usize,
-    /// Cache writes for DIR entries to disk.
-    pub dir_writes_disk: usize,
     /// Cache hits for MIR entries from memory.
     pub mir_hits_memory: usize,
-    /// Cache hits for MIR entries from disk.
-    pub mir_hits_disk: usize,
     /// Cache misses for MIR entries.
     pub mir_misses: usize,
     /// Cache writes for MIR entries to memory.
     pub mir_writes_memory: usize,
-    /// Cache writes for MIR entries to disk.
-    pub mir_writes_disk: usize,
     /// Cache errors.
     pub errors: usize,
 }
@@ -846,21 +780,15 @@ impl StatsSnapshot {
         // aggregate totals across cache kinds
         let hits_memory =
             self.cache.ast_hits_memory + self.cache.dir_hits_memory + self.cache.mir_hits_memory;
-        let hits_disk =
-            self.cache.ast_hits_disk + self.cache.dir_hits_disk + self.cache.mir_hits_disk;
         let misses = self.cache.ast_misses + self.cache.dir_misses + self.cache.mir_misses;
         let writes_memory = self.cache.ast_writes_memory
             + self.cache.dir_writes_memory
             + self.cache.mir_writes_memory;
-        let writes_disk =
-            self.cache.ast_writes_disk + self.cache.dir_writes_disk + self.cache.mir_writes_disk;
 
         CacheTotals {
             hits_memory,
-            hits_disk,
             misses,
             writes_memory,
-            writes_disk,
             errors: self.cache.errors,
         }
     }
@@ -868,7 +796,7 @@ impl StatsSnapshot {
     /// Return the cache hit rate across all IR kinds.
     pub fn cache_hit_rate(&self) -> f32 {
         let totals = self.cache_totals();
-        let hits = totals.hits_memory + totals.hits_disk;
+        let hits = totals.hits_memory;
         let total = hits + totals.misses;
         if total == 0 {
             0.0
@@ -879,7 +807,7 @@ impl StatsSnapshot {
 
     /// Return the cache hit rate for AST entries.
     pub fn cache_hit_rate_ast(&self) -> f32 {
-        let hits = self.cache.ast_hits_memory + self.cache.ast_hits_disk;
+        let hits = self.cache.ast_hits_memory;
         let total = hits + self.cache.ast_misses;
         if total == 0 {
             0.0
@@ -890,7 +818,7 @@ impl StatsSnapshot {
 
     /// Return the cache hit rate for DIR entries.
     pub fn cache_hit_rate_dir(&self) -> f32 {
-        let hits = self.cache.dir_hits_memory + self.cache.dir_hits_disk;
+        let hits = self.cache.dir_hits_memory;
         let total = hits + self.cache.dir_misses;
         if total == 0 {
             0.0
@@ -901,7 +829,7 @@ impl StatsSnapshot {
 
     /// Return the cache hit rate for MIR entries.
     pub fn cache_hit_rate_mir(&self) -> f32 {
-        let hits = self.cache.mir_hits_memory + self.cache.mir_hits_disk;
+        let hits = self.cache.mir_hits_memory;
         let total = hits + self.cache.mir_misses;
         if total == 0 {
             0.0
@@ -925,14 +853,10 @@ fn timings_enabled_from_env() -> bool {
 pub struct CacheTotals {
     /// Cache hits from memory.
     pub hits_memory: usize,
-    /// Cache hits from disk.
-    pub hits_disk: usize,
     /// Cache misses.
     pub misses: usize,
     /// Cache writes to memory.
     pub writes_memory: usize,
-    /// Cache writes to disk.
-    pub writes_disk: usize,
     /// Cache errors.
     pub errors: usize,
 }

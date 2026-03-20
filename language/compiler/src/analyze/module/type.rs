@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use destack_workspace::{ArtifactKey, Module, ProfileId};
 
 use crate::analyze::common::TypeContext;
-use crate::{BuildRequirementError, Compiler};
+use crate::{ArtifactRequirementError, Compiler};
 
 impl Compiler {
     /// Read one symbol lineage with exact artifact reads and local reuse.
@@ -14,7 +14,7 @@ impl Compiler {
         symbol: GlobalSymbolId,
         types: &TypeTable,
         artifact_key: fn(ModuleId, ProfileId) -> ArtifactKey,
-    ) -> Result<Option<Lineage>, BuildRequirementError> {
+    ) -> Result<Option<Lineage>, ArtifactRequirementError> {
         if let Some(lineage) = types.get_lineage_for_symbol(symbol) {
             return Ok(Some(lineage.clone()));
         }
@@ -42,7 +42,7 @@ impl Compiler {
         types: &TypeTable,
         artifact_key: fn(ModuleId, ProfileId) -> ArtifactKey,
         handle: impl FnOnce(&Module, &TypeTable) -> R,
-    ) -> Result<R, BuildRequirementError> {
+    ) -> Result<R, ArtifactRequirementError> {
         if module_id == module.id {
             return Ok(handle(module, types));
         }
@@ -67,7 +67,7 @@ impl Compiler {
             Option<(GlobalSymbolId, Type, TypeTable)>,
             Option<GlobalSymbolId>,
         ),
-        BuildRequirementError,
+        ArtifactRequirementError,
     > {
         let remote_module = self.program.modules.get(symbol.module_id);
         let remote_module = remote_module.as_ref();
