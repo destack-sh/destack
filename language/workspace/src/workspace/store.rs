@@ -1,17 +1,17 @@
 use std::path::{Path, PathBuf};
 
-use crate::{CacheStore, DEFAULT_COMPILER_CACHE_NAMESPACE, WORKSPACE_INDEX_FILE_NAME};
+use crate::{
+    CacheStore, CacheStoreError, DEFAULT_COMPILER_CACHE_NAMESPACE, WORKSPACE_INDEX_FILE_NAME,
+    WORKSPACE_INDEX_LOCK_FILE_NAME,
+};
 
 use super::{WorkspaceIndexError, WorkspaceIndexHeader, WorkspaceIndexSnapshot};
 
 /// Maximum size allowed for workspace index payloads.
 pub const WORKSPACE_INDEX_LIMIT_BYTES: u64 = 256 * 1024 * 1024;
-/// Workspace index lock file name.
-pub const WORKSPACE_INDEX_LOCK_FILE_NAME: &str = "workspace.lock";
-
 /// Cache backed workspace index reader and writer.
 #[derive(Debug)]
-pub struct WorkspaceIndexStore<'a> {
+pub struct WorkspaceStore<'a> {
     /// The cache store backing the index.
     store: &'a dyn CacheStore,
     /// Path to the workspace index payload.
@@ -20,7 +20,7 @@ pub struct WorkspaceIndexStore<'a> {
     lock_path: PathBuf,
 }
 
-impl<'a> WorkspaceIndexStore<'a> {
+impl<'a> WorkspaceStore<'a> {
     /// Create a workspace index store for a cache root.
     pub fn new(store: &'a dyn CacheStore, cache_root: &Path) -> Self {
         let base = cache_root.join(DEFAULT_COMPILER_CACHE_NAMESPACE);
@@ -33,22 +33,28 @@ impl<'a> WorkspaceIndexStore<'a> {
         }
     }
 
-    /// Load a workspace index snapshot with shared locking.
+    /// Load a workspace index with shared locking.
     pub fn load(
         &self,
         expected: &WorkspaceIndexHeader,
     ) -> Result<Option<WorkspaceIndexSnapshot>, WorkspaceIndexError> {
-        let _lock = self.store.lock_shared(&self.lock_path)?;
-        self.read_unlocked(expected)
+        self.store
+            .with_shared_lock(&self.lock_path, || {
+                self.read_unlocked(expected).map_err(CacheStoreError::from)
+            })
+            .map_err(WorkspaceIndexError::from)
     }
 
-    /// Save a workspace index snapshot with exclusive locking.
+    /// Save a workspace index with exclusive locking.
     pub fn save(&self, snapshot: &WorkspaceIndexSnapshot) -> Result<(), WorkspaceIndexError> {
-        let _lock = self.store.lock_exclusive(&self.lock_path)?;
-        self.write_unlocked(snapshot)
+        self.store
+            .with_exclusive_lock(&self.lock_path, || {
+                self.write_unlocked(snapshot).map_err(CacheStoreError::from)
+            })
+            .map_err(WorkspaceIndexError::from)
     }
 
-    /// Read a workspace index snapshot without locking.
+    /// Read a workspace index without locking.
     fn read_unlocked(
         &self,
         expected: &WorkspaceIndexHeader,
@@ -75,7 +81,7 @@ impl<'a> WorkspaceIndexStore<'a> {
             });
         }
 
-        // decode the snapshot
+        // decode the index
         let snapshot: WorkspaceIndexSnapshot =
             postcard::from_bytes(&bytes).map_err(WorkspaceIndexError::Deserialize)?;
 
@@ -87,9 +93,9 @@ impl<'a> WorkspaceIndexStore<'a> {
         Ok(Some(snapshot))
     }
 
-    /// Write a workspace index snapshot without locking.
+    /// Write a workspace index without locking.
     fn write_unlocked(&self, snapshot: &WorkspaceIndexSnapshot) -> Result<(), WorkspaceIndexError> {
-        // serialize the snapshot
+        // serialize the index
         let bytes = postcard::to_allocvec(snapshot).map_err(WorkspaceIndexError::Serialize)?;
 
         // guard against oversized payloads
@@ -105,5 +111,19 @@ impl<'a> WorkspaceIndexStore<'a> {
         self.store.write_atomic(&self.index_path, &bytes)?;
 
         Ok(())
+    }
+}
+
+impl From<CacheStoreError> for WorkspaceIndexError {
+    fn from(error: CacheStoreError) -> Self {
+        match error {
+            CacheStoreError::Io(error) => Self::Io(error),
+        }
+    }
+}
+
+impl From<WorkspaceIndexError> for CacheStoreError {
+    fn from(error: WorkspaceIndexError) -> Self {
+        Self::Io(std::io::Error::other(error))
     }
 }

@@ -88,3 +88,25 @@ pub trait CacheStore: std::fmt::Debug + Send + Sync {
     /// Return metadata for a cache entry if present.
     fn metadata(&self, path: &Path) -> Result<Option<CacheMetadata>, CacheStoreError>;
 }
+
+impl dyn CacheStore + '_ {
+    /// Run one operation under a shared cache lock.
+    pub fn with_shared_lock<T, E, F>(&self, path: &Path, operation: F) -> Result<T, E>
+    where
+        E: From<CacheStoreError>,
+        F: FnOnce() -> Result<T, E>,
+    {
+        let _lock = self.lock_shared(path).map_err(E::from)?;
+        operation()
+    }
+
+    /// Run one operation under an exclusive cache lock.
+    pub fn with_exclusive_lock<T, E, F>(&self, path: &Path, operation: F) -> Result<T, E>
+    where
+        E: From<CacheStoreError>,
+        F: FnOnce() -> Result<T, E>,
+    {
+        let _lock = self.lock_exclusive(path).map_err(E::from)?;
+        operation()
+    }
+}

@@ -1,11 +1,13 @@
-use destack_source::ModuleId;
+use serde::{Deserialize, Serialize};
 
-use crate::{ProfileId, TargetId};
+use destack_source::{ModuleId, PackageId};
+
+use crate::{ProfileId, ProfileKey, TargetId};
 
 use super::ArtifactFamily;
 
 /// Semantic artifact identity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ArtifactKey {
     /// Module dependency graph for one profile.
     ModuleGraph { profile: ProfileId },
@@ -13,8 +15,8 @@ pub enum ArtifactKey {
     LanguageEnvironment { profile: ProfileId },
     /// Intrinsic semantic environment for one profile.
     IntrinsicEnvironment { profile: ProfileId },
-    /// Lib semantic environment for one profile.
-    LibEnvironment { profile: ProfileId },
+    /// Library semantic environment for one profile.
+    LibraryEnvironment { profile: ProfileId },
     /// Parsed module syntax tree.
     Ast { module: ModuleId },
     /// Base DIR.
@@ -66,6 +68,84 @@ pub enum ArtifactKey {
         profile: ProfileId,
         target: TargetId,
     },
+    /// Output entries for one module target.
+    ModuleOutput { module: ModuleId, target: TargetId },
+    /// Output entries for one package target.
+    PackageOutput {
+        package: PackageId,
+        target: TargetId,
+    },
+}
+
+/// Stable artifact image identity for persisted cache entries.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ArtifactImageKey {
+    /// Module dependency graph for one profile.
+    ModuleGraph { profile: ProfileKey },
+    /// Parsed module base DIR.
+    DirBase { module: ModuleId },
+    /// Parsed module syntax tree.
+    Ast { module: ModuleId },
+    /// Profile prepared DIR.
+    DirPrepared {
+        module: ModuleId,
+        profile: ProfileKey,
+    },
+    /// Resolved DIR.
+    DirResolved {
+        module: ModuleId,
+        profile: ProfileKey,
+    },
+    /// Declared DIR.
+    DirDeclared {
+        module: ModuleId,
+        profile: ProfileKey,
+    },
+    /// Interface DIR.
+    DirInterface {
+        module: ModuleId,
+        profile: ProfileKey,
+    },
+    /// Analyzed DIR.
+    DirAnalyzed {
+        module: ModuleId,
+        profile: ProfileKey,
+    },
+    /// Elaborated DIR.
+    DirElaborated {
+        module: ModuleId,
+        profile: ProfileKey,
+    },
+    /// Patched DIR.
+    DirPatched {
+        module: ModuleId,
+        profile: ProfileKey,
+    },
+    /// Base MIR before optimization.
+    MirBase {
+        module: ModuleId,
+        profile: ProfileKey,
+        target: TargetId,
+    },
+    /// Optimized MIR.
+    MirOptimized {
+        module: ModuleId,
+        profile: ProfileKey,
+        target: TargetId,
+    },
+    /// Output entries for one module target.
+    ModuleOutput { module: ModuleId, target: TargetId },
+    /// Output entries for one package target.
+    PackageOutput {
+        package: PackageId,
+        target: TargetId,
+    },
+    /// Language semantic environment for one profile.
+    LanguageEnvironment { profile: ProfileKey },
+    /// Intrinsic semantic environment for one profile.
+    IntrinsicEnvironment { profile: ProfileKey },
+    /// Library semantic environment for one profile.
+    LibraryEnvironment { profile: ProfileKey },
 }
 
 impl ArtifactKey {
@@ -84,9 +164,9 @@ impl ArtifactKey {
         Self::IntrinsicEnvironment { profile }
     }
 
-    /// Build one lib environment artifact key.
-    pub fn lib_environment(profile: ProfileId) -> Self {
-        Self::LibEnvironment { profile }
+    /// Build one library environment artifact key.
+    pub fn library_environment(profile: ProfileId) -> Self {
+        Self::LibraryEnvironment { profile }
     }
 
     /// Build one AST artifact key.
@@ -152,13 +232,23 @@ impl ArtifactKey {
         }
     }
 
+    /// Build one module output artifact key.
+    pub fn module_output(module: ModuleId, target: TargetId) -> Self {
+        Self::ModuleOutput { module, target }
+    }
+
+    /// Build one package output artifact key.
+    pub fn package_output(package: PackageId, target: TargetId) -> Self {
+        Self::PackageOutput { package, target }
+    }
+
     /// Return the artifact family for this key.
     pub fn family(&self) -> ArtifactFamily {
         match self {
             Self::ModuleGraph { .. } => ArtifactFamily::ModuleGraph,
             Self::LanguageEnvironment { .. } => ArtifactFamily::LanguageEnvironment,
             Self::IntrinsicEnvironment { .. } => ArtifactFamily::IntrinsicEnvironment,
-            Self::LibEnvironment { .. } => ArtifactFamily::LibEnvironment,
+            Self::LibraryEnvironment { .. } => ArtifactFamily::LibraryEnvironment,
             Self::Ast { .. } => ArtifactFamily::Ast,
             Self::DirBase { .. } => ArtifactFamily::DirBase,
             Self::DirPrepared { .. } => ArtifactFamily::DirPrepared,
@@ -170,6 +260,8 @@ impl ArtifactKey {
             Self::DirPatched { .. } => ArtifactFamily::DirPatched,
             Self::MirBase { .. } => ArtifactFamily::MirBase,
             Self::MirOptimized { .. } => ArtifactFamily::MirOptimized,
+            Self::ModuleOutput { .. } => ArtifactFamily::ModuleOutput,
+            Self::PackageOutput { .. } => ArtifactFamily::PackageOutput,
         }
     }
 
@@ -186,11 +278,13 @@ impl ArtifactKey {
             | Self::DirElaborated { module, .. }
             | Self::DirPatched { module, .. }
             | Self::MirBase { module, .. }
-            | Self::MirOptimized { module, .. } => Some(*module),
+            | Self::MirOptimized { module, .. }
+            | Self::ModuleOutput { module, .. } => Some(*module),
             Self::ModuleGraph { .. }
             | Self::LanguageEnvironment { .. }
             | Self::IntrinsicEnvironment { .. }
-            | Self::LibEnvironment { .. } => None,
+            | Self::LibraryEnvironment { .. }
+            | Self::PackageOutput { .. } => None,
         }
     }
 
@@ -200,7 +294,7 @@ impl ArtifactKey {
             Self::ModuleGraph { profile }
             | Self::LanguageEnvironment { profile }
             | Self::IntrinsicEnvironment { profile }
-            | Self::LibEnvironment { profile }
+            | Self::LibraryEnvironment { profile }
             | Self::DirPrepared { profile, .. }
             | Self::DirResolved { profile, .. }
             | Self::DirDeclared { profile, .. }
@@ -210,7 +304,35 @@ impl ArtifactKey {
             | Self::DirPatched { profile, .. }
             | Self::MirBase { profile, .. }
             | Self::MirOptimized { profile, .. } => Some(*profile),
-            Self::Ast { .. } | Self::DirBase { .. } => None,
+            Self::Ast { .. }
+            | Self::DirBase { .. }
+            | Self::ModuleOutput { .. }
+            | Self::PackageOutput { .. } => None,
+        }
+    }
+}
+
+impl ArtifactImageKey {
+    /// Return the artifact family for this image key.
+    pub fn family(&self) -> ArtifactFamily {
+        match self {
+            Self::ModuleGraph { .. } => ArtifactFamily::ModuleGraph,
+            Self::DirBase { .. } => ArtifactFamily::DirBase,
+            Self::Ast { .. } => ArtifactFamily::Ast,
+            Self::DirPrepared { .. } => ArtifactFamily::DirPrepared,
+            Self::DirResolved { .. } => ArtifactFamily::DirResolved,
+            Self::DirDeclared { .. } => ArtifactFamily::DirDeclared,
+            Self::DirInterface { .. } => ArtifactFamily::DirInterface,
+            Self::DirAnalyzed { .. } => ArtifactFamily::DirAnalyzed,
+            Self::DirElaborated { .. } => ArtifactFamily::DirElaborated,
+            Self::DirPatched { .. } => ArtifactFamily::DirPatched,
+            Self::MirBase { .. } => ArtifactFamily::MirBase,
+            Self::MirOptimized { .. } => ArtifactFamily::MirOptimized,
+            Self::ModuleOutput { .. } => ArtifactFamily::ModuleOutput,
+            Self::PackageOutput { .. } => ArtifactFamily::PackageOutput,
+            Self::LanguageEnvironment { .. } => ArtifactFamily::LanguageEnvironment,
+            Self::IntrinsicEnvironment { .. } => ArtifactFamily::IntrinsicEnvironment,
+            Self::LibraryEnvironment { .. } => ArtifactFamily::LibraryEnvironment,
         }
     }
 }

@@ -13,9 +13,9 @@ use indexmap::IndexMap;
 use crate::{
     ArtifactKey, ArtifactRegistry, Ast, Builtins, CompilerOptions, DestackOptions, DsPathAliases,
     EnvSnapshot, FormatterOptions, LinterOptions, Loader, Module, ModuleDetection, ModuleFormat,
-    ModuleRegistry, ModuleSource, OutputRegistry, Package, PackageKind, PackageRegistry, Platform,
-    Profile, ProfileConfig, ProfileEnv, ProfileFlags, ProfileId, ProfileKey, ProfileRegistry,
-    Runtime, SourceType, Target, TargetId, TsConfig, TsConfigId, TsConfigOptions, TsConfigRegistry,
+    ModuleRegistry, ModuleSource, Package, PackageKind, PackageRegistry, Platform, Profile,
+    ProfileConfig, ProfileEnv, ProfileFlags, ProfileId, ProfileKey, ProfileRegistry, Runtime,
+    SourceType, Target, TargetId, TsConfig, TsConfigId, TsConfigOptions, TsConfigRegistry,
     builtin_libs_for_type_entries, discover_typescript_type_entries,
     normalize_typescript_lib_names, normalize_typescript_type_entries, typescript_default_libs,
 };
@@ -55,8 +55,6 @@ pub struct Program {
     pub strings: Arc<StringPool>,
     /// Semantic compiler products.
     pub artifacts: Arc<ArtifactRegistry>,
-    /// Generated outputs.
-    pub outputs: Arc<OutputRegistry>,
     /// The profiles in this program.
     pub profiles: Arc<ProfileRegistry>,
     /// The diagnostic collector.
@@ -101,7 +99,6 @@ impl Program {
         let packages = Arc::new(PackageRegistry::new());
         let tsconfigs = Arc::new(TsConfigRegistry::new());
         let artifacts = Arc::new(ArtifactRegistry::new());
-        let outputs = Arc::new(OutputRegistry::new());
         let profiles = Arc::new(ProfileRegistry::new());
         let strings = Arc::new(StringPool::new());
         let diagnostics = DiagnosticCollector::new();
@@ -122,7 +119,6 @@ impl Program {
             packages,
             tsconfigs,
             artifacts,
-            outputs,
             profiles,
             strings,
             diagnostics,
@@ -151,8 +147,6 @@ impl Program {
         let profiles = Arc::new(ProfileRegistry::new());
         let diagnostic_store = DiagnosticStore::new();
         let artifacts = Arc::new(ArtifactRegistry::new());
-        let outputs = Arc::new(OutputRegistry::new());
-
         // create and insert the root package and module
         let (root_module_id, fallback_file_id) =
             Self::make_root(&modules, &packages, &artifacts, files.clone());
@@ -168,7 +162,6 @@ impl Program {
             packages,
             tsconfigs,
             artifacts,
-            outputs,
             profiles,
             strings,
             diagnostics,
@@ -1220,11 +1213,11 @@ mod tests {
         assert!(options.exact_optional_property_types);
         assert!(options.no_unchecked_indexed_access.is_deny());
         assert!(options.no_property_access_from_index_signature.is_deny());
-        assert!(options.no_unused_locals.is_deny());
-        assert!(options.no_unused_parameters.is_deny());
-        assert!(options.no_fallthrough_cases_in_switch.is_deny());
-        assert!(options.allow_unreachable_code.is_deny());
-        assert!(options.allow_unused_labels.is_deny());
+        assert!(options.no_unused_locals.is_allow());
+        assert!(options.no_unused_parameters.is_allow());
+        assert!(options.no_fallthrough_cases_in_switch.is_allow());
+        assert!(options.allow_unreachable_code.is_allow());
+        assert!(options.allow_unused_labels.is_allow());
 
         // verify soundness defaults are set
         assert!(options.no_any.is_deny());

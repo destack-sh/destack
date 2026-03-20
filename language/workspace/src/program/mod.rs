@@ -1,5 +1,4 @@
 mod ast;
-mod cache;
 mod comptime;
 mod dir;
 mod discovery;
@@ -16,7 +15,6 @@ mod specifier;
 mod target;
 
 pub use ast::*;
-pub use cache::*;
 pub use comptime::*;
 pub use dir::*;
 pub use discovery::*;

@@ -7,8 +7,8 @@ pub enum ArtifactFamily {
     LanguageEnvironment,
     /// Intrinsic semantic environment for one profile.
     IntrinsicEnvironment,
-    /// Lib semantic environment for one profile.
-    LibEnvironment,
+    /// Library semantic environment for one profile.
+    LibraryEnvironment,
     /// Parsed module syntax tree.
     Ast,
     /// Base DIR before semantic resolution.
@@ -31,4 +31,8 @@ pub enum ArtifactFamily {
     MirBase,
     /// Optimized MIR.
     MirOptimized,
+    /// Output entries for one module target.
+    ModuleOutput,
+    /// Output entries for one package target.
+    PackageOutput,
 }

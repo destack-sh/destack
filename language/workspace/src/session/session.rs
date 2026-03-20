@@ -5,7 +5,7 @@ use dashmap::DashMap;
 use destack_core::StringPool;
 use destack_source::{
     File, FileRegistry, FileSystem, FileType, FileVersion, ModuleId, ModuleVersion,
-    PhysicalFileSystem,
+    PhysicalFileSystem, Uri,
 };
 use parking_lot::RwLock;
 
@@ -235,10 +235,15 @@ impl Session {
         }
     }
 
-    /// Apply one loaded workspace index snapshot to the session state.
-    pub fn apply_workspace_index_snapshot(&self, snapshot: &WorkspaceIndexSnapshot) {
+    /// Apply one loaded workspace index to the session state.
+    pub fn apply_workspace_index(&self, snapshot: &WorkspaceIndexSnapshot) {
         // update the loaded workspace-index header
         *self.workspace_index_header.write() = Some(snapshot.header.clone());
+
+        // restore the shared string universe for fresh sessions
+        if self.strings.is_empty() {
+            self.strings.replace_from(&snapshot.strings);
+        }
 
         // replace the loaded workspace-index entries
         self.workspace_index_files.clear();
@@ -285,6 +290,7 @@ impl Session {
 
         let snapshot = WorkspaceIndexSnapshot {
             header,
+            strings: self.strings.as_ref().clone(),
             files,
             modules,
         };
@@ -314,7 +320,7 @@ impl Session {
             .unwrap_or_else(|| self.files.next_id());
         let file_version = self.workspace_file_version_for_path(path);
         let name = path.file_name()?.to_string_lossy().to_string();
-        let uri = destack_source::Uri::from_path(path);
+        let uri = Uri::from_path(path);
         let file = File::from_text_as_jsonc(
             file_id,
             name,
