@@ -89,6 +89,10 @@ const LINUX_SERIAL_DEVICE_PREFIXES: &[&str] = &[
     "ttyS", "ttyUSB", "ttyACM", "ttyAMA", "ttyAP", "ttyXRUSB", "rfcomm",
 ];
 
+/// Known Linux native-controller serial prefixes.
+#[cfg(target_os = "linux")]
+const LINUX_NATIVE_SERIAL_DEVICE_PREFIXES: &[&str] = &["ttyS", "ttyAMA", "ttyAP"];
+
 /// Return whether one unix host path should be treated as one serial candidate.
 #[cfg(target_os = "linux")]
 pub(super) fn is_serial_device_name(name: &OsStr) -> bool {
@@ -97,6 +101,28 @@ pub(super) fn is_serial_device_name(name: &OsStr) -> bool {
     LINUX_SERIAL_DEVICE_PREFIXES
         .iter()
         .any(|prefix| name.starts_with(prefix.as_bytes()))
+}
+
+/// Return whether one unix host path names one known native serial controller.
+fn is_likely_native_serial_path(path: &Path) -> bool {
+    let Some(file_name) = path.file_name() else {
+        return false;
+    };
+    let file_name = file_name.as_bytes();
+
+    #[cfg(target_os = "linux")]
+    {
+        return LINUX_NATIVE_SERIAL_DEVICE_PREFIXES
+            .iter()
+            .any(|prefix| file_name.starts_with(prefix.as_bytes()));
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = file_name;
+
+        false
+    }
 }
 
 /// Classify one unix serial transport from one visible path.
@@ -113,7 +139,12 @@ pub(super) fn classify_serial_transport(path: &Path) -> SerialPortTransport {
         return SerialPortTransport::Bluetooth;
     }
 
-    SerialPortTransport::Native
+    // known native controller paths
+    if is_likely_native_serial_path(path) {
+        return SerialPortTransport::Native;
+    }
+
+    SerialPortTransport::Unknown
 }
 
 /// Validate unix serial open options before touching the host.
@@ -460,10 +491,8 @@ fn apple_descriptor_info_from_service(service: AppleIoObject) -> Option<UnixSeri
     let usb_metadata = apple_usb_metadata(service);
     let transport = if usb_metadata.is_some() {
         SerialPortTransport::Usb
-    } else if name.to_ascii_lowercase().contains("bluetooth") {
-        SerialPortTransport::Bluetooth
     } else {
-        SerialPortTransport::Native
+        classify_serial_transport(&callout_path)
     };
 
     let manufacturer = usb_metadata
@@ -752,7 +781,7 @@ fn linux_descriptor_info_for_tty(
     } else if usb_directory.is_some() {
         SerialPortTransport::Usb
     } else {
-        SerialPortTransport::Native
+        classify_serial_transport(&preferred_path)
     };
 
     let manufacturer = usb_directory
@@ -1048,12 +1077,19 @@ mod tests {
         assert!(decode_serial_id("serial-unix-bytes:0x").is_err());
     }
 
-    /// Classify visible unix transports conservatively from the host path.
+    /// Classify visible unix transports without overclaiming native controllers.
     #[test]
-    fn test_classify_serial_transport_detects_usb_and_bluetooth() {
+    fn test_classify_serial_transport_detects_usb_bluetooth_and_unknown() {
         let usb_path = Path::new("/dev/serial/by-id/usb-Audio_Interface");
         let bluetooth_path = Path::new("/dev/rfcomm0");
         let native_path = OsStr::from_bytes(b"/dev/ttyS0");
+        let unknown_path = Path::new("/dev/cu.debug-console");
+
+        #[cfg(target_os = "linux")]
+        let native_transport = SerialPortTransport::Native;
+
+        #[cfg(not(target_os = "linux"))]
+        let native_transport = SerialPortTransport::Unknown;
 
         assert_eq!(
             classify_serial_transport(usb_path),
@@ -1065,7 +1101,11 @@ mod tests {
         );
         assert_eq!(
             classify_serial_transport(Path::new(native_path)),
-            SerialPortTransport::Native
+            native_transport
+        );
+        assert_eq!(
+            classify_serial_transport(unknown_path),
+            SerialPortTransport::Unknown
         );
     }
 

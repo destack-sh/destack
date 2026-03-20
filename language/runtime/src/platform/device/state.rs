@@ -25,6 +25,8 @@ use super::midi::host::{
     WinMmService, WinRtService, WindowsMidiService, windows_midi_service, winmm_service,
     winrt_service,
 };
+#[cfg(test)]
+use super::serial::SerialTestRegistry;
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 use super::serial::{UnixSerialWatchService, unix_serial_watch_service};
 #[cfg(windows)]
@@ -72,6 +74,9 @@ pub(crate) struct PlatformDeviceState {
     /// Shared Windows serial ingress service handle for this agent.
     #[cfg(windows)]
     windows_serial_service: ServiceHandle<WindowsSerialService>,
+    /// Shared test-only virtual serial registry for this agent.
+    #[cfg(test)]
+    serial_test_registry: Arc<SerialTestRegistry>,
     /// Shared USB service handle for this agent.
     usb_service: ServiceHandle<UsbService>,
     /// Number of live device resources that currently hold runtime activity.
@@ -209,6 +214,12 @@ impl PlatformDeviceState {
     ) -> RuntimeResult<Arc<WindowsSerialService>> {
         self.windows_serial_service
             .get_or_try_init(|| windows_serial_service(operation))
+    }
+
+    /// Return the shared virtual serial registry for this agent.
+    #[cfg(test)]
+    pub(crate) fn serial_test_registry(&self) -> Arc<SerialTestRegistry> {
+        Arc::clone(&self.serial_test_registry)
     }
 
     /// Return one shared USB service handle for this agent.

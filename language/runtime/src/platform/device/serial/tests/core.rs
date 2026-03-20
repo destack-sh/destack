@@ -7,27 +7,22 @@ use crate::diagnostic::RuntimeError;
 use crate::diagnostic::RuntimeResult;
 #[cfg(unix)]
 use crate::platform::PlatformError;
+use crate::platform::device::serial::{SerialTestController, install_test_serial_port};
 use crate::platform::device::tests::{DeviceHarnessContext, HarnessValue};
-#[cfg(unix)]
 use crate::platform::device::{
     SerialDataBits, SerialEvent, SerialEventValue, SerialEventVm, SerialFlowControl,
-    SerialOutputSignals, SerialOutputSignalsVm, SerialParity, SerialPortConfig,
-    SerialPortConfigValue, SerialPortConfigVm, SerialPortOpenOptions, SerialStopBits,
+    SerialInputSignals, SerialInputSignalsValue, SerialInputSignalsVm, SerialOutputSignals,
+    SerialOutputSignalsVm, SerialParity, SerialPortConfig, SerialPortConfigValue,
+    SerialPortConfigVm, SerialPortDescriptor, SerialPortDescriptorValue, SerialPortDescriptorVm,
+    SerialPortOpenOptions, SerialPortTransport, SerialStopBits, SerialWatchEvent,
+    SerialWatchEventValue, SerialWatchEventVm,
 };
-use crate::platform::device::{
-    SerialPortDescriptor, SerialPortDescriptorValue, SerialPortDescriptorVm, SerialPortTransport,
-    SerialWatchEvent, SerialWatchEventValue, SerialWatchEventVm,
-};
-#[cfg(unix)]
 use crate::platform::diagnostic::PlatformErrorCode;
-#[cfg(unix)]
 use crate::platform::resource::SerialPortHandle;
 use crate::platform::{NativeSlice, VmSlice};
-#[cfg(unix)]
 use crate::tests::platform::assert_ok_or_expected_error;
 
-/// Build one default serial configuration for Unix serial tests.
-#[cfg(unix)]
+/// Build one default serial configuration for serial tests.
 pub(super) fn default_serial_config() -> SerialPortConfig {
     SerialPortConfig {
         baud_rate: 115_200,
@@ -42,8 +37,7 @@ pub(super) fn default_serial_config() -> SerialPortConfig {
     }
 }
 
-/// Build one default serial open options payload for Unix serial tests.
-#[cfg(unix)]
+/// Build one default serial open options payload for serial tests.
 pub(super) fn default_serial_options() -> SerialPortOpenOptions {
     SerialPortOpenOptions {
         config: default_serial_config(),
@@ -180,7 +174,6 @@ pub(super) fn assert_supported_or_not_supported<T>(
 }
 
 /// Assert one serial result is success or one expected platform error.
-#[cfg(unix)]
 pub(super) fn assert_platform_error_codes<T>(
     result: Result<T, Box<RuntimeError>>,
     expected: &[PlatformErrorCode],
@@ -189,29 +182,37 @@ pub(super) fn assert_platform_error_codes<T>(
 }
 
 /// Open one serial handle through the active harness.
-#[cfg(unix)]
 pub(super) fn open_serial_handle(
     context: &mut DeviceHarnessContext<'_>,
-    path: &str,
+    id: &str,
 ) -> RuntimeResult<SerialPortHandle> {
-    open_serial_handle_with_options(context, path, default_serial_options())
+    open_serial_handle_with_options(context, id, default_serial_options())
 }
 
 /// Open one serial handle with explicit options through the active harness.
-#[cfg(unix)]
 pub(super) fn open_serial_handle_with_options(
     context: &mut DeviceHarnessContext<'_>,
-    path: &str,
+    id: &str,
     options: SerialPortOpenOptions,
 ) -> RuntimeResult<SerialPortHandle> {
-    let id = context.harness_value_from(path.to_string())?;
+    let id = context.harness_value_from(id.to_string())?;
     let options = context.harness_value_from(options)?;
 
     context.destack_device_serial_open(id, options)
 }
 
+/// Install and open one virtual serial handle through the active harness.
+pub(super) fn open_virtual_serial_handle(
+    context: &mut DeviceHarnessContext<'_>,
+    name: &str,
+) -> RuntimeResult<(SerialTestController, SerialPortHandle)> {
+    let controller = install_test_serial_port(context.call_context, name);
+    let handle = open_serial_handle(context, controller.id())?;
+
+    Ok((controller, handle))
+}
+
 /// Decode one serial descriptor from one native or VM harness result.
-#[cfg(unix)]
 pub(super) fn serial_descriptor_value(
     context: &mut DeviceHarnessContext<'_>,
     value: HarnessValue<SerialPortDescriptor, SerialPortDescriptorVm>,
@@ -228,7 +229,6 @@ pub(super) fn serial_descriptor_list_value(
 }
 
 /// Decode one serial config from one native or VM harness result.
-#[cfg(unix)]
 pub(super) fn serial_config_value(
     context: &mut DeviceHarnessContext<'_>,
     value: HarnessValue<SerialPortConfig, SerialPortConfigVm>,
@@ -237,11 +237,18 @@ pub(super) fn serial_config_value(
 }
 
 /// Decode one serial event from one native or VM harness result.
-#[cfg(unix)]
 pub(super) fn serial_event_value(
     context: &mut DeviceHarnessContext<'_>,
     value: HarnessValue<SerialEvent, SerialEventVm>,
 ) -> RuntimeResult<SerialEventValue> {
+    context.harness_value_into(value)
+}
+
+/// Decode one serial input-signal snapshot from one native or VM harness result.
+pub(super) fn serial_input_signals_value(
+    context: &mut DeviceHarnessContext<'_>,
+    value: HarnessValue<SerialInputSignals, SerialInputSignalsVm>,
+) -> RuntimeResult<SerialInputSignalsValue> {
     context.harness_value_into(value)
 }
 
@@ -254,7 +261,6 @@ pub(super) fn serial_watch_event_value(
 }
 
 /// Encode one serial output-signal update for one harness call.
-#[cfg(unix)]
 pub(super) fn serial_config_argument(
     context: &mut DeviceHarnessContext<'_>,
     config: SerialPortConfig,
@@ -263,7 +269,6 @@ pub(super) fn serial_config_argument(
 }
 
 /// Encode one serial output-signal update for one harness call.
-#[cfg(unix)]
 pub(super) fn serial_output_signals_argument(
     context: &mut DeviceHarnessContext<'_>,
     signals: SerialOutputSignals,
@@ -272,7 +277,6 @@ pub(super) fn serial_output_signals_argument(
 }
 
 /// Encode one immutable byte slice for one harness call.
-#[cfg(unix)]
 pub(super) fn serial_write_bytes_argument(
     context: &mut DeviceHarnessContext<'_>,
     bytes: &[u8],
@@ -311,6 +315,15 @@ pub(super) fn assert_serial_descriptor_shape(descriptor: &SerialPortDescriptorVa
 
     if has_usb_vendor_id {
         assert_eq!(descriptor.transport, SerialPortTransport::Usb);
+    }
+
+    if descriptor.transport != SerialPortTransport::Usb {
+        assert_eq!(descriptor.usb_vendor_id, None);
+        assert_eq!(descriptor.usb_product_id, None);
+    }
+
+    if descriptor.transport != SerialPortTransport::Bluetooth {
+        assert_eq!(descriptor.bluetooth_service_class_id, None);
     }
 }
 
