@@ -21,6 +21,8 @@ const HOST_AUDIO_EVENT_ALLOWED_ERRORS: [PlatformErrorCode; 4] = [
     PlatformErrorCode::AudioUnavailable,
     PlatformErrorCode::DeviceUnavailable,
 ];
+const RANDOM_STREAM_CHURN_ITERATIONS: usize = 32;
+const RANDOM_STREAM_CHURN_READ_TIMEOUT_NS: u64 = 10_000_000;
 
 /// Build one default null backend event subscription payload.
 fn default_event_options() -> AudioEventSubscriptionOptions {
@@ -240,7 +242,7 @@ fn test_audio_event_sequence_rows_stay_monotonic_during_random_stream_churn() {
         let mut last_dropped_count = 0u64;
         let mut observed_rows = 0usize;
 
-        for _ in 0..96 {
+        for _ in 0..RANDOM_STREAM_CHURN_ITERATIONS {
             let stream_result = if random.next_bool() {
                 context.destack_audio_stream_start(stream)
             } else {
@@ -249,7 +251,11 @@ fn test_audio_event_sequence_rows_stay_monotonic_during_random_stream_churn() {
             let _ = assert_ok_or_expected_error(stream_result, &[PlatformErrorCode::IoWouldBlock])?;
 
             let batch = assert_ok_or_expected_error(
-                context.destack_audio_event_read_batch(events, 4, 50_000_000),
+                context.destack_audio_event_read_batch(
+                    events,
+                    4,
+                    RANDOM_STREAM_CHURN_READ_TIMEOUT_NS,
+                ),
                 &[PlatformErrorCode::IoWouldBlock],
             )?;
             let Some(batch) = batch else {

@@ -4,7 +4,7 @@ use super::tests::{
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::ClipboardBinaryFormat;
-use crate::platform::os::tests::with_harness_context;
+use crate::platform::input::tests::with_harness_context;
 #[cfg(target_os = "macos")]
 use crate::tests::execution::run_execution_case_or_return;
 use crate::tests::platform::assert_runtime_error_code;

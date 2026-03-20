@@ -7,10 +7,10 @@ use crate::platform::PlatformError;
 use crate::platform::core::file_uri_from_path;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::abi_generated::OsPathValue;
-#[cfg(windows)]
-use crate::platform::fs::abi_generated::PathUtf16Value;
 #[cfg(not(windows))]
 use crate::platform::fs::abi_generated::{OsPathBytesValue, PathBytesValue};
+#[cfg(windows)]
+use crate::platform::fs::abi_generated::{OsPathUtf16Value, PathUtf16Value};
 use crate::platform::os::abi_generated::DocumentDescriptorValue;
 
 /// Build one document descriptor from one local path.

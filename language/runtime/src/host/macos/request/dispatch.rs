@@ -87,7 +87,7 @@ pub(crate) fn submit_request(
             ))
         }
         HostRequest::OsPermissionRequestMany { ref permissions } => {
-            let Some(entries) = request_permission_entries(context, &permissions)? else {
+            let Some(entries) = request_permission_entries(context, permissions)? else {
                 return Err(not_supported(request.operation_name()));
             };
 
@@ -143,7 +143,7 @@ fn request_permission_entries(
             });
         }
 
-        return Ok(Some(entries));
+        Ok(Some(entries))
     }
 
     #[cfg(all(not(test), target_os = "macos"))]
@@ -215,6 +215,6 @@ fn request_permission_entries(
             }
         }
 
-        return Ok(Some(entries));
+        Ok(Some(entries))
     }
 }

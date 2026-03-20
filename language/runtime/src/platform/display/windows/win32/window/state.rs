@@ -1,5 +1,8 @@
 use crate::diagnostic::RuntimeResult;
-use crate::platform::display::{DisplayBackend, WindowDescriptor, WindowState};
+use crate::platform::display::{
+    DisplayBackend, WindowDescriptor, WindowLogicalRect, WindowOcclusionState, WindowRenderState,
+    WindowState, WindowVisibility,
+};
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
@@ -30,7 +33,6 @@ pub(crate) unsafe fn window_descriptor(
         title: context.store_string(&host_state.title),
         role: host_state.role,
         mode: host_state.mode,
-        display: host_state.display,
         resizable: host_state.resizable,
         decorated: host_state.decorated,
         chrome: host_state.chrome,
@@ -69,6 +71,25 @@ pub(crate) unsafe fn window_state(
         "destack.display.window.state",
     )?;
     let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    let content_rect_logical = WindowLogicalRect {
+        x: 0.0,
+        y: 0.0,
+        width: host_state.size_logical.width,
+        height: host_state.size_logical.height,
+    };
+    let framebuffer_size = host_state.size_physical;
+    let render_state = if framebuffer_size.width == 0 || framebuffer_size.height == 0 {
+        WindowRenderState::ZeroSized
+    } else if host_state.visibility == WindowVisibility::Hidden
+        || host_state.visibility == WindowVisibility::Minimized
+    {
+        WindowRenderState::Hidden
+    } else if occlusion_from_visibility(host_state.visibility) == WindowOcclusionState::Occluded {
+        WindowRenderState::Occluded
+    } else {
+        WindowRenderState::Renderable
+    };
+    let occlusion = occlusion_from_visibility(host_state.visibility);
 
     // encode the state payload from cached host_state fields
     let state = WindowState {
@@ -76,12 +97,15 @@ pub(crate) unsafe fn window_state(
         position: host_state.position,
         size_logical: host_state.size_logical,
         size_physical: host_state.size_physical,
+        content_rect_logical,
+        framebuffer_size,
         scale_factor_milli: host_state.scale_factor_milli,
         visibility: host_state.visibility,
         role: host_state.role,
         display: host_state.display,
         focused: host_state.focused,
-        occlusion: occlusion_from_visibility(host_state.visibility),
+        occlusion,
+        render_state,
         safe_area_insets: host_state.safe_area_insets,
         theme: host_state.theme,
         chrome: host_state.chrome,

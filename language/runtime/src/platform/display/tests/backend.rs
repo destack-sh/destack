@@ -1,3 +1,4 @@
+use super::event::drain_window_event_stream;
 use super::{
     DisplayHarnessContext, HarnessValue, decode_display_mode, decode_harness_value,
     decode_monitor_list, decode_monitor_modes, decode_window_descriptor,
@@ -5,12 +6,12 @@ use super::{
     default_window_options, error_code, harness_string, harness_window_position,
     harness_window_size_constraints, harness_window_size_constraints_none, is_not_supported_code,
     result_or_skip_not_supported, run_execution_case_or_return, wait_window_visibility,
-    with_harness_context,
+    window_event_open_options_with_filter, with_harness_context,
 };
 #[cfg(target_os = "linux")]
 use super::{
     HarnessWindowMode, harness_window_icon_set, harness_window_icon_set_none,
-    harness_window_mode_options, window_event_open_options_with_filter,
+    harness_window_mode_options,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
@@ -185,6 +186,7 @@ fn appkit_capability_ceiling_mask() -> u64 {
         | display_platform::DISPLAY_BACKEND_CAP_TRANSPARENCY.0
         | display_platform::DISPLAY_BACKEND_CAP_ALWAYS_ON_TOP.0
         | display_platform::DISPLAY_BACKEND_CAP_ATTENTION_REQUEST.0
+        | display_platform::DISPLAY_BACKEND_CAP_BEGIN_FRAME_STREAM.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_INVALIDATE.0
         | display_platform::DISPLAY_BACKEND_CAP_SAFE_AREA.0
         | display_platform::DISPLAY_BACKEND_CAP_THEME.0
@@ -646,7 +648,13 @@ pub(crate) fn test_display_window_surface_supports_strict_backend_selection() {
             let (_, current_title) = decode_window_descriptor(&mut context, descriptor)?;
             assert_eq!(current_title, title);
 
-            let mut event_options = default_window_event_open_options(&context);
+            let mut event_options = window_event_open_options_with_filter(
+                &context,
+                256,
+                display_platform::DisplayEventOverflowPolicy::DropOldest,
+                Some(window),
+                Some(display_platform::WINDOW_EVENT_KIND_VISIBILITY_CHANGED.0),
+            );
             force_window_event_backend(&mut event_options, backend);
             let Some(stream) = result_or_skip_not_supported(
                 context.destack_display_window_event_open(event_options),
@@ -656,15 +664,20 @@ pub(crate) fn test_display_window_surface_supports_strict_backend_selection() {
                 continue;
             };
 
-            let event = context.destack_display_window_event_read(stream, 100_000_000)?;
-            let saw_created = matches!(
-                event,
-                HarnessValue::Native(display_platform::WindowEvent::WindowCreatedEvent(_))
-                    | HarnessValue::Vm(display_platform::WindowEventVm::WindowCreatedEvent(_))
-            );
-            assert!(saw_created);
-
+            drain_window_event_stream(&mut context, stream)?;
             context.destack_display_window_set_visibility(window, WindowVisibility::Minimized)?;
+
+            let event = context.destack_display_window_event_read(stream, 100_000_000)?;
+            let saw_visibility_changed = matches!(
+                event,
+                HarnessValue::Native(display_platform::WindowEvent::WindowVisibilityChangedEvent(
+                    _
+                )) | HarnessValue::Vm(
+                    display_platform::WindowEventVm::WindowVisibilityChangedEvent(_)
+                )
+            );
+            assert!(saw_visibility_changed);
+
             assert!(wait_window_visibility(
                 &mut context,
                 window,
@@ -1183,7 +1196,13 @@ pub(crate) fn test_display_backend_identity_tracks_strict_backend_selection() {
             assert_eq!(state.backend, backend);
 
             // verify event metadata backend identity
-            let mut event_options = default_window_event_open_options(&context);
+            let mut event_options = window_event_open_options_with_filter(
+                &context,
+                256,
+                display_platform::DisplayEventOverflowPolicy::DropOldest,
+                Some(window),
+                Some(display_platform::WINDOW_EVENT_KIND_VISIBILITY_CHANGED.0),
+            );
             force_window_event_backend(&mut event_options, backend);
             let Some(stream) = result_or_skip_not_supported(
                 context.destack_display_window_event_open(event_options),
@@ -1193,14 +1212,17 @@ pub(crate) fn test_display_backend_identity_tracks_strict_backend_selection() {
                 continue;
             };
 
+            drain_window_event_stream(&mut context, stream)?;
+            context.destack_display_window_set_visibility(window, WindowVisibility::Minimized)?;
+
             let event = context.destack_display_window_event_read(stream, 100_000_000)?;
             let event_backend = match event {
-                HarnessValue::Native(display_platform::WindowEvent::WindowCreatedEvent(value)) => {
-                    value.metadata.backend
-                }
-                HarnessValue::Vm(display_platform::WindowEventVm::WindowCreatedEvent(value)) => {
-                    value.metadata.backend
-                }
+                HarnessValue::Native(
+                    display_platform::WindowEvent::WindowVisibilityChangedEvent(value),
+                ) => value.metadata.backend,
+                HarnessValue::Vm(
+                    display_platform::WindowEventVm::WindowVisibilityChangedEvent(value),
+                ) => value.metadata.backend,
                 _ => {
                     context.destack_display_window_event_close(stream)?;
                     context.destack_display_window_close(window)?;

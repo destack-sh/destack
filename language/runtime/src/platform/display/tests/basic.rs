@@ -1,9 +1,10 @@
+use super::event::drain_window_event_stream;
 use super::{
     HarnessValue, decode_display_descriptor, decode_monitor_list, decode_monitor_modes,
     decode_window_descriptor, default_monitor_event_open_options, default_monitor_list_request,
-    default_monitor_open_options, default_window_event_open_options, default_window_options,
-    error_code, harness_string, is_not_supported_code, open_window_or_skip_not_supported,
-    result_or_skip_not_supported, run_execution_case_or_return, wait_window_visibility,
+    default_monitor_open_options, default_window_options, error_code, harness_string,
+    is_not_supported_code, open_window_or_skip_not_supported, result_or_skip_not_supported,
+    run_execution_case_or_return, wait_window_visibility, window_event_open_options_with_filter,
     with_harness_context,
 };
 #[cfg(windows)]
@@ -155,17 +156,26 @@ pub(crate) fn test_display_window_surface_open_mutate_and_observe_roundtrip() {
         let (_, title) = decode_window_descriptor(&mut context, descriptor)?;
         assert_eq!(title, "beta");
 
-        let event_stream = context
-            .destack_display_window_event_open(default_window_event_open_options(&context))?;
+        let event_stream =
+            context.destack_display_window_event_open(window_event_open_options_with_filter(
+                &context,
+                256,
+                display_platform::DisplayEventOverflowPolicy::DropOldest,
+                Some(window),
+                Some(display_platform::WINDOW_EVENT_KIND_VISIBILITY_CHANGED.0),
+            ))?;
+
+        drain_window_event_stream(&mut context, event_stream)?;
+        context.destack_display_window_set_visibility(window, WindowVisibility::Minimized)?;
 
         let event = context.destack_display_window_event_read(event_stream, 100_000_000)?;
         assert!(matches!(
             event,
-            HarnessValue::Native(display_platform::WindowEvent::WindowCreatedEvent(_))
-                | HarnessValue::Vm(display_platform::WindowEventVm::WindowCreatedEvent(_))
+            HarnessValue::Native(display_platform::WindowEvent::WindowVisibilityChangedEvent(
+                _
+            )) | HarnessValue::Vm(display_platform::WindowEventVm::WindowVisibilityChangedEvent(_))
         ));
 
-        context.destack_display_window_set_visibility(window, WindowVisibility::Minimized)?;
         assert!(wait_window_visibility(
             &mut context,
             window,

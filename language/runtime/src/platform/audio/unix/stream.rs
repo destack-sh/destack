@@ -121,12 +121,11 @@ pub(crate) unsafe fn destack_audio_stream_close(
         audio_core::resolve_stream_host_state(binding, handle, "destack.audio.stream.close")?;
     stream.unbind_runtime();
 
-    let removed =
-        binding
-            .agent()
-            .resources
-            .remove(binding.world(), handle.0, Some(binding.engine()));
-    if removed.is_none() {
+    if !binding.agent().resources.remove_and_finalize(
+        binding.world(),
+        handle.0,
+        Some(binding.engine()),
+    ) {
         return Err(core_platform::io_not_found(
             "destack.audio.stream.close",
             format!("unknown audio stream handle {}", handle.0.0),
@@ -342,7 +341,8 @@ pub(crate) unsafe fn destack_audio_stream_open(
         binding.world(),
         ResourceEntry::new(ResourceKind::AudioStream)
             .with_label(audio_core::AUDIO_STREAM_RESOURCE_LABEL)
-            .with_payload(stream.clone()),
+            .with_payload(stream.clone())
+            .with_finalizer(audio_core::AudioStreamFinalizer::new(stream.clone())),
         Some(binding.engine()),
     );
     let stream_handle = resource::AudioStreamHandle(resource_id);

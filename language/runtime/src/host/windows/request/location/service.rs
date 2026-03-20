@@ -457,15 +457,13 @@ fn location_sample_from_geoposition(
     Ok(LocationSampleValue {
         latitude_degrees: position.Latitude,
         longitude_degrees: position.Longitude,
-        altitude_meters,
-        horizontal_accuracy_meters: Some(
-            coordinate.Accuracy().map_err(|error| {
-                winrt_location_error(operation, "Geocoordinate::Accuracy", &error)
-            })?,
-        ),
-        vertical_accuracy_meters,
-        speed_meters_per_second,
-        heading_degrees,
+        altitude_meters: altitude_meters.unwrap_or(f64::NAN),
+        horizontal_accuracy_meters: coordinate
+            .Accuracy()
+            .map_err(|error| winrt_location_error(operation, "Geocoordinate::Accuracy", &error))?,
+        vertical_accuracy_meters: vertical_accuracy_meters.unwrap_or(f64::NAN),
+        speed_meters_per_second: speed_meters_per_second.unwrap_or(f64::NAN),
+        heading_degrees: heading_degrees.unwrap_or(f64::NAN),
         timestamp_unix_ns: unix_ns_from_windows_datetime(timestamp),
     })
 }

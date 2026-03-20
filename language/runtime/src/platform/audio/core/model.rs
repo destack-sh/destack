@@ -10,7 +10,7 @@ use crate::platform::audio::{
     AudioEventSubscriptionOptions, AudioShareMode, AudioStreamConfig, AudioStreamFlags,
     AudioStreamRequirementFlags, AudioStreamStateKind, AudioStreamStatusFlags,
 };
-use crate::platform::resource;
+use crate::platform::resource::{self, ResourceFinalizer, ResourceId};
 use crate::runtime::process::RuntimeScheduledCallbackHandle;
 
 use super::constants::{DEFAULT_STREAM_VOLUME, host_monotonic_nanos};
@@ -316,6 +316,25 @@ impl AudioStreamHostState {
 impl Drop for AudioStreamHostState {
     fn drop(&mut self) {
         self.shutdown();
+    }
+}
+
+/// Resource finalizer that shuts down one host audio stream.
+pub(crate) struct AudioStreamFinalizer {
+    /// Stream owned by the resource entry.
+    stream: Arc<AudioStreamHostState>,
+}
+
+impl AudioStreamFinalizer {
+    /// Build one audio stream finalizer from one host stream state.
+    pub(crate) fn new(stream: Arc<AudioStreamHostState>) -> Self {
+        Self { stream }
+    }
+}
+
+impl ResourceFinalizer for AudioStreamFinalizer {
+    fn finalize(self: Box<Self>, _resource_id: ResourceId) {
+        self.stream.shutdown();
     }
 }
 

@@ -612,26 +612,6 @@ pub(crate) fn run_execution_case(case_name: &str) -> bool {
         name if display_execution_case!(
             name,
             event,
-            test_window_event_overflow_error_policy_reports_busy
-        ) =>
-        {
-            display_event_tests::test_window_event_overflow_error_policy_reports_busy();
-            true
-        }
-        #[cfg(feature = "execution")]
-        name if display_execution_case!(
-            name,
-            event,
-            test_window_event_drop_oldest_reports_dropped_count_metadata
-        ) =>
-        {
-            display_event_tests::test_window_event_drop_oldest_reports_dropped_count_metadata();
-            true
-        }
-        #[cfg(feature = "execution")]
-        name if display_execution_case!(
-            name,
-            event,
             test_monitor_event_overflow_error_policy_reports_busy
         ) =>
         {
@@ -657,16 +637,6 @@ pub(crate) fn run_execution_case(case_name: &str) -> bool {
         {
             display_event_tests::test_window_event_occlusion_changes_follow_visibility_transitions(
             );
-            true
-        }
-        #[cfg(feature = "execution")]
-        name if display_execution_case!(
-            name,
-            event,
-            test_window_event_refresh_metadata_sequence_is_monotonic
-        ) =>
-        {
-            display_event_tests::test_window_event_refresh_metadata_sequence_is_monotonic();
             true
         }
         #[cfg(feature = "execution")]

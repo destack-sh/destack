@@ -156,7 +156,7 @@ impl HostSession {
     }
 
     /// Create one host session from runtime options without native ambient ingress.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "execution"))]
     pub(crate) fn from_runtime_options_without_native_ingress(
         options: &RuntimeOptions,
         runtime_id: RuntimeId,

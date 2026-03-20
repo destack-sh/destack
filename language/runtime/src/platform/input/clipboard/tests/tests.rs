@@ -3,7 +3,7 @@ use destack_vm as vm;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::ClipboardBinaryFormat;
-use crate::platform::os::tests::{HarnessContext, HarnessValue};
+use crate::platform::input::tests::{HarnessValue, InputHarnessContext as HarnessContext};
 use crate::platform::{NativeSlice, NativeStringRef, VmSlice};
 use crate::tests::platform::error_code_from_runtime_error;
 
@@ -117,7 +117,7 @@ pub(super) fn snapshot_clipboard(
             {
                 None
             } else {
-                return Err(error);
+                return Err(error.boxed());
             }
         }
     };

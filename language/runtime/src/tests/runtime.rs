@@ -1,9 +1,6 @@
 use destack_core::LocalStringPool;
 use destack_mir::NodeTree;
 use destack_vm as vm;
-#[cfg(not(test))]
-use destack_workspace::RuntimeOptions;
-#[cfg(test)]
 use destack_workspace::{ExecutionMode, RandomMode, RandomOptions, RuntimeOptions};
 
 #[cfg(test)]
@@ -60,13 +57,11 @@ impl TestRuntime {
     }
 
     /// Build a runtime with deterministic random settings and no ambient host ingress.
-    #[cfg(test)]
     pub(crate) fn deterministic_random_without_host_ambient_ingress() -> Self {
         Self::deterministic_random_without_host_ambient_ingress_with_options(|_| {})
     }
 
     /// Build a runtime with deterministic random settings, one options mutator, and no ambient host ingress.
-    #[cfg(test)]
     pub(crate) fn deterministic_random_without_host_ambient_ingress_with_options(
         configure: impl FnOnce(&mut RuntimeOptions),
     ) -> Self {
