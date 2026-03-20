@@ -139,14 +139,14 @@ pub fn print_grouped_list(groups: &[ListGroup], spacing: ListSpacing) {
 pub fn print_grouped_list_with(groups: &[ListGroup], spacing: ListSpacing, printer: &ListPrinter) {
     let mut printed = 0;
     for group in groups {
-        if group.entries.is_empty() {
+        if group.files.is_empty() {
             continue;
         }
         if printed > 0 {
             println!();
         }
         (printer.heading)(&group.title);
-        print_list_with(&group.entries, spacing, printer);
+        print_list_with(&group.files, spacing, printer);
         printed += 1;
     }
 }

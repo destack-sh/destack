@@ -325,12 +325,6 @@
           "format": "uint",
           "minimum": 0
         },
-        "hits_disk": {
-          "description": "Cache hits from disk.",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0
-        },
         "misses": {
           "description": "Cache misses.",
           "type": "integer",
@@ -339,12 +333,6 @@
         },
         "writes_memory": {
           "description": "Cache writes to memory.",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0
-        },
-        "writes_disk": {
-          "description": "Cache writes to disk.",
           "type": "integer",
           "format": "uint",
           "minimum": 0
@@ -363,10 +351,8 @@
       },
       "required": [
         "hits_memory",
-        "hits_disk",
         "misses",
         "writes_memory",
-        "writes_disk",
         "errors",
         "hit_rate"
       ]
