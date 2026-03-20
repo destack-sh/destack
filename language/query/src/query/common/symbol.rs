@@ -63,7 +63,7 @@ fn find_symbol_at_offset_impl(
     // resolve the module and query context
     let module = get_module_by_file_id(session, file_id)?;
     let module = module.as_ref();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = crate::query_context(session, module)?;
 
     // find AST nodes at the offset
     let enclosing = ctx.ast.tree.source_map.get_enclosing_spans(offset, offset);
@@ -579,7 +579,7 @@ fn declaration_modifier_symbol_at_offset(
     // resolve query context for declaration lookup
     let module = get_module_by_file_id(session, file_id)?;
     let module = module.as_ref();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = crate::query_context(session, module)?;
     let dir_tree = ctx.tree();
 
     // walk enclosing ast declarations from inner to outer
@@ -1025,7 +1025,7 @@ pub fn get_canonical_symbol(session: &Session, symbol_id: GlobalSymbolId) -> Glo
     // resolve the module query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let Some(ctx) = crate::query_context(session, &module) else {
+    let Some(ctx) = crate::query_context(session, module) else {
         return symbol_id;
     };
 
@@ -1052,7 +1052,7 @@ pub(crate) fn resolve_symbol_name(
     // resolve the module and query context for the symbol
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = crate::query_context(session, module)?;
 
     // read the symbol name string
     let symbols = ctx.symbols();
@@ -1070,7 +1070,7 @@ pub(crate) fn resolve_local_import_alias_name(
     // resolve query context for the symbol module
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = crate::query_context(session, module)?;
 
     // resolve the symbol declaration and support declaration/import forms
     let declaration = {
@@ -1203,7 +1203,7 @@ pub(crate) fn resolve_symbol_name_id(
     // fall back to the symbol's module context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let target_ctx = crate::query_context(session, &module)?;
+    let target_ctx = crate::query_context(session, module)?;
     let symbols = target_ctx.symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
     symbol.name()
@@ -1245,7 +1245,7 @@ fn get_symbol_span_with(
     // resolve the module and query context for this symbol
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = crate::query_context(session, module)?;
 
     // read the symbol and follow the canonical chain
     let (canonical_id, declaration, target_symbol) = {
@@ -1316,7 +1316,7 @@ pub(crate) fn get_symbol_local_definition_span(
     // resolve the module and query context for this symbol
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = crate::query_context(session, module)?;
 
     // resolve the symbol declaration in its local module
     let declaration = {
@@ -1349,7 +1349,7 @@ pub(crate) fn type_definition_span_for_symbol(
     // resolve the module and query context for the symbol
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = crate::query_context(session, module)?;
 
     // check whether the symbol participates in the type namespace
     let is_type_symbol = {

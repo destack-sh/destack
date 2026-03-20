@@ -59,7 +59,7 @@ pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<Inl
     // resolve the module and query context
     let module = get_module_by_file_id(session, file)?;
     let module = module.as_ref();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = crate::query_context(session, module)?;
 
     // find the symbol at the cursor
     let symbol_at = find_symbol_at_offset(session, file, offset)?;
@@ -139,7 +139,7 @@ pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<Inl
     };
     for module in session.modules.iter() {
         let module = module.as_ref();
-        let Some(ctx) = crate::query_context(session, &module) else {
+        let Some(ctx) = crate::query_context(session, module) else {
             continue;
         };
         let spans =

@@ -12,7 +12,7 @@ pub(crate) fn container_name_for_symbol(
     // resolve the module query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = crate::query_context(session, module)?;
 
     // resolve the symbol scope owner
     let symbols = ctx.symbols();

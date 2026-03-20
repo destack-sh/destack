@@ -270,7 +270,7 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
 
     // resolve the query context from the module
     let module = module.as_ref();
-    let Some(ctx) = crate::query_context(session, &module) else {
+    let Some(ctx) = crate::query_context(session, module) else {
         return unknown_context();
     };
 

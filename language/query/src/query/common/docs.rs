@@ -97,7 +97,7 @@ pub(crate) fn doc_text_for_symbol(
     // resolve the module query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = crate::query_context(session, module)?;
 
     // resolve the symbol declaration
     let declaration = {

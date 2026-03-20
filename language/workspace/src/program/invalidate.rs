@@ -431,9 +431,7 @@ impl Program {
     /// Collect profile ids referenced by a module.
     fn collect_module_profiles(&self, module_id: ModuleId) -> HashSet<ProfileId> {
         // collect profiles from published artifacts
-        let profiles = self.artifacts.profile_ids_for_module(module_id);
-
-        profiles
+        self.artifacts.profile_ids_for_module(module_id)
     }
 
     /// Collect modules that have data for any of the provided profiles.

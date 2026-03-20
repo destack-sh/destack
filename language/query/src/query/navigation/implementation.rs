@@ -116,7 +116,7 @@ pub fn goto_implementation(
     // resolve the target symbol type information
     let target_module = session.modules.get(canonical_id.module_id);
     let target_module = target_module.as_ref();
-    let Some(ctx) = crate::query_context(session, &target_module) else {
+    let Some(ctx) = crate::query_context(session, target_module) else {
         return Some(ImplementationResult::empty());
     };
 
@@ -142,7 +142,7 @@ pub fn goto_implementation(
     for module in session.modules.iter() {
         // resolve query context for each module
         let module = module.as_ref();
-        let Some(ctx) = crate::query_context(session, &module) else {
+        let Some(ctx) = crate::query_context(session, module) else {
             continue;
         };
 
@@ -362,7 +362,7 @@ fn collect_target_symbols(session: &Session, symbol_id: GlobalSymbolId) -> HashS
         // resolve the module and query context for the canonical symbol
         let module = session.modules.get(canonical_id.module_id);
         let module = module.as_ref();
-        let Some(ctx) = crate::query_context(session, &module) else {
+        let Some(ctx) = crate::query_context(session, module) else {
             continue;
         };
 
@@ -480,7 +480,7 @@ fn symbol_is_implementable(session: &Session, symbol_id: GlobalSymbolId) -> bool
     // resolve the module and query context for the symbol
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let Some(ctx) = crate::query_context(session, &module) else {
+    let Some(ctx) = crate::query_context(session, module) else {
         return false;
     };
 

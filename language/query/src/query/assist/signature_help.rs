@@ -213,7 +213,7 @@ fn signature_info_for_symbol(
     // read the symbol's module and query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = query_context(session, &module)?;
+    let ctx = query_context(session, module)?;
 
     // resolve the symbol declaration
     let declaration_ref = {

@@ -226,7 +226,7 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
         return;
     };
     let module = module.as_ref();
-    let ctx = crate::query_context(session, &module);
+    let ctx = crate::query_context(session, module);
     let Some(ctx) = ctx else {
         return;
     };

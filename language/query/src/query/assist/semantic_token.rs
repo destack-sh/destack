@@ -130,7 +130,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
         return Vec::new();
     };
     let module = module.as_ref();
-    let Some(ctx) = crate::query_context(session, &module) else {
+    let Some(ctx) = crate::query_context(session, module) else {
         return Vec::new();
     };
 

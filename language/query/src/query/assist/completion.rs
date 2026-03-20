@@ -409,7 +409,7 @@ fn format_symbol_type_detail(session: &Session, symbol_id: dir::GlobalSymbolId) 
     // read the symbol's module and build query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = query_context(session, &module)?;
+    let ctx = query_context(session, module)?;
 
     // load symbol and type tables
     let symbols = ctx.symbols();
@@ -640,7 +640,7 @@ fn collect_visible_names(
     // resolve the module and query context
     let module = get_module_by_file_id(session, file_id)?;
     let module = module.as_ref();
-    let ctx = query_context(session, &module)?;
+    let ctx = query_context(session, module)?;
     let symbols = ctx.symbols();
     let scope_id = scope_id.unwrap_or(ctx.dir.namespace_scope);
 
@@ -991,7 +991,7 @@ fn complete_members(
         return Vec::new();
     };
     let module = module.as_ref();
-    let Some(ctx) = query_context(session, &module) else {
+    let Some(ctx) = query_context(session, module) else {
         return Vec::new();
     };
     let current_module_id = ctx.module_id;
@@ -1055,7 +1055,7 @@ fn complete_members(
         } else {
             let symbol_module = session.modules.get(symbol_id.module_id);
             let symbol_module = symbol_module.as_ref();
-            let symbol_ctx = query_context(session, &symbol_module);
+            let symbol_ctx = query_context(session, symbol_module);
             symbol_ctx.and_then(|symbol_ctx| {
                 resolve_nominal_symbol_from_initializer(session, &symbol_ctx, symbol_id)
             })
@@ -1082,7 +1082,7 @@ fn complete_members(
     if let Some(symbol_id) = receiver_symbol {
         let symbol_module = session.modules.get(symbol_id.module_id);
         let symbol_module = symbol_module.as_ref();
-        let Some(symbol_ctx) = query_context(session, &symbol_module) else {
+        let Some(symbol_ctx) = query_context(session, symbol_module) else {
             return Vec::new();
         };
         let mut scoped_results = {
@@ -1366,7 +1366,7 @@ fn complete_object_literal(
             return results;
         };
         let module = module.as_ref();
-        let Some(ctx) = query_context(session, &module) else {
+        let Some(ctx) = query_context(session, module) else {
             return results;
         };
         let types = ctx.types();
@@ -1420,7 +1420,7 @@ fn complete_object_literal(
             return results;
         };
         let module = module.as_ref();
-        let Some(ctx) = query_context(session, &module) else {
+        let Some(ctx) = query_context(session, module) else {
             return results;
         };
         let symbols = ctx.symbols();
@@ -1466,7 +1466,7 @@ fn complete_types(
         return primitive_type_completions();
     };
     let module = module.as_ref();
-    let Some(ctx) = query_context(session, &module) else {
+    let Some(ctx) = query_context(session, module) else {
         return primitive_type_completions();
     };
     let symbols = ctx.symbols();
@@ -1664,7 +1664,7 @@ fn complete_values(
         return keyword_completions();
     };
     let module = module.as_ref();
-    let Some(ctx) = query_context(session, &module) else {
+    let Some(ctx) = query_context(session, module) else {
         return keyword_completions();
     };
     let module_id = ctx.module_id;
@@ -1746,7 +1746,7 @@ fn complete_new_expression(
         return Vec::new();
     };
     let module = module.as_ref();
-    let Some(ctx) = query_context(session, &module) else {
+    let Some(ctx) = query_context(session, module) else {
         return Vec::new();
     };
     let symbols = ctx.symbols();
@@ -1877,7 +1877,7 @@ fn complete_imports(
     // get module AST/DIR
     let module = session.modules.get(module_id);
     let module = module.as_ref();
-    let Some(ctx) = query_context(session, &module) else {
+    let Some(ctx) = query_context(session, module) else {
         return Vec::new();
     };
     let symbols = ctx.symbols();

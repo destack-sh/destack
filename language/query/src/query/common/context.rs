@@ -129,7 +129,7 @@ pub fn with_query_context_for_file<T>(
 
     // build a query context while the module guard is held
     let module = module.as_ref();
-    let ctx = query_context(session, &module)?;
+    let ctx = query_context(session, module)?;
 
     // run the caller logic inside the query context
     Some(f(ctx))

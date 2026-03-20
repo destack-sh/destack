@@ -84,7 +84,7 @@ fn symbol_matches_space(session: &Session, symbol_id: GlobalSymbolId, space: Sym
     // resolve the module and query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let Some(ctx) = crate::query_context(session, &module) else {
+    let Some(ctx) = crate::query_context(session, module) else {
         return false;
     };
 
@@ -99,7 +99,7 @@ fn symbol_is_type_symbol(session: &Session, symbol_id: GlobalSymbolId) -> bool {
     // resolve the module and query context for the symbol
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let Some(ctx) = crate::query_context(session, &module) else {
+    let Some(ctx) = crate::query_context(session, module) else {
         return false;
     };
 
@@ -309,7 +309,7 @@ fn resolve_member_symbol_from_declaration(
     // resolve the module query context
     let module = session.modules.get(base_symbol.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = crate::query_context(session, module)?;
 
     // resolve the primary declaration for the base symbol
     let declaration = {
@@ -361,7 +361,7 @@ fn resolve_member_symbol_from_lineage(
     // resolve the module query context for lineage lookup
     let module = session.modules.get(base_symbol.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = crate::query_context(session, module)?;
 
     // collect direct lineage targets for inheritance and implementation
     let (extends, implements, embedded) = {
@@ -579,7 +579,7 @@ fn resolve_type_symbol_from_target_symbol(
     // resolve within the owning module when it differs
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let target_ctx = crate::query_context(session, &module)?;
+    let target_ctx = crate::query_context(session, module)?;
     resolve_type_symbol_from_target_context(session, &target_ctx, symbol_id, name_id)
 }
 
@@ -718,7 +718,7 @@ pub(crate) fn resolve_value_symbol_from_module(
 
     let module = session.modules.get(module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = crate::query_context(session, module)?;
 
     let dir_tree = ctx.tree();
     for (_expr_id, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
@@ -845,7 +845,7 @@ fn resolve_namespace_member_symbol_inner(
     // resolve the alias symbol in its owning module
     let module = session.modules.get(alias_symbol.module_id);
     let module = module.as_ref();
-    let alias_ctx = crate::query_context(session, &module)?;
+    let alias_ctx = crate::query_context(session, module)?;
 
     // require a dependency item declaration for the alias symbol
     let (declaration, symbol_name, forwarded_symbol) = {
@@ -993,7 +993,7 @@ fn resolve_namespace_member_symbol_from_module_name(
 ) -> Option<GlobalSymbolId> {
     let module = session.modules.get(module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = crate::query_context(session, module)?;
 
     resolve_namespace_member_symbol_from_name(session, &ctx, alias_name, member_name)
 }
@@ -1124,7 +1124,7 @@ pub(crate) fn resolve_type_symbol_from_module(
 
     let module = session.modules.get(module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = crate::query_context(session, module)?;
 
     let dir_tree = ctx.tree();
     for (_expr_id, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
