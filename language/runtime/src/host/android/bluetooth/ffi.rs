@@ -4,7 +4,8 @@ use super::types::{
     AndroidHostBluetoothAdapterDescriptorHeader, AndroidHostBluetoothCallbacks,
     AndroidHostBluetoothDeviceDescriptorHeader, AndroidHostBluetoothGattCharacteristicHeader,
     AndroidHostBluetoothGattDescriptorHeader, AndroidHostBluetoothGattServiceHeader,
-    AndroidHostBluetoothScanEventHeader, AndroidHostBluetoothSessionEventHeader,
+    AndroidHostBluetoothScanEventHeader, AndroidHostBluetoothScanFilterHeader,
+    AndroidHostBluetoothSessionEventHeader,
 };
 use crate::host::abi::HostStatus;
 use crate::host::android::bridge::bindings::invoke_android_binding_callback;
@@ -41,7 +42,7 @@ bluetooth_callback!(
     ) -> adapter_list;
     guard !adapter_count_written.is_null() && !string_bytes_written.is_null()
 );
-bluetooth_callback!(destack_host_android_bluetooth_scan_open(adapter_id: NativeStringRef, filter_flags: u32, session_id: *mut u64) -> scan_open; guard !session_id.is_null());
+bluetooth_callback!(destack_host_android_bluetooth_scan_open(adapter_id: NativeStringRef, filter: AndroidHostBluetoothScanFilterHeader, filter_flags: u32, filter_bytes: NativeSlice<u8>, session_id: *mut u64) -> scan_open; guard !session_id.is_null());
 bluetooth_callback!(destack_host_android_bluetooth_scan_close(session_id: u64) -> scan_close);
 bluetooth_callback!(
     destack_host_android_bluetooth_scan_read(

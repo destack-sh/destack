@@ -4,7 +4,7 @@ use super::types::{
     AndroidHostBluetoothAdapterDescriptorHeader, AndroidHostBluetoothDeviceDescriptorHeader,
     AndroidHostBluetoothGattCharacteristicHeader, AndroidHostBluetoothGattDescriptorHeader,
     AndroidHostBluetoothGattServiceHeader, AndroidHostBluetoothScanEventHeader,
-    AndroidHostBluetoothSessionEventHeader,
+    AndroidHostBluetoothScanFilterHeader, AndroidHostBluetoothSessionEventHeader,
 };
 
 /// Host callback for listing one slice of Android bluetooth adapters.
@@ -20,7 +20,9 @@ pub(crate) type AndroidHostBluetoothAdapterListCallback = unsafe extern "C" fn(
 pub(crate) type AndroidHostBluetoothScanOpenCallback = unsafe extern "C" fn(
     runtime_id: u64,
     adapter_id: NativeStringRef,
+    filter: AndroidHostBluetoothScanFilterHeader,
     filter_flags: u32,
+    filter_bytes: NativeSlice<u8>,
     session_id: *mut u64,
 ) -> u32;
 

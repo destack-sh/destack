@@ -1025,3 +1025,58 @@ pub(super) fn write_gatt_value(
 pub(super) fn current_mtu(_resource: &LinuxBluetoothDeviceResource) -> u16 {
     23
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::platform::device::{BluetoothPhy, BluetoothScanMode};
+
+    /// Build one Linux bluetooth scan filter fixture for validation tests.
+    fn test_scan_filter() -> BluetoothScanFilterValue {
+        BluetoothScanFilterValue {
+            service_uuids: Vec::new(),
+            name: None,
+            name_prefix: None,
+            manufacturer_data: Vec::new(),
+            service_data: Vec::new(),
+            keep_repeated_devices: false,
+            minimum_rssi: None,
+            scan_mode: None,
+            primary_phy: None,
+            secondary_phy: None,
+        }
+    }
+
+    /// Reject one BlueZ scan filter that requests explicit scan mode selection.
+    #[test]
+    fn test_validate_scan_filter_rejects_scan_mode() {
+        let mut filter = test_scan_filter();
+        filter.scan_mode = Some(BluetoothScanMode::Active);
+
+        let result = validate_scan_filter(&filter);
+
+        assert!(result.is_err());
+    }
+
+    /// Reject one BlueZ scan filter that requests explicit primary PHY selection.
+    #[test]
+    fn test_validate_scan_filter_rejects_primary_phy() {
+        let mut filter = test_scan_filter();
+        filter.primary_phy = Some(BluetoothPhy::Le1M);
+
+        let result = validate_scan_filter(&filter);
+
+        assert!(result.is_err());
+    }
+
+    /// Reject one BlueZ scan filter that requests explicit secondary PHY selection.
+    #[test]
+    fn test_validate_scan_filter_rejects_secondary_phy() {
+        let mut filter = test_scan_filter();
+        filter.secondary_phy = Some(BluetoothPhy::LeCoded);
+
+        let result = validate_scan_filter(&filter);
+
+        assert!(result.is_err());
+    }
+}

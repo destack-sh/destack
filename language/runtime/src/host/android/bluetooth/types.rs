@@ -71,6 +71,18 @@ pub(crate) struct AndroidHostBluetoothDeviceDescriptorHeader {
     pub address_offset: u32,
     /// Length of the hardware address string.
     pub address_len: u32,
+    /// Offset of the serialized advertisement service-uuid payload.
+    pub service_uuids_offset: u32,
+    /// Length of the serialized advertisement service-uuid payload.
+    pub service_uuids_len: u32,
+    /// Offset of the serialized advertisement manufacturer-data payload.
+    pub manufacturer_data_offset: u32,
+    /// Length of the serialized advertisement manufacturer-data payload.
+    pub manufacturer_data_len: u32,
+    /// Offset of the serialized advertisement service-data payload.
+    pub service_data_offset: u32,
+    /// Length of the serialized advertisement service-data payload.
+    pub service_data_len: u32,
     /// Transport code.
     pub transport: u32,
     /// RSSI in dBm.
@@ -81,6 +93,46 @@ pub(crate) struct AndroidHostBluetoothDeviceDescriptorHeader {
     pub phy_flags: u32,
     /// Whether the device is connected.
     pub is_connected: u32,
+}
+
+/// Fixed-size Android Bluetooth scan-filter header.
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub(crate) struct AndroidHostBluetoothScanFilterHeader {
+    /// Whether the filter is present.
+    pub is_present: u32,
+    /// Offset of the exact-name string.
+    pub name_offset: u32,
+    /// Length of the exact-name string.
+    pub name_len: u32,
+    /// Offset of the name-prefix string.
+    pub name_prefix_offset: u32,
+    /// Length of the name-prefix string.
+    pub name_prefix_len: u32,
+    /// Whether the minimum RSSI is present.
+    pub has_minimum_rssi: u32,
+    /// Minimum RSSI threshold in dBm.
+    pub minimum_rssi_dbm: i32,
+    /// Requested scan-mode code.
+    pub scan_mode: u32,
+    /// Requested primary PHY code.
+    pub primary_phy: u32,
+    /// Requested secondary PHY code.
+    pub secondary_phy: u32,
+    /// Whether repeated devices should be kept.
+    pub keep_repeated_devices: u32,
+    /// Offset of the serialized service-uuid filter payload.
+    pub service_uuids_offset: u32,
+    /// Length of the serialized service-uuid filter payload.
+    pub service_uuids_len: u32,
+    /// Offset of the serialized manufacturer-data filter payload.
+    pub manufacturer_data_offset: u32,
+    /// Length of the serialized manufacturer-data filter payload.
+    pub manufacturer_data_len: u32,
+    /// Offset of the serialized service-data filter payload.
+    pub service_data_offset: u32,
+    /// Length of the serialized service-data filter payload.
+    pub service_data_len: u32,
 }
 
 /// Fixed-size Android Bluetooth GATT service header.

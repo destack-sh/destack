@@ -1,9 +1,10 @@
 use super::tests::{
     TEST_ADAPTER_ID, TEST_CHARACTERISTIC_ID, TEST_DESCRIPTOR_ID, TEST_DEVICE_ID, TEST_DEVICE_NAME,
     TEST_GATT_DESCRIPTOR_VALUE, TEST_GATT_EVENT_VALUE, TEST_GATT_MTU, TEST_GATT_READ_VALUE,
+    TEST_SCAN_COMPANY_ID, TEST_SCAN_SERVICE_DATA_UUID, TEST_SCAN_SERVICE_UUID,
     TEST_SCAN_SESSION_ID, TEST_SERVICE_ID, TEST_STATUS_NOT_FOUND, TEST_STATUS_NOT_SUPPORTED,
-    TEST_SUBSCRIPTION_ID, lock_test_callbacks, native_string_ref, recorded_test_state,
-    register_test_callbacks,
+    TEST_SUBSCRIPTION_ID, build_scan_filter_request, lock_test_callbacks, native_string_ref,
+    recorded_test_state, register_test_callbacks,
 };
 use crate::host::abi::HostStatus;
 use crate::host::android::bluetooth::ffi::{
@@ -32,6 +33,7 @@ use crate::host::android::bluetooth::types::{
     AndroidHostBluetoothScanEventHeader, AndroidHostBluetoothSessionEventHeader,
 };
 use crate::host::android::tests::{register_android_bindings_bluetooth, register_android_runtime};
+use crate::platform::device::{BluetoothPhy, BluetoothScanMode};
 use crate::runtime::NativeSlice;
 
 /// Decode one utf8 string from one caller-owned byte buffer.
@@ -144,14 +146,19 @@ fn test_register_bindings_routes_scan_and_device_lifecycle() {
     let mut device_session_id = 0u64;
     let mut descriptor = AndroidHostBluetoothDeviceDescriptorHeader::default();
     let mut string_bytes_written = 0u32;
-    let mut string_bytes = vec![0u8; 128];
+    let (filter, mut filter_bytes) = build_scan_filter_request();
 
-    // verify scan open forwards the adapter id and filter flags
+    // verify scan open forwards the adapter id and the full filter payload
     let status = unsafe {
         destack_host_android_bluetooth_scan_open(
             callbacks.runtime_id,
             native_string_ref(TEST_ADAPTER_ID),
+            filter,
             0x33,
+            NativeSlice {
+                data: filter_bytes.as_mut_ptr(),
+                len: filter_bytes.len() as u32,
+            },
             &mut scan_session_id,
         )
     };
@@ -162,8 +169,51 @@ fn test_register_bindings_routes_scan_and_device_lifecycle() {
     let scan_open = state.scan_open.expect("scan open should be recorded");
     assert_eq!(scan_open.adapter_id, TEST_ADAPTER_ID);
     assert_eq!(scan_open.filter_flags, 0x33);
+    assert_eq!(scan_open.name.as_deref(), Some(TEST_DEVICE_NAME));
+    assert_eq!(scan_open.name_prefix.as_deref(), Some("Destack"));
+    assert_eq!(scan_open.minimum_rssi_dbm, Some(-70));
+    assert_eq!(scan_open.scan_mode, BluetoothScanMode::Passive as u32);
+    assert_eq!(scan_open.primary_phy, BluetoothPhy::Le2M as u32);
+    assert_eq!(scan_open.secondary_phy, BluetoothPhy::LeCoded as u32);
+    assert!(scan_open.keep_repeated_devices);
+    assert_eq!(
+        scan_open.service_uuids,
+        vec![String::from(TEST_SCAN_SERVICE_UUID)]
+    );
+    assert_eq!(scan_open.manufacturer_data.len(), 1);
+    assert_eq!(
+        scan_open.manufacturer_data[0].company_id,
+        TEST_SCAN_COMPANY_ID
+    );
+    assert_eq!(scan_open.manufacturer_data[0].data_prefix, vec![0xaa, 0xbb]);
+    assert_eq!(scan_open.manufacturer_data[0].mask, Some(vec![0xff, 0x0f]));
+    assert_eq!(scan_open.service_data.len(), 1);
+    assert_eq!(
+        scan_open.service_data[0].service_uuid,
+        String::from(TEST_SCAN_SERVICE_DATA_UUID)
+    );
+    assert_eq!(scan_open.service_data[0].data_prefix, vec![0xcc, 0xdd]);
+    assert_eq!(scan_open.service_data[0].mask, Some(vec![0xf0, 0x0f]));
 
-    // verify device open returns the deterministic descriptor payload
+    // verify device open honors the two-pass buffer contract
+    let status = unsafe {
+        destack_host_android_bluetooth_open(
+            callbacks.runtime_id,
+            native_string_ref(TEST_ADAPTER_ID),
+            native_string_ref(TEST_DEVICE_ID),
+            &mut device_session_id,
+            &mut descriptor,
+            NativeSlice {
+                data: std::ptr::null_mut(),
+                len: 0,
+            },
+            &mut string_bytes_written,
+        )
+    };
+    assert_eq!(status, HostStatus::BufferTooSmall.code());
+    assert!(string_bytes_written > 0);
+
+    let mut string_bytes = vec![0u8; string_bytes_written as usize];
     let status = unsafe {
         destack_host_android_bluetooth_open(
             callbacks.runtime_id,
@@ -252,7 +302,6 @@ fn test_register_bindings_routes_scan_reads_and_events() {
     let mut device = AndroidHostBluetoothDeviceDescriptorHeader::default();
     let mut device_count_written = 0u32;
     let mut string_bytes_written = 0u32;
-    let mut string_bytes = vec![0u8; 128];
     let mut event = AndroidHostBluetoothScanEventHeader::default();
 
     // verify scan descriptor reads honor the two-pass buffer contract
@@ -276,6 +325,8 @@ fn test_register_bindings_routes_scan_reads_and_events() {
     assert_eq!(status, HostStatus::BufferTooSmall.code());
     assert_eq!(device_count_written, 1);
     assert!(string_bytes_written > 0);
+
+    let mut string_bytes = vec![0u8; string_bytes_written as usize];
 
     let status = unsafe {
         destack_host_android_bluetooth_scan_read(

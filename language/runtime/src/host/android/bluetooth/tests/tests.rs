@@ -5,13 +5,15 @@ use crate::host::android::bluetooth::types::{
     AndroidHostBluetoothAdapterDescriptorHeader, AndroidHostBluetoothCallbacks,
     AndroidHostBluetoothDeviceDescriptorHeader, AndroidHostBluetoothGattCharacteristicHeader,
     AndroidHostBluetoothGattDescriptorHeader, AndroidHostBluetoothGattServiceHeader,
-    AndroidHostBluetoothScanEventHeader, AndroidHostBluetoothSessionEventHeader,
+    AndroidHostBluetoothScanEventHeader, AndroidHostBluetoothScanFilterHeader,
+    AndroidHostBluetoothSessionEventHeader,
 };
 use crate::host::android::tests::{
     callback_test_lock, register_android_bindings_bluetooth, register_android_runtime,
 };
 use crate::host::core::HostQueue;
 use crate::host::core::registry::HostRegistrationGuard;
+use crate::platform::device::{BluetoothPhy, BluetoothScanMode};
 use crate::runtime::{NativeSlice, NativeStringRef};
 
 /// One deterministic Android bluetooth adapter id.
@@ -58,6 +60,12 @@ pub(super) const TEST_GATT_READ_VALUE: &[u8] = &[0xde, 0xad, 0xbe, 0xef];
 pub(super) const TEST_GATT_DESCRIPTOR_VALUE: &[u8] = &[0xca, 0xfe];
 /// One deterministic Android bluetooth notification payload.
 pub(super) const TEST_GATT_EVENT_VALUE: &[u8] = &[0xaa, 0xbb, 0xcc];
+/// One deterministic Android bluetooth advertisement service uuid.
+pub(super) const TEST_SCAN_SERVICE_UUID: &str = "12345678-1234-1234-1234-1234567890ab";
+/// One deterministic Android bluetooth advertisement service-data uuid.
+pub(super) const TEST_SCAN_SERVICE_DATA_UUID: &str = "180d";
+/// One deterministic Android bluetooth advertisement manufacturer company id.
+pub(super) const TEST_SCAN_COMPANY_ID: u16 = 0x1337;
 
 /// One live Android bluetooth callback registration.
 pub(super) struct AndroidBluetoothTestCallbacks {
@@ -71,9 +79,51 @@ pub(super) struct AndroidBluetoothTestCallbacks {
 
 /// One recorded Android bluetooth scan-open call.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(super) struct RecordedScanManufacturerFilter {
+    /// The forwarded company identifier.
+    pub company_id: u16,
+    /// The forwarded data prefix.
+    pub data_prefix: Vec<u8>,
+    /// The forwarded optional mask.
+    pub mask: Option<Vec<u8>>,
+}
+
+/// One recorded Android bluetooth service-data filter.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(super) struct RecordedScanServiceDataFilter {
+    /// The forwarded service uuid.
+    pub service_uuid: String,
+    /// The forwarded data prefix.
+    pub data_prefix: Vec<u8>,
+    /// The forwarded optional mask.
+    pub mask: Option<Vec<u8>>,
+}
+
+/// One recorded Android bluetooth scan-open call.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(super) struct RecordedScanOpenCall {
     /// The forwarded adapter id.
     pub adapter_id: String,
+    /// The forwarded exact device name.
+    pub name: Option<String>,
+    /// The forwarded device-name prefix.
+    pub name_prefix: Option<String>,
+    /// The forwarded minimum RSSI.
+    pub minimum_rssi_dbm: Option<i32>,
+    /// The forwarded scan-mode code.
+    pub scan_mode: u32,
+    /// The forwarded primary PHY code.
+    pub primary_phy: u32,
+    /// The forwarded secondary PHY code.
+    pub secondary_phy: u32,
+    /// Whether repeated devices should be kept.
+    pub keep_repeated_devices: bool,
+    /// The forwarded service-uuid filters.
+    pub service_uuids: Vec<String>,
+    /// The forwarded manufacturer-data filters.
+    pub manufacturer_data: Vec<RecordedScanManufacturerFilter>,
+    /// The forwarded service-data filters.
+    pub service_data: Vec<RecordedScanServiceDataFilter>,
     /// The forwarded filter flags.
     pub filter_flags: u32,
 }
@@ -333,6 +383,216 @@ fn append_string(buffer: &mut Vec<u8>, value: &str) -> (u32, u32) {
     (offset, value.len() as u32)
 }
 
+/// Append one raw byte payload to the shared buffer and return its offset and length.
+fn append_bytes(buffer: &mut Vec<u8>, bytes: &[u8]) -> (u32, u32) {
+    let offset = buffer.len() as u32;
+    buffer.extend_from_slice(bytes);
+
+    (offset, bytes.len() as u32)
+}
+
+/// Append one little-endian `u32`.
+fn append_u32(buffer: &mut Vec<u8>, value: u32) {
+    buffer.extend_from_slice(&value.to_le_bytes());
+}
+
+/// Append one little-endian `u16`.
+fn append_u16(buffer: &mut Vec<u8>, value: u16) {
+    buffer.extend_from_slice(&value.to_le_bytes());
+}
+
+/// Read one little-endian `u32` and advance the cursor.
+fn take_u32(bytes: &[u8], cursor: &mut usize) -> u32 {
+    let end = *cursor + 4;
+    let value = u32::from_le_bytes(bytes[*cursor..end].try_into().expect("u32 payload"));
+    *cursor = end;
+
+    value
+}
+
+/// Read one little-endian `u16` and advance the cursor.
+fn take_u16(bytes: &[u8], cursor: &mut usize) -> u16 {
+    let end = *cursor + 2;
+    let value = u16::from_le_bytes(bytes[*cursor..end].try_into().expect("u16 payload"));
+    *cursor = end;
+
+    value
+}
+
+/// Read one byte slice and advance the cursor.
+fn take_bytes<'a>(bytes: &'a [u8], cursor: &mut usize, len: usize) -> &'a [u8] {
+    let end = *cursor + len;
+    let value = &bytes[*cursor..end];
+    *cursor = end;
+
+    value
+}
+
+/// Encode one string list into the shared bluetooth payload format.
+fn encode_string_list(values: &[&str]) -> Vec<u8> {
+    let mut bytes = Vec::new();
+
+    append_u32(&mut bytes, values.len() as u32);
+
+    for value in values {
+        append_u32(&mut bytes, value.len() as u32);
+        bytes.extend_from_slice(value.as_bytes());
+    }
+
+    bytes
+}
+
+/// Encode one manufacturer-data list into the shared bluetooth payload format.
+fn encode_manufacturer_data(values: &[(u16, &[u8])]) -> Vec<u8> {
+    let mut bytes = Vec::new();
+
+    append_u32(&mut bytes, values.len() as u32);
+
+    for (company_id, data) in values {
+        append_u16(&mut bytes, *company_id);
+        append_u16(&mut bytes, 0);
+        append_u32(&mut bytes, data.len() as u32);
+        bytes.extend_from_slice(data);
+    }
+
+    bytes
+}
+
+/// Encode one service-data list into the shared bluetooth payload format.
+fn encode_service_data(values: &[(&str, &[u8])]) -> Vec<u8> {
+    let mut bytes = Vec::new();
+
+    append_u32(&mut bytes, values.len() as u32);
+
+    for (service_uuid, data) in values {
+        append_u32(&mut bytes, service_uuid.len() as u32);
+        append_u32(&mut bytes, data.len() as u32);
+        bytes.extend_from_slice(service_uuid.as_bytes());
+        bytes.extend_from_slice(data);
+    }
+
+    bytes
+}
+
+/// Encode one manufacturer-data filter list into the shared bluetooth payload format.
+fn encode_manufacturer_filters(values: &[(u16, &[u8], Option<&[u8]>)]) -> Vec<u8> {
+    let mut bytes = Vec::new();
+
+    append_u32(&mut bytes, values.len() as u32);
+
+    for (company_id, data_prefix, mask) in values {
+        append_u16(&mut bytes, *company_id);
+        append_u16(&mut bytes, 0);
+        append_u32(&mut bytes, data_prefix.len() as u32);
+        append_u32(&mut bytes, mask.map_or(0, |value| value.len() as u32));
+        bytes.extend_from_slice(data_prefix);
+
+        if let Some(mask) = mask {
+            bytes.extend_from_slice(mask);
+        }
+    }
+
+    bytes
+}
+
+/// Encode one service-data filter list into the shared bluetooth payload format.
+fn encode_service_data_filters(values: &[(&str, &[u8], Option<&[u8]>)]) -> Vec<u8> {
+    let mut bytes = Vec::new();
+
+    append_u32(&mut bytes, values.len() as u32);
+
+    for (service_uuid, data_prefix, mask) in values {
+        append_u32(&mut bytes, service_uuid.len() as u32);
+        append_u32(&mut bytes, data_prefix.len() as u32);
+        append_u32(&mut bytes, mask.map_or(0, |value| value.len() as u32));
+        bytes.extend_from_slice(service_uuid.as_bytes());
+        bytes.extend_from_slice(data_prefix);
+
+        if let Some(mask) = mask {
+            bytes.extend_from_slice(mask);
+        }
+    }
+
+    bytes
+}
+
+/// Decode one string-list payload from the test bluetooth format.
+fn decode_string_list(bytes: &[u8]) -> Vec<String> {
+    let mut cursor = 0usize;
+    let count = take_u32(bytes, &mut cursor) as usize;
+    let mut values = Vec::with_capacity(count);
+
+    for _ in 0..count {
+        let len = take_u32(bytes, &mut cursor) as usize;
+        let value = take_bytes(bytes, &mut cursor, len);
+        values.push(
+            std::str::from_utf8(value)
+                .expect("android bluetooth test strings should decode")
+                .to_string(),
+        );
+    }
+
+    values
+}
+
+/// Decode one manufacturer-data filter payload from the test bluetooth format.
+fn decode_manufacturer_filters(bytes: &[u8]) -> Vec<RecordedScanManufacturerFilter> {
+    let mut cursor = 0usize;
+    let count = take_u32(bytes, &mut cursor) as usize;
+    let mut values = Vec::with_capacity(count);
+
+    for _ in 0..count {
+        let company_id = take_u16(bytes, &mut cursor);
+        let _reserved = take_u16(bytes, &mut cursor);
+        let data_len = take_u32(bytes, &mut cursor) as usize;
+        let mask_len = take_u32(bytes, &mut cursor) as usize;
+        let data_prefix = take_bytes(bytes, &mut cursor, data_len).to_vec();
+        let mask = if mask_len == 0 {
+            None
+        } else {
+            Some(take_bytes(bytes, &mut cursor, mask_len).to_vec())
+        };
+
+        values.push(RecordedScanManufacturerFilter {
+            company_id,
+            data_prefix,
+            mask,
+        });
+    }
+
+    values
+}
+
+/// Decode one service-data filter payload from the test bluetooth format.
+fn decode_service_data_filters(bytes: &[u8]) -> Vec<RecordedScanServiceDataFilter> {
+    let mut cursor = 0usize;
+    let count = take_u32(bytes, &mut cursor) as usize;
+    let mut values = Vec::with_capacity(count);
+
+    for _ in 0..count {
+        let service_uuid_len = take_u32(bytes, &mut cursor) as usize;
+        let data_len = take_u32(bytes, &mut cursor) as usize;
+        let mask_len = take_u32(bytes, &mut cursor) as usize;
+        let service_uuid = std::str::from_utf8(take_bytes(bytes, &mut cursor, service_uuid_len))
+            .expect("android bluetooth test strings should decode")
+            .to_string();
+        let data_prefix = take_bytes(bytes, &mut cursor, data_len).to_vec();
+        let mask = if mask_len == 0 {
+            None
+        } else {
+            Some(take_bytes(bytes, &mut cursor, mask_len).to_vec())
+        };
+
+        values.push(RecordedScanServiceDataFilter {
+            service_uuid,
+            data_prefix,
+            mask,
+        });
+    }
+
+    values
+}
+
 /// Build one deterministic adapter descriptor and append its strings.
 fn build_adapter_header(buffer: &mut Vec<u8>) -> AndroidHostBluetoothAdapterDescriptorHeader {
     let (id_offset, id_len) = append_string(buffer, TEST_ADAPTER_ID);
@@ -356,9 +616,17 @@ fn build_device_header(buffer: &mut Vec<u8>) -> AndroidHostBluetoothDeviceDescri
     let (id_offset, id_len) = append_string(buffer, TEST_DEVICE_ID);
     let (adapter_id_offset, adapter_id_len) = append_string(buffer, TEST_ADAPTER_ID);
     let (name_offset, name_len) = append_string(buffer, TEST_DEVICE_NAME);
+    let (local_name_offset, local_name_len) = append_string(buffer, TEST_DEVICE_NAME);
     let (manufacturer_offset, manufacturer_len) = append_string(buffer, TEST_MANUFACTURER);
     let (model_offset, model_len) = append_string(buffer, TEST_MODEL);
     let (address_offset, address_len) = append_string(buffer, TEST_ADDRESS);
+    let service_uuids = encode_string_list(&[TEST_SCAN_SERVICE_UUID]);
+    let (service_uuids_offset, service_uuids_len) = append_bytes(buffer, &service_uuids);
+    let manufacturer_data = encode_manufacturer_data(&[(TEST_SCAN_COMPANY_ID, &[0xaa, 0xbb])]);
+    let (manufacturer_data_offset, manufacturer_data_len) =
+        append_bytes(buffer, &manufacturer_data);
+    let service_data = encode_service_data(&[(TEST_SCAN_SERVICE_DATA_UUID, &[0xcc, 0xdd])]);
+    let (service_data_offset, service_data_len) = append_bytes(buffer, &service_data);
 
     AndroidHostBluetoothDeviceDescriptorHeader {
         id_offset,
@@ -367,20 +635,154 @@ fn build_device_header(buffer: &mut Vec<u8>) -> AndroidHostBluetoothDeviceDescri
         adapter_id_len,
         name_offset,
         name_len,
-        local_name_offset: 0,
-        local_name_len: 0,
+        local_name_offset,
+        local_name_len,
         manufacturer_offset,
         manufacturer_len,
         model_offset,
         model_len,
         address_offset,
         address_len,
+        service_uuids_offset,
+        service_uuids_len,
+        manufacturer_data_offset,
+        manufacturer_data_len,
+        service_data_offset,
+        service_data_len,
         transport: 1,
         rssi_dbm: -48,
         pair_state: 4,
         phy_flags: 1,
         is_connected: 1,
     }
+}
+
+/// Decode one optional string field from one scan-filter payload.
+fn decode_optional_filter_string(payload: &[u8], offset: u32, len: u32) -> Option<String> {
+    if len == 0 {
+        return None;
+    }
+
+    let start = offset as usize;
+    let end = start + len as usize;
+
+    Some(
+        std::str::from_utf8(&payload[start..end])
+            .expect("android bluetooth test strings should decode")
+            .to_string(),
+    )
+}
+
+/// Decode one recorded scan-open call from one header and payload bytes.
+fn decode_scan_open_call(
+    adapter_id: NativeStringRef,
+    filter: AndroidHostBluetoothScanFilterHeader,
+    filter_flags: u32,
+    filter_bytes: NativeSlice<u8>,
+) -> RecordedScanOpenCall {
+    if filter.is_present == 0 {
+        return RecordedScanOpenCall {
+            adapter_id: decode_native_string(adapter_id),
+            filter_flags,
+            ..RecordedScanOpenCall::default()
+        };
+    }
+
+    let payload = if filter_bytes.data.is_null() || filter_bytes.len == 0 {
+        &[][..]
+    } else {
+        unsafe { std::slice::from_raw_parts(filter_bytes.data, filter_bytes.len as usize) }
+    };
+
+    let service_uuids = if filter.service_uuids_len == 0 {
+        Vec::new()
+    } else {
+        decode_string_list(
+            &payload[filter.service_uuids_offset as usize
+                ..(filter.service_uuids_offset + filter.service_uuids_len) as usize],
+        )
+    };
+    let manufacturer_data = if filter.manufacturer_data_len == 0 {
+        Vec::new()
+    } else {
+        decode_manufacturer_filters(
+            &payload[filter.manufacturer_data_offset as usize
+                ..(filter.manufacturer_data_offset + filter.manufacturer_data_len) as usize],
+        )
+    };
+    let service_data = if filter.service_data_len == 0 {
+        Vec::new()
+    } else {
+        decode_service_data_filters(
+            &payload[filter.service_data_offset as usize
+                ..(filter.service_data_offset + filter.service_data_len) as usize],
+        )
+    };
+
+    RecordedScanOpenCall {
+        adapter_id: decode_native_string(adapter_id),
+        name: decode_optional_filter_string(payload, filter.name_offset, filter.name_len),
+        name_prefix: decode_optional_filter_string(
+            payload,
+            filter.name_prefix_offset,
+            filter.name_prefix_len,
+        ),
+        minimum_rssi_dbm: if filter.has_minimum_rssi == 0 {
+            None
+        } else {
+            Some(filter.minimum_rssi_dbm)
+        },
+        scan_mode: filter.scan_mode,
+        primary_phy: filter.primary_phy,
+        secondary_phy: filter.secondary_phy,
+        keep_repeated_devices: filter.keep_repeated_devices != 0,
+        service_uuids,
+        manufacturer_data,
+        service_data,
+        filter_flags,
+    }
+}
+
+/// Build one deterministic scan-filter request for host callback tests.
+pub(super) fn build_scan_filter_request() -> (AndroidHostBluetoothScanFilterHeader, Vec<u8>) {
+    let mut payload = Vec::new();
+    let (name_offset, name_len) = append_string(&mut payload, TEST_DEVICE_NAME);
+    let (name_prefix_offset, name_prefix_len) = append_string(&mut payload, "Destack");
+    let service_uuids = encode_string_list(&[TEST_SCAN_SERVICE_UUID]);
+    let (service_uuids_offset, service_uuids_len) = append_bytes(&mut payload, &service_uuids);
+    let manufacturer_data =
+        encode_manufacturer_filters(&[(TEST_SCAN_COMPANY_ID, &[0xaa, 0xbb], Some(&[0xff, 0x0f]))]);
+    let (manufacturer_data_offset, manufacturer_data_len) =
+        append_bytes(&mut payload, &manufacturer_data);
+    let service_data = encode_service_data_filters(&[(
+        TEST_SCAN_SERVICE_DATA_UUID,
+        &[0xcc, 0xdd],
+        Some(&[0xf0, 0x0f]),
+    )]);
+    let (service_data_offset, service_data_len) = append_bytes(&mut payload, &service_data);
+
+    (
+        AndroidHostBluetoothScanFilterHeader {
+            is_present: 1,
+            name_offset,
+            name_len,
+            name_prefix_offset,
+            name_prefix_len,
+            has_minimum_rssi: 1,
+            minimum_rssi_dbm: -70,
+            scan_mode: BluetoothScanMode::Passive as u32,
+            primary_phy: BluetoothPhy::Le2M as u32,
+            secondary_phy: BluetoothPhy::LeCoded as u32,
+            keep_repeated_devices: 1,
+            service_uuids_offset,
+            service_uuids_len,
+            manufacturer_data_offset,
+            manufacturer_data_len,
+            service_data_offset,
+            service_data_len,
+        },
+        payload,
+    )
 }
 
 /// Build one deterministic GATT service header and append its strings.
@@ -695,7 +1097,9 @@ unsafe extern "C" fn test_adapter_list(
 unsafe extern "C" fn test_scan_open(
     _runtime_id: u64,
     adapter_id: NativeStringRef,
+    filter: AndroidHostBluetoothScanFilterHeader,
     filter_flags: u32,
+    filter_bytes: NativeSlice<u8>,
     session_id: *mut u64,
 ) -> u32 {
     // require one writable session output
@@ -707,10 +1111,12 @@ unsafe extern "C" fn test_scan_open(
     let mut state = test_state()
         .lock()
         .expect("android bluetooth test state should not be poisoned");
-    state.scan_open = Some(RecordedScanOpenCall {
-        adapter_id: decode_native_string(adapter_id),
+    state.scan_open = Some(decode_scan_open_call(
+        adapter_id,
+        filter,
         filter_flags,
-    });
+        filter_bytes,
+    ));
 
     // return the deterministic scan session id
     unsafe {
