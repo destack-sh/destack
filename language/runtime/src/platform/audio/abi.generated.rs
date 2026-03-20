@@ -8488,20 +8488,11 @@ pub const AUDIO_DEVICE_LIST_INCLUDE_RAW: AudioDeviceListFlags = AudioDeviceListF
 /// Default list behavior.
 pub const AUDIO_DEVICE_LIST_NONE: AudioDeviceListFlags = AudioDeviceListFlags(0u32);
 
-/// Follow default-route migrations for default endpoint identifiers.
-pub const AUDIO_DEVICE_OPEN_FOLLOW_DEFAULT_ROUTE: AudioDeviceOpenFlags = AudioDeviceOpenFlags(1u32);
-
-/// Request low-latency scheduling policy where supported.
-pub const AUDIO_DEVICE_OPEN_LOW_LATENCY: AudioDeviceOpenFlags = AudioDeviceOpenFlags(2u32);
-
 /// Default open behavior.
 pub const AUDIO_DEVICE_OPEN_NONE: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0u32);
 
 /// Request raw endpoint mode where available.
 pub const AUDIO_DEVICE_OPEN_RAW: AudioDeviceOpenFlags = AudioDeviceOpenFlags(8u32);
-
-/// Request realtime callback thread scheduling where available.
-pub const AUDIO_DEVICE_OPEN_REALTIME_THREAD: AudioDeviceOpenFlags = AudioDeviceOpenFlags(4u32);
 
 /// Subscribe to backend disconnect and reset events.
 pub const AUDIO_EVENT_SUBSCRIBE_BACKEND: AudioEventSubscriptionFlags =
@@ -8537,9 +8528,6 @@ pub const AUDIO_STREAM_EXPLICIT_SAMPLE_FORMAT: AudioStreamFlags = AudioStreamFla
 /// Request minimal callback period and latency.
 pub const AUDIO_STREAM_MINIMIZE_LATENCY: AudioStreamFlags = AudioStreamFlags(2u32);
 
-/// Request that input data should not be dropped where backend policy allows.
-pub const AUDIO_STREAM_NEVER_DROP_INPUT: AudioStreamFlags = AudioStreamFlags(64u32);
-
 /// Default stream behavior.
 pub const AUDIO_STREAM_NONE: AudioStreamFlags = AudioStreamFlags(0u32);
 
@@ -8548,9 +8536,6 @@ pub const AUDIO_STREAM_NON_INTERLEAVED: AudioStreamFlags = AudioStreamFlags(1u32
 
 /// Disable backend-side automatic sample-rate conversion where possible.
 pub const AUDIO_STREAM_NO_AUTO_CONVERT: AudioStreamFlags = AudioStreamFlags(16u32);
-
-/// Request pre-priming output buffers before start where backend policy allows.
-pub const AUDIO_STREAM_PRIME_OUTPUT_BUFFERS: AudioStreamFlags = AudioStreamFlags(128u32);
 
 /// Request stream status updates for xrun diagnostics.
 pub const AUDIO_STREAM_REPORT_XRUN: AudioStreamFlags = AudioStreamFlags(32u32);
@@ -8578,9 +8563,6 @@ pub const AUDIO_STREAM_REQUIRE_PAUSE: AudioStreamRequirementFlags =
 /// Require scheduled write submission support.
 pub const AUDIO_STREAM_REQUIRE_SCHEDULED_WRITE: AudioStreamRequirementFlags =
     AudioStreamRequirementFlags(2u32);
-
-/// Request realtime callback thread scheduling.
-pub const AUDIO_STREAM_SCHEDULE_REALTIME: AudioStreamFlags = AudioStreamFlags(4u32);
 
 /// Device-changed status bit.
 pub const AUDIO_STREAM_STATUS_DEVICE_CHANGED: AudioStreamStatusFlags =
@@ -8679,10 +8661,6 @@ pub const AUDIO_SUPPORTED_STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT: AudioSupportedStre
 pub const AUDIO_SUPPORTED_STREAM_FLAG_MINIMIZE_LATENCY: AudioSupportedStreamFlags =
     AudioSupportedStreamFlags(2u32);
 
-/// Supported stream option flag bit for never-drop-input backend policy.
-pub const AUDIO_SUPPORTED_STREAM_FLAG_NEVER_DROP_INPUT: AudioSupportedStreamFlags =
-    AudioSupportedStreamFlags(64u32);
-
 /// No supported stream option flags.
 pub const AUDIO_SUPPORTED_STREAM_FLAG_NONE: AudioSupportedStreamFlags =
     AudioSupportedStreamFlags(0u32);
@@ -8695,17 +8673,9 @@ pub const AUDIO_SUPPORTED_STREAM_FLAG_NON_INTERLEAVED: AudioSupportedStreamFlags
 pub const AUDIO_SUPPORTED_STREAM_FLAG_NO_AUTO_CONVERT: AudioSupportedStreamFlags =
     AudioSupportedStreamFlags(16u32);
 
-/// Supported stream option flag bit for output priming policy.
-pub const AUDIO_SUPPORTED_STREAM_FLAG_PRIME_OUTPUT_BUFFERS: AudioSupportedStreamFlags =
-    AudioSupportedStreamFlags(128u32);
-
 /// Supported stream option flag bit for xrun status reporting.
 pub const AUDIO_SUPPORTED_STREAM_FLAG_REPORT_XRUN: AudioSupportedStreamFlags =
     AudioSupportedStreamFlags(32u32);
-
-/// Supported stream option flag bit for realtime callback scheduling.
-pub const AUDIO_SUPPORTED_STREAM_FLAG_SCHEDULE_REALTIME: AudioSupportedStreamFlags =
-    AudioSupportedStreamFlags(4u32);
 
 /// Supported stream requirement flag bit for bit-exact PCM.
 pub const AUDIO_SUPPORTED_STREAM_REQUIREMENT_BIT_EXACT_PCM: AudioSupportedStreamRequirementFlags =

@@ -368,12 +368,6 @@ export const AUDIO_DEVICE_LIST_INCLUDE_DUPLICATES: AudioDeviceListFlags = AudioD
 
 /// Default open behavior.
 export const AUDIO_DEVICE_OPEN_NONE: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x0);
-/// Follow default-route migrations for default endpoint identifiers.
-export const AUDIO_DEVICE_OPEN_FOLLOW_DEFAULT_ROUTE: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x1);
-/// Request low-latency scheduling policy where supported.
-export const AUDIO_DEVICE_OPEN_LOW_LATENCY: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x2);
-/// Request realtime callback thread scheduling where available.
-export const AUDIO_DEVICE_OPEN_REALTIME_THREAD: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x4);
 /// Request raw endpoint mode where available.
 export const AUDIO_DEVICE_OPEN_RAW: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x8);
 

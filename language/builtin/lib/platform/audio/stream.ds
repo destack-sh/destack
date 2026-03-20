@@ -1026,18 +1026,12 @@ export const AUDIO_STREAM_NONE: AudioStreamFlags = AudioStreamFlags(0x0);
 export const AUDIO_STREAM_NON_INTERLEAVED: AudioStreamFlags = AudioStreamFlags(0x1);
 /// Request minimal callback period and latency.
 export const AUDIO_STREAM_MINIMIZE_LATENCY: AudioStreamFlags = AudioStreamFlags(0x2);
-/// Request realtime callback thread scheduling.
-export const AUDIO_STREAM_SCHEDULE_REALTIME: AudioStreamFlags = AudioStreamFlags(0x4);
 /// Request strict sample-format matching with no backend substitution.
 export const AUDIO_STREAM_EXPLICIT_SAMPLE_FORMAT: AudioStreamFlags = AudioStreamFlags(0x8);
 /// Disable backend-side automatic sample-rate conversion where possible.
 export const AUDIO_STREAM_NO_AUTO_CONVERT: AudioStreamFlags = AudioStreamFlags(0x10);
 /// Request stream status updates for xrun diagnostics.
 export const AUDIO_STREAM_REPORT_XRUN: AudioStreamFlags = AudioStreamFlags(0x20);
-/// Request that input data should not be dropped where backend policy allows.
-export const AUDIO_STREAM_NEVER_DROP_INPUT: AudioStreamFlags = AudioStreamFlags(0x40);
-/// Request pre-priming output buffers before start where backend policy allows.
-export const AUDIO_STREAM_PRIME_OUTPUT_BUFFERS: AudioStreamFlags = AudioStreamFlags(0x80);
 
 /// Default stream requirement behavior.
 export const AUDIO_STREAM_REQUIRE_NONE: AudioStreamRequirementFlags = AudioStreamRequirementFlags(0x0);
