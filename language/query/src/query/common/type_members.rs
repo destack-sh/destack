@@ -644,7 +644,7 @@ fn resolve_well_known_members(
     let Some(environment) = ctx.program.artifacts.library_environment(ctx.profile_id) else {
         return Vec::new();
     };
-    let Some(symbol_id) = environment.well_known_symbols.get_type_symbol(well_known) else {
+    let Some(symbol_id) = environment.well_known_symbols().get_type_symbol(well_known) else {
         return Vec::new();
     };
 

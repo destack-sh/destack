@@ -207,7 +207,7 @@ pub(crate) fn binding_type_symbols(program: &Program, profile_id: ProfileId) -> 
         .unwrap_or_else(|| panic!("missing Result symbol for profile {profile_id:?}"));
     let async_result = language_environment.item(LanguageSymbol::AsyncResult);
 
-    let well_known = lib_environment.well_known_symbols.clone();
+    let well_known = lib_environment.well_known_symbols();
     let slice = well_known.get_type_symbol(WellKnownSymbol::Slice);
     let array = well_known.get_type_symbol(WellKnownSymbol::Array);
     let readonly_array = well_known.get_type_symbol(WellKnownSymbol::ReadonlyArray);

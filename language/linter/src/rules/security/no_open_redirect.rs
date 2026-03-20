@@ -78,7 +78,7 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
         let replace_name = ctx.program.strings.intern("replace");
 
         // resolve symbols
-        let location_symbol = ctx.declared_lib_symbol(location_name);
+        let location_symbol = ctx.declared_library_symbol(location_name);
         let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {

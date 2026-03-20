@@ -203,8 +203,8 @@ impl<'a> LintModuleDirContext<'a> {
             .unwrap_or_else(|| panic!("language item {item:?} not available"))
     }
 
-    /// Get a cached declared lib symbol for the module profile and name.
-    pub fn get_declared_lib_symbol(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
+    /// Get a cached declared library symbol for the module profile and name.
+    pub fn get_declared_library_symbol(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
         let environment = self
             .program
             .artifacts
@@ -213,11 +213,11 @@ impl<'a> LintModuleDirContext<'a> {
         environment.declared_symbol_from(name.as_ref(), dir::SymbolSpaceOrder::ValueThenType)
     }
 
-    /// Get a declared lib symbol from the cache, panicking if not found.
-    pub fn declared_lib_symbol(&self, name: StringId) -> dir::GlobalSymbolId {
-        self.get_declared_lib_symbol(name).unwrap_or_else(|| {
+    /// Get a declared library symbol from the cache, panicking if not found.
+    pub fn declared_library_symbol(&self, name: StringId) -> dir::GlobalSymbolId {
+        self.get_declared_library_symbol(name).unwrap_or_else(|| {
             let name = self.program.strings.get(name);
-            panic!("declared lib symbol '{}' not available", name.as_ref())
+            panic!("declared library symbol '{}' not available", name.as_ref())
         })
     }
 
@@ -227,7 +227,7 @@ impl<'a> LintModuleDirContext<'a> {
             .program
             .artifacts
             .library_environment(self.profile_id)?;
-        Some(environment.well_known_symbols.clone())
+        Some(environment.well_known_symbols())
     }
 
     /// Get well-known symbols for the module profile, panicking if not found.
@@ -275,7 +275,7 @@ impl<'a> LintModuleDirContext<'a> {
                     return false;
                 }
                 let name = self.program.strings.intern(name);
-                self.get_declared_lib_symbol(name).is_some()
+                self.get_declared_library_symbol(name).is_some()
             }
             LintRequirement::RequireWellKnownSymbol(symbol) => {
                 self.get_well_known_symbol(*symbol).is_some()
@@ -537,7 +537,7 @@ impl<'a> LintModuleDirContext<'a> {
         let mut qualifiers = Vec::new();
         for name in GLOBAL_QUALIFIER_SYMBOLS {
             let name_id = self.program.strings.intern(name);
-            if let Some(symbol) = self.get_declared_lib_symbol(name_id) {
+            if let Some(symbol) = self.get_declared_library_symbol(name_id) {
                 qualifiers.push(symbol);
             }
         }

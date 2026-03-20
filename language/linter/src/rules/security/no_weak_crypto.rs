@@ -107,7 +107,7 @@ impl<'a, 'b> NoWeakCryptoVisitor<'a, 'b> {
         let create_decipher_iv_name = ctx.program.strings.intern("createDecipheriv");
 
         // resolve symbols
-        let crypto_symbol = ctx.declared_lib_symbol(crypto_name);
+        let crypto_symbol = ctx.declared_library_symbol(crypto_name);
         let global_qualifiers = ctx.global_qualifier_symbols();
 
         // intern weak algorithm names

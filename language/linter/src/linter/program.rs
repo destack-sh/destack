@@ -148,8 +148,8 @@ impl LintProgramDirContext {
         )
     }
 
-    /// Get a cached declared lib symbol for the active profile and name.
-    pub fn get_declared_lib_symbol(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
+    /// Get a cached declared library symbol for the active profile and name.
+    pub fn get_declared_library_symbol(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
         let environment = self
             .program
             .artifacts
@@ -164,7 +164,7 @@ impl LintProgramDirContext {
             .program
             .artifacts
             .library_environment(self.profile_id)?;
-        Some(environment.well_known_symbols.clone())
+        Some(environment.well_known_symbols())
     }
 
     /// Get a specific well-known symbol for the active profile.
@@ -181,7 +181,7 @@ impl LintProgramDirContext {
                     return false;
                 }
                 let name = self.program.strings.intern(name);
-                self.get_declared_lib_symbol(name).is_some()
+                self.get_declared_library_symbol(name).is_some()
             }
             LintRequirement::RequireWellKnownSymbol(symbol) => {
                 self.get_well_known_symbol(*symbol).is_some()
