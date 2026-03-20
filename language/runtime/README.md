@@ -1,9 +1,10 @@
 # Runtime
 
 The runtime is how Destack actually does anything interesting beyond pure computation.
-The Destack runtime integrates VM and/or native execution with scheduling, platform / host bindings, simulation, telemetry, and all the other "runtime stuff".
-Essentially, we integrate Node/Bun/Deno-level features and a V8/JSC-level execution, though we go much deeper and wider than the Node-family of runtimes.
-As with "TypeScript++", the idea here is really "Web++/Node++", i.e., take the well known shape and good modern standards, and expand on them / refine as needed into a a more universal software engine.
+The Destack runtime integrates VM and or native execution with scheduling, platform and host bindings, simulation, telemetry, and all the other runtime machinery.
+At the native-hosted layer, the runtime owns semantics and policy while host shells own framework integration and native reality.
+The long term goal is still Web++ and Node++ shaped semantics, but the native runtime architecture is its own host embedding problem.
+Destack should also default to its own renderer, more like a browser engine or game engine, not a native-view composition framework.
 
 ## Runtime
 
@@ -18,7 +19,7 @@ Runtime behaviour is modelled along the three basic dimensions of engine ("where
 The runtime is organized around core `runtime`, `platform` bindings, and the underlying `host` integration:
  - `runtime/`: all the core runtime scaffolding and orchestration (world, topology, poller, scheduler/loop, etc.)
  - `platform/`: host implementations for the modules defined in the builtin ["platform"](language/builtin/library/platform) library
- - `host/`: host adapters, host event bridges, host ffi entrypoints, and host state integration
+ - `host/`: host adapters, host ingress bridges, host FFI entrypoints, and host state integration
 
 ## World
 
@@ -30,10 +31,26 @@ The big advantage of modeling the runtime against a single World concept is that
 
 ## Host
 
-The `Host`s are the operating systems and deployment targets, like Linux, iOS, macOS, Android, Windows, and so on; they're basically the foundation of our platform, the last one/two words of the triplet.
+The hosts are the operating systems and deployment targets, like Linux, iOS, macOS, Android, and Windows.
+Each host has its own capabilities, lifecycle constraints, framework ownership rules, and thread-affinity requirements.
 
-Each host has its own capabilitiesaround when and how you get what state, which threads require what affinity in what order, and a bunch more fun stuff that the .
-The basic bridge is the `HostBackend` that is implemented by each host to provide the platform-specific functionality needed by the runtime.
+The basic bridge is `HostAdapter`.
+One `HostAdapter` represents one process-global host integration family.
+One `HostSession` represents one runtime session attached to that host integration.
+
+The direction of control stays explicit:
+- host shells push ingress into the runtime
+- the runtime submits explicit requests to the host shell
+
+The narrow envelope types at that seam are `HostEvent` for ingress and `HostRequest` plus `HostRequestOutcome` for outbound host work.
+Android ingress is pumped through the Android looper.
+Apple ingress is pumped through the CoreFoundation run loop, and UI-affine work uses the process main context helpers.
+
+At the architectural level, the split is:
+- the runtime owns semantics, request intent, policy, and replay or simulation concerns
+- the renderer owns rendering, input routing, accessibility publication, and presentation semantics above raw host bindings
+- the host shell owns native framework entrypoints, lifecycle attachment, callback registration, and thread-affinity reality
+- the transport and ABI layer owns handles, codecs, and callback trampolines, but not policy
 
 ## Platform
 
@@ -77,6 +94,11 @@ pub enum OsPathValue {
 
 The low-level `platform` bindings are not meant to be used _directly_ by general userland - though they are accessible to advanced users - but instead through the higher-level `destack:*` library, which is essentially a `node:*` shaped higher level API with all the same functionality.
 And because Destack tries to follow web standards closely, all the low level binding modules are also organized around the same concepts, even though they go much deeper (and wider).
+
+For native-hosted targets, these bindings are bridged through host shells rather than exposed directly as an application architecture.
+Android and Apple are the most important native-shell targets here.
+Browser JS, Node, Deno, and Bun are not the same runtime architecture.
+That native integration should normally attach one Destack-rendered host surface per runtime session and only use native views as explicit host features or optional native-view islands.
 
 | Module | Description |
 |-----------|--------|
