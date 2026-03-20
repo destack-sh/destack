@@ -7,8 +7,8 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::{
     AudioBackend, AudioChannelLayout, AudioDeviceCapabilityFlags, AudioDeviceDirection,
     AudioDeviceOpenOptions, AudioEventKind, AudioEventOverflowPolicy, AudioEventSource,
-    AudioEventSubscriptionOptions, AudioShareMode, AudioStreamConfig, AudioStreamStateKind,
-    AudioStreamStatusFlags,
+    AudioEventSubscriptionOptions, AudioShareMode, AudioStreamConfig, AudioStreamFlags,
+    AudioStreamRequirementFlags, AudioStreamStateKind, AudioStreamStatusFlags,
 };
 use crate::platform::resource;
 use crate::runtime::process::RuntimeScheduledCallbackHandle;
@@ -186,6 +186,10 @@ pub(crate) struct AudioStreamHostState {
     pub(crate) direction: AudioDeviceDirection,
     /// Requested stream config.
     pub(crate) requested: AudioStreamConfig,
+    /// Requested stream option flags.
+    pub(crate) requested_flags: AudioStreamFlags,
+    /// Requested strict requirement flags.
+    pub(crate) requested_requirements: AudioStreamRequirementFlags,
     /// Effective stream sample rate.
     pub(crate) sample_rate: u32,
     /// Effective stream channel count.

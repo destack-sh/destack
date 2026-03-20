@@ -18,7 +18,9 @@ use crate::platform::audio::backend::backend_name;
 use crate::platform::audio::core::constants::AudioBackendOpenFlags;
 use crate::platform::audio::core::model::{AudioStreamHostState, HostDeviceDescriptor};
 use crate::platform::audio::core::monitor::AudioMonitorHandle;
-use crate::platform::audio::{AudioBackend, AudioShareMode, AudioStreamConfig};
+use crate::platform::audio::{
+    AudioBackend, AudioShareMode, AudioStreamConfig, AudioStreamFlags, AudioStreamRequirementFlags,
+};
 use crate::platform::core::{self as core_platform, BackendSupport, backend_support_error};
 use std::sync::Arc;
 
@@ -201,6 +203,8 @@ pub(crate) fn open_host_stream(
     config: AudioStreamConfig,
     share_mode: AudioShareMode,
     backend_flags: AudioBackendOpenFlags,
+    requested_flags: AudioStreamFlags,
+    requested_requirements: AudioStreamRequirementFlags,
 ) -> RuntimeResult<Arc<AudioStreamHostState>> {
     let _ = (&config, &share_mode);
 
@@ -215,34 +219,69 @@ pub(crate) fn open_host_stream(
 
     match device_info.backend {
         #[cfg(all(target_os = "linux", feature = "audio-alsa"))]
-        AudioBackend::Alsa => {
-            alsa::open_host_stream(device_info, config, share_mode, backend_flags)
-        }
+        AudioBackend::Alsa => alsa::open_host_stream(
+            device_info,
+            config,
+            share_mode,
+            backend_flags,
+            requested_flags,
+            requested_requirements,
+        ),
         #[cfg(all(target_os = "linux", feature = "audio-pulseaudio"))]
-        AudioBackend::PulseAudio => {
-            pulseaudio::open_host_stream(device_info, config, share_mode, backend_flags)
-        }
+        AudioBackend::PulseAudio => pulseaudio::open_host_stream(
+            device_info,
+            config,
+            share_mode,
+            backend_flags,
+            requested_flags,
+            requested_requirements,
+        ),
         #[cfg(all(target_os = "linux", feature = "audio-pipewire"))]
-        AudioBackend::PipeWire => {
-            pipewire::open_host_stream(device_info, config, share_mode, backend_flags)
-        }
+        AudioBackend::PipeWire => pipewire::open_host_stream(
+            device_info,
+            config,
+            share_mode,
+            backend_flags,
+            requested_flags,
+            requested_requirements,
+        ),
         #[cfg(any(target_os = "macos", target_os = "ios"))]
         #[cfg(feature = "audio-coreaudio")]
-        AudioBackend::CoreAudio => {
-            coreaudio::open_host_stream(device_info, config, share_mode, backend_flags)
-        }
+        AudioBackend::CoreAudio => coreaudio::open_host_stream(
+            device_info,
+            config,
+            share_mode,
+            backend_flags,
+            requested_flags,
+            requested_requirements,
+        ),
         #[cfg(all(target_os = "android", feature = "audio-aaudio"))]
-        AudioBackend::AAudio => {
-            aaudio::open_host_stream(device_info, config, share_mode, backend_flags)
-        }
+        AudioBackend::AAudio => aaudio::open_host_stream(
+            device_info,
+            config,
+            share_mode,
+            backend_flags,
+            requested_flags,
+            requested_requirements,
+        ),
         #[cfg(all(target_os = "android", feature = "audio-opensles"))]
-        AudioBackend::OpenSLES => {
-            opensles::open_host_stream(device_info, config, share_mode, backend_flags)
-        }
+        AudioBackend::OpenSLES => opensles::open_host_stream(
+            device_info,
+            config,
+            share_mode,
+            backend_flags,
+            requested_flags,
+            requested_requirements,
+        ),
         #[cfg(all(target_os = "linux", feature = "audio-jack"))]
-        AudioBackend::Jack => {
-            jack::open_host_stream(device_info, config, share_mode, backend_flags)
-        }
+        AudioBackend::Jack => jack::open_host_stream(
+            device_info,
+            config,
+            share_mode,
+            backend_flags,
+            requested_flags,
+            requested_requirements,
+        ),
         _ => Err(backend_support_error(
             "destack.audio.stream.open",
             "unix",

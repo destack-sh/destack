@@ -18,7 +18,15 @@ pub(crate) fn open_host_stream(
     config: audio_types::AudioStreamConfig,
     share_mode: audio_types::AudioShareMode,
     backend_flags: audio_core::AudioBackendOpenFlags,
+    requested_flags: audio_types::AudioStreamFlags,
+    requested_requirements: audio_types::AudioStreamRequirementFlags,
 ) -> RuntimeResult<Arc<audio_core::AudioStreamHostState>> {
     let _ = backend_flags;
-    open_stream(device_info, config, share_mode)
+    open_stream(
+        device_info,
+        config,
+        share_mode,
+        requested_flags,
+        requested_requirements,
+    )
 }

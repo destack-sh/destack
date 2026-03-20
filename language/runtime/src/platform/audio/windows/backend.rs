@@ -9,7 +9,9 @@ use crate::platform::audio::backend::backend_name;
 use crate::platform::audio::core::constants::AudioBackendOpenFlags;
 use crate::platform::audio::core::model::{AudioStreamHostState, HostDeviceDescriptor};
 use crate::platform::audio::core::monitor::AudioMonitorHandle;
-use crate::platform::audio::{AudioBackend, AudioShareMode, AudioStreamConfig};
+use crate::platform::audio::{
+    AudioBackend, AudioShareMode, AudioStreamConfig, AudioStreamFlags, AudioStreamRequirementFlags,
+};
 use crate::platform::core::{self as core_platform, BackendSupport, backend_support_error};
 
 /// Return whether one windows backend can exist on this target family.
@@ -127,6 +129,8 @@ pub(crate) fn open_host_stream(
     config: AudioStreamConfig,
     share_mode: AudioShareMode,
     backend_flags: AudioBackendOpenFlags,
+    requested_flags: AudioStreamFlags,
+    requested_requirements: AudioStreamRequirementFlags,
 ) -> RuntimeResult<Arc<AudioStreamHostState>> {
     // fail before dispatching to one backend-specific stream opener
     if !backend_stream_supported(device_info.backend) {
@@ -139,13 +143,23 @@ pub(crate) fn open_host_stream(
 
     match device_info.backend {
         #[cfg(feature = "audio-wasapi")]
-        AudioBackend::Wasapi => {
-            wasapi::open_host_stream(device_info, config, share_mode, backend_flags)
-        }
+        AudioBackend::Wasapi => wasapi::open_host_stream(
+            device_info,
+            config,
+            share_mode,
+            backend_flags,
+            requested_flags,
+            requested_requirements,
+        ),
         #[cfg(feature = "audio-asio")]
-        AudioBackend::Asio => {
-            asio::open_host_stream(device_info, config, share_mode, backend_flags)
-        }
+        AudioBackend::Asio => asio::open_host_stream(
+            device_info,
+            config,
+            share_mode,
+            backend_flags,
+            requested_flags,
+            requested_requirements,
+        ),
         _ => Err(backend_support_error(
             "destack.audio.stream.open",
             "windows",

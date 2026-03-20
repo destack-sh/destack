@@ -14,16 +14,31 @@ pub(crate) fn open_host_stream(
     config: audio_types::AudioStreamConfig,
     share_mode: audio_types::AudioShareMode,
     backend_flags: audio_core::AudioBackendOpenFlags,
+    requested_flags: audio_types::AudioStreamFlags,
+    requested_requirements: audio_types::AudioStreamRequirementFlags,
 ) -> RuntimeResult<Arc<audio_core::AudioStreamHostState>> {
     #[cfg(target_os = "linux")]
     {
         let _ = backend_flags;
-        open_stream(device_info, config, share_mode)
+        open_stream(
+            device_info,
+            config,
+            share_mode,
+            requested_flags,
+            requested_requirements,
+        )
     }
 
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (device_info, config, share_mode, backend_flags);
+        let _ = (
+            device_info,
+            config,
+            share_mode,
+            backend_flags,
+            requested_flags,
+            requested_requirements,
+        );
         Err(backend_not_supported(
             "destack.audio.stream.open",
             "pipewire",
