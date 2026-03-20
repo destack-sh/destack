@@ -140,7 +140,7 @@ declare namespace device {
     /// Subscription routing and queue depth follow host backend behavior.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -154,7 +154,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.observe"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -168,7 +168,7 @@ declare namespace device {
     /// Pending events are discarded.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -182,7 +182,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.observe"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -196,7 +196,7 @@ declare namespace device {
     /// Timeout uses nanoseconds in the runtime monotonic domain.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
@@ -210,7 +210,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.observe"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -227,7 +227,7 @@ declare namespace device {
     /// Timeout uses nanoseconds in the runtime monotonic domain.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
@@ -241,7 +241,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.observe"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -259,7 +259,7 @@ declare namespace device {
     /// Empty queue state is reported through ioWouldBlock.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -273,7 +273,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.observe"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "never",
@@ -287,7 +287,7 @@ declare namespace device {
     /// Empty queue state is reported through ioWouldBlock.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -301,7 +301,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.observe"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "never",

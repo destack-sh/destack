@@ -13,6 +13,7 @@ use crate::host::android::bridge::midi::types::{
     AndroidHostMidiEventHeader, AndroidHostMidiInputRecordHeader, AndroidHostMidiOpenedPortHeader,
     AndroidHostMidiPortDescriptorHeader,
 };
+use crate::platform::core::android::host_status_result;
 use crate::platform::device::midi::core::{
     MidiEventValue, MidiInputRecordValue, MidiOutputRecordValue, MidiPortDescriptorValue,
 };
@@ -54,51 +55,6 @@ fn host_runtime_id(
     _operation: &'static str,
 ) -> Result<u64, Box<RuntimeError>> {
     Ok(binding.agent().runtime_id.0)
-}
-
-/// Map one Android host MIDI callback status into one runtime result.
-pub(crate) fn host_status_result(
-    status: u32,
-    operation: &'static str,
-    action: &'static str,
-) -> RuntimeResult<()> {
-    let Some(status) = HostStatus::from_code(status) else {
-        return Err(invalid_data(
-            operation,
-            format!("{operation}: android host midi {action} failed with status code {status}"),
-        ));
-    };
-
-    match status {
-        HostStatus::Ok => Ok(()),
-        HostStatus::NotSupported => Err(core_platform::not_supported(operation)),
-        HostStatus::InvalidArgument => Err(invalid_data(
-            operation,
-            format!("{operation}: android host midi {action} reported one invalid argument"),
-        )),
-        HostStatus::NotFound => Err(core_platform::io_not_found(
-            operation,
-            format!("android host midi {action} could not resolve one endpoint"),
-        )),
-        HostStatus::PermissionDenied => Err(invalid_data(
-            operation,
-            format!("{operation}: android host midi {action} was denied unexpectedly"),
-        )),
-        HostStatus::BufferTooSmall => Err(invalid_data(
-            operation,
-            format!(
-                "{operation}: android host midi {action} reported one unexpectedly small output buffer"
-            ),
-        )),
-        HostStatus::Failed => Err(invalid_data(
-            operation,
-            format!("{operation}: android host midi {action} failed"),
-        )),
-        HostStatus::WouldBlock => Err(invalid_data(
-            operation,
-            format!("{operation}: android host midi {action} would block unexpectedly"),
-        )),
-    }
 }
 
 /// Build one ioInvalidData runtime error.
@@ -893,4 +849,52 @@ fn checked_u32_length(
         )))
         .boxed()
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::host::abi::HostStatus;
+    use crate::platform::diagnostic::PlatformErrorCode;
+    use crate::tests::platform::error_code_from_result;
+
+    use super::host_status_result;
+
+    /// Map Android MIDI permission failures to ioPermissionDenied.
+    #[test]
+    fn test_host_status_result_maps_permission_denied_to_io_permission_denied() {
+        let code = error_code_from_result(host_status_result(
+            HostStatus::PermissionDenied.code(),
+            "destack.device.midi.test",
+            "permission test",
+        ))
+        .expect("permission-denied status should surface one platform error code");
+
+        assert_eq!(code, PlatformErrorCode::IoPermissionDenied);
+    }
+
+    /// Map Android MIDI would-block failures to ioWouldBlock.
+    #[test]
+    fn test_host_status_result_maps_would_block_to_io_would_block() {
+        let code = error_code_from_result(host_status_result(
+            HostStatus::WouldBlock.code(),
+            "destack.device.midi.test",
+            "would-block test",
+        ))
+        .expect("would-block status should surface one platform error code");
+
+        assert_eq!(code, PlatformErrorCode::IoWouldBlock);
+    }
+
+    /// Keep Android MIDI unsupported failures as notSupported.
+    #[test]
+    fn test_host_status_result_maps_not_supported_to_not_supported() {
+        let code = error_code_from_result(host_status_result(
+            HostStatus::NotSupported.code(),
+            "destack.device.midi.test",
+            "unsupported test",
+        ))
+        .expect("unsupported status should surface one platform error code");
+
+        assert_eq!(code, PlatformErrorCode::NotSupported);
+    }
 }

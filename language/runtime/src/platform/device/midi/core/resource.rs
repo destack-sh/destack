@@ -624,7 +624,7 @@ mod tests {
         else {
             panic!("expected midi capture barrier, got {error:?}");
         };
-        assert_eq!(component, "platform.device.midi");
+        assert_eq!(component, "platform.device");
         assert_eq!(detail, "runtime state is active");
 
         // closing the resource should release midi runtime activity

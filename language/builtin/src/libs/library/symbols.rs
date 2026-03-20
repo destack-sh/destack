@@ -72,14 +72,11 @@ pub(crate) const WORKER_DECLARED_SYMBOLS: &[&str] = &[
     "setTimeout",
 ];
 
-pub(crate) const UNDICI_TYPES_V5_SPECIFIER_ALIASES: &[(&str, &str)] = &[
-    ("undici-types", "undici-types.v5"),
-];
+pub(crate) const UNDICI_TYPES_V5_SPECIFIER_ALIASES: &[(&str, &str)] =
+    &[("undici-types", "undici-types.v5")];
 
-pub(crate) const UNDICI_TYPES_V6_SPECIFIER_ALIASES: &[(&str, &str)] = &[
-    ("undici-types", "undici-types.v6"),
-];
+pub(crate) const UNDICI_TYPES_V6_SPECIFIER_ALIASES: &[(&str, &str)] =
+    &[("undici-types", "undici-types.v6")];
 
-pub(crate) const UNDICI_TYPES_V7_SPECIFIER_ALIASES: &[(&str, &str)] = &[
-    ("undici-types", "undici-types.v7"),
-];
+pub(crate) const UNDICI_TYPES_V7_SPECIFIER_ALIASES: &[(&str, &str)] =
+    &[("undici-types", "undici-types.v7")];

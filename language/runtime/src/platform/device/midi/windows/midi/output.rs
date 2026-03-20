@@ -8,14 +8,24 @@ use crate::platform::device::midi::core::{
 };
 use crate::platform::device::{
     MidiDataFormat, MidiOutputPortOpenOptions, MidiPortDirection, MidiPortListOptions,
-    MidiVirtualOutputCreateOptions,
+    MidiProtocol, MidiVirtualOutputCreateOptions,
 };
 use crate::platform::resource;
-use crate::runtime::BindingCallContext;
+use crate::runtime::{BindingCallContext, NativeStringRef};
 
 use super::core::{WindowsMidiOutputSession, insert_output_resource};
 use super::descriptor::{filtered_descriptors, resolve_endpoint};
 use super::resource::output_resource;
+
+/// Decode one native string into one owned Rust string.
+fn owned_native_string(value: NativeStringRef) -> RuntimeResult<String> {
+    unsafe { value.as_str().map(str::to_owned) }
+}
+
+/// Decode one optional native string into one owned Rust string.
+fn owned_optional_native_string(value: Option<NativeStringRef>) -> RuntimeResult<Option<String>> {
+    value.map(owned_native_string).transpose()
+}
 
 /// List Windows MIDI output ports.
 pub(crate) fn midi_output_port_list(
@@ -149,10 +159,52 @@ pub(crate) fn midi_output_write(
 
 /// Reject virtual output creation on Windows MIDI.
 pub(crate) fn midi_output_virtual_create(
-    _binding: &BindingCallContext,
-    _options: MidiVirtualOutputCreateOptions,
+    binding: &BindingCallContext,
+    options: MidiVirtualOutputCreateOptions,
 ) -> RuntimeResult<resource::MidiOutputPortHandle> {
-    Err(core_platform::not_supported(
+    // requested transport
+    validate_virtual_output_transport(options.data_format, options.protocol)?;
+
+    // shared service and host strings
+    let service = binding
+        .agent()
+        .platform_state
+        .device
+        .windows_midi_service("destack.device.midi.output.virtual.create")?;
+    let name = owned_native_string(options.name)?;
+    let manufacturer = owned_optional_native_string(options.manufacturer)?;
+    let model = owned_optional_native_string(options.model)?;
+    let version = owned_optional_native_string(options.version)?;
+    let (host_session_id, descriptor) = service.create_virtual_output_session(
+        name,
+        manufacturer,
+        model,
+        version,
+        options.protocol,
         "destack.device.midi.output.virtual.create",
-    ))
+    )?;
+
+    let session = Arc::new(WindowsMidiOutputSession {
+        _service: service,
+        descriptor,
+        data_format: options.data_format,
+        protocol: Some(options.protocol),
+        host_session_id,
+    });
+
+    Ok(insert_output_resource(binding, session))
+}
+
+/// Reject unsupported Windows MIDI virtual-output transport requests.
+fn validate_virtual_output_transport(
+    data_format: MidiDataFormat,
+    _protocol: MidiProtocol,
+) -> RuntimeResult<()> {
+    if data_format != MidiDataFormat::Ump {
+        return Err(core_platform::not_supported(
+            "destack.device.midi.output.virtual.create",
+        ));
+    }
+
+    Ok(())
 }

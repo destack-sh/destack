@@ -1,6 +1,6 @@
 use super::{
-    assert_platform_error_codes, backend_descriptor_row, harness_event_open_options_for_backend,
-    harness_input_open_options_for_backend_transport,
+    assert_platform_error_codes, backend_descriptor_row, decode_port_descriptor,
+    harness_event_open_options_for_backend, harness_input_open_options_for_backend_transport,
     harness_output_open_options_for_backend_transport, harness_output_records, harness_string,
     harness_virtual_input_create_options_for_backend_transport,
     harness_virtual_output_create_options_for_backend_transport, listed_backend_input_rows,
@@ -9,6 +9,7 @@ use super::{
     support_allows_host_execution, with_harness_context,
 };
 use crate::platform::core::monotonic_now_ns;
+use crate::platform::device::midi::windows::midi::service::windows_midi_virtual_transport_available;
 use crate::platform::device::{
     MIDI_BACKEND_CAP_NATIVE_EVENT_FEED, MIDI_BACKEND_CAP_RECEIVE_TIMESTAMPS,
     MIDI_BACKEND_CAP_SCHEDULED_OUTPUT, MIDI_BACKEND_CAP_TOPOLOGY_EVENTS, MIDI_BACKEND_CAP_UMP,
@@ -76,16 +77,29 @@ fn test_midi_windows_midi_backend_row_matches_expected_capability_contract() {
             capability_flags.0 & MIDI_BACKEND_CAP_UMP.0 != 0,
             "WindowsMidi should advertise UMP support",
         );
-        assert_eq!(
-            capability_flags.0 & MIDI_BACKEND_CAP_VIRTUAL_INPUT.0,
-            0,
-            "WindowsMidi should not advertise virtual input support",
-        );
-        assert_eq!(
-            capability_flags.0 & MIDI_BACKEND_CAP_VIRTUAL_OUTPUT.0,
-            0,
-            "WindowsMidi should not advertise virtual output support",
-        );
+        let virtual_transport_available =
+            windows_midi_virtual_transport_available("test.midi.windows_midi.backend_row")?;
+        if virtual_transport_available {
+            assert!(
+                capability_flags.0 & MIDI_BACKEND_CAP_VIRTUAL_INPUT.0 != 0,
+                "WindowsMidi should advertise virtual input support when the virtual transport is available",
+            );
+            assert!(
+                capability_flags.0 & MIDI_BACKEND_CAP_VIRTUAL_OUTPUT.0 != 0,
+                "WindowsMidi should advertise virtual output support when the virtual transport is available",
+            );
+        } else {
+            assert_eq!(
+                capability_flags.0 & MIDI_BACKEND_CAP_VIRTUAL_INPUT.0,
+                0,
+                "WindowsMidi should not advertise virtual input support when the virtual transport is unavailable",
+            );
+            assert_eq!(
+                capability_flags.0 & MIDI_BACKEND_CAP_VIRTUAL_OUTPUT.0,
+                0,
+                "WindowsMidi should not advertise virtual output support when the virtual transport is unavailable",
+            );
+        }
         assert_eq!(
             supported_data_formats.0, MIDI_DATA_FORMAT_FLAG_UMP.0,
             "WindowsMidi should advertise only UMP transport",
@@ -391,10 +405,16 @@ fn test_midi_windows_midi_opened_output_ports_accept_valid_ump_writes() {
     });
 }
 
-/// Reject virtual endpoint creation on Windows MIDI.
+/// Create virtual endpoints on Windows MIDI when the virtual transport is available.
 #[test]
-fn test_midi_windows_midi_virtual_ports_report_not_supported() {
+fn test_midi_windows_midi_virtual_ports_match_transport_availability() {
     with_harness_context(|mut context| {
+        let (_backend, _name, support, _priority, capability_flags, _formats, _protocols) =
+            backend_descriptor_row(&mut context, MidiBackend::WindowsMidi)?;
+        if !support_allows_host_execution(support) {
+            return Ok(());
+        }
+
         let input_options = harness_virtual_input_create_options_for_backend_transport(
             &mut context,
             MidiBackend::WindowsMidi,
@@ -402,11 +422,6 @@ fn test_midi_windows_midi_virtual_ports_report_not_supported() {
             MidiDataFormat::Ump,
             MidiProtocol::Midi2,
         )?;
-        assert_platform_error_codes(
-            context.destack_device_midi_input_virtual_create(input_options),
-            &[PlatformErrorCode::NotSupported],
-        )?;
-
         let output_options = harness_virtual_output_create_options_for_backend_transport(
             &mut context,
             MidiBackend::WindowsMidi,
@@ -414,10 +429,57 @@ fn test_midi_windows_midi_virtual_ports_report_not_supported() {
             MidiDataFormat::Ump,
             MidiProtocol::Midi2,
         )?;
-        assert_platform_error_codes(
-            context.destack_device_midi_output_virtual_create(output_options),
-            &[PlatformErrorCode::NotSupported],
-        )?;
+
+        if capability_flags.0 & MIDI_BACKEND_CAP_VIRTUAL_INPUT.0 == 0
+            || capability_flags.0 & MIDI_BACKEND_CAP_VIRTUAL_OUTPUT.0 == 0
+        {
+            assert_platform_error_codes(
+                context.destack_device_midi_input_virtual_create(input_options),
+                &[PlatformErrorCode::NotSupported],
+            )?;
+            assert_platform_error_codes(
+                context.destack_device_midi_output_virtual_create(output_options),
+                &[PlatformErrorCode::NotSupported],
+            )?;
+
+            return Ok(());
+        }
+
+        let input_handle = context.destack_device_midi_input_virtual_create(input_options)?;
+        let input_descriptor = context.destack_device_midi_input_port_descriptor(input_handle)?;
+        let (
+            _id,
+            _backend_id,
+            opened_name,
+            is_virtual,
+            _is_connected,
+            opened_format,
+            opened_protocol,
+        ) = decode_port_descriptor(&mut context, input_descriptor)?;
+        assert_eq!(opened_name, "Destack Windows MIDI Virtual Input");
+        assert!(is_virtual);
+        assert_eq!(opened_format, Some(MidiDataFormat::Ump));
+        assert_eq!(opened_protocol, Some(MidiProtocol::Midi2));
+
+        let output_handle = context.destack_device_midi_output_virtual_create(output_options)?;
+        let output_descriptor =
+            context.destack_device_midi_output_port_descriptor(output_handle)?;
+        let (
+            _id,
+            _backend_id,
+            opened_name,
+            is_virtual,
+            _is_connected,
+            opened_format,
+            opened_protocol,
+        ) = decode_port_descriptor(&mut context, output_descriptor)?;
+        assert_eq!(opened_name, "Destack Windows MIDI Virtual Output");
+        assert!(is_virtual);
+        assert_eq!(opened_format, Some(MidiDataFormat::Ump));
+        assert_eq!(opened_protocol, Some(MidiProtocol::Midi2));
+
+        context.destack_device_midi_input_port_close(input_handle)?;
+        context.destack_device_midi_output_port_close(output_handle)?;
 
         Ok(())
     });

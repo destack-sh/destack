@@ -38,47 +38,27 @@ pub(crate) const ES2015_DECLARED_SYMBOLS: &[&str] = &[
     "WeakSet",
 ];
 
-pub(crate) const ES2015_COLLECTION_DECLARED_SYMBOLS: &[&str] = &[
-    "Map",
-    "Set",
-    "WeakMap",
-    "WeakSet",
-];
+pub(crate) const ES2015_COLLECTION_DECLARED_SYMBOLS: &[&str] =
+    &["Map", "Set", "WeakMap", "WeakSet"];
 
-pub(crate) const ES2015_EMPTY_DECLARED_SYMBOLS: &[&str] = &[
-];
+pub(crate) const ES2015_EMPTY_DECLARED_SYMBOLS: &[&str] = &[];
 
-pub(crate) const ES2015_GENERATOR_DECLARED_SYMBOLS: &[&str] = &[
-    "Generator",
-];
+pub(crate) const ES2015_GENERATOR_DECLARED_SYMBOLS: &[&str] = &["Generator"];
 
-pub(crate) const ES2015_ITERABLE_DECLARED_SYMBOLS: &[&str] = &[
-    "BuiltinIteratorReturn",
-    "Iterable",
-    "Iterator",
-];
+pub(crate) const ES2015_ITERABLE_DECLARED_SYMBOLS: &[&str] =
+    &["BuiltinIteratorReturn", "Iterable", "Iterator"];
 
-pub(crate) const ES2015_PROMISE_DECLARED_SYMBOLS: &[&str] = &[
-    "Promise",
-];
+pub(crate) const ES2015_PROMISE_DECLARED_SYMBOLS: &[&str] = &["Promise"];
 
-pub(crate) const ES2015_PROXY_DECLARED_SYMBOLS: &[&str] = &[
-    "Proxy",
-];
+pub(crate) const ES2015_PROXY_DECLARED_SYMBOLS: &[&str] = &["Proxy"];
 
-pub(crate) const ES2015_REFLECT_DECLARED_SYMBOLS: &[&str] = &[
-    "Reflect",
-];
+pub(crate) const ES2015_REFLECT_DECLARED_SYMBOLS: &[&str] = &["Reflect"];
 
-pub(crate) const ES2015_SYMBOL_DECLARED_SYMBOLS: &[&str] = &[
-    "Symbol",
-];
+pub(crate) const ES2015_SYMBOL_DECLARED_SYMBOLS: &[&str] = &["Symbol"];
 
-pub(crate) const ES2016_DECLARED_SYMBOLS: &[&str] = &[
-];
+pub(crate) const ES2016_DECLARED_SYMBOLS: &[&str] = &[];
 
-pub(crate) const ES2016_EMPTY_DECLARED_SYMBOLS: &[&str] = &[
-];
+pub(crate) const ES2016_EMPTY_DECLARED_SYMBOLS: &[&str] = &[];
 
 pub(crate) const ES2017_DECLARED_SYMBOLS: &[&str] = &[
     "Array",
@@ -114,12 +94,9 @@ pub(crate) const ES2017_DECLARED_SYMBOLS: &[&str] = &[
     "SharedArrayBuffer",
 ];
 
-pub(crate) const ES2017_EMPTY_DECLARED_SYMBOLS: &[&str] = &[
-];
+pub(crate) const ES2017_EMPTY_DECLARED_SYMBOLS: &[&str] = &[];
 
-pub(crate) const ES2017_SHAREDMEMORY_DECLARED_SYMBOLS: &[&str] = &[
-    "SharedArrayBuffer",
-];
+pub(crate) const ES2017_SHAREDMEMORY_DECLARED_SYMBOLS: &[&str] = &["SharedArrayBuffer"];
 
 pub(crate) const ES2018_DECLARED_SYMBOLS: &[&str] = &[
     "Array",
@@ -158,23 +135,16 @@ pub(crate) const ES2018_DECLARED_SYMBOLS: &[&str] = &[
     "AsyncIterator",
 ];
 
-pub(crate) const ES2018_ASYNCGENERATOR_DECLARED_SYMBOLS: &[&str] = &[
-    "AsyncGenerator",
-];
+pub(crate) const ES2018_ASYNCGENERATOR_DECLARED_SYMBOLS: &[&str] = &["AsyncGenerator"];
 
-pub(crate) const ES2018_ASYNCITERABLE_DECLARED_SYMBOLS: &[&str] = &[
-    "AsyncIterable",
-    "AsyncIterator",
-];
+pub(crate) const ES2018_ASYNCITERABLE_DECLARED_SYMBOLS: &[&str] =
+    &["AsyncIterable", "AsyncIterator"];
 
-pub(crate) const ES2018_EMPTY_DECLARED_SYMBOLS: &[&str] = &[
-];
+pub(crate) const ES2018_EMPTY_DECLARED_SYMBOLS: &[&str] = &[];
 
-pub(crate) const ES2019_DECLARED_SYMBOLS: &[&str] = &[
-];
+pub(crate) const ES2019_DECLARED_SYMBOLS: &[&str] = &[];
 
-pub(crate) const ES2019_EMPTY_DECLARED_SYMBOLS: &[&str] = &[
-];
+pub(crate) const ES2019_EMPTY_DECLARED_SYMBOLS: &[&str] = &[];
 
 pub(crate) const ES2020_DECLARED_SYMBOLS: &[&str] = &[
     "Array",
@@ -218,14 +188,10 @@ pub(crate) const ES2020_DECLARED_SYMBOLS: &[&str] = &[
     "globalThis",
 ];
 
-pub(crate) const ES2020_BIGINT_DECLARED_SYMBOLS: &[&str] = &[
-    "BigInt",
-    "BigInt64Array",
-    "BigUint64Array",
-];
+pub(crate) const ES2020_BIGINT_DECLARED_SYMBOLS: &[&str] =
+    &["BigInt", "BigInt64Array", "BigUint64Array"];
 
-pub(crate) const ES2020_EMPTY_DECLARED_SYMBOLS: &[&str] = &[
-];
+pub(crate) const ES2020_EMPTY_DECLARED_SYMBOLS: &[&str] = &[];
 
 pub(crate) const ES2021_DECLARED_SYMBOLS: &[&str] = &[
     "Array",
@@ -270,35 +236,23 @@ pub(crate) const ES2021_DECLARED_SYMBOLS: &[&str] = &[
     "AggregateError",
 ];
 
-pub(crate) const ES2021_EMPTY_DECLARED_SYMBOLS: &[&str] = &[
-];
+pub(crate) const ES2021_EMPTY_DECLARED_SYMBOLS: &[&str] = &[];
 
-pub(crate) const ES2021_PROMISE_DECLARED_SYMBOLS: &[&str] = &[
-    "AggregateError",
-];
+pub(crate) const ES2021_PROMISE_DECLARED_SYMBOLS: &[&str] = &["AggregateError"];
 
-pub(crate) const ES2021_WEAKREF_DECLARED_SYMBOLS: &[&str] = &[
-    "WeakRef",
-    "FinalizationRegistry",
-];
+pub(crate) const ES2021_WEAKREF_DECLARED_SYMBOLS: &[&str] = &["WeakRef", "FinalizationRegistry"];
 
-pub(crate) const ES2022_DECLARED_SYMBOLS: &[&str] = &[
-];
+pub(crate) const ES2022_DECLARED_SYMBOLS: &[&str] = &[];
 
-pub(crate) const ES2022_EMPTY_DECLARED_SYMBOLS: &[&str] = &[
-];
+pub(crate) const ES2022_EMPTY_DECLARED_SYMBOLS: &[&str] = &[];
 
-pub(crate) const ES2023_DECLARED_SYMBOLS: &[&str] = &[
-];
+pub(crate) const ES2023_DECLARED_SYMBOLS: &[&str] = &[];
 
-pub(crate) const ES2023_EMPTY_DECLARED_SYMBOLS: &[&str] = &[
-];
+pub(crate) const ES2023_EMPTY_DECLARED_SYMBOLS: &[&str] = &[];
 
-pub(crate) const ES2024_DECLARED_SYMBOLS: &[&str] = &[
-];
+pub(crate) const ES2024_DECLARED_SYMBOLS: &[&str] = &[];
 
-pub(crate) const ES2024_EMPTY_DECLARED_SYMBOLS: &[&str] = &[
-];
+pub(crate) const ES2024_EMPTY_DECLARED_SYMBOLS: &[&str] = &[];
 
 pub(crate) const ES5_DECLARED_SYMBOLS: &[&str] = &[
     "Array",
@@ -322,11 +276,7 @@ pub(crate) const ES5_DECLARED_SYMBOLS: &[&str] = &[
     "TemplateStringsArray",
 ];
 
-pub(crate) const JS_DECLARED_SYMBOLS: &[&str] = &[
-    "Slice",
-    "FixedArray",
-    "Vector",
-];
+pub(crate) const JS_DECLARED_SYMBOLS: &[&str] = &["Slice", "FixedArray", "Vector"];
 
 pub(crate) const NATIVE_DECLARED_SYMBOLS: &[&str] = &[
     "String",

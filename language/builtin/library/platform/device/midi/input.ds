@@ -38,7 +38,7 @@ declare namespace device {
     /// Endpoint visibility and ordering follow host MIDI subsystem behavior.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -52,7 +52,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.port"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -66,7 +66,7 @@ declare namespace device {
     /// Endpoint open behavior follows host MIDI session policy and sharing semantics.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -80,7 +80,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.port"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -97,7 +97,7 @@ declare namespace device {
     /// This returns the runtime-stable identity surface for the opened endpoint even when the original list row is no longer cached locally.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -111,7 +111,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.port"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -124,7 +124,7 @@ declare namespace device {
     /// Close one opened MIDI input session and release host resources.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -138,7 +138,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.port"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -154,7 +154,7 @@ declare namespace device {
     /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -168,7 +168,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.read"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -187,7 +187,7 @@ declare namespace device {
     /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -201,7 +201,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.read"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -221,7 +221,7 @@ declare namespace device {
     /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -235,7 +235,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.read"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "never",
@@ -251,7 +251,7 @@ declare namespace device {
     /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -265,7 +265,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.read"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "never",
@@ -281,7 +281,7 @@ declare namespace device {
     /// Create one host-visible virtual MIDI input endpoint and return one opened input handle for reads.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -295,7 +295,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.virtual"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",

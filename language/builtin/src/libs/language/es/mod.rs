@@ -17,6 +17,8 @@ mod es6;
 mod esnext;
 
 pub use decorators::*;
+pub use es5::*;
+pub use es6::*;
 pub use es2015::*;
 pub use es2016::*;
 pub use es2017::*;
@@ -27,6 +29,4 @@ pub use es2021::*;
 pub use es2022::*;
 pub use es2023::*;
 pub use es2024::*;
-pub use es5::*;
-pub use es6::*;
 pub use esnext::*;

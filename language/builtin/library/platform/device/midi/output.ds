@@ -36,7 +36,7 @@ declare namespace device {
     /// Endpoint visibility and ordering follow host MIDI subsystem behavior.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -50,7 +50,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.port"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -64,7 +64,7 @@ declare namespace device {
     /// Endpoint open behavior follows host MIDI session policy and sharing semantics.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -78,7 +78,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.port"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -95,7 +95,7 @@ declare namespace device {
     /// This returns the runtime-stable identity surface for the opened endpoint even when the original list row is no longer cached locally.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -109,7 +109,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.port"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -122,7 +122,7 @@ declare namespace device {
     /// Close one opened MIDI output session and release host resources.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -136,7 +136,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.port"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -151,7 +151,7 @@ declare namespace device {
     /// Record framing and payload encoding must match the selected transport data format.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -165,7 +165,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.write"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -181,7 +181,7 @@ declare namespace device {
     /// Create one host-visible virtual MIDI output endpoint and return one opened output handle for writes.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -195,7 +195,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.virtual"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
