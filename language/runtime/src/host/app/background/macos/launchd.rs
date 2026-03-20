@@ -167,13 +167,10 @@ fn require_launchctl_path(operation: &'static str) -> RuntimeResult<&'static str
 
 /// Return one supported launchctl path when it exists on the current host.
 fn resolved_launchctl_path() -> Option<&'static str> {
-    for path in LAUNCHCTL_PATHS {
-        if std::path::Path::new(path).is_file() {
-            return Some(path);
-        }
-    }
-
-    None
+    LAUNCHCTL_PATHS
+        .iter()
+        .find(|path| std::path::Path::new(path).is_file())
+        .copied()
 }
 
 /// Require one launchctl output to have succeeded.

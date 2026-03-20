@@ -13,8 +13,8 @@ use windows_sys::Win32::System::Threading::GetCurrentProcessId;
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::OsPath;
-use crate::platform::net::{AcceptFlags, ListenerHandle, SocketHandle, SocketPair, SocketType};
-use crate::platform::resource::{ResourceEntry, ResourceKind};
+use crate::platform::net::{AcceptFlags, SocketHandle, SocketPair, SocketType};
+use crate::platform::resource::{ListenerHandle, ResourceEntry, ResourceKind};
 use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 

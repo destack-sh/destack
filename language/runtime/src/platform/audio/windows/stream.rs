@@ -3,15 +3,15 @@ use std::time::Duration;
 use super::core as audio_platform_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::core::{
-    AUDIO_STREAM_RESOURCE_LABEL, EVENT_POLL_INTERVAL_NS, MAX_STREAM_READ_BYTES,
-    STREAM_STATUS_INPUT_UNDERFLOW, STREAM_STATUS_OUTPUT_OVERFLOW, audio_not_found,
-    audio_would_block, decode_audio_bytes, encode_audio_bytes, ensure_capture_direction,
-    ensure_playback_direction, ensure_stream_capability, ensure_stream_requirements_satisfied,
-    frame_bytes, host_monotonic_nanos, host_stream_flush, host_stream_pause, host_stream_start,
-    host_stream_stop, open_null_stream, publish_stream_event_native, read_utf8,
-    resolve_device_host_state, resolve_stream_host_state, runtime_state, sample_bytes,
-    satisfied_stream_requirements, stream_availability_snapshot, stream_descriptor,
-    stream_device_from_state, stream_shutdown_error, stream_state_is_terminal,
+    AUDIO_STREAM_RESOURCE_LABEL, AudioStreamFinalizer, EVENT_POLL_INTERVAL_NS,
+    MAX_STREAM_READ_BYTES, STREAM_STATUS_INPUT_UNDERFLOW, STREAM_STATUS_OUTPUT_OVERFLOW,
+    audio_not_found, audio_would_block, decode_audio_bytes, encode_audio_bytes,
+    ensure_capture_direction, ensure_playback_direction, ensure_stream_capability,
+    ensure_stream_requirements_satisfied, frame_bytes, host_monotonic_nanos, host_stream_flush,
+    host_stream_pause, host_stream_start, host_stream_stop, open_null_stream,
+    publish_stream_event_native, read_utf8, resolve_device_host_state, resolve_stream_host_state,
+    runtime_state, sample_bytes, satisfied_stream_requirements, stream_availability_snapshot,
+    stream_descriptor, stream_device_from_state, stream_shutdown_error, stream_state_is_terminal,
     stream_state_snapshot, stream_timing_snapshot, validate_stream_config,
     validate_stream_open_options, validate_stream_open_options_for_backend,
     wait_for_stream_presentation_time,
@@ -131,12 +131,11 @@ pub(crate) unsafe fn destack_audio_stream_close(
     let stream = resolve_stream_host_state(binding, handle, "destack.audio.stream.close")?;
     stream.unbind_runtime();
 
-    let removed =
-        binding
-            .agent()
-            .resources
-            .remove(binding.world(), handle.0, Some(binding.engine()));
-    if removed.is_none() {
+    if !binding.agent().resources.remove_and_finalize(
+        binding.world(),
+        handle.0,
+        Some(binding.engine()),
+    ) {
         return Err(audio_not_found(
             "destack.audio.stream.close",
             format!("unknown audio stream handle {}", handle.0.0),
@@ -347,7 +346,8 @@ pub(crate) unsafe fn destack_audio_stream_open(
         binding.world(),
         ResourceEntry::new(ResourceKind::AudioStream)
             .with_label(AUDIO_STREAM_RESOURCE_LABEL)
-            .with_payload(stream.clone()),
+            .with_payload(stream.clone())
+            .with_finalizer(AudioStreamFinalizer::new(stream.clone())),
         Some(binding.engine()),
     );
     let stream_handle = resource::AudioStreamHandle(resource_id);

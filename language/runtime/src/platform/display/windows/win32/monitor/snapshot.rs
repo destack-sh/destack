@@ -143,6 +143,7 @@ pub(crate) fn descriptor_from_value(
         builtin_panel: value.builtin_panel,
         variable_refresh_support: value.variable_refresh_support,
         hdr_support: value.hdr_support,
+        color_state: None,
     }
 }
 

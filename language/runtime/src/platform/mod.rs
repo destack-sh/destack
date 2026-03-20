@@ -78,6 +78,7 @@ pub use proactor::{
     ProactorCompletion, ProactorCompletionData, ProactorOp, ProactorOpKind, ProactorRequest,
     ProactorShutdown,
 };
+#[allow(unused_imports)]
 pub(crate) use resource::{
     ResourceBacking, ResourceCapture, ResourceEntry, ResourceId, ResourceKind, ResourcePortability,
     ResourceTable,

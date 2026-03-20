@@ -22,7 +22,8 @@ impl HarnessContext<'_> {
             return Ok(());
         }
 
-        HostRuntimeRegistry::dispatch_host_event(runtime_id, &event)
+        let queue = HostRuntimeRegistry::queue_for_runtime(runtime_id, platform)?;
+        queue.dispatch_host_event(&event)
     }
 
     /// Enqueue one host lifecycle transition for this harness runtime.

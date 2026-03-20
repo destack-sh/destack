@@ -16,7 +16,9 @@ use crate::tests::runtime::TestRuntime;
 mod harness;
 #[cfg(any(windows, target_os = "macos"))]
 pub(crate) use harness::InputKeyboardStateRecord;
-pub(crate) use harness::{InputDeviceRecord, InputEventRecord, InputMonitorEventRecord};
+pub(crate) use harness::{
+    HarnessValue, InputDeviceRecord, InputEventRecord, InputMonitorEventRecord,
+};
 
 /// Test harness context used by tests.
 pub(crate) struct InputHarnessContext<'call> {

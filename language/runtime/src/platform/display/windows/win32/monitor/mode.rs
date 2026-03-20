@@ -8,7 +8,9 @@ use windows_sys::Win32::Graphics::Gdi::{
 };
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::display::{DisplayMode, DisplayOrientation, WindowModeOptions};
+use crate::platform::display::{
+    DisplayMode, DisplayOrientation, DisplayPixelFormat, WindowModeOptions,
+};
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
@@ -30,7 +32,7 @@ pub(crate) fn display_mode_from_devmode(value: &DEVMODEW) -> DisplayMode {
         width: value.dmPelsWidth,
         height: value.dmPelsHeight,
         refresh_milli_hz: value.dmDisplayFrequency.saturating_mul(1000),
-        format: 0,
+        format: DisplayPixelFormat(0),
         bit_depth,
     }
 }

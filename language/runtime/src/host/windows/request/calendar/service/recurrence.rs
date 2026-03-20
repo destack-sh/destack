@@ -16,9 +16,7 @@ use crate::platform::os::abi_generated::{
     CalendarRecurrenceFrequency, CalendarRecurrenceRuleValue, CalendarRecurrenceWeekday,
     CalendarRelativeReminderValue, CalendarReminderValue,
 };
-use crate::platform::os::{
-    CalendarAvailability, CalendarParticipantStatus, CalendarReminderAnchor,
-};
+use crate::platform::os::{CalendarAvailability, CalendarParticipantStatus};
 
 /// Apply one optional recurrence rule to one native appointment.
 pub(super) fn apply_recurrence_rule(
@@ -129,29 +127,21 @@ pub(super) fn apply_reminders(
         ));
     };
 
-    // Windows appointment reminders are start-relative
-    if reminder.anchor != CalendarReminderAnchor::Start {
+    // WinRT stores reminder lead time as one positive duration before start
+    if reminder.minutes_before_start < 0 {
         return Err(invalid_argument_value(
-            "reminder.anchor",
-            "windows calendar only supports reminders relative to the event start",
-        ));
-    }
-
-    // WinRT stores reminder lead time as a positive duration before start
-    if reminder.offset_seconds > 0 {
-        return Err(invalid_argument_value(
-            "reminder.offset_seconds",
+            "reminder.minutes_before_start",
             "windows calendar does not support reminders after the event start",
         ));
     }
 
-    let reminder = PropertyValue::CreateTimeSpan(timespan_from_ns(
-        reminder
-            .offset_seconds
-            .saturating_neg()
-            .saturating_mul(1_000_000_000),
-    ))
-    .map_err(|error| windows_calendar_error(operation, "PropertyValue::CreateTimeSpan", &error))?;
+    let lead_time_ns = i64::from(reminder.minutes_before_start)
+        .saturating_mul(60)
+        .saturating_mul(1_000_000_000);
+    let reminder =
+        PropertyValue::CreateTimeSpan(timespan_from_ns(lead_time_ns)).map_err(|error| {
+            windows_calendar_error(operation, "PropertyValue::CreateTimeSpan", &error)
+        })?;
     let reminder: IReference<TimeSpan> = reminder.cast().map_err(|error| {
         windows_calendar_error(
             operation,
@@ -235,13 +225,12 @@ pub(super) fn reminders_from_native(
         windows_calendar_error(operation, "IReference<TimeSpan>::Value", &error)
     })?;
     let lead_time_ns = super::core::duration_ns_from_timespan(reminder);
-    let offset_seconds = -((lead_time_ns / 1_000_000_000) as i64);
+    let minutes_before_start = (lead_time_ns / 60_000_000_000) as i32;
 
     Ok(Some(vec![CalendarReminderValue::CalendarRelativeReminder(
         CalendarRelativeReminderValue {
             kind: "relative".to_string(),
-            anchor: CalendarReminderAnchor::Start,
-            offset_seconds,
+            minutes_before_start,
         },
     )]))
 }

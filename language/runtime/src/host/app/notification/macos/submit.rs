@@ -310,10 +310,10 @@ fn submit_notification_request(
 
         // replacement semantics
         center.removePendingNotificationRequestsWithIdentifiers(
-            &objc2_foundation::NSArray::from_retained_slice(&[identifier.clone()]),
+            &objc2_foundation::NSArray::from_retained_slice(std::slice::from_ref(&identifier)),
         );
         center.removeDeliveredNotificationsWithIdentifiers(
-            &objc2_foundation::NSArray::from_retained_slice(&[identifier.clone()]),
+            &objc2_foundation::NSArray::from_retained_slice(std::slice::from_ref(&identifier)),
         );
 
         let request = UNNotificationRequest::requestWithIdentifier_content_trigger(

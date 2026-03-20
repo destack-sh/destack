@@ -152,7 +152,7 @@ fn force_window_event_backend(
 
 #[cfg(any(unix, windows))]
 /// Drain one window-event stream until it reports would-block.
-fn drain_window_event_stream(
+pub(crate) fn drain_window_event_stream(
     context: &mut DisplayHarnessContext<'_>,
     stream: resource::WindowEventHandle,
 ) -> RuntimeResult<()> {
@@ -1145,10 +1145,10 @@ pub(crate) fn test_window_destroyed_is_terminal_for_window_event_stream() {
                 };
 
                 let marker = marker_for_window_event(&event, window);
-                if let Some(marker) = marker {
-                    if marker == WindowEventMarker::Destroyed {
-                        saw_destroyed = true;
-                    }
+                if let Some(marker) = marker
+                    && marker == WindowEventMarker::Destroyed
+                {
+                    saw_destroyed = true;
                 }
             }
 

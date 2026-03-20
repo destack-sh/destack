@@ -3,9 +3,9 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 use crate::platform::{VmArray, VmSlice};
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 use destack_vm as vm;
 
 #[cfg(any(test, feature = "execution"))]
@@ -91,7 +91,7 @@ pub(crate) fn assert_platform_error_codes_with_privileged_policy<T>(
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 /// Assert one result is ok or fails with one expected platform code set.
 pub(crate) fn assert_ok_or_expected_error<T>(
     result: RuntimeResult<T>,
@@ -206,7 +206,7 @@ pub(crate) fn is_privileged_test_mode() -> bool {
     matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES")
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 /// Intern one VM test string into one handle.
 pub(crate) fn vm_test_string(
     context: &mut vm::ExternalCallContext<'_>,
@@ -219,7 +219,7 @@ pub(crate) fn vm_test_string(
     vm::StringHandle::new(value)
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 /// Allocate one VM test byte array.
 pub(crate) fn vm_test_byte_array(
     context: &mut vm::ExternalCallContext<'_>,

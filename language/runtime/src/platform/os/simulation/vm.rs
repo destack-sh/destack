@@ -777,7 +777,7 @@ pub(crate) fn destack_os_credentials_write(
 ///
 /// # Replay
 /// External, recordable.
-
+///
 /// Open one persisted document-access grant.
 ///
 /// Open one persisted external-access grant by identifier with one selected access mode.
@@ -794,7 +794,7 @@ pub(crate) fn destack_os_credentials_write(
 ///
 /// # Replay
 /// External, nonrecordable.
-
+///
 /// Persist external document access for later reopen.
 ///
 /// Persist host-granted access for selected external documents and return durable grant descriptors.
@@ -811,7 +811,7 @@ pub(crate) fn destack_os_credentials_write(
 ///
 /// # Replay
 /// External, nonrecordable.
-
+///
 /// Revoke persisted document-access grants.
 ///
 /// Revoke persisted document-access grants by identifier and return revoked grant count.
@@ -828,7 +828,7 @@ pub(crate) fn destack_os_credentials_write(
 ///
 /// # Replay
 /// External, nonrecordable.
-
+///
 /// Close one opened document handle.
 ///
 /// Close one opened document handle and release host resources.
@@ -1780,7 +1780,7 @@ pub(crate) fn destack_os_media_list(
 ///
 /// # Replay
 /// External, recordable.
-
+///
 /// Open media watch stream.
 ///
 /// Open one runtime-owned media watch stream and track add or update or remove events for one filtered asset set.
@@ -1798,7 +1798,7 @@ pub(crate) fn destack_os_media_list(
 ///
 /// # Replay
 /// External, recordable.
-
+///
 /// Wait for one media watch event.
 ///
 /// Wait for one queued media watch event from one opened watch stream.
@@ -1815,7 +1815,7 @@ pub(crate) fn destack_os_media_list(
 ///
 /// # Replay
 /// External, recordable.
-
+///
 /// Poll one media watch event without blocking.
 ///
 /// Poll one queued media watch event from one opened watch stream without waiting.
@@ -1832,7 +1832,7 @@ pub(crate) fn destack_os_media_list(
 ///
 /// # Replay
 /// External, recordable.
-
+///
 /// Enumerate mount table entries.
 ///
 /// Return one snapshot of the current host mount table.

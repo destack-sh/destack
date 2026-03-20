@@ -76,7 +76,7 @@ mod host;
 pub mod native;
 pub(crate) mod simulation;
 mod state;
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 mod tests;
 pub(crate) mod validation;
 pub mod vm;

@@ -9,7 +9,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::MONITORINFOF_PRIMARY;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
-use crate::platform::display::{DisplayMode, DisplaySupportStatus};
+use crate::platform::display::{DisplayMode, DisplayPixelFormat, DisplaySupportStatus};
 
 use crate::platform::display::windows::win32::core as win32_core;
 /// Number of gamma entries per color channel in Win32.
@@ -66,7 +66,7 @@ pub(crate) fn display_mode_from_rect(rect: RECT) -> DisplayMode {
         width,
         height,
         refresh_milli_hz: 60_000,
-        format: 0,
+        format: DisplayPixelFormat(0),
         bit_depth: 32,
     }
 }

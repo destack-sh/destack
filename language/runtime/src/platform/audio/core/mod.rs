@@ -51,7 +51,7 @@ pub(crate) use error::{
     validate_stream_open_options_for_backend,
 };
 pub(crate) use event::{publish_stream_event_native, refresh_device_subscriptions_for_rescan};
-pub(crate) use model::{AudioDeviceHostState, HostDeviceDescriptor};
+pub(crate) use model::{AudioDeviceHostState, AudioStreamFinalizer, HostDeviceDescriptor};
 pub(crate) use monitor::AudioMonitorHandle;
 pub(crate) use runtime::runtime_state;
 #[allow(unused_imports)]
