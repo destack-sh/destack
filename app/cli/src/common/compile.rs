@@ -143,7 +143,7 @@ impl CompilerContext {
             CompilerOptions {
                 diagnostic: diagnostic_options.clone(),
                 workers: program_args.workers,
-                load_libs: !program_args.no_libs,
+                load_libraries: !program_args.no_libs,
                 inject_prelude: !program_args.no_prelude,
                 follow_imports: !program_args.no_follow_imports,
                 timings: program_args.timings,

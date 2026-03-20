@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Once};
 
 use destack_ast::NodeParentIndex;
-use destack_compiler::{BuildKey, Compiler, CompilerOptions};
+use destack_compiler::{Compiler, CompilerOptions};
 use destack_fir::format as fir_format;
 use destack_formatter::{
     DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, statement_list,
@@ -246,17 +246,15 @@ impl TestProgram {
 
     /// Import a module.
     pub(crate) fn import_module(&self, module: ModuleId) {
-        self.compiler
-            .enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirBase { module }));
+        self.compiler.enqueue(ArtifactKey::DirBase { module });
     }
 
     /// Resolve a module.
     pub(crate) fn resolve_module(&self, module: ModuleId) {
-        self.compiler
-            .enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirResolved {
-                module,
-                profile: self.profile_id,
-            }));
+        self.compiler.enqueue(ArtifactKey::DirResolved {
+            module,
+            profile: self.profile_id,
+        });
     }
 
     /// Resolve the language environment for the current profile.
@@ -269,7 +267,7 @@ impl TestProgram {
     /// Resolve builtin libs for the current profile.
     pub(crate) fn resolve_libs(&self) {
         self.compiler
-            .drive(|compiler| compiler.require_lib_environment(self.profile_id))
+            .drive(|compiler| compiler.require_library_environment(self.profile_id))
             .unwrap_or_else(|error| panic!("failed to resolve libs: {error:?}"));
     }
 
@@ -288,11 +286,10 @@ impl TestProgram {
 
     /// Analyze a module.
     pub(crate) fn analyze_module(&self, module: ModuleId) {
-        self.compiler
-            .enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
-                module,
-                profile: self.profile_id,
-            }));
+        self.compiler.enqueue(ArtifactKey::DirAnalyzed {
+            module,
+            profile: self.profile_id,
+        });
     }
 
     /// Run all queued tasks.

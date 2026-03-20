@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_compiler::{BuildKey, Compiler, CompilerOptions, TaskOutcome};
+use destack_compiler::{Compiler, CompilerOptions, TaskOutcome};
 use destack_source::DiagnosticSeverity;
 use destack_workspace::{
     ArtifactKey, EnvSnapshot, OutputFormat, Platform, ProfileFlags, ProfileId, ProfileKey, Program,
@@ -119,7 +119,7 @@ impl RuntimeGenerator {
         // load the builtin platform library modules
         self.session
             .builtins
-            .load_lib(
+            .load_library(
                 "platform",
                 self.session.files.clone(),
                 self.session.modules.clone(),
@@ -135,26 +135,22 @@ impl RuntimeGenerator {
         platform_modules: &[destack_source::ModuleId],
     ) {
         // resolve builtin symbols for the target profile
-        let builtins_outcome =
-            self.compiler
-                .run_task(BuildKey::artifact(ArtifactKey::language_environment(
-                    profile_id,
-                )));
+        let builtins_outcome = self
+            .compiler
+            .run_task(ArtifactKey::language_environment(profile_id));
         self.assert_task_complete(builtins_outcome, "ResolveBuiltins");
 
         // resolve builtin libraries for the target profile
         let resolve_outcome = self
             .compiler
-            .run_task(BuildKey::artifact(ArtifactKey::lib_environment(profile_id)));
+            .run_task(ArtifactKey::lib_environment(profile_id));
         self.assert_task_complete(resolve_outcome, "ResolveLibs");
 
         // build the full platform surface sequentially
         for module_id in platform_modules {
             let outcome = self
                 .compiler
-                .run_task(BuildKey::artifact(ArtifactKey::dir_patched(
-                    *module_id, profile_id,
-                )));
+                .run_task(ArtifactKey::dir_patched(*module_id, profile_id));
             let task_name = format!("BuildDirPatched({module_id:?})");
             self.assert_task_complete(outcome, &task_name);
         }

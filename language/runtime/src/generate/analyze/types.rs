@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use destack_builtin::LanguageSymbol;
-use destack_compiler::{BuildKey, Compiler, TaskOutcome};
+use destack_compiler::{Compiler, TaskOutcome};
 use destack_core::{StringPool, fnv1a_64};
 use destack_dir::{
     self as dir, Annotation, Argument, Declaration, DependencyItem, Expression, GlobalSymbolId,
@@ -166,9 +166,7 @@ fn patched_dir_artifact(
         return dir;
     }
 
-    let outcome = compiler.run_task(BuildKey::artifact(ArtifactKey::dir_patched(
-        module_id, profile_id,
-    )));
+    let outcome = compiler.run_task(ArtifactKey::dir_patched(module_id, profile_id));
     match outcome {
         TaskOutcome::Complete => {}
         TaskOutcome::Skipped => {
@@ -202,7 +200,7 @@ pub(crate) fn binding_type_symbols(program: &Program, profile_id: ProfileId) -> 
         .unwrap_or_else(|| panic!("missing language environment for profile {profile_id:?}"));
     let lib_environment = program
         .artifacts
-        .lib_environment(profile_id)
+        .library_environment(profile_id)
         .unwrap_or_else(|| panic!("missing lib environment for profile {profile_id:?}"));
     let result = language_environment
         .item(LanguageSymbol::Result)

@@ -205,8 +205,12 @@ impl<'a> LintModuleDirContext<'a> {
 
     /// Get a cached declared lib symbol for the module profile and name.
     pub fn get_declared_lib_symbol(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
-        let environment = self.program.artifacts.lib_environment(self.profile_id)?;
-        environment.declared_symbol_from(name, dir::SymbolSpaceOrder::ValueThenType)
+        let environment = self
+            .program
+            .artifacts
+            .library_environment(self.profile_id)?;
+        let name = self.program.strings.get(name);
+        environment.declared_symbol_from(name.as_ref(), dir::SymbolSpaceOrder::ValueThenType)
     }
 
     /// Get a declared lib symbol from the cache, panicking if not found.
@@ -219,7 +223,10 @@ impl<'a> LintModuleDirContext<'a> {
 
     /// Get well-known symbols for the module profile.
     pub fn get_well_known_symbols(&self) -> Option<WellKnownSymbols> {
-        let environment = self.program.artifacts.lib_environment(self.profile_id)?;
+        let environment = self
+            .program
+            .artifacts
+            .library_environment(self.profile_id)?;
         Some(environment.well_known_symbols.clone())
     }
 
@@ -284,12 +291,12 @@ impl<'a> LintModuleDirContext<'a> {
         let Some(builtins) = self.program.builtins.as_ref() else {
             return false;
         };
-        let Some(environment) = self.program.artifacts.lib_environment(self.profile_id) else {
+        let Some(environment) = self.program.artifacts.library_environment(self.profile_id) else {
             return false;
         };
 
         for module_id in &environment.ambient_modules {
-            let Some(lib_name) = builtins.lib_name_for_module(*module_id) else {
+            let Some(lib_name) = builtins.library_name_for_module(*module_id) else {
                 continue;
             };
             if libs.contains(&lib_name) {

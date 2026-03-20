@@ -821,11 +821,11 @@ impl Program {
         // lock native targets to native friendly libs
         if runtime.is_native() {
             libs.retain(|lib| {
-                let Some(builtin) = destack_builtin::builtin_lib(lib) else {
+                let Some(builtin) = destack_builtin::builtin_library(lib) else {
                     return true;
                 };
 
-                matches!(builtin.kind, destack_builtin::BuiltinLibKind::Language)
+                matches!(builtin.kind, destack_builtin::BuiltinLibraryKind::Language)
                     || matches!(builtin.name, "native" | "platform" | "destack")
             });
             if !libs.iter().any(|lib| lib == "native") {

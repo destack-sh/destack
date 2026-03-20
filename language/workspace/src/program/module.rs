@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 
-use destack_builtin::BuiltinLibKind;
+use destack_builtin::BuiltinLibraryKind;
 use destack_source::{FileId, FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, Uri};
 
 use crate::{Loader, ModuleTarget, SourceType, TsConfigId};
@@ -14,7 +14,7 @@ pub enum ModuleSource {
     /// User/project code.
     User,
     /// Builtin library code.
-    Builtin(BuiltinLibKind),
+    Builtin(BuiltinLibraryKind),
 }
 
 /// The runtime module system format.

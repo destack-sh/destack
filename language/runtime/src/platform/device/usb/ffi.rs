@@ -463,7 +463,7 @@ pub(super) mod ffi {
 }
 
 /// Load one libusb api table from one dynamic library candidate.
-pub(super) fn load_libusb_api(
+pub(super) fn load_libraryusb_api(
     library: &DynamicLibrary,
     candidate: &str,
 ) -> Result<LibusbApi, String> {
