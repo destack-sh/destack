@@ -475,7 +475,7 @@ impl Program {
         let module = module.as_ref();
 
         // try package config first
-        if let Some(options) = self.with_config_options(&module, |ds| ds.linter.clone()) {
+        if let Some(options) = self.with_config_options(module, |ds| ds.linter.clone()) {
             return options;
         }
 
@@ -602,7 +602,7 @@ impl Program {
 
         // derive profile compiler options from package config or tsconfig
         let (compiler_options, tsconfig_context) =
-            self.profile_compiler_options_for_module(&package, &module);
+            self.profile_compiler_options_for_module(&package, module);
 
         // get target and profile config from the package config
         let (target, profile_config) = if let Some(config) = package.config.as_ref() {
@@ -617,7 +617,7 @@ impl Program {
                 })
                 .or_else(|| package.targets.values().find(|target| !target.synthetic))
                 .cloned()
-                .unwrap_or_else(|| self.fallback_target_for_module(&module));
+                .unwrap_or_else(|| self.fallback_target_for_module(module));
             let profile_config = compiler_options
                 .profile
                 .as_ref()
@@ -625,7 +625,7 @@ impl Program {
             (target, profile_config)
         } else {
             // pick a target based on the module language when no package config exists
-            (self.fallback_target_for_module(&module), None)
+            (self.fallback_target_for_module(module), None)
         };
 
         let key = Self::profile_key_for_target(
@@ -673,9 +673,9 @@ impl Program {
                 })
                 .or_else(|| package.targets.values().find(|target| !target.synthetic))
                 .cloned()
-                .unwrap_or_else(|| self.fallback_target_for_module(&module))
+                .unwrap_or_else(|| self.fallback_target_for_module(module))
         } else {
-            self.fallback_target_for_module(&module)
+            self.fallback_target_for_module(module)
         };
 
         let synthetic_target = Target::synthetic_for(&base_target, Self::DIAGNOSTIC_TARGET_NAME);
@@ -723,7 +723,7 @@ impl Program {
             .or_else(|| Target::implicit_for_name(&target_id.name))?;
 
         let (compiler_options, tsconfig_context) =
-            self.profile_compiler_options_for_module(&package, &module);
+            self.profile_compiler_options_for_module(&package, module);
         let profile_config = package.config.as_ref().and_then(|config| {
             target
                 .profile

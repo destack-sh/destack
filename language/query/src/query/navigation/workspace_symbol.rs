@@ -64,7 +64,7 @@ pub fn workspace_symbols(
         }
 
         // resolve query context for the module
-        let Some(ctx) = crate::query_context(session, &module) else {
+        let Some(ctx) = crate::query_context(session, module) else {
             continue;
         };
 

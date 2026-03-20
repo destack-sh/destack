@@ -112,7 +112,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
     let module = session.modules.get(canonical_id.module_id);
     let module = module.as_ref();
-    let program = program_for_module(session, &module);
+    let program = program_for_module(session, module);
     let profile = program.default_profile_id_for_module(canonical_id.module_id);
 
     // get documentation for this symbol
@@ -139,7 +139,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
     }
 
     // resolve module query context for richer formatting
-    let ctx = query_context(session, &module)?;
+    let ctx = query_context(session, module)?;
 
     // resolve symbol metadata
     let symbols = ctx.symbols();

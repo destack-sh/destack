@@ -20,7 +20,7 @@ pub(crate) fn for_each_visible_extension(
     for module in session.modules.iter() {
         // read the module and query context
         let module = module.as_ref();
-        let Some(ctx) = crate::query_context(session, &module) else {
+        let Some(ctx) = crate::query_context(session, module) else {
             continue;
         };
 

@@ -70,7 +70,7 @@ pub fn selection_ranges(session: &Session, file: FileId, positions: &[u32]) -> V
         return Vec::new();
     };
     let module = module.as_ref();
-    let program = program_for_module(session, &module);
+    let program = program_for_module(session, module);
     let Some(ast) = program.artifacts.ast(module.id) else {
         return Vec::new();
     };

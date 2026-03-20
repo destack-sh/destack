@@ -214,7 +214,7 @@ fn resolve_type_members_inner(
                         // load the symbol and check if it's an enum
                         let module = session.modules.get(symbol.module_id);
                         let module = module.as_ref();
-                        if let Some(ctx) = query_context(session, &module) {
+                        if let Some(ctx) = query_context(session, module) {
                             let symbols_table = ctx.symbols();
                             let sym = symbols_table.get_symbol(symbol.local_id);
                             return sym.ty == SymbolType::Enum;
@@ -314,7 +314,7 @@ pub(crate) fn resolve_reference_members(
     // load the symbol's module
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let Some(ctx) = query_context(session, &module) else {
+    let Some(ctx) = query_context(session, module) else {
         return Vec::new();
     };
     let symbols = ctx.symbols();
@@ -636,7 +636,7 @@ fn resolve_well_known_members(
     // resolve the current query profile so we stay on one exact lib surface
     let module = session.modules.get(current_module_id);
     let module = module.as_ref();
-    let Some(ctx) = query_context(session, &module) else {
+    let Some(ctx) = query_context(session, module) else {
         return Vec::new();
     };
 

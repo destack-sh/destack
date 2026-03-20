@@ -418,7 +418,7 @@ fn symbol_resolves_to_canonical(
         // load the module context for the current symbol
         let module = session.modules.get(current_symbol.module_id);
         let module = module.as_ref();
-        let Some(ctx) = crate::query_context(session, &module) else {
+        let Some(ctx) = crate::query_context(session, module) else {
             return false;
         };
 
@@ -563,7 +563,7 @@ fn symbol_is_type_parameter(session: &Session, symbol_id: GlobalSymbolId) -> boo
     // resolve the module and query context for the symbol
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let Some(ctx) = crate::query_context(session, &module) else {
+    let Some(ctx) = crate::query_context(session, module) else {
         return false;
     };
 

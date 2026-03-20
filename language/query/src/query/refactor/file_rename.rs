@@ -97,7 +97,7 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
     // scan modules for import and re export targets
     for module_ref in session.modules.iter() {
         let module = module_ref.as_ref();
-        let Some(ctx) = crate::query_context(session, &module) else {
+        let Some(ctx) = crate::query_context(session, module) else {
             continue;
         };
 

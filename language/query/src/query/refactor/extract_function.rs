@@ -74,7 +74,7 @@ pub fn extract_function(
     // resolve the module and query context
     let module = get_module_by_file_id(session, file)?;
     let module = module.as_ref();
-    let ctx = query_context(session, &module)?;
+    let ctx = query_context(session, module)?;
 
     // resolve source text for edits
     let source_file = session.files.get(file);
@@ -710,7 +710,7 @@ fn symbol_mutability(session: &Session, symbol_id: dir::GlobalSymbolId) -> Optio
     // resolve the mutability for the symbol
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = query_context(session, &module)?;
+    let ctx = query_context(session, module)?;
     let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
     symbol.binding_mutability
@@ -748,7 +748,7 @@ fn symbol_type_text(
     // resolve the declaration node for the symbol in its module
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = query_context(session, &module)?;
+    let ctx = query_context(session, module)?;
     let declaration = {
         let symbols = ctx.symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);

@@ -104,7 +104,7 @@ pub fn change_signature(
     // update call sites across all modules
     for module in session.modules.iter() {
         let module = module.as_ref();
-        let Some(ctx) = crate::query_context(session, &module) else {
+        let Some(ctx) = crate::query_context(session, module) else {
             continue;
         };
         let dir_tree = ctx.tree();
@@ -178,7 +178,7 @@ fn constructor_owner_symbol(
     // resolve the module and query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = crate::query_context(session, module)?;
 
     // resolve the declaration node
     let declaration = {
@@ -371,7 +371,7 @@ fn resolve_namespace_member_symbol(
     // resolve the owning module for the alias symbol
     let module = session.modules.get(alias_symbol.module_id);
     let module = module.as_ref();
-    let alias_ctx = crate::query_context(session, &module)?;
+    let alias_ctx = crate::query_context(session, module)?;
 
     // resolve the dependency item that introduced the alias
     let declaration = {
@@ -475,7 +475,7 @@ fn function_parameter_span(session: &Session, symbol_id: dir::GlobalSymbolId) ->
     // resolve the module and query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = crate::query_context(session, module)?;
 
     // resolve the declaration node
     let declaration = {
@@ -533,7 +533,7 @@ fn function_parameter_spans(session: &Session, symbol_id: dir::GlobalSymbolId) -
     // resolve secondary declarations (overloads)
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let Some(ctx) = crate::query_context(session, &module) else {
+    let Some(ctx) = crate::query_context(session, module) else {
         return spans;
     };
     let secondary = {
@@ -566,7 +566,7 @@ fn function_parameter_name_positions(
     // resolve the module and query context for the symbol
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let Some(ctx) = crate::query_context(session, &module) else {
+    let Some(ctx) = crate::query_context(session, module) else {
         return HashMap::new();
     };
 
@@ -609,7 +609,7 @@ fn function_parameter_name_positions(
 fn parameter_span_for_node(session: &Session, node_id: dir::GlobalNodeIdAny) -> Option<Span> {
     let module = session.modules.get(node_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = crate::query_context(session, module)?;
     let dir_tree = ctx.tree();
 
     match node_id.local_id.ty {

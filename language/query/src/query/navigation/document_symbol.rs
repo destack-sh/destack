@@ -148,7 +148,7 @@ fn document_symbols_with_ast(session: &Session, file: FileId) -> Vec<DocumentSym
         return Vec::new();
     };
     let module = module.as_ref();
-    let program = program_for_module(session, &module);
+    let program = program_for_module(session, module);
     let Some(ast) = program.artifacts.ast(module.id) else {
         return Vec::new();
     };

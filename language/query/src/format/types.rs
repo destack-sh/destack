@@ -618,7 +618,7 @@ pub fn format_symbol_qualified_name(
     if package_name.is_empty() {
         return None;
     }
-    let module_path = module_path_without_extension(&module, &package)?;
+    let module_path = module_path_without_extension(module, &package)?;
 
     // resolve symbol path
     let symbol_path = format_symbol_path(symbol_id, artifacts, strings)?;

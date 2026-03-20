@@ -64,7 +64,7 @@ fn resolve_export_symbol_type(session: &Session, symbol_id: GlobalSymbolId) -> O
     // resolve the module query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = query_context(session, &module)?;
+    let ctx = query_context(session, module)?;
     let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
     Some(symbol.ty)
@@ -83,8 +83,8 @@ pub fn get_module_exports_maybe(
     // get module AST and DIR
     let module = session.modules.get(module_id);
     let module = module.as_ref();
-    let ctx = query_context(session, &module)?;
-    let module_path = module_path_for_import(&module);
+    let ctx = query_context(session, module)?;
+    let module_path = module_path_for_import(module);
     let symbols = ctx.symbols();
 
     // initialize export collection
@@ -197,7 +197,7 @@ where
         }
 
         // resolve the module path for imports
-        let module_path = module_path_for_import(&module);
+        let module_path = module_path_for_import(module);
 
         // resolve exported symbols for the module
         let Some(exports) = get_module_exports_maybe(session, module_id) else {

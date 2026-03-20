@@ -338,7 +338,7 @@ pub fn collect_existing_imports(session: &Session, file_id: FileId) -> Vec<Exist
         return Vec::new();
     };
     let module = module.as_ref();
-    let Some(ctx) = crate::query_context(session, &module) else {
+    let Some(ctx) = crate::query_context(session, module) else {
         return Vec::new();
     };
 

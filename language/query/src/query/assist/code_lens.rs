@@ -137,7 +137,7 @@ pub fn code_lenses(session: &Session, file: FileId) -> Vec<CodeLens> {
         return Vec::new();
     };
     let module = module.as_ref();
-    let Some(ctx) = crate::query_context(session, &module) else {
+    let Some(ctx) = crate::query_context(session, module) else {
         return Vec::new();
     };
     let module_id = ctx.module_id;
@@ -253,7 +253,7 @@ fn count_references(session: &Session, symbol_id: GlobalSymbolId) -> usize {
 
     for module in session.modules.iter() {
         let module = module.as_ref();
-        let Some(ctx) = crate::query_context(session, &module) else {
+        let Some(ctx) = crate::query_context(session, module) else {
             continue;
         };
         let dir_tree = ctx.tree();
@@ -278,7 +278,7 @@ fn count_implementations(session: &Session, symbol_id: GlobalSymbolId) -> usize 
 
     for module in session.modules.iter() {
         let module = module.as_ref();
-        let Some(ctx) = crate::query_context(session, &module) else {
+        let Some(ctx) = crate::query_context(session, module) else {
             continue;
         };
         let types = ctx.types();
@@ -300,7 +300,7 @@ fn count_subclasses(session: &Session, symbol_id: GlobalSymbolId) -> usize {
 
     for module in session.modules.iter() {
         let module = module.as_ref();
-        let Some(ctx) = crate::query_context(session, &module) else {
+        let Some(ctx) = crate::query_context(session, module) else {
             continue;
         };
         let types = ctx.types();

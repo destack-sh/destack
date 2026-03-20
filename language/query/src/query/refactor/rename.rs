@@ -257,7 +257,7 @@ fn collect_symbol_reference_spans_across_user_modules(
             continue;
         }
 
-        let Some(ctx) = crate::query_context(session, &module) else {
+        let Some(ctx) = crate::query_context(session, module) else {
             continue;
         };
 
@@ -323,7 +323,7 @@ fn resolve_name_from_primary_declaration(
     // resolve query context for the symbol module
     let module = session.modules.get(canonical_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = crate::query_context(session, module)?;
 
     // resolve the primary declaration node id
     let declaration = {
@@ -414,7 +414,7 @@ fn resolve_interface_member_target(
     // resolve query context for the symbol module
     let module = session.modules.get(canonical_id.module_id);
     let module = module.as_ref();
-    let ctx = crate::query_context(session, &module)?;
+    let ctx = crate::query_context(session, module)?;
 
     // resolve the member declaration node
     let declaration = {
@@ -475,7 +475,7 @@ fn collect_interface_member_implementations(
 
     for module in session.modules.iter() {
         let module = module.as_ref();
-        let Some(ctx) = crate::query_context(session, &module) else {
+        let Some(ctx) = crate::query_context(session, module) else {
             continue;
         };
 
