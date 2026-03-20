@@ -1,5 +1,6 @@
 use crate::platform::device::usb::descriptor::{
-    endpoint_address, request_index, request_type_bits, usb_device_id, validate_endpoint,
+    endpoint_address, request_index, request_type_bits, usb_device_id, validate_control_setup,
+    validate_endpoint, validate_endpoint_selector,
 };
 use crate::platform::device::usb::ffi::ffi;
 use crate::platform::device::{
@@ -77,6 +78,87 @@ fn test_validate_endpoint_rejects_endpoint_numbers_above_usb_range() {
         error
             .platform_error()
             .expect("endpoint validation should return one platform error")
+            .code,
+        crate::platform::diagnostic::PlatformErrorCode::InvalidArgumentValue
+    );
+}
+
+/// Reject endpoint zero because control transfers do not use endpoint selectors.
+#[test]
+fn test_validate_endpoint_rejects_endpoint_zero() {
+    let endpoint = UsbEndpointSelectorValue {
+        number: 0,
+        direction: UsbEndpointDirection::In,
+    };
+
+    let error = validate_endpoint(&endpoint, UsbEndpointDirection::In, "endpoint")
+        .expect_err("endpoint zero must be rejected");
+
+    assert_eq!(
+        error
+            .platform_error()
+            .expect("endpoint validation should return one platform error")
+            .code,
+        crate::platform::diagnostic::PlatformErrorCode::InvalidArgumentValue
+    );
+}
+
+/// Accept one valid endpoint selector when direction is not operation constrained.
+#[test]
+fn test_validate_endpoint_selector_accepts_one_valid_endpoint_without_direction_checks() {
+    let endpoint = UsbEndpointSelectorValue {
+        number: 3,
+        direction: UsbEndpointDirection::Out,
+    };
+
+    validate_endpoint_selector(&endpoint, "endpoint")
+        .expect("endpoint selector validation should accept one valid endpoint");
+}
+
+/// Reject endpoints whose direction does not match the transfer operation.
+#[test]
+fn test_validate_endpoint_rejects_direction_mismatches() {
+    let endpoint = UsbEndpointSelectorValue {
+        number: 3,
+        direction: UsbEndpointDirection::Out,
+    };
+
+    let error = validate_endpoint(&endpoint, UsbEndpointDirection::In, "endpoint")
+        .expect_err("direction mismatches must be rejected");
+
+    assert_eq!(
+        error
+            .platform_error()
+            .expect("endpoint validation should return one platform error")
+            .code,
+        crate::platform::diagnostic::PlatformErrorCode::InvalidArgumentValue
+    );
+}
+
+/// Reject endpoint-recipient control transfers that target endpoint zero.
+#[test]
+fn test_validate_control_setup_rejects_endpoint_recipient_zero() {
+    let setup = UsbControlSetupValue {
+        transfer_type: UsbControlTransferType::Standard,
+        target: UsbControlTargetValue::UsbControlEndpointTarget(UsbControlEndpointTargetValue {
+            kind: String::from(USB_CONTROL_ENDPOINT_TARGET_KIND),
+            endpoint: UsbEndpointSelectorValue {
+                number: 0,
+                direction: UsbEndpointDirection::In,
+            },
+        }),
+        request: 1,
+        value: 2,
+        length: 3,
+    };
+
+    let error = validate_control_setup(&setup)
+        .expect_err("endpoint-recipient control transfers must reject endpoint zero");
+
+    assert_eq!(
+        error
+            .platform_error()
+            .expect("control validation should return one platform error")
             .code,
         crate::platform::diagnostic::PlatformErrorCode::InvalidArgumentValue
     );

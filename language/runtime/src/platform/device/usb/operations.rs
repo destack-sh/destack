@@ -813,7 +813,8 @@ pub(crate) unsafe fn destack_device_usb_transfer_cancel(
 ) -> RuntimeResult<()> {
     let resource = usb_device_resource(binding, handle, "destack.device.usb.transferCancel")?;
     let endpoint = unsafe { endpoint.into_value()? };
-    let endpoint_address = u8::try_from(endpoint_address(&endpoint)).unwrap_or(0);
+    validate_endpoint_selector(&endpoint, "endpoint")?;
+    let endpoint_address = endpoint_address(&endpoint) as u8;
 
     cancel_active_endpoint_transfers(
         &resource,
@@ -840,6 +841,7 @@ pub(crate) unsafe fn destack_device_usb_clear_halt(
 ) -> RuntimeResult<()> {
     let resource = usb_device_resource(binding, handle, "destack.device.usb.clearHalt")?;
     let endpoint = unsafe { endpoint.into_value()? };
+    validate_endpoint_selector(&endpoint, "endpoint")?;
     let endpoint = endpoint_address(&endpoint) as u8;
     let _operation_lock = resource.operation_lock.lock();
     let status = unsafe { (resource.service.api.libusb_clear_halt)(resource.handle, endpoint) };

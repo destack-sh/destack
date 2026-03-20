@@ -67,6 +67,16 @@ pub(crate) fn request_index(setup: &UsbControlSetupValue) -> u16 {
     }
 }
 
+/// Validate one control-transfer target before encoding it.
+pub(crate) fn validate_control_setup(setup: &UsbControlSetupValue) -> RuntimeResult<()> {
+    // endpoint recipients must still target one real non-control endpoint
+    let UsbControlTargetValue::UsbControlEndpointTarget(target) = &setup.target else {
+        return Ok(());
+    };
+
+    validate_endpoint_selector(&target.endpoint, "setup.target.endpoint")
+}
+
 /// Convert one endpoint selector into one libusb endpoint address.
 pub(crate) fn endpoint_address(endpoint: &UsbEndpointSelectorValue) -> u16 {
     let direction = match endpoint.direction {
@@ -77,12 +87,12 @@ pub(crate) fn endpoint_address(endpoint: &UsbEndpointSelectorValue) -> u16 {
     direction | u16::from(endpoint.number & 0x0f)
 }
 
-/// Validate one endpoint selector for one transfer direction.
-pub(crate) fn validate_endpoint(
+/// Validate one non-control endpoint selector.
+pub(crate) fn validate_endpoint_selector(
     endpoint: &UsbEndpointSelectorValue,
-    expected_direction: UsbEndpointDirection,
     field: &'static str,
 ) -> RuntimeResult<()> {
+    // endpoint zero is reserved for control transfers
     if endpoint.number == 0 {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             field,
@@ -99,6 +109,17 @@ pub(crate) fn validate_endpoint(
         ))
         .boxed());
     }
+
+    Ok(())
+}
+
+/// Validate one endpoint selector for one transfer direction.
+pub(crate) fn validate_endpoint(
+    endpoint: &UsbEndpointSelectorValue,
+    expected_direction: UsbEndpointDirection,
+    field: &'static str,
+) -> RuntimeResult<()> {
+    validate_endpoint_selector(endpoint, field)?;
 
     if endpoint.direction != expected_direction {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
