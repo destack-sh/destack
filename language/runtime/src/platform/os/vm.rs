@@ -3,8 +3,8 @@ use crate::platform::core::store_os_path_from_vm;
 use crate::platform::os::{
     BackgroundEventOpenOptionsVm, BackgroundEventVm, BackgroundStatus, BackgroundTaskDescriptorVm,
     BackgroundTaskOptionsVm, BackgroundTaskResult, CalendarDescriptorVm, CalendarEventDraftVm,
-    CalendarEventQueryVm, CalendarEventVm, ClipboardBinaryFormat, ContactDraftVm, ContactPageVm,
-    ContactQueryVm, ContactVm, CredentialAuthenticationOptionsVm, CredentialAuthenticationResultVm,
+    CalendarEventQueryVm, CalendarEventVm, ContactDraftVm, ContactPageVm, ContactQueryVm,
+    ContactVm, CredentialAuthenticationOptionsVm, CredentialAuthenticationResultVm,
     CredentialQueryVm, CredentialRecordVm, CredentialWriteOptionsVm, DocumentAccess,
     DocumentAccessGrantVm, DocumentDescriptorVm, DocumentPickOptionsVm, HostIdentityVm,
     IntentEventVm, IntentOpenOptionsVm, LifecycleEventVm, LifecycleState, LoadAverageVm,
@@ -19,8 +19,8 @@ use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
 use crate::platform::os::{
-    background, calendar, clipboard, contact, credentials, document, host, info, intent, lifecycle,
-    location, media, mount, network, notification, permission, power,
+    background, calendar, contact, credentials, document, host, info, intent, lifecycle, location,
+    media, mount, network, notification, permission, power,
 };
 
 /// Report completion for one scheduled background-task execution.
@@ -435,182 +435,6 @@ pub(crate) fn destack_os_calendar_list(
     let descriptors = calendar::list(binding)?;
 
     calendar::list_vm(context, &descriptors)
-}
-
-/// Clear clipboard payload.
-///
-/// Clear current host clipboard ownership or payload contents.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard clear and owner-reset APIs.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.write`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) fn destack_os_clipboard_clear(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<()> {
-    clipboard::clear()
-}
-
-/// Query whether text clipboard payload exists.
-///
-/// Return whether one text payload is currently available on the host clipboard.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard query APIs and selection ownership checks.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_os_clipboard_has_text(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<bool> {
-    clipboard::has_text()
-}
-
-/// Read binary clipboard payload.
-///
-/// Read one binary payload in one selected clipboard format.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard APIs for binary format extraction.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_os_clipboard_read_bytes(
-    _binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    format: ClipboardBinaryFormat,
-) -> RuntimeResult<VmSlice<u8>> {
-    let value = clipboard::read_bytes(format)?;
-
-    VmSlice::from_bytes(context, &value)
-}
-
-/// Read text clipboard payload.
-///
-/// Read one text payload from the host clipboard.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard APIs such as X11 or Wayland selection protocols and Win32 clipboard APIs.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_os_clipboard_read_text(
-    _binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<vm::StringHandle> {
-    let value = clipboard::read_text()?;
-
-    Ok(vm::StringHandle::new(context.intern_string(&value)?))
-}
-
-/// Read clipboard sequence number.
-///
-/// Read one monotonic sequence marker for host clipboard contents.
-/// Sequence semantics are host defined but monotonic within one host clipboard service lifetime.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard sequence APIs where available.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_os_clipboard_sequence(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<u64> {
-    clipboard::sequence()
-}
-
-/// Write binary clipboard payload.
-///
-/// Write one binary payload in one selected clipboard format.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard APIs for binary format insertion.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.write`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) fn destack_os_clipboard_write_bytes(
-    _binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    format: ClipboardBinaryFormat,
-    argument_bytes: VmSlice<u8>,
-) -> RuntimeResult<()> {
-    let bytes = argument_bytes.read_bytes(context)?;
-
-    clipboard::write_bytes(format, &bytes)
-}
-
-/// Write text clipboard payload.
-///
-/// Write one text payload into the host clipboard.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard write APIs and ownership semantics.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.write`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) fn destack_os_clipboard_write_text(
-    _binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    text: vm::StringHandle,
-) -> RuntimeResult<()> {
-    let text = context
-        .string_ref(text)
-        .map_err(|error| RuntimeError::from(error).boxed())?;
-
-    clipboard::write_text(text.as_str())
 }
 
 /// Create one contact.

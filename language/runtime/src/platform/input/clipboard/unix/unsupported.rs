@@ -1,6 +1,6 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::not_supported;
-use crate::platform::os::clipboard::core::{
+use crate::platform::input::clipboard::core::{
     CLIPBOARD_CLEAR_OPERATION, CLIPBOARD_HAS_TEXT_OPERATION, CLIPBOARD_READ_BYTES_OPERATION,
     CLIPBOARD_READ_TEXT_OPERATION, CLIPBOARD_SEQUENCE_OPERATION, CLIPBOARD_WRITE_BYTES_OPERATION,
     CLIPBOARD_WRITE_TEXT_OPERATION,

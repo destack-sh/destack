@@ -7,9 +7,9 @@ use crate::runtime::BindingCallContext;
 use crate::platform::os::{
     BackgroundEvent, BackgroundEventOpenOptions, BackgroundStatus, BackgroundTaskDescriptor,
     BackgroundTaskOptions, BackgroundTaskResult, CalendarDescriptor, CalendarEvent,
-    CalendarEventDraft, CalendarEventQuery, ClipboardBinaryFormat, Contact, ContactDraft,
-    ContactPage, ContactQuery, CredentialAuthenticationOptions, CredentialAuthenticationResult,
-    CredentialQuery, CredentialRecord, CredentialWriteOptions, DocumentAccess, DocumentAccessGrant,
+    CalendarEventDraft, CalendarEventQuery, Contact, ContactDraft, ContactPage, ContactQuery,
+    CredentialAuthenticationOptions, CredentialAuthenticationResult, CredentialQuery,
+    CredentialRecord, CredentialWriteOptions, DocumentAccess, DocumentAccessGrant,
     DocumentDescriptor, DocumentPickOptions, HostIdentity, IntentEvent, IntentOpenOptions,
     LifecycleEvent, LifecycleState, LoadAverage, LocationSample, LocationWatchOptions,
     MediaAssetDescriptor, MediaAssetKind, MediaEvent, MediaPage, MediaQuery, MediaWatchOptions,
@@ -21,8 +21,8 @@ use crate::platform::os::{
 use crate::platform::{fs, resource};
 
 use crate::platform::os::{
-    background, calendar, clipboard, contact, credentials, document, host, info, intent, lifecycle,
-    location, media, mount, network, notification, permission, power,
+    background, calendar, contact, credentials, document, host, info, intent, lifecycle, location,
+    media, mount, network, notification, permission, power,
 };
 
 /// Report completion for one scheduled background-task execution.
@@ -516,215 +516,6 @@ pub(crate) unsafe fn destack_os_calendar_list(
     }
 
     Ok(())
-}
-
-/// Clear clipboard payload.
-///
-/// Clear current host clipboard ownership or payload contents.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard clear and owner-reset APIs.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.write`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_os_clipboard_clear(
-    _binding: &BindingCallContext,
-) -> RuntimeResult<()> {
-    clipboard::clear()
-}
-
-/// Query whether text clipboard payload exists.
-///
-/// Return whether one text payload is currently available on the host clipboard.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard query APIs and selection ownership checks.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_os_clipboard_has_text(
-    _binding: &BindingCallContext,
-    out: *mut bool,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-
-    let value = clipboard::has_text()?;
-
-    unsafe {
-        out.write(value);
-    }
-
-    Ok(())
-}
-
-/// Read binary clipboard payload.
-///
-/// Read one binary payload in one selected clipboard format.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard APIs for binary format extraction.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_os_clipboard_read_bytes(
-    binding: &BindingCallContext,
-    out: *mut NativeSlice<u8>,
-    format: ClipboardBinaryFormat,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-
-    let value = clipboard::read_bytes(format)?;
-    let value = binding.store_slice(value);
-
-    unsafe {
-        out.write(value);
-    }
-
-    Ok(())
-}
-
-/// Read text clipboard payload.
-///
-/// Read one text payload from the host clipboard.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard APIs such as X11 or Wayland selection protocols and Win32 clipboard APIs.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_os_clipboard_read_text(
-    binding: &BindingCallContext,
-    out: *mut NativeStringRef,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-
-    let value = clipboard::read_text()?;
-    let value = binding.store_string(&value);
-
-    unsafe {
-        out.write(value);
-    }
-
-    Ok(())
-}
-
-/// Read clipboard sequence number.
-///
-/// Read one monotonic sequence marker for host clipboard contents.
-/// Sequence semantics are host defined but monotonic within one host clipboard service lifetime.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard sequence APIs where available.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_os_clipboard_sequence(
-    _binding: &BindingCallContext,
-    out: *mut u64,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-
-    let value = clipboard::sequence()?;
-
-    unsafe {
-        out.write(value);
-    }
-
-    Ok(())
-}
-
-/// Write binary clipboard payload.
-///
-/// Write one binary payload in one selected clipboard format.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard APIs for binary format insertion.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.write`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_os_clipboard_write_bytes(
-    _binding: &BindingCallContext,
-    format: ClipboardBinaryFormat,
-    argument_bytes: NativeSlice<u8>,
-) -> RuntimeResult<()> {
-    let bytes = unsafe { argument_bytes.as_slice()? };
-
-    clipboard::write_bytes(format, bytes)
-}
-
-/// Write text clipboard payload.
-///
-/// Write one text payload into the host clipboard.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard write APIs and ownership semantics.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.write`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_os_clipboard_write_text(
-    _binding: &BindingCallContext,
-    text: NativeStringRef,
-) -> RuntimeResult<()> {
-    let text = unsafe { text.as_str()? };
-
-    clipboard::write_text(text)
 }
 
 /// Create one contact.

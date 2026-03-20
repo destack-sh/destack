@@ -8,10 +8,10 @@ use crate::runtime::{NativeSlice, NativeStringRef};
 use crate::runtime::BindingCallContext;
 
 use crate::platform::input::{
-    InputCompositionEvent, InputDeviceCapabilities, InputDeviceDescriptor, InputEvent,
-    InputGamepadState, InputHapticEffectParameters, InputHapticEffectType, InputHapticsResult,
-    InputKeyboardState, InputMonitorEvent, InputPointerGrabMode, InputPointerState,
-    InputRawHidReport, InputReadMode, InputSensorConfig, InputSensorDescriptor,
+    ClipboardBinaryFormat, InputCompositionEvent, InputDeviceCapabilities, InputDeviceDescriptor,
+    InputEvent, InputGamepadState, InputHapticEffectParameters, InputHapticEffectType,
+    InputHapticsResult, InputKeyboardState, InputMonitorEvent, InputPointerGrabMode,
+    InputPointerState, InputRawHidReport, InputReadMode, InputSensorConfig, InputSensorDescriptor,
     InputSensorEffectiveConfig, InputSensorKind, InputSensorSample, InputTextInputArea,
     InputTextInputType, InputTouchState, InputWindowTarget,
 };
@@ -1292,4 +1292,110 @@ pub(crate) unsafe fn destack_input_touch_state(
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.touch.state")).boxed())
+}
+
+/// Clear clipboard payload.
+pub(crate) unsafe fn destack_input_clipboard_clear(
+    _binding: &BindingCallContext,
+) -> RuntimeResult<()> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.clipboard.clear",
+    ))
+    .boxed())
+}
+
+/// Query whether text clipboard payload exists.
+pub(crate) unsafe fn destack_input_clipboard_has_text(
+    _binding: &BindingCallContext,
+    out: *mut bool,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    let _ = out;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.clipboard.hasText",
+    ))
+    .boxed())
+}
+
+/// Read binary clipboard payload.
+pub(crate) unsafe fn destack_input_clipboard_read_bytes(
+    _binding: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    format: ClipboardBinaryFormat,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    let _ = (out, format);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.clipboard.readBytes",
+    ))
+    .boxed())
+}
+
+/// Read text clipboard payload.
+pub(crate) unsafe fn destack_input_clipboard_read_text(
+    _binding: &BindingCallContext,
+    out: *mut NativeStringRef,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    let _ = out;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.clipboard.readText",
+    ))
+    .boxed())
+}
+
+/// Read clipboard sequence number.
+pub(crate) unsafe fn destack_input_clipboard_sequence(
+    _binding: &BindingCallContext,
+    out: *mut u64,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    let _ = out;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.clipboard.sequence",
+    ))
+    .boxed())
+}
+
+/// Write binary clipboard payload.
+pub(crate) unsafe fn destack_input_clipboard_write_bytes(
+    _binding: &BindingCallContext,
+    format: ClipboardBinaryFormat,
+    argument_bytes: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = (format, argument_bytes);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.clipboard.writeBytes",
+    ))
+    .boxed())
+}
+
+/// Write text clipboard payload.
+pub(crate) unsafe fn destack_input_clipboard_write_text(
+    _binding: &BindingCallContext,
+    text: NativeStringRef,
+) -> RuntimeResult<()> {
+    let _ = text;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.clipboard.writeText",
+    ))
+    .boxed())
 }

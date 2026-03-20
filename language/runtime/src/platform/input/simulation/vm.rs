@@ -2,12 +2,13 @@
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
-    InputCompositionEventVm, InputDeviceCapabilitiesVm, InputDeviceDescriptorVm, InputEventVm,
-    InputGamepadStateVm, InputHapticEffectParametersVm, InputHapticEffectType, InputHapticsResult,
-    InputKeyboardStateVm, InputMonitorEventVm, InputPointerGrabMode, InputPointerStateVm,
-    InputRawHidReportVm, InputReadMode, InputSensorConfigVm, InputSensorDescriptorVm,
-    InputSensorEffectiveConfigVm, InputSensorKind, InputSensorSampleVm, InputTextInputAreaVm,
-    InputTextInputType, InputTouchStateVm, InputWindowTargetVm,
+    ClipboardBinaryFormat, InputCompositionEventVm, InputDeviceCapabilitiesVm,
+    InputDeviceDescriptorVm, InputEventVm, InputGamepadStateVm, InputHapticEffectParametersVm,
+    InputHapticEffectType, InputHapticsResult, InputKeyboardStateVm, InputMonitorEventVm,
+    InputPointerGrabMode, InputPointerStateVm, InputRawHidReportVm, InputReadMode,
+    InputSensorConfigVm, InputSensorDescriptorVm, InputSensorEffectiveConfigVm, InputSensorKind,
+    InputSensorSampleVm, InputTextInputAreaVm, InputTextInputType, InputTouchStateVm,
+    InputWindowTargetVm,
 };
 use crate::platform::{PlatformError, VmArray, VmSlice, resource};
 use crate::runtime::BindingCallContext;
@@ -1258,4 +1259,91 @@ pub(crate) fn destack_input_touch_state(
 ) -> RuntimeResult<InputTouchStateVm> {
     let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.touch.state")).boxed())
+}
+
+/// Clear clipboard payload.
+pub(crate) fn destack_input_clipboard_clear(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<()> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.clipboard.clear",
+    ))
+    .boxed())
+}
+
+/// Query whether text clipboard payload exists.
+pub(crate) fn destack_input_clipboard_has_text(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<bool> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.clipboard.hasText",
+    ))
+    .boxed())
+}
+
+/// Read binary clipboard payload.
+pub(crate) fn destack_input_clipboard_read_bytes(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    format: ClipboardBinaryFormat,
+) -> RuntimeResult<VmSlice<u8>> {
+    let _ = format;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.clipboard.readBytes",
+    ))
+    .boxed())
+}
+
+/// Read text clipboard payload.
+pub(crate) fn destack_input_clipboard_read_text(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<vm::StringHandle> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.clipboard.readText",
+    ))
+    .boxed())
+}
+
+/// Read clipboard sequence number.
+pub(crate) fn destack_input_clipboard_sequence(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<u64> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.clipboard.sequence",
+    ))
+    .boxed())
+}
+
+/// Write binary clipboard payload.
+pub(crate) fn destack_input_clipboard_write_bytes(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    format: ClipboardBinaryFormat,
+    argument_bytes: VmSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = (format, argument_bytes);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.clipboard.writeBytes",
+    ))
+    .boxed())
+}
+
+/// Write text clipboard payload.
+pub(crate) fn destack_input_clipboard_write_text(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    text: vm::StringHandle,
+) -> RuntimeResult<()> {
+    let _ = text;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.clipboard.writeText",
+    ))
+    .boxed())
 }
