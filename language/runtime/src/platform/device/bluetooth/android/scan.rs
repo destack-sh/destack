@@ -50,7 +50,7 @@ pub(crate) unsafe fn destack_device_bluetooth_scan_open(
     let adapter_id = unsafe { adapterid.as_str()? };
     ensure_android_primary_adapter(binding, adapter_id, "destack.device.bluetooth.scan.open")?;
     let filter = unsafe { <Option<BluetoothScanFilter> as NativeAbiCodec>::into_value(filter)? };
-    ensure_android_scan_filter_supported(&filter, "destack.device.bluetooth.scan.open")?;
+    let (encoded_filter, mut filter_bytes) = encode_android_scan_filter(&filter);
 
     // open the host scan session
     let runtime_id = host_runtime_id(binding, "destack.device.bluetooth.scan.open")?;
@@ -59,7 +59,16 @@ pub(crate) unsafe fn destack_device_bluetooth_scan_open(
         destack_host_android_bluetooth_scan_open(
             runtime_id,
             NativeStringRef::from(adapter_id),
+            encoded_filter,
             android_filter_flags(&filter),
+            NativeSlice {
+                data: filter_bytes.as_mut_ptr(),
+                len: checked_u32_length(
+                    filter_bytes.len(),
+                    "destack.device.bluetooth.scan.open",
+                    "android bluetooth filter bytes",
+                )?,
+            },
             &mut session_id,
         )
     };

@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::device::tests::{
     DeviceHarnessContext, HarnessValue, assert_ok_or_expected_error,
 };
@@ -12,11 +12,12 @@ use crate::platform::device::{
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{BluetoothDeviceHandle, BluetoothScanHandle};
 use crate::platform::{NativeSlice, VmSlice};
+use crate::runtime::BindingCallContext;
 
 /// Assert one Bluetooth result is success, not-supported, or permission-gated.
 pub(super) fn assert_bluetooth_supported_not_supported_or_permission<T>(
-    result: Result<T, Box<crate::diagnostic::RuntimeError>>,
-) -> crate::diagnostic::RuntimeResult<Option<T>> {
+    result: Result<T, Box<RuntimeError>>,
+) -> RuntimeResult<Option<T>> {
     assert_ok_or_expected_error(
         result,
         &[
@@ -65,10 +66,7 @@ pub(super) fn assert_bluetooth_adapter_descriptor_shape(
 
 /// Close one opened bluetooth scan handle during test cleanup.
 #[cfg(any(unix, windows))]
-pub(super) fn close_bluetooth_scan(
-    call_context: &crate::runtime::BindingCallContext,
-    handle: BluetoothScanHandle,
-) {
+pub(super) fn close_bluetooth_scan(call_context: &BindingCallContext, handle: BluetoothScanHandle) {
     unsafe {
         drop(device_native::destack_device_bluetooth_scan_close(
             call_context,
@@ -80,7 +78,7 @@ pub(super) fn close_bluetooth_scan(
 /// Close one opened bluetooth device handle during test cleanup.
 #[cfg(any(unix, windows))]
 pub(super) fn close_bluetooth_device(
-    call_context: &crate::runtime::BindingCallContext,
+    call_context: &BindingCallContext,
     handle: BluetoothDeviceHandle,
 ) {
     unsafe {

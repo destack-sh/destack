@@ -27,7 +27,7 @@ pub(super) use crate::host::android::bluetooth::types::{
     AndroidHostBluetoothAdapterDescriptorHeader, AndroidHostBluetoothDeviceDescriptorHeader,
     AndroidHostBluetoothGattCharacteristicHeader, AndroidHostBluetoothGattDescriptorHeader,
     AndroidHostBluetoothGattServiceHeader, AndroidHostBluetoothScanEventHeader,
-    AndroidHostBluetoothSessionEventHeader,
+    AndroidHostBluetoothScanFilterHeader, AndroidHostBluetoothSessionEventHeader,
 };
 pub(super) use crate::platform::core::android::{
     checked_u32_length, host_runtime_id, host_status_result, invalid_data,
@@ -46,13 +46,15 @@ pub(super) use crate::platform::device::bluetooth::core::{
 };
 pub(super) use crate::platform::device::{
     BluetoothAdapterDescriptor, BluetoothAdapterDescriptorValue, BluetoothAdapterEvent,
-    BluetoothAdapterEventValue, BluetoothAdvertisementDataValue, BluetoothDeviceDescriptor,
-    BluetoothDeviceDescriptorValue, BluetoothGattCharacteristic,
-    BluetoothGattCharacteristicProperties, BluetoothGattCharacteristicValue,
-    BluetoothGattDescriptor, BluetoothGattDescriptorValue, BluetoothGattService,
-    BluetoothGattServiceValue, BluetoothGattValueEvent, BluetoothGattWriteMode,
-    BluetoothLeTransport, BluetoothPairState, BluetoothScanEvent, BluetoothScanFilter,
-    BluetoothScanFilterValue, BluetoothSessionEvent,
+    BluetoothAdapterEventValue, BluetoothAdvertisementDataValue,
+    BluetoothAdvertisementManufacturerDataValue, BluetoothAdvertisementServiceDataValue,
+    BluetoothDataFilterValue, BluetoothDeviceDescriptor, BluetoothDeviceDescriptorValue,
+    BluetoothGattCharacteristic, BluetoothGattCharacteristicProperties,
+    BluetoothGattCharacteristicValue, BluetoothGattDescriptor, BluetoothGattDescriptorValue,
+    BluetoothGattService, BluetoothGattServiceValue, BluetoothGattValueEvent,
+    BluetoothGattWriteMode, BluetoothLeTransport, BluetoothManufacturerDataFilterValue,
+    BluetoothPairState, BluetoothScanEvent, BluetoothScanFilter, BluetoothScanFilterValue,
+    BluetoothServiceDataFilterValue, BluetoothSessionEvent,
 };
 pub(super) use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceKind};
 pub(super) use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
