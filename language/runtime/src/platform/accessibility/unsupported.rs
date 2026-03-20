@@ -2,14 +2,14 @@
 
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{
-    PlatformError,
-};
+use crate::platform::PlatformError;
 
 use crate::runtime::BindingCallContext;
 
-use crate::platform::{resource};
-use crate::platform::accessibility::{AccessibilityAction, AccessibilityActionOpenOptions, AccessibilityTreeUpdate};
+use crate::platform::accessibility::{
+    AccessibilityAction, AccessibilityActionOpenOptions, AccessibilityTreeUpdate,
+};
+use crate::platform::resource;
 
 /// Close one inbound accessibility-action stream.
 ///
@@ -26,7 +26,10 @@ use crate::platform::accessibility::{AccessibilityAction, AccessibilityActionOpe
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_accessibility_action_close(_binding: &BindingCallContext, handle: resource::AccessibilityActionHandle) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_accessibility_action_close(
+    _binding: &BindingCallContext,
+    handle: resource::AccessibilityActionHandle,
+) -> RuntimeResult<()> {
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -50,7 +53,12 @@ pub(crate) unsafe fn destack_accessibility_action_close(_binding: &BindingCallCo
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_accessibility_action_open(_binding: &BindingCallContext, out: *mut resource::AccessibilityActionHandle, window: resource::WindowHandle, options: AccessibilityActionOpenOptions) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_accessibility_action_open(
+    _binding: &BindingCallContext,
+    out: *mut resource::AccessibilityActionHandle,
+    window: resource::WindowHandle,
+    options: AccessibilityActionOpenOptions,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -78,7 +86,12 @@ pub(crate) unsafe fn destack_accessibility_action_open(_binding: &BindingCallCon
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_accessibility_action_read(_binding: &BindingCallContext, out: *mut AccessibilityAction, handle: resource::AccessibilityActionHandle, timeoutns: u64) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_accessibility_action_read(
+    _binding: &BindingCallContext,
+    out: *mut AccessibilityAction,
+    handle: resource::AccessibilityActionHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -106,7 +119,11 @@ pub(crate) unsafe fn destack_accessibility_action_read(_binding: &BindingCallCon
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_accessibility_action_try_read(_binding: &BindingCallContext, out: *mut AccessibilityAction, handle: resource::AccessibilityActionHandle) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_accessibility_action_try_read(
+    _binding: &BindingCallContext,
+    out: *mut AccessibilityAction,
+    handle: resource::AccessibilityActionHandle,
+) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -134,7 +151,11 @@ pub(crate) unsafe fn destack_accessibility_action_try_read(_binding: &BindingCal
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_accessibility_tree_apply(_binding: &BindingCallContext, window: resource::WindowHandle, update: AccessibilityTreeUpdate) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_accessibility_tree_apply(
+    _binding: &BindingCallContext,
+    window: resource::WindowHandle,
+    update: AccessibilityTreeUpdate,
+) -> RuntimeResult<()> {
     let _ = (window, update);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -158,7 +179,10 @@ pub(crate) unsafe fn destack_accessibility_tree_apply(_binding: &BindingCallCont
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_accessibility_tree_clear(_binding: &BindingCallContext, window: resource::WindowHandle) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_accessibility_tree_clear(
+    _binding: &BindingCallContext,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
     let _ = window;
 
     Err(RuntimeError::from(PlatformError::not_supported(

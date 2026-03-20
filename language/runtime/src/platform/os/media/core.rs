@@ -3,14 +3,11 @@ use destack_vm as vm;
 use crate::diagnostic::RuntimeResult;
 use crate::host::operation::media as host_media;
 use crate::platform::os::abi_generated::{
-    MediaAssetDescriptorValue, MediaEventValue, MediaPageValue, MediaQueryValue,
-    MediaWatchOptionsValue,
+    MediaAssetDescriptorValue, MediaPageValue, MediaQueryValue,
 };
-use crate::platform::os::{MediaAssetDescriptorVm, MediaAssetKind, MediaEventVm, MediaPageVm};
-use crate::platform::{VmAbiCodec, fs, resource};
+use crate::platform::os::{MediaAssetDescriptorVm, MediaAssetKind, MediaPageVm};
+use crate::platform::{VmAbiCodec, fs};
 use crate::runtime::BindingCallContext;
-
-use crate::platform::os::state;
 
 /// List media assets through the active host session.
 pub(crate) fn list(
@@ -20,14 +17,14 @@ pub(crate) fn list(
     binding.host().submit_operation(host_media::list(query))
 }
 
-/// Describe one media asset through the active host session.
-pub(crate) fn describe(
+/// Read one media asset through the active host session.
+pub(crate) fn read(
     binding: &BindingCallContext,
     id: &str,
 ) -> RuntimeResult<MediaAssetDescriptorValue> {
     binding
         .host()
-        .submit_operation(host_media::describe(id.to_string()))
+        .submit_operation(host_media::read(id.to_string()))
 }
 
 /// Import one media asset path through the active host session.
@@ -46,39 +43,6 @@ pub(crate) fn delete(binding: &BindingCallContext, ids: Vec<String>) -> RuntimeR
     binding.host().submit_operation(host_media::delete(ids))
 }
 
-/// Open one media watch stream.
-pub(crate) fn watch_open(
-    binding: &BindingCallContext,
-    options: MediaWatchOptionsValue,
-) -> RuntimeResult<resource::MediaWatchHandle> {
-    state::media_watch_open(binding, options)
-}
-
-/// Close one media watch stream.
-pub(crate) fn watch_close(
-    binding: &BindingCallContext,
-    handle: resource::MediaWatchHandle,
-) -> RuntimeResult<()> {
-    state::media_watch_close(binding, handle)
-}
-
-/// Wait for one media watch event.
-pub(crate) fn watch_read(
-    binding: &BindingCallContext,
-    handle: resource::MediaWatchHandle,
-    timeout_ns: u64,
-) -> RuntimeResult<MediaEventValue> {
-    state::media_watch_read(binding, handle, timeout_ns)
-}
-
-/// Poll one media watch event without blocking.
-pub(crate) fn watch_try_read(
-    binding: &BindingCallContext,
-    handle: resource::MediaWatchHandle,
-) -> RuntimeResult<MediaEventValue> {
-    state::media_watch_try_read(binding, handle)
-}
-
 /// Encode one media page into one VM value.
 pub(crate) fn page_vm(
     context: &mut vm::ExternalCallContext<'_>,
@@ -93,14 +57,6 @@ pub(crate) fn descriptor_vm(
     descriptor: MediaAssetDescriptorValue,
 ) -> RuntimeResult<MediaAssetDescriptorVm> {
     MediaAssetDescriptorVm::from_value(context, descriptor)
-}
-
-/// Encode one media event into one VM value.
-pub(crate) fn event_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    event: MediaEventValue,
-) -> RuntimeResult<MediaEventVm> {
-    MediaEventVm::from_value(context, event)
 }
 
 /// Encode one identifier into one VM string handle.

@@ -125,7 +125,7 @@ pub(crate) fn midi_output_port_list(
     let service = binding
         .agent()
         .platform_state
-        .midi
+        .device
         .jack_service("destack.device.midi.output.port.list")?;
 
     Ok(filtered_descriptors(
@@ -144,7 +144,7 @@ pub(crate) fn midi_output_port_open(
     let service = binding
         .agent()
         .platform_state
-        .midi
+        .device
         .jack_service("destack.device.midi.output.port.open")?;
     let endpoint = resolve_endpoint(
         &service,
@@ -342,7 +342,7 @@ pub(crate) fn midi_output_virtual_create(
     let service = binding
         .agent()
         .platform_state
-        .midi
+        .device
         .jack_service("destack.device.midi.output.virtual.create")?;
     let pending_records = Arc::new(parking_lot::Mutex::new(std::collections::VecDeque::new()));
     let terminal_error = Arc::new(parking_lot::Mutex::new(None));

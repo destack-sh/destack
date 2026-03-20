@@ -4795,7 +4795,7 @@ pub(crate) const NET_INTERFACE_INTERFACE_NAME: BindingDescriptor =
 pub(crate) const NET_INTERFACE_LIST_INTERFACES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.interface.listInterfaces",
-        "export function listInterfaces(): Result<Array<NetInterface>, PlatformError>",
+        "export function listInterfaces(): Result<NetInterface[], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.interface"],
@@ -5675,7 +5675,7 @@ pub(crate) const NET_RESOLVE_LOOKUP: BindingDescriptor =
 /// Binding descriptor for destack.net.resolve.reverseLookup.
 pub(crate) const NET_RESOLVE_REVERSE_LOOKUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.resolve.reverseLookup",
-    "export function reverseLookup(address: SocketAddress, flags: ReverseLookupFlags): Result<Array<ReverseLookupName>, PlatformError>",
+    "export function reverseLookup(address: SocketAddress, flags: ReverseLookupFlags): Result<ReverseLookupName[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.dns"],
@@ -5829,7 +5829,7 @@ pub(crate) const NET_ROUTE_ROUTE_DELETE: BindingDescriptor =
 pub(crate) const NET_ROUTE_ROUTE_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.route.routeList",
-        "export function routeList(family: SocketFamily): Result<Array<RouteEntry>, PlatformError>",
+        "export function routeList(family: SocketFamily): Result<RouteEntry[], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.route.read"],
@@ -5968,7 +5968,7 @@ pub(crate) const NET_SOCKET_RECV_FROM: BindingDescriptor = BindingDescriptor::ex
 /// Binding descriptor for destack.net.socket.recvMmsg.
 pub(crate) const NET_SOCKET_RECV_MMSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.net.socket.recvMmsg",
-    "export function recvMmsg(handle: SocketHandle, requests: Slice<SocketRecvBatchRequest>, maxFds: uint32, wantCredentials: boolean, maxControlBytes: uint32): Result<Array<SocketRecvMessage>, PlatformError>",
+    "export function recvMmsg(handle: SocketHandle, requests: Slice<SocketRecvBatchRequest>, maxFds: uint32, wantCredentials: boolean, maxControlBytes: uint32): Result<SocketRecvMessage[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.udp"],

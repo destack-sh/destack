@@ -25,31 +25,29 @@ use crate::platform::os::{
     CalendarEventQuery, CalendarEventQueryVm, CalendarEventVm, CalendarParticipantStatus,
     CalendarRecurrenceFrequency, CalendarRecurrenceRule, CalendarRecurrenceRuleVm,
     CalendarRecurrenceWeekday, CalendarRecurrenceWeekdayVm, CalendarRelativeReminder,
-    CalendarRelativeReminderVm, CalendarReminder, CalendarReminderAnchor, CalendarReminderVm,
-    ClipboardBinaryFormat, Contact, ContactAddress, ContactAddressVm, ContactDraft, ContactDraftVm,
-    ContactEmail, ContactEmailVm, ContactName, ContactNameVm, ContactOrganization,
-    ContactOrganizationVm, ContactPage, ContactPageVm, ContactPhone, ContactPhoneVm, ContactQuery,
-    ContactQueryVm, ContactVm, CredentialAccessibility, CredentialAuthenticationMechanism,
-    CredentialAuthenticationOptions, CredentialAuthenticationOptionsVm,
-    CredentialAuthenticationPolicy, CredentialAuthenticationRequirement,
-    CredentialAuthenticationResult, CredentialAuthenticationResultVm, CredentialQuery,
-    CredentialQueryVm, CredentialRecord, CredentialRecordVm, CredentialWriteOptions,
-    CredentialWriteOptionsVm, DocumentAccess, DocumentAccessGrant, DocumentAccessGrantValue,
-    DocumentAccessGrantVm, DocumentDescriptor, DocumentDescriptorValue, DocumentDescriptorVm,
-    DocumentPickOptions, DocumentPickOptionsVm, DocumentaccessgrantReplayRecord,
-    DocumentdescriptorReplayRecord, HostIdentity, HostIdentityValue, HostIdentityVm,
-    HostidentityReplayRecord, IntentCustomActionEvent, IntentCustomActionEventValue,
-    IntentCustomActionEventVm, IntentCustomActionPayload, IntentCustomActionPayloadValue,
-    IntentCustomActionPayloadVm, IntentEvent, IntentEventMetadata, IntentEventMetadataValue,
-    IntentEventMetadataVm, IntentEventValue, IntentEventVm, IntentOpenFileEvent,
-    IntentOpenFileEventValue, IntentOpenFileEventVm, IntentOpenFilePayload,
-    IntentOpenFilePayloadValue, IntentOpenFilePayloadVm, IntentOpenOptions, IntentOpenOptionsVm,
-    IntentOpenUrlEvent, IntentOpenUrlEventValue, IntentOpenUrlEventVm, IntentOpenUrlPayload,
-    IntentOpenUrlPayloadValue, IntentOpenUrlPayloadVm, IntentShareFilesEvent,
-    IntentShareFilesEventValue, IntentShareFilesEventVm, IntentShareFilesPayload,
-    IntentShareFilesPayloadValue, IntentShareFilesPayloadVm, IntentShareTextEvent,
-    IntentShareTextEventValue, IntentShareTextEventVm, IntentShareTextPayload,
-    IntentShareTextPayloadValue, IntentShareTextPayloadVm, IntentcustomactioneventReplayRecord,
+    CalendarRelativeReminderVm, CalendarReminder, CalendarReminderVm, Contact, ContactAddress,
+    ContactAddressVm, ContactDraft, ContactDraftVm, ContactEmail, ContactEmailVm, ContactName,
+    ContactNameVm, ContactOrganization, ContactOrganizationVm, ContactPage, ContactPageVm,
+    ContactPhone, ContactPhoneVm, ContactQuery, ContactQueryVm, ContactVm, CredentialAccessibility,
+    CredentialAuthenticationMechanism, CredentialAuthenticationOptions,
+    CredentialAuthenticationOptionsVm, CredentialAuthenticationPolicy,
+    CredentialAuthenticationRequirement, CredentialAuthenticationResult,
+    CredentialAuthenticationResultVm, CredentialQuery, CredentialQueryVm, CredentialRecord,
+    CredentialRecordVm, CredentialWriteOptions, CredentialWriteOptionsVm, DocumentAccess,
+    DocumentDescriptor, DocumentDescriptorVm, DocumentPickOptions, DocumentPickOptionsVm,
+    HostIdentity, HostIdentityValue, HostIdentityVm, HostidentityReplayRecord,
+    IntentCustomActionEvent, IntentCustomActionEventValue, IntentCustomActionEventVm,
+    IntentCustomActionPayload, IntentCustomActionPayloadValue, IntentCustomActionPayloadVm,
+    IntentEvent, IntentEventMetadata, IntentEventMetadataValue, IntentEventMetadataVm,
+    IntentEventValue, IntentEventVm, IntentOpenFileEvent, IntentOpenFileEventValue,
+    IntentOpenFileEventVm, IntentOpenFilePayload, IntentOpenFilePayloadValue,
+    IntentOpenFilePayloadVm, IntentOpenOptions, IntentOpenOptionsVm, IntentOpenUrlEvent,
+    IntentOpenUrlEventValue, IntentOpenUrlEventVm, IntentOpenUrlPayload, IntentOpenUrlPayloadValue,
+    IntentOpenUrlPayloadVm, IntentShareFilesEvent, IntentShareFilesEventValue,
+    IntentShareFilesEventVm, IntentShareFilesPayload, IntentShareFilesPayloadValue,
+    IntentShareFilesPayloadVm, IntentShareTextEvent, IntentShareTextEventValue,
+    IntentShareTextEventVm, IntentShareTextPayload, IntentShareTextPayloadValue,
+    IntentShareTextPayloadVm, IntentcustomactioneventReplayRecord,
     IntentcustomactionpayloadReplayRecord, IntenteventReplayRecord,
     IntenteventmetadataReplayRecord, IntentopenfileeventReplayRecord,
     IntentopenfilepayloadReplayRecord, IntentopenurleventReplayRecord,
@@ -71,15 +69,8 @@ use crate::platform::os::{
     LifecyclelowpowermodechangedeventReplayRecord, LifecyclepauseeventReplayRecord,
     LifecycleresumeeventReplayRecord, LifecycleterminateeventReplayRecord, LoadAverage,
     LoadAverageVm, LocationAccuracy, LocationSample, LocationSampleVm, LocationWatchOptions,
-    LocationWatchOptionsVm, MediaAddedEvent, MediaAddedEventValue, MediaAddedEventVm,
-    MediaAssetDescriptor, MediaAssetDescriptorVm, MediaAssetKind, MediaAssetSummary,
-    MediaAssetSummaryValue, MediaAssetSummaryVm, MediaDimensions, MediaDimensionsVm, MediaEvent,
-    MediaEventMetadata, MediaEventMetadataVm, MediaEventValue, MediaEventVm, MediaPage,
-    MediaPageVm, MediaQuery, MediaQueryVm, MediaRemovedEvent, MediaRemovedEventValue,
-    MediaRemovedEventVm, MediaUpdatedEvent, MediaUpdatedEventValue, MediaUpdatedEventVm,
-    MediaWatchOptions, MediaWatchOptionsVm, MediaaddedeventReplayRecord,
-    MediaassetsummaryReplayRecord, MediaeventReplayRecord, MediaremovedeventReplayRecord,
-    MediaupdatedeventReplayRecord, MountEntry, MountEntryValue, MountEntryVm,
+    LocationWatchOptionsVm, MediaAssetDescriptor, MediaAssetDescriptorVm, MediaAssetKind,
+    MediaPage, MediaPageVm, MediaQuery, MediaQueryVm, MountEntry, MountEntryValue, MountEntryVm,
     MountentryReplayRecord, NetworkCellularGeneration, NetworkConnectionType, NetworkEvent,
     NetworkEventVm, NetworkState, NetworkStateVm, NotificationAction, NotificationActionStyle,
     NotificationActionValue, NotificationActionVm, NotificationCalendarDateTrigger,
@@ -602,10 +593,10 @@ fn decode_destack_os_background_register_args(
         let slots = context
             .aggregate_slots(options_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 9 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "options",
-                "expected 3 fields",
+                "expected 9 fields",
             ))
             .boxed());
         }
@@ -624,10 +615,32 @@ fn decode_destack_os_background_register_args(
         };
         let options_minimum_interval_ns =
             decode_uint64(slots[2], "options_minimum_interval_ns", "minimumIntervalNs")?;
+        let options_earliest_begin_unix_ns = decode_uint64(
+            slots[3],
+            "options_earliest_begin_unix_ns",
+            "earliestBeginUnixNs",
+        )?;
+        let options_requires_network =
+            decode_bool(slots[4], "options_requires_network", "requiresNetwork")?;
+        let options_requires_unmetered_network = decode_bool(
+            slots[5],
+            "options_requires_unmetered_network",
+            "requiresUnmeteredNetwork",
+        )?;
+        let options_requires_charging =
+            decode_bool(slots[6], "options_requires_charging", "requiresCharging")?;
+        let options_requires_idle = decode_bool(slots[7], "options_requires_idle", "requiresIdle")?;
+        let options_persisted = decode_bool(slots[8], "options_persisted", "persisted")?;
         BackgroundTaskOptionsVm {
             identifier: options_identifier,
             trigger: options_trigger,
             minimum_interval_ns: options_minimum_interval_ns,
+            earliest_begin_unix_ns: options_earliest_begin_unix_ns,
+            requires_network: options_requires_network,
+            requires_unmetered_network: options_requires_unmetered_network,
+            requires_charging: options_requires_charging,
+            requires_idle: options_requires_idle,
+            persisted: options_persisted,
         }
     };
     Ok((options,))
@@ -1400,141 +1413,6 @@ fn encode_destack_os_calendar_list_result(
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
-}
-
-/// Encode the result for destack.os.clipboard.clear.
-#[inline]
-fn encode_destack_os_clipboard_clear_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
-/// Encode the result for destack.os.clipboard.hasText.
-#[inline]
-fn encode_destack_os_clipboard_has_text_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<bool>,
-) -> RuntimeResult<vm::Value> {
-    result
-        .map(|value| Ok(vm::Value::bool(value)))
-        .and_then(|value| value)
-}
-
-/// Decode arguments for destack.os.clipboard.readBytes.
-#[inline]
-fn decode_destack_os_clipboard_read_bytes_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(ClipboardBinaryFormat,)> {
-    let format_value = arg_value(args, 0, "format", "ClipboardBinaryFormat")?;
-    let format_raw = decode_int32(format_value, "format_raw", "ClipboardBinaryFormat")?;
-    let format = match format_raw {
-        1i32 => ClipboardBinaryFormat::TextUtf8,
-        2i32 => ClipboardBinaryFormat::Html,
-        3i32 => ClipboardBinaryFormat::Binary,
-        _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "format",
-                "unknown ClipboardBinaryFormat value",
-            ))
-            .boxed());
-        }
-    };
-    Ok((format,))
-}
-
-/// Encode the result for destack.os.clipboard.readBytes.
-#[inline]
-fn encode_destack_os_clipboard_read_bytes_result(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<VmSlice<u8>>,
-) -> RuntimeResult<vm::Value> {
-    result
-        .map(|value| value.to_value(context))
-        .and_then(|value| value)
-}
-
-/// Encode the result for destack.os.clipboard.readText.
-#[inline]
-fn encode_destack_os_clipboard_read_text_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<vm::StringHandle>,
-) -> RuntimeResult<vm::Value> {
-    result
-        .map(|value| Ok(value.value()))
-        .and_then(|value| value)
-}
-
-/// Encode the result for destack.os.clipboard.sequence.
-#[inline]
-fn encode_destack_os_clipboard_sequence_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<u64>,
-) -> RuntimeResult<vm::Value> {
-    result
-        .map(|value| Ok(vm::Value::uint(value, 64)))
-        .and_then(|value| value)
-}
-
-/// Decode arguments for destack.os.clipboard.writeBytes.
-#[inline]
-fn decode_destack_os_clipboard_write_bytes_args(
-    context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(ClipboardBinaryFormat, VmSlice<u8>)> {
-    let format_value = arg_value(args, 0, "format", "ClipboardBinaryFormat")?;
-    let format_raw = decode_int32(format_value, "format_raw", "ClipboardBinaryFormat")?;
-    let format = match format_raw {
-        1i32 => ClipboardBinaryFormat::TextUtf8,
-        2i32 => ClipboardBinaryFormat::Html,
-        3i32 => ClipboardBinaryFormat::Binary,
-        _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "format",
-                "unknown ClipboardBinaryFormat value",
-            ))
-            .boxed());
-        }
-    };
-    let argument_bytes_value = arg_value(args, 1, "argument_bytes", "Slice<uint8>")?;
-    let argument_bytes = decode_slice::<u8>(
-        context,
-        argument_bytes_value,
-        "argument_bytes",
-        "Slice<uint8>",
-    )?;
-    Ok((format, argument_bytes))
-}
-
-/// Encode the result for destack.os.clipboard.writeBytes.
-#[inline]
-fn encode_destack_os_clipboard_write_bytes_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
-/// Decode arguments for destack.os.clipboard.writeText.
-#[inline]
-fn decode_destack_os_clipboard_write_text_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle,)> {
-    let text_value = arg_value(args, 0, "text", "string")?;
-    let text = decode_string(text_value, "text", "string")?;
-    Ok((text,))
-}
-
-/// Encode the result for destack.os.clipboard.writeText.
-#[inline]
-fn encode_destack_os_clipboard_write_text_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.os.contact.create.
@@ -2327,116 +2205,6 @@ fn encode_destack_os_credentials_write_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Encode the result for destack.os.document.access.list.
-#[inline]
-fn encode_destack_os_document_access_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<VmArray<DocumentAccessGrantVm>>,
-) -> RuntimeResult<vm::Value> {
-    result
-        .map(|value| value.to_value(context))
-        .and_then(|value| value)
-}
-
-/// Decode arguments for destack.os.document.access.open.
-#[inline]
-fn decode_destack_os_document_access_open_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle, DocumentAccess)> {
-    let id_value = arg_value(args, 0, "id", "string")?;
-    let id = decode_string(id_value, "id", "string")?;
-    let access_value = arg_value(args, 1, "access", "DocumentAccess")?;
-    let access_raw = decode_int32(access_value, "access_raw", "DocumentAccess")?;
-    let access = match access_raw {
-        1i32 => DocumentAccess::Read,
-        2i32 => DocumentAccess::Write,
-        3i32 => DocumentAccess::ReadWrite,
-        _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "access",
-                "unknown DocumentAccess value",
-            ))
-            .boxed());
-        }
-    };
-    Ok((id, access))
-}
-
-/// Encode the result for destack.os.document.access.open.
-#[inline]
-fn encode_destack_os_document_access_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<resource::DocumentHandle>,
-) -> RuntimeResult<vm::Value> {
-    result
-        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
-        .and_then(|value| value)
-}
-
-/// Decode arguments for destack.os.document.access.persist.
-#[inline]
-fn decode_destack_os_document_access_persist_args(
-    context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(VmArray<DocumentDescriptorVm>, DocumentAccess)> {
-    let documents_value = arg_value(args, 0, "documents", "Array<DocumentDescriptor>")?;
-    let documents = decode_array::<DocumentDescriptorVm>(
-        context,
-        documents_value,
-        "documents",
-        "Array<DocumentDescriptor>",
-    )?;
-    let access_value = arg_value(args, 1, "access", "DocumentAccess")?;
-    let access_raw = decode_int32(access_value, "access_raw", "DocumentAccess")?;
-    let access = match access_raw {
-        1i32 => DocumentAccess::Read,
-        2i32 => DocumentAccess::Write,
-        3i32 => DocumentAccess::ReadWrite,
-        _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "access",
-                "unknown DocumentAccess value",
-            ))
-            .boxed());
-        }
-    };
-    Ok((documents, access))
-}
-
-/// Encode the result for destack.os.document.access.persist.
-#[inline]
-fn encode_destack_os_document_access_persist_result(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<VmArray<DocumentAccessGrantVm>>,
-) -> RuntimeResult<vm::Value> {
-    result
-        .map(|value| value.to_value(context))
-        .and_then(|value| value)
-}
-
-/// Decode arguments for destack.os.document.access.revoke.
-#[inline]
-fn decode_destack_os_document_access_revoke_args(
-    context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(VmArray<vm::StringHandle>,)> {
-    let ids_value = arg_value(args, 0, "ids", "Array<string>")?;
-    let ids = decode_array::<vm::StringHandle>(context, ids_value, "ids", "Array<string>")?;
-    Ok((ids,))
-}
-
-/// Encode the result for destack.os.document.access.revoke.
-#[inline]
-fn encode_destack_os_document_access_revoke_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<u32>,
-) -> RuntimeResult<vm::Value> {
-    result
-        .map(|value| Ok(vm::Value::uint(value as u64, 32)))
-        .and_then(|value| value)
-}
-
 /// Decode arguments for destack.os.document.close.
 #[inline]
 fn decode_destack_os_document_close_args(
@@ -2479,33 +2247,6 @@ fn encode_destack_os_document_flush_result(
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|_| vm::Value::VOID)
-}
-
-/// Decode arguments for destack.os.document.import.
-#[inline]
-fn decode_destack_os_document_import_args(
-    context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(VmArray<DocumentDescriptorVm>,)> {
-    let documents_value = arg_value(args, 0, "documents", "Array<DocumentDescriptor>")?;
-    let documents = decode_array::<DocumentDescriptorVm>(
-        context,
-        documents_value,
-        "documents",
-        "Array<DocumentDescriptor>",
-    )?;
-    Ok((documents,))
-}
-
-/// Encode the result for destack.os.document.import.
-#[inline]
-fn encode_destack_os_document_import_result(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<VmArray<DocumentDescriptorVm>>,
-) -> RuntimeResult<vm::Value> {
-    result
-        .map(|value| value.to_value(context))
-        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.os.document.open.
@@ -2562,19 +2303,15 @@ fn decode_destack_os_document_pick_args(
         let slots = context
             .aggregate_slots(options_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 5 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "options",
-                "expected 4 fields",
+                "expected 5 fields",
             ))
             .boxed());
         }
-        let options_content_types = decode_array::<vm::StringHandle>(
-            context,
-            slots[0],
-            "options_content_types",
-            "contentTypes",
-        )?;
+        let options_mime_types =
+            decode_array::<vm::StringHandle>(context, slots[0], "options_mime_types", "mimeTypes")?;
         let options_extensions = decode_array::<vm::StringHandle>(
             context,
             slots[1],
@@ -2584,11 +2321,14 @@ fn decode_destack_os_document_pick_args(
         let options_multiple = decode_bool(slots[2], "options_multiple", "multiple")?;
         let options_allow_directories =
             decode_bool(slots[3], "options_allow_directories", "allowDirectories")?;
+        let options_copy_to_sandbox =
+            decode_bool(slots[4], "options_copy_to_sandbox", "copyToSandbox")?;
         DocumentPickOptionsVm {
-            content_types: options_content_types,
+            mime_types: options_mime_types,
             extensions: options_extensions,
             multiple: options_multiple,
             allow_directories: options_allow_directories,
+            copy_to_sandbox: options_copy_to_sandbox,
         }
     };
     Ok((options,))
@@ -2962,7 +2702,7 @@ fn encode_destack_os_intent_read_result(
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
-                        let field_4: RuntimeResult<vm::Value> = match value.payload.content_type {
+                        let field_4: RuntimeResult<vm::Value> = match value.payload.mime_type {
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
@@ -3028,7 +2768,7 @@ fn encode_destack_os_intent_read_result(
                                     .map_err(Box::<RuntimeError>::from)
                             }
                         };
-                        let field_1: RuntimeResult<vm::Value> = match value.payload.content_type {
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.mime_type {
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
@@ -3095,7 +2835,7 @@ fn encode_destack_os_intent_read_result(
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
                             value.payload.paths.to_value(context);
-                        let field_1: RuntimeResult<vm::Value> = match value.payload.content_type {
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.mime_type {
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
@@ -3130,7 +2870,7 @@ fn encode_destack_os_intent_read_result(
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
-                        let field_1: RuntimeResult<vm::Value> = match value.payload.content_type {
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.mime_type {
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
@@ -3158,15 +2898,14 @@ fn decode_destack_os_intent_share_paths_args(
 ) -> RuntimeResult<(VmArray<fs::OsPathVm>, Option<vm::StringHandle>)> {
     let paths_value = arg_value(args, 0, "paths", "Array<OsPath>")?;
     let paths = decode_array::<fs::OsPathVm>(context, paths_value, "paths", "Array<OsPath>")?;
-    let contenttype_value = arg_value(args, 1, "contenttype", "string | void")?;
-    let contenttype = if contenttype_value.tag() == vm::ValueTag::Void {
+    let mimetype_value = arg_value(args, 1, "mimetype", "string | void")?;
+    let mimetype = if mimetype_value.tag() == vm::ValueTag::Void {
         None
     } else {
-        let contenttype_inner =
-            decode_string(contenttype_value, "contenttype_inner", "string | void")?;
-        Some(contenttype_inner)
+        let mimetype_inner = decode_string(mimetype_value, "mimetype_inner", "string | void")?;
+        Some(mimetype_inner)
     };
-    Ok((paths, contenttype))
+    Ok((paths, mimetype))
 }
 
 /// Encode the result for destack.os.intent.sharePaths.
@@ -3186,15 +2925,14 @@ fn decode_destack_os_intent_share_text_args(
 ) -> RuntimeResult<(vm::StringHandle, Option<vm::StringHandle>)> {
     let text_value = arg_value(args, 0, "text", "string")?;
     let text = decode_string(text_value, "text", "string")?;
-    let contenttype_value = arg_value(args, 1, "contenttype", "string | void")?;
-    let contenttype = if contenttype_value.tag() == vm::ValueTag::Void {
+    let mimetype_value = arg_value(args, 1, "mimetype", "string | void")?;
+    let mimetype = if mimetype_value.tag() == vm::ValueTag::Void {
         None
     } else {
-        let contenttype_inner =
-            decode_string(contenttype_value, "contenttype_inner", "string | void")?;
-        Some(contenttype_inner)
+        let mimetype_inner = decode_string(mimetype_value, "mimetype_inner", "string | void")?;
+        Some(mimetype_inner)
     };
-    Ok((text, contenttype))
+    Ok((text, mimetype))
 }
 
 /// Encode the result for destack.os.intent.shareText.
@@ -3256,7 +2994,7 @@ fn encode_destack_os_intent_try_read_result(
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
-                        let field_4: RuntimeResult<vm::Value> = match value.payload.content_type {
+                        let field_4: RuntimeResult<vm::Value> = match value.payload.mime_type {
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
@@ -3322,7 +3060,7 @@ fn encode_destack_os_intent_try_read_result(
                                     .map_err(Box::<RuntimeError>::from)
                             }
                         };
-                        let field_1: RuntimeResult<vm::Value> = match value.payload.content_type {
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.mime_type {
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
@@ -3389,7 +3127,7 @@ fn encode_destack_os_intent_try_read_result(
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
                             value.payload.paths.to_value(context);
-                        let field_1: RuntimeResult<vm::Value> = match value.payload.content_type {
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.mime_type {
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
@@ -3424,7 +3162,7 @@ fn encode_destack_os_intent_try_read_result(
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
-                        let field_1: RuntimeResult<vm::Value> = match value.payload.content_type {
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.mime_type {
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
@@ -3917,26 +3655,14 @@ fn encode_destack_os_location_last_known_result(
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.latitude_degrees));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.longitude_degrees));
-            let field_2: RuntimeResult<vm::Value> = match value.altitude_meters {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_3: RuntimeResult<vm::Value> = match value.horizontal_accuracy_meters {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_4: RuntimeResult<vm::Value> = match value.vertical_accuracy_meters {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_5: RuntimeResult<vm::Value> = match value.speed_meters_per_second {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_6: RuntimeResult<vm::Value> = match value.heading_degrees {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
-            };
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.altitude_meters));
+            let field_3: RuntimeResult<vm::Value> =
+                Ok(vm::Value::float64(value.horizontal_accuracy_meters));
+            let field_4: RuntimeResult<vm::Value> =
+                Ok(vm::Value::float64(value.vertical_accuracy_meters));
+            let field_5: RuntimeResult<vm::Value> =
+                Ok(vm::Value::float64(value.speed_meters_per_second));
+            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.heading_degrees));
             let field_7: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.timestamp_unix_ns, 64));
             context
@@ -4078,26 +3804,14 @@ fn encode_destack_os_location_watch_read_result(
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.latitude_degrees));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.longitude_degrees));
-            let field_2: RuntimeResult<vm::Value> = match value.altitude_meters {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_3: RuntimeResult<vm::Value> = match value.horizontal_accuracy_meters {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_4: RuntimeResult<vm::Value> = match value.vertical_accuracy_meters {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_5: RuntimeResult<vm::Value> = match value.speed_meters_per_second {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_6: RuntimeResult<vm::Value> = match value.heading_degrees {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
-            };
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.altitude_meters));
+            let field_3: RuntimeResult<vm::Value> =
+                Ok(vm::Value::float64(value.horizontal_accuracy_meters));
+            let field_4: RuntimeResult<vm::Value> =
+                Ok(vm::Value::float64(value.vertical_accuracy_meters));
+            let field_5: RuntimeResult<vm::Value> =
+                Ok(vm::Value::float64(value.speed_meters_per_second));
+            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.heading_degrees));
             let field_7: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.timestamp_unix_ns, 64));
             context
@@ -4133,26 +3847,14 @@ fn encode_destack_os_location_watch_try_read_result(
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.latitude_degrees));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.longitude_degrees));
-            let field_2: RuntimeResult<vm::Value> = match value.altitude_meters {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_3: RuntimeResult<vm::Value> = match value.horizontal_accuracy_meters {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_4: RuntimeResult<vm::Value> = match value.vertical_accuracy_meters {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_5: RuntimeResult<vm::Value> = match value.speed_meters_per_second {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_6: RuntimeResult<vm::Value> = match value.heading_degrees {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
-            };
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.altitude_meters));
+            let field_3: RuntimeResult<vm::Value> =
+                Ok(vm::Value::float64(value.horizontal_accuracy_meters));
+            let field_4: RuntimeResult<vm::Value> =
+                Ok(vm::Value::float64(value.vertical_accuracy_meters));
+            let field_5: RuntimeResult<vm::Value> =
+                Ok(vm::Value::float64(value.speed_meters_per_second));
+            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.heading_degrees));
             let field_7: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.timestamp_unix_ns, 64));
             context
@@ -4186,77 +3888,6 @@ fn encode_destack_os_media_delete_result(
         .and_then(|value| value)
 }
 
-/// Decode arguments for destack.os.media.describe.
-#[inline]
-fn decode_destack_os_media_describe_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle,)> {
-    let id_value = arg_value(args, 0, "id", "string")?;
-    let id = decode_string(id_value, "id", "string")?;
-    Ok((id,))
-}
-
-/// Encode the result for destack.os.media.describe.
-#[inline]
-fn encode_destack_os_media_describe_result(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<MediaAssetDescriptorVm>,
-) -> RuntimeResult<vm::Value> {
-    result
-        .map(|value| {
-            let field_0: RuntimeResult<vm::Value> = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.asset.id.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(value.asset.uri.value());
-                let field_2: RuntimeResult<vm::Value> = Ok(value.asset.filename.value());
-                let field_3: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::int(value.asset.kind as i32 as i64, 32));
-                let field_4: RuntimeResult<vm::Value> = match value.asset.content_type {
-                    Some(value) => Ok(value.value()),
-                    None => Ok(vm::Value::VOID),
-                };
-                let field_5: RuntimeResult<vm::Value> = match value.asset.size_bytes {
-                    Some(value) => Ok(vm::Value::uint(value, 64)),
-                    None => Ok(vm::Value::VOID),
-                };
-                let field_6: RuntimeResult<vm::Value> = match value.asset.created_unix_ns {
-                    Some(value) => Ok(vm::Value::uint(value, 64)),
-                    None => Ok(vm::Value::VOID),
-                };
-                let field_7: RuntimeResult<vm::Value> = match value.asset.modified_unix_ns {
-                    Some(value) => Ok(vm::Value::uint(value, 64)),
-                    None => Ok(vm::Value::VOID),
-                };
-                context
-                    .allocate_aggregate(vec![
-                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-                        field_7?,
-                    ])
-                    .map_err(Box::<RuntimeError>::from)
-            };
-            let field_1: RuntimeResult<vm::Value> = match value.dimensions {
-                Some(value) => {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.width as u64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.height as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                }
-                None => Ok(vm::Value::VOID),
-            };
-            let field_2: RuntimeResult<vm::Value> = match value.duration_ms {
-                Some(value) => Ok(vm::Value::uint(value, 64)),
-                None => Ok(vm::Value::VOID),
-            };
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                .map_err(Box::<RuntimeError>::from)
-        })
-        .and_then(|value| value)
-}
-
 /// Decode arguments for destack.os.media.importPath.
 #[inline]
 fn decode_destack_os_media_import_path_args(
@@ -4271,6 +3902,7 @@ fn decode_destack_os_media_import_path_args(
         1i32 => MediaAssetKind::Image,
         2i32 => MediaAssetKind::Video,
         3i32 => MediaAssetKind::Audio,
+        4i32 => MediaAssetKind::Other,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "kind",
@@ -4361,432 +3993,44 @@ fn encode_destack_os_media_list_result(
         .and_then(|value| value)
 }
 
-/// Decode arguments for destack.os.media.watchClose.
+/// Decode arguments for destack.os.media.read.
 #[inline]
-fn decode_destack_os_media_watch_close_args(
+fn decode_destack_os_media_read_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::MediaWatchHandle,)> {
-    let handle_value = arg_value(args, 0, "handle", "MediaWatchHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "MediaWatchHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::MediaWatchHandle(handle_inner);
-    Ok((handle,))
+) -> RuntimeResult<(vm::StringHandle,)> {
+    let id_value = arg_value(args, 0, "id", "string")?;
+    let id = decode_string(id_value, "id", "string")?;
+    Ok((id,))
 }
 
-/// Encode the result for destack.os.media.watchClose.
+/// Encode the result for destack.os.media.read.
 #[inline]
-fn encode_destack_os_media_watch_close_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
-/// Decode arguments for destack.os.media.watchOpen.
-#[inline]
-fn decode_destack_os_media_watch_open_args(
+fn encode_destack_os_media_read_result(
     context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(MediaWatchOptionsVm,)> {
-    let options_value = arg_value(args, 0, "options", "MediaWatchOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "MediaWatchOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 5 fields",
-            ))
-            .boxed());
-        }
-        let options_kinds =
-            decode_array::<MediaAssetKind>(context, slots[0], "options_kinds", "kinds")?;
-        let options_include_hidden =
-            decode_bool(slots[1], "options_include_hidden", "includeHidden")?;
-        let options_include_added = decode_bool(slots[2], "options_include_added", "includeAdded")?;
-        let options_include_updated =
-            decode_bool(slots[3], "options_include_updated", "includeUpdated")?;
-        let options_include_removed =
-            decode_bool(slots[4], "options_include_removed", "includeRemoved")?;
-        MediaWatchOptionsVm {
-            kinds: options_kinds,
-            include_hidden: options_include_hidden,
-            include_added: options_include_added,
-            include_updated: options_include_updated,
-            include_removed: options_include_removed,
-        }
-    };
-    Ok((options,))
-}
-
-/// Encode the result for destack.os.media.watchOpen.
-#[inline]
-fn encode_destack_os_media_watch_open_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<resource::MediaWatchHandle>,
+    result: RuntimeResult<MediaAssetDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
     result
-        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
-        .and_then(|value| value)
-}
-
-/// Decode arguments for destack.os.media.watchRead.
-#[inline]
-fn decode_destack_os_media_watch_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::MediaWatchHandle, u64)> {
-    let handle_value = arg_value(args, 0, "handle", "MediaWatchHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "MediaWatchHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::MediaWatchHandle(handle_inner);
-    let timeoutns_value = arg_value(args, 1, "timeoutns", "uint64")?;
-    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
-    Ok((handle, timeoutns))
-}
-
-/// Encode the result for destack.os.media.watchRead.
-#[inline]
-fn encode_destack_os_media_watch_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<MediaEventVm>,
-) -> RuntimeResult<vm::Value> {
-    result
-        .map(|value| match value {
-            MediaEventVm::MediaAddedEvent(value) => {
-                let tag_value = vm::Value::uint(1094878838u64, 32);
-                let payload_value = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                    let field_1: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = Ok(value.asset.id.value());
-                        let field_1: RuntimeResult<vm::Value> = Ok(value.asset.uri.value());
-                        let field_2: RuntimeResult<vm::Value> = Ok(value.asset.filename.value());
-                        let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.asset.kind as i32 as i64, 32));
-                        let field_4: RuntimeResult<vm::Value> = match value.asset.content_type {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_5: RuntimeResult<vm::Value> = match value.asset.size_bytes {
-                            Some(value) => Ok(vm::Value::uint(value, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_6: RuntimeResult<vm::Value> = match value.asset.created_unix_ns {
-                            Some(value) => Ok(vm::Value::uint(value, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_7: RuntimeResult<vm::Value> = match value.asset.modified_unix_ns {
-                            Some(value) => Ok(vm::Value::uint(value, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
-                }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
-            }
-            MediaEventVm::MediaRemovedEvent(value) => {
-                let tag_value = vm::Value::uint(2363755472u64, 32);
-                let payload_value = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                    let field_1: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = Ok(value.asset.id.value());
-                        let field_1: RuntimeResult<vm::Value> = Ok(value.asset.uri.value());
-                        let field_2: RuntimeResult<vm::Value> = Ok(value.asset.filename.value());
-                        let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.asset.kind as i32 as i64, 32));
-                        let field_4: RuntimeResult<vm::Value> = match value.asset.content_type {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_5: RuntimeResult<vm::Value> = match value.asset.size_bytes {
-                            Some(value) => Ok(vm::Value::uint(value, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_6: RuntimeResult<vm::Value> = match value.asset.created_unix_ns {
-                            Some(value) => Ok(vm::Value::uint(value, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_7: RuntimeResult<vm::Value> = match value.asset.modified_unix_ns {
-                            Some(value) => Ok(vm::Value::uint(value, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
-                }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
-            }
-            MediaEventVm::MediaUpdatedEvent(value) => {
-                let tag_value = vm::Value::uint(3664500974u64, 32);
-                let payload_value = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                    let field_1: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = Ok(value.asset.id.value());
-                        let field_1: RuntimeResult<vm::Value> = Ok(value.asset.uri.value());
-                        let field_2: RuntimeResult<vm::Value> = Ok(value.asset.filename.value());
-                        let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.asset.kind as i32 as i64, 32));
-                        let field_4: RuntimeResult<vm::Value> = match value.asset.content_type {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_5: RuntimeResult<vm::Value> = match value.asset.size_bytes {
-                            Some(value) => Ok(vm::Value::uint(value, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_6: RuntimeResult<vm::Value> = match value.asset.created_unix_ns {
-                            Some(value) => Ok(vm::Value::uint(value, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_7: RuntimeResult<vm::Value> = match value.asset.modified_unix_ns {
-                            Some(value) => Ok(vm::Value::uint(value, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
-                }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
-            }
-        })
-        .and_then(|value| value)
-}
-
-/// Decode arguments for destack.os.media.watchTryRead.
-#[inline]
-fn decode_destack_os_media_watch_try_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::MediaWatchHandle,)> {
-    let handle_value = arg_value(args, 0, "handle", "MediaWatchHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "MediaWatchHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::MediaWatchHandle(handle_inner);
-    Ok((handle,))
-}
-
-/// Encode the result for destack.os.media.watchTryRead.
-#[inline]
-fn encode_destack_os_media_watch_try_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<MediaEventVm>,
-) -> RuntimeResult<vm::Value> {
-    result
-        .map(|value| match value {
-            MediaEventVm::MediaAddedEvent(value) => {
-                let tag_value = vm::Value::uint(1094878838u64, 32);
-                let payload_value = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                    let field_1: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = Ok(value.asset.id.value());
-                        let field_1: RuntimeResult<vm::Value> = Ok(value.asset.uri.value());
-                        let field_2: RuntimeResult<vm::Value> = Ok(value.asset.filename.value());
-                        let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.asset.kind as i32 as i64, 32));
-                        let field_4: RuntimeResult<vm::Value> = match value.asset.content_type {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_5: RuntimeResult<vm::Value> = match value.asset.size_bytes {
-                            Some(value) => Ok(vm::Value::uint(value, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_6: RuntimeResult<vm::Value> = match value.asset.created_unix_ns {
-                            Some(value) => Ok(vm::Value::uint(value, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_7: RuntimeResult<vm::Value> = match value.asset.modified_unix_ns {
-                            Some(value) => Ok(vm::Value::uint(value, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
-                }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
-            }
-            MediaEventVm::MediaRemovedEvent(value) => {
-                let tag_value = vm::Value::uint(2363755472u64, 32);
-                let payload_value = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                    let field_1: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = Ok(value.asset.id.value());
-                        let field_1: RuntimeResult<vm::Value> = Ok(value.asset.uri.value());
-                        let field_2: RuntimeResult<vm::Value> = Ok(value.asset.filename.value());
-                        let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.asset.kind as i32 as i64, 32));
-                        let field_4: RuntimeResult<vm::Value> = match value.asset.content_type {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_5: RuntimeResult<vm::Value> = match value.asset.size_bytes {
-                            Some(value) => Ok(vm::Value::uint(value, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_6: RuntimeResult<vm::Value> = match value.asset.created_unix_ns {
-                            Some(value) => Ok(vm::Value::uint(value, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_7: RuntimeResult<vm::Value> = match value.asset.modified_unix_ns {
-                            Some(value) => Ok(vm::Value::uint(value, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
-                }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
-            }
-            MediaEventVm::MediaUpdatedEvent(value) => {
-                let tag_value = vm::Value::uint(3664500974u64, 32);
-                let payload_value = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                    let field_1: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = Ok(value.asset.id.value());
-                        let field_1: RuntimeResult<vm::Value> = Ok(value.asset.uri.value());
-                        let field_2: RuntimeResult<vm::Value> = Ok(value.asset.filename.value());
-                        let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.asset.kind as i32 as i64, 32));
-                        let field_4: RuntimeResult<vm::Value> = match value.asset.content_type {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_5: RuntimeResult<vm::Value> = match value.asset.size_bytes {
-                            Some(value) => Ok(vm::Value::uint(value, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_6: RuntimeResult<vm::Value> = match value.asset.created_unix_ns {
-                            Some(value) => Ok(vm::Value::uint(value, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_7: RuntimeResult<vm::Value> = match value.asset.modified_unix_ns {
-                            Some(value) => Ok(vm::Value::uint(value, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
-                }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
-            }
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
+            let field_1: RuntimeResult<vm::Value> = Ok(value.uri.value());
+            let field_2: RuntimeResult<vm::Value> = Ok(value.filename.value());
+            let field_3: RuntimeResult<vm::Value> = Ok(value.mime_type.value());
+            let field_4: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.kind as i32 as i64, 32));
+            let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
+            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
+            let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.duration_ms, 64));
+            let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.size_bytes, 64));
+            let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.created_unix_ns, 64));
+            let field_10: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.modified_unix_ns, 64));
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                    field_8?, field_9?, field_10?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -5070,12 +4314,12 @@ fn decode_destack_os_notification_category_set_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmArray<NotificationCategoryVm>,)> {
-    let categories_value = arg_value(args, 0, "categories", "Array<NotificationCategory>")?;
+    let categories_value = arg_value(args, 0, "categories", "NotificationCategory[]")?;
     let categories = decode_array::<NotificationCategoryVm>(
         context,
         categories_value,
         "categories",
-        "Array<NotificationCategory>",
+        "NotificationCategory[]",
     )?;
     Ok((categories,))
 }
@@ -6556,13 +5800,9 @@ fn decode_destack_os_permission_request_many_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmArray<Permission>,)> {
-    let permissions_value = arg_value(args, 0, "permissions", "Array<Permission>")?;
-    let permissions = decode_array::<Permission>(
-        context,
-        permissions_value,
-        "permissions",
-        "Array<Permission>",
-    )?;
+    let permissions_value = arg_value(args, 0, "permissions", "Permission[]")?;
+    let permissions =
+        decode_array::<Permission>(context, permissions_value, "permissions", "Permission[]")?;
     Ok((permissions,))
 }
 
@@ -6628,13 +5868,9 @@ fn decode_destack_os_permission_state_many_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmArray<Permission>,)> {
-    let permissions_value = arg_value(args, 0, "permissions", "Array<Permission>")?;
-    let permissions = decode_array::<Permission>(
-        context,
-        permissions_value,
-        "permissions",
-        "Array<Permission>",
-    )?;
+    let permissions_value = arg_value(args, 0, "permissions", "Permission[]")?;
+    let permissions =
+        decode_array::<Permission>(context, permissions_value, "permissions", "Permission[]")?;
     Ok((permissions,))
 }
 
@@ -6709,41 +5945,6 @@ struct OsBackgroundListReplayRecord {
 struct OsBackgroundStatusReplayRecord {
     /// Replay result payload.
     pub result: Result<BackgroundStatus, TraceError>,
-}
-
-/// Replay payload for destack.os.clipboard.hasText.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct OsClipboardHasTextReplayRecord {
-    /// Replay result payload.
-    pub result: Result<bool, TraceError>,
-}
-
-/// Replay payload for destack.os.clipboard.readBytes.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct OsClipboardReadBytesReplayRecord {
-    /// Replay result payload.
-    pub result: Result<Vec<u8>, TraceError>,
-}
-
-/// Replay payload for destack.os.clipboard.readText.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct OsClipboardReadTextReplayRecord {
-    /// Replay result payload.
-    pub result: Result<String, TraceError>,
-}
-
-/// Replay payload for destack.os.clipboard.sequence.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct OsClipboardSequenceReplayRecord {
-    /// Replay result payload.
-    pub result: Result<u64, TraceError>,
-}
-
-/// Replay payload for destack.os.document.access.list.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct OsDocumentAccessListReplayRecord {
-    /// Replay result payload.
-    pub result: Result<Vec<DocumentaccessgrantReplayRecord>, TraceError>,
 }
 
 /// Replay payload for destack.os.host.identity.
@@ -6891,34 +6092,6 @@ struct OsLocationWatchReadReplayRecord {
 struct OsLocationWatchTryReadReplayRecord {
     /// Replay result payload.
     pub result: Result<LocationSample, TraceError>,
-}
-
-/// Replay payload for destack.os.media.watchClose.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct OsMediaWatchCloseReplayRecord {
-    /// Replay result payload.
-    pub result: Result<(), TraceError>,
-}
-
-/// Replay payload for destack.os.media.watchOpen.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct OsMediaWatchOpenReplayRecord {
-    /// Replay result payload.
-    pub result: Result<resource::MediaWatchHandle, TraceError>,
-}
-
-/// Replay payload for destack.os.media.watchRead.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct OsMediaWatchReadReplayRecord {
-    /// Replay result payload.
-    pub result: Result<MediaeventReplayRecord, TraceError>,
-}
-
-/// Replay payload for destack.os.media.watchTryRead.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct OsMediaWatchTryReadReplayRecord {
-    /// Replay result payload.
-    pub result: Result<MediaeventReplayRecord, TraceError>,
 }
 
 /// Replay payload for destack.os.mount.list.
@@ -7079,7 +6252,7 @@ pub(crate) const OS_BACKGROUND_EVENT_TRY_READ: BindingDescriptor = BindingDescri
 pub(crate) const OS_BACKGROUND_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.background.list",
-        "export function backgroundList(): Result<Array<BackgroundTaskDescriptor>, PlatformError>",
+        "export function backgroundList(): Result<BackgroundTaskDescriptor[], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.background.read"],
@@ -7246,7 +6419,7 @@ pub(crate) const OS_CALENDAR_EVENT_DELETE: BindingDescriptor =
 /// Binding descriptor for destack.os.calendar.eventList.
 pub(crate) const OS_CALENDAR_EVENT_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.calendar.eventList",
-    "export function calendarEventList(query: CalendarEventQuery): Result<Array<CalendarEvent>, PlatformError>",
+    "export function calendarEventList(query: CalendarEventQuery): Result<CalendarEvent[], PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.calendar.read"],
@@ -7303,178 +6476,10 @@ pub(crate) const OS_CALENDAR_EVENT_UPDATE: BindingDescriptor = BindingDescriptor
 pub(crate) const OS_CALENDAR_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.calendar.list",
-        "export function calendarList(): Result<Array<CalendarDescriptor>, PlatformError>",
+        "export function calendarList(): Result<CalendarDescriptor[], PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.calendar.read"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
-    )
-    .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
-
-/// Binding descriptor for destack.os.clipboard.clear.
-pub(crate) const OS_CLIPBOARD_CLEAR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.os.clipboard.clear",
-        "export function clipboardClear(): Result<void, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["os.clipboard.write"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
-    )
-    .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
-
-/// Binding descriptor for destack.os.clipboard.hasText.
-pub(crate) const OS_CLIPBOARD_HAS_TEXT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.os.clipboard.hasText",
-        "export function clipboardHasText(): Result<boolean, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["os.clipboard.read"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
-    )
-    .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
-
-/// Binding descriptor for destack.os.clipboard.readBytes.
-pub(crate) const OS_CLIPBOARD_READ_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.os.clipboard.readBytes",
-    "export function clipboardReadBytes(format: ClipboardBinaryFormat): Result<Slice<uint8>, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["os.clipboard.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.os.clipboard.readText.
-pub(crate) const OS_CLIPBOARD_READ_TEXT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.os.clipboard.readText",
-        "export function clipboardReadText(): Result<string, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["os.clipboard.read"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
-    )
-    .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
-
-/// Binding descriptor for destack.os.clipboard.sequence.
-pub(crate) const OS_CLIPBOARD_SEQUENCE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.os.clipboard.sequence",
-        "export function clipboardSequence(): Result<uint64, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["os.clipboard.read"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
-    )
-    .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
-
-/// Binding descriptor for destack.os.clipboard.writeBytes.
-pub(crate) const OS_CLIPBOARD_WRITE_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.os.clipboard.writeBytes",
-    "export function clipboardWriteBytes(format: ClipboardBinaryFormat, bytes: Slice<uint8>): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
-    BindingReplayKind::BindingCall,
-    &["os.clipboard.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.os.clipboard.writeText.
-pub(crate) const OS_CLIPBOARD_WRITE_TEXT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.os.clipboard.writeText",
-        "export function clipboardWriteText(text: string): Result<void, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["os.clipboard.write"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
         BindingAffinity::Any,
@@ -7705,90 +6710,6 @@ pub(crate) const OS_CREDENTIALS_WRITE: BindingDescriptor = BindingDescriptor::ex
     .with_namespace("os")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.os.document.access.list.
-pub(crate) const OS_DOCUMENT_ACCESS_LIST: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.os.document.access.list",
-        "export function documentAccessList(): Result<Array<DocumentAccessGrant>, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["os.document.control"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
-    )
-    .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
-
-/// Binding descriptor for destack.os.document.access.open.
-pub(crate) const OS_DOCUMENT_ACCESS_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.os.document.access.open",
-    "export function documentAccessOpen(id: string, access: DocumentAccess): Result<DocumentHandle, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
-    BindingReplayKind::BindingCall,
-    &["os.document.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.os.document.access.persist.
-pub(crate) const OS_DOCUMENT_ACCESS_PERSIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.os.document.access.persist",
-    "export function documentAccessPersist(documents: Array<DocumentDescriptor>, access: DocumentAccess): Result<Array<DocumentAccessGrant>, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
-    BindingReplayKind::BindingCall,
-    &["os.document.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.os.document.access.revoke.
-pub(crate) const OS_DOCUMENT_ACCESS_REVOKE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.os.document.access.revoke",
-        "export function documentAccessRevoke(ids: Array<string>): Result<uint32, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["os.document.control"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
-    )
-    .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
-
 /// Binding descriptor for destack.os.document.close.
 pub(crate) const OS_DOCUMENT_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
@@ -7845,20 +6766,6 @@ pub(crate) const OS_DOCUMENT_FLUSH: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.os.document.import.
-pub(crate) const OS_DOCUMENT_IMPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.os.document.import",
-    "export function documentImport(documents: Array<DocumentDescriptor>): Result<Array<DocumentDescriptor>, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
-    BindingReplayKind::BindingCall,
-    &["os.document.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
 /// Binding descriptor for destack.os.document.open.
 pub(crate) const OS_DOCUMENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.document.open",
@@ -7876,7 +6783,7 @@ pub(crate) const OS_DOCUMENT_OPEN: BindingDescriptor = BindingDescriptor::extern
 /// Binding descriptor for destack.os.document.pick.
 pub(crate) const OS_DOCUMENT_PICK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.document.pick",
-    "export function documentPick(options: DocumentPickOptions): Result<Array<DocumentDescriptor>, PlatformError>",
+    "export function documentPick(options: DocumentPickOptions): Result<DocumentDescriptor[], PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.document.pick"],
@@ -8211,7 +7118,7 @@ pub(crate) const OS_INTENT_READ: BindingDescriptor = BindingDescriptor::external
 /// Binding descriptor for destack.os.intent.sharePaths.
 pub(crate) const OS_INTENT_SHARE_PATHS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.intent.sharePaths",
-    "export function intentSharePaths(paths: Array<OsPath>, contentType: string | void): Result<void, PlatformError>",
+    "export function intentSharePaths(paths: Array<OsPath>, mimeType: string | void): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.intent.write"],
@@ -8225,7 +7132,7 @@ pub(crate) const OS_INTENT_SHARE_PATHS: BindingDescriptor = BindingDescriptor::e
 /// Binding descriptor for destack.os.intent.shareText.
 pub(crate) const OS_INTENT_SHARE_TEXT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.intent.shareText",
-    "export function intentShareText(text: string, contentType: string | void): Result<void, PlatformError>",
+    "export function intentShareText(text: string, mimeType: string | void): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.intent.write"],
@@ -8516,34 +7423,6 @@ pub(crate) const OS_MEDIA_DELETE: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.os.media.describe.
-pub(crate) const OS_MEDIA_DESCRIBE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.os.media.describe",
-        "export function mediaDescribe(id: string): Result<MediaAssetDescriptor, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["os.media.read"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
-    )
-    .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
-
 /// Binding descriptor for destack.os.media.importPath.
 pub(crate) const OS_MEDIA_IMPORT_PATH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.media.importPath",
@@ -8586,12 +7465,12 @@ pub(crate) const OS_MEDIA_LIST: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.os.media.watchClose.
-pub(crate) const OS_MEDIA_WATCH_CLOSE: BindingDescriptor =
+/// Binding descriptor for destack.os.media.read.
+pub(crate) const OS_MEDIA_READ: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.os.media.watchClose",
-        "export function mediaWatchClose(handle: MediaWatchHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
+        "destack.os.media.read",
+        "export function mediaRead(id: string): Result<MediaAssetDescriptor, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.media.read"],
         BindingScope::Host,
@@ -8614,53 +7493,11 @@ pub(crate) const OS_MEDIA_WATCH_CLOSE: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.os.media.watchOpen.
-pub(crate) const OS_MEDIA_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.os.media.watchOpen",
-    "export function mediaWatchOpen(options: MediaWatchOptions): Result<MediaWatchHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["os.media.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.os.media.watchRead.
-pub(crate) const OS_MEDIA_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.os.media.watchRead",
-    "export function mediaWatchRead(handle: MediaWatchHandle, timeoutNs: uint64): Result<MediaEvent, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["os.media.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.os.media.watchTryRead.
-pub(crate) const OS_MEDIA_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.os.media.watchTryRead",
-    "export function mediaWatchTryRead(handle: MediaWatchHandle): Result<MediaEvent, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["os.media.read"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
-)
-    .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
 /// Binding descriptor for destack.os.mount.list.
 pub(crate) const OS_MOUNT_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.mount.list",
-        "export function mountList(): Result<Array<MountEntry>, PlatformError>",
+        "export function mountList(): Result<MountEntry[], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.mount"],
@@ -8839,23 +7676,37 @@ pub(crate) const OS_NOTIFICATION_CANCEL_ALL: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.os.notification.categoryList.
-pub(crate) const OS_NOTIFICATION_CATEGORY_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.os.notification.categoryList",
-    "export function notificationCategoryList(): Result<Array<NotificationCategory>, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["os.notification.post"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
+pub(crate) const OS_NOTIFICATION_CATEGORY_LIST: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.notification.categoryList",
+        "export function notificationCategoryList(): Result<NotificationCategory[], PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::BindingCall,
+        &["os.notification.post"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+        BindingAffinity::Any,
+    )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.os.notification.categorySet.
 pub(crate) const OS_NOTIFICATION_CATEGORY_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.notification.categorySet",
-    "export function notificationCategorySet(categories: Array<NotificationCategory>): Result<void, PlatformError>",
+    "export function notificationCategorySet(categories: NotificationCategory[]): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.notification.post"],
@@ -8981,7 +7832,7 @@ pub(crate) const OS_NOTIFICATION_PENDING_CANCEL_ALL: BindingDescriptor =
 /// Binding descriptor for destack.os.notification.pendingList.
 pub(crate) const OS_NOTIFICATION_PENDING_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.notification.pendingList",
-    "export function notificationPendingList(): Result<Array<NotificationScheduledDescriptor>, PlatformError>",
+    "export function notificationPendingList(): Result<NotificationScheduledDescriptor[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["os.notification.post"],
@@ -9093,7 +7944,7 @@ pub(crate) const OS_PERMISSION_REQUEST: BindingDescriptor = BindingDescriptor::e
 /// Binding descriptor for destack.os.permission.requestMany.
 pub(crate) const OS_PERMISSION_REQUEST_MANY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.permission.requestMany",
-    "export function permissionRequestMany(permissions: Array<Permission>): Result<Array<PermissionEntry>, PlatformError>",
+    "export function permissionRequestMany(permissions: Permission[]): Result<PermissionEntry[], PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.permission.request"],
@@ -9121,7 +7972,7 @@ pub(crate) const OS_PERMISSION_STATE: BindingDescriptor = BindingDescriptor::ext
 /// Binding descriptor for destack.os.permission.stateMany.
 pub(crate) const OS_PERMISSION_STATE_MANY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.permission.stateMany",
-    "export function permissionStateMany(permissions: Array<Permission>): Result<Array<PermissionEntry>, PlatformError>",
+    "export function permissionStateMany(permissions: Permission[]): Result<PermissionEntry[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["os.permission.read"],
@@ -9273,41 +8124,6 @@ pub(crate) const OS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_os_calendar_list as *const (),
         ),
         NativeBinding::new(
-            OS_CLIPBOARD_CLEAR,
-            "destack.os.clipboard.clear",
-            destack_os_clipboard_clear as *const (),
-        ),
-        NativeBinding::new(
-            OS_CLIPBOARD_HAS_TEXT,
-            "destack.os.clipboard.hasText",
-            destack_os_clipboard_has_text as *const (),
-        ),
-        NativeBinding::new(
-            OS_CLIPBOARD_READ_BYTES,
-            "destack.os.clipboard.readBytes",
-            destack_os_clipboard_read_bytes as *const (),
-        ),
-        NativeBinding::new(
-            OS_CLIPBOARD_READ_TEXT,
-            "destack.os.clipboard.readText",
-            destack_os_clipboard_read_text as *const (),
-        ),
-        NativeBinding::new(
-            OS_CLIPBOARD_SEQUENCE,
-            "destack.os.clipboard.sequence",
-            destack_os_clipboard_sequence as *const (),
-        ),
-        NativeBinding::new(
-            OS_CLIPBOARD_WRITE_BYTES,
-            "destack.os.clipboard.writeBytes",
-            destack_os_clipboard_write_bytes as *const (),
-        ),
-        NativeBinding::new(
-            OS_CLIPBOARD_WRITE_TEXT,
-            "destack.os.clipboard.writeText",
-            destack_os_clipboard_write_text as *const (),
-        ),
-        NativeBinding::new(
             OS_CONTACT_CREATE,
             "destack.os.contact.create",
             destack_os_contact_create as *const (),
@@ -9363,26 +8179,6 @@ pub(crate) const OS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_os_credentials_write as *const (),
         ),
         NativeBinding::new(
-            OS_DOCUMENT_ACCESS_LIST,
-            "destack.os.document.access.list",
-            destack_os_document_access_list as *const (),
-        ),
-        NativeBinding::new(
-            OS_DOCUMENT_ACCESS_OPEN,
-            "destack.os.document.access.open",
-            destack_os_document_access_open as *const (),
-        ),
-        NativeBinding::new(
-            OS_DOCUMENT_ACCESS_PERSIST,
-            "destack.os.document.access.persist",
-            destack_os_document_access_persist as *const (),
-        ),
-        NativeBinding::new(
-            OS_DOCUMENT_ACCESS_REVOKE,
-            "destack.os.document.access.revoke",
-            destack_os_document_access_revoke as *const (),
-        ),
-        NativeBinding::new(
             OS_DOCUMENT_CLOSE,
             "destack.os.document.close",
             destack_os_document_close as *const (),
@@ -9391,11 +8187,6 @@ pub(crate) const OS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             OS_DOCUMENT_FLUSH,
             "destack.os.document.flush",
             destack_os_document_flush as *const (),
-        ),
-        NativeBinding::new(
-            OS_DOCUMENT_IMPORT,
-            "destack.os.document.import",
-            destack_os_document_import as *const (),
         ),
         NativeBinding::new(
             OS_DOCUMENT_OPEN,
@@ -9553,11 +8344,6 @@ pub(crate) const OS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_os_media_delete as *const (),
         ),
         NativeBinding::new(
-            OS_MEDIA_DESCRIBE,
-            "destack.os.media.describe",
-            destack_os_media_describe as *const (),
-        ),
-        NativeBinding::new(
             OS_MEDIA_IMPORT_PATH,
             "destack.os.media.importPath",
             destack_os_media_import_path as *const (),
@@ -9568,24 +8354,9 @@ pub(crate) const OS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_os_media_list as *const (),
         ),
         NativeBinding::new(
-            OS_MEDIA_WATCH_CLOSE,
-            "destack.os.media.watchClose",
-            destack_os_media_watch_close as *const (),
-        ),
-        NativeBinding::new(
-            OS_MEDIA_WATCH_OPEN,
-            "destack.os.media.watchOpen",
-            destack_os_media_watch_open as *const (),
-        ),
-        NativeBinding::new(
-            OS_MEDIA_WATCH_READ,
-            "destack.os.media.watchRead",
-            destack_os_media_watch_read as *const (),
-        ),
-        NativeBinding::new(
-            OS_MEDIA_WATCH_TRY_READ,
-            "destack.os.media.watchTryRead",
-            destack_os_media_watch_try_read as *const (),
+            OS_MEDIA_READ,
+            "destack.os.media.read",
+            destack_os_media_read as *const (),
         ),
         NativeBinding::new(
             OS_MOUNT_LIST,
@@ -10128,10 +8899,29 @@ fn destack_os_background_list_replay(
                     let result_recorded_item_recorded_trigger = result_recorded_item.trigger;
                     let result_recorded_item_recorded_minimum_interval_ns =
                         result_recorded_item.minimum_interval_ns;
+                    let result_recorded_item_recorded_earliest_begin_unix_ns =
+                        result_recorded_item.earliest_begin_unix_ns;
+                    let result_recorded_item_recorded_requires_network =
+                        result_recorded_item.requires_network;
+                    let result_recorded_item_recorded_requires_unmetered_network =
+                        result_recorded_item.requires_unmetered_network;
+                    let result_recorded_item_recorded_requires_charging =
+                        result_recorded_item.requires_charging;
+                    let result_recorded_item_recorded_requires_idle =
+                        result_recorded_item.requires_idle;
+                    let result_recorded_item_recorded_persisted = result_recorded_item.persisted;
                     let result_recorded_item_recorded = BackgroundtaskdescriptorReplayRecord {
                         identifier: result_recorded_item_recorded_identifier,
                         trigger: result_recorded_item_recorded_trigger,
                         minimum_interval_ns: result_recorded_item_recorded_minimum_interval_ns,
+                        earliest_begin_unix_ns:
+                            result_recorded_item_recorded_earliest_begin_unix_ns,
+                        requires_network: result_recorded_item_recorded_requires_network,
+                        requires_unmetered_network:
+                            result_recorded_item_recorded_requires_unmetered_network,
+                        requires_charging: result_recorded_item_recorded_requires_charging,
+                        requires_idle: result_recorded_item_recorded_requires_idle,
+                        persisted: result_recorded_item_recorded_persisted,
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -10162,10 +8952,27 @@ fn destack_os_background_list_replay(
                         let value_native_decoded_trigger = value_native_item.trigger;
                         let value_native_decoded_minimum_interval_ns =
                             value_native_item.minimum_interval_ns;
+                        let value_native_decoded_earliest_begin_unix_ns =
+                            value_native_item.earliest_begin_unix_ns;
+                        let value_native_decoded_requires_network =
+                            value_native_item.requires_network;
+                        let value_native_decoded_requires_unmetered_network =
+                            value_native_item.requires_unmetered_network;
+                        let value_native_decoded_requires_charging =
+                            value_native_item.requires_charging;
+                        let value_native_decoded_requires_idle = value_native_item.requires_idle;
+                        let value_native_decoded_persisted = value_native_item.persisted;
                         let value_native_decoded = BackgroundTaskDescriptor {
                             identifier: value_native_decoded_identifier,
                             trigger: value_native_decoded_trigger,
                             minimum_interval_ns: value_native_decoded_minimum_interval_ns,
+                            earliest_begin_unix_ns: value_native_decoded_earliest_begin_unix_ns,
+                            requires_network: value_native_decoded_requires_network,
+                            requires_unmetered_network:
+                                value_native_decoded_requires_unmetered_network,
+                            requires_charging: value_native_decoded_requires_charging,
+                            requires_idle: value_native_decoded_requires_idle,
+                            persisted: value_native_decoded_persisted,
                         };
                         value_native_values.push(value_native_decoded);
                     }
@@ -10221,426 +9028,6 @@ fn destack_os_background_status_replay(
             match payload.result {
                 Ok(value) => {
                     unsafe { out.write(value) };
-                    Ok(())
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_os_clipboard_has_text_replay(
-    binding: &BindingCallContext,
-    world: RuntimeWorld,
-    out: *mut bool,
-) -> RuntimeResult<()> {
-    binding.trace().run_binding_without_context(
-        OS_CLIPBOARD_HAS_TEXT,
-        binding.replay_payload_for(OS_CLIPBOARD_HAS_TEXT)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_clipboard_has_text(binding, out)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_clipboard_has_text(binding, out)
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value: bool = unsafe { out.read() };
-                let result_recorded = result_value;
-                let payload = OsClipboardHasTextReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsClipboardHasTextReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    unsafe { out.write(value) };
-                    Ok(())
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_os_clipboard_read_bytes_replay(
-    binding: &BindingCallContext,
-    world: RuntimeWorld,
-    out: *mut NativeSlice<u8>,
-    format: ClipboardBinaryFormat,
-) -> RuntimeResult<()> {
-    let _ = &format;
-
-    binding.trace().run_binding_without_context(
-        OS_CLIPBOARD_READ_BYTES,
-        binding.replay_payload_for(OS_CLIPBOARD_READ_BYTES)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_clipboard_read_bytes(binding, out, format)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_clipboard_read_bytes(binding, out, format)
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value: NativeSlice<u8> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
-                    let result_recorded_item_recorded = result_recorded_item;
-                    result_recorded.push(result_recorded_item_recorded);
-                }
-                let payload = OsClipboardReadBytesReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsClipboardReadBytesReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = value_native_item;
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_slice(value_native_values);
-                    unsafe { out.write(value_native) };
-                    Ok(())
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_os_clipboard_read_text_replay(
-    binding: &BindingCallContext,
-    world: RuntimeWorld,
-    out: *mut NativeStringRef,
-) -> RuntimeResult<()> {
-    binding.trace().run_binding_without_context(
-        OS_CLIPBOARD_READ_TEXT,
-        binding.replay_payload_for(OS_CLIPBOARD_READ_TEXT)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_clipboard_read_text(binding, out)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_clipboard_read_text(binding, out)
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value: NativeStringRef = unsafe { out.read() };
-                let result_recorded = unsafe { result_value.as_str()? }.to_string();
-                let payload = OsClipboardReadTextReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsClipboardReadTextReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let value_native = binding.store_string(value.as_str());
-                    unsafe { out.write(value_native) };
-                    Ok(())
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_os_clipboard_sequence_replay(
-    binding: &BindingCallContext,
-    world: RuntimeWorld,
-    out: *mut u64,
-) -> RuntimeResult<()> {
-    binding.trace().run_binding_without_context(
-        OS_CLIPBOARD_SEQUENCE,
-        binding.replay_payload_for(OS_CLIPBOARD_SEQUENCE)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_clipboard_sequence(binding, out)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_clipboard_sequence(binding, out)
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value: u64 = unsafe { out.read() };
-                let result_recorded = result_value;
-                let payload = OsClipboardSequenceReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsClipboardSequenceReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    unsafe { out.write(value) };
-                    Ok(())
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_os_document_access_list_replay(
-    binding: &BindingCallContext,
-    world: RuntimeWorld,
-    out: *mut NativeArray<DocumentAccessGrant>,
-) -> RuntimeResult<()> {
-    binding.trace().run_binding_without_context(
-        OS_DOCUMENT_ACCESS_LIST,
-        binding.replay_payload_for(OS_DOCUMENT_ACCESS_LIST)?,
-        || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_os_document_access_list(binding, out) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_document_access_list(binding, out) },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value: NativeArray<DocumentAccessGrant> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
-                    let result_recorded_item_recorded_id = unsafe { result_recorded_item.id.as_str()? }.to_string();
-                    let result_recorded_item_recorded_document_uri = unsafe { result_recorded_item.document.uri.as_str()? }.to_string();
-                    let result_recorded_item_recorded_document_name = unsafe { result_recorded_item.document.name.as_str()? }.to_string();
-                    let result_recorded_item_recorded_document_content_type = if let Some(value) = result_recorded_item.document.content_type {
-                        let result_recorded_item_recorded_document_content_type_inner = unsafe { value.as_str()? }.to_string();
-                        Some(result_recorded_item_recorded_document_content_type_inner)
-                    } else {
-                        None
-                    };
-                    let result_recorded_item_recorded_document_size_bytes = if let Some(value) = result_recorded_item.document.size_bytes {
-                        let result_recorded_item_recorded_document_size_bytes_inner = value;
-                        Some(result_recorded_item_recorded_document_size_bytes_inner)
-                    } else {
-                        None
-                    };
-                    let result_recorded_item_recorded_document_modified_unix_ns = if let Some(value) = result_recorded_item.document.modified_unix_ns {
-                        let result_recorded_item_recorded_document_modified_unix_ns_inner = value;
-                        Some(result_recorded_item_recorded_document_modified_unix_ns_inner)
-                    } else {
-                        None
-                    };
-                    let result_recorded_item_recorded_document_is_directory = result_recorded_item.document.is_directory;
-                    let result_recorded_item_recorded_document_local_path = if let Some(value) = result_recorded_item.document.local_path {
-                        let result_recorded_item_recorded_document_local_path_inner = match value {
-                            fs::OsPath::OsPathBytes(value) => {
-                                let result_recorded_item_recorded_document_local_path_inner_os_path_bytes_kind = unsafe { value.kind.as_str()? }.to_string();
-                                let mut result_recorded_item_recorded_document_local_path_inner_os_path_bytes_bytes_inner = Vec::new();
-                                for result_recorded_item_recorded_document_local_path_inner_os_path_bytes_bytes_inner_item in unsafe { value.bytes.0.as_slice()? }.iter().cloned() {
-                                    let result_recorded_item_recorded_document_local_path_inner_os_path_bytes_bytes_inner_item_recorded = result_recorded_item_recorded_document_local_path_inner_os_path_bytes_bytes_inner_item;
-                                    result_recorded_item_recorded_document_local_path_inner_os_path_bytes_bytes_inner.push(result_recorded_item_recorded_document_local_path_inner_os_path_bytes_bytes_inner_item_recorded);
-                                }
-                                let result_recorded_item_recorded_document_local_path_inner_os_path_bytes_bytes = result_recorded_item_recorded_document_local_path_inner_os_path_bytes_bytes_inner;
-                                let result_recorded_item_recorded_document_local_path_inner_os_path_bytes = fs::OspathbytesReplayRecord {
-                                    kind: result_recorded_item_recorded_document_local_path_inner_os_path_bytes_kind,
-                                    bytes: result_recorded_item_recorded_document_local_path_inner_os_path_bytes_bytes,
-                                };
-                                fs::OspathReplayRecord::OsPathBytes(result_recorded_item_recorded_document_local_path_inner_os_path_bytes)
-                            }
-                            fs::OsPath::OsPathUtf16(value) => {
-                                let result_recorded_item_recorded_document_local_path_inner_os_path_utf16_kind = unsafe { value.kind.as_str()? }.to_string();
-                                let mut result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16_inner = Vec::new();
-                                for result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16_inner_item in unsafe { value.utf16.0.as_slice()? }.iter().cloned() {
-                                    let result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16_inner_item_recorded = result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16_inner_item;
-                                    result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16_inner.push(result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16_inner_item_recorded);
-                                }
-                                let result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16 = result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16_inner;
-                                let result_recorded_item_recorded_document_local_path_inner_os_path_utf16 = fs::Ospathutf16ReplayRecord {
-                                    kind: result_recorded_item_recorded_document_local_path_inner_os_path_utf16_kind,
-                                    utf16: result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16,
-                                };
-                                fs::OspathReplayRecord::OsPathUtf16(result_recorded_item_recorded_document_local_path_inner_os_path_utf16)
-                            }
-                        };
-                        Some(result_recorded_item_recorded_document_local_path_inner)
-                    } else {
-                        None
-                    };
-                    let result_recorded_item_recorded_document = DocumentdescriptorReplayRecord {
-                        uri: result_recorded_item_recorded_document_uri,
-                        name: result_recorded_item_recorded_document_name,
-                        content_type: result_recorded_item_recorded_document_content_type,
-                        size_bytes: result_recorded_item_recorded_document_size_bytes,
-                        modified_unix_ns: result_recorded_item_recorded_document_modified_unix_ns,
-                        is_directory: result_recorded_item_recorded_document_is_directory,
-                        local_path: result_recorded_item_recorded_document_local_path,
-                    };
-                    let result_recorded_item_recorded_access = result_recorded_item.access;
-                    let result_recorded_item_recorded_persisted_unix_ns = result_recorded_item.persisted_unix_ns;
-                    let result_recorded_item_recorded = DocumentaccessgrantReplayRecord {
-                        id: result_recorded_item_recorded_id,
-                        document: result_recorded_item_recorded_document,
-                        access: result_recorded_item_recorded_access,
-                        persisted_unix_ns: result_recorded_item_recorded_persisted_unix_ns,
-                    };
-                    result_recorded.push(result_recorded_item_recorded);
-                }
-                let payload = OsDocumentAccessListReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsDocumentAccessListReplayRecord {
-                        result,
-                    }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded_id = binding.store_string(value_native_item.id.as_str());
-                        let value_native_decoded_document_uri = binding.store_string(value_native_item.document.uri.as_str());
-                        let value_native_decoded_document_name = binding.store_string(value_native_item.document.name.as_str());
-                        let value_native_decoded_document_content_type = if let Some(value) = value_native_item.document.content_type {
-                            let value_native_decoded_document_content_type_inner = binding.store_string(value.as_str());
-                            Some(value_native_decoded_document_content_type_inner)
-                        } else {
-                            None
-                        };
-                        let value_native_decoded_document_size_bytes = if let Some(value) = value_native_item.document.size_bytes {
-                            let value_native_decoded_document_size_bytes_inner = value;
-                            Some(value_native_decoded_document_size_bytes_inner)
-                        } else {
-                            None
-                        };
-                        let value_native_decoded_document_modified_unix_ns = if let Some(value) = value_native_item.document.modified_unix_ns {
-                            let value_native_decoded_document_modified_unix_ns_inner = value;
-                            Some(value_native_decoded_document_modified_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let value_native_decoded_document_is_directory = value_native_item.document.is_directory;
-                        let value_native_decoded_document_local_path = if let Some(value) = value_native_item.document.local_path {
-                            let value_native_decoded_document_local_path_inner = match value {
-                                fs::OspathReplayRecord::OsPathBytes(value) => {
-                                    let value_native_decoded_document_local_path_inner_os_path_bytes_kind = binding.store_string(value.kind.as_str());
-                                    let mut value_native_decoded_document_local_path_inner_os_path_bytes_bytes_inner_values = Vec::new();
-                                    for value_native_decoded_document_local_path_inner_os_path_bytes_bytes_inner_item in value.bytes.iter().cloned() {
-                                        let value_native_decoded_document_local_path_inner_os_path_bytes_bytes_inner_decoded = value_native_decoded_document_local_path_inner_os_path_bytes_bytes_inner_item;
-                                        value_native_decoded_document_local_path_inner_os_path_bytes_bytes_inner_values.push(value_native_decoded_document_local_path_inner_os_path_bytes_bytes_inner_decoded);
-                                    }
-                                    let value_native_decoded_document_local_path_inner_os_path_bytes_bytes_inner = binding.store_array(value_native_decoded_document_local_path_inner_os_path_bytes_bytes_inner_values);
-                                    let value_native_decoded_document_local_path_inner_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_decoded_document_local_path_inner_os_path_bytes_bytes_inner);
-                                    let value_native_decoded_document_local_path_inner_os_path_bytes = fs::OsPathBytes {
-                                        kind: value_native_decoded_document_local_path_inner_os_path_bytes_kind,
-                                        bytes: value_native_decoded_document_local_path_inner_os_path_bytes_bytes,
-                                    };
-                                    fs::OsPath::OsPathBytes(value_native_decoded_document_local_path_inner_os_path_bytes)
-                                }
-                                fs::OspathReplayRecord::OsPathUtf16(value) => {
-                                    let value_native_decoded_document_local_path_inner_os_path_utf16_kind = binding.store_string(value.kind.as_str());
-                                    let mut value_native_decoded_document_local_path_inner_os_path_utf16_utf16_inner_values = Vec::new();
-                                    for value_native_decoded_document_local_path_inner_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
-                                        let value_native_decoded_document_local_path_inner_os_path_utf16_utf16_inner_decoded = value_native_decoded_document_local_path_inner_os_path_utf16_utf16_inner_item;
-                                        value_native_decoded_document_local_path_inner_os_path_utf16_utf16_inner_values.push(value_native_decoded_document_local_path_inner_os_path_utf16_utf16_inner_decoded);
-                                    }
-                                    let value_native_decoded_document_local_path_inner_os_path_utf16_utf16_inner = binding.store_array(value_native_decoded_document_local_path_inner_os_path_utf16_utf16_inner_values);
-                                    let value_native_decoded_document_local_path_inner_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_decoded_document_local_path_inner_os_path_utf16_utf16_inner);
-                                    let value_native_decoded_document_local_path_inner_os_path_utf16 = fs::OsPathUtf16 {
-                                        kind: value_native_decoded_document_local_path_inner_os_path_utf16_kind,
-                                        utf16: value_native_decoded_document_local_path_inner_os_path_utf16_utf16,
-                                    };
-                                    fs::OsPath::OsPathUtf16(value_native_decoded_document_local_path_inner_os_path_utf16)
-                                }
-                            };
-                            Some(value_native_decoded_document_local_path_inner)
-                        } else {
-                            None
-                        };
-                        let value_native_decoded_document = DocumentDescriptor {
-                            uri: value_native_decoded_document_uri,
-                            name: value_native_decoded_document_name,
-                            content_type: value_native_decoded_document_content_type,
-                            size_bytes: value_native_decoded_document_size_bytes,
-                            modified_unix_ns: value_native_decoded_document_modified_unix_ns,
-                            is_directory: value_native_decoded_document_is_directory,
-                            local_path: value_native_decoded_document_local_path,
-                        };
-                        let value_native_decoded_access = value_native_item.access;
-                        let value_native_decoded_persisted_unix_ns = value_native_item.persisted_unix_ns;
-                        let value_native_decoded = DocumentAccessGrant {
-                            id: value_native_decoded_id,
-                            document: value_native_decoded_document,
-                            access: value_native_decoded_access,
-                            persisted_unix_ns: value_native_decoded_persisted_unix_ns,
-                        };
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_array(value_native_values);
-                    unsafe { out.write(value_native) };
                     Ok(())
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -11188,9 +9575,9 @@ fn destack_os_intent_read_replay(
                         } else {
                             None
                         };
-                        let result_recorded_intent_custom_action_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                            let result_recorded_intent_custom_action_event_payload_content_type_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_intent_custom_action_event_payload_content_type_inner)
+                        let result_recorded_intent_custom_action_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                            let result_recorded_intent_custom_action_event_payload_mime_type_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_intent_custom_action_event_payload_mime_type_inner)
                         } else {
                             None
                         };
@@ -11199,7 +9586,7 @@ fn destack_os_intent_read_replay(
                             url: result_recorded_intent_custom_action_event_payload_url,
                             paths: result_recorded_intent_custom_action_event_payload_paths,
                             text: result_recorded_intent_custom_action_event_payload_text,
-                            content_type: result_recorded_intent_custom_action_event_payload_content_type,
+                            mime_type: result_recorded_intent_custom_action_event_payload_mime_type,
                         };
                         let result_recorded_intent_custom_action_event = IntentcustomactioneventReplayRecord {
                             kind: result_recorded_intent_custom_action_event_kind,
@@ -11253,15 +9640,15 @@ fn destack_os_intent_read_replay(
                                 fs::OspathReplayRecord::OsPathUtf16(result_recorded_intent_open_file_event_payload_path_os_path_utf16)
                             }
                         };
-                        let result_recorded_intent_open_file_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                            let result_recorded_intent_open_file_event_payload_content_type_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_intent_open_file_event_payload_content_type_inner)
+                        let result_recorded_intent_open_file_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                            let result_recorded_intent_open_file_event_payload_mime_type_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_intent_open_file_event_payload_mime_type_inner)
                         } else {
                             None
                         };
                         let result_recorded_intent_open_file_event_payload = IntentopenfilepayloadReplayRecord {
                             path: result_recorded_intent_open_file_event_payload_path,
-                            content_type: result_recorded_intent_open_file_event_payload_content_type,
+                            mime_type: result_recorded_intent_open_file_event_payload_mime_type,
                         };
                         let result_recorded_intent_open_file_event = IntentopenfileeventReplayRecord {
                             kind: result_recorded_intent_open_file_event_kind,
@@ -11345,15 +9732,15 @@ fn destack_os_intent_read_replay(
                             };
                             result_recorded_intent_share_files_event_payload_paths.push(result_recorded_intent_share_files_event_payload_paths_item_recorded);
                         }
-                        let result_recorded_intent_share_files_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                            let result_recorded_intent_share_files_event_payload_content_type_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_intent_share_files_event_payload_content_type_inner)
+                        let result_recorded_intent_share_files_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                            let result_recorded_intent_share_files_event_payload_mime_type_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_intent_share_files_event_payload_mime_type_inner)
                         } else {
                             None
                         };
                         let result_recorded_intent_share_files_event_payload = IntentsharefilespayloadReplayRecord {
                             paths: result_recorded_intent_share_files_event_payload_paths,
-                            content_type: result_recorded_intent_share_files_event_payload_content_type,
+                            mime_type: result_recorded_intent_share_files_event_payload_mime_type,
                         };
                         let result_recorded_intent_share_files_event = IntentsharefileseventReplayRecord {
                             kind: result_recorded_intent_share_files_event_kind,
@@ -11378,15 +9765,15 @@ fn destack_os_intent_read_replay(
                             source: result_recorded_intent_share_text_event_metadata_source,
                         };
                         let result_recorded_intent_share_text_event_payload_text = unsafe { value.payload.text.as_str()? }.to_string();
-                        let result_recorded_intent_share_text_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                            let result_recorded_intent_share_text_event_payload_content_type_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_intent_share_text_event_payload_content_type_inner)
+                        let result_recorded_intent_share_text_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                            let result_recorded_intent_share_text_event_payload_mime_type_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_intent_share_text_event_payload_mime_type_inner)
                         } else {
                             None
                         };
                         let result_recorded_intent_share_text_event_payload = IntentsharetextpayloadReplayRecord {
                             text: result_recorded_intent_share_text_event_payload_text,
-                            content_type: result_recorded_intent_share_text_event_payload_content_type,
+                            mime_type: result_recorded_intent_share_text_event_payload_mime_type,
                         };
                         let result_recorded_intent_share_text_event = IntentsharetexteventReplayRecord {
                             kind: result_recorded_intent_share_text_event_kind,
@@ -11484,9 +9871,9 @@ fn destack_os_intent_read_replay(
                             } else {
                                 None
                             };
-                            let value_native_intent_custom_action_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                                let value_native_intent_custom_action_event_payload_content_type_inner = binding.store_string(value.as_str());
-                                Some(value_native_intent_custom_action_event_payload_content_type_inner)
+                            let value_native_intent_custom_action_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                                let value_native_intent_custom_action_event_payload_mime_type_inner = binding.store_string(value.as_str());
+                                Some(value_native_intent_custom_action_event_payload_mime_type_inner)
                             } else {
                                 None
                             };
@@ -11495,7 +9882,7 @@ fn destack_os_intent_read_replay(
                                 url: value_native_intent_custom_action_event_payload_url,
                                 paths: value_native_intent_custom_action_event_payload_paths,
                                 text: value_native_intent_custom_action_event_payload_text,
-                                content_type: value_native_intent_custom_action_event_payload_content_type,
+                                mime_type: value_native_intent_custom_action_event_payload_mime_type,
                             };
                             let value_native_intent_custom_action_event = IntentCustomActionEvent {
                                 kind: value_native_intent_custom_action_event_kind,
@@ -11551,15 +9938,15 @@ fn destack_os_intent_read_replay(
                                     fs::OsPath::OsPathUtf16(value_native_intent_open_file_event_payload_path_os_path_utf16)
                                 }
                             };
-                            let value_native_intent_open_file_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                                let value_native_intent_open_file_event_payload_content_type_inner = binding.store_string(value.as_str());
-                                Some(value_native_intent_open_file_event_payload_content_type_inner)
+                            let value_native_intent_open_file_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                                let value_native_intent_open_file_event_payload_mime_type_inner = binding.store_string(value.as_str());
+                                Some(value_native_intent_open_file_event_payload_mime_type_inner)
                             } else {
                                 None
                             };
                             let value_native_intent_open_file_event_payload = IntentOpenFilePayload {
                                 path: value_native_intent_open_file_event_payload_path,
-                                content_type: value_native_intent_open_file_event_payload_content_type,
+                                mime_type: value_native_intent_open_file_event_payload_mime_type,
                             };
                             let value_native_intent_open_file_event = IntentOpenFileEvent {
                                 kind: value_native_intent_open_file_event_kind,
@@ -11646,15 +10033,15 @@ fn destack_os_intent_read_replay(
                                 value_native_intent_share_files_event_payload_paths_values.push(value_native_intent_share_files_event_payload_paths_decoded);
                             }
                             let value_native_intent_share_files_event_payload_paths = binding.store_array(value_native_intent_share_files_event_payload_paths_values);
-                            let value_native_intent_share_files_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                                let value_native_intent_share_files_event_payload_content_type_inner = binding.store_string(value.as_str());
-                                Some(value_native_intent_share_files_event_payload_content_type_inner)
+                            let value_native_intent_share_files_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                                let value_native_intent_share_files_event_payload_mime_type_inner = binding.store_string(value.as_str());
+                                Some(value_native_intent_share_files_event_payload_mime_type_inner)
                             } else {
                                 None
                             };
                             let value_native_intent_share_files_event_payload = IntentShareFilesPayload {
                                 paths: value_native_intent_share_files_event_payload_paths,
-                                content_type: value_native_intent_share_files_event_payload_content_type,
+                                mime_type: value_native_intent_share_files_event_payload_mime_type,
                             };
                             let value_native_intent_share_files_event = IntentShareFilesEvent {
                                 kind: value_native_intent_share_files_event_kind,
@@ -11679,15 +10066,15 @@ fn destack_os_intent_read_replay(
                                 source: value_native_intent_share_text_event_metadata_source,
                             };
                             let value_native_intent_share_text_event_payload_text = binding.store_string(value.payload.text.as_str());
-                            let value_native_intent_share_text_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                                let value_native_intent_share_text_event_payload_content_type_inner = binding.store_string(value.as_str());
-                                Some(value_native_intent_share_text_event_payload_content_type_inner)
+                            let value_native_intent_share_text_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                                let value_native_intent_share_text_event_payload_mime_type_inner = binding.store_string(value.as_str());
+                                Some(value_native_intent_share_text_event_payload_mime_type_inner)
                             } else {
                                 None
                             };
                             let value_native_intent_share_text_event_payload = IntentShareTextPayload {
                                 text: value_native_intent_share_text_event_payload_text,
-                                content_type: value_native_intent_share_text_event_payload_content_type,
+                                mime_type: value_native_intent_share_text_event_payload_mime_type,
                             };
                             let value_native_intent_share_text_event = IntentShareTextEvent {
                                 kind: value_native_intent_share_text_event_kind,
@@ -11788,9 +10175,9 @@ fn destack_os_intent_try_read_replay(
                         } else {
                             None
                         };
-                        let result_recorded_intent_custom_action_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                            let result_recorded_intent_custom_action_event_payload_content_type_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_intent_custom_action_event_payload_content_type_inner)
+                        let result_recorded_intent_custom_action_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                            let result_recorded_intent_custom_action_event_payload_mime_type_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_intent_custom_action_event_payload_mime_type_inner)
                         } else {
                             None
                         };
@@ -11799,7 +10186,7 @@ fn destack_os_intent_try_read_replay(
                             url: result_recorded_intent_custom_action_event_payload_url,
                             paths: result_recorded_intent_custom_action_event_payload_paths,
                             text: result_recorded_intent_custom_action_event_payload_text,
-                            content_type: result_recorded_intent_custom_action_event_payload_content_type,
+                            mime_type: result_recorded_intent_custom_action_event_payload_mime_type,
                         };
                         let result_recorded_intent_custom_action_event = IntentcustomactioneventReplayRecord {
                             kind: result_recorded_intent_custom_action_event_kind,
@@ -11853,15 +10240,15 @@ fn destack_os_intent_try_read_replay(
                                 fs::OspathReplayRecord::OsPathUtf16(result_recorded_intent_open_file_event_payload_path_os_path_utf16)
                             }
                         };
-                        let result_recorded_intent_open_file_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                            let result_recorded_intent_open_file_event_payload_content_type_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_intent_open_file_event_payload_content_type_inner)
+                        let result_recorded_intent_open_file_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                            let result_recorded_intent_open_file_event_payload_mime_type_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_intent_open_file_event_payload_mime_type_inner)
                         } else {
                             None
                         };
                         let result_recorded_intent_open_file_event_payload = IntentopenfilepayloadReplayRecord {
                             path: result_recorded_intent_open_file_event_payload_path,
-                            content_type: result_recorded_intent_open_file_event_payload_content_type,
+                            mime_type: result_recorded_intent_open_file_event_payload_mime_type,
                         };
                         let result_recorded_intent_open_file_event = IntentopenfileeventReplayRecord {
                             kind: result_recorded_intent_open_file_event_kind,
@@ -11945,15 +10332,15 @@ fn destack_os_intent_try_read_replay(
                             };
                             result_recorded_intent_share_files_event_payload_paths.push(result_recorded_intent_share_files_event_payload_paths_item_recorded);
                         }
-                        let result_recorded_intent_share_files_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                            let result_recorded_intent_share_files_event_payload_content_type_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_intent_share_files_event_payload_content_type_inner)
+                        let result_recorded_intent_share_files_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                            let result_recorded_intent_share_files_event_payload_mime_type_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_intent_share_files_event_payload_mime_type_inner)
                         } else {
                             None
                         };
                         let result_recorded_intent_share_files_event_payload = IntentsharefilespayloadReplayRecord {
                             paths: result_recorded_intent_share_files_event_payload_paths,
-                            content_type: result_recorded_intent_share_files_event_payload_content_type,
+                            mime_type: result_recorded_intent_share_files_event_payload_mime_type,
                         };
                         let result_recorded_intent_share_files_event = IntentsharefileseventReplayRecord {
                             kind: result_recorded_intent_share_files_event_kind,
@@ -11978,15 +10365,15 @@ fn destack_os_intent_try_read_replay(
                             source: result_recorded_intent_share_text_event_metadata_source,
                         };
                         let result_recorded_intent_share_text_event_payload_text = unsafe { value.payload.text.as_str()? }.to_string();
-                        let result_recorded_intent_share_text_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                            let result_recorded_intent_share_text_event_payload_content_type_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_intent_share_text_event_payload_content_type_inner)
+                        let result_recorded_intent_share_text_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                            let result_recorded_intent_share_text_event_payload_mime_type_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_intent_share_text_event_payload_mime_type_inner)
                         } else {
                             None
                         };
                         let result_recorded_intent_share_text_event_payload = IntentsharetextpayloadReplayRecord {
                             text: result_recorded_intent_share_text_event_payload_text,
-                            content_type: result_recorded_intent_share_text_event_payload_content_type,
+                            mime_type: result_recorded_intent_share_text_event_payload_mime_type,
                         };
                         let result_recorded_intent_share_text_event = IntentsharetexteventReplayRecord {
                             kind: result_recorded_intent_share_text_event_kind,
@@ -12084,9 +10471,9 @@ fn destack_os_intent_try_read_replay(
                             } else {
                                 None
                             };
-                            let value_native_intent_custom_action_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                                let value_native_intent_custom_action_event_payload_content_type_inner = binding.store_string(value.as_str());
-                                Some(value_native_intent_custom_action_event_payload_content_type_inner)
+                            let value_native_intent_custom_action_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                                let value_native_intent_custom_action_event_payload_mime_type_inner = binding.store_string(value.as_str());
+                                Some(value_native_intent_custom_action_event_payload_mime_type_inner)
                             } else {
                                 None
                             };
@@ -12095,7 +10482,7 @@ fn destack_os_intent_try_read_replay(
                                 url: value_native_intent_custom_action_event_payload_url,
                                 paths: value_native_intent_custom_action_event_payload_paths,
                                 text: value_native_intent_custom_action_event_payload_text,
-                                content_type: value_native_intent_custom_action_event_payload_content_type,
+                                mime_type: value_native_intent_custom_action_event_payload_mime_type,
                             };
                             let value_native_intent_custom_action_event = IntentCustomActionEvent {
                                 kind: value_native_intent_custom_action_event_kind,
@@ -12151,15 +10538,15 @@ fn destack_os_intent_try_read_replay(
                                     fs::OsPath::OsPathUtf16(value_native_intent_open_file_event_payload_path_os_path_utf16)
                                 }
                             };
-                            let value_native_intent_open_file_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                                let value_native_intent_open_file_event_payload_content_type_inner = binding.store_string(value.as_str());
-                                Some(value_native_intent_open_file_event_payload_content_type_inner)
+                            let value_native_intent_open_file_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                                let value_native_intent_open_file_event_payload_mime_type_inner = binding.store_string(value.as_str());
+                                Some(value_native_intent_open_file_event_payload_mime_type_inner)
                             } else {
                                 None
                             };
                             let value_native_intent_open_file_event_payload = IntentOpenFilePayload {
                                 path: value_native_intent_open_file_event_payload_path,
-                                content_type: value_native_intent_open_file_event_payload_content_type,
+                                mime_type: value_native_intent_open_file_event_payload_mime_type,
                             };
                             let value_native_intent_open_file_event = IntentOpenFileEvent {
                                 kind: value_native_intent_open_file_event_kind,
@@ -12246,15 +10633,15 @@ fn destack_os_intent_try_read_replay(
                                 value_native_intent_share_files_event_payload_paths_values.push(value_native_intent_share_files_event_payload_paths_decoded);
                             }
                             let value_native_intent_share_files_event_payload_paths = binding.store_array(value_native_intent_share_files_event_payload_paths_values);
-                            let value_native_intent_share_files_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                                let value_native_intent_share_files_event_payload_content_type_inner = binding.store_string(value.as_str());
-                                Some(value_native_intent_share_files_event_payload_content_type_inner)
+                            let value_native_intent_share_files_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                                let value_native_intent_share_files_event_payload_mime_type_inner = binding.store_string(value.as_str());
+                                Some(value_native_intent_share_files_event_payload_mime_type_inner)
                             } else {
                                 None
                             };
                             let value_native_intent_share_files_event_payload = IntentShareFilesPayload {
                                 paths: value_native_intent_share_files_event_payload_paths,
-                                content_type: value_native_intent_share_files_event_payload_content_type,
+                                mime_type: value_native_intent_share_files_event_payload_mime_type,
                             };
                             let value_native_intent_share_files_event = IntentShareFilesEvent {
                                 kind: value_native_intent_share_files_event_kind,
@@ -12279,15 +10666,15 @@ fn destack_os_intent_try_read_replay(
                                 source: value_native_intent_share_text_event_metadata_source,
                             };
                             let value_native_intent_share_text_event_payload_text = binding.store_string(value.payload.text.as_str());
-                            let value_native_intent_share_text_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                                let value_native_intent_share_text_event_payload_content_type_inner = binding.store_string(value.as_str());
-                                Some(value_native_intent_share_text_event_payload_content_type_inner)
+                            let value_native_intent_share_text_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                                let value_native_intent_share_text_event_payload_mime_type_inner = binding.store_string(value.as_str());
+                                Some(value_native_intent_share_text_event_payload_mime_type_inner)
                             } else {
                                 None
                             };
                             let value_native_intent_share_text_event_payload = IntentShareTextPayload {
                                 text: value_native_intent_share_text_event_payload_text,
-                                content_type: value_native_intent_share_text_event_payload_content_type,
+                                mime_type: value_native_intent_share_text_event_payload_mime_type,
                             };
                             let value_native_intent_share_text_event = IntentShareTextEvent {
                                 kind: value_native_intent_share_text_event_kind,
@@ -13073,41 +11460,13 @@ fn destack_os_location_last_known_replay(
                 let result_value: LocationSample = unsafe { out.read() };
                 let result_recorded_latitude_degrees = result_value.latitude_degrees;
                 let result_recorded_longitude_degrees = result_value.longitude_degrees;
-                let result_recorded_altitude_meters =
-                    if let Some(value) = result_value.altitude_meters {
-                        let result_recorded_altitude_meters_inner = value;
-                        Some(result_recorded_altitude_meters_inner)
-                    } else {
-                        None
-                    };
+                let result_recorded_altitude_meters = result_value.altitude_meters;
                 let result_recorded_horizontal_accuracy_meters =
-                    if let Some(value) = result_value.horizontal_accuracy_meters {
-                        let result_recorded_horizontal_accuracy_meters_inner = value;
-                        Some(result_recorded_horizontal_accuracy_meters_inner)
-                    } else {
-                        None
-                    };
+                    result_value.horizontal_accuracy_meters;
                 let result_recorded_vertical_accuracy_meters =
-                    if let Some(value) = result_value.vertical_accuracy_meters {
-                        let result_recorded_vertical_accuracy_meters_inner = value;
-                        Some(result_recorded_vertical_accuracy_meters_inner)
-                    } else {
-                        None
-                    };
-                let result_recorded_speed_meters_per_second =
-                    if let Some(value) = result_value.speed_meters_per_second {
-                        let result_recorded_speed_meters_per_second_inner = value;
-                        Some(result_recorded_speed_meters_per_second_inner)
-                    } else {
-                        None
-                    };
-                let result_recorded_heading_degrees =
-                    if let Some(value) = result_value.heading_degrees {
-                        let result_recorded_heading_degrees_inner = value;
-                        Some(result_recorded_heading_degrees_inner)
-                    } else {
-                        None
-                    };
+                    result_value.vertical_accuracy_meters;
+                let result_recorded_speed_meters_per_second = result_value.speed_meters_per_second;
+                let result_recorded_heading_degrees = result_value.heading_degrees;
                 let result_recorded_timestamp_unix_ns = result_value.timestamp_unix_ns;
                 let result_recorded = LocationSample {
                     latitude_degrees: result_recorded_latitude_degrees,
@@ -13141,39 +11500,11 @@ fn destack_os_location_last_known_replay(
                 Ok(value) => {
                     let value_native_latitude_degrees = value.latitude_degrees;
                     let value_native_longitude_degrees = value.longitude_degrees;
-                    let value_native_altitude_meters = if let Some(value) = value.altitude_meters {
-                        let value_native_altitude_meters_inner = value;
-                        Some(value_native_altitude_meters_inner)
-                    } else {
-                        None
-                    };
-                    let value_native_horizontal_accuracy_meters =
-                        if let Some(value) = value.horizontal_accuracy_meters {
-                            let value_native_horizontal_accuracy_meters_inner = value;
-                            Some(value_native_horizontal_accuracy_meters_inner)
-                        } else {
-                            None
-                        };
-                    let value_native_vertical_accuracy_meters =
-                        if let Some(value) = value.vertical_accuracy_meters {
-                            let value_native_vertical_accuracy_meters_inner = value;
-                            Some(value_native_vertical_accuracy_meters_inner)
-                        } else {
-                            None
-                        };
-                    let value_native_speed_meters_per_second =
-                        if let Some(value) = value.speed_meters_per_second {
-                            let value_native_speed_meters_per_second_inner = value;
-                            Some(value_native_speed_meters_per_second_inner)
-                        } else {
-                            None
-                        };
-                    let value_native_heading_degrees = if let Some(value) = value.heading_degrees {
-                        let value_native_heading_degrees_inner = value;
-                        Some(value_native_heading_degrees_inner)
-                    } else {
-                        None
-                    };
+                    let value_native_altitude_meters = value.altitude_meters;
+                    let value_native_horizontal_accuracy_meters = value.horizontal_accuracy_meters;
+                    let value_native_vertical_accuracy_meters = value.vertical_accuracy_meters;
+                    let value_native_speed_meters_per_second = value.speed_meters_per_second;
+                    let value_native_heading_degrees = value.heading_degrees;
                     let value_native_timestamp_unix_ns = value.timestamp_unix_ns;
                     let value_native = LocationSample {
                         latitude_degrees: value_native_latitude_degrees,
@@ -13373,41 +11704,13 @@ fn destack_os_location_watch_read_replay(
                 let result_value: LocationSample = unsafe { out.read() };
                 let result_recorded_latitude_degrees = result_value.latitude_degrees;
                 let result_recorded_longitude_degrees = result_value.longitude_degrees;
-                let result_recorded_altitude_meters =
-                    if let Some(value) = result_value.altitude_meters {
-                        let result_recorded_altitude_meters_inner = value;
-                        Some(result_recorded_altitude_meters_inner)
-                    } else {
-                        None
-                    };
+                let result_recorded_altitude_meters = result_value.altitude_meters;
                 let result_recorded_horizontal_accuracy_meters =
-                    if let Some(value) = result_value.horizontal_accuracy_meters {
-                        let result_recorded_horizontal_accuracy_meters_inner = value;
-                        Some(result_recorded_horizontal_accuracy_meters_inner)
-                    } else {
-                        None
-                    };
+                    result_value.horizontal_accuracy_meters;
                 let result_recorded_vertical_accuracy_meters =
-                    if let Some(value) = result_value.vertical_accuracy_meters {
-                        let result_recorded_vertical_accuracy_meters_inner = value;
-                        Some(result_recorded_vertical_accuracy_meters_inner)
-                    } else {
-                        None
-                    };
-                let result_recorded_speed_meters_per_second =
-                    if let Some(value) = result_value.speed_meters_per_second {
-                        let result_recorded_speed_meters_per_second_inner = value;
-                        Some(result_recorded_speed_meters_per_second_inner)
-                    } else {
-                        None
-                    };
-                let result_recorded_heading_degrees =
-                    if let Some(value) = result_value.heading_degrees {
-                        let result_recorded_heading_degrees_inner = value;
-                        Some(result_recorded_heading_degrees_inner)
-                    } else {
-                        None
-                    };
+                    result_value.vertical_accuracy_meters;
+                let result_recorded_speed_meters_per_second = result_value.speed_meters_per_second;
+                let result_recorded_heading_degrees = result_value.heading_degrees;
                 let result_recorded_timestamp_unix_ns = result_value.timestamp_unix_ns;
                 let result_recorded = LocationSample {
                     latitude_degrees: result_recorded_latitude_degrees,
@@ -13441,39 +11744,11 @@ fn destack_os_location_watch_read_replay(
                 Ok(value) => {
                     let value_native_latitude_degrees = value.latitude_degrees;
                     let value_native_longitude_degrees = value.longitude_degrees;
-                    let value_native_altitude_meters = if let Some(value) = value.altitude_meters {
-                        let value_native_altitude_meters_inner = value;
-                        Some(value_native_altitude_meters_inner)
-                    } else {
-                        None
-                    };
-                    let value_native_horizontal_accuracy_meters =
-                        if let Some(value) = value.horizontal_accuracy_meters {
-                            let value_native_horizontal_accuracy_meters_inner = value;
-                            Some(value_native_horizontal_accuracy_meters_inner)
-                        } else {
-                            None
-                        };
-                    let value_native_vertical_accuracy_meters =
-                        if let Some(value) = value.vertical_accuracy_meters {
-                            let value_native_vertical_accuracy_meters_inner = value;
-                            Some(value_native_vertical_accuracy_meters_inner)
-                        } else {
-                            None
-                        };
-                    let value_native_speed_meters_per_second =
-                        if let Some(value) = value.speed_meters_per_second {
-                            let value_native_speed_meters_per_second_inner = value;
-                            Some(value_native_speed_meters_per_second_inner)
-                        } else {
-                            None
-                        };
-                    let value_native_heading_degrees = if let Some(value) = value.heading_degrees {
-                        let value_native_heading_degrees_inner = value;
-                        Some(value_native_heading_degrees_inner)
-                    } else {
-                        None
-                    };
+                    let value_native_altitude_meters = value.altitude_meters;
+                    let value_native_horizontal_accuracy_meters = value.horizontal_accuracy_meters;
+                    let value_native_vertical_accuracy_meters = value.vertical_accuracy_meters;
+                    let value_native_speed_meters_per_second = value.speed_meters_per_second;
+                    let value_native_heading_degrees = value.heading_degrees;
                     let value_native_timestamp_unix_ns = value.timestamp_unix_ns;
                     let value_native = LocationSample {
                         latitude_degrees: value_native_latitude_degrees,
@@ -13519,41 +11794,13 @@ fn destack_os_location_watch_try_read_replay(
                 let result_value: LocationSample = unsafe { out.read() };
                 let result_recorded_latitude_degrees = result_value.latitude_degrees;
                 let result_recorded_longitude_degrees = result_value.longitude_degrees;
-                let result_recorded_altitude_meters =
-                    if let Some(value) = result_value.altitude_meters {
-                        let result_recorded_altitude_meters_inner = value;
-                        Some(result_recorded_altitude_meters_inner)
-                    } else {
-                        None
-                    };
+                let result_recorded_altitude_meters = result_value.altitude_meters;
                 let result_recorded_horizontal_accuracy_meters =
-                    if let Some(value) = result_value.horizontal_accuracy_meters {
-                        let result_recorded_horizontal_accuracy_meters_inner = value;
-                        Some(result_recorded_horizontal_accuracy_meters_inner)
-                    } else {
-                        None
-                    };
+                    result_value.horizontal_accuracy_meters;
                 let result_recorded_vertical_accuracy_meters =
-                    if let Some(value) = result_value.vertical_accuracy_meters {
-                        let result_recorded_vertical_accuracy_meters_inner = value;
-                        Some(result_recorded_vertical_accuracy_meters_inner)
-                    } else {
-                        None
-                    };
-                let result_recorded_speed_meters_per_second =
-                    if let Some(value) = result_value.speed_meters_per_second {
-                        let result_recorded_speed_meters_per_second_inner = value;
-                        Some(result_recorded_speed_meters_per_second_inner)
-                    } else {
-                        None
-                    };
-                let result_recorded_heading_degrees =
-                    if let Some(value) = result_value.heading_degrees {
-                        let result_recorded_heading_degrees_inner = value;
-                        Some(result_recorded_heading_degrees_inner)
-                    } else {
-                        None
-                    };
+                    result_value.vertical_accuracy_meters;
+                let result_recorded_speed_meters_per_second = result_value.speed_meters_per_second;
+                let result_recorded_heading_degrees = result_value.heading_degrees;
                 let result_recorded_timestamp_unix_ns = result_value.timestamp_unix_ns;
                 let result_recorded = LocationSample {
                     latitude_degrees: result_recorded_latitude_degrees,
@@ -13587,39 +11834,11 @@ fn destack_os_location_watch_try_read_replay(
                 Ok(value) => {
                     let value_native_latitude_degrees = value.latitude_degrees;
                     let value_native_longitude_degrees = value.longitude_degrees;
-                    let value_native_altitude_meters = if let Some(value) = value.altitude_meters {
-                        let value_native_altitude_meters_inner = value;
-                        Some(value_native_altitude_meters_inner)
-                    } else {
-                        None
-                    };
-                    let value_native_horizontal_accuracy_meters =
-                        if let Some(value) = value.horizontal_accuracy_meters {
-                            let value_native_horizontal_accuracy_meters_inner = value;
-                            Some(value_native_horizontal_accuracy_meters_inner)
-                        } else {
-                            None
-                        };
-                    let value_native_vertical_accuracy_meters =
-                        if let Some(value) = value.vertical_accuracy_meters {
-                            let value_native_vertical_accuracy_meters_inner = value;
-                            Some(value_native_vertical_accuracy_meters_inner)
-                        } else {
-                            None
-                        };
-                    let value_native_speed_meters_per_second =
-                        if let Some(value) = value.speed_meters_per_second {
-                            let value_native_speed_meters_per_second_inner = value;
-                            Some(value_native_speed_meters_per_second_inner)
-                        } else {
-                            None
-                        };
-                    let value_native_heading_degrees = if let Some(value) = value.heading_degrees {
-                        let value_native_heading_degrees_inner = value;
-                        Some(value_native_heading_degrees_inner)
-                    } else {
-                        None
-                    };
+                    let value_native_altitude_meters = value.altitude_meters;
+                    let value_native_horizontal_accuracy_meters = value.horizontal_accuracy_meters;
+                    let value_native_vertical_accuracy_meters = value.vertical_accuracy_meters;
+                    let value_native_speed_meters_per_second = value.speed_meters_per_second;
+                    let value_native_heading_degrees = value.heading_degrees;
                     let value_native_timestamp_unix_ns = value.timestamp_unix_ns;
                     let value_native = LocationSample {
                         latitude_degrees: value_native_latitude_degrees,
@@ -13630,852 +11849,6 @@ fn destack_os_location_watch_try_read_replay(
                         speed_meters_per_second: value_native_speed_meters_per_second,
                         heading_degrees: value_native_heading_degrees,
                         timestamp_unix_ns: value_native_timestamp_unix_ns,
-                    };
-                    unsafe { out.write(value_native) };
-                    Ok(())
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_os_media_watch_close_replay(
-    binding: &BindingCallContext,
-    world: RuntimeWorld,
-    handle: resource::MediaWatchHandle,
-) -> RuntimeResult<()> {
-    let _ = &handle;
-
-    binding.trace().run_binding_without_context(
-        OS_MEDIA_WATCH_CLOSE,
-        binding.replay_payload_for(OS_MEDIA_WATCH_CLOSE)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_media_watch_close(binding, handle)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_media_watch_close(binding, handle)
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = OsMediaWatchCloseReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsMediaWatchCloseReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(()) => Ok(()),
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_os_media_watch_open_replay(
-    binding: &BindingCallContext,
-    world: RuntimeWorld,
-    out: *mut resource::MediaWatchHandle,
-    options: MediaWatchOptions,
-) -> RuntimeResult<()> {
-    let _ = &options;
-
-    binding.trace().run_binding_without_context(
-        OS_MEDIA_WATCH_OPEN,
-        binding.replay_payload_for(OS_MEDIA_WATCH_OPEN)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_media_watch_open(binding, out, options)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_media_watch_open(binding, out, options)
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value: resource::MediaWatchHandle = unsafe { out.read() };
-                let result_recorded = result_value;
-                let payload = OsMediaWatchOpenReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsMediaWatchOpenReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    unsafe { out.write(value) };
-                    Ok(())
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_os_media_watch_read_replay(
-    binding: &BindingCallContext,
-    world: RuntimeWorld,
-    out: *mut MediaEvent,
-    handle: resource::MediaWatchHandle,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
-    let _ = (&handle, &timeoutns);
-
-    binding.trace().run_binding_without_context(
-        OS_MEDIA_WATCH_READ,
-        binding.replay_payload_for(OS_MEDIA_WATCH_READ)?,
-        || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_os_media_watch_read(binding, out, handle, timeoutns) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_media_watch_read(binding, out, handle, timeoutns) },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value: MediaEvent = unsafe { out.read() };
-                let result_recorded = match result_value {
-                    MediaEvent::MediaAddedEvent(value) => {
-                        let result_recorded_media_added_event_kind = unsafe { value.kind.as_str()? }.to_string();
-                        let result_recorded_media_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_media_added_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_media_added_event_metadata = MediaEventMetadata {
-                            timestamp_ns: result_recorded_media_added_event_metadata_timestamp_ns,
-                            sequence: result_recorded_media_added_event_metadata_sequence,
-                        };
-                        let result_recorded_media_added_event_asset_id = unsafe { value.asset.id.as_str()? }.to_string();
-                        let result_recorded_media_added_event_asset_uri = unsafe { value.asset.uri.as_str()? }.to_string();
-                        let result_recorded_media_added_event_asset_filename = unsafe { value.asset.filename.as_str()? }.to_string();
-                        let result_recorded_media_added_event_asset_kind = value.asset.kind;
-                        let result_recorded_media_added_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                            let result_recorded_media_added_event_asset_content_type_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_media_added_event_asset_content_type_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_added_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                            let result_recorded_media_added_event_asset_size_bytes_inner = value;
-                            Some(result_recorded_media_added_event_asset_size_bytes_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_added_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                            let result_recorded_media_added_event_asset_created_unix_ns_inner = value;
-                            Some(result_recorded_media_added_event_asset_created_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_added_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                            let result_recorded_media_added_event_asset_modified_unix_ns_inner = value;
-                            Some(result_recorded_media_added_event_asset_modified_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_added_event_asset = MediaassetsummaryReplayRecord {
-                            id: result_recorded_media_added_event_asset_id,
-                            uri: result_recorded_media_added_event_asset_uri,
-                            filename: result_recorded_media_added_event_asset_filename,
-                            kind: result_recorded_media_added_event_asset_kind,
-                            content_type: result_recorded_media_added_event_asset_content_type,
-                            size_bytes: result_recorded_media_added_event_asset_size_bytes,
-                            created_unix_ns: result_recorded_media_added_event_asset_created_unix_ns,
-                            modified_unix_ns: result_recorded_media_added_event_asset_modified_unix_ns,
-                        };
-                        let result_recorded_media_added_event = MediaaddedeventReplayRecord {
-                            kind: result_recorded_media_added_event_kind,
-                            metadata: result_recorded_media_added_event_metadata,
-                            asset: result_recorded_media_added_event_asset,
-                        };
-                        MediaeventReplayRecord::MediaAddedEvent(result_recorded_media_added_event)
-                    }
-                    MediaEvent::MediaRemovedEvent(value) => {
-                        let result_recorded_media_removed_event_kind = unsafe { value.kind.as_str()? }.to_string();
-                        let result_recorded_media_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_media_removed_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_media_removed_event_metadata = MediaEventMetadata {
-                            timestamp_ns: result_recorded_media_removed_event_metadata_timestamp_ns,
-                            sequence: result_recorded_media_removed_event_metadata_sequence,
-                        };
-                        let result_recorded_media_removed_event_asset_id = unsafe { value.asset.id.as_str()? }.to_string();
-                        let result_recorded_media_removed_event_asset_uri = unsafe { value.asset.uri.as_str()? }.to_string();
-                        let result_recorded_media_removed_event_asset_filename = unsafe { value.asset.filename.as_str()? }.to_string();
-                        let result_recorded_media_removed_event_asset_kind = value.asset.kind;
-                        let result_recorded_media_removed_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                            let result_recorded_media_removed_event_asset_content_type_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_media_removed_event_asset_content_type_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_removed_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                            let result_recorded_media_removed_event_asset_size_bytes_inner = value;
-                            Some(result_recorded_media_removed_event_asset_size_bytes_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_removed_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                            let result_recorded_media_removed_event_asset_created_unix_ns_inner = value;
-                            Some(result_recorded_media_removed_event_asset_created_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_removed_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                            let result_recorded_media_removed_event_asset_modified_unix_ns_inner = value;
-                            Some(result_recorded_media_removed_event_asset_modified_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_removed_event_asset = MediaassetsummaryReplayRecord {
-                            id: result_recorded_media_removed_event_asset_id,
-                            uri: result_recorded_media_removed_event_asset_uri,
-                            filename: result_recorded_media_removed_event_asset_filename,
-                            kind: result_recorded_media_removed_event_asset_kind,
-                            content_type: result_recorded_media_removed_event_asset_content_type,
-                            size_bytes: result_recorded_media_removed_event_asset_size_bytes,
-                            created_unix_ns: result_recorded_media_removed_event_asset_created_unix_ns,
-                            modified_unix_ns: result_recorded_media_removed_event_asset_modified_unix_ns,
-                        };
-                        let result_recorded_media_removed_event = MediaremovedeventReplayRecord {
-                            kind: result_recorded_media_removed_event_kind,
-                            metadata: result_recorded_media_removed_event_metadata,
-                            asset: result_recorded_media_removed_event_asset,
-                        };
-                        MediaeventReplayRecord::MediaRemovedEvent(result_recorded_media_removed_event)
-                    }
-                    MediaEvent::MediaUpdatedEvent(value) => {
-                        let result_recorded_media_updated_event_kind = unsafe { value.kind.as_str()? }.to_string();
-                        let result_recorded_media_updated_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_media_updated_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_media_updated_event_metadata = MediaEventMetadata {
-                            timestamp_ns: result_recorded_media_updated_event_metadata_timestamp_ns,
-                            sequence: result_recorded_media_updated_event_metadata_sequence,
-                        };
-                        let result_recorded_media_updated_event_asset_id = unsafe { value.asset.id.as_str()? }.to_string();
-                        let result_recorded_media_updated_event_asset_uri = unsafe { value.asset.uri.as_str()? }.to_string();
-                        let result_recorded_media_updated_event_asset_filename = unsafe { value.asset.filename.as_str()? }.to_string();
-                        let result_recorded_media_updated_event_asset_kind = value.asset.kind;
-                        let result_recorded_media_updated_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                            let result_recorded_media_updated_event_asset_content_type_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_media_updated_event_asset_content_type_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_updated_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                            let result_recorded_media_updated_event_asset_size_bytes_inner = value;
-                            Some(result_recorded_media_updated_event_asset_size_bytes_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_updated_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                            let result_recorded_media_updated_event_asset_created_unix_ns_inner = value;
-                            Some(result_recorded_media_updated_event_asset_created_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_updated_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                            let result_recorded_media_updated_event_asset_modified_unix_ns_inner = value;
-                            Some(result_recorded_media_updated_event_asset_modified_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_updated_event_asset = MediaassetsummaryReplayRecord {
-                            id: result_recorded_media_updated_event_asset_id,
-                            uri: result_recorded_media_updated_event_asset_uri,
-                            filename: result_recorded_media_updated_event_asset_filename,
-                            kind: result_recorded_media_updated_event_asset_kind,
-                            content_type: result_recorded_media_updated_event_asset_content_type,
-                            size_bytes: result_recorded_media_updated_event_asset_size_bytes,
-                            created_unix_ns: result_recorded_media_updated_event_asset_created_unix_ns,
-                            modified_unix_ns: result_recorded_media_updated_event_asset_modified_unix_ns,
-                        };
-                        let result_recorded_media_updated_event = MediaupdatedeventReplayRecord {
-                            kind: result_recorded_media_updated_event_kind,
-                            metadata: result_recorded_media_updated_event_metadata,
-                            asset: result_recorded_media_updated_event_asset,
-                        };
-                        MediaeventReplayRecord::MediaUpdatedEvent(result_recorded_media_updated_event)
-                    }
-                };
-                let payload = OsMediaWatchReadReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsMediaWatchReadReplayRecord {
-                        result,
-                    }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let value_native = match value {
-                        MediaeventReplayRecord::MediaAddedEvent(value) => {
-                            let value_native_media_added_event_kind = binding.store_string(value.kind.as_str());
-                            let value_native_media_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let value_native_media_added_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_media_added_event_metadata = MediaEventMetadata {
-                                timestamp_ns: value_native_media_added_event_metadata_timestamp_ns,
-                                sequence: value_native_media_added_event_metadata_sequence,
-                            };
-                            let value_native_media_added_event_asset_id = binding.store_string(value.asset.id.as_str());
-                            let value_native_media_added_event_asset_uri = binding.store_string(value.asset.uri.as_str());
-                            let value_native_media_added_event_asset_filename = binding.store_string(value.asset.filename.as_str());
-                            let value_native_media_added_event_asset_kind = value.asset.kind;
-                            let value_native_media_added_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                                let value_native_media_added_event_asset_content_type_inner = binding.store_string(value.as_str());
-                                Some(value_native_media_added_event_asset_content_type_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_added_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                                let value_native_media_added_event_asset_size_bytes_inner = value;
-                                Some(value_native_media_added_event_asset_size_bytes_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_added_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                                let value_native_media_added_event_asset_created_unix_ns_inner = value;
-                                Some(value_native_media_added_event_asset_created_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_added_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                                let value_native_media_added_event_asset_modified_unix_ns_inner = value;
-                                Some(value_native_media_added_event_asset_modified_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_added_event_asset = MediaAssetSummary {
-                                id: value_native_media_added_event_asset_id,
-                                uri: value_native_media_added_event_asset_uri,
-                                filename: value_native_media_added_event_asset_filename,
-                                kind: value_native_media_added_event_asset_kind,
-                                content_type: value_native_media_added_event_asset_content_type,
-                                size_bytes: value_native_media_added_event_asset_size_bytes,
-                                created_unix_ns: value_native_media_added_event_asset_created_unix_ns,
-                                modified_unix_ns: value_native_media_added_event_asset_modified_unix_ns,
-                            };
-                            let value_native_media_added_event = MediaAddedEvent {
-                                kind: value_native_media_added_event_kind,
-                                metadata: value_native_media_added_event_metadata,
-                                asset: value_native_media_added_event_asset,
-                            };
-                            MediaEvent::MediaAddedEvent(value_native_media_added_event)
-                        }
-                        MediaeventReplayRecord::MediaRemovedEvent(value) => {
-                            let value_native_media_removed_event_kind = binding.store_string(value.kind.as_str());
-                            let value_native_media_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let value_native_media_removed_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_media_removed_event_metadata = MediaEventMetadata {
-                                timestamp_ns: value_native_media_removed_event_metadata_timestamp_ns,
-                                sequence: value_native_media_removed_event_metadata_sequence,
-                            };
-                            let value_native_media_removed_event_asset_id = binding.store_string(value.asset.id.as_str());
-                            let value_native_media_removed_event_asset_uri = binding.store_string(value.asset.uri.as_str());
-                            let value_native_media_removed_event_asset_filename = binding.store_string(value.asset.filename.as_str());
-                            let value_native_media_removed_event_asset_kind = value.asset.kind;
-                            let value_native_media_removed_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                                let value_native_media_removed_event_asset_content_type_inner = binding.store_string(value.as_str());
-                                Some(value_native_media_removed_event_asset_content_type_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_removed_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                                let value_native_media_removed_event_asset_size_bytes_inner = value;
-                                Some(value_native_media_removed_event_asset_size_bytes_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_removed_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                                let value_native_media_removed_event_asset_created_unix_ns_inner = value;
-                                Some(value_native_media_removed_event_asset_created_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_removed_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                                let value_native_media_removed_event_asset_modified_unix_ns_inner = value;
-                                Some(value_native_media_removed_event_asset_modified_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_removed_event_asset = MediaAssetSummary {
-                                id: value_native_media_removed_event_asset_id,
-                                uri: value_native_media_removed_event_asset_uri,
-                                filename: value_native_media_removed_event_asset_filename,
-                                kind: value_native_media_removed_event_asset_kind,
-                                content_type: value_native_media_removed_event_asset_content_type,
-                                size_bytes: value_native_media_removed_event_asset_size_bytes,
-                                created_unix_ns: value_native_media_removed_event_asset_created_unix_ns,
-                                modified_unix_ns: value_native_media_removed_event_asset_modified_unix_ns,
-                            };
-                            let value_native_media_removed_event = MediaRemovedEvent {
-                                kind: value_native_media_removed_event_kind,
-                                metadata: value_native_media_removed_event_metadata,
-                                asset: value_native_media_removed_event_asset,
-                            };
-                            MediaEvent::MediaRemovedEvent(value_native_media_removed_event)
-                        }
-                        MediaeventReplayRecord::MediaUpdatedEvent(value) => {
-                            let value_native_media_updated_event_kind = binding.store_string(value.kind.as_str());
-                            let value_native_media_updated_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let value_native_media_updated_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_media_updated_event_metadata = MediaEventMetadata {
-                                timestamp_ns: value_native_media_updated_event_metadata_timestamp_ns,
-                                sequence: value_native_media_updated_event_metadata_sequence,
-                            };
-                            let value_native_media_updated_event_asset_id = binding.store_string(value.asset.id.as_str());
-                            let value_native_media_updated_event_asset_uri = binding.store_string(value.asset.uri.as_str());
-                            let value_native_media_updated_event_asset_filename = binding.store_string(value.asset.filename.as_str());
-                            let value_native_media_updated_event_asset_kind = value.asset.kind;
-                            let value_native_media_updated_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                                let value_native_media_updated_event_asset_content_type_inner = binding.store_string(value.as_str());
-                                Some(value_native_media_updated_event_asset_content_type_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_updated_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                                let value_native_media_updated_event_asset_size_bytes_inner = value;
-                                Some(value_native_media_updated_event_asset_size_bytes_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_updated_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                                let value_native_media_updated_event_asset_created_unix_ns_inner = value;
-                                Some(value_native_media_updated_event_asset_created_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_updated_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                                let value_native_media_updated_event_asset_modified_unix_ns_inner = value;
-                                Some(value_native_media_updated_event_asset_modified_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_updated_event_asset = MediaAssetSummary {
-                                id: value_native_media_updated_event_asset_id,
-                                uri: value_native_media_updated_event_asset_uri,
-                                filename: value_native_media_updated_event_asset_filename,
-                                kind: value_native_media_updated_event_asset_kind,
-                                content_type: value_native_media_updated_event_asset_content_type,
-                                size_bytes: value_native_media_updated_event_asset_size_bytes,
-                                created_unix_ns: value_native_media_updated_event_asset_created_unix_ns,
-                                modified_unix_ns: value_native_media_updated_event_asset_modified_unix_ns,
-                            };
-                            let value_native_media_updated_event = MediaUpdatedEvent {
-                                kind: value_native_media_updated_event_kind,
-                                metadata: value_native_media_updated_event_metadata,
-                                asset: value_native_media_updated_event_asset,
-                            };
-                            MediaEvent::MediaUpdatedEvent(value_native_media_updated_event)
-                        }
-                    };
-                    unsafe { out.write(value_native) };
-                    Ok(())
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_os_media_watch_try_read_replay(
-    binding: &BindingCallContext,
-    world: RuntimeWorld,
-    out: *mut MediaEvent,
-    handle: resource::MediaWatchHandle,
-) -> RuntimeResult<()> {
-    let _ = &handle;
-
-    binding.trace().run_binding_without_context(
-        OS_MEDIA_WATCH_TRY_READ,
-        binding.replay_payload_for(OS_MEDIA_WATCH_TRY_READ)?,
-        || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_os_media_watch_try_read(binding, out, handle) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_media_watch_try_read(binding, out, handle) },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value: MediaEvent = unsafe { out.read() };
-                let result_recorded = match result_value {
-                    MediaEvent::MediaAddedEvent(value) => {
-                        let result_recorded_media_added_event_kind = unsafe { value.kind.as_str()? }.to_string();
-                        let result_recorded_media_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_media_added_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_media_added_event_metadata = MediaEventMetadata {
-                            timestamp_ns: result_recorded_media_added_event_metadata_timestamp_ns,
-                            sequence: result_recorded_media_added_event_metadata_sequence,
-                        };
-                        let result_recorded_media_added_event_asset_id = unsafe { value.asset.id.as_str()? }.to_string();
-                        let result_recorded_media_added_event_asset_uri = unsafe { value.asset.uri.as_str()? }.to_string();
-                        let result_recorded_media_added_event_asset_filename = unsafe { value.asset.filename.as_str()? }.to_string();
-                        let result_recorded_media_added_event_asset_kind = value.asset.kind;
-                        let result_recorded_media_added_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                            let result_recorded_media_added_event_asset_content_type_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_media_added_event_asset_content_type_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_added_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                            let result_recorded_media_added_event_asset_size_bytes_inner = value;
-                            Some(result_recorded_media_added_event_asset_size_bytes_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_added_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                            let result_recorded_media_added_event_asset_created_unix_ns_inner = value;
-                            Some(result_recorded_media_added_event_asset_created_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_added_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                            let result_recorded_media_added_event_asset_modified_unix_ns_inner = value;
-                            Some(result_recorded_media_added_event_asset_modified_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_added_event_asset = MediaassetsummaryReplayRecord {
-                            id: result_recorded_media_added_event_asset_id,
-                            uri: result_recorded_media_added_event_asset_uri,
-                            filename: result_recorded_media_added_event_asset_filename,
-                            kind: result_recorded_media_added_event_asset_kind,
-                            content_type: result_recorded_media_added_event_asset_content_type,
-                            size_bytes: result_recorded_media_added_event_asset_size_bytes,
-                            created_unix_ns: result_recorded_media_added_event_asset_created_unix_ns,
-                            modified_unix_ns: result_recorded_media_added_event_asset_modified_unix_ns,
-                        };
-                        let result_recorded_media_added_event = MediaaddedeventReplayRecord {
-                            kind: result_recorded_media_added_event_kind,
-                            metadata: result_recorded_media_added_event_metadata,
-                            asset: result_recorded_media_added_event_asset,
-                        };
-                        MediaeventReplayRecord::MediaAddedEvent(result_recorded_media_added_event)
-                    }
-                    MediaEvent::MediaRemovedEvent(value) => {
-                        let result_recorded_media_removed_event_kind = unsafe { value.kind.as_str()? }.to_string();
-                        let result_recorded_media_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_media_removed_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_media_removed_event_metadata = MediaEventMetadata {
-                            timestamp_ns: result_recorded_media_removed_event_metadata_timestamp_ns,
-                            sequence: result_recorded_media_removed_event_metadata_sequence,
-                        };
-                        let result_recorded_media_removed_event_asset_id = unsafe { value.asset.id.as_str()? }.to_string();
-                        let result_recorded_media_removed_event_asset_uri = unsafe { value.asset.uri.as_str()? }.to_string();
-                        let result_recorded_media_removed_event_asset_filename = unsafe { value.asset.filename.as_str()? }.to_string();
-                        let result_recorded_media_removed_event_asset_kind = value.asset.kind;
-                        let result_recorded_media_removed_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                            let result_recorded_media_removed_event_asset_content_type_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_media_removed_event_asset_content_type_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_removed_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                            let result_recorded_media_removed_event_asset_size_bytes_inner = value;
-                            Some(result_recorded_media_removed_event_asset_size_bytes_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_removed_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                            let result_recorded_media_removed_event_asset_created_unix_ns_inner = value;
-                            Some(result_recorded_media_removed_event_asset_created_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_removed_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                            let result_recorded_media_removed_event_asset_modified_unix_ns_inner = value;
-                            Some(result_recorded_media_removed_event_asset_modified_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_removed_event_asset = MediaassetsummaryReplayRecord {
-                            id: result_recorded_media_removed_event_asset_id,
-                            uri: result_recorded_media_removed_event_asset_uri,
-                            filename: result_recorded_media_removed_event_asset_filename,
-                            kind: result_recorded_media_removed_event_asset_kind,
-                            content_type: result_recorded_media_removed_event_asset_content_type,
-                            size_bytes: result_recorded_media_removed_event_asset_size_bytes,
-                            created_unix_ns: result_recorded_media_removed_event_asset_created_unix_ns,
-                            modified_unix_ns: result_recorded_media_removed_event_asset_modified_unix_ns,
-                        };
-                        let result_recorded_media_removed_event = MediaremovedeventReplayRecord {
-                            kind: result_recorded_media_removed_event_kind,
-                            metadata: result_recorded_media_removed_event_metadata,
-                            asset: result_recorded_media_removed_event_asset,
-                        };
-                        MediaeventReplayRecord::MediaRemovedEvent(result_recorded_media_removed_event)
-                    }
-                    MediaEvent::MediaUpdatedEvent(value) => {
-                        let result_recorded_media_updated_event_kind = unsafe { value.kind.as_str()? }.to_string();
-                        let result_recorded_media_updated_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_media_updated_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_media_updated_event_metadata = MediaEventMetadata {
-                            timestamp_ns: result_recorded_media_updated_event_metadata_timestamp_ns,
-                            sequence: result_recorded_media_updated_event_metadata_sequence,
-                        };
-                        let result_recorded_media_updated_event_asset_id = unsafe { value.asset.id.as_str()? }.to_string();
-                        let result_recorded_media_updated_event_asset_uri = unsafe { value.asset.uri.as_str()? }.to_string();
-                        let result_recorded_media_updated_event_asset_filename = unsafe { value.asset.filename.as_str()? }.to_string();
-                        let result_recorded_media_updated_event_asset_kind = value.asset.kind;
-                        let result_recorded_media_updated_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                            let result_recorded_media_updated_event_asset_content_type_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_media_updated_event_asset_content_type_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_updated_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                            let result_recorded_media_updated_event_asset_size_bytes_inner = value;
-                            Some(result_recorded_media_updated_event_asset_size_bytes_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_updated_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                            let result_recorded_media_updated_event_asset_created_unix_ns_inner = value;
-                            Some(result_recorded_media_updated_event_asset_created_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_updated_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                            let result_recorded_media_updated_event_asset_modified_unix_ns_inner = value;
-                            Some(result_recorded_media_updated_event_asset_modified_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_updated_event_asset = MediaassetsummaryReplayRecord {
-                            id: result_recorded_media_updated_event_asset_id,
-                            uri: result_recorded_media_updated_event_asset_uri,
-                            filename: result_recorded_media_updated_event_asset_filename,
-                            kind: result_recorded_media_updated_event_asset_kind,
-                            content_type: result_recorded_media_updated_event_asset_content_type,
-                            size_bytes: result_recorded_media_updated_event_asset_size_bytes,
-                            created_unix_ns: result_recorded_media_updated_event_asset_created_unix_ns,
-                            modified_unix_ns: result_recorded_media_updated_event_asset_modified_unix_ns,
-                        };
-                        let result_recorded_media_updated_event = MediaupdatedeventReplayRecord {
-                            kind: result_recorded_media_updated_event_kind,
-                            metadata: result_recorded_media_updated_event_metadata,
-                            asset: result_recorded_media_updated_event_asset,
-                        };
-                        MediaeventReplayRecord::MediaUpdatedEvent(result_recorded_media_updated_event)
-                    }
-                };
-                let payload = OsMediaWatchTryReadReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsMediaWatchTryReadReplayRecord {
-                        result,
-                    }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let value_native = match value {
-                        MediaeventReplayRecord::MediaAddedEvent(value) => {
-                            let value_native_media_added_event_kind = binding.store_string(value.kind.as_str());
-                            let value_native_media_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let value_native_media_added_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_media_added_event_metadata = MediaEventMetadata {
-                                timestamp_ns: value_native_media_added_event_metadata_timestamp_ns,
-                                sequence: value_native_media_added_event_metadata_sequence,
-                            };
-                            let value_native_media_added_event_asset_id = binding.store_string(value.asset.id.as_str());
-                            let value_native_media_added_event_asset_uri = binding.store_string(value.asset.uri.as_str());
-                            let value_native_media_added_event_asset_filename = binding.store_string(value.asset.filename.as_str());
-                            let value_native_media_added_event_asset_kind = value.asset.kind;
-                            let value_native_media_added_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                                let value_native_media_added_event_asset_content_type_inner = binding.store_string(value.as_str());
-                                Some(value_native_media_added_event_asset_content_type_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_added_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                                let value_native_media_added_event_asset_size_bytes_inner = value;
-                                Some(value_native_media_added_event_asset_size_bytes_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_added_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                                let value_native_media_added_event_asset_created_unix_ns_inner = value;
-                                Some(value_native_media_added_event_asset_created_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_added_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                                let value_native_media_added_event_asset_modified_unix_ns_inner = value;
-                                Some(value_native_media_added_event_asset_modified_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_added_event_asset = MediaAssetSummary {
-                                id: value_native_media_added_event_asset_id,
-                                uri: value_native_media_added_event_asset_uri,
-                                filename: value_native_media_added_event_asset_filename,
-                                kind: value_native_media_added_event_asset_kind,
-                                content_type: value_native_media_added_event_asset_content_type,
-                                size_bytes: value_native_media_added_event_asset_size_bytes,
-                                created_unix_ns: value_native_media_added_event_asset_created_unix_ns,
-                                modified_unix_ns: value_native_media_added_event_asset_modified_unix_ns,
-                            };
-                            let value_native_media_added_event = MediaAddedEvent {
-                                kind: value_native_media_added_event_kind,
-                                metadata: value_native_media_added_event_metadata,
-                                asset: value_native_media_added_event_asset,
-                            };
-                            MediaEvent::MediaAddedEvent(value_native_media_added_event)
-                        }
-                        MediaeventReplayRecord::MediaRemovedEvent(value) => {
-                            let value_native_media_removed_event_kind = binding.store_string(value.kind.as_str());
-                            let value_native_media_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let value_native_media_removed_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_media_removed_event_metadata = MediaEventMetadata {
-                                timestamp_ns: value_native_media_removed_event_metadata_timestamp_ns,
-                                sequence: value_native_media_removed_event_metadata_sequence,
-                            };
-                            let value_native_media_removed_event_asset_id = binding.store_string(value.asset.id.as_str());
-                            let value_native_media_removed_event_asset_uri = binding.store_string(value.asset.uri.as_str());
-                            let value_native_media_removed_event_asset_filename = binding.store_string(value.asset.filename.as_str());
-                            let value_native_media_removed_event_asset_kind = value.asset.kind;
-                            let value_native_media_removed_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                                let value_native_media_removed_event_asset_content_type_inner = binding.store_string(value.as_str());
-                                Some(value_native_media_removed_event_asset_content_type_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_removed_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                                let value_native_media_removed_event_asset_size_bytes_inner = value;
-                                Some(value_native_media_removed_event_asset_size_bytes_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_removed_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                                let value_native_media_removed_event_asset_created_unix_ns_inner = value;
-                                Some(value_native_media_removed_event_asset_created_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_removed_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                                let value_native_media_removed_event_asset_modified_unix_ns_inner = value;
-                                Some(value_native_media_removed_event_asset_modified_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_removed_event_asset = MediaAssetSummary {
-                                id: value_native_media_removed_event_asset_id,
-                                uri: value_native_media_removed_event_asset_uri,
-                                filename: value_native_media_removed_event_asset_filename,
-                                kind: value_native_media_removed_event_asset_kind,
-                                content_type: value_native_media_removed_event_asset_content_type,
-                                size_bytes: value_native_media_removed_event_asset_size_bytes,
-                                created_unix_ns: value_native_media_removed_event_asset_created_unix_ns,
-                                modified_unix_ns: value_native_media_removed_event_asset_modified_unix_ns,
-                            };
-                            let value_native_media_removed_event = MediaRemovedEvent {
-                                kind: value_native_media_removed_event_kind,
-                                metadata: value_native_media_removed_event_metadata,
-                                asset: value_native_media_removed_event_asset,
-                            };
-                            MediaEvent::MediaRemovedEvent(value_native_media_removed_event)
-                        }
-                        MediaeventReplayRecord::MediaUpdatedEvent(value) => {
-                            let value_native_media_updated_event_kind = binding.store_string(value.kind.as_str());
-                            let value_native_media_updated_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let value_native_media_updated_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_media_updated_event_metadata = MediaEventMetadata {
-                                timestamp_ns: value_native_media_updated_event_metadata_timestamp_ns,
-                                sequence: value_native_media_updated_event_metadata_sequence,
-                            };
-                            let value_native_media_updated_event_asset_id = binding.store_string(value.asset.id.as_str());
-                            let value_native_media_updated_event_asset_uri = binding.store_string(value.asset.uri.as_str());
-                            let value_native_media_updated_event_asset_filename = binding.store_string(value.asset.filename.as_str());
-                            let value_native_media_updated_event_asset_kind = value.asset.kind;
-                            let value_native_media_updated_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                                let value_native_media_updated_event_asset_content_type_inner = binding.store_string(value.as_str());
-                                Some(value_native_media_updated_event_asset_content_type_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_updated_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                                let value_native_media_updated_event_asset_size_bytes_inner = value;
-                                Some(value_native_media_updated_event_asset_size_bytes_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_updated_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                                let value_native_media_updated_event_asset_created_unix_ns_inner = value;
-                                Some(value_native_media_updated_event_asset_created_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_updated_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                                let value_native_media_updated_event_asset_modified_unix_ns_inner = value;
-                                Some(value_native_media_updated_event_asset_modified_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_media_updated_event_asset = MediaAssetSummary {
-                                id: value_native_media_updated_event_asset_id,
-                                uri: value_native_media_updated_event_asset_uri,
-                                filename: value_native_media_updated_event_asset_filename,
-                                kind: value_native_media_updated_event_asset_kind,
-                                content_type: value_native_media_updated_event_asset_content_type,
-                                size_bytes: value_native_media_updated_event_asset_size_bytes,
-                                created_unix_ns: value_native_media_updated_event_asset_created_unix_ns,
-                                modified_unix_ns: value_native_media_updated_event_asset_modified_unix_ns,
-                            };
-                            let value_native_media_updated_event = MediaUpdatedEvent {
-                                kind: value_native_media_updated_event_kind,
-                                metadata: value_native_media_updated_event_metadata,
-                                asset: value_native_media_updated_event_asset,
-                            };
-                            MediaEvent::MediaUpdatedEvent(value_native_media_updated_event)
-                        }
                     };
                     unsafe { out.write(value_native) };
                     Ok(())
@@ -16269,134 +13642,6 @@ pub(crate) unsafe extern "C" fn destack_os_calendar_list(
     })
 }
 
-#[unsafe(export_name = "destack.os.clipboard.clear")]
-pub(crate) unsafe extern "C" fn destack_os_clipboard_clear() -> RuntimeStatus {
-    native_call(|context| {
-        let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(OS_CLIPBOARD_CLEAR)?;
-        match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_os_clipboard_clear(context) },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_clipboard_clear(context)
-            },
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.os.clipboard.hasText")]
-pub(crate) unsafe extern "C" fn destack_os_clipboard_has_text(out: *mut bool) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = &out;
-
-        let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(OS_CLIPBOARD_HAS_TEXT)?;
-        destack_os_clipboard_has_text_replay(context, world, out)
-    })
-}
-
-#[unsafe(export_name = "destack.os.clipboard.readBytes")]
-pub(crate) unsafe extern "C" fn destack_os_clipboard_read_bytes(
-    out: *mut NativeSlice<u8>,
-    format: ClipboardBinaryFormat,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &format);
-
-        let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(OS_CLIPBOARD_READ_BYTES)?;
-        destack_os_clipboard_read_bytes_replay(context, world, out, format)
-    })
-}
-
-#[unsafe(export_name = "destack.os.clipboard.readText")]
-pub(crate) unsafe extern "C" fn destack_os_clipboard_read_text(
-    out: *mut NativeStringRef,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = &out;
-
-        let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(OS_CLIPBOARD_READ_TEXT)?;
-        destack_os_clipboard_read_text_replay(context, world, out)
-    })
-}
-
-#[unsafe(export_name = "destack.os.clipboard.sequence")]
-pub(crate) unsafe extern "C" fn destack_os_clipboard_sequence(out: *mut u64) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = &out;
-
-        let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(OS_CLIPBOARD_SEQUENCE)?;
-        destack_os_clipboard_sequence_replay(context, world, out)
-    })
-}
-
-#[unsafe(export_name = "destack.os.clipboard.writeBytes")]
-pub(crate) unsafe extern "C" fn destack_os_clipboard_write_bytes(
-    format: ClipboardBinaryFormat,
-    argument_bytes: NativeSlice<u8>,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = (&format, &argument_bytes);
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(OS_CLIPBOARD_WRITE_BYTES)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_os_clipboard_write_bytes(
-                        context,
-                        format,
-                        argument_bytes,
-                    )
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_os_clipboard_write_bytes(
-                        context,
-                        format,
-                        argument_bytes,
-                    )
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.os.clipboard.writeText")]
-pub(crate) unsafe extern "C" fn destack_os_clipboard_write_text(
-    text: NativeStringRef,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = &text;
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(OS_CLIPBOARD_WRITE_TEXT)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_os_clipboard_write_text(context, text)
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_os_clipboard_write_text(context, text)
-                },
-            }
-        }
-    })
-}
-
 #[unsafe(export_name = "destack.os.contact.create")]
 pub(crate) unsafe extern "C" fn destack_os_contact_create(
     out: *mut NativeStringRef,
@@ -16697,108 +13942,6 @@ pub(crate) unsafe extern "C" fn destack_os_credentials_write(
     })
 }
 
-#[unsafe(export_name = "destack.os.document.access.list")]
-pub(crate) unsafe extern "C" fn destack_os_document_access_list(
-    out: *mut NativeArray<DocumentAccessGrant>,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = &out;
-
-        let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(OS_DOCUMENT_ACCESS_LIST)?;
-        destack_os_document_access_list_replay(context, world, out)
-    })
-}
-
-#[unsafe(export_name = "destack.os.document.access.open")]
-pub(crate) unsafe extern "C" fn destack_os_document_access_open(
-    out: *mut resource::DocumentHandle,
-    id: NativeStringRef,
-    access: DocumentAccess,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &id, &access);
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(OS_DOCUMENT_ACCESS_OPEN)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_os_document_access_open(context, out, id, access)
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_os_document_access_open(
-                        context, out, id, access,
-                    )
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.os.document.access.persist")]
-pub(crate) unsafe extern "C" fn destack_os_document_access_persist(
-    out: *mut NativeArray<DocumentAccessGrant>,
-    documents: NativeArray<DocumentDescriptor>,
-    access: DocumentAccess,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &documents, &access);
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(OS_DOCUMENT_ACCESS_PERSIST)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_os_document_access_persist(
-                        context, out, documents, access,
-                    )
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_os_document_access_persist(
-                        context, out, documents, access,
-                    )
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.os.document.access.revoke")]
-pub(crate) unsafe extern "C" fn destack_os_document_access_revoke(
-    out: *mut u32,
-    ids: NativeArray<NativeStringRef>,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &ids);
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(OS_DOCUMENT_ACCESS_REVOKE)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_os_document_access_revoke(context, out, ids)
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_os_document_access_revoke(context, out, ids)
-                },
-            }
-        }
-    })
-}
-
 #[unsafe(export_name = "destack.os.document.close")]
 pub(crate) unsafe extern "C" fn destack_os_document_close(
     handle: resource::DocumentHandle,
@@ -16837,32 +13980,6 @@ pub(crate) unsafe extern "C" fn destack_os_document_flush(
                 },
                 RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_os_document_flush(context, handle)
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.os.document.import")]
-pub(crate) unsafe extern "C" fn destack_os_document_import(
-    out: *mut NativeArray<DocumentDescriptor>,
-    documents: NativeArray<DocumentDescriptor>,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &documents);
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(OS_DOCUMENT_IMPORT)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_os_document_import(context, out, documents)
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_os_document_import(context, out, documents)
                 },
             }
         }
@@ -17205,23 +14322,21 @@ pub(crate) unsafe extern "C" fn destack_os_intent_read(
 #[unsafe(export_name = "destack.os.intent.sharePaths")]
 pub(crate) unsafe extern "C" fn destack_os_intent_share_paths(
     paths: NativeArray<fs::OsPath>,
-    contenttype: Option<NativeStringRef>,
+    mimetype: Option<NativeStringRef>,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&paths, &contenttype);
+        let _ = (&paths, &mimetype);
 
         {
             let (world, _binding_hook_guard) =
                 context.on_before_binding_resolve_world(OS_INTENT_SHARE_PATHS)?;
             match world {
                 RuntimeWorld::Host => unsafe {
-                    platform_native::destack_os_intent_share_paths(context, paths, contenttype)
+                    platform_native::destack_os_intent_share_paths(context, paths, mimetype)
                 },
                 RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_os_intent_share_paths(
-                        context,
-                        paths,
-                        contenttype,
+                        context, paths, mimetype,
                     )
                 },
             }
@@ -17232,23 +14347,21 @@ pub(crate) unsafe extern "C" fn destack_os_intent_share_paths(
 #[unsafe(export_name = "destack.os.intent.shareText")]
 pub(crate) unsafe extern "C" fn destack_os_intent_share_text(
     text: NativeStringRef,
-    contenttype: Option<NativeStringRef>,
+    mimetype: Option<NativeStringRef>,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&text, &contenttype);
+        let _ = (&text, &mimetype);
 
         {
             let (world, _binding_hook_guard) =
                 context.on_before_binding_resolve_world(OS_INTENT_SHARE_TEXT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
-                    platform_native::destack_os_intent_share_text(context, text, contenttype)
+                    platform_native::destack_os_intent_share_text(context, text, mimetype)
                 },
                 RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_os_intent_share_text(
-                        context,
-                        text,
-                        contenttype,
+                        context, text, mimetype,
                     )
                 },
             }
@@ -17476,32 +14589,6 @@ pub(crate) unsafe extern "C" fn destack_os_media_delete(
     })
 }
 
-#[unsafe(export_name = "destack.os.media.describe")]
-pub(crate) unsafe extern "C" fn destack_os_media_describe(
-    out: *mut MediaAssetDescriptor,
-    id: NativeStringRef,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &id);
-
-        {
-            let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(OS_MEDIA_DESCRIBE)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_os_media_describe(context, out, id)
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_os_media_describe(context, out, id)
-                },
-            }
-        }
-    })
-}
-
 #[unsafe(export_name = "destack.os.media.importPath")]
 pub(crate) unsafe extern "C" fn destack_os_media_import_path(
     out: *mut NativeStringRef,
@@ -17557,68 +14644,29 @@ pub(crate) unsafe extern "C" fn destack_os_media_list(
     })
 }
 
-#[unsafe(export_name = "destack.os.media.watchClose")]
-pub(crate) unsafe extern "C" fn destack_os_media_watch_close(
-    handle: resource::MediaWatchHandle,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = &handle;
-
-        let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(OS_MEDIA_WATCH_CLOSE)?;
-        destack_os_media_watch_close_replay(context, world, handle)
-    })
-}
-
-#[unsafe(export_name = "destack.os.media.watchOpen")]
-pub(crate) unsafe extern "C" fn destack_os_media_watch_open(
-    out: *mut resource::MediaWatchHandle,
-    options: MediaWatchOptions,
+#[unsafe(export_name = "destack.os.media.read")]
+pub(crate) unsafe extern "C" fn destack_os_media_read(
+    out: *mut MediaAssetDescriptor,
+    id: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &options);
+        let _ = (&out, &id);
 
-        let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(OS_MEDIA_WATCH_OPEN)?;
-        destack_os_media_watch_open_replay(context, world, out, options)
-    })
-}
-
-#[unsafe(export_name = "destack.os.media.watchRead")]
-pub(crate) unsafe extern "C" fn destack_os_media_watch_read(
-    out: *mut MediaEvent,
-    handle: resource::MediaWatchHandle,
-    timeoutns: u64,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        {
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_MEDIA_READ)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_media_read(context, out, id)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_media_read(context, out, id)
+                },
+            }
         }
-        let _ = (&out, &handle, &timeoutns);
-
-        let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(OS_MEDIA_WATCH_READ)?;
-        destack_os_media_watch_read_replay(context, world, out, handle, timeoutns)
-    })
-}
-
-#[unsafe(export_name = "destack.os.media.watchTryRead")]
-pub(crate) unsafe extern "C" fn destack_os_media_watch_try_read(
-    out: *mut MediaEvent,
-    handle: resource::MediaWatchHandle,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &handle);
-
-        let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(OS_MEDIA_WATCH_TRY_READ)?;
-        destack_os_media_watch_try_read_replay(context, world, out, handle)
     })
 }
 
@@ -18646,10 +15694,10 @@ fn destack_os_background_list_vm_replay(
                         let slots = context
                             .aggregate_slots(result_recorded_item_value)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 3 {
+                        if slots.len() != 9 {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                                 "result_recorded_item",
-                                "expected 3 fields",
+                                "expected 9 fields",
                             ))
                             .boxed());
                         }
@@ -18678,10 +15726,44 @@ fn destack_os_background_list_vm_replay(
                             "result_recorded_item_minimum_interval_ns",
                             "minimumIntervalNs",
                         )?;
+                        let result_recorded_item_earliest_begin_unix_ns = decode_uint64(
+                            slots[3],
+                            "result_recorded_item_earliest_begin_unix_ns",
+                            "earliestBeginUnixNs",
+                        )?;
+                        let result_recorded_item_requires_network = decode_bool(
+                            slots[4],
+                            "result_recorded_item_requires_network",
+                            "requiresNetwork",
+                        )?;
+                        let result_recorded_item_requires_unmetered_network = decode_bool(
+                            slots[5],
+                            "result_recorded_item_requires_unmetered_network",
+                            "requiresUnmeteredNetwork",
+                        )?;
+                        let result_recorded_item_requires_charging = decode_bool(
+                            slots[6],
+                            "result_recorded_item_requires_charging",
+                            "requiresCharging",
+                        )?;
+                        let result_recorded_item_requires_idle = decode_bool(
+                            slots[7],
+                            "result_recorded_item_requires_idle",
+                            "requiresIdle",
+                        )?;
+                        let result_recorded_item_persisted =
+                            decode_bool(slots[8], "result_recorded_item_persisted", "persisted")?;
                         BackgroundTaskDescriptorVm {
                             identifier: result_recorded_item_identifier,
                             trigger: result_recorded_item_trigger,
                             minimum_interval_ns: result_recorded_item_minimum_interval_ns,
+                            earliest_begin_unix_ns: result_recorded_item_earliest_begin_unix_ns,
+                            requires_network: result_recorded_item_requires_network,
+                            requires_unmetered_network:
+                                result_recorded_item_requires_unmetered_network,
+                            requires_charging: result_recorded_item_requires_charging,
+                            requires_idle: result_recorded_item_requires_idle,
+                            persisted: result_recorded_item_persisted,
                         }
                     };
                     let result_recorded_item_recorded_identifier = {
@@ -18695,10 +15777,29 @@ fn destack_os_background_list_vm_replay(
                     let result_recorded_item_recorded_trigger = result_recorded_item.trigger;
                     let result_recorded_item_recorded_minimum_interval_ns =
                         result_recorded_item.minimum_interval_ns;
+                    let result_recorded_item_recorded_earliest_begin_unix_ns =
+                        result_recorded_item.earliest_begin_unix_ns;
+                    let result_recorded_item_recorded_requires_network =
+                        result_recorded_item.requires_network;
+                    let result_recorded_item_recorded_requires_unmetered_network =
+                        result_recorded_item.requires_unmetered_network;
+                    let result_recorded_item_recorded_requires_charging =
+                        result_recorded_item.requires_charging;
+                    let result_recorded_item_recorded_requires_idle =
+                        result_recorded_item.requires_idle;
+                    let result_recorded_item_recorded_persisted = result_recorded_item.persisted;
                     let result_recorded_item_recorded = BackgroundtaskdescriptorReplayRecord {
                         identifier: result_recorded_item_recorded_identifier,
                         trigger: result_recorded_item_recorded_trigger,
                         minimum_interval_ns: result_recorded_item_recorded_minimum_interval_ns,
+                        earliest_begin_unix_ns:
+                            result_recorded_item_recorded_earliest_begin_unix_ns,
+                        requires_network: result_recorded_item_recorded_requires_network,
+                        requires_unmetered_network:
+                            result_recorded_item_recorded_requires_unmetered_network,
+                        requires_charging: result_recorded_item_recorded_requires_charging,
+                        requires_idle: result_recorded_item_recorded_requires_idle,
+                        persisted: result_recorded_item_recorded_persisted,
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -18731,10 +15832,26 @@ fn destack_os_background_list_vm_replay(
                         let vm_result_item_value_trigger = vm_result_item.trigger;
                         let vm_result_item_value_minimum_interval_ns =
                             vm_result_item.minimum_interval_ns;
+                        let vm_result_item_value_earliest_begin_unix_ns =
+                            vm_result_item.earliest_begin_unix_ns;
+                        let vm_result_item_value_requires_network = vm_result_item.requires_network;
+                        let vm_result_item_value_requires_unmetered_network =
+                            vm_result_item.requires_unmetered_network;
+                        let vm_result_item_value_requires_charging =
+                            vm_result_item.requires_charging;
+                        let vm_result_item_value_requires_idle = vm_result_item.requires_idle;
+                        let vm_result_item_value_persisted = vm_result_item.persisted;
                         let vm_result_item_value = BackgroundTaskDescriptorVm {
                             identifier: vm_result_item_value_identifier,
                             trigger: vm_result_item_value_trigger,
                             minimum_interval_ns: vm_result_item_value_minimum_interval_ns,
+                            earliest_begin_unix_ns: vm_result_item_value_earliest_begin_unix_ns,
+                            requires_network: vm_result_item_value_requires_network,
+                            requires_unmetered_network:
+                                vm_result_item_value_requires_unmetered_network,
+                            requires_charging: vm_result_item_value_requires_charging,
+                            requires_idle: vm_result_item_value_requires_idle,
+                            persisted: vm_result_item_value_persisted,
                         };
                         vm_result_values.push(vm_result_item_value);
                     }
@@ -18799,508 +15916,6 @@ fn destack_os_background_status_vm_replay(
         },
     );
     let result = encode_destack_os_background_status_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_os_clipboard_has_text_vm_replay(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-) -> RuntimeResult<vm::Value> {
-    let result = binding.trace().run_binding(
-        OS_CLIPBOARD_HAS_TEXT,
-        binding.replay_payload_for(OS_CLIPBOARD_HAS_TEXT)?,
-        context,
-        |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_clipboard_has_text(binding, context),
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_clipboard_has_text(binding, context)
-            }
-        },
-        |context, result| {
-            let _ = &context;
-            if let Ok(value) = result {
-                let result_value: bool = value.clone();
-                let result_recorded = result_value;
-                let payload = OsClipboardHasTextReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsClipboardHasTextReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let vm_result = value;
-                    Ok(vm_result)
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    );
-    let result = encode_destack_os_clipboard_has_text_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_os_clipboard_read_bytes_vm_replay(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    format: ClipboardBinaryFormat,
-) -> RuntimeResult<vm::Value> {
-    let result = binding.trace().run_binding(
-        OS_CLIPBOARD_READ_BYTES,
-        binding.replay_payload_for(OS_CLIPBOARD_READ_BYTES)?,
-        context,
-        |context| match world {
-            RuntimeWorld::Host => {
-                platform_vm::destack_os_clipboard_read_bytes(binding, context, format)
-            }
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_clipboard_read_bytes(binding, context, format)
-            }
-        },
-        |context, result| {
-            let _ = &context;
-            if let Ok(value) = result {
-                let result_value: VmSlice<u8> = value.clone();
-                let result_recorded = result_value.read_bytes(context)?;
-                let payload = OsClipboardReadBytesReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsClipboardReadBytesReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref())?;
-                    Ok(vm_result)
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    );
-    let result = encode_destack_os_clipboard_read_bytes_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_os_clipboard_read_text_vm_replay(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-) -> RuntimeResult<vm::Value> {
-    let result = binding.trace().run_binding(
-        OS_CLIPBOARD_READ_TEXT,
-        binding.replay_payload_for(OS_CLIPBOARD_READ_TEXT)?,
-        context,
-        |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_clipboard_read_text(binding, context),
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_clipboard_read_text(binding, context)
-            }
-        },
-        |context, result| {
-            let _ = &context;
-            if let Ok(value) = result {
-                let result_value: vm::StringHandle = value.clone();
-                let result_recorded = {
-                    let result_recorded_ref = context
-                        .string_ref(result_value)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_ref.as_str().to_string()
-                };
-                let payload = OsClipboardReadTextReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsClipboardReadTextReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let vm_result = context
-                        .string_handle(value.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
-                    Ok(vm_result)
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    );
-    let result = encode_destack_os_clipboard_read_text_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_os_clipboard_sequence_vm_replay(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-) -> RuntimeResult<vm::Value> {
-    let result = binding.trace().run_binding(
-        OS_CLIPBOARD_SEQUENCE,
-        binding.replay_payload_for(OS_CLIPBOARD_SEQUENCE)?,
-        context,
-        |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_clipboard_sequence(binding, context),
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_clipboard_sequence(binding, context)
-            }
-        },
-        |context, result| {
-            let _ = &context;
-            if let Ok(value) = result {
-                let result_value: u64 = value.clone();
-                let result_recorded = result_value;
-                let payload = OsClipboardSequenceReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsClipboardSequenceReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let vm_result = value;
-                    Ok(vm_result)
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    );
-    let result = encode_destack_os_clipboard_sequence_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_os_document_access_list_vm_replay(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-) -> RuntimeResult<vm::Value> {
-    let result = binding.trace().run_binding(
-        OS_DOCUMENT_ACCESS_LIST,
-        binding.replay_payload_for(OS_DOCUMENT_ACCESS_LIST)?,
-        context,
-        |context| {
-            match world {
-                RuntimeWorld::Host => platform_vm::destack_os_document_access_list(binding, context),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_document_access_list(binding, context),
-            }
-        },
-        |context, result| {
-            let _ = &context;
-            if let Ok(value) = result {
-                let result_value: VmArray<DocumentAccessGrantVm> = value.clone();
-                let result_recorded_raw = result_value.raw_values(context)?;
-                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
-                for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item", "item")).boxed()); }
-                        let slots = context.aggregate_slots(result_recorded_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 4 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 4 fields")).boxed()); }
-                        let result_recorded_item_id = decode_string(slots[0], "result_recorded_item_id", "id")?;
-                        let result_recorded_item_document = {
-                            if slots[1].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_document", "document")).boxed()); }
-                            let slots = context.aggregate_slots(slots[1]).map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 7 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_document", "expected 7 fields")).boxed()); }
-                            let result_recorded_item_document_uri = decode_string(slots[0], "result_recorded_item_document_uri", "uri")?;
-                            let result_recorded_item_document_name = decode_string(slots[1], "result_recorded_item_document_name", "name")?;
-                            let result_recorded_item_document_content_type = if slots[2].tag() == vm::ValueTag::Void {
-                                None
-                            } else {
-                                let result_recorded_item_document_content_type_inner = decode_string(slots[2], "result_recorded_item_document_content_type_inner", "contentType")?;
-                                Some(result_recorded_item_document_content_type_inner)
-                            };
-                            let result_recorded_item_document_size_bytes = if slots[3].tag() == vm::ValueTag::Void {
-                                None
-                            } else {
-                                let result_recorded_item_document_size_bytes_inner = decode_uint64(slots[3], "result_recorded_item_document_size_bytes_inner", "sizeBytes")?;
-                                Some(result_recorded_item_document_size_bytes_inner)
-                            };
-                            let result_recorded_item_document_modified_unix_ns = if slots[4].tag() == vm::ValueTag::Void {
-                                None
-                            } else {
-                                let result_recorded_item_document_modified_unix_ns_inner = decode_uint64(slots[4], "result_recorded_item_document_modified_unix_ns_inner", "modifiedUnixNs")?;
-                                Some(result_recorded_item_document_modified_unix_ns_inner)
-                            };
-                            let result_recorded_item_document_is_directory = decode_bool(slots[5], "result_recorded_item_document_is_directory", "isDirectory")?;
-                            let result_recorded_item_document_local_path = if slots[6].tag() == vm::ValueTag::Void {
-                                None
-                            } else {
-                                let result_recorded_item_document_local_path_inner = <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-                                Some(result_recorded_item_document_local_path_inner)
-                            };
-                            DocumentDescriptorVm {
-                                uri: result_recorded_item_document_uri,
-                                name: result_recorded_item_document_name,
-                                content_type: result_recorded_item_document_content_type,
-                                size_bytes: result_recorded_item_document_size_bytes,
-                                modified_unix_ns: result_recorded_item_document_modified_unix_ns,
-                                is_directory: result_recorded_item_document_is_directory,
-                                local_path: result_recorded_item_document_local_path,
-                            }
-                        };
-                        let result_recorded_item_access_raw = decode_int32(slots[2], "result_recorded_item_access_raw", "access")?;
-                        let result_recorded_item_access = match result_recorded_item_access_raw { 1i32 => DocumentAccess::Read, 2i32 => DocumentAccess::Write, 3i32 => DocumentAccess::ReadWrite , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_access", "unknown DocumentAccess value")).boxed()), };
-                        let result_recorded_item_persisted_unix_ns = decode_uint64(slots[3], "result_recorded_item_persisted_unix_ns", "persistedUnixNs")?;
-                        DocumentAccessGrantVm {
-                            id: result_recorded_item_id,
-                            document: result_recorded_item_document,
-                            access: result_recorded_item_access,
-                            persisted_unix_ns: result_recorded_item_persisted_unix_ns,
-                        }
-                    };
-                    let result_recorded_item_recorded_id = {
-                        let result_recorded_item_recorded_id_ref = context.string_ref(result_recorded_item.id).map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_item_recorded_id_ref.as_str().to_string()
-                    };
-                    let result_recorded_item_recorded_document_uri = {
-                        let result_recorded_item_recorded_document_uri_ref = context.string_ref(result_recorded_item.document.uri).map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_item_recorded_document_uri_ref.as_str().to_string()
-                    };
-                    let result_recorded_item_recorded_document_name = {
-                        let result_recorded_item_recorded_document_name_ref = context.string_ref(result_recorded_item.document.name).map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_item_recorded_document_name_ref.as_str().to_string()
-                    };
-                    let result_recorded_item_recorded_document_content_type = if let Some(value) = result_recorded_item.document.content_type {
-                        let result_recorded_item_recorded_document_content_type_inner = {
-                            let result_recorded_item_recorded_document_content_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_item_recorded_document_content_type_inner_ref.as_str().to_string()
-                        };
-                        Some(result_recorded_item_recorded_document_content_type_inner)
-                    } else {
-                        None
-                    };
-                    let result_recorded_item_recorded_document_size_bytes = if let Some(value) = result_recorded_item.document.size_bytes {
-                        let result_recorded_item_recorded_document_size_bytes_inner = value;
-                        Some(result_recorded_item_recorded_document_size_bytes_inner)
-                    } else {
-                        None
-                    };
-                    let result_recorded_item_recorded_document_modified_unix_ns = if let Some(value) = result_recorded_item.document.modified_unix_ns {
-                        let result_recorded_item_recorded_document_modified_unix_ns_inner = value;
-                        Some(result_recorded_item_recorded_document_modified_unix_ns_inner)
-                    } else {
-                        None
-                    };
-                    let result_recorded_item_recorded_document_is_directory = result_recorded_item.document.is_directory;
-                    let result_recorded_item_recorded_document_local_path = if let Some(value) = result_recorded_item.document.local_path {
-                        let result_recorded_item_recorded_document_local_path_inner = match value {
-                            fs::OsPathVm::OsPathBytes(value) => {
-                                let result_recorded_item_recorded_document_local_path_inner_os_path_bytes_kind = {
-                                    let result_recorded_item_recorded_document_local_path_inner_os_path_bytes_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_document_local_path_inner_os_path_bytes_kind_ref.as_str().to_string()
-                                };
-                                let result_recorded_item_recorded_document_local_path_inner_os_path_bytes_bytes_inner = value.bytes.0.read_bytes(context)?;
-                                let result_recorded_item_recorded_document_local_path_inner_os_path_bytes_bytes = result_recorded_item_recorded_document_local_path_inner_os_path_bytes_bytes_inner;
-                                let result_recorded_item_recorded_document_local_path_inner_os_path_bytes = fs::OspathbytesReplayRecord {
-                                    kind: result_recorded_item_recorded_document_local_path_inner_os_path_bytes_kind,
-                                    bytes: result_recorded_item_recorded_document_local_path_inner_os_path_bytes_bytes,
-                                };
-                                fs::OspathReplayRecord::OsPathBytes(result_recorded_item_recorded_document_local_path_inner_os_path_bytes)
-                            }
-                            fs::OsPathVm::OsPathUtf16(value) => {
-                                let result_recorded_item_recorded_document_local_path_inner_os_path_utf16_kind = {
-                                    let result_recorded_item_recorded_document_local_path_inner_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_document_local_path_inner_os_path_utf16_kind_ref.as_str().to_string()
-                                };
-                                let result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
-                                let mut result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16_inner_raw.len());
-                                for result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16_inner_item_value in result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16_inner_raw {
-                                    let result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16_inner_item_value, "result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16_inner_item", "item")?;
-                                    let result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16_inner_item_recorded = result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16_inner_item;
-                                    result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16_inner.push(result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16_inner_item_recorded);
-                                }
-                                let result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16 = result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16_inner;
-                                let result_recorded_item_recorded_document_local_path_inner_os_path_utf16 = fs::Ospathutf16ReplayRecord {
-                                    kind: result_recorded_item_recorded_document_local_path_inner_os_path_utf16_kind,
-                                    utf16: result_recorded_item_recorded_document_local_path_inner_os_path_utf16_utf16,
-                                };
-                                fs::OspathReplayRecord::OsPathUtf16(result_recorded_item_recorded_document_local_path_inner_os_path_utf16)
-                            }
-                        };
-                        Some(result_recorded_item_recorded_document_local_path_inner)
-                    } else {
-                        None
-                    };
-                    let result_recorded_item_recorded_document = DocumentdescriptorReplayRecord {
-                        uri: result_recorded_item_recorded_document_uri,
-                        name: result_recorded_item_recorded_document_name,
-                        content_type: result_recorded_item_recorded_document_content_type,
-                        size_bytes: result_recorded_item_recorded_document_size_bytes,
-                        modified_unix_ns: result_recorded_item_recorded_document_modified_unix_ns,
-                        is_directory: result_recorded_item_recorded_document_is_directory,
-                        local_path: result_recorded_item_recorded_document_local_path,
-                    };
-                    let result_recorded_item_recorded_access = result_recorded_item.access;
-                    let result_recorded_item_recorded_persisted_unix_ns = result_recorded_item.persisted_unix_ns;
-                    let result_recorded_item_recorded = DocumentaccessgrantReplayRecord {
-                        id: result_recorded_item_recorded_id,
-                        document: result_recorded_item_recorded_document,
-                        access: result_recorded_item_recorded_access,
-                        persisted_unix_ns: result_recorded_item_recorded_persisted_unix_ns,
-                    };
-                    result_recorded.push(result_recorded_item_recorded);
-                }
-                let payload = OsDocumentAccessListReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsDocumentAccessListReplayRecord {
-                        result,
-                    }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_id = context.string_handle(vm_result_item.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_item_value_document_uri = context.string_handle(vm_result_item.document.uri.as_str()).map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_item_value_document_name = context.string_handle(vm_result_item.document.name.as_str()).map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_item_value_document_content_type = if let Some(value) = vm_result_item.document.content_type {
-                            let vm_result_item_value_document_content_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            Some(vm_result_item_value_document_content_type_inner)
-                        } else {
-                            None
-                        };
-                        let vm_result_item_value_document_size_bytes = if let Some(value) = vm_result_item.document.size_bytes {
-                            let vm_result_item_value_document_size_bytes_inner = value;
-                            Some(vm_result_item_value_document_size_bytes_inner)
-                        } else {
-                            None
-                        };
-                        let vm_result_item_value_document_modified_unix_ns = if let Some(value) = vm_result_item.document.modified_unix_ns {
-                            let vm_result_item_value_document_modified_unix_ns_inner = value;
-                            Some(vm_result_item_value_document_modified_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let vm_result_item_value_document_is_directory = vm_result_item.document.is_directory;
-                        let vm_result_item_value_document_local_path = if let Some(value) = vm_result_item.document.local_path {
-                            let vm_result_item_value_document_local_path_inner = match value {
-                                fs::OspathReplayRecord::OsPathBytes(value) => {
-                                    let vm_result_item_value_document_local_path_inner_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    let vm_result_item_value_document_local_path_inner_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
-                                    let vm_result_item_value_document_local_path_inner_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_item_value_document_local_path_inner_os_path_bytes_bytes_inner);
-                                    let vm_result_item_value_document_local_path_inner_os_path_bytes = fs::OsPathBytesVm {
-                                        kind: vm_result_item_value_document_local_path_inner_os_path_bytes_kind,
-                                        bytes: vm_result_item_value_document_local_path_inner_os_path_bytes_bytes,
-                                    };
-                                    fs::OsPathVm::OsPathBytes(vm_result_item_value_document_local_path_inner_os_path_bytes)
-                                }
-                                fs::OspathReplayRecord::OsPathUtf16(value) => {
-                                    let vm_result_item_value_document_local_path_inner_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    let mut vm_result_item_value_document_local_path_inner_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                                    for vm_result_item_value_document_local_path_inner_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
-                                        let vm_result_item_value_document_local_path_inner_os_path_utf16_utf16_inner_item_value = vm_result_item_value_document_local_path_inner_os_path_utf16_utf16_inner_item;
-                                        vm_result_item_value_document_local_path_inner_os_path_utf16_utf16_inner_values.push(vm_result_item_value_document_local_path_inner_os_path_utf16_utf16_inner_item_value);
-                                    }
-                                    let vm_result_item_value_document_local_path_inner_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_item_value_document_local_path_inner_os_path_utf16_utf16_inner_values)?;
-                                    let vm_result_item_value_document_local_path_inner_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_item_value_document_local_path_inner_os_path_utf16_utf16_inner);
-                                    let vm_result_item_value_document_local_path_inner_os_path_utf16 = fs::OsPathUtf16Vm {
-                                        kind: vm_result_item_value_document_local_path_inner_os_path_utf16_kind,
-                                        utf16: vm_result_item_value_document_local_path_inner_os_path_utf16_utf16,
-                                    };
-                                    fs::OsPathVm::OsPathUtf16(vm_result_item_value_document_local_path_inner_os_path_utf16)
-                                }
-                            };
-                            Some(vm_result_item_value_document_local_path_inner)
-                        } else {
-                            None
-                        };
-                        let vm_result_item_value_document = DocumentDescriptorVm {
-                            uri: vm_result_item_value_document_uri,
-                            name: vm_result_item_value_document_name,
-                            content_type: vm_result_item_value_document_content_type,
-                            size_bytes: vm_result_item_value_document_size_bytes,
-                            modified_unix_ns: vm_result_item_value_document_modified_unix_ns,
-                            is_directory: vm_result_item_value_document_is_directory,
-                            local_path: vm_result_item_value_document_local_path,
-                        };
-                        let vm_result_item_value_access = vm_result_item.access;
-                        let vm_result_item_value_persisted_unix_ns = vm_result_item.persisted_unix_ns;
-                        let vm_result_item_value = DocumentAccessGrantVm {
-                            id: vm_result_item_value_id,
-                            document: vm_result_item_value_document,
-                            access: vm_result_item_value_access,
-                            persisted_unix_ns: vm_result_item_value_persisted_unix_ns,
-                        };
-                        vm_result_values.push(vm_result_item_value);
-                    }
-                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
-                    Ok(vm_result)
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    );
-    let result = encode_destack_os_document_access_list_result(context, result)?;
     Ok(result)
 }
 
@@ -19913,12 +16528,12 @@ fn destack_os_intent_read_vm_replay(
                         } else {
                             None
                         };
-                        let result_recorded_intent_custom_action_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                            let result_recorded_intent_custom_action_event_payload_content_type_inner = {
-                                let result_recorded_intent_custom_action_event_payload_content_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_intent_custom_action_event_payload_content_type_inner_ref.as_str().to_string()
+                        let result_recorded_intent_custom_action_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                            let result_recorded_intent_custom_action_event_payload_mime_type_inner = {
+                                let result_recorded_intent_custom_action_event_payload_mime_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_intent_custom_action_event_payload_mime_type_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_intent_custom_action_event_payload_content_type_inner)
+                            Some(result_recorded_intent_custom_action_event_payload_mime_type_inner)
                         } else {
                             None
                         };
@@ -19927,7 +16542,7 @@ fn destack_os_intent_read_vm_replay(
                             url: result_recorded_intent_custom_action_event_payload_url,
                             paths: result_recorded_intent_custom_action_event_payload_paths,
                             text: result_recorded_intent_custom_action_event_payload_text,
-                            content_type: result_recorded_intent_custom_action_event_payload_content_type,
+                            mime_type: result_recorded_intent_custom_action_event_payload_mime_type,
                         };
                         let result_recorded_intent_custom_action_event = IntentcustomactioneventReplayRecord {
                             kind: result_recorded_intent_custom_action_event_kind,
@@ -19991,18 +16606,18 @@ fn destack_os_intent_read_vm_replay(
                                 fs::OspathReplayRecord::OsPathUtf16(result_recorded_intent_open_file_event_payload_path_os_path_utf16)
                             }
                         };
-                        let result_recorded_intent_open_file_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                            let result_recorded_intent_open_file_event_payload_content_type_inner = {
-                                let result_recorded_intent_open_file_event_payload_content_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_intent_open_file_event_payload_content_type_inner_ref.as_str().to_string()
+                        let result_recorded_intent_open_file_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                            let result_recorded_intent_open_file_event_payload_mime_type_inner = {
+                                let result_recorded_intent_open_file_event_payload_mime_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_intent_open_file_event_payload_mime_type_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_intent_open_file_event_payload_content_type_inner)
+                            Some(result_recorded_intent_open_file_event_payload_mime_type_inner)
                         } else {
                             None
                         };
                         let result_recorded_intent_open_file_event_payload = IntentopenfilepayloadReplayRecord {
                             path: result_recorded_intent_open_file_event_payload_path,
-                            content_type: result_recorded_intent_open_file_event_payload_content_type,
+                            mime_type: result_recorded_intent_open_file_event_payload_mime_type,
                         };
                         let result_recorded_intent_open_file_event = IntentopenfileeventReplayRecord {
                             kind: result_recorded_intent_open_file_event_kind,
@@ -20107,18 +16722,18 @@ fn destack_os_intent_read_vm_replay(
                             };
                             result_recorded_intent_share_files_event_payload_paths.push(result_recorded_intent_share_files_event_payload_paths_item_recorded);
                         }
-                        let result_recorded_intent_share_files_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                            let result_recorded_intent_share_files_event_payload_content_type_inner = {
-                                let result_recorded_intent_share_files_event_payload_content_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_intent_share_files_event_payload_content_type_inner_ref.as_str().to_string()
+                        let result_recorded_intent_share_files_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                            let result_recorded_intent_share_files_event_payload_mime_type_inner = {
+                                let result_recorded_intent_share_files_event_payload_mime_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_intent_share_files_event_payload_mime_type_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_intent_share_files_event_payload_content_type_inner)
+                            Some(result_recorded_intent_share_files_event_payload_mime_type_inner)
                         } else {
                             None
                         };
                         let result_recorded_intent_share_files_event_payload = IntentsharefilespayloadReplayRecord {
                             paths: result_recorded_intent_share_files_event_payload_paths,
-                            content_type: result_recorded_intent_share_files_event_payload_content_type,
+                            mime_type: result_recorded_intent_share_files_event_payload_mime_type,
                         };
                         let result_recorded_intent_share_files_event = IntentsharefileseventReplayRecord {
                             kind: result_recorded_intent_share_files_event_kind,
@@ -20152,18 +16767,18 @@ fn destack_os_intent_read_vm_replay(
                             let result_recorded_intent_share_text_event_payload_text_ref = context.string_ref(value.payload.text).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_intent_share_text_event_payload_text_ref.as_str().to_string()
                         };
-                        let result_recorded_intent_share_text_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                            let result_recorded_intent_share_text_event_payload_content_type_inner = {
-                                let result_recorded_intent_share_text_event_payload_content_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_intent_share_text_event_payload_content_type_inner_ref.as_str().to_string()
+                        let result_recorded_intent_share_text_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                            let result_recorded_intent_share_text_event_payload_mime_type_inner = {
+                                let result_recorded_intent_share_text_event_payload_mime_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_intent_share_text_event_payload_mime_type_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_intent_share_text_event_payload_content_type_inner)
+                            Some(result_recorded_intent_share_text_event_payload_mime_type_inner)
                         } else {
                             None
                         };
                         let result_recorded_intent_share_text_event_payload = IntentsharetextpayloadReplayRecord {
                             text: result_recorded_intent_share_text_event_payload_text,
-                            content_type: result_recorded_intent_share_text_event_payload_content_type,
+                            mime_type: result_recorded_intent_share_text_event_payload_mime_type,
                         };
                         let result_recorded_intent_share_text_event = IntentsharetexteventReplayRecord {
                             kind: result_recorded_intent_share_text_event_kind,
@@ -20257,9 +16872,9 @@ fn destack_os_intent_read_vm_replay(
                             } else {
                                 None
                             };
-                            let vm_result_intent_custom_action_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                                let vm_result_intent_custom_action_event_payload_content_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_intent_custom_action_event_payload_content_type_inner)
+                            let vm_result_intent_custom_action_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                                let vm_result_intent_custom_action_event_payload_mime_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_intent_custom_action_event_payload_mime_type_inner)
                             } else {
                                 None
                             };
@@ -20268,7 +16883,7 @@ fn destack_os_intent_read_vm_replay(
                                 url: vm_result_intent_custom_action_event_payload_url,
                                 paths: vm_result_intent_custom_action_event_payload_paths,
                                 text: vm_result_intent_custom_action_event_payload_text,
-                                content_type: vm_result_intent_custom_action_event_payload_content_type,
+                                mime_type: vm_result_intent_custom_action_event_payload_mime_type,
                             };
                             let vm_result_intent_custom_action_event = IntentCustomActionEventVm {
                                 kind: vm_result_intent_custom_action_event_kind,
@@ -20319,15 +16934,15 @@ fn destack_os_intent_read_vm_replay(
                                     fs::OsPathVm::OsPathUtf16(vm_result_intent_open_file_event_payload_path_os_path_utf16)
                                 }
                             };
-                            let vm_result_intent_open_file_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                                let vm_result_intent_open_file_event_payload_content_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_intent_open_file_event_payload_content_type_inner)
+                            let vm_result_intent_open_file_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                                let vm_result_intent_open_file_event_payload_mime_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_intent_open_file_event_payload_mime_type_inner)
                             } else {
                                 None
                             };
                             let vm_result_intent_open_file_event_payload = IntentOpenFilePayloadVm {
                                 path: vm_result_intent_open_file_event_payload_path,
-                                content_type: vm_result_intent_open_file_event_payload_content_type,
+                                mime_type: vm_result_intent_open_file_event_payload_mime_type,
                             };
                             let vm_result_intent_open_file_event = IntentOpenFileEventVm {
                                 kind: vm_result_intent_open_file_event_kind,
@@ -20409,15 +17024,15 @@ fn destack_os_intent_read_vm_replay(
                                 vm_result_intent_share_files_event_payload_paths_values.push(vm_result_intent_share_files_event_payload_paths_item_value);
                             }
                             let vm_result_intent_share_files_event_payload_paths = VmArray::from_values(context, &vm_result_intent_share_files_event_payload_paths_values)?;
-                            let vm_result_intent_share_files_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                                let vm_result_intent_share_files_event_payload_content_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_intent_share_files_event_payload_content_type_inner)
+                            let vm_result_intent_share_files_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                                let vm_result_intent_share_files_event_payload_mime_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_intent_share_files_event_payload_mime_type_inner)
                             } else {
                                 None
                             };
                             let vm_result_intent_share_files_event_payload = IntentShareFilesPayloadVm {
                                 paths: vm_result_intent_share_files_event_payload_paths,
-                                content_type: vm_result_intent_share_files_event_payload_content_type,
+                                mime_type: vm_result_intent_share_files_event_payload_mime_type,
                             };
                             let vm_result_intent_share_files_event = IntentShareFilesEventVm {
                                 kind: vm_result_intent_share_files_event_kind,
@@ -20442,15 +17057,15 @@ fn destack_os_intent_read_vm_replay(
                                 source: vm_result_intent_share_text_event_metadata_source,
                             };
                             let vm_result_intent_share_text_event_payload_text = context.string_handle(value.payload.text.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_intent_share_text_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                                let vm_result_intent_share_text_event_payload_content_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_intent_share_text_event_payload_content_type_inner)
+                            let vm_result_intent_share_text_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                                let vm_result_intent_share_text_event_payload_mime_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_intent_share_text_event_payload_mime_type_inner)
                             } else {
                                 None
                             };
                             let vm_result_intent_share_text_event_payload = IntentShareTextPayloadVm {
                                 text: vm_result_intent_share_text_event_payload_text,
-                                content_type: vm_result_intent_share_text_event_payload_content_type,
+                                mime_type: vm_result_intent_share_text_event_payload_mime_type,
                             };
                             let vm_result_intent_share_text_event = IntentShareTextEventVm {
                                 kind: vm_result_intent_share_text_event_kind,
@@ -20575,12 +17190,12 @@ fn destack_os_intent_try_read_vm_replay(
                         } else {
                             None
                         };
-                        let result_recorded_intent_custom_action_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                            let result_recorded_intent_custom_action_event_payload_content_type_inner = {
-                                let result_recorded_intent_custom_action_event_payload_content_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_intent_custom_action_event_payload_content_type_inner_ref.as_str().to_string()
+                        let result_recorded_intent_custom_action_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                            let result_recorded_intent_custom_action_event_payload_mime_type_inner = {
+                                let result_recorded_intent_custom_action_event_payload_mime_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_intent_custom_action_event_payload_mime_type_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_intent_custom_action_event_payload_content_type_inner)
+                            Some(result_recorded_intent_custom_action_event_payload_mime_type_inner)
                         } else {
                             None
                         };
@@ -20589,7 +17204,7 @@ fn destack_os_intent_try_read_vm_replay(
                             url: result_recorded_intent_custom_action_event_payload_url,
                             paths: result_recorded_intent_custom_action_event_payload_paths,
                             text: result_recorded_intent_custom_action_event_payload_text,
-                            content_type: result_recorded_intent_custom_action_event_payload_content_type,
+                            mime_type: result_recorded_intent_custom_action_event_payload_mime_type,
                         };
                         let result_recorded_intent_custom_action_event = IntentcustomactioneventReplayRecord {
                             kind: result_recorded_intent_custom_action_event_kind,
@@ -20653,18 +17268,18 @@ fn destack_os_intent_try_read_vm_replay(
                                 fs::OspathReplayRecord::OsPathUtf16(result_recorded_intent_open_file_event_payload_path_os_path_utf16)
                             }
                         };
-                        let result_recorded_intent_open_file_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                            let result_recorded_intent_open_file_event_payload_content_type_inner = {
-                                let result_recorded_intent_open_file_event_payload_content_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_intent_open_file_event_payload_content_type_inner_ref.as_str().to_string()
+                        let result_recorded_intent_open_file_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                            let result_recorded_intent_open_file_event_payload_mime_type_inner = {
+                                let result_recorded_intent_open_file_event_payload_mime_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_intent_open_file_event_payload_mime_type_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_intent_open_file_event_payload_content_type_inner)
+                            Some(result_recorded_intent_open_file_event_payload_mime_type_inner)
                         } else {
                             None
                         };
                         let result_recorded_intent_open_file_event_payload = IntentopenfilepayloadReplayRecord {
                             path: result_recorded_intent_open_file_event_payload_path,
-                            content_type: result_recorded_intent_open_file_event_payload_content_type,
+                            mime_type: result_recorded_intent_open_file_event_payload_mime_type,
                         };
                         let result_recorded_intent_open_file_event = IntentopenfileeventReplayRecord {
                             kind: result_recorded_intent_open_file_event_kind,
@@ -20769,18 +17384,18 @@ fn destack_os_intent_try_read_vm_replay(
                             };
                             result_recorded_intent_share_files_event_payload_paths.push(result_recorded_intent_share_files_event_payload_paths_item_recorded);
                         }
-                        let result_recorded_intent_share_files_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                            let result_recorded_intent_share_files_event_payload_content_type_inner = {
-                                let result_recorded_intent_share_files_event_payload_content_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_intent_share_files_event_payload_content_type_inner_ref.as_str().to_string()
+                        let result_recorded_intent_share_files_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                            let result_recorded_intent_share_files_event_payload_mime_type_inner = {
+                                let result_recorded_intent_share_files_event_payload_mime_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_intent_share_files_event_payload_mime_type_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_intent_share_files_event_payload_content_type_inner)
+                            Some(result_recorded_intent_share_files_event_payload_mime_type_inner)
                         } else {
                             None
                         };
                         let result_recorded_intent_share_files_event_payload = IntentsharefilespayloadReplayRecord {
                             paths: result_recorded_intent_share_files_event_payload_paths,
-                            content_type: result_recorded_intent_share_files_event_payload_content_type,
+                            mime_type: result_recorded_intent_share_files_event_payload_mime_type,
                         };
                         let result_recorded_intent_share_files_event = IntentsharefileseventReplayRecord {
                             kind: result_recorded_intent_share_files_event_kind,
@@ -20814,18 +17429,18 @@ fn destack_os_intent_try_read_vm_replay(
                             let result_recorded_intent_share_text_event_payload_text_ref = context.string_ref(value.payload.text).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_intent_share_text_event_payload_text_ref.as_str().to_string()
                         };
-                        let result_recorded_intent_share_text_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                            let result_recorded_intent_share_text_event_payload_content_type_inner = {
-                                let result_recorded_intent_share_text_event_payload_content_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_intent_share_text_event_payload_content_type_inner_ref.as_str().to_string()
+                        let result_recorded_intent_share_text_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                            let result_recorded_intent_share_text_event_payload_mime_type_inner = {
+                                let result_recorded_intent_share_text_event_payload_mime_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_intent_share_text_event_payload_mime_type_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_intent_share_text_event_payload_content_type_inner)
+                            Some(result_recorded_intent_share_text_event_payload_mime_type_inner)
                         } else {
                             None
                         };
                         let result_recorded_intent_share_text_event_payload = IntentsharetextpayloadReplayRecord {
                             text: result_recorded_intent_share_text_event_payload_text,
-                            content_type: result_recorded_intent_share_text_event_payload_content_type,
+                            mime_type: result_recorded_intent_share_text_event_payload_mime_type,
                         };
                         let result_recorded_intent_share_text_event = IntentsharetexteventReplayRecord {
                             kind: result_recorded_intent_share_text_event_kind,
@@ -20919,9 +17534,9 @@ fn destack_os_intent_try_read_vm_replay(
                             } else {
                                 None
                             };
-                            let vm_result_intent_custom_action_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                                let vm_result_intent_custom_action_event_payload_content_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_intent_custom_action_event_payload_content_type_inner)
+                            let vm_result_intent_custom_action_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                                let vm_result_intent_custom_action_event_payload_mime_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_intent_custom_action_event_payload_mime_type_inner)
                             } else {
                                 None
                             };
@@ -20930,7 +17545,7 @@ fn destack_os_intent_try_read_vm_replay(
                                 url: vm_result_intent_custom_action_event_payload_url,
                                 paths: vm_result_intent_custom_action_event_payload_paths,
                                 text: vm_result_intent_custom_action_event_payload_text,
-                                content_type: vm_result_intent_custom_action_event_payload_content_type,
+                                mime_type: vm_result_intent_custom_action_event_payload_mime_type,
                             };
                             let vm_result_intent_custom_action_event = IntentCustomActionEventVm {
                                 kind: vm_result_intent_custom_action_event_kind,
@@ -20981,15 +17596,15 @@ fn destack_os_intent_try_read_vm_replay(
                                     fs::OsPathVm::OsPathUtf16(vm_result_intent_open_file_event_payload_path_os_path_utf16)
                                 }
                             };
-                            let vm_result_intent_open_file_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                                let vm_result_intent_open_file_event_payload_content_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_intent_open_file_event_payload_content_type_inner)
+                            let vm_result_intent_open_file_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                                let vm_result_intent_open_file_event_payload_mime_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_intent_open_file_event_payload_mime_type_inner)
                             } else {
                                 None
                             };
                             let vm_result_intent_open_file_event_payload = IntentOpenFilePayloadVm {
                                 path: vm_result_intent_open_file_event_payload_path,
-                                content_type: vm_result_intent_open_file_event_payload_content_type,
+                                mime_type: vm_result_intent_open_file_event_payload_mime_type,
                             };
                             let vm_result_intent_open_file_event = IntentOpenFileEventVm {
                                 kind: vm_result_intent_open_file_event_kind,
@@ -21071,15 +17686,15 @@ fn destack_os_intent_try_read_vm_replay(
                                 vm_result_intent_share_files_event_payload_paths_values.push(vm_result_intent_share_files_event_payload_paths_item_value);
                             }
                             let vm_result_intent_share_files_event_payload_paths = VmArray::from_values(context, &vm_result_intent_share_files_event_payload_paths_values)?;
-                            let vm_result_intent_share_files_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                                let vm_result_intent_share_files_event_payload_content_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_intent_share_files_event_payload_content_type_inner)
+                            let vm_result_intent_share_files_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                                let vm_result_intent_share_files_event_payload_mime_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_intent_share_files_event_payload_mime_type_inner)
                             } else {
                                 None
                             };
                             let vm_result_intent_share_files_event_payload = IntentShareFilesPayloadVm {
                                 paths: vm_result_intent_share_files_event_payload_paths,
-                                content_type: vm_result_intent_share_files_event_payload_content_type,
+                                mime_type: vm_result_intent_share_files_event_payload_mime_type,
                             };
                             let vm_result_intent_share_files_event = IntentShareFilesEventVm {
                                 kind: vm_result_intent_share_files_event_kind,
@@ -21104,15 +17719,15 @@ fn destack_os_intent_try_read_vm_replay(
                                 source: vm_result_intent_share_text_event_metadata_source,
                             };
                             let vm_result_intent_share_text_event_payload_text = context.string_handle(value.payload.text.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_intent_share_text_event_payload_content_type = if let Some(value) = value.payload.content_type {
-                                let vm_result_intent_share_text_event_payload_content_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_intent_share_text_event_payload_content_type_inner)
+                            let vm_result_intent_share_text_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
+                                let vm_result_intent_share_text_event_payload_mime_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_intent_share_text_event_payload_mime_type_inner)
                             } else {
                                 None
                             };
                             let vm_result_intent_share_text_event_payload = IntentShareTextPayloadVm {
                                 text: vm_result_intent_share_text_event_payload_text,
-                                content_type: vm_result_intent_share_text_event_payload_content_type,
+                                mime_type: vm_result_intent_share_text_event_payload_mime_type,
                             };
                             let vm_result_intent_share_text_event = IntentShareTextEventVm {
                                 kind: vm_result_intent_share_text_event_kind,
@@ -21963,41 +18578,13 @@ fn destack_os_location_last_known_vm_replay(
                 let result_value: LocationSampleVm = value.clone();
                 let result_recorded_latitude_degrees = result_value.latitude_degrees;
                 let result_recorded_longitude_degrees = result_value.longitude_degrees;
-                let result_recorded_altitude_meters =
-                    if let Some(value) = result_value.altitude_meters {
-                        let result_recorded_altitude_meters_inner = value;
-                        Some(result_recorded_altitude_meters_inner)
-                    } else {
-                        None
-                    };
+                let result_recorded_altitude_meters = result_value.altitude_meters;
                 let result_recorded_horizontal_accuracy_meters =
-                    if let Some(value) = result_value.horizontal_accuracy_meters {
-                        let result_recorded_horizontal_accuracy_meters_inner = value;
-                        Some(result_recorded_horizontal_accuracy_meters_inner)
-                    } else {
-                        None
-                    };
+                    result_value.horizontal_accuracy_meters;
                 let result_recorded_vertical_accuracy_meters =
-                    if let Some(value) = result_value.vertical_accuracy_meters {
-                        let result_recorded_vertical_accuracy_meters_inner = value;
-                        Some(result_recorded_vertical_accuracy_meters_inner)
-                    } else {
-                        None
-                    };
-                let result_recorded_speed_meters_per_second =
-                    if let Some(value) = result_value.speed_meters_per_second {
-                        let result_recorded_speed_meters_per_second_inner = value;
-                        Some(result_recorded_speed_meters_per_second_inner)
-                    } else {
-                        None
-                    };
-                let result_recorded_heading_degrees =
-                    if let Some(value) = result_value.heading_degrees {
-                        let result_recorded_heading_degrees_inner = value;
-                        Some(result_recorded_heading_degrees_inner)
-                    } else {
-                        None
-                    };
+                    result_value.vertical_accuracy_meters;
+                let result_recorded_speed_meters_per_second = result_value.speed_meters_per_second;
+                let result_recorded_heading_degrees = result_value.heading_degrees;
                 let result_recorded_timestamp_unix_ns = result_value.timestamp_unix_ns;
                 let result_recorded = LocationSample {
                     latitude_degrees: result_recorded_latitude_degrees,
@@ -22032,39 +18619,11 @@ fn destack_os_location_last_known_vm_replay(
                 Ok(value) => {
                     let vm_result_latitude_degrees = value.latitude_degrees;
                     let vm_result_longitude_degrees = value.longitude_degrees;
-                    let vm_result_altitude_meters = if let Some(value) = value.altitude_meters {
-                        let vm_result_altitude_meters_inner = value;
-                        Some(vm_result_altitude_meters_inner)
-                    } else {
-                        None
-                    };
-                    let vm_result_horizontal_accuracy_meters =
-                        if let Some(value) = value.horizontal_accuracy_meters {
-                            let vm_result_horizontal_accuracy_meters_inner = value;
-                            Some(vm_result_horizontal_accuracy_meters_inner)
-                        } else {
-                            None
-                        };
-                    let vm_result_vertical_accuracy_meters =
-                        if let Some(value) = value.vertical_accuracy_meters {
-                            let vm_result_vertical_accuracy_meters_inner = value;
-                            Some(vm_result_vertical_accuracy_meters_inner)
-                        } else {
-                            None
-                        };
-                    let vm_result_speed_meters_per_second =
-                        if let Some(value) = value.speed_meters_per_second {
-                            let vm_result_speed_meters_per_second_inner = value;
-                            Some(vm_result_speed_meters_per_second_inner)
-                        } else {
-                            None
-                        };
-                    let vm_result_heading_degrees = if let Some(value) = value.heading_degrees {
-                        let vm_result_heading_degrees_inner = value;
-                        Some(vm_result_heading_degrees_inner)
-                    } else {
-                        None
-                    };
+                    let vm_result_altitude_meters = value.altitude_meters;
+                    let vm_result_horizontal_accuracy_meters = value.horizontal_accuracy_meters;
+                    let vm_result_vertical_accuracy_meters = value.vertical_accuracy_meters;
+                    let vm_result_speed_meters_per_second = value.speed_meters_per_second;
+                    let vm_result_heading_degrees = value.heading_degrees;
                     let vm_result_timestamp_unix_ns = value.timestamp_unix_ns;
                     let vm_result = LocationSample {
                         latitude_degrees: vm_result_latitude_degrees,
@@ -22275,41 +18834,13 @@ fn destack_os_location_watch_read_vm_replay(
                 let result_value: LocationSampleVm = value.clone();
                 let result_recorded_latitude_degrees = result_value.latitude_degrees;
                 let result_recorded_longitude_degrees = result_value.longitude_degrees;
-                let result_recorded_altitude_meters =
-                    if let Some(value) = result_value.altitude_meters {
-                        let result_recorded_altitude_meters_inner = value;
-                        Some(result_recorded_altitude_meters_inner)
-                    } else {
-                        None
-                    };
+                let result_recorded_altitude_meters = result_value.altitude_meters;
                 let result_recorded_horizontal_accuracy_meters =
-                    if let Some(value) = result_value.horizontal_accuracy_meters {
-                        let result_recorded_horizontal_accuracy_meters_inner = value;
-                        Some(result_recorded_horizontal_accuracy_meters_inner)
-                    } else {
-                        None
-                    };
+                    result_value.horizontal_accuracy_meters;
                 let result_recorded_vertical_accuracy_meters =
-                    if let Some(value) = result_value.vertical_accuracy_meters {
-                        let result_recorded_vertical_accuracy_meters_inner = value;
-                        Some(result_recorded_vertical_accuracy_meters_inner)
-                    } else {
-                        None
-                    };
-                let result_recorded_speed_meters_per_second =
-                    if let Some(value) = result_value.speed_meters_per_second {
-                        let result_recorded_speed_meters_per_second_inner = value;
-                        Some(result_recorded_speed_meters_per_second_inner)
-                    } else {
-                        None
-                    };
-                let result_recorded_heading_degrees =
-                    if let Some(value) = result_value.heading_degrees {
-                        let result_recorded_heading_degrees_inner = value;
-                        Some(result_recorded_heading_degrees_inner)
-                    } else {
-                        None
-                    };
+                    result_value.vertical_accuracy_meters;
+                let result_recorded_speed_meters_per_second = result_value.speed_meters_per_second;
+                let result_recorded_heading_degrees = result_value.heading_degrees;
                 let result_recorded_timestamp_unix_ns = result_value.timestamp_unix_ns;
                 let result_recorded = LocationSample {
                     latitude_degrees: result_recorded_latitude_degrees,
@@ -22344,39 +18875,11 @@ fn destack_os_location_watch_read_vm_replay(
                 Ok(value) => {
                     let vm_result_latitude_degrees = value.latitude_degrees;
                     let vm_result_longitude_degrees = value.longitude_degrees;
-                    let vm_result_altitude_meters = if let Some(value) = value.altitude_meters {
-                        let vm_result_altitude_meters_inner = value;
-                        Some(vm_result_altitude_meters_inner)
-                    } else {
-                        None
-                    };
-                    let vm_result_horizontal_accuracy_meters =
-                        if let Some(value) = value.horizontal_accuracy_meters {
-                            let vm_result_horizontal_accuracy_meters_inner = value;
-                            Some(vm_result_horizontal_accuracy_meters_inner)
-                        } else {
-                            None
-                        };
-                    let vm_result_vertical_accuracy_meters =
-                        if let Some(value) = value.vertical_accuracy_meters {
-                            let vm_result_vertical_accuracy_meters_inner = value;
-                            Some(vm_result_vertical_accuracy_meters_inner)
-                        } else {
-                            None
-                        };
-                    let vm_result_speed_meters_per_second =
-                        if let Some(value) = value.speed_meters_per_second {
-                            let vm_result_speed_meters_per_second_inner = value;
-                            Some(vm_result_speed_meters_per_second_inner)
-                        } else {
-                            None
-                        };
-                    let vm_result_heading_degrees = if let Some(value) = value.heading_degrees {
-                        let vm_result_heading_degrees_inner = value;
-                        Some(vm_result_heading_degrees_inner)
-                    } else {
-                        None
-                    };
+                    let vm_result_altitude_meters = value.altitude_meters;
+                    let vm_result_horizontal_accuracy_meters = value.horizontal_accuracy_meters;
+                    let vm_result_vertical_accuracy_meters = value.vertical_accuracy_meters;
+                    let vm_result_speed_meters_per_second = value.speed_meters_per_second;
+                    let vm_result_heading_degrees = value.heading_degrees;
                     let vm_result_timestamp_unix_ns = value.timestamp_unix_ns;
                     let vm_result = LocationSample {
                         latitude_degrees: vm_result_latitude_degrees,
@@ -22423,41 +18926,13 @@ fn destack_os_location_watch_try_read_vm_replay(
                 let result_value: LocationSampleVm = value.clone();
                 let result_recorded_latitude_degrees = result_value.latitude_degrees;
                 let result_recorded_longitude_degrees = result_value.longitude_degrees;
-                let result_recorded_altitude_meters =
-                    if let Some(value) = result_value.altitude_meters {
-                        let result_recorded_altitude_meters_inner = value;
-                        Some(result_recorded_altitude_meters_inner)
-                    } else {
-                        None
-                    };
+                let result_recorded_altitude_meters = result_value.altitude_meters;
                 let result_recorded_horizontal_accuracy_meters =
-                    if let Some(value) = result_value.horizontal_accuracy_meters {
-                        let result_recorded_horizontal_accuracy_meters_inner = value;
-                        Some(result_recorded_horizontal_accuracy_meters_inner)
-                    } else {
-                        None
-                    };
+                    result_value.horizontal_accuracy_meters;
                 let result_recorded_vertical_accuracy_meters =
-                    if let Some(value) = result_value.vertical_accuracy_meters {
-                        let result_recorded_vertical_accuracy_meters_inner = value;
-                        Some(result_recorded_vertical_accuracy_meters_inner)
-                    } else {
-                        None
-                    };
-                let result_recorded_speed_meters_per_second =
-                    if let Some(value) = result_value.speed_meters_per_second {
-                        let result_recorded_speed_meters_per_second_inner = value;
-                        Some(result_recorded_speed_meters_per_second_inner)
-                    } else {
-                        None
-                    };
-                let result_recorded_heading_degrees =
-                    if let Some(value) = result_value.heading_degrees {
-                        let result_recorded_heading_degrees_inner = value;
-                        Some(result_recorded_heading_degrees_inner)
-                    } else {
-                        None
-                    };
+                    result_value.vertical_accuracy_meters;
+                let result_recorded_speed_meters_per_second = result_value.speed_meters_per_second;
+                let result_recorded_heading_degrees = result_value.heading_degrees;
                 let result_recorded_timestamp_unix_ns = result_value.timestamp_unix_ns;
                 let result_recorded = LocationSample {
                     latitude_degrees: result_recorded_latitude_degrees,
@@ -22492,39 +18967,11 @@ fn destack_os_location_watch_try_read_vm_replay(
                 Ok(value) => {
                     let vm_result_latitude_degrees = value.latitude_degrees;
                     let vm_result_longitude_degrees = value.longitude_degrees;
-                    let vm_result_altitude_meters = if let Some(value) = value.altitude_meters {
-                        let vm_result_altitude_meters_inner = value;
-                        Some(vm_result_altitude_meters_inner)
-                    } else {
-                        None
-                    };
-                    let vm_result_horizontal_accuracy_meters =
-                        if let Some(value) = value.horizontal_accuracy_meters {
-                            let vm_result_horizontal_accuracy_meters_inner = value;
-                            Some(vm_result_horizontal_accuracy_meters_inner)
-                        } else {
-                            None
-                        };
-                    let vm_result_vertical_accuracy_meters =
-                        if let Some(value) = value.vertical_accuracy_meters {
-                            let vm_result_vertical_accuracy_meters_inner = value;
-                            Some(vm_result_vertical_accuracy_meters_inner)
-                        } else {
-                            None
-                        };
-                    let vm_result_speed_meters_per_second =
-                        if let Some(value) = value.speed_meters_per_second {
-                            let vm_result_speed_meters_per_second_inner = value;
-                            Some(vm_result_speed_meters_per_second_inner)
-                        } else {
-                            None
-                        };
-                    let vm_result_heading_degrees = if let Some(value) = value.heading_degrees {
-                        let vm_result_heading_degrees_inner = value;
-                        Some(vm_result_heading_degrees_inner)
-                    } else {
-                        None
-                    };
+                    let vm_result_altitude_meters = value.altitude_meters;
+                    let vm_result_horizontal_accuracy_meters = value.horizontal_accuracy_meters;
+                    let vm_result_vertical_accuracy_meters = value.vertical_accuracy_meters;
+                    let vm_result_speed_meters_per_second = value.speed_meters_per_second;
+                    let vm_result_heading_degrees = value.heading_degrees;
                     let vm_result_timestamp_unix_ns = value.timestamp_unix_ns;
                     let vm_result = LocationSample {
                         latitude_degrees: vm_result_latitude_degrees,
@@ -22543,957 +18990,6 @@ fn destack_os_location_watch_try_read_vm_replay(
         },
     );
     let result = encode_destack_os_location_watch_try_read_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_os_media_watch_close_vm_replay(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::MediaWatchHandle,
-) -> RuntimeResult<vm::Value> {
-    let result = binding.trace().run_binding(
-        OS_MEDIA_WATCH_CLOSE,
-        binding.replay_payload_for(OS_MEDIA_WATCH_CLOSE)?,
-        context,
-        |context| match world {
-            RuntimeWorld::Host => {
-                platform_vm::destack_os_media_watch_close(binding, context, handle)
-            }
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_media_watch_close(binding, context, handle)
-            }
-        },
-        |context, result| {
-            let _ = &context;
-            if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = OsMediaWatchCloseReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsMediaWatchCloseReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(()) => Ok(()),
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    );
-    let result = encode_destack_os_media_watch_close_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_os_media_watch_open_vm_replay(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    options: MediaWatchOptionsVm,
-) -> RuntimeResult<vm::Value> {
-    let result = binding.trace().run_binding(
-        OS_MEDIA_WATCH_OPEN,
-        binding.replay_payload_for(OS_MEDIA_WATCH_OPEN)?,
-        context,
-        |context| match world {
-            RuntimeWorld::Host => {
-                platform_vm::destack_os_media_watch_open(binding, context, options)
-            }
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_media_watch_open(binding, context, options)
-            }
-        },
-        |context, result| {
-            let _ = &context;
-            if let Ok(value) = result {
-                let result_value: resource::MediaWatchHandle = value.clone();
-                let result_recorded = result_value;
-                let payload = OsMediaWatchOpenReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsMediaWatchOpenReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let vm_result = value;
-                    Ok(vm_result)
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    );
-    let result = encode_destack_os_media_watch_open_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_os_media_watch_read_vm_replay(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::MediaWatchHandle,
-    timeoutns: u64,
-) -> RuntimeResult<vm::Value> {
-    let result = binding.trace().run_binding(
-        OS_MEDIA_WATCH_READ,
-        binding.replay_payload_for(OS_MEDIA_WATCH_READ)?,
-        context,
-        |context| {
-            match world {
-                RuntimeWorld::Host => platform_vm::destack_os_media_watch_read(binding, context, handle, timeoutns),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_media_watch_read(binding, context, handle, timeoutns),
-            }
-        },
-        |context, result| {
-            let _ = &context;
-            if let Ok(value) = result {
-                let result_value: MediaEventVm = value.clone();
-                let result_recorded = match result_value {
-                    MediaEventVm::MediaAddedEvent(value) => {
-                        let result_recorded_media_added_event_kind = {
-                            let result_recorded_media_added_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_added_event_kind_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_media_added_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_media_added_event_metadata = MediaEventMetadata {
-                            timestamp_ns: result_recorded_media_added_event_metadata_timestamp_ns,
-                            sequence: result_recorded_media_added_event_metadata_sequence,
-                        };
-                        let result_recorded_media_added_event_asset_id = {
-                            let result_recorded_media_added_event_asset_id_ref = context.string_ref(value.asset.id).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_added_event_asset_id_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_added_event_asset_uri = {
-                            let result_recorded_media_added_event_asset_uri_ref = context.string_ref(value.asset.uri).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_added_event_asset_uri_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_added_event_asset_filename = {
-                            let result_recorded_media_added_event_asset_filename_ref = context.string_ref(value.asset.filename).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_added_event_asset_filename_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_added_event_asset_kind = value.asset.kind;
-                        let result_recorded_media_added_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                            let result_recorded_media_added_event_asset_content_type_inner = {
-                                let result_recorded_media_added_event_asset_content_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_media_added_event_asset_content_type_inner_ref.as_str().to_string()
-                            };
-                            Some(result_recorded_media_added_event_asset_content_type_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_added_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                            let result_recorded_media_added_event_asset_size_bytes_inner = value;
-                            Some(result_recorded_media_added_event_asset_size_bytes_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_added_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                            let result_recorded_media_added_event_asset_created_unix_ns_inner = value;
-                            Some(result_recorded_media_added_event_asset_created_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_added_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                            let result_recorded_media_added_event_asset_modified_unix_ns_inner = value;
-                            Some(result_recorded_media_added_event_asset_modified_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_added_event_asset = MediaassetsummaryReplayRecord {
-                            id: result_recorded_media_added_event_asset_id,
-                            uri: result_recorded_media_added_event_asset_uri,
-                            filename: result_recorded_media_added_event_asset_filename,
-                            kind: result_recorded_media_added_event_asset_kind,
-                            content_type: result_recorded_media_added_event_asset_content_type,
-                            size_bytes: result_recorded_media_added_event_asset_size_bytes,
-                            created_unix_ns: result_recorded_media_added_event_asset_created_unix_ns,
-                            modified_unix_ns: result_recorded_media_added_event_asset_modified_unix_ns,
-                        };
-                        let result_recorded_media_added_event = MediaaddedeventReplayRecord {
-                            kind: result_recorded_media_added_event_kind,
-                            metadata: result_recorded_media_added_event_metadata,
-                            asset: result_recorded_media_added_event_asset,
-                        };
-                        MediaeventReplayRecord::MediaAddedEvent(result_recorded_media_added_event)
-                    }
-                    MediaEventVm::MediaRemovedEvent(value) => {
-                        let result_recorded_media_removed_event_kind = {
-                            let result_recorded_media_removed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_removed_event_kind_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_media_removed_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_media_removed_event_metadata = MediaEventMetadata {
-                            timestamp_ns: result_recorded_media_removed_event_metadata_timestamp_ns,
-                            sequence: result_recorded_media_removed_event_metadata_sequence,
-                        };
-                        let result_recorded_media_removed_event_asset_id = {
-                            let result_recorded_media_removed_event_asset_id_ref = context.string_ref(value.asset.id).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_removed_event_asset_id_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_removed_event_asset_uri = {
-                            let result_recorded_media_removed_event_asset_uri_ref = context.string_ref(value.asset.uri).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_removed_event_asset_uri_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_removed_event_asset_filename = {
-                            let result_recorded_media_removed_event_asset_filename_ref = context.string_ref(value.asset.filename).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_removed_event_asset_filename_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_removed_event_asset_kind = value.asset.kind;
-                        let result_recorded_media_removed_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                            let result_recorded_media_removed_event_asset_content_type_inner = {
-                                let result_recorded_media_removed_event_asset_content_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_media_removed_event_asset_content_type_inner_ref.as_str().to_string()
-                            };
-                            Some(result_recorded_media_removed_event_asset_content_type_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_removed_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                            let result_recorded_media_removed_event_asset_size_bytes_inner = value;
-                            Some(result_recorded_media_removed_event_asset_size_bytes_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_removed_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                            let result_recorded_media_removed_event_asset_created_unix_ns_inner = value;
-                            Some(result_recorded_media_removed_event_asset_created_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_removed_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                            let result_recorded_media_removed_event_asset_modified_unix_ns_inner = value;
-                            Some(result_recorded_media_removed_event_asset_modified_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_removed_event_asset = MediaassetsummaryReplayRecord {
-                            id: result_recorded_media_removed_event_asset_id,
-                            uri: result_recorded_media_removed_event_asset_uri,
-                            filename: result_recorded_media_removed_event_asset_filename,
-                            kind: result_recorded_media_removed_event_asset_kind,
-                            content_type: result_recorded_media_removed_event_asset_content_type,
-                            size_bytes: result_recorded_media_removed_event_asset_size_bytes,
-                            created_unix_ns: result_recorded_media_removed_event_asset_created_unix_ns,
-                            modified_unix_ns: result_recorded_media_removed_event_asset_modified_unix_ns,
-                        };
-                        let result_recorded_media_removed_event = MediaremovedeventReplayRecord {
-                            kind: result_recorded_media_removed_event_kind,
-                            metadata: result_recorded_media_removed_event_metadata,
-                            asset: result_recorded_media_removed_event_asset,
-                        };
-                        MediaeventReplayRecord::MediaRemovedEvent(result_recorded_media_removed_event)
-                    }
-                    MediaEventVm::MediaUpdatedEvent(value) => {
-                        let result_recorded_media_updated_event_kind = {
-                            let result_recorded_media_updated_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_updated_event_kind_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_updated_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_media_updated_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_media_updated_event_metadata = MediaEventMetadata {
-                            timestamp_ns: result_recorded_media_updated_event_metadata_timestamp_ns,
-                            sequence: result_recorded_media_updated_event_metadata_sequence,
-                        };
-                        let result_recorded_media_updated_event_asset_id = {
-                            let result_recorded_media_updated_event_asset_id_ref = context.string_ref(value.asset.id).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_updated_event_asset_id_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_updated_event_asset_uri = {
-                            let result_recorded_media_updated_event_asset_uri_ref = context.string_ref(value.asset.uri).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_updated_event_asset_uri_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_updated_event_asset_filename = {
-                            let result_recorded_media_updated_event_asset_filename_ref = context.string_ref(value.asset.filename).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_updated_event_asset_filename_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_updated_event_asset_kind = value.asset.kind;
-                        let result_recorded_media_updated_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                            let result_recorded_media_updated_event_asset_content_type_inner = {
-                                let result_recorded_media_updated_event_asset_content_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_media_updated_event_asset_content_type_inner_ref.as_str().to_string()
-                            };
-                            Some(result_recorded_media_updated_event_asset_content_type_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_updated_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                            let result_recorded_media_updated_event_asset_size_bytes_inner = value;
-                            Some(result_recorded_media_updated_event_asset_size_bytes_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_updated_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                            let result_recorded_media_updated_event_asset_created_unix_ns_inner = value;
-                            Some(result_recorded_media_updated_event_asset_created_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_updated_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                            let result_recorded_media_updated_event_asset_modified_unix_ns_inner = value;
-                            Some(result_recorded_media_updated_event_asset_modified_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_updated_event_asset = MediaassetsummaryReplayRecord {
-                            id: result_recorded_media_updated_event_asset_id,
-                            uri: result_recorded_media_updated_event_asset_uri,
-                            filename: result_recorded_media_updated_event_asset_filename,
-                            kind: result_recorded_media_updated_event_asset_kind,
-                            content_type: result_recorded_media_updated_event_asset_content_type,
-                            size_bytes: result_recorded_media_updated_event_asset_size_bytes,
-                            created_unix_ns: result_recorded_media_updated_event_asset_created_unix_ns,
-                            modified_unix_ns: result_recorded_media_updated_event_asset_modified_unix_ns,
-                        };
-                        let result_recorded_media_updated_event = MediaupdatedeventReplayRecord {
-                            kind: result_recorded_media_updated_event_kind,
-                            metadata: result_recorded_media_updated_event_metadata,
-                            asset: result_recorded_media_updated_event_asset,
-                        };
-                        MediaeventReplayRecord::MediaUpdatedEvent(result_recorded_media_updated_event)
-                    }
-                };
-                let payload = OsMediaWatchReadReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsMediaWatchReadReplayRecord {
-                        result,
-                    }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let vm_result = match value {
-                        MediaeventReplayRecord::MediaAddedEvent(value) => {
-                            let vm_result_media_added_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let vm_result_media_added_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_media_added_event_metadata = MediaEventMetadata {
-                                timestamp_ns: vm_result_media_added_event_metadata_timestamp_ns,
-                                sequence: vm_result_media_added_event_metadata_sequence,
-                            };
-                            let vm_result_media_added_event_asset_id = context.string_handle(value.asset.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_added_event_asset_uri = context.string_handle(value.asset.uri.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_added_event_asset_filename = context.string_handle(value.asset.filename.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_added_event_asset_kind = value.asset.kind;
-                            let vm_result_media_added_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                                let vm_result_media_added_event_asset_content_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_media_added_event_asset_content_type_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_added_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                                let vm_result_media_added_event_asset_size_bytes_inner = value;
-                                Some(vm_result_media_added_event_asset_size_bytes_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_added_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                                let vm_result_media_added_event_asset_created_unix_ns_inner = value;
-                                Some(vm_result_media_added_event_asset_created_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_added_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                                let vm_result_media_added_event_asset_modified_unix_ns_inner = value;
-                                Some(vm_result_media_added_event_asset_modified_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_added_event_asset = MediaAssetSummaryVm {
-                                id: vm_result_media_added_event_asset_id,
-                                uri: vm_result_media_added_event_asset_uri,
-                                filename: vm_result_media_added_event_asset_filename,
-                                kind: vm_result_media_added_event_asset_kind,
-                                content_type: vm_result_media_added_event_asset_content_type,
-                                size_bytes: vm_result_media_added_event_asset_size_bytes,
-                                created_unix_ns: vm_result_media_added_event_asset_created_unix_ns,
-                                modified_unix_ns: vm_result_media_added_event_asset_modified_unix_ns,
-                            };
-                            let vm_result_media_added_event = MediaAddedEventVm {
-                                kind: vm_result_media_added_event_kind,
-                                metadata: vm_result_media_added_event_metadata,
-                                asset: vm_result_media_added_event_asset,
-                            };
-                            MediaEventVm::MediaAddedEvent(vm_result_media_added_event)
-                        }
-                        MediaeventReplayRecord::MediaRemovedEvent(value) => {
-                            let vm_result_media_removed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let vm_result_media_removed_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_media_removed_event_metadata = MediaEventMetadata {
-                                timestamp_ns: vm_result_media_removed_event_metadata_timestamp_ns,
-                                sequence: vm_result_media_removed_event_metadata_sequence,
-                            };
-                            let vm_result_media_removed_event_asset_id = context.string_handle(value.asset.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_removed_event_asset_uri = context.string_handle(value.asset.uri.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_removed_event_asset_filename = context.string_handle(value.asset.filename.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_removed_event_asset_kind = value.asset.kind;
-                            let vm_result_media_removed_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                                let vm_result_media_removed_event_asset_content_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_media_removed_event_asset_content_type_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_removed_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                                let vm_result_media_removed_event_asset_size_bytes_inner = value;
-                                Some(vm_result_media_removed_event_asset_size_bytes_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_removed_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                                let vm_result_media_removed_event_asset_created_unix_ns_inner = value;
-                                Some(vm_result_media_removed_event_asset_created_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_removed_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                                let vm_result_media_removed_event_asset_modified_unix_ns_inner = value;
-                                Some(vm_result_media_removed_event_asset_modified_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_removed_event_asset = MediaAssetSummaryVm {
-                                id: vm_result_media_removed_event_asset_id,
-                                uri: vm_result_media_removed_event_asset_uri,
-                                filename: vm_result_media_removed_event_asset_filename,
-                                kind: vm_result_media_removed_event_asset_kind,
-                                content_type: vm_result_media_removed_event_asset_content_type,
-                                size_bytes: vm_result_media_removed_event_asset_size_bytes,
-                                created_unix_ns: vm_result_media_removed_event_asset_created_unix_ns,
-                                modified_unix_ns: vm_result_media_removed_event_asset_modified_unix_ns,
-                            };
-                            let vm_result_media_removed_event = MediaRemovedEventVm {
-                                kind: vm_result_media_removed_event_kind,
-                                metadata: vm_result_media_removed_event_metadata,
-                                asset: vm_result_media_removed_event_asset,
-                            };
-                            MediaEventVm::MediaRemovedEvent(vm_result_media_removed_event)
-                        }
-                        MediaeventReplayRecord::MediaUpdatedEvent(value) => {
-                            let vm_result_media_updated_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_updated_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let vm_result_media_updated_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_media_updated_event_metadata = MediaEventMetadata {
-                                timestamp_ns: vm_result_media_updated_event_metadata_timestamp_ns,
-                                sequence: vm_result_media_updated_event_metadata_sequence,
-                            };
-                            let vm_result_media_updated_event_asset_id = context.string_handle(value.asset.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_updated_event_asset_uri = context.string_handle(value.asset.uri.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_updated_event_asset_filename = context.string_handle(value.asset.filename.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_updated_event_asset_kind = value.asset.kind;
-                            let vm_result_media_updated_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                                let vm_result_media_updated_event_asset_content_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_media_updated_event_asset_content_type_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_updated_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                                let vm_result_media_updated_event_asset_size_bytes_inner = value;
-                                Some(vm_result_media_updated_event_asset_size_bytes_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_updated_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                                let vm_result_media_updated_event_asset_created_unix_ns_inner = value;
-                                Some(vm_result_media_updated_event_asset_created_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_updated_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                                let vm_result_media_updated_event_asset_modified_unix_ns_inner = value;
-                                Some(vm_result_media_updated_event_asset_modified_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_updated_event_asset = MediaAssetSummaryVm {
-                                id: vm_result_media_updated_event_asset_id,
-                                uri: vm_result_media_updated_event_asset_uri,
-                                filename: vm_result_media_updated_event_asset_filename,
-                                kind: vm_result_media_updated_event_asset_kind,
-                                content_type: vm_result_media_updated_event_asset_content_type,
-                                size_bytes: vm_result_media_updated_event_asset_size_bytes,
-                                created_unix_ns: vm_result_media_updated_event_asset_created_unix_ns,
-                                modified_unix_ns: vm_result_media_updated_event_asset_modified_unix_ns,
-                            };
-                            let vm_result_media_updated_event = MediaUpdatedEventVm {
-                                kind: vm_result_media_updated_event_kind,
-                                metadata: vm_result_media_updated_event_metadata,
-                                asset: vm_result_media_updated_event_asset,
-                            };
-                            MediaEventVm::MediaUpdatedEvent(vm_result_media_updated_event)
-                        }
-                    };
-                    Ok(vm_result)
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    );
-    let result = encode_destack_os_media_watch_read_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_os_media_watch_try_read_vm_replay(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::MediaWatchHandle,
-) -> RuntimeResult<vm::Value> {
-    let result = binding.trace().run_binding(
-        OS_MEDIA_WATCH_TRY_READ,
-        binding.replay_payload_for(OS_MEDIA_WATCH_TRY_READ)?,
-        context,
-        |context| {
-            match world {
-                RuntimeWorld::Host => platform_vm::destack_os_media_watch_try_read(binding, context, handle),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_media_watch_try_read(binding, context, handle),
-            }
-        },
-        |context, result| {
-            let _ = &context;
-            if let Ok(value) = result {
-                let result_value: MediaEventVm = value.clone();
-                let result_recorded = match result_value {
-                    MediaEventVm::MediaAddedEvent(value) => {
-                        let result_recorded_media_added_event_kind = {
-                            let result_recorded_media_added_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_added_event_kind_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_media_added_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_media_added_event_metadata = MediaEventMetadata {
-                            timestamp_ns: result_recorded_media_added_event_metadata_timestamp_ns,
-                            sequence: result_recorded_media_added_event_metadata_sequence,
-                        };
-                        let result_recorded_media_added_event_asset_id = {
-                            let result_recorded_media_added_event_asset_id_ref = context.string_ref(value.asset.id).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_added_event_asset_id_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_added_event_asset_uri = {
-                            let result_recorded_media_added_event_asset_uri_ref = context.string_ref(value.asset.uri).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_added_event_asset_uri_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_added_event_asset_filename = {
-                            let result_recorded_media_added_event_asset_filename_ref = context.string_ref(value.asset.filename).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_added_event_asset_filename_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_added_event_asset_kind = value.asset.kind;
-                        let result_recorded_media_added_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                            let result_recorded_media_added_event_asset_content_type_inner = {
-                                let result_recorded_media_added_event_asset_content_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_media_added_event_asset_content_type_inner_ref.as_str().to_string()
-                            };
-                            Some(result_recorded_media_added_event_asset_content_type_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_added_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                            let result_recorded_media_added_event_asset_size_bytes_inner = value;
-                            Some(result_recorded_media_added_event_asset_size_bytes_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_added_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                            let result_recorded_media_added_event_asset_created_unix_ns_inner = value;
-                            Some(result_recorded_media_added_event_asset_created_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_added_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                            let result_recorded_media_added_event_asset_modified_unix_ns_inner = value;
-                            Some(result_recorded_media_added_event_asset_modified_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_added_event_asset = MediaassetsummaryReplayRecord {
-                            id: result_recorded_media_added_event_asset_id,
-                            uri: result_recorded_media_added_event_asset_uri,
-                            filename: result_recorded_media_added_event_asset_filename,
-                            kind: result_recorded_media_added_event_asset_kind,
-                            content_type: result_recorded_media_added_event_asset_content_type,
-                            size_bytes: result_recorded_media_added_event_asset_size_bytes,
-                            created_unix_ns: result_recorded_media_added_event_asset_created_unix_ns,
-                            modified_unix_ns: result_recorded_media_added_event_asset_modified_unix_ns,
-                        };
-                        let result_recorded_media_added_event = MediaaddedeventReplayRecord {
-                            kind: result_recorded_media_added_event_kind,
-                            metadata: result_recorded_media_added_event_metadata,
-                            asset: result_recorded_media_added_event_asset,
-                        };
-                        MediaeventReplayRecord::MediaAddedEvent(result_recorded_media_added_event)
-                    }
-                    MediaEventVm::MediaRemovedEvent(value) => {
-                        let result_recorded_media_removed_event_kind = {
-                            let result_recorded_media_removed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_removed_event_kind_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_media_removed_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_media_removed_event_metadata = MediaEventMetadata {
-                            timestamp_ns: result_recorded_media_removed_event_metadata_timestamp_ns,
-                            sequence: result_recorded_media_removed_event_metadata_sequence,
-                        };
-                        let result_recorded_media_removed_event_asset_id = {
-                            let result_recorded_media_removed_event_asset_id_ref = context.string_ref(value.asset.id).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_removed_event_asset_id_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_removed_event_asset_uri = {
-                            let result_recorded_media_removed_event_asset_uri_ref = context.string_ref(value.asset.uri).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_removed_event_asset_uri_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_removed_event_asset_filename = {
-                            let result_recorded_media_removed_event_asset_filename_ref = context.string_ref(value.asset.filename).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_removed_event_asset_filename_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_removed_event_asset_kind = value.asset.kind;
-                        let result_recorded_media_removed_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                            let result_recorded_media_removed_event_asset_content_type_inner = {
-                                let result_recorded_media_removed_event_asset_content_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_media_removed_event_asset_content_type_inner_ref.as_str().to_string()
-                            };
-                            Some(result_recorded_media_removed_event_asset_content_type_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_removed_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                            let result_recorded_media_removed_event_asset_size_bytes_inner = value;
-                            Some(result_recorded_media_removed_event_asset_size_bytes_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_removed_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                            let result_recorded_media_removed_event_asset_created_unix_ns_inner = value;
-                            Some(result_recorded_media_removed_event_asset_created_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_removed_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                            let result_recorded_media_removed_event_asset_modified_unix_ns_inner = value;
-                            Some(result_recorded_media_removed_event_asset_modified_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_removed_event_asset = MediaassetsummaryReplayRecord {
-                            id: result_recorded_media_removed_event_asset_id,
-                            uri: result_recorded_media_removed_event_asset_uri,
-                            filename: result_recorded_media_removed_event_asset_filename,
-                            kind: result_recorded_media_removed_event_asset_kind,
-                            content_type: result_recorded_media_removed_event_asset_content_type,
-                            size_bytes: result_recorded_media_removed_event_asset_size_bytes,
-                            created_unix_ns: result_recorded_media_removed_event_asset_created_unix_ns,
-                            modified_unix_ns: result_recorded_media_removed_event_asset_modified_unix_ns,
-                        };
-                        let result_recorded_media_removed_event = MediaremovedeventReplayRecord {
-                            kind: result_recorded_media_removed_event_kind,
-                            metadata: result_recorded_media_removed_event_metadata,
-                            asset: result_recorded_media_removed_event_asset,
-                        };
-                        MediaeventReplayRecord::MediaRemovedEvent(result_recorded_media_removed_event)
-                    }
-                    MediaEventVm::MediaUpdatedEvent(value) => {
-                        let result_recorded_media_updated_event_kind = {
-                            let result_recorded_media_updated_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_updated_event_kind_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_updated_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_media_updated_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_media_updated_event_metadata = MediaEventMetadata {
-                            timestamp_ns: result_recorded_media_updated_event_metadata_timestamp_ns,
-                            sequence: result_recorded_media_updated_event_metadata_sequence,
-                        };
-                        let result_recorded_media_updated_event_asset_id = {
-                            let result_recorded_media_updated_event_asset_id_ref = context.string_ref(value.asset.id).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_updated_event_asset_id_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_updated_event_asset_uri = {
-                            let result_recorded_media_updated_event_asset_uri_ref = context.string_ref(value.asset.uri).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_updated_event_asset_uri_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_updated_event_asset_filename = {
-                            let result_recorded_media_updated_event_asset_filename_ref = context.string_ref(value.asset.filename).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_media_updated_event_asset_filename_ref.as_str().to_string()
-                        };
-                        let result_recorded_media_updated_event_asset_kind = value.asset.kind;
-                        let result_recorded_media_updated_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                            let result_recorded_media_updated_event_asset_content_type_inner = {
-                                let result_recorded_media_updated_event_asset_content_type_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_media_updated_event_asset_content_type_inner_ref.as_str().to_string()
-                            };
-                            Some(result_recorded_media_updated_event_asset_content_type_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_updated_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                            let result_recorded_media_updated_event_asset_size_bytes_inner = value;
-                            Some(result_recorded_media_updated_event_asset_size_bytes_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_updated_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                            let result_recorded_media_updated_event_asset_created_unix_ns_inner = value;
-                            Some(result_recorded_media_updated_event_asset_created_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_updated_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                            let result_recorded_media_updated_event_asset_modified_unix_ns_inner = value;
-                            Some(result_recorded_media_updated_event_asset_modified_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let result_recorded_media_updated_event_asset = MediaassetsummaryReplayRecord {
-                            id: result_recorded_media_updated_event_asset_id,
-                            uri: result_recorded_media_updated_event_asset_uri,
-                            filename: result_recorded_media_updated_event_asset_filename,
-                            kind: result_recorded_media_updated_event_asset_kind,
-                            content_type: result_recorded_media_updated_event_asset_content_type,
-                            size_bytes: result_recorded_media_updated_event_asset_size_bytes,
-                            created_unix_ns: result_recorded_media_updated_event_asset_created_unix_ns,
-                            modified_unix_ns: result_recorded_media_updated_event_asset_modified_unix_ns,
-                        };
-                        let result_recorded_media_updated_event = MediaupdatedeventReplayRecord {
-                            kind: result_recorded_media_updated_event_kind,
-                            metadata: result_recorded_media_updated_event_metadata,
-                            asset: result_recorded_media_updated_event_asset,
-                        };
-                        MediaeventReplayRecord::MediaUpdatedEvent(result_recorded_media_updated_event)
-                    }
-                };
-                let payload = OsMediaWatchTryReadReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsMediaWatchTryReadReplayRecord {
-                        result,
-                    }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let vm_result = match value {
-                        MediaeventReplayRecord::MediaAddedEvent(value) => {
-                            let vm_result_media_added_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let vm_result_media_added_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_media_added_event_metadata = MediaEventMetadata {
-                                timestamp_ns: vm_result_media_added_event_metadata_timestamp_ns,
-                                sequence: vm_result_media_added_event_metadata_sequence,
-                            };
-                            let vm_result_media_added_event_asset_id = context.string_handle(value.asset.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_added_event_asset_uri = context.string_handle(value.asset.uri.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_added_event_asset_filename = context.string_handle(value.asset.filename.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_added_event_asset_kind = value.asset.kind;
-                            let vm_result_media_added_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                                let vm_result_media_added_event_asset_content_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_media_added_event_asset_content_type_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_added_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                                let vm_result_media_added_event_asset_size_bytes_inner = value;
-                                Some(vm_result_media_added_event_asset_size_bytes_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_added_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                                let vm_result_media_added_event_asset_created_unix_ns_inner = value;
-                                Some(vm_result_media_added_event_asset_created_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_added_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                                let vm_result_media_added_event_asset_modified_unix_ns_inner = value;
-                                Some(vm_result_media_added_event_asset_modified_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_added_event_asset = MediaAssetSummaryVm {
-                                id: vm_result_media_added_event_asset_id,
-                                uri: vm_result_media_added_event_asset_uri,
-                                filename: vm_result_media_added_event_asset_filename,
-                                kind: vm_result_media_added_event_asset_kind,
-                                content_type: vm_result_media_added_event_asset_content_type,
-                                size_bytes: vm_result_media_added_event_asset_size_bytes,
-                                created_unix_ns: vm_result_media_added_event_asset_created_unix_ns,
-                                modified_unix_ns: vm_result_media_added_event_asset_modified_unix_ns,
-                            };
-                            let vm_result_media_added_event = MediaAddedEventVm {
-                                kind: vm_result_media_added_event_kind,
-                                metadata: vm_result_media_added_event_metadata,
-                                asset: vm_result_media_added_event_asset,
-                            };
-                            MediaEventVm::MediaAddedEvent(vm_result_media_added_event)
-                        }
-                        MediaeventReplayRecord::MediaRemovedEvent(value) => {
-                            let vm_result_media_removed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let vm_result_media_removed_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_media_removed_event_metadata = MediaEventMetadata {
-                                timestamp_ns: vm_result_media_removed_event_metadata_timestamp_ns,
-                                sequence: vm_result_media_removed_event_metadata_sequence,
-                            };
-                            let vm_result_media_removed_event_asset_id = context.string_handle(value.asset.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_removed_event_asset_uri = context.string_handle(value.asset.uri.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_removed_event_asset_filename = context.string_handle(value.asset.filename.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_removed_event_asset_kind = value.asset.kind;
-                            let vm_result_media_removed_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                                let vm_result_media_removed_event_asset_content_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_media_removed_event_asset_content_type_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_removed_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                                let vm_result_media_removed_event_asset_size_bytes_inner = value;
-                                Some(vm_result_media_removed_event_asset_size_bytes_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_removed_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                                let vm_result_media_removed_event_asset_created_unix_ns_inner = value;
-                                Some(vm_result_media_removed_event_asset_created_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_removed_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                                let vm_result_media_removed_event_asset_modified_unix_ns_inner = value;
-                                Some(vm_result_media_removed_event_asset_modified_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_removed_event_asset = MediaAssetSummaryVm {
-                                id: vm_result_media_removed_event_asset_id,
-                                uri: vm_result_media_removed_event_asset_uri,
-                                filename: vm_result_media_removed_event_asset_filename,
-                                kind: vm_result_media_removed_event_asset_kind,
-                                content_type: vm_result_media_removed_event_asset_content_type,
-                                size_bytes: vm_result_media_removed_event_asset_size_bytes,
-                                created_unix_ns: vm_result_media_removed_event_asset_created_unix_ns,
-                                modified_unix_ns: vm_result_media_removed_event_asset_modified_unix_ns,
-                            };
-                            let vm_result_media_removed_event = MediaRemovedEventVm {
-                                kind: vm_result_media_removed_event_kind,
-                                metadata: vm_result_media_removed_event_metadata,
-                                asset: vm_result_media_removed_event_asset,
-                            };
-                            MediaEventVm::MediaRemovedEvent(vm_result_media_removed_event)
-                        }
-                        MediaeventReplayRecord::MediaUpdatedEvent(value) => {
-                            let vm_result_media_updated_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_updated_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let vm_result_media_updated_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_media_updated_event_metadata = MediaEventMetadata {
-                                timestamp_ns: vm_result_media_updated_event_metadata_timestamp_ns,
-                                sequence: vm_result_media_updated_event_metadata_sequence,
-                            };
-                            let vm_result_media_updated_event_asset_id = context.string_handle(value.asset.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_updated_event_asset_uri = context.string_handle(value.asset.uri.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_updated_event_asset_filename = context.string_handle(value.asset.filename.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_media_updated_event_asset_kind = value.asset.kind;
-                            let vm_result_media_updated_event_asset_content_type = if let Some(value) = value.asset.content_type {
-                                let vm_result_media_updated_event_asset_content_type_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_media_updated_event_asset_content_type_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_updated_event_asset_size_bytes = if let Some(value) = value.asset.size_bytes {
-                                let vm_result_media_updated_event_asset_size_bytes_inner = value;
-                                Some(vm_result_media_updated_event_asset_size_bytes_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_updated_event_asset_created_unix_ns = if let Some(value) = value.asset.created_unix_ns {
-                                let vm_result_media_updated_event_asset_created_unix_ns_inner = value;
-                                Some(vm_result_media_updated_event_asset_created_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_updated_event_asset_modified_unix_ns = if let Some(value) = value.asset.modified_unix_ns {
-                                let vm_result_media_updated_event_asset_modified_unix_ns_inner = value;
-                                Some(vm_result_media_updated_event_asset_modified_unix_ns_inner)
-                            } else {
-                                None
-                            };
-                            let vm_result_media_updated_event_asset = MediaAssetSummaryVm {
-                                id: vm_result_media_updated_event_asset_id,
-                                uri: vm_result_media_updated_event_asset_uri,
-                                filename: vm_result_media_updated_event_asset_filename,
-                                kind: vm_result_media_updated_event_asset_kind,
-                                content_type: vm_result_media_updated_event_asset_content_type,
-                                size_bytes: vm_result_media_updated_event_asset_size_bytes,
-                                created_unix_ns: vm_result_media_updated_event_asset_created_unix_ns,
-                                modified_unix_ns: vm_result_media_updated_event_asset_modified_unix_ns,
-                            };
-                            let vm_result_media_updated_event = MediaUpdatedEventVm {
-                                kind: vm_result_media_updated_event_kind,
-                                metadata: vm_result_media_updated_event_metadata,
-                                asset: vm_result_media_updated_event_asset,
-                            };
-                            MediaEventVm::MediaUpdatedEvent(vm_result_media_updated_event)
-                        }
-                    };
-                    Ok(vm_result)
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    );
-    let result = encode_destack_os_media_watch_try_read_result(context, result)?;
     Ok(result)
 }
 
@@ -25703,168 +21199,6 @@ pub(crate) fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &
         binding!(
             registry,
             isolate,
-            OS_CLIPBOARD_CLEAR,
-            move |context, _args| {
-                with_binding_call_context(|binding| {
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(OS_CLIPBOARD_CLEAR)?;
-                        match world {
-                            RuntimeWorld::Host => {
-                                platform_vm::destack_os_clipboard_clear(binding, context)
-                            }
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_os_clipboard_clear(binding, context)
-                            }
-                        }
-                    };
-                    encode_destack_os_clipboard_clear_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            OS_CLIPBOARD_HAS_TEXT,
-            move |context, _args| {
-                with_binding_call_context(|binding| {
-                    // execute binding
-                    let (world, _binding_hook_guard) =
-                        binding.on_before_binding_resolve_world(OS_CLIPBOARD_HAS_TEXT)?;
-                    destack_os_clipboard_has_text_vm_replay(binding, context, world)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            OS_CLIPBOARD_READ_BYTES,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (format,) = decode_destack_os_clipboard_read_bytes_args(context, args)?;
-
-                    // execute binding
-                    let (world, _binding_hook_guard) =
-                        binding.on_before_binding_resolve_world(OS_CLIPBOARD_READ_BYTES)?;
-                    destack_os_clipboard_read_bytes_vm_replay(binding, context, world, format)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            OS_CLIPBOARD_READ_TEXT,
-            move |context, _args| {
-                with_binding_call_context(|binding| {
-                    // execute binding
-                    let (world, _binding_hook_guard) =
-                        binding.on_before_binding_resolve_world(OS_CLIPBOARD_READ_TEXT)?;
-                    destack_os_clipboard_read_text_vm_replay(binding, context, world)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            OS_CLIPBOARD_SEQUENCE,
-            move |context, _args| {
-                with_binding_call_context(|binding| {
-                    // execute binding
-                    let (world, _binding_hook_guard) =
-                        binding.on_before_binding_resolve_world(OS_CLIPBOARD_SEQUENCE)?;
-                    destack_os_clipboard_sequence_vm_replay(binding, context, world)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            OS_CLIPBOARD_WRITE_BYTES,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (format, argument_bytes) =
-                        decode_destack_os_clipboard_write_bytes_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(OS_CLIPBOARD_WRITE_BYTES)?;
-                        match world {
-                            RuntimeWorld::Host => platform_vm::destack_os_clipboard_write_bytes(
-                                binding,
-                                context,
-                                format,
-                                argument_bytes,
-                            ),
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_os_clipboard_write_bytes(
-                                    binding,
-                                    context,
-                                    format,
-                                    argument_bytes,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_os_clipboard_write_bytes_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            OS_CLIPBOARD_WRITE_TEXT,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (text,) = decode_destack_os_clipboard_write_text_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(OS_CLIPBOARD_WRITE_TEXT)?;
-                        match world {
-                            RuntimeWorld::Host => {
-                                platform_vm::destack_os_clipboard_write_text(binding, context, text)
-                            }
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_os_clipboard_write_text(
-                                    binding, context, text,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_os_clipboard_write_text_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
             OS_CONTACT_CREATE,
             move |context, args| {
                 with_binding_call_context(|binding| {
@@ -26211,116 +21545,6 @@ pub(crate) fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &
         binding!(
             registry,
             isolate,
-            OS_DOCUMENT_ACCESS_LIST,
-            move |context, _args| {
-                with_binding_call_context(|binding| {
-                    // execute binding
-                    let (world, _binding_hook_guard) =
-                        binding.on_before_binding_resolve_world(OS_DOCUMENT_ACCESS_LIST)?;
-                    destack_os_document_access_list_vm_replay(binding, context, world)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            OS_DOCUMENT_ACCESS_OPEN,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (id, access) = decode_destack_os_document_access_open_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(OS_DOCUMENT_ACCESS_OPEN)?;
-                        match world {
-                            RuntimeWorld::Host => platform_vm::destack_os_document_access_open(
-                                binding, context, id, access,
-                            ),
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_os_document_access_open(
-                                    binding, context, id, access,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_os_document_access_open_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            OS_DOCUMENT_ACCESS_PERSIST,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (documents, access) =
-                        decode_destack_os_document_access_persist_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(OS_DOCUMENT_ACCESS_PERSIST)?;
-                        match world {
-                            RuntimeWorld::Host => platform_vm::destack_os_document_access_persist(
-                                binding, context, documents, access,
-                            ),
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_os_document_access_persist(
-                                    binding, context, documents, access,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_os_document_access_persist_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            OS_DOCUMENT_ACCESS_REVOKE,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (ids,) = decode_destack_os_document_access_revoke_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(OS_DOCUMENT_ACCESS_REVOKE)?;
-                        match world {
-                            RuntimeWorld::Host => platform_vm::destack_os_document_access_revoke(
-                                binding, context, ids,
-                            ),
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_os_document_access_revoke(
-                                    binding, context, ids,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_os_document_access_revoke_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
             OS_DOCUMENT_CLOSE,
             move |context, args| {
                 with_binding_call_context(|binding| {
@@ -26374,37 +21598,6 @@ pub(crate) fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &
                         }
                     };
                     encode_destack_os_document_flush_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            OS_DOCUMENT_IMPORT,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (documents,) = decode_destack_os_document_import_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(OS_DOCUMENT_IMPORT)?;
-                        match world {
-                            RuntimeWorld::Host => {
-                                platform_vm::destack_os_document_import(binding, context, documents)
-                            }
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_os_document_import(
-                                    binding, context, documents,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_os_document_import_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -26772,7 +21965,7 @@ pub(crate) fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (paths, contenttype) =
+                    let (paths, mimetype) =
                         decode_destack_os_intent_share_paths_args(context, args)?;
 
                     // execute binding
@@ -26781,17 +21974,11 @@ pub(crate) fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &
                             binding.on_before_binding_resolve_world(OS_INTENT_SHARE_PATHS)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_intent_share_paths(
-                                binding,
-                                context,
-                                paths,
-                                contenttype,
+                                binding, context, paths, mimetype,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_intent_share_paths(
-                                    binding,
-                                    context,
-                                    paths,
-                                    contenttype,
+                                    binding, context, paths, mimetype,
                                 )
                             }
                         }
@@ -26810,8 +21997,7 @@ pub(crate) fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (text, contenttype) =
-                        decode_destack_os_intent_share_text_args(context, args)?;
+                    let (text, mimetype) = decode_destack_os_intent_share_text_args(context, args)?;
 
                     // execute binding
                     let result = {
@@ -26819,17 +22005,11 @@ pub(crate) fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &
                             binding.on_before_binding_resolve_world(OS_INTENT_SHARE_TEXT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_intent_share_text(
-                                binding,
-                                context,
-                                text,
-                                contenttype,
+                                binding, context, text, mimetype,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_intent_share_text(
-                                    binding,
-                                    context,
-                                    text,
-                                    contenttype,
+                                    binding, context, text, mimetype,
                                 )
                             }
                         }
@@ -27087,37 +22267,6 @@ pub(crate) fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &
         binding!(
             registry,
             isolate,
-            OS_MEDIA_DESCRIBE,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (id,) = decode_destack_os_media_describe_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let (world, _binding_hook_guard) =
-                            binding.on_before_binding_resolve_world(OS_MEDIA_DESCRIBE)?;
-                        match world {
-                            RuntimeWorld::Host => {
-                                platform_vm::destack_os_media_describe(binding, context, id)
-                            }
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_os_media_describe(
-                                    binding, context, id,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_os_media_describe_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
             OS_MEDIA_IMPORT_PATH,
             move |context, args| {
                 with_binding_call_context(|binding| {
@@ -27170,83 +22319,28 @@ pub(crate) fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &
         });
     }
     {
-        binding!(
-            registry,
-            isolate,
-            OS_MEDIA_WATCH_CLOSE,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (handle,) = decode_destack_os_media_watch_close_args(context, args)?;
+        binding!(registry, isolate, OS_MEDIA_READ, move |context, args| {
+            with_binding_call_context(|binding| {
+                // decode args
+                let (id,) = decode_destack_os_media_read_args(context, args)?;
 
-                    // execute binding
+                // execute binding
+                let result = {
                     let (world, _binding_hook_guard) =
-                        binding.on_before_binding_resolve_world(OS_MEDIA_WATCH_CLOSE)?;
-                    destack_os_media_watch_close_vm_replay(binding, context, world, handle)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            OS_MEDIA_WATCH_OPEN,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (options,) = decode_destack_os_media_watch_open_args(context, args)?;
-
-                    // execute binding
-                    let (world, _binding_hook_guard) =
-                        binding.on_before_binding_resolve_world(OS_MEDIA_WATCH_OPEN)?;
-                    destack_os_media_watch_open_vm_replay(binding, context, world, options)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            OS_MEDIA_WATCH_READ,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (handle, timeoutns) =
-                        decode_destack_os_media_watch_read_args(context, args)?;
-
-                    // execute binding
-                    let (world, _binding_hook_guard) =
-                        binding.on_before_binding_resolve_world(OS_MEDIA_WATCH_READ)?;
-                    destack_os_media_watch_read_vm_replay(
-                        binding, context, world, handle, timeoutns,
-                    )
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            OS_MEDIA_WATCH_TRY_READ,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (handle,) = decode_destack_os_media_watch_try_read_args(context, args)?;
-
-                    // execute binding
-                    let (world, _binding_hook_guard) =
-                        binding.on_before_binding_resolve_world(OS_MEDIA_WATCH_TRY_READ)?;
-                    destack_os_media_watch_try_read_vm_replay(binding, context, world, handle)
-                })
-                .map_err(Into::into)
-            }
-        );
+                        binding.on_before_binding_resolve_world(OS_MEDIA_READ)?;
+                    match world {
+                        RuntimeWorld::Host => {
+                            platform_vm::destack_os_media_read(binding, context, id)
+                        }
+                        RuntimeWorld::Simulation => {
+                            platform_simulation_vm::destack_os_media_read(binding, context, id)
+                        }
+                    }
+                };
+                encode_destack_os_media_read_result(context, result)
+            })
+            .map_err(Into::into)
+        });
     }
     {
         binding!(registry, isolate, OS_MOUNT_LIST, move |context, _args| {

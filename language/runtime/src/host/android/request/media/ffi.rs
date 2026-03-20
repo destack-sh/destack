@@ -65,30 +65,3 @@ pub(crate) unsafe extern "C" fn destack_host_android_media_delete(
         |callback| unsafe { callback(runtime_id, ids, deleted_count) },
     )
 }
-
-/// Open one Android media watch through the host.
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn destack_host_android_media_watch_open(
-    runtime_id: u64,
-    watch_id: NativeStringRef,
-    options: NativeSlice<u8>,
-) -> u32 {
-    call_android_media_callback(
-        runtime_id,
-        |callbacks| callbacks.watch_open,
-        |callback| unsafe { callback(runtime_id, watch_id, options) },
-    )
-}
-
-/// Close one Android media watch through the host.
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn destack_host_android_media_watch_close(
-    runtime_id: u64,
-    watch_id: NativeStringRef,
-) -> u32 {
-    call_android_media_callback(
-        runtime_id,
-        |callbacks| callbacks.watch_close,
-        |callback| unsafe { callback(runtime_id, watch_id) },
-    )
-}

@@ -11,12 +11,12 @@ pub(crate) const HOST_DOCUMENT_PICK_OPERATION: &str = "destack.os.document.pick"
 pub(crate) fn validate_document_pick_options(
     options: &DocumentPickOptionsValue,
 ) -> RuntimeResult<()> {
-    // empty content-type filters are meaningless
-    for content_type in &options.content_types {
-        if content_type.trim().is_empty() {
+    // empty mime-type filters are meaningless
+    for mime_type in &options.mime_types {
+        if mime_type.trim().is_empty() {
             return Err(invalid_argument(
-                "options.contentTypes",
-                "document picker content types must not be empty",
+                "options.mimeTypes",
+                "document picker mime types must not be empty",
             ));
         }
     }
@@ -63,21 +63,18 @@ pub(crate) fn validated_document_extensions(
 pub(crate) fn validated_document_content_types(
     options: &DocumentPickOptionsValue,
 ) -> RuntimeResult<Vec<String>> {
-    let mut content_types = Vec::with_capacity(options.content_types.len());
+    let mut mime_types = Vec::with_capacity(options.mime_types.len());
 
-    // validate one content-type filter at a time
-    for content_type in &options.content_types {
-        if content_types
-            .iter()
-            .any(|existing| existing == content_type)
-        {
+    // validate one mime-type filter at a time
+    for mime_type in &options.mime_types {
+        if mime_types.iter().any(|existing| existing == mime_type) {
             continue;
         }
 
-        content_types.push(content_type.clone());
+        mime_types.push(mime_type.clone());
     }
 
-    Ok(content_types)
+    Ok(mime_types)
 }
 
 /// Push one normalized extension when it is not already present.

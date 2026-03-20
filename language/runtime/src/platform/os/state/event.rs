@@ -104,18 +104,6 @@ pub(crate) fn stream_accepts_notification_event(
     }
 }
 
-/// Return whether one media watch stream accepts one host media event kind.
-pub(crate) fn stream_accepts_media_event(
-    options: MediaWatchOptionsValue,
-    kind: HostMediaEventKind,
-) -> bool {
-    match kind {
-        HostMediaEventKind::Added => options.include_added,
-        HostMediaEventKind::Updated => options.include_updated,
-        HostMediaEventKind::Removed => options.include_removed,
-    }
-}
-
 /// Convert one host intent payload into runtime-owned queue data.
 pub(crate) fn intent_payload_from_host(payload: &HostIntentPayload) -> IntentQueuedPayload {
     match payload {

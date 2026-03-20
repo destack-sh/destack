@@ -551,7 +551,7 @@ pub(crate) fn hotplug_event_from_record(
 
     match record.kind {
         UsbWatchEventKind::Instance => {
-            UsbHotplugEvent::UsbHotplugInstanceEvent(UsbHotplugInstanceEvent {
+            UsbHotplugEvent::UsbHotplugAttachedEvent(UsbHotplugAttachedEvent {
                 kind: binding.store_string("attached"),
                 metadata,
             })

@@ -4,9 +4,9 @@ use crate::host::core::request::{
 };
 use crate::platform::os::abi_generated::{
     BackgroundStatusValue, BackgroundTaskDescriptorValue, CalendarDescriptorValue,
-    CalendarEventValue, ContactPageValue, ContactValue, DocumentAccessGrantValue,
-    DocumentDescriptorValue, LocationSampleValue, MediaAssetDescriptorValue, MediaPageValue,
-    NotificationCategoryValue, NotificationScheduledDescriptorValue,
+    CalendarEventValue, ContactPageValue, ContactValue, DocumentDescriptorValue,
+    LocationSampleValue, MediaAssetDescriptorValue, MediaPageValue, NotificationCategoryValue,
+    NotificationScheduledDescriptorValue,
 };
 use crate::platform::os::{NotificationPermissionState, PermissionEntry, PermissionState};
 
@@ -139,20 +139,6 @@ pub(crate) fn document_descriptors(
     match outcome.result {
         HostRequestResult::DocumentDescriptors(value) => Ok(value),
         _ => Err(unexpected_request_result(operation, "document descriptors")),
-    }
-}
-
-/// Decode one document-access grant list request result.
-pub(crate) fn document_access_grants(
-    outcome: HostRequestOutcome,
-    operation: &'static str,
-) -> RuntimeResult<Vec<DocumentAccessGrantValue>> {
-    match outcome.result {
-        HostRequestResult::DocumentAccessGrants(value) => Ok(value),
-        _ => Err(unexpected_request_result(
-            operation,
-            "document access grants",
-        )),
     }
 }
 

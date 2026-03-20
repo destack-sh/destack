@@ -87,7 +87,7 @@ pub(crate) fn backend_descriptor_state(
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_EVENTS.0
         | display_platform::DISPLAY_BACKEND_CAP_MONITOR_EVENTS.0
         | display_platform::DISPLAY_BACKEND_CAP_BORDERLESS_FULLSCREEN.0
-        | display_platform::DISPLAY_BACKEND_CAP_REFRESH_REQUEST.0
+        | display_platform::DISPLAY_BACKEND_CAP_BEGIN_FRAME_STREAM.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_PARENTING.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_HIT_TEST.0;
     // monitor hdr control remains disabled: generic wayland output-policy writes are unavailable

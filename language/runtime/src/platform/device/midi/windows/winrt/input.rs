@@ -29,7 +29,7 @@ pub(crate) fn midi_input_port_list(
     let service = binding
         .agent()
         .platform_state
-        .midi
+        .device
         .winrt_service("destack.device.midi.input.port.list")?;
 
     Ok(filtered_descriptors(
@@ -48,7 +48,7 @@ pub(crate) fn midi_input_port_open(
     let service = binding
         .agent()
         .platform_state
-        .midi
+        .device
         .winrt_service("destack.device.midi.input.port.open")?;
 
     let endpoint = resolve_endpoint(

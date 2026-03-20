@@ -12,11 +12,166 @@ use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
     PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
-    VmSlice, VmValueCodec, input as platform_input, resource, resource as platform_resource,
+    VmSlice, VmValueCodec, fs, fs as platform_fs, input as platform_input, resource,
+    resource as platform_resource,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+
+/// ABI newtype for PathBytes.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct PathBytesAbi<A: BindingAbi>(
+    /// Inner value.
+    pub A::Array<u8>,
+);
+
+pub type PathBytes = PathBytesAbi<NativeAbi>;
+pub type PathBytesVm = PathBytesAbi<VmAbi>;
+
+impl VmAggregateCodec for PathBytesAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self(
+            <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, value)?,
+        ))
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
+    }
+}
+
+impl VmCollectionElement for PathBytesAbi<VmAbi> {}
+
+/// Value type for PathBytes.
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PathBytesValue(
+    /// Inner value.
+    pub Vec<u8>,
+);
+
+impl NativeAbiCodec for PathBytesAbi<NativeAbi> {
+    type Value = PathBytesValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(PathBytesValue(unsafe {
+            <NativeArray<u8> as NativeAbiCodec>::into_value(self.0)?
+        }))
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self(<NativeArray<u8> as NativeAbiCodec>::from_value(
+            binding, value.0,
+        ))
+    }
+}
+
+impl VmAbiCodec for PathBytesAbi<VmAbi> {
+    type Value = PathBytesValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(PathBytesValue(<VmArray<u8> as VmAbiCodec>::into_value(
+            self.0, context,
+        )?))
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self(<VmArray<u8> as VmAbiCodec>::from_value(
+            context, value.0,
+        )?))
+    }
+}
+
+/// ABI newtype for PathUtf16.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct PathUtf16Abi<A: BindingAbi>(
+    /// Inner value.
+    pub A::Array<u16>,
+);
+
+pub type PathUtf16 = PathUtf16Abi<NativeAbi>;
+pub type PathUtf16Vm = PathUtf16Abi<VmAbi>;
+
+impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self(
+            <VmArray<u16> as VmAggregateCodec>::decode_with_context(context, value)?,
+        ))
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        <VmArray<u16> as VmAggregateCodec>::encode_with_context(self.0, context)
+    }
+}
+
+impl VmCollectionElement for PathUtf16Abi<VmAbi> {}
+
+/// Value type for PathUtf16.
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PathUtf16Value(
+    /// Inner value.
+    pub Vec<u16>,
+);
+
+impl NativeAbiCodec for PathUtf16Abi<NativeAbi> {
+    type Value = PathUtf16Value;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(PathUtf16Value(unsafe {
+            <NativeArray<u16> as NativeAbiCodec>::into_value(self.0)?
+        }))
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self(<NativeArray<u16> as NativeAbiCodec>::from_value(
+            binding, value.0,
+        ))
+    }
+}
+
+impl VmAbiCodec for PathUtf16Abi<VmAbi> {
+    type Value = PathUtf16Value;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(PathUtf16Value(<VmArray<u16> as VmAbiCodec>::into_value(
+            self.0, context,
+        )?))
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self(<VmArray<u16> as VmAbiCodec>::from_value(
+            context, value.0,
+        )?))
+    }
+}
 
 /// ABI newtype for ResourceId.
 #[repr(transparent)]
@@ -112,6 +267,76 @@ impl NativeAbiCodec for WindowHandle {
 
 impl VmAbiCodec for WindowHandle {
     type Value = WindowHandleValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for ClipboardBinaryFormat.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ClipboardBinaryFormat {
+    /// TextUtf8.
+    TextUtf8 = 1,
+    /// Html.
+    Html = 2,
+    /// Binary.
+    Binary = 3,
+}
+
+impl VmValueCodec for ClipboardBinaryFormat {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::TextUtf8,
+            2i32 => Self::Html,
+            3i32 => Self::Binary,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown ClipboardBinaryFormat value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for ClipboardBinaryFormat {}
+
+/// Value type for ClipboardBinaryFormat.
+pub type ClipboardBinaryFormatValue = ClipboardBinaryFormat;
+
+impl NativeAbiCodec for ClipboardBinaryFormat {
+    type Value = ClipboardBinaryFormatValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ClipboardBinaryFormat {
+    type Value = ClipboardBinaryFormatValue;
 
     fn into_value(
         self,
@@ -419,6 +644,79 @@ impl NativeAbiCodec for InputDeviceKind {
 
 impl VmAbiCodec for InputDeviceKind {
     type Value = InputDeviceKindValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for InputDragDropOperation.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum InputDragDropOperation {
+    /// None.
+    None = 1,
+    /// Copy.
+    Copy = 2,
+    /// Move.
+    Move = 3,
+    /// Link.
+    Link = 4,
+}
+
+impl VmValueCodec for InputDragDropOperation {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::None,
+            2i32 => Self::Copy,
+            3i32 => Self::Move,
+            4i32 => Self::Link,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown InputDragDropOperation value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for InputDragDropOperation {}
+
+/// Value type for InputDragDropOperation.
+pub type InputDragDropOperationValue = InputDragDropOperation;
+
+impl NativeAbiCodec for InputDragDropOperation {
+    type Value = InputDragDropOperationValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for InputDragDropOperation {
+    type Value = InputDragDropOperationValue;
 
     fn into_value(
         self,
@@ -1889,6 +2187,173 @@ impl VmAbiCodec for InputMonitorEventAbi<VmAbi> {
                     <InputMonitorDisconnectEventVm as VmAbiCodec>::from_value(context, value)?,
                 ))
             }
+        }
+    }
+}
+
+/// ABI tagged union for OsPath.
+pub enum OsPathAbi<A: BindingAbi> {
+    /// OsPathBytes variant.
+    OsPathBytes(platform_fs::OsPathBytesAbi<A>),
+    /// OsPathUtf16 variant.
+    OsPathUtf16(platform_fs::OsPathUtf16Abi<A>),
+}
+
+pub type OsPath = OsPathAbi<NativeAbi>;
+pub type OsPathVm = OsPathAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for OsPathAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("OsPathAbi").finish()
+    }
+}
+
+impl Copy for OsPathAbi<NativeAbi> {}
+impl Clone for OsPathAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for OsPathAbi<VmAbi> {}
+impl Clone for OsPathAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for OsPathAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value", "OsPath",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let decoded = match tag {
+            1243901586u32 => Self::OsPathBytes(
+                <fs::OsPathBytesVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            2271740357u32 => Self::OsPathUtf16(
+                <fs::OsPathUtf16Vm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown OsPath tag",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = match self {
+            Self::OsPathBytes(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1243901586u32, context)?;
+                let payload_value =
+                    <fs::OsPathBytesVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+            Self::OsPathUtf16(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2271740357u32, context)?;
+                let payload_value =
+                    <fs::OsPathUtf16Vm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+        };
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for OsPathAbi<VmAbi> {}
+
+/// Value type for OsPath.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum OsPathValue {
+    /// OsPathBytes variant.
+    OsPathBytes(platform_fs::abi_generated::OsPathBytesValue),
+    /// OsPathUtf16 variant.
+    OsPathUtf16(platform_fs::abi_generated::OsPathUtf16Value),
+}
+
+impl NativeAbiCodec for OsPathAbi<NativeAbi> {
+    type Value = OsPathValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        let owned = match self {
+            Self::OsPathBytes(value) => OsPathValue::OsPathBytes(unsafe {
+                <fs::OsPathBytes as NativeAbiCodec>::into_value(value)?
+            }),
+            Self::OsPathUtf16(value) => OsPathValue::OsPathUtf16(unsafe {
+                <fs::OsPathUtf16 as NativeAbiCodec>::into_value(value)?
+            }),
+        };
+        Ok(owned)
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        match value {
+            OsPathValue::OsPathBytes(value) => Self::OsPathBytes(
+                <fs::OsPathBytes as NativeAbiCodec>::from_value(binding, value),
+            ),
+            OsPathValue::OsPathUtf16(value) => Self::OsPathUtf16(
+                <fs::OsPathUtf16 as NativeAbiCodec>::from_value(binding, value),
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for OsPathAbi<VmAbi> {
+    type Value = OsPathValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        let owned = match self {
+            Self::OsPathBytes(value) => OsPathValue::OsPathBytes(
+                <fs::OsPathBytesVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::OsPathUtf16(value) => OsPathValue::OsPathUtf16(
+                <fs::OsPathUtf16Vm as VmAbiCodec>::into_value(value, context)?,
+            ),
+        };
+        Ok(owned)
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        match value {
+            OsPathValue::OsPathBytes(value) => Ok(Self::OsPathBytes(
+                <fs::OsPathBytesVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+            OsPathValue::OsPathUtf16(value) => Ok(Self::OsPathUtf16(
+                <fs::OsPathUtf16Vm as VmAbiCodec>::from_value(context, value)?,
+            )),
         }
     }
 }
@@ -3600,6 +4065,815 @@ impl VmAbiCodec for InputDeviceEventPayload {
 }
 
 impl VmCollectionElement for InputDeviceEventPayload {}
+
+/// ABI struct for InputDragDropFilePayload.
+#[repr(C)]
+pub struct InputDragDropFilePayloadAbi<A: BindingAbi> {
+    /// Dragged path payload.
+    pub path: Option<platform_fs::OsPathAbi<A>>,
+    /// Drop position in desktop coordinates when provided by the backend.
+    pub position: Option<InputDragDropPosition>,
+    /// Effective operation when the backend reports it.
+    pub operation: Option<InputDragDropOperation>,
+}
+
+pub type InputDragDropFilePayload = InputDragDropFilePayloadAbi<NativeAbi>;
+pub type InputDragDropFilePayloadVm = InputDragDropFilePayloadAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputDragDropFilePayloadAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputDragDropFilePayloadAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputDragDropFilePayloadAbi<NativeAbi> {}
+impl Clone for InputDragDropFilePayloadAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputDragDropFilePayloadAbi<VmAbi> {}
+impl Clone for InputDragDropFilePayloadAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputDragDropFilePayloadAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputDragDropFilePayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_path =
+            <Option<fs::OsPathVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_position =
+            <Option<InputDragDropPositionVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_operation =
+            <Option<InputDragDropOperation> as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
+        Ok(Self {
+            path: field_path,
+            position: field_position,
+            operation: field_operation,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <Option<fs::OsPathVm> as VmAggregateCodec>::encode_with_context(self.path, context)?,
+            <Option<InputDragDropPositionVm> as VmAggregateCodec>::encode_with_context(
+                self.position,
+                context,
+            )?,
+            <Option<InputDragDropOperation> as VmAggregateCodec>::encode_with_context(
+                self.operation,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for InputDragDropFilePayloadAbi<VmAbi> {}
+
+/// Value type for InputDragDropFilePayload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputDragDropFilePayloadValue {
+    /// Dragged path payload.
+    pub path: Option<platform_fs::abi_generated::OsPathValue>,
+    /// Drop position in desktop coordinates when provided by the backend.
+    pub position: Option<InputDragDropPosition>,
+    /// Effective operation when the backend reports it.
+    pub operation: Option<InputDragDropOperation>,
+}
+
+impl NativeAbiCodec for InputDragDropFilePayloadAbi<NativeAbi> {
+    type Value = InputDragDropFilePayloadValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(InputDragDropFilePayloadValue {
+            path: unsafe { <Option<fs::OsPath> as NativeAbiCodec>::into_value(self.path)? },
+            position: unsafe {
+                <Option<InputDragDropPosition> as NativeAbiCodec>::into_value(self.position)?
+            },
+            operation: unsafe {
+                <Option<InputDragDropOperation> as NativeAbiCodec>::into_value(self.operation)?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            path: <Option<fs::OsPath> as NativeAbiCodec>::from_value(binding, value.path),
+            position: <Option<InputDragDropPosition> as NativeAbiCodec>::from_value(
+                binding,
+                value.position,
+            ),
+            operation: <Option<InputDragDropOperation> as NativeAbiCodec>::from_value(
+                binding,
+                value.operation,
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for InputDragDropFilePayloadAbi<VmAbi> {
+    type Value = InputDragDropFilePayloadValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(InputDragDropFilePayloadValue {
+            path: <Option<fs::OsPathVm> as VmAbiCodec>::into_value(self.path, context)?,
+            position: <Option<InputDragDropPositionVm> as VmAbiCodec>::into_value(
+                self.position,
+                context,
+            )?,
+            operation: <Option<InputDragDropOperation> as VmAbiCodec>::into_value(
+                self.operation,
+                context,
+            )?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            path: <Option<fs::OsPathVm> as VmAbiCodec>::from_value(context, value.path)?,
+            position: <Option<InputDragDropPositionVm> as VmAbiCodec>::from_value(
+                context,
+                value.position,
+            )?,
+            operation: <Option<InputDragDropOperation> as VmAbiCodec>::from_value(
+                context,
+                value.operation,
+            )?,
+        })
+    }
+}
+
+/// ABI struct for InputDragDropHoverLeavePayload.
+#[repr(C)]
+pub struct InputDragDropHoverLeavePayloadAbi<A: BindingAbi> {
+    /// Last hovered path payload when available.
+    pub previous_path: Option<platform_fs::OsPathAbi<A>>,
+    /// Last hover position in desktop coordinates when provided by the backend.
+    pub position: Option<InputDragDropPosition>,
+    /// Last effective operation when the backend reports it.
+    pub operation: Option<InputDragDropOperation>,
+}
+
+pub type InputDragDropHoverLeavePayload = InputDragDropHoverLeavePayloadAbi<NativeAbi>;
+pub type InputDragDropHoverLeavePayloadVm = InputDragDropHoverLeavePayloadAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputDragDropHoverLeavePayloadAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputDragDropHoverLeavePayloadAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputDragDropHoverLeavePayloadAbi<NativeAbi> {}
+impl Clone for InputDragDropHoverLeavePayloadAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputDragDropHoverLeavePayloadAbi<VmAbi> {}
+impl Clone for InputDragDropHoverLeavePayloadAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputDragDropHoverLeavePayloadAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputDragDropHoverLeavePayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_previous_path =
+            <Option<fs::OsPathVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_position =
+            <Option<InputDragDropPositionVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_operation =
+            <Option<InputDragDropOperation> as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
+        Ok(Self {
+            previous_path: field_previous_path,
+            position: field_position,
+            operation: field_operation,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <Option<fs::OsPathVm> as VmAggregateCodec>::encode_with_context(
+                self.previous_path,
+                context,
+            )?,
+            <Option<InputDragDropPositionVm> as VmAggregateCodec>::encode_with_context(
+                self.position,
+                context,
+            )?,
+            <Option<InputDragDropOperation> as VmAggregateCodec>::encode_with_context(
+                self.operation,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for InputDragDropHoverLeavePayloadAbi<VmAbi> {}
+
+/// Value type for InputDragDropHoverLeavePayload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputDragDropHoverLeavePayloadValue {
+    /// Last hovered path payload when available.
+    pub previous_path: Option<platform_fs::abi_generated::OsPathValue>,
+    /// Last hover position in desktop coordinates when provided by the backend.
+    pub position: Option<InputDragDropPosition>,
+    /// Last effective operation when the backend reports it.
+    pub operation: Option<InputDragDropOperation>,
+}
+
+impl NativeAbiCodec for InputDragDropHoverLeavePayloadAbi<NativeAbi> {
+    type Value = InputDragDropHoverLeavePayloadValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(InputDragDropHoverLeavePayloadValue {
+            previous_path: unsafe {
+                <Option<fs::OsPath> as NativeAbiCodec>::into_value(self.previous_path)?
+            },
+            position: unsafe {
+                <Option<InputDragDropPosition> as NativeAbiCodec>::into_value(self.position)?
+            },
+            operation: unsafe {
+                <Option<InputDragDropOperation> as NativeAbiCodec>::into_value(self.operation)?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            previous_path: <Option<fs::OsPath> as NativeAbiCodec>::from_value(
+                binding,
+                value.previous_path,
+            ),
+            position: <Option<InputDragDropPosition> as NativeAbiCodec>::from_value(
+                binding,
+                value.position,
+            ),
+            operation: <Option<InputDragDropOperation> as NativeAbiCodec>::from_value(
+                binding,
+                value.operation,
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for InputDragDropHoverLeavePayloadAbi<VmAbi> {
+    type Value = InputDragDropHoverLeavePayloadValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(InputDragDropHoverLeavePayloadValue {
+            previous_path: <Option<fs::OsPathVm> as VmAbiCodec>::into_value(
+                self.previous_path,
+                context,
+            )?,
+            position: <Option<InputDragDropPositionVm> as VmAbiCodec>::into_value(
+                self.position,
+                context,
+            )?,
+            operation: <Option<InputDragDropOperation> as VmAbiCodec>::into_value(
+                self.operation,
+                context,
+            )?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            previous_path: <Option<fs::OsPathVm> as VmAbiCodec>::from_value(
+                context,
+                value.previous_path,
+            )?,
+            position: <Option<InputDragDropPositionVm> as VmAbiCodec>::from_value(
+                context,
+                value.position,
+            )?,
+            operation: <Option<InputDragDropOperation> as VmAbiCodec>::from_value(
+                context,
+                value.operation,
+            )?,
+        })
+    }
+}
+
+/// ABI struct for InputDragDropHoverPayload.
+#[repr(C)]
+pub struct InputDragDropHoverPayloadAbi<A: BindingAbi> {
+    /// Hovered path payload when available.
+    pub path: Option<platform_fs::OsPathAbi<A>>,
+    /// Hover position in desktop coordinates when provided by the backend.
+    pub position: Option<InputDragDropPosition>,
+    /// Effective operation when the backend reports it.
+    pub operation: Option<InputDragDropOperation>,
+}
+
+pub type InputDragDropHoverPayload = InputDragDropHoverPayloadAbi<NativeAbi>;
+pub type InputDragDropHoverPayloadVm = InputDragDropHoverPayloadAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputDragDropHoverPayloadAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputDragDropHoverPayloadAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputDragDropHoverPayloadAbi<NativeAbi> {}
+impl Clone for InputDragDropHoverPayloadAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputDragDropHoverPayloadAbi<VmAbi> {}
+impl Clone for InputDragDropHoverPayloadAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputDragDropHoverPayloadAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputDragDropHoverPayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_path =
+            <Option<fs::OsPathVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_position =
+            <Option<InputDragDropPositionVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_operation =
+            <Option<InputDragDropOperation> as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
+        Ok(Self {
+            path: field_path,
+            position: field_position,
+            operation: field_operation,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <Option<fs::OsPathVm> as VmAggregateCodec>::encode_with_context(self.path, context)?,
+            <Option<InputDragDropPositionVm> as VmAggregateCodec>::encode_with_context(
+                self.position,
+                context,
+            )?,
+            <Option<InputDragDropOperation> as VmAggregateCodec>::encode_with_context(
+                self.operation,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for InputDragDropHoverPayloadAbi<VmAbi> {}
+
+/// Value type for InputDragDropHoverPayload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputDragDropHoverPayloadValue {
+    /// Hovered path payload when available.
+    pub path: Option<platform_fs::abi_generated::OsPathValue>,
+    /// Hover position in desktop coordinates when provided by the backend.
+    pub position: Option<InputDragDropPosition>,
+    /// Effective operation when the backend reports it.
+    pub operation: Option<InputDragDropOperation>,
+}
+
+impl NativeAbiCodec for InputDragDropHoverPayloadAbi<NativeAbi> {
+    type Value = InputDragDropHoverPayloadValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(InputDragDropHoverPayloadValue {
+            path: unsafe { <Option<fs::OsPath> as NativeAbiCodec>::into_value(self.path)? },
+            position: unsafe {
+                <Option<InputDragDropPosition> as NativeAbiCodec>::into_value(self.position)?
+            },
+            operation: unsafe {
+                <Option<InputDragDropOperation> as NativeAbiCodec>::into_value(self.operation)?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            path: <Option<fs::OsPath> as NativeAbiCodec>::from_value(binding, value.path),
+            position: <Option<InputDragDropPosition> as NativeAbiCodec>::from_value(
+                binding,
+                value.position,
+            ),
+            operation: <Option<InputDragDropOperation> as NativeAbiCodec>::from_value(
+                binding,
+                value.operation,
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for InputDragDropHoverPayloadAbi<VmAbi> {
+    type Value = InputDragDropHoverPayloadValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(InputDragDropHoverPayloadValue {
+            path: <Option<fs::OsPathVm> as VmAbiCodec>::into_value(self.path, context)?,
+            position: <Option<InputDragDropPositionVm> as VmAbiCodec>::into_value(
+                self.position,
+                context,
+            )?,
+            operation: <Option<InputDragDropOperation> as VmAbiCodec>::into_value(
+                self.operation,
+                context,
+            )?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            path: <Option<fs::OsPathVm> as VmAbiCodec>::from_value(context, value.path)?,
+            position: <Option<InputDragDropPositionVm> as VmAbiCodec>::from_value(
+                context,
+                value.position,
+            )?,
+            operation: <Option<InputDragDropOperation> as VmAbiCodec>::from_value(
+                context,
+                value.operation,
+            )?,
+        })
+    }
+}
+
+/// ABI struct for InputDragDropPosition.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct InputDragDropPosition {
+    /// Desktop x coordinate.
+    pub x: i32,
+    /// Desktop y coordinate.
+    pub y: i32,
+}
+
+pub type InputDragDropPositionVm = InputDragDropPosition;
+
+impl VmAggregateCodec for InputDragDropPosition {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputDragDropPosition",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_x = <i32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_y = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            x: field_x,
+            y: field_y,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <i32 as VmAggregateCodec>::encode_with_context(self.x, context)?,
+            <i32 as VmAggregateCodec>::encode_with_context(self.y, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for InputDragDropPosition.
+pub type InputDragDropPositionValue = InputDragDropPosition;
+
+impl NativeAbiCodec for InputDragDropPosition {
+    type Value = InputDragDropPositionValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for InputDragDropPosition {
+    type Value = InputDragDropPositionValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for InputDragDropPosition {}
+
+/// ABI struct for InputDragDropTextPayload.
+#[repr(C)]
+pub struct InputDragDropTextPayloadAbi<A: BindingAbi> {
+    /// Dragged text payload.
+    pub text: A::String,
+    /// Drop position in desktop coordinates when provided by the backend.
+    pub position: Option<InputDragDropPosition>,
+    /// Effective operation when the backend reports it.
+    pub operation: Option<InputDragDropOperation>,
+}
+
+pub type InputDragDropTextPayload = InputDragDropTextPayloadAbi<NativeAbi>;
+pub type InputDragDropTextPayloadVm = InputDragDropTextPayloadAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputDragDropTextPayloadAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputDragDropTextPayloadAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputDragDropTextPayloadAbi<NativeAbi> {}
+impl Clone for InputDragDropTextPayloadAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputDragDropTextPayloadAbi<VmAbi> {}
+impl Clone for InputDragDropTextPayloadAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputDragDropTextPayloadAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputDragDropTextPayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_text =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_position =
+            <Option<InputDragDropPositionVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_operation =
+            <Option<InputDragDropOperation> as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
+        Ok(Self {
+            text: field_text,
+            position: field_position,
+            operation: field_operation,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.text, context)?,
+            <Option<InputDragDropPositionVm> as VmAggregateCodec>::encode_with_context(
+                self.position,
+                context,
+            )?,
+            <Option<InputDragDropOperation> as VmAggregateCodec>::encode_with_context(
+                self.operation,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for InputDragDropTextPayloadAbi<VmAbi> {}
+
+/// Value type for InputDragDropTextPayload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputDragDropTextPayloadValue {
+    /// Dragged text payload.
+    pub text: String,
+    /// Drop position in desktop coordinates when provided by the backend.
+    pub position: Option<InputDragDropPosition>,
+    /// Effective operation when the backend reports it.
+    pub operation: Option<InputDragDropOperation>,
+}
+
+impl NativeAbiCodec for InputDragDropTextPayloadAbi<NativeAbi> {
+    type Value = InputDragDropTextPayloadValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(InputDragDropTextPayloadValue {
+            text: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.text)? },
+            position: unsafe {
+                <Option<InputDragDropPosition> as NativeAbiCodec>::into_value(self.position)?
+            },
+            operation: unsafe {
+                <Option<InputDragDropOperation> as NativeAbiCodec>::into_value(self.operation)?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            text: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.text),
+            position: <Option<InputDragDropPosition> as NativeAbiCodec>::from_value(
+                binding,
+                value.position,
+            ),
+            operation: <Option<InputDragDropOperation> as NativeAbiCodec>::from_value(
+                binding,
+                value.operation,
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for InputDragDropTextPayloadAbi<VmAbi> {
+    type Value = InputDragDropTextPayloadValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(InputDragDropTextPayloadValue {
+            text: <vm::StringHandle as VmAbiCodec>::into_value(self.text, context)?,
+            position: <Option<InputDragDropPositionVm> as VmAbiCodec>::into_value(
+                self.position,
+                context,
+            )?,
+            operation: <Option<InputDragDropOperation> as VmAbiCodec>::into_value(
+                self.operation,
+                context,
+            )?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            text: <vm::StringHandle as VmAbiCodec>::from_value(context, value.text)?,
+            position: <Option<InputDragDropPositionVm> as VmAbiCodec>::from_value(
+                context,
+                value.position,
+            )?,
+            operation: <Option<InputDragDropOperation> as VmAbiCodec>::from_value(
+                context,
+                value.operation,
+            )?,
+        })
+    }
+}
 
 /// ABI struct for InputEventMetadata.
 #[repr(C)]
@@ -8709,6 +9983,270 @@ impl VmAbiCodec for InputWindowTarget {
 
 impl VmCollectionElement for InputWindowTarget {}
 
+/// ABI struct for OsPathBytes.
+#[repr(C)]
+pub struct OsPathBytesAbi<A: BindingAbi> {
+    /// Discriminator for this platform path variant.
+    pub kind: A::String,
+    /// Raw byte payload.
+    pub bytes: platform_fs::PathBytesAbi<A>,
+}
+
+pub type OsPathBytes = OsPathBytesAbi<NativeAbi>;
+pub type OsPathBytesVm = OsPathBytesAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for OsPathBytesAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("OsPathBytesAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for OsPathBytesAbi<NativeAbi> {}
+impl Clone for OsPathBytesAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for OsPathBytesAbi<VmAbi> {}
+impl Clone for OsPathBytesAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "OsPathBytes",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_bytes =
+            <fs::PathBytesVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            kind: field_kind,
+            bytes: field_bytes,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <fs::PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for OsPathBytesAbi<VmAbi> {}
+
+/// Value type for OsPathBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OsPathBytesValue {
+    /// Discriminator for this platform path variant.
+    pub kind: String,
+    /// Raw byte payload.
+    pub bytes: platform_fs::abi_generated::PathBytesValue,
+}
+
+impl NativeAbiCodec for OsPathBytesAbi<NativeAbi> {
+    type Value = OsPathBytesValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(OsPathBytesValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            bytes: unsafe { <fs::PathBytes as NativeAbiCodec>::into_value(self.bytes)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            bytes: <fs::PathBytes as NativeAbiCodec>::from_value(binding, value.bytes),
+        }
+    }
+}
+
+impl VmAbiCodec for OsPathBytesAbi<VmAbi> {
+    type Value = OsPathBytesValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(OsPathBytesValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            bytes: <fs::PathBytesVm as VmAbiCodec>::into_value(self.bytes, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            bytes: <fs::PathBytesVm as VmAbiCodec>::from_value(context, value.bytes)?,
+        })
+    }
+}
+
+/// ABI struct for OsPathUtf16.
+#[repr(C)]
+pub struct OsPathUtf16Abi<A: BindingAbi> {
+    /// Discriminator for this platform path variant.
+    pub kind: A::String,
+    /// UTF-16 payload.
+    pub utf16: platform_fs::PathUtf16Abi<A>,
+}
+
+pub type OsPathUtf16 = OsPathUtf16Abi<NativeAbi>;
+pub type OsPathUtf16Vm = OsPathUtf16Abi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for OsPathUtf16Abi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("OsPathUtf16Abi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for OsPathUtf16Abi<NativeAbi> {}
+impl Clone for OsPathUtf16Abi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for OsPathUtf16Abi<VmAbi> {}
+impl Clone for OsPathUtf16Abi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "OsPathUtf16",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_utf16 =
+            <fs::PathUtf16Vm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            kind: field_kind,
+            utf16: field_utf16,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <fs::PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for OsPathUtf16Abi<VmAbi> {}
+
+/// Value type for OsPathUtf16.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OsPathUtf16Value {
+    /// Discriminator for this platform path variant.
+    pub kind: String,
+    /// UTF-16 payload.
+    pub utf16: platform_fs::abi_generated::PathUtf16Value,
+}
+
+impl NativeAbiCodec for OsPathUtf16Abi<NativeAbi> {
+    type Value = OsPathUtf16Value;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(OsPathUtf16Value {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            utf16: unsafe { <fs::PathUtf16 as NativeAbiCodec>::into_value(self.utf16)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            utf16: <fs::PathUtf16 as NativeAbiCodec>::from_value(binding, value.utf16),
+        }
+    }
+}
+
+impl VmAbiCodec for OsPathUtf16Abi<VmAbi> {
+    type Value = OsPathUtf16Value;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(OsPathUtf16Value {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            utf16: <fs::PathUtf16Vm as VmAbiCodec>::into_value(self.utf16, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            utf16: <fs::PathUtf16Vm as VmAbiCodec>::from_value(context, value.utf16)?,
+        })
+    }
+}
+
 /// Replay struct for InputCompositionEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputcompositioneventReplayRecord {
@@ -8837,6 +10375,50 @@ pub struct InputdeviceeventReplayRecord {
     pub metadata: InputeventmetadataReplayRecord,
     /// Device payload.
     pub payload: InputDeviceEventPayload,
+}
+
+/// Replay struct for InputDragDropFilePayload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputdragdropfilepayloadReplayRecord {
+    /// Dragged path payload.
+    pub path: Option<fs::OspathReplayRecord>,
+    /// Drop position in desktop coordinates when provided by the backend.
+    pub position: Option<InputDragDropPosition>,
+    /// Effective operation when the backend reports it.
+    pub operation: Option<InputDragDropOperation>,
+}
+
+/// Replay struct for InputDragDropHoverLeavePayload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputdragdrophoverleavepayloadReplayRecord {
+    /// Last hovered path payload when available.
+    pub previous_path: Option<fs::OspathReplayRecord>,
+    /// Last hover position in desktop coordinates when provided by the backend.
+    pub position: Option<InputDragDropPosition>,
+    /// Last effective operation when the backend reports it.
+    pub operation: Option<InputDragDropOperation>,
+}
+
+/// Replay struct for InputDragDropHoverPayload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputdragdrophoverpayloadReplayRecord {
+    /// Hovered path payload when available.
+    pub path: Option<fs::OspathReplayRecord>,
+    /// Hover position in desktop coordinates when provided by the backend.
+    pub position: Option<InputDragDropPosition>,
+    /// Effective operation when the backend reports it.
+    pub operation: Option<InputDragDropOperation>,
+}
+
+/// Replay struct for InputDragDropTextPayload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputdragdroptextpayloadReplayRecord {
+    /// Dragged text payload.
+    pub text: String,
+    /// Drop position in desktop coordinates when provided by the backend.
+    pub position: Option<InputDragDropPosition>,
+    /// Effective operation when the backend reports it.
+    pub operation: Option<InputDragDropOperation>,
 }
 
 /// Replay struct for InputEventMetadata.
@@ -9057,6 +10639,24 @@ pub struct InputtouchstateReplayRecord {
     pub contacts: Vec<InputTouchContactState>,
 }
 
+/// Replay struct for OsPathBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OspathbytesReplayRecord {
+    /// Discriminator for this platform path variant.
+    pub kind: String,
+    /// Raw byte payload.
+    pub bytes: Vec<u8>,
+}
+
+/// Replay struct for OsPathUtf16.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Ospathutf16ReplayRecord {
+    /// Discriminator for this platform path variant.
+    pub kind: String,
+    /// UTF-16 payload.
+    pub utf16: Vec<u16>,
+}
+
 /// Replay enum for InputEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum InputeventReplayRecord {
@@ -9091,4 +10691,13 @@ pub enum InputmonitoreventReplayRecord {
     InputMonitorConnectEvent(InputmonitorconnecteventReplayRecord),
     /// InputMonitorDisconnectEvent variant.
     InputMonitorDisconnectEvent(InputmonitordisconnecteventReplayRecord),
+}
+
+/// Replay enum for OsPath.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum OspathReplayRecord {
+    /// OsPathBytes variant.
+    OsPathBytes(fs::OspathbytesReplayRecord),
+    /// OsPathUtf16 variant.
+    OsPathUtf16(fs::Ospathutf16ReplayRecord),
 }

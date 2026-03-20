@@ -20,11 +20,11 @@ pub(super) fn location_sample_value_from_native(
     LocationSampleValue {
         latitude_degrees: coordinate.latitude,
         longitude_degrees: coordinate.longitude,
-        altitude_meters,
-        horizontal_accuracy_meters,
-        vertical_accuracy_meters,
-        speed_meters_per_second,
-        heading_degrees,
+        altitude_meters: altitude_meters.unwrap_or(f64::NAN),
+        horizontal_accuracy_meters: horizontal_accuracy_meters.unwrap_or(f64::NAN),
+        vertical_accuracy_meters: vertical_accuracy_meters.unwrap_or(f64::NAN),
+        speed_meters_per_second: speed_meters_per_second.unwrap_or(f64::NAN),
+        heading_degrees: heading_degrees.unwrap_or(f64::NAN),
         timestamp_unix_ns,
     }
 }

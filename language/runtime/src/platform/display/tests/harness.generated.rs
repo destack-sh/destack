@@ -9,7 +9,9 @@ use crate::platform::display::tests::DisplayHarnessContext;
 use crate::platform::display::{
     DisplayAddedEvent, DisplayAddedEventVm, DisplayAddedPayload, DisplayAddedPayloadVm,
     DisplayBackend, DisplayBackendCapabilityFlags, DisplayBackendDescriptor,
-    DisplayBackendDescriptorVm, DisplayBackendSelectionPolicy, DisplayColorSpace,
+    DisplayBackendDescriptorVm, DisplayBackendSelectionPolicy, DisplayBeginFrameEvent,
+    DisplayBeginFrameEventVm, DisplayBeginFrameFilter, DisplayBeginFrameFilterVm,
+    DisplayBeginFrameOpenOptions, DisplayBeginFrameOpenOptionsVm, DisplayColorSpace,
     DisplayColorState, DisplayColorStateVm, DisplayDescriptor, DisplayDescriptorChangedEvent,
     DisplayDescriptorChangedEventVm, DisplayDescriptorChangedPayload,
     DisplayDescriptorChangedPayloadVm, DisplayDescriptorVm, DisplayEventOverflowPolicy,
@@ -20,55 +22,60 @@ use crate::platform::display::{
     DisplayMonitorEventKindMask, DisplayMonitorEventMetadata, DisplayMonitorEventMetadataVm,
     DisplayMonitorEventOpenOptions, DisplayMonitorEventOpenOptionsVm, DisplayMonitorEventVm,
     DisplayMonitorListRequest, DisplayMonitorListRequestVm, DisplayMonitorOpenOptions,
-    DisplayMonitorOpenOptionsVm, DisplayOrientation, DisplayPrimaryChangedEvent,
-    DisplayPrimaryChangedEventVm, DisplayPrimaryPayload, DisplayPrimaryPayloadVm,
-    DisplayRemovedEvent, DisplayRemovedEventVm, DisplayRemovedPayload, DisplayRemovedPayloadVm,
-    DisplaySupportStatus, WindowAspectRatio, WindowAspectRatioChangedEvent,
-    WindowAspectRatioChangedEventVm, WindowAspectRatioPayload, WindowAspectRatioPayloadVm,
-    WindowAspectRatioVm, WindowAttentionLevel, WindowBorderlessModeOptions,
-    WindowBorderlessModeOptionsVm, WindowChromeChangedEvent, WindowChromeChangedEventVm,
-    WindowChromeKind, WindowChromePayload, WindowChromePayloadVm, WindowCloseRequestedEvent,
-    WindowCloseRequestedEventVm, WindowCreatedEvent, WindowCreatedEventVm, WindowCursorIcon,
-    WindowCursorMode, WindowDescriptor, WindowDescriptorVm, WindowDestroyedEvent,
-    WindowDestroyedEventVm, WindowDisplayChangedEvent, WindowDisplayChangedEventVm,
-    WindowDisplayPayload, WindowDisplayPayloadVm, WindowDropCancelledEvent,
-    WindowDropCancelledEventVm, WindowDropCompletedEvent, WindowDropCompletedEventVm,
-    WindowDropFilePayload, WindowDropFilePayloadVm, WindowDropHoverLeavePayload,
-    WindowDropHoverLeavePayloadVm, WindowDropHoverPayload, WindowDropHoverPayloadVm,
-    WindowDropStartedEvent, WindowDropStartedEventVm, WindowDropTextPayload,
-    WindowDropTextPayloadVm, WindowEvent, WindowEventFilter, WindowEventFilterVm,
-    WindowEventKindMask, WindowEventMetadata, WindowEventMetadataVm, WindowEventOpenOptions,
-    WindowEventOpenOptionsVm, WindowEventVm, WindowExclusiveFullscreenModeOptions,
-    WindowExclusiveFullscreenModeOptionsVm, WindowFileDroppedEvent, WindowFileDroppedEventVm,
-    WindowFileHoverLeftEvent, WindowFileHoverLeftEventVm, WindowFileHoveredEvent,
-    WindowFileHoveredEventVm, WindowFocusChangedEvent, WindowFocusChangedEventVm,
-    WindowFocusPayload, WindowFocusPayloadVm, WindowIconImage, WindowIconImageVm,
-    WindowIconPixelFormat, WindowIconSet, WindowIconSetVm, WindowLogicalSize, WindowLogicalSizeVm,
-    WindowModalChangedEvent, WindowModalChangedEventVm, WindowModalPayload, WindowModalPayloadVm,
-    WindowModeChangedEvent, WindowModeChangedEventVm, WindowModeOptions, WindowModeOptionsVm,
-    WindowModePayload, WindowModePayloadVm, WindowMousePassthroughChangedEvent,
-    WindowMousePassthroughChangedEventVm, WindowMousePassthroughPayload,
-    WindowMousePassthroughPayloadVm, WindowOcclusionChangedEvent, WindowOcclusionChangedEventVm,
-    WindowOcclusionPayload, WindowOcclusionPayloadVm, WindowOcclusionState,
-    WindowOpacityChangedEvent, WindowOpacityChangedEventVm, WindowOpacityPayload,
-    WindowOpacityPayloadVm, WindowOptions, WindowOptionsVm, WindowParentChangedEvent,
-    WindowParentChangedEventVm, WindowParentPayload, WindowParentPayloadVm, WindowPhysicalSize,
-    WindowPhysicalSizeVm, WindowPosition, WindowPositionChangedEvent, WindowPositionChangedEventVm,
-    WindowPositionPayload, WindowPositionPayloadVm, WindowPositionVm, WindowRefreshRequestedEvent,
-    WindowRefreshRequestedEventVm, WindowResizeEdge, WindowRole, WindowSafeAreaChangedEvent,
-    WindowSafeAreaChangedEventVm, WindowSafeAreaInsets, WindowSafeAreaInsetsVm,
-    WindowSafeAreaPayload, WindowSafeAreaPayloadVm, WindowScaleFactorChangedEvent,
-    WindowScaleFactorChangedEventVm, WindowScaleFactorPayload, WindowScaleFactorPayloadVm,
-    WindowSizeChangedEvent, WindowSizeChangedEventVm, WindowSizeConstraints,
-    WindowSizeConstraintsVm, WindowSizePayload, WindowSizePayloadVm, WindowState, WindowStateVm,
-    WindowTaskbarVisibilityChangedEvent, WindowTaskbarVisibilityChangedEventVm,
-    WindowTaskbarVisibilityPayload, WindowTaskbarVisibilityPayloadVm, WindowTextDroppedEvent,
-    WindowTextDroppedEventVm, WindowTheme, WindowThemeChangedEvent, WindowThemeChangedEventVm,
-    WindowThemePayload, WindowThemePayloadVm, WindowTransientChangedEvent,
-    WindowTransientChangedEventVm, WindowTransientPayload, WindowTransientPayloadVm,
-    WindowVisibility, WindowVisibilityChangedEvent, WindowVisibilityChangedEventVm,
-    WindowVisibilityPayload, WindowVisibilityPayloadVm, WindowWindowedModeOptions,
-    WindowWindowedModeOptionsVm, native as display_native, vm as display_vm,
+    DisplayMonitorOpenOptionsVm, DisplayOrientation, DisplayPixelFormat,
+    DisplayPrimaryChangedEvent, DisplayPrimaryChangedEventVm, DisplayPrimaryPayload,
+    DisplayPrimaryPayloadVm, DisplayRemovedEvent, DisplayRemovedEventVm, DisplayRemovedPayload,
+    DisplayRemovedPayloadVm, DisplaySupportStatus, WindowAspectRatio,
+    WindowAspectRatioChangedEvent, WindowAspectRatioChangedEventVm, WindowAspectRatioPayload,
+    WindowAspectRatioPayloadVm, WindowAspectRatioVm, WindowAttentionLevel,
+    WindowBorderlessModeOptions, WindowBorderlessModeOptionsVm, WindowChromeChangedEvent,
+    WindowChromeChangedEventVm, WindowChromeKind, WindowChromePayload, WindowChromePayloadVm,
+    WindowCloseRequestedEvent, WindowCloseRequestedEventVm, WindowContentRectChangedEvent,
+    WindowContentRectChangedEventVm, WindowContentRectPayload, WindowContentRectPayloadVm,
+    WindowCreatedEvent, WindowCreatedEventVm, WindowCursorIcon, WindowCursorMode, WindowDescriptor,
+    WindowDescriptorVm, WindowDestroyedEvent, WindowDestroyedEventVm, WindowDisplayChangedEvent,
+    WindowDisplayChangedEventVm, WindowDisplayPayload, WindowDisplayPayloadVm,
+    WindowDropCancelledEvent, WindowDropCancelledEventVm, WindowDropCompletedEvent,
+    WindowDropCompletedEventVm, WindowDropFilePayload, WindowDropFilePayloadVm,
+    WindowDropHoverLeavePayload, WindowDropHoverLeavePayloadVm, WindowDropHoverPayload,
+    WindowDropHoverPayloadVm, WindowDropStartedEvent, WindowDropStartedEventVm,
+    WindowDropTextPayload, WindowDropTextPayloadVm, WindowEvent, WindowEventFilter,
+    WindowEventFilterVm, WindowEventKindMask, WindowEventMetadata, WindowEventMetadataVm,
+    WindowEventOpenOptions, WindowEventOpenOptionsVm, WindowEventVm,
+    WindowExclusiveFullscreenModeOptions, WindowExclusiveFullscreenModeOptionsVm,
+    WindowFileDroppedEvent, WindowFileDroppedEventVm, WindowFileHoverLeftEvent,
+    WindowFileHoverLeftEventVm, WindowFileHoveredEvent, WindowFileHoveredEventVm,
+    WindowFocusChangedEvent, WindowFocusChangedEventVm, WindowFocusPayload, WindowFocusPayloadVm,
+    WindowFramebufferSizeChangedEvent, WindowFramebufferSizeChangedEventVm,
+    WindowFramebufferSizePayload, WindowFramebufferSizePayloadVm, WindowIconImage,
+    WindowIconImageVm, WindowIconPixelFormat, WindowIconSet, WindowIconSetVm, WindowLogicalRect,
+    WindowLogicalRectVm, WindowLogicalSize, WindowLogicalSizeVm, WindowModalChangedEvent,
+    WindowModalChangedEventVm, WindowModalPayload, WindowModalPayloadVm, WindowModeChangedEvent,
+    WindowModeChangedEventVm, WindowModeOptions, WindowModeOptionsVm, WindowModePayload,
+    WindowModePayloadVm, WindowMousePassthroughChangedEvent, WindowMousePassthroughChangedEventVm,
+    WindowMousePassthroughPayload, WindowMousePassthroughPayloadVm, WindowOcclusionChangedEvent,
+    WindowOcclusionChangedEventVm, WindowOcclusionPayload, WindowOcclusionPayloadVm,
+    WindowOcclusionState, WindowOpacityChangedEvent, WindowOpacityChangedEventVm,
+    WindowOpacityPayload, WindowOpacityPayloadVm, WindowOptions, WindowOptionsVm,
+    WindowParentChangedEvent, WindowParentChangedEventVm, WindowParentPayload,
+    WindowParentPayloadVm, WindowPhysicalSize, WindowPhysicalSizeVm, WindowPosition,
+    WindowPositionChangedEvent, WindowPositionChangedEventVm, WindowPositionPayload,
+    WindowPositionPayloadVm, WindowPositionVm, WindowRenderState, WindowRenderStateChangedEvent,
+    WindowRenderStateChangedEventVm, WindowRenderStatePayload, WindowRenderStatePayloadVm,
+    WindowResizeEdge, WindowRole, WindowSafeAreaChangedEvent, WindowSafeAreaChangedEventVm,
+    WindowSafeAreaInsets, WindowSafeAreaInsetsVm, WindowSafeAreaPayload, WindowSafeAreaPayloadVm,
+    WindowScaleFactorChangedEvent, WindowScaleFactorChangedEventVm, WindowScaleFactorPayload,
+    WindowScaleFactorPayloadVm, WindowSizeChangedEvent, WindowSizeChangedEventVm,
+    WindowSizeConstraints, WindowSizeConstraintsVm, WindowSizePayload, WindowSizePayloadVm,
+    WindowState, WindowStateVm, WindowTaskbarVisibilityChangedEvent,
+    WindowTaskbarVisibilityChangedEventVm, WindowTaskbarVisibilityPayload,
+    WindowTaskbarVisibilityPayloadVm, WindowTextDroppedEvent, WindowTextDroppedEventVm,
+    WindowTheme, WindowThemeChangedEvent, WindowThemeChangedEventVm, WindowThemePayload,
+    WindowThemePayloadVm, WindowTransientChangedEvent, WindowTransientChangedEventVm,
+    WindowTransientPayload, WindowTransientPayloadVm, WindowVisibility,
+    WindowVisibilityChangedEvent, WindowVisibilityChangedEventVm, WindowVisibilityPayload,
+    WindowVisibilityPayloadVm, WindowWindowedModeOptions, WindowWindowedModeOptionsVm,
+    native as display_native, vm as display_vm,
 };
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
@@ -141,7 +148,7 @@ impl<'call> DisplayHarnessContext<'call> {
 
     /// List host display backends.
     ///
-    /// Enumerate backend kinds known to the API and report support state and feature flags.
+    /// List known display backends with support state and capability flags.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -179,10 +186,283 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Close one display endpoint.
+    /// Close a begin-frame stream.
     ///
-    /// Close one opened display endpoint and release host resources.
-    /// Any outstanding mode-change session state is discarded.
+    /// Close a begin-frame stream and release host routing resources.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses Wayland frame-callback deregistration, X11 redraw queue cleanup, and Win32 paint-routing teardown.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_begin_frame_close(
+        &mut self,
+        handle: resource::DisplayBeginFrameHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                display_vm::destack_display_begin_frame_close(self.call_context, context, handle)
+            }
+            None => unsafe {
+                display_native::destack_display_begin_frame_close(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Open a global begin-frame stream.
+    ///
+    /// Open the host begin-frame stream for windows in this runtime.
+    /// Events are delivered after `windowInvalidate(...)` or host invalidations that schedule another frame.
+    /// Window-state changes are reported separately through `display.window_event`.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses Wayland frame callbacks, X11 expose and invalidate delivery, and Win32 paint and redraw message delivery.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_begin_frame_open(
+        &mut self,
+        options: HarnessValue<DisplayBeginFrameOpenOptions, DisplayBeginFrameOpenOptionsVm>,
+    ) -> RuntimeResult<resource::DisplayBeginFrameHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                let out = display_vm::destack_display_begin_frame_open(
+                    self.call_context,
+                    context,
+                    options,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<resource::DisplayBeginFrameHandle>::uninit();
+                unsafe {
+                    display_native::destack_display_begin_frame_open(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        options,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Wait for a begin-frame event.
+    ///
+    /// Wait for the next event from a begin-frame stream.
+    /// Hidden, occluded, suspended, and zero-sized windows can suppress delivery until the window becomes renderable again.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses Wayland frame-callback dispatch, X11 expose queue waits, and Win32 paint and redraw message waits.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_begin_frame_read(
+        &mut self,
+        handle: resource::DisplayBeginFrameHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<DisplayBeginFrameEvent, DisplayBeginFrameEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_begin_frame_read(
+                    self.call_context,
+                    context,
+                    handle,
+                    timeoutns,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<DisplayBeginFrameEvent>::uninit();
+                unsafe {
+                    display_native::destack_display_begin_frame_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Wait for a batch of begin-frame events.
+    ///
+    /// Wait for pending events from a begin-frame stream and return up to `maxEvents` events.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses Wayland frame-callback batch dispatch, X11 expose queue waits, and Win32 paint and redraw batch waits.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_begin_frame_read_batch(
+        &mut self,
+        handle: resource::DisplayBeginFrameHandle,
+        maxevents: u32,
+        timeoutns: u64,
+    ) -> RuntimeResult<
+        HarnessValue<NativeArray<DisplayBeginFrameEvent>, VmArray<DisplayBeginFrameEventVm>>,
+    > {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_begin_frame_read_batch(
+                    self.call_context,
+                    context,
+                    handle,
+                    maxevents,
+                    timeoutns,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out =
+                    std::mem::MaybeUninit::<NativeArray<DisplayBeginFrameEvent>>::uninit();
+                unsafe {
+                    display_native::destack_display_begin_frame_read_batch(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        maxevents,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Poll a begin-frame event without blocking.
+    ///
+    /// Poll a pending event from a begin-frame stream without waiting.
+    /// Empty queue state is reported through ioWouldBlock.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses nonblocking Wayland frame-callback dispatch, X11 expose polling, and Win32 paint and redraw polling.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_begin_frame_try_read(
+        &mut self,
+        handle: resource::DisplayBeginFrameHandle,
+    ) -> RuntimeResult<HarnessValue<DisplayBeginFrameEvent, DisplayBeginFrameEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_begin_frame_try_read(
+                    self.call_context,
+                    context,
+                    handle,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<DisplayBeginFrameEvent>::uninit();
+                unsafe {
+                    display_native::destack_display_begin_frame_try_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Poll a batch of begin-frame events without blocking.
+    ///
+    /// Poll pending events from a begin-frame stream and return up to `maxEvents` events.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses nonblocking Wayland frame-callback batch dispatch, X11 expose polling, and Win32 paint and redraw batch polling.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_begin_frame_try_read_batch(
+        &mut self,
+        handle: resource::DisplayBeginFrameHandle,
+        maxevents: u32,
+    ) -> RuntimeResult<
+        HarnessValue<NativeArray<DisplayBeginFrameEvent>, VmArray<DisplayBeginFrameEventVm>>,
+    > {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_begin_frame_try_read_batch(
+                    self.call_context,
+                    context,
+                    handle,
+                    maxevents,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out =
+                    std::mem::MaybeUninit::<NativeArray<DisplayBeginFrameEvent>>::uninit();
+                unsafe {
+                    display_native::destack_display_begin_frame_try_read_batch(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        maxevents,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Close a display endpoint.
+    ///
+    /// Close a display endpoint and release host resources.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -212,8 +492,7 @@ impl<'call> DisplayHarnessContext<'call> {
 
     /// Resolve one requested mode to the closest supported mode.
     ///
-    /// Return one backend-selected closest mode for one requested mode.
-    /// Mode-matching behavior follows host backend selection policy.
+    /// Return the closest backend-selected mode for the requested mode.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -260,9 +539,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read one display color-state snapshot.
+    /// Read a display color-state snapshot.
     ///
-    /// Read one point-in-time display color-state snapshot for one opened display endpoint.
+    /// Read the current display color state for a display endpoint.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -304,9 +583,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read the current mode for one opened display.
+    /// Read the current mode for a display.
     ///
-    /// Read one point-in-time active mode for one opened display endpoint.
+    /// Read the active mode for a display endpoint.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -348,9 +627,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read descriptor metadata for one opened display.
+    /// Read display descriptor metadata.
     ///
-    /// Read one normalized descriptor snapshot for one opened display endpoint.
+    /// Read the current descriptor snapshot for a display endpoint.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -392,10 +671,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read the desktop-preferred mode for one opened display.
+    /// Read the desktop-preferred mode for a display.
     ///
-    /// Read one platform desktop mode for one opened display endpoint.
-    /// This aligns with host desktop-resolution semantics.
+    /// Read the platform desktop mode for a display endpoint.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -437,9 +715,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Close one global monitor-event stream.
+    /// Close a global monitor-event stream.
     ///
-    /// Close one opened monitor-event stream and release host monitor routing resources.
+    /// Close a monitor-event stream and release host routing resources.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -467,12 +745,10 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Open one global monitor-event stream.
+    /// Open a global monitor-event stream.
     ///
-    /// Open one host monitor-event stream for display hotplug and metrics-change routing.
-    /// Event ordering follows host event-loop delivery behavior.
-    /// This stream should be consumed from one runtime event-loop thread.
-    /// Dropped events are reported through `metadata.droppedCount`.
+    /// Open the host monitor-event stream for display hotplug and descriptor changes.
+    /// Events follow host event-loop delivery and use stable display identifiers when available.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -516,9 +792,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Wait for one monitor event.
+    /// Wait for a monitor event.
     ///
-    /// Wait for one event from one opened monitor-event stream.
+    /// Wait for the next event from a monitor-event stream.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -563,9 +839,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Wait for one batch of monitor events.
+    /// Wait for a batch of monitor events.
     ///
-    /// Wait for pending events from one opened monitor-event stream and return up to `maxEvents` events.
+    /// Wait for pending events from a monitor-event stream and return up to `maxEvents` events.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -614,9 +890,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Poll one monitor event without blocking.
+    /// Poll a monitor event without blocking.
     ///
-    /// Poll one pending event from one opened monitor-event stream without waiting.
+    /// Poll a pending event from a monitor-event stream without waiting.
     /// Empty queue state is reported through ioWouldBlock.
     ///
     /// # Platform
@@ -659,9 +935,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Poll one batch of monitor events without blocking.
+    /// Poll a batch of monitor events without blocking.
     ///
-    /// Poll pending events from one opened monitor-event stream and return up to `maxEvents` events.
+    /// Poll pending events from a monitor-event stream and return up to `maxEvents` events.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -707,9 +983,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read one display gamma ramp.
+    /// Read a display gamma ramp.
     ///
-    /// Read one gamma-ramp table payload for one opened display endpoint.
+    /// Read the gamma-ramp table for a display endpoint.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -751,9 +1027,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read one display HDR policy mode.
+    /// Read a display HDR policy mode.
     ///
-    /// Read one point-in-time HDR policy mode for one opened display endpoint.
+    /// Read the current HDR policy mode for a display endpoint.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -797,8 +1073,7 @@ impl<'call> DisplayHarnessContext<'call> {
 
     /// List available displays.
     ///
-    /// Enumerate host display outputs and return stable identifiers and physical metadata.
-    /// Output ordering and hotplug visibility follow host compositor or kernel display APIs.
+    /// List host display outputs with stable identifiers and physical metadata.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -843,8 +1118,8 @@ impl<'call> DisplayHarnessContext<'call> {
 
     /// Read available display modes.
     ///
-    /// Read all host-supported modes for one opened display endpoint.
-    /// Mode list ordering follows host backend reporting behavior.
+    /// Read all host-supported modes for a display endpoint.
+    /// Mode ordering follows backend reporting behavior.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -883,10 +1158,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Open one display endpoint.
+    /// Open a display endpoint.
     ///
-    /// Open one host display endpoint by identifier for mode queries and updates.
-    /// Endpoint lifetime semantics follow host display management APIs.
+    /// Open a display endpoint by identifier for mode queries and updates.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -937,7 +1211,7 @@ impl<'call> DisplayHarnessContext<'call> {
 
     /// Read the current primary display handle.
     ///
-    /// Return one opened display handle for the current primary display when available.
+    /// Return the current primary display handle when available.
     /// Returns `void` when the backend has no discoverable primary display.
     ///
     /// # Platform
@@ -982,9 +1256,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set one display gamma ramp.
+    /// Set a display gamma ramp.
     ///
-    /// Apply one gamma-ramp table payload to one opened display endpoint.
+    /// Apply a gamma-ramp table to a display endpoint.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1024,9 +1298,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set one display HDR policy mode.
+    /// Set a display HDR policy mode.
     ///
-    /// Apply one HDR policy mode to one opened display endpoint.
+    /// Apply an HDR policy mode to a display endpoint.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1062,9 +1336,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Apply one display mode.
+    /// Apply a display mode.
     ///
-    /// Apply one mode to an opened display endpoint.
+    /// Apply a mode to a display endpoint.
     /// Mode-set behavior and rollback semantics are host-defined.
     ///
     /// # Platform
@@ -1101,9 +1375,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Begin one native move-drag interaction.
+    /// Begin a native move-drag interaction.
     ///
-    /// Start one host-controlled move-drag interaction for one opened window.
+    /// Start a host-controlled move-drag interaction for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1133,9 +1407,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Begin one native resize-drag interaction.
+    /// Begin a native resize-drag interaction.
     ///
-    /// Start one host-controlled resize-drag interaction for one opened window and one selected edge.
+    /// Start a host-controlled resize-drag interaction for a window and the selected edge.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1171,10 +1445,10 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read effective capabilities for one opened window.
+    /// Read the effective capability set for a window.
     ///
-    /// Read one effective capability set for one opened window after backend and role negotiation.
-    /// This set is one method-level contract and can be one strict subset of backend descriptor capability flags.
+    /// Read the effective capability set after backend and role negotiation.
+    /// This can be a strict subset of the backend descriptor capability flags.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1216,9 +1490,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Close one window.
+    /// Close a window.
     ///
-    /// Close one host window and release associated compositor or window-system resources.
+    /// Close a host window and release associated resources.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1246,9 +1520,54 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read descriptor metadata for one window.
+    /// Read the logical content rectangle for a window.
     ///
-    /// Read one normalized descriptor snapshot for one opened host window.
+    /// Read the current logical content rectangle.
+    /// This excludes host chrome and uses window-local coordinates.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses Win32 client-rect queries, X11 window geometry, and Wayland configured content-area tracking.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_content_rect(
+        &mut self,
+        window: resource::WindowHandle,
+    ) -> RuntimeResult<HarnessValue<WindowLogicalRect, WindowLogicalRectVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_window_content_rect(
+                    self.call_context,
+                    context,
+                    window,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<WindowLogicalRect>::uninit();
+                unsafe {
+                    display_native::destack_display_window_content_rect(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        window,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read window descriptor metadata.
+    ///
+    /// Read the current descriptor snapshot for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1290,13 +1609,13 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Close one global window-event stream.
+    /// Close a global window-event stream.
     ///
-    /// Close one opened window-event stream and release host event routing resources.
+    /// Close a window-event stream and release host routing resources.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific event-stream close operations.
+    /// Uses Wayland event-stream deregistration, X11 queue cleanup, and Win32 message-routing teardown.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1320,17 +1639,15 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Open one global window-event stream.
+    /// Open a global window-event stream.
     ///
-    /// Open one host window-event stream for all windows in this runtime.
-    /// Event ordering follows host event-loop delivery behavior.
-    /// Stream payloads include drop-session lifecycle events and final drop payload events.
-    /// This stream should be consumed from one runtime event-loop thread.
-    /// Dropped events are reported through `metadata.droppedCount`.
+    /// Open the host window-event stream for all windows in this runtime.
+    /// Events report lifecycle, state, and drop transitions as the host event loop delivers them.
+    /// Begin-frame delivery is exposed separately through `display.frame`.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses one host event-loop stream model with stable window-handle routing.
+    /// Uses Wayland event dispatch, X11 event queue dispatch, and Win32 message-loop delivery with stable window-handle routing.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1370,13 +1687,13 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Wait for one window event.
+    /// Wait for a window event.
     ///
-    /// Wait for one event from one opened host window-event stream.
+    /// Wait for the next event from a window-event stream.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host event queue wait operations.
+    /// Uses Wayland event waits, X11 event queue waits, and Win32 message waits.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
@@ -1417,13 +1734,13 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Wait for one batch of window events.
+    /// Wait for a batch of window events.
     ///
-    /// Wait for pending events from one opened host window-event stream and return up to `maxEvents` events.
+    /// Wait for pending events from a window-event stream and return up to `maxEvents` events.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host event queue batch wait operations.
+    /// Uses Wayland batch dispatch, X11 event queue waits, and Win32 message batch waits.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
@@ -1467,14 +1784,14 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Poll one window event without blocking.
+    /// Poll a window event without blocking.
     ///
-    /// Poll one pending event from one opened host window-event stream without waiting.
+    /// Poll a pending event from a window-event stream without waiting.
     /// Empty queue state is reported through ioWouldBlock.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses nonblocking host event queue polling.
+    /// Uses nonblocking Wayland dispatch, X11 event polling, and Win32 message polling.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1512,13 +1829,13 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Poll one batch of window events without blocking.
+    /// Poll a batch of window events without blocking.
     ///
-    /// Poll pending events from one opened host window-event stream and return up to `maxEvents` events.
+    /// Poll pending events from a window-event stream and return up to `maxEvents` events.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses nonblocking host event queue batch polling.
+    /// Uses nonblocking Wayland batch dispatch, X11 event polling, and Win32 message batch polling.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1559,9 +1876,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Focus one window.
+    /// Focus a window.
     ///
-    /// Request keyboard focus for one opened window.
+    /// Request keyboard focus for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1589,9 +1906,86 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Maximize one window.
+    /// Read the drawable framebuffer size for a window.
     ///
-    /// Transition one opened window to maximized host state.
+    /// Read the current drawable framebuffer size.
+    /// This is the canonical render and present size for the window.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses drawable pixel-size queries derived from client geometry, compositor scale, and backing-surface extent.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_framebuffer_size(
+        &mut self,
+        window: resource::WindowHandle,
+    ) -> RuntimeResult<HarnessValue<WindowPhysicalSize, WindowPhysicalSizeVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_window_framebuffer_size(
+                    self.call_context,
+                    context,
+                    window,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<WindowPhysicalSize>::uninit();
+                unsafe {
+                    display_native::destack_display_window_framebuffer_size(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        window,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Invalidate a window for redraw.
+    ///
+    /// Enqueue a host invalidation for a window.
+    /// Multiple outstanding invalidations can be coalesced by the backend.
+    /// Call this after scene, layout, animation, or state changes when no host invalidation already guarantees another begin frame.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses Wayland frame callbacks, X11 redraw invalidation, and Win32 `InvalidateRect` or equivalent redraw requests.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_invalidate(
+        &mut self,
+        window: resource::WindowHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                display_vm::destack_display_window_invalidate(self.call_context, context, window)
+            }
+            None => unsafe {
+                display_native::destack_display_window_invalidate(self.call_context, window)
+            },
+        }
+    }
+
+    /// Maximize a window.
+    ///
+    /// Transition a window to maximized host state.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1619,9 +2013,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Minimize one window.
+    /// Minimize a window.
     ///
-    /// Transition one opened window to minimized host state.
+    /// Transition a window to minimized host state.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1649,9 +2043,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read one window opacity value.
+    /// Read a window opacity value.
     ///
-    /// Read one point-in-time whole-window opacity value in `[0.0, 1.0]`.
+    /// Read the current whole-window opacity value in `[0.0, 1.0]`.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1690,10 +2084,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Open one window.
+    /// Open a window.
     ///
-    /// Create one host window with one explicit window configuration payload.
-    /// Window lifecycle and compositor integration follow host window-system semantics.
+    /// Create a host window from an explicit configuration payload.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1735,9 +2128,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Raise one window.
+    /// Raise a window.
     ///
-    /// Request that one opened window moves to the top of its stack group.
+    /// Request that a window moves to the top of its stack group.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1765,9 +2158,55 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Request user attention for one window.
+    /// Read the render state for a window.
     ///
-    /// Request host-specific user attention signaling for one opened window.
+    /// Read the current renderability state.
+    /// When the state is `SurfaceLost`, stop presenting until the window becomes renderable again.
+    /// Then use `gpu.surfaceStatus(...)` to decide whether to reconfigure or reopen the present surface.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses visibility, occlusion, lifecycle suspension, and host-surface state derived from compositor and window-system state.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_render_state(
+        &mut self,
+        window: resource::WindowHandle,
+    ) -> RuntimeResult<WindowRenderState> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_window_render_state(
+                    self.call_context,
+                    context,
+                    window,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<WindowRenderState>::uninit();
+                unsafe {
+                    display_native::destack_display_window_render_state(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        window,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Request user attention for a window.
+    ///
+    /// Request host-specific user attention signaling for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1803,41 +2242,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Request one redraw for one window.
+    /// Restore a window.
     ///
-    /// Enqueue one host redraw request for one opened window.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend redraw request operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_display_window_request_refresh(
-        &mut self,
-        window: resource::WindowHandle,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => display_vm::destack_display_window_request_refresh(
-                self.call_context,
-                context,
-                window,
-            ),
-            None => unsafe {
-                display_native::destack_display_window_request_refresh(self.call_context, window)
-            },
-        }
-    }
-
-    /// Restore one window.
-    ///
-    /// Restore one minimized or maximized window to standard visible state.
+    /// Restore a minimized or maximized window to standard visible state.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1867,7 +2274,7 @@ impl<'call> DisplayHarnessContext<'call> {
 
     /// Set always-on-top state.
     ///
-    /// Toggle host always-on-top policy for one opened window.
+    /// Enable or disable host always-on-top policy for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1903,9 +2310,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set one window aspect-ratio lock.
+    /// Set a window aspect-ratio lock.
     ///
-    /// Apply one aspect-ratio lock for one opened window.
+    /// Apply an aspect-ratio lock for a window.
     /// Passing `void` clears any currently active aspect-ratio lock.
     ///
     /// # Platform
@@ -1946,9 +2353,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set one window chrome style.
+    /// Set a window chrome style.
     ///
-    /// Apply one backend chrome style policy for one opened window.
+    /// Apply a backend chrome style policy for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1980,9 +2387,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set cursor icon for one window.
+    /// Set cursor icon for a window.
     ///
-    /// Apply one standard system cursor icon for one opened window.
+    /// Apply a standard system cursor icon for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2018,9 +2425,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set cursor interaction mode for one window.
+    /// Set cursor interaction mode for a window.
     ///
-    /// Apply one cursor mode policy for one opened window.
+    /// Apply a cursor mode policy for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2056,10 +2463,10 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set cursor position for one window.
+    /// Set cursor position for a window.
     ///
-    /// Warp cursor position relative to one opened window.
-    /// This is one window-scoped convenience lane for UI interactions.
+    /// Warp cursor position relative to a window.
+    /// This is a window-scoped convenience API for UI and tooling interactions.
     /// Use `input.pointer.warp` for device-target scoped pointer control.
     ///
     /// # Platform
@@ -2100,9 +2507,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set cursor visibility for one window.
+    /// Set cursor visibility for a window.
     ///
-    /// Show or hide one window cursor without changing lock or confinement state.
+    /// Show or hide the window cursor without changing lock or confinement state.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2140,7 +2547,7 @@ impl<'call> DisplayHarnessContext<'call> {
 
     /// Set window decoration state.
     ///
-    /// Toggle host decorations for one opened window.
+    /// Enable or disable host decorations for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2176,9 +2583,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set one window icon set.
+    /// Set a window icon set.
     ///
-    /// Apply one host window icon set from packed pixel bytes.
+    /// Apply a host window icon set from packed pixel bytes.
     /// Backends can select the closest icon size per host surface.
     /// Passing `void` clears custom icons and restores host default behavior.
     ///
@@ -2216,10 +2623,10 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set one window modal relationship.
+    /// Set a window modal relationship.
     ///
-    /// Enable or disable one modal relationship where backend policy allows.
-    /// Modal mode requires one active `transientFor` or `parent` relationship.
+    /// Enable or disable a modal relationship where backend policy allows.
+    /// Modal mode requires an active `transientFor` or `parent` relationship.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2251,9 +2658,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set one window mode.
+    /// Set a window mode.
     ///
-    /// Apply one host window mode transition for one opened window.
+    /// Apply a host window mode transition for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2289,9 +2696,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set mouse passthrough behavior for one window.
+    /// Set mouse passthrough behavior for a window.
     ///
-    /// Enable or disable pointer hit-test passthrough for one opened window.
+    /// Enable or disable pointer hit-test passthrough for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2327,9 +2734,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set one window opacity.
+    /// Set a window opacity.
     ///
-    /// Apply one whole-window opacity value in `[0.0, 1.0]`.
+    /// Apply a whole-window opacity value in `[0.0, 1.0]`.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2365,9 +2772,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set one parent window relationship.
+    /// Set a parent window relationship.
     ///
-    /// Apply one parent relationship where backend policy allows.
+    /// Apply a parent relationship where backend policy allows.
     /// This relationship is ignored when `transientFor` is also set.
     /// Passing `void` removes the parent relationship.
     ///
@@ -2401,9 +2808,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set one window position.
+    /// Set a window position.
     ///
-    /// Apply one host window position in desktop coordinates.
+    /// Apply a host window position in desktop coordinates.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2445,7 +2852,7 @@ impl<'call> DisplayHarnessContext<'call> {
 
     /// Set window resizable state.
     ///
-    /// Toggle host resize affordances for one opened window.
+    /// Enable or disable host resize affordances for a window.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2483,7 +2890,7 @@ impl<'call> DisplayHarnessContext<'call> {
 
     /// Set logical size constraints.
     ///
-    /// Apply minimum and maximum logical size constraints for one window.
+    /// Apply minimum and maximum logical size constraints for a window.
     /// Passing `void` clears current constraints.
     ///
     /// # Platform
@@ -2524,9 +2931,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set one logical window size.
+    /// Set a logical window size.
     ///
-    /// Apply one host window size in logical platform points.
+    /// Apply a host window size in logical platform points.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2566,9 +2973,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set one physical window size.
+    /// Set a physical window size.
     ///
-    /// Apply one host window size in physical pixels.
+    /// Apply a host window size in physical pixels.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2608,9 +3015,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set taskbar visibility for one window.
+    /// Set taskbar visibility for a window.
     ///
-    /// Control whether one window is visible in task switching and taskbar surfaces.
+    /// Control whether a window is visible in task switching and taskbar surfaces.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2646,9 +3053,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set one window title string.
+    /// Set a window title string.
     ///
-    /// Update one host window title using host window-system APIs.
+    /// Update a host window title.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2684,9 +3091,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set one transient-owner relationship.
+    /// Set a transient-owner relationship.
     ///
-    /// Apply one transient-owner relationship where backend policy allows.
+    /// Apply a transient-owner relationship where backend policy allows.
     /// This relationship takes precedence over `parent`.
     /// Passing `void` removes the transient-owner relationship.
     ///
@@ -2724,9 +3131,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set one window visibility state.
+    /// Set a window visibility state.
     ///
-    /// Apply one window visibility state transition.
+    /// Apply a window visibility state transition.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2762,9 +3169,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read one window state snapshot.
+    /// Read a window state snapshot.
     ///
-    /// Read one point-in-time host window state snapshot.
+    /// Read the current host window state snapshot.
     ///
     /// # Platform
     /// Unix and Windows.

@@ -35,8 +35,6 @@ pub(crate) struct PlatformOsState {
     pub(super) network_watch_callback: Arc<Mutex<Option<RuntimeScheduledCallbackHandle>>>,
     /// Runtime-owned location watches.
     pub(super) location_watches: Arc<Mutex<HashMap<String, Arc<LocationWatchStream>>>>,
-    /// Runtime-owned media watches.
-    pub(super) media_watches: Arc<Mutex<HashMap<String, Arc<MediaWatchStream>>>>,
 }
 
 impl Default for PlatformOsState {
@@ -58,7 +56,6 @@ impl Default for PlatformOsState {
             network_watches: Arc::new(Mutex::new(HashMap::new())),
             network_watch_callback: Arc::new(Mutex::new(None)),
             location_watches: Arc::new(Mutex::new(HashMap::new())),
-            media_watches: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
@@ -243,26 +240,6 @@ impl PlatformOsState {
         self.location_watches.lock().remove(watch_id)
     }
 
-    /// Allocate one fresh runtime-owned media watch id.
-    pub(crate) fn next_media_watch_id(&self) -> String {
-        self.next_watch_id("media-watch")
-    }
-
-    /// Insert one runtime-owned media watch.
-    pub(crate) fn insert_media_watch(&self, watch_id: String, stream: Arc<MediaWatchStream>) {
-        self.media_watches.lock().insert(watch_id, stream);
-    }
-
-    /// Return one runtime-owned media watch by id.
-    pub(crate) fn media_watch(&self, watch_id: &str) -> Option<Arc<MediaWatchStream>> {
-        self.media_watches.lock().get(watch_id).cloned()
-    }
-
-    /// Remove one runtime-owned media watch by id.
-    pub(crate) fn remove_media_watch(&self, watch_id: &str) -> Option<Arc<MediaWatchStream>> {
-        self.media_watches.lock().remove(watch_id)
-    }
-
     /// Reconcile current lifecycle state from already queued host events.
     pub(crate) fn reconcile_host_queue(
         &self,
@@ -316,7 +293,6 @@ impl PlatformOsState {
             HostEvent::Background(event) => self.observe_background_event(event),
             HostEvent::Notification(event) => self.observe_notification_event(event),
             HostEvent::Location(event) => self.observe_location_event(event),
-            HostEvent::Media(event) => self.observe_media_event(event),
             HostEvent::Permission(event) => {
                 self.observe_permission(event.permission.as_str(), event.granted)
             }

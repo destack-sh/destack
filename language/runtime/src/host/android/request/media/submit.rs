@@ -1,7 +1,6 @@
 use super::{
     destack_host_android_media_delete, destack_host_android_media_describe,
     destack_host_android_media_import_path, destack_host_android_media_list,
-    destack_host_android_media_watch_close, destack_host_android_media_watch_open,
 };
 use crate::diagnostic::RuntimeResult;
 use crate::host::callback::{
@@ -13,7 +12,7 @@ use crate::platform::core::invalid_argument_value;
 use crate::platform::fs::core as core_fs;
 use crate::platform::os::MediaAssetKind;
 use crate::platform::os::abi_generated::{
-    MediaAssetDescriptorValue, MediaPageValue, MediaQueryValue, MediaWatchOptionsValue,
+    MediaAssetDescriptorValue, MediaPageValue, MediaQueryValue,
 };
 use crate::runtime::{NativeSlice, NativeStringRef};
 
@@ -40,7 +39,7 @@ pub(crate) fn submit_media_request(
                 HostRequestResult::MediaPage(page),
             )))
         }
-        HostRequest::OsMediaDescribe { id } => {
+        HostRequest::OsMediaRead { id } => {
             let descriptor = submit_media_describe(runtime_id, request.operation_name(), id)?;
 
             Ok(Some(HostRequestOutcome::immediate(
@@ -60,16 +59,6 @@ pub(crate) fn submit_media_request(
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::U32(
                 deleted_count,
             ))))
-        }
-        HostRequest::OsMediaWatchOpen { watch_id, options } => {
-            submit_media_watch_open(runtime_id, request.operation_name(), watch_id, options)?;
-
-            Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
-        }
-        HostRequest::OsMediaWatchClose { watch_id } => {
-            submit_media_watch_close(runtime_id, request.operation_name(), watch_id)?;
-
-            Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
         }
         _ => Ok(None),
     }
@@ -151,38 +140,4 @@ fn submit_media_delete(
     decode_callback_host_status(status, operation)?;
 
     Ok(deleted_count)
-}
-
-/// Submit one Android media watch-open request.
-fn submit_media_watch_open(
-    runtime_id: u64,
-    operation: &'static str,
-    watch_id: &str,
-    options: &MediaWatchOptionsValue,
-) -> RuntimeResult<()> {
-    let payload = encode_callback_host_json(options, operation)?;
-    let payload_length = callback_payload_length(payload.len(), operation)?;
-    let status = unsafe {
-        destack_host_android_media_watch_open(
-            runtime_id,
-            NativeStringRef::from(watch_id),
-            NativeSlice {
-                data: payload.as_ptr() as *mut u8,
-                len: payload_length,
-            },
-        )
-    };
-    decode_callback_host_status(status, operation)
-}
-
-/// Submit one Android media watch-close request.
-fn submit_media_watch_close(
-    runtime_id: u64,
-    operation: &'static str,
-    watch_id: &str,
-) -> RuntimeResult<()> {
-    let status = unsafe {
-        destack_host_android_media_watch_close(runtime_id, NativeStringRef::from(watch_id))
-    };
-    decode_callback_host_status(status, operation)
 }

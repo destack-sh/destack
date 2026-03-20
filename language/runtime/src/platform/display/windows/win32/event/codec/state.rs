@@ -6,12 +6,12 @@ use crate::platform::display::{
     WindowFocusPayload, WindowModalChangedEvent, WindowModalPayload, WindowModeChangedEvent,
     WindowModePayload, WindowMousePassthroughChangedEvent, WindowMousePassthroughPayload,
     WindowOpacityChangedEvent, WindowOpacityPayload, WindowParentChangedEvent, WindowParentPayload,
-    WindowPositionChangedEvent, WindowPositionPayload, WindowRefreshRequestedEvent,
-    WindowSafeAreaChangedEvent, WindowSafeAreaPayload, WindowScaleFactorChangedEvent,
-    WindowScaleFactorPayload, WindowSizeChangedEvent, WindowSizePayload,
-    WindowTaskbarVisibilityChangedEvent, WindowTaskbarVisibilityPayload, WindowThemeChangedEvent,
-    WindowThemePayload, WindowTransientChangedEvent, WindowTransientPayload,
-    WindowVisibilityChangedEvent, WindowVisibilityPayload,
+    WindowPositionChangedEvent, WindowPositionPayload, WindowSafeAreaChangedEvent,
+    WindowSafeAreaPayload, WindowScaleFactorChangedEvent, WindowScaleFactorPayload,
+    WindowSizeChangedEvent, WindowSizePayload, WindowTaskbarVisibilityChangedEvent,
+    WindowTaskbarVisibilityPayload, WindowThemeChangedEvent, WindowThemePayload,
+    WindowTransientChangedEvent, WindowTransientPayload, WindowVisibilityChangedEvent,
+    WindowVisibilityPayload,
 };
 use crate::runtime::BindingCallContext;
 
@@ -146,16 +146,8 @@ pub(crate) fn window_state_event_from_record(
                 current_scale_factor_milli,
             },
         }),
-        WindowEventRecordKind::RefreshRequested { window } => {
-            WindowEvent::WindowRefreshRequestedEvent(WindowRefreshRequestedEvent {
-                kind: binding.store_string("refreshRequested"),
-                metadata: window_event_metadata(
-                    window,
-                    value.timestamp_ns,
-                    value.sequence,
-                    value.dropped_count,
-                ),
-            })
+        WindowEventRecordKind::RefreshRequested { .. } => {
+            unreachable!("refreshRequested window events must route through begin-frame")
         }
         WindowEventRecordKind::ModeChanged {
             window,

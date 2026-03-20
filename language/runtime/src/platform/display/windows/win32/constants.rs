@@ -66,8 +66,7 @@ pub(crate) const WINDOW_EVENT_KIND_SIZE_CHANGED: u64 =
 pub(crate) const WINDOW_EVENT_KIND_SCALE_FACTOR_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_SCALE_FACTOR_CHANGED.0;
 /// Window-event kind bit for `refreshRequested`.
-pub(crate) const WINDOW_EVENT_KIND_REFRESH_REQUESTED: u64 =
-    display_platform::WINDOW_EVENT_KIND_REFRESH_REQUESTED.0;
+pub(crate) const WINDOW_EVENT_KIND_REFRESH_REQUESTED: u64 = 0;
 /// Window-event kind bit for `modeChanged`.
 pub(crate) const WINDOW_EVENT_KIND_MODE_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_MODE_CHANGED.0;

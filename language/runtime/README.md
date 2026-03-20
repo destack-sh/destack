@@ -1,8 +1,9 @@
 # Runtime
 
 The runtime is how Destack actually does anything interesting beyond pure computation.
-The Destack runtime wraps VM and/or native execution with scheduling, bindings, host integration, simulation, telemetry, and all the other "runtime stuff".
-Essentially, the runtime is where we integrate Node/Bun/Deno-level semantics with V8/JSC-runtime features, though we go much deeper and wider - it's really more like a universal software engine than it is a Node-derived runtime.
+The Destack runtime integrates VM and/or native execution with scheduling, platform / host bindings, simulation, telemetry, and all the other "runtime stuff".
+Essentially, we integrate Node/Bun/Deno-level features and a V8/JSC-level execution, though we go much deeper and wider than the Node-family of runtimes.
+As with "TypeScript++", the idea here is really "Web++/Node++", i.e., take the well known shape and good modern standards, and expand on them / refine as needed into a a more universal software engine.
 
 ## Runtime
 
@@ -19,396 +20,62 @@ The runtime is organized around core `runtime`, `platform` bindings, and the und
  - `platform/`: host implementations for the modules defined in the builtin ["platform"](language/builtin/library/platform) library
  - `host/`: host adapters, host event bridges, host ffi entrypoints, and host state integration
 
-At the API boundary, the runtime should expose two distinct layers.
-`platform:*` is the raw substrate and authority-bearing host surface.
-`destack:*` is the normalized portable systems surface built on top of that substrate.
-The long-term renderer and most higher-level libraries should usually target `destack:*`, not raw `platform:*`.
-`Web*` compatibility should sit above these layers as a standards facade rather than reshaping the runtime around browser-only semantics.
-
-### Runtime architecture
-
-The runtime uses one consistent architecture across native backends, host bridges, and simulation.
-
-#### State ownership
-
-Process-global service state owns shared native library contexts, monitor registrations, and subsystem-wide callback machinery.
-Agent-local runtime state owns resource tables, subscriptions, normalization, sequencing, and other lane-local runtime behavior.
-Resource-local state owns one open session, stream, watch, or subscription and any bounded queues attached to that resource.
-Session-local snapshots and caches are allowed only when the host API is asynchronous, incremental, or structurally expensive to query repeatedly.
-
-#### Authority and snapshots
-
-The host remains authoritative for native device and operating-system state.
-The runtime may keep bounded snapshots only to preserve coherent session semantics, stable identifiers, and efficient repeated queries.
-Snapshots must be explicitly scoped, explicitly invalidated, and replaced from authoritative host state instead of silently becoming the source of truth.
-Active host-affine state, external raw exposure, and other live native obligations should act as capture barriers instead of being smuggled into durable images.
-
-#### Ingress and egress
-
-`host/*` is for external host-owned ingress only, such as Android framework callbacks or other embedder-controlled bridges.
-Native platform backends in `platform/*` should use shared runtime ingress mechanisms rather than routing native events back through `host/*`.
-Resources expose normalized events and results through runtime-owned queues and handles instead of leaking backend-native callback shapes directly to callers.
-
-#### Threading and loops
-
-The default target is shared runtime polling or completion infrastructure when the host model fits it.
-When one subsystem or native library requires its own callback pump, use one explicit process-global service loop for that subsystem rather than ad hoc resource-local loops.
-Resource-local threads are a last resort and require a clear reason rooted in host semantics, affinity, or cancellation behavior.
-Queue or thread affinity must be explicit at the wrapper boundary instead of being implied by scattered backend code.
-
-#### Backpressure and shutdown
-
-All runtime-owned queues must be bounded and have explicit overflow behavior.
-Backends should report overflow, cancellation, disconnection, and shutdown through explicit runtime errors or normalized events rather than silently suppressing them.
-Blocking waits must have one clear interruption path for resource close, runtime teardown, and service shutdown.
- 
-Compared to other related runtimes like Chromium, Node, or even Unity or Godot, the Destack runtime has a peculiar shape with its explicit model of both "engine", "execution", and "world" semantics.
-The point of explicitly modeling execution like this is to enable end-to-end simulation and replay as a sort of software laboratory. 
- 
 ## World
 
-The runtime lives in one `World`, which owns the root clocks, topology, simulation state, policy and rules, trace, observation, and lineage.
-Each `World` contains 1-n `Runtime`s, and one `Runtime` contains 1-n `Agent`s.
-Each `Agent` has its own execution lane with one `EventLoop`, one `Heap`, one execution `Engine`, one platform resource table, and the rest of its lane-local machinery.
-The `Lineage` owns durable history metadata and retained images for revisions.
-One `Image` materializes world, runtime, and agent state only for fast restore, rewind, branch or fork, and export.
-Managed memory is part of this agent-local runtime state.
-The runtime owns the concrete managed backend for an agent, while MIR and Lower define the semantic contract for managed references, barriers, stack maps, and runtime type metadata.
-The current VM and native bring-up path uses the `destack_heap` managed heap backend.
-Other engines, including WasmGC-backed engines, may realize the same managed semantics with a different collector and object representation.
-
-| Noun | Meaning |
-|-----------|--------|
-| `World` | The live deterministic root and global coordination boundary. |
-| `Runtime` | Process-like container inside one world. |
-| `Agent` | Execution lane inside one runtime. |
-| `Topology` | Canonical structural graph for world objects, runtimes, agents, resources, entities, and edges. |
-| `Policy` | Active control, rule, and fault-injection state over one world. |
-| `Branch` | Named mutable lineage head. |
-| `Revision` | Named lineage coordinate over one branch and one trace position. |
-| `Moment` | Precise execution coordinate over one branch and one trace sequence. |
-| `Image` | Immutable in-memory materialized world, runtime, and agent state retained for fast restore, rewind, branch or fork, and export. |
-| `Trace` | World-global replay witness. |
-| `Observation` | Explicit emitted stream kept separate from replay witness data. |
-| `Instant` | Time coordinate only, never a lineage coordinate. |
-
-## History model
-
-The final history model is intentionally small.
-`Trace` is the source of truth for replay.
-`Image` is one retained acceleration point over the revision DAG.
-`Revision` names durable history points in lineage.
-`Moment` is the precise restore and query coordinate.
-`Observation` is one explicit emitted stream for debugging, metrics, logging, and higher-level analysis.
-
-`Checkpoint` and `Snapshot` are derived conveniences, not foundational runtime nouns.
-One checkpoint is only one named retained revision.
-One snapshot is only one serialized image export plus lineage metadata.
-One checkpoint is just one named or protected retained revision.
-One snapshot is just one serialized export of one retained image and associated lineage metadata.
-
-Images are not required for correctness.
-One root image plus authoritative trace must be sufficient for deterministic replay across all runtimes, agents, event loops, and scheduler activity.
-Retained images exist only to reduce replay latency and memory or CPU cost for rewind, fork, and export.
-Live runtime and agent spawn operations should only capture structural spawn images when record mode actually needs suffix replay witnesses.
-Fast and deterministic execution should not pay eager spawn-capture cost.
-
-Rewind restores one retained image when the target revision already has one.
-Otherwise it restores the nearest retained ancestor image and replays the trace suffix to the target moment.
-Fork shares lineage, trace prefixes, and retained images, and then diverges only on later heap writes and trace tail appends.
-
-## Trace model
-
-`Trace` is not the universal runtime event bus.
-It is the authoritative replay witness, so it stores only irreducible replay data.
-The final role-based taxonomy is:
-
-- `Input`: something entered the world from outside the deterministic substrate
-- `Mutation`: one explicit structural world-state change carried as an `Input`
-- `Outcome`: something execution observed that was not derivable from prior state and prior trace
-- `Anchor`: one retained or user-visible history anchor, such as checkpoints or labels
-
-`Input` includes world ticks, replayable entrypoint runs, runtime removal, topology or policy mutations, and future ingress records like network or IPC delivery when they are not already represented elsewhere.
-`Outcome` includes host or binding results, entropy reads, time outcomes when time is host-authoritative, runtime or agent spawn structural images, and any nondeterministic arbitration outcome that remains after scheduler or simulation policy.
-`Anchor` includes checkpoint anchors, image boundaries, and explicit user or debugger labels.
-
-Internal deterministic execution is not authoritative trace data.
-Scheduler choices only enter trace when they are not derivable from prior state, deterministic policy, and recorded inputs or outcomes.
-This same model must work in both full DST mode, where replay can derive almost everything from one root image and one compact witness stream, and mixed host mode, where trace additionally records host boundary outcomes.
-
-## Observation model
-
-`Observation` is not part of replay correctness.
-It is the explicit emitted stream for diagnostics, logs, metrics, topology or scheduler notices, and user-defined structured observations.
-`Observation` is emitted by both runtime subsystems and userland or library code.
-Runtime subsystems should emit observations for scheduler progress, topology mutation, resource lifecycle, and policy diagnostics.
-Userland and libraries should emit observations for logging, tracing spans, metrics, assertions, and domain events.
-Higher-level `Event` and `EventSet` style APIs should project from observations and projected trace records.
-The foundational runtime substrate is moments, trace, images, and observations, not raw event logs.
-`Event` is one normalized query-visible fact at one moment.
-`Transition` is one normalized query-visible step between two adjacent moments.
-`Transition` is derived from authoritative trace steps and never becomes one second storage substrate or one stored diff log.
-
-In the runtime API this means:
-
-- `World::observe(...)` emits one explicit observation at the current moment
-- `World::events().between(...)` and `World::events().up_to(...)` project one normalized `EventSet`
-- `World::transitions().between(...)` and `World::transitions().up_to(...)` derive one `TransitionSet`
-
-These queries are branch-aware through `Moment`.
-One live `World` instance queries its own active branch history and state, including the uncommitted live tail after the current head revision.
-One lineage-wide query view queries committed multibranch history directly from shared lineage state.
-Forked worlds query their own descendant live tails over the same lineage instead of pretending one live world is one universal multibranch observation log.
-
-Projected events merge:
-
-- trace inputs
-- trace outcomes
-- trace anchors
-- moment-stamped observations
-
-Derived transitions are built from authoritative trace steps between adjacent moments.
-They are not a second storage substrate and should stay derivable from trace and world state.
-
-## Query model
-
-The query model is moment-centric and branch-aware.
-`Moment` is the primary query coordinate.
-`Instant` remains temporal only.
-Many moments may share one virtual instant, so time and history stay distinct.
-
-The foundational nouns are:
-
-- `World`
-- `Runtime`
-- `Agent`
-- `Topology`
-- `Policy`
-- `Branch`
-- `Revision`
-- `Moment`
-- `Trace`
-- `Image`
-- `Observation`
-
-The derived nouns are:
-
-- `Checkpoint`
-- `Snapshot`
-- `Event`
-- `Transition`
-
-`Event` answers:
-
-- what authoritative record landed here
-- what observation was emitted here
-
-`Transition` answers:
-
-- what authoritative step happened between two adjacent moments
-- what state moved from one moment to the next
-
-The ownership split is:
-
-- `World`: live branch-local queries, including uncommitted tail state
-- `LineageView`: committed multibranch history queries
-
-The baseline lineage query surface should expose:
-
-- `branches`
-- `moments_on`
-- `moments_up_to`
-- `moments_between`
-- `events_on`
-- `events_up_to`
-- `events_between`
-- `transitions_on`
-- `transitions_up_to`
-- `transitions_between`
-- `view`
-- `divergence_moment`
-
-Committed observations belong to lineage history beside committed trace and retained images.
-Live world observation buffers only own the active uncommitted tail and live subscriptions.
-
-One committed observation record carries:
-
-- one exact `Moment`
-- one structural `Scope`
-- one `ObservationCategory`
-- one stable `name`
-- optional `tags`
-- one structured payload
-
-## Integrated telemetry
-
-The integrated Destack stack should build tracing, logging, metrics, assertions, and domain-event helpers on top of `Observation`.
-Those facilities should not write directly to `Trace`.
-`Trace` is the minimal replay witness.
-`Observation` is the explicit observable stream.
-`Event` is the normalized query view over both.
-
-This split keeps replay cheap while making observability first-class across the whole stack.
-Every observation should automatically carry exact moment and branch context, and may additionally carry runtime, agent, task, or span context as the higher-level telemetry libraries grow.
-
-## Query examples
-
-The final query surface should feel direct and branch-aware.
-
-```rust
-let lineage = world.lineage();
-let branch = world.branch();
-
-let failures = lineage
-    .events()
-    .branch(branch.id)?
-    .observations();
-
-let checkpoints = lineage
-    .events()
-    .branch(branch.id)?
-    .anchors();
-
-let topology_inputs = lineage
-    .events()
-    .branch(branch.id)?
-    .inputs()
-    .name("topology.define_entity_kind");
-
-let view = lineage.view(lineage.branch_head_moment(branch.id)?)?;
-let runtime_count = view.runtime_count();
-let policy = view.policy();
-```
-
-Branch-local live queries should remain available on `World`.
-
-```rust
-let before = world.moment();
-world.observe(Observation::world_summary(
-    ObservationCategory::Diagnostic,
-    "demo.control",
-    "demo control observation",
-));
-let moment = world.moment();
-
-let events = world.events().up_to(moment)?;
-let transitions = world.transitions().up_to(moment)?;
-```
-
-Observation queries should feel direct and scope-aware.
-
-```rust
-let clicks = lineage
-    .events()
-    .branch(branch.id)?
-    .observations()
-    .name("ui.click")
-    .category(ObservationCategory::Domain)
-    .runtime(runtime_id)
-    .tagged("screen", "checkout");
-
-let render_summary = Observation::runtime_summary(
-    ObservationCategory::Telemetry,
-    runtime_id,
-    "ui.render.commit",
-    "render committed",
-)
-.tagged("route", "/checkout");
-```
-
-Transitions should expose adjacent history steps rather than a stored diff log.
-
-```rust
-let transitions = lineage.transitions().branch(branch.id)?;
-let first_input = transitions
-    .inputs()
-    .first()
-    .cloned();
-
-let divergence = lineage.divergence(branch.id, other_branch.id)?;
-```
-
-## Memory model
-
-The runtime uses one memory model family with multiple placement classes, not one universal storage representation.
-This is what lets Destack support ordinary application code, replayable state, and address sensitive systems code without splitting into separate runtimes.
-
-- Managed references are logical object identities.
-- Raw pointers are physical or ABI facing pointers.
-- Pinning is the bridge from managed lifetime to stable physical address exposure.
-- Value, stack, region, and other ephemeral placements are preferred whenever identity is unnecessary.
-
-Managed references are the default for ordinary reference types.
-They identify an object in the current heap image, but they do not require that object to live at one permanent host address forever.
-The runtime may back a managed reference with a direct pointer, compact handle, page directory entry, or another equivalent representation.
-
-Raw pointers are for explicit address semantics.
-They are used for FFI, MMIO, shared memory layouts, intrusive structures, allocator internals, and other code that truly depends on physical address behavior.
-Pinned managed objects sit between the two.
-They keep managed lifetime and tracing semantics, but additionally guarantee stable physical address exposure while pinned.
-Pinning is mainly scoped keepalive plus explicit raw-address exposure for managed storage.
-Live pin state should stay outside durable heap images and should act as a capture barrier when external raw exposure is active.
-At the heap leaf level, immutable `PageImage` values are the durable CoW units, while live mutation happens through page descriptors owned by page arenas.
-That keeps durable image sharing separate from live mark state, pin state, and detach-on-write mechanics.
-
-This distinction is also what keeps the execution modes coherent.
-`fast`, `deterministic`, `record`, and `replay` should share the same object model and pointer model.
-The modes differ in trace and image policy, not in what a managed reference means.
-
-This same rule must hold across engines.
-VM and native are both first-class execution engines, so they must share one managed heap model rather than evolving separate managed runtimes.
-They should share:
-
-- `ManagedReference`
-- `RawPointer`
-- `HeapImage`
-- `LayoutId`
-- exact retained-byte accounting and hard-limit admission
-- CoW, fork, rewind, and snapshot semantics
-
-What they do not need to share bit-for-bit is payload representation.
-The heap storage layer should be backend-neutral and layout-driven.
-Managed allocations should fundamentally be payload bytes plus `LayoutId`, with scanning, size, alignment, and field interpretation coming from runtime layout metadata.
-VM `Value` layouts are one family of layouts over that storage.
-Native typed layouts are another family of layouts over the same storage.
-This means VM slot access is one convenience view over managed storage, not the ontology of the heap itself.
-Native code generation should lower directly to typed field access over the same managed heap and image model instead of routing everything through `Value` payload arrays.
-
-## State authority
-
-Not all runtime state needs the same capture strategy.
-The runtime splits state into three broad authority classes.
-
-- Image authoritative state: durable heap and runtime state that should restore directly from an image root.
-- Trace authoritative state: causal history that can be reconstructed from trace roots and replay.
-- Ephemeral execution state: stack, registers, scratch regions, and other transient state that is rebuilt or quiescently captured when needed.
-
-Fork and rewind operate on roots, not raw process memory copies.
-The important roots are the heap root for durable object state and the trace root for causal history.
-Cheap branch and rewind come from sharing those roots structurally and only detaching touched leaves on mutation.
-Within the heap root, the durable side should stay image-backed while the live side stays descriptor-backed, so page images remain immutable leaves and live page arenas remain the mutable frontier.
-
-## Image policy
-
-`Lineage` owns revisions, retained images, checkpoints, and trace images.
-It does not need a second image-cache architecture noun beyond that ownership boundary.
-`RevisionImagePolicy` decides only whether to admit, protect, or evict retained images.
-Image placement should be adaptive and budget driven from replay distance, weighted replay cost, churn since the nearest retained image, branch heat, and incremental retained image bytes under memory pressure.
-`checkpoint` and `hibernate` are simply revisions with mandatory image protection.
+The big all-encompassing container that owns the runtime is `World`, which controls ...
+<!-- FUGU #Incomplete -->
+
+**Determinism, simulation and replay**:
+The big advantage of modeling the runtime against a single World concept is that - with some care, and when staying "inside our lanes" - we get to control all external effects, including timing, scheduling, randomness, and all runtime bindings that affect the runtime.
 
 ## Host
 
 The `Host`s are the operating systems and deployment targets, like Linux, iOS, macOS, Android, Windows, and so on; they're basically the foundation of our platform, the last one/two words of the triplet.
 
-Each host has its own capabilities (and idiosyncrasies) around when and how you get what state, which threads require what affinity, and a bunch more fun stuff.
+Each host has its own capabilitiesaround when and how you get what state, which threads require what affinity in what order, and a bunch more fun stuff that the .
 The basic bridge is the `HostBackend` that is implemented by each host to provide the platform-specific functionality needed by the runtime.
 
 ## Platform
 
-The `platform` bindings implement the "platform" builtin library bindings defined in `language/builtin/library/platform`, and the corresponding bindings and ABI surface are generated in `language/runtime/src/generate`.
-We have successively expanded the runtime generator to automatically wire as much of the native / VM data integration as possible, though unfortunately in some places we still need to manually normalize and serialise / deserialise because no reliable automatic mapping exists (or we couldn't find one). 
+The `platform` implements the "platform" bindings defined in `language/builtin/library/platform`, and the corresponding bindings and ABI surface are auto-generated in `language/runtime/src/generate` (into the not-to-be-edited `*.generated.rs` files).
+The runtime generator wires as much of the native / VM data integration as possible, but unfortunately we still need to manually normalize and serialise / deserialise sometimes where no reliable automatic mapping exists.
 
-The low-level `platform` bindings are not meant to be used by general userland - though they are accessible to advanced users - but instead through the higher-level `destack:*` library, which is essentially a `node:*` shaped higher level API with all the same functionality.
+### "ABI"
+
+One of the more annoying parts of the runtime is that we need to support both native and VM execution even though they have pretty different underlying state and execution models.
+They both share the `Heap` representation, but in-memory layouts and calling conventions are obviously different.
+
+For each module (e.g. `fs` in `platform/fs/`), we generate and partially hand-wire:
+ 1) `vm.rs` and `native.rs` wrappers to forward into core implementation (usually native-shaped)
+ 2) `abi.generated.rs` codec for translating between different representations
+ 3) `bindings.generated.rs` wrappers for both native / VM gating either "host" and "simulation" with automatic replay/record
+
+And more specifically, for every `T` in the source bindings (e.g. `OsPath` in `platform/fs/path.ds`), we generate in `abi.generated.rs` some:
+ 1) `TAbi`: borrowed ABI-generic view (over either `NativeAbi` or `VmAbi`)
+ 2) `T`: native view of `T`
+ 3) `TValue`: owned ("value") view of `T`
+ 4) `TVm`: VM view of `T`
+
+For example:
+```rust
+pub enum OsPathAbi<A: BindingAbi> {
+    OsPathBytes(platform_fs::OsPathBytesAbi<A>),
+    OsPathUtf16(platform_fs::OsPathUtf16Abi<A>),
+}
+
+pub type OsPath = OsPathAbi<NativeAbi>;
+pub type OsPathVm = OsPathAbi<VmAbi>;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum OsPathValue {
+    OsPathBytes(OsPathBytesValue),
+    OsPathUtf16(OsPathUtf16Value),
+}
+```
+
+### Modules
+
+The low-level `platform` bindings are not meant to be used _directly_ by general userland - though they are accessible to advanced users - but instead through the higher-level `destack:*` library, which is essentially a `node:*` shaped higher level API with all the same functionality.
 And because Destack tries to follow web standards closely, all the low level binding modules are also organized around the same concepts, even though they go much deeper (and wider).
 
 | Module | Description |

@@ -83,7 +83,7 @@ fn assert_bluetooth_adapter_watch_events(events: &[BluetoothAdapterEventValue]) 
     // validate every event in delivery order
     for event in events {
         match event {
-            BluetoothAdapterEventValue::BluetoothAdapterInstanceEvent(value) => {
+            BluetoothAdapterEventValue::BluetoothAdapterAttachedEvent(value) => {
                 assert_eq!(value.kind, "attached");
                 assert_watch_sequence(value.metadata.sequence, &mut last_sequence);
                 assert_bluetooth_adapter_descriptor_shape(&value.metadata.adapter);
@@ -125,7 +125,7 @@ fn assert_seeded_watch_delivery(
         .filter(|event| {
             matches!(
                 event,
-                BluetoothAdapterEventValue::BluetoothAdapterInstanceEvent(_)
+                BluetoothAdapterEventValue::BluetoothAdapterAttachedEvent(_)
             )
         })
         .count();

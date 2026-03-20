@@ -78,7 +78,7 @@ pub use proactor::{
     ProactorCompletion, ProactorCompletionData, ProactorOp, ProactorOpKind, ProactorRequest,
     ProactorShutdown,
 };
-pub use resource::{
-    ResourceBacking, ResourceCapture, ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind,
-    ResourcePortability, ResourceRoute, ResourceTable,
+pub(crate) use resource::{
+    ResourceBacking, ResourceCapture, ResourceEntry, ResourceId, ResourceKind, ResourcePortability,
+    ResourceTable,
 };

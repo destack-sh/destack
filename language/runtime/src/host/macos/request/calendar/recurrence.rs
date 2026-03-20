@@ -11,7 +11,6 @@ use super::core::{
     unix_ns_from_date,
 };
 use crate::diagnostic::RuntimeResult;
-use crate::platform::os::CalendarReminderAnchor;
 use crate::platform::os::abi_generated::{
     CalendarAbsoluteReminderValue, CalendarAvailability, CalendarParticipantStatus,
     CalendarRecurrenceFrequency, CalendarRecurrenceRuleValue, CalendarRecurrenceWeekday,
@@ -99,8 +98,7 @@ pub(super) fn reminder_from_native(alarm: &EKAlarm) -> RuntimeResult<CalendarRem
     Ok(CalendarReminderValue::CalendarRelativeReminder(
         CalendarRelativeReminderValue {
             kind: "relative".to_string(),
-            anchor: CalendarReminderAnchor::Start,
-            offset_seconds,
+            minutes_before_start: (-offset_seconds / 60) as i32,
         },
     ))
 }
@@ -108,7 +106,7 @@ pub(super) fn reminder_from_native(alarm: &EKAlarm) -> RuntimeResult<CalendarRem
 /// Lower one runtime reminder into one native EventKit alarm.
 pub(super) fn reminder_to_native(
     reminder: &CalendarReminderValue,
-    operation: &'static str,
+    _operation: &'static str,
 ) -> RuntimeResult<Retained<EKAlarm>> {
     match reminder {
         CalendarReminderValue::CalendarAbsoluteReminder(value) => {
@@ -117,15 +115,8 @@ pub(super) fn reminder_to_native(
             Ok(unsafe { EKAlarm::alarmWithAbsoluteDate(date.as_ref()) })
         }
         CalendarReminderValue::CalendarRelativeReminder(value) => {
-            // EventKit only exposes start-relative event alarms
-            if value.anchor != CalendarReminderAnchor::Start {
-                return Err(calendar_invalid_argument(
-                    operation,
-                    "macOS calendar only supports reminders relative to the event start",
-                ));
-            }
-
-            let offset_seconds = value.offset_seconds as f64;
+            // EventKit relative alarms stay start-relative in the current runtime shape
+            let offset_seconds = -(value.minutes_before_start as f64) * 60.0;
 
             Ok(unsafe { EKAlarm::alarmWithRelativeOffset(offset_seconds) })
         }

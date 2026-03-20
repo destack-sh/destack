@@ -266,7 +266,6 @@ fn is_lossless_event(event: &HostEvent) -> bool {
         event.kind(),
         HostEventKind::Intent
             | HostEventKind::Background
-            | HostEventKind::Media
             | HostEventKind::Notification
             | HostEventKind::Permission
     )

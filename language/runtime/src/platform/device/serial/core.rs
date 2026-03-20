@@ -2,7 +2,7 @@ use parking_lot::Mutex;
 
 use crate::diagnostic::RuntimeError;
 use crate::platform::device::{
-    SerialDetachedEvent, SerialEvent, SerialInstanceEvent, SerialOverflowEvent,
+    SerialAttachedEvent, SerialDetachedEvent, SerialEvent, SerialOverflowEvent,
     SerialOverflowEventMetadata, SerialPortDescriptor, SerialWatchEvent, SerialWatchEventMetadata,
     SerialWatchOverflowEvent, SerialWatchOverflowEventMetadata,
 };
@@ -87,7 +87,7 @@ pub(super) fn attached_watch_event(
     state: &Mutex<SerialWatchEventState>,
     port: SerialPortDescriptor,
 ) -> SerialWatchEvent {
-    SerialWatchEvent::SerialInstanceEvent(SerialInstanceEvent {
+    SerialWatchEvent::SerialAttachedEvent(SerialAttachedEvent {
         kind: binding.store_string("attached"),
         metadata: next_watch_metadata(state, port),
     })

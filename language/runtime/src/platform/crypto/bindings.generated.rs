@@ -5422,7 +5422,7 @@ pub(crate) const CRYPTO_STORE_PROBE_CAPABILITY: BindingDescriptor = BindingDescr
 pub(crate) const CRYPTO_STORE_PROBE_KINDS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.crypto.store.probeKinds",
-        "export function storeProbeKinds(): Result<Array<CryptoStoreKind>, PlatformError>",
+        "export function storeProbeKinds(): Result<CryptoStoreKind[], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["crypto.probe"],

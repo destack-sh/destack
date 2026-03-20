@@ -5,14 +5,10 @@ use zbus::blocking::{Connection, Proxy};
 use zbus::zvariant::{OwnedObjectPath, OwnedValue, Value};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::app::document::access::{
-    list_document_access_grants, persist_document_access_grants, revoke_document_access_grants,
-};
 use crate::host::app::document::pick::{
     HOST_DOCUMENT_PICK_OPERATION, document_descriptor_value_from_path,
     validate_document_pick_options, validated_document_extensions,
 };
-use crate::host::app::document::storage::import_document_descriptors_to_app_storage;
 use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
 use crate::platform::core::{io_operation_error, pathbuf_from_file_uri};
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -69,23 +65,6 @@ pub(crate) fn submit_document_request(
                 HostRequestResult::DocumentDescriptors(descriptors),
             )))
         }
-        HostRequest::OsDocumentImport { documents } => Ok(Some(HostRequestOutcome::immediate(
-            HostRequestResult::DocumentDescriptors(import_document_descriptors_to_app_storage(
-                context,
-                documents.clone(),
-            )?),
-        ))),
-        HostRequest::OsDocumentAccessPersist { documents, access } => Ok(Some(
-            HostRequestOutcome::immediate(HostRequestResult::DocumentAccessGrants(
-                persist_document_access_grants(context, documents.clone(), *access)?,
-            )),
-        )),
-        HostRequest::OsDocumentAccessList => Ok(Some(HostRequestOutcome::immediate(
-            HostRequestResult::DocumentAccessGrants(list_document_access_grants(context)?),
-        ))),
-        HostRequest::OsDocumentAccessRevoke { ids } => Ok(Some(HostRequestOutcome::immediate(
-            HostRequestResult::U32(revoke_document_access_grants(context, ids)?),
-        ))),
         _ => Ok(None),
     }
 }

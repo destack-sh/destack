@@ -19,10 +19,15 @@ pub trait BindingAbi {
 #[derive(Debug, Clone, Copy)]
 pub struct NativeAbi;
 
+/// Native ABI configuration for platform bindings.
 impl BindingAbi for NativeAbi {
+    /// String representation for native ABI.
     type String = NativeStringRef;
+    /// String slice representation for native ABI.
     type StringSlice = NativeStringSlice;
+    /// Slice representation for native ABI.
     type Slice<T> = NativeSlice<T>;
+    /// Array representation for native ABI.
     type Array<T> = NativeArray<T>;
 }
 
@@ -30,9 +35,14 @@ impl BindingAbi for NativeAbi {
 #[derive(Debug, Clone, Copy)]
 pub struct VmAbi;
 
+/// VM ABI configuration for platform bindings.
 impl BindingAbi for VmAbi {
+    /// String representation for VM ABI.
     type String = vm::StringHandle;
+    /// String slice representation for VM ABI.
     type StringSlice = VmSlice<vm::StringHandle>;
+    /// Slice representation for VM ABI.
     type Slice<T> = VmSlice<T>;
+    /// Array representation for VM ABI.
     type Array<T> = VmArray<T>;
 }

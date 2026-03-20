@@ -7,10 +7,11 @@ use destack_workspace::Platform;
 fn test_request_requirements_leave_document_pick_declaration_free() {
     let request = HostRequest::OsDocumentPick {
         options: crate::platform::os::abi_generated::DocumentPickOptionsValue {
-            content_types: Vec::new(),
+            mime_types: Vec::new(),
             extensions: Vec::new(),
             multiple: false,
             allow_directories: false,
+            copy_to_sandbox: false,
         },
     };
 

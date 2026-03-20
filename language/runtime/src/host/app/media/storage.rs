@@ -39,7 +39,7 @@ pub(super) fn import_media_asset(
     }
 
     let roots = desktop_media_roots(platform)?;
-    let target_root = import_root_for_kind(&roots, kind);
+    let target_root = import_root_for_kind(&roots, kind)?;
 
     // create the target library root before copying one file into it
     stdfs::create_dir_all(&target_root).map_err(|error| {

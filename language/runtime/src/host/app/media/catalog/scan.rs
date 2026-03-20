@@ -9,10 +9,12 @@ use crate::host::Platform;
 use crate::platform::PlatformError;
 use crate::platform::core::io_operation_error;
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::os::abi_generated::{MediaAssetKind, MediaAssetSummaryValue, MediaQueryValue};
+use crate::platform::os::abi_generated::{
+    MediaAssetDescriptorValue, MediaAssetKind, MediaQueryValue,
+};
 
 use super::super::roots::DesktopMediaRoots;
-use super::asset::{HOST_MEDIA_LIST_OPERATION, media_summary_from_path};
+use super::asset::{HOST_MEDIA_LIST_OPERATION, media_descriptor_from_path};
 
 /// Return the scan roots relevant to one media query.
 pub(in crate::host::app::media) fn scan_roots_for_query(
@@ -35,6 +37,7 @@ pub(in crate::host::app::media) fn scan_roots_for_query(
             MediaAssetKind::Image => values.push(roots.pictures.clone()),
             MediaAssetKind::Video => values.push(roots.videos.clone()),
             MediaAssetKind::Audio => values.push(roots.music.clone()),
+            MediaAssetKind::Other => {}
         }
     }
 
@@ -69,7 +72,7 @@ pub(in crate::host::app::media) fn collect_media_assets(
     root: &Path,
     query: &MediaQueryValue,
     seen: &mut FxHashSet<String>,
-    assets: &mut Vec<MediaAssetSummaryValue>,
+    assets: &mut Vec<MediaAssetDescriptorValue>,
 ) -> RuntimeResult<()> {
     if !root.exists() {
         return Ok(());
@@ -138,7 +141,7 @@ pub(in crate::host::app::media) fn collect_media_assets(
                 continue;
             }
 
-            let summary = match media_summary_from_path(
+            let descriptor = match media_descriptor_from_path(
                 platform,
                 &path,
                 &metadata,
@@ -146,12 +149,12 @@ pub(in crate::host::app::media) fn collect_media_assets(
                 HOST_MEDIA_LIST_OPERATION,
                 None,
             )? {
-                Some(summary) => summary,
+                Some(descriptor) => descriptor,
                 None => continue,
             };
 
-            if seen.insert(summary.id.clone()) {
-                assets.push(summary);
+            if seen.insert(descriptor.id.clone()) {
+                assets.push(descriptor);
             }
         }
     }

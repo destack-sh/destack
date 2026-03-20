@@ -5,14 +5,12 @@ use crate::host::ios::{
     IosApplicationLifecycle, ios_notify_application_lifecycle, ios_notify_background_event,
     ios_notify_intent_custom_action, ios_notify_intent_open_file, ios_notify_intent_open_url,
     ios_notify_intent_share_files, ios_notify_intent_share_text, ios_notify_interruption_changed,
-    ios_notify_location_sample, ios_notify_media_event, ios_notify_memory_pressure_changed,
-    ios_notify_notification_event, ios_notify_permission_result, ios_notify_power_mode_changed,
-    ios_notify_thermal_state_changed, ios_notify_wake, ios_notify_wall_clock_changed,
+    ios_notify_location_sample, ios_notify_memory_pressure_changed, ios_notify_notification_event,
+    ios_notify_permission_result, ios_notify_power_mode_changed, ios_notify_thermal_state_changed,
+    ios_notify_wake, ios_notify_wall_clock_changed,
 };
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
-use crate::platform::os::{
-    BackgroundEventValue, LocationSampleValue, MediaEventValue, NotificationEventValue,
-};
+use crate::platform::os::{BackgroundEventValue, LocationSampleValue, NotificationEventValue};
 use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
 
 /// iOS lifecycle code for `applicationDidFinishLaunching`.
@@ -255,20 +253,6 @@ pub(crate) unsafe extern "C" fn destack_host_ios_notify_location_sample(
 }
 
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn destack_host_ios_notify_media_event(
-    runtime_id: u64,
-    watch_id: NativeStringRef,
-    payload: NativeSlice<u8>,
-) -> RuntimeStatus {
-    let result = decode_string(watch_id, "watch_id").and_then(|watch_id| {
-        decode_media_event_payload(payload, "destack.host.ios.notifyMediaEvent")
-            .and_then(|event| ios_notify_media_event(runtime_id, &watch_id, event))
-    });
-
-    runtime_status(result)
-}
-
-#[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn destack_host_ios_notify_memory_pressure_changed(
     runtime_id: u64,
     level_code: u32,
@@ -439,16 +423,6 @@ fn decode_background_event_payload(
         .map_err(|_| invalid_argument_value("payload", "invalid payload slice"))?;
 
     decode_callback_host_json(payload, operation, "background event")
-}
-
-fn decode_media_event_payload(
-    payload: NativeSlice<u8>,
-    operation: &'static str,
-) -> RuntimeResult<MediaEventValue> {
-    let payload = unsafe { payload.as_slice() }
-        .map_err(|_| invalid_argument_value("payload", "invalid payload slice"))?;
-
-    decode_callback_host_json(payload, operation, "media event")
 }
 
 fn runtime_status(result: RuntimeResult<()>) -> RuntimeStatus {

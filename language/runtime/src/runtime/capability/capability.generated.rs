@@ -19,6 +19,12 @@ pub enum PlatformCapability {
     AudioPlaybackSchedule,
     /// `audio.stream`.
     AudioStream,
+    /// `accessibility.actions`.
+    AccessibilityActions,
+    /// `accessibility.notify`.
+    AccessibilityNotify,
+    /// `accessibility.publish`.
+    AccessibilityPublish,
     /// `crypto.certificate.read`.
     CryptoCertificateRead,
     /// `crypto.certificate.write`.
@@ -181,6 +187,10 @@ pub enum PlatformCapability {
     InputHaptics,
     /// `input.read`.
     InputRead,
+    /// `input.clipboard.read`.
+    InputClipboardRead,
+    /// `input.clipboard.write`.
+    InputClipboardWrite,
     /// `input.text`.
     InputText,
     /// `input.write`.
@@ -235,16 +245,16 @@ pub enum PlatformCapability {
     MemoryMap,
     /// `memory.protect`.
     MemoryProtect,
-    /// `midi.port`.
-    MidiPort,
-    /// `midi.observe`.
-    MidiObserve,
-    /// `midi.read`.
-    MidiRead,
-    /// `midi.virtual`.
-    MidiVirtual,
-    /// `midi.write`.
-    MidiWrite,
+    /// `device.midi.port`.
+    DeviceMidiPort,
+    /// `device.midi.observe`.
+    DeviceMidiObserve,
+    /// `device.midi.read`.
+    DeviceMidiRead,
+    /// `device.midi.virtual`.
+    DeviceMidiVirtual,
+    /// `device.midi.write`.
+    DeviceMidiWrite,
     /// `memory.query`.
     MemoryQuery,
     /// `net.accept`.
@@ -279,10 +289,6 @@ pub enum PlatformCapability {
     OsCalendarRead,
     /// `os.calendar.write`.
     OsCalendarWrite,
-    /// `os.clipboard.read`.
-    OsClipboardRead,
-    /// `os.clipboard.write`.
-    OsClipboardWrite,
     /// `os.contact.read`.
     OsContactRead,
     /// `os.contact.write`.
@@ -461,6 +467,9 @@ impl PlatformCapability {
         Self::AudioPlayback,
         Self::AudioPlaybackSchedule,
         Self::AudioStream,
+        Self::AccessibilityActions,
+        Self::AccessibilityNotify,
+        Self::AccessibilityPublish,
         Self::CryptoCertificateRead,
         Self::CryptoCertificateWrite,
         Self::CryptoCipher,
@@ -542,6 +551,8 @@ impl PlatformCapability {
         Self::InputGrab,
         Self::InputHaptics,
         Self::InputRead,
+        Self::InputClipboardRead,
+        Self::InputClipboardWrite,
         Self::InputText,
         Self::InputWrite,
         Self::IpcEvent,
@@ -569,11 +580,11 @@ impl PlatformCapability {
         Self::MemoryLock,
         Self::MemoryMap,
         Self::MemoryProtect,
-        Self::MidiPort,
-        Self::MidiObserve,
-        Self::MidiRead,
-        Self::MidiVirtual,
-        Self::MidiWrite,
+        Self::DeviceMidiPort,
+        Self::DeviceMidiObserve,
+        Self::DeviceMidiRead,
+        Self::DeviceMidiVirtual,
+        Self::DeviceMidiWrite,
         Self::MemoryQuery,
         Self::NetAccept,
         Self::NetClose,
@@ -591,8 +602,6 @@ impl PlatformCapability {
         Self::OsBackgroundRead,
         Self::OsCalendarRead,
         Self::OsCalendarWrite,
-        Self::OsClipboardRead,
-        Self::OsClipboardWrite,
         Self::OsContactRead,
         Self::OsContactWrite,
         Self::OsCredentialsAuth,
@@ -688,6 +697,9 @@ impl PlatformCapability {
             Self::AudioPlayback => "audio.playback",
             Self::AudioPlaybackSchedule => "audio.playback.schedule",
             Self::AudioStream => "audio.stream",
+            Self::AccessibilityActions => "accessibility.actions",
+            Self::AccessibilityNotify => "accessibility.notify",
+            Self::AccessibilityPublish => "accessibility.publish",
             Self::CryptoCertificateRead => "crypto.certificate.read",
             Self::CryptoCertificateWrite => "crypto.certificate.write",
             Self::CryptoCipher => "crypto.cipher",
@@ -769,6 +781,8 @@ impl PlatformCapability {
             Self::InputGrab => "input.grab",
             Self::InputHaptics => "input.haptics",
             Self::InputRead => "input.read",
+            Self::InputClipboardRead => "input.clipboard.read",
+            Self::InputClipboardWrite => "input.clipboard.write",
             Self::InputText => "input.text",
             Self::InputWrite => "input.write",
             Self::IpcEvent => "ipc.event",
@@ -796,11 +810,11 @@ impl PlatformCapability {
             Self::MemoryLock => "memory.lock",
             Self::MemoryMap => "memory.map",
             Self::MemoryProtect => "memory.protect",
-            Self::MidiPort => "midi.port",
-            Self::MidiObserve => "midi.observe",
-            Self::MidiRead => "midi.read",
-            Self::MidiVirtual => "midi.virtual",
-            Self::MidiWrite => "midi.write",
+            Self::DeviceMidiPort => "device.midi.port",
+            Self::DeviceMidiObserve => "device.midi.observe",
+            Self::DeviceMidiRead => "device.midi.read",
+            Self::DeviceMidiVirtual => "device.midi.virtual",
+            Self::DeviceMidiWrite => "device.midi.write",
             Self::MemoryQuery => "memory.query",
             Self::NetAccept => "net.accept",
             Self::NetClose => "net.close",
@@ -818,8 +832,6 @@ impl PlatformCapability {
             Self::OsBackgroundRead => "os.background.read",
             Self::OsCalendarRead => "os.calendar.read",
             Self::OsCalendarWrite => "os.calendar.write",
-            Self::OsClipboardRead => "os.clipboard.read",
-            Self::OsClipboardWrite => "os.clipboard.write",
             Self::OsContactRead => "os.contact.read",
             Self::OsContactWrite => "os.contact.write",
             Self::OsCredentialsAuth => "os.credentials.auth",
@@ -921,6 +933,9 @@ impl PlatformCapability {
             "audio.playback" => Some(Self::AudioPlayback),
             "audio.playback.schedule" => Some(Self::AudioPlaybackSchedule),
             "audio.stream" => Some(Self::AudioStream),
+            "accessibility.actions" => Some(Self::AccessibilityActions),
+            "accessibility.notify" => Some(Self::AccessibilityNotify),
+            "accessibility.publish" => Some(Self::AccessibilityPublish),
             "crypto.certificate.read" => Some(Self::CryptoCertificateRead),
             "crypto.certificate.write" => Some(Self::CryptoCertificateWrite),
             "crypto.cipher" => Some(Self::CryptoCipher),
@@ -1002,6 +1017,8 @@ impl PlatformCapability {
             "input.grab" => Some(Self::InputGrab),
             "input.haptics" => Some(Self::InputHaptics),
             "input.read" => Some(Self::InputRead),
+            "input.clipboard.read" => Some(Self::InputClipboardRead),
+            "input.clipboard.write" => Some(Self::InputClipboardWrite),
             "input.text" => Some(Self::InputText),
             "input.write" => Some(Self::InputWrite),
             "ipc.event" => Some(Self::IpcEvent),
@@ -1029,11 +1046,11 @@ impl PlatformCapability {
             "memory.lock" => Some(Self::MemoryLock),
             "memory.map" => Some(Self::MemoryMap),
             "memory.protect" => Some(Self::MemoryProtect),
-            "midi.port" => Some(Self::MidiPort),
-            "midi.observe" => Some(Self::MidiObserve),
-            "midi.read" => Some(Self::MidiRead),
-            "midi.virtual" => Some(Self::MidiVirtual),
-            "midi.write" => Some(Self::MidiWrite),
+            "device.midi.port" => Some(Self::DeviceMidiPort),
+            "device.midi.observe" => Some(Self::DeviceMidiObserve),
+            "device.midi.read" => Some(Self::DeviceMidiRead),
+            "device.midi.virtual" => Some(Self::DeviceMidiVirtual),
+            "device.midi.write" => Some(Self::DeviceMidiWrite),
             "memory.query" => Some(Self::MemoryQuery),
             "net.accept" => Some(Self::NetAccept),
             "net.close" => Some(Self::NetClose),
@@ -1051,8 +1068,6 @@ impl PlatformCapability {
             "os.background.read" => Some(Self::OsBackgroundRead),
             "os.calendar.read" => Some(Self::OsCalendarRead),
             "os.calendar.write" => Some(Self::OsCalendarWrite),
-            "os.clipboard.read" => Some(Self::OsClipboardRead),
-            "os.clipboard.write" => Some(Self::OsClipboardWrite),
             "os.contact.read" => Some(Self::OsContactRead),
             "os.contact.write" => Some(Self::OsContactWrite),
             "os.credentials.auth" => Some(Self::OsCredentialsAuth),

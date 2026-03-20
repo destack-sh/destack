@@ -683,143 +683,6 @@ impl VmAbiCodec for CalendarRecurrenceFrequency {
     }
 }
 
-/// ABI enum for CalendarReminderAnchor.
-#[repr(i32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum CalendarReminderAnchor {
-    /// Start.
-    Start = 1,
-    /// End.
-    End = 2,
-}
-
-impl VmValueCodec for CalendarReminderAnchor {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <i32 as VmValueCodec>::decode(value)?;
-        let decoded = match raw {
-            1i32 => Self::Start,
-            2i32 => Self::End,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown CalendarReminderAnchor value",
-                ))
-                .boxed());
-            }
-        };
-        Ok(decoded)
-    }
-
-    fn encode(self) -> vm::Value {
-        <i32 as VmValueCodec>::encode(self as i32)
-    }
-}
-
-impl VmCollectionElement for CalendarReminderAnchor {}
-
-/// Value type for CalendarReminderAnchor.
-pub type CalendarReminderAnchorValue = CalendarReminderAnchor;
-
-impl NativeAbiCodec for CalendarReminderAnchor {
-    type Value = CalendarReminderAnchorValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
-    }
-}
-
-impl VmAbiCodec for CalendarReminderAnchor {
-    type Value = CalendarReminderAnchorValue;
-
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(value)
-    }
-}
-
-/// ABI enum for ClipboardBinaryFormat.
-#[repr(i32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ClipboardBinaryFormat {
-    /// TextUtf8.
-    TextUtf8 = 1,
-    /// Html.
-    Html = 2,
-    /// Binary.
-    Binary = 3,
-}
-
-impl VmValueCodec for ClipboardBinaryFormat {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <i32 as VmValueCodec>::decode(value)?;
-        let decoded = match raw {
-            1i32 => Self::TextUtf8,
-            2i32 => Self::Html,
-            3i32 => Self::Binary,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown ClipboardBinaryFormat value",
-                ))
-                .boxed());
-            }
-        };
-        Ok(decoded)
-    }
-
-    fn encode(self) -> vm::Value {
-        <i32 as VmValueCodec>::encode(self as i32)
-    }
-}
-
-impl VmCollectionElement for ClipboardBinaryFormat {}
-
-/// Value type for ClipboardBinaryFormat.
-pub type ClipboardBinaryFormatValue = ClipboardBinaryFormat;
-
-impl NativeAbiCodec for ClipboardBinaryFormat {
-    type Value = ClipboardBinaryFormatValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
-    }
-}
-
-impl VmAbiCodec for ClipboardBinaryFormat {
-    type Value = ClipboardBinaryFormatValue;
-
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(value)
-    }
-}
-
 /// ABI enum for CredentialAccessibility.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1332,6 +1195,8 @@ pub enum MediaAssetKind {
     Video = 2,
     /// Audio.
     Audio = 3,
+    /// Other.
+    Other = 4,
 }
 
 impl VmValueCodec for MediaAssetKind {
@@ -1341,6 +1206,7 @@ impl VmValueCodec for MediaAssetKind {
             1i32 => Self::Image,
             2i32 => Self::Video,
             3i32 => Self::Audio,
+            4i32 => Self::Other,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -3052,200 +2918,6 @@ impl VmAbiCodec for LifecycleEventAbi<VmAbi> {
     }
 }
 
-/// ABI tagged union for MediaEvent.
-pub enum MediaEventAbi<A: BindingAbi> {
-    /// MediaAddedEvent variant.
-    MediaAddedEvent(platform_os::MediaAddedEventAbi<A>),
-    /// MediaRemovedEvent variant.
-    MediaRemovedEvent(platform_os::MediaRemovedEventAbi<A>),
-    /// MediaUpdatedEvent variant.
-    MediaUpdatedEvent(platform_os::MediaUpdatedEventAbi<A>),
-}
-
-pub type MediaEvent = MediaEventAbi<NativeAbi>;
-pub type MediaEventVm = MediaEventAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for MediaEventAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_tuple("MediaEventAbi").finish()
-    }
-}
-
-impl Copy for MediaEventAbi<NativeAbi> {}
-impl Clone for MediaEventAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for MediaEventAbi<VmAbi> {}
-impl Clone for MediaEventAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for MediaEventAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "MediaEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let decoded = match tag {
-            1094878838u32 => Self::MediaAddedEvent(
-                <MediaAddedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
-            ),
-            2363755472u32 => Self::MediaRemovedEvent(
-                <MediaRemovedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
-            ),
-            3664500974u32 => Self::MediaUpdatedEvent(
-                <MediaUpdatedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
-            ),
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown MediaEvent tag",
-                ))
-                .boxed());
-            }
-        };
-        Ok(decoded)
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = match self {
-            Self::MediaAddedEvent(value) => {
-                let tag_value =
-                    <u32 as VmAggregateCodec>::encode_with_context(1094878838u32, context)?;
-                let payload_value =
-                    <MediaAddedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
-                vec![tag_value, payload_value]
-            }
-            Self::MediaRemovedEvent(value) => {
-                let tag_value =
-                    <u32 as VmAggregateCodec>::encode_with_context(2363755472u32, context)?;
-                let payload_value =
-                    <MediaRemovedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
-                vec![tag_value, payload_value]
-            }
-            Self::MediaUpdatedEvent(value) => {
-                let tag_value =
-                    <u32 as VmAggregateCodec>::encode_with_context(3664500974u32, context)?;
-                let payload_value =
-                    <MediaUpdatedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
-                vec![tag_value, payload_value]
-            }
-        };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-impl VmCollectionElement for MediaEventAbi<VmAbi> {}
-
-/// Value type for MediaEvent.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum MediaEventValue {
-    /// MediaAddedEvent variant.
-    MediaAddedEvent(MediaAddedEventValue),
-    /// MediaRemovedEvent variant.
-    MediaRemovedEvent(MediaRemovedEventValue),
-    /// MediaUpdatedEvent variant.
-    MediaUpdatedEvent(MediaUpdatedEventValue),
-}
-
-impl NativeAbiCodec for MediaEventAbi<NativeAbi> {
-    type Value = MediaEventValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        let owned = match self {
-            Self::MediaAddedEvent(value) => MediaEventValue::MediaAddedEvent(unsafe {
-                <MediaAddedEvent as NativeAbiCodec>::into_value(value)?
-            }),
-            Self::MediaRemovedEvent(value) => MediaEventValue::MediaRemovedEvent(unsafe {
-                <MediaRemovedEvent as NativeAbiCodec>::into_value(value)?
-            }),
-            Self::MediaUpdatedEvent(value) => MediaEventValue::MediaUpdatedEvent(unsafe {
-                <MediaUpdatedEvent as NativeAbiCodec>::into_value(value)?
-            }),
-        };
-        Ok(owned)
-    }
-
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        match value {
-            MediaEventValue::MediaAddedEvent(value) => Self::MediaAddedEvent(
-                <MediaAddedEvent as NativeAbiCodec>::from_value(binding, value),
-            ),
-            MediaEventValue::MediaRemovedEvent(value) => Self::MediaRemovedEvent(
-                <MediaRemovedEvent as NativeAbiCodec>::from_value(binding, value),
-            ),
-            MediaEventValue::MediaUpdatedEvent(value) => Self::MediaUpdatedEvent(
-                <MediaUpdatedEvent as NativeAbiCodec>::from_value(binding, value),
-            ),
-        }
-    }
-}
-
-impl VmAbiCodec for MediaEventAbi<VmAbi> {
-    type Value = MediaEventValue;
-
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        let owned = match self {
-            Self::MediaAddedEvent(value) => MediaEventValue::MediaAddedEvent(
-                <MediaAddedEventVm as VmAbiCodec>::into_value(value, context)?,
-            ),
-            Self::MediaRemovedEvent(value) => MediaEventValue::MediaRemovedEvent(
-                <MediaRemovedEventVm as VmAbiCodec>::into_value(value, context)?,
-            ),
-            Self::MediaUpdatedEvent(value) => MediaEventValue::MediaUpdatedEvent(
-                <MediaUpdatedEventVm as VmAbiCodec>::into_value(value, context)?,
-            ),
-        };
-        Ok(owned)
-    }
-
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        match value {
-            MediaEventValue::MediaAddedEvent(value) => Ok(Self::MediaAddedEvent(
-                <MediaAddedEventVm as VmAbiCodec>::from_value(context, value)?,
-            )),
-            MediaEventValue::MediaRemovedEvent(value) => Ok(Self::MediaRemovedEvent(
-                <MediaRemovedEventVm as VmAbiCodec>::from_value(context, value)?,
-            )),
-            MediaEventValue::MediaUpdatedEvent(value) => Ok(Self::MediaUpdatedEvent(
-                <MediaUpdatedEventVm as VmAbiCodec>::from_value(context, value)?,
-            )),
-        }
-    }
-}
-
 /// ABI tagged union for NotificationEvent.
 pub enum NotificationEventAbi<A: BindingAbi> {
     /// NotificationDeliveredEvent variant.
@@ -4156,6 +3828,18 @@ pub struct BackgroundTaskDescriptorAbi<A: BindingAbi> {
     pub trigger: BackgroundTriggerKind,
     /// Effective minimum repeat interval in nanoseconds.
     pub minimum_interval_ns: u64,
+    /// Earliest target execution timestamp in UTC nanoseconds.
+    pub earliest_begin_unix_ns: u64,
+    /// Whether one network route is required.
+    pub requires_network: bool,
+    /// Whether one unmetered network route is required.
+    pub requires_unmetered_network: bool,
+    /// Whether charging power is required.
+    pub requires_charging: bool,
+    /// Whether idle mode is required.
+    pub requires_idle: bool,
+    /// Whether this registration persists across host restart.
+    pub persisted: bool,
 }
 
 pub type BackgroundTaskDescriptor = BackgroundTaskDescriptorAbi<NativeAbi>;
@@ -4197,10 +3881,10 @@ impl VmAggregateCodec for BackgroundTaskDescriptorAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 9 fields",
             ))
             .boxed());
         }
@@ -4210,10 +3894,27 @@ impl VmAggregateCodec for BackgroundTaskDescriptorAbi<VmAbi> {
             <BackgroundTriggerKind as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_minimum_interval_ns =
             <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_earliest_begin_unix_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_requires_network =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_requires_unmetered_network =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_requires_charging =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_requires_idle =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_persisted = <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         Ok(Self {
             identifier: field_identifier,
             trigger: field_trigger,
             minimum_interval_ns: field_minimum_interval_ns,
+            earliest_begin_unix_ns: field_earliest_begin_unix_ns,
+            requires_network: field_requires_network,
+            requires_unmetered_network: field_requires_unmetered_network,
+            requires_charging: field_requires_charging,
+            requires_idle: field_requires_idle,
+            persisted: field_persisted,
         })
     }
 
@@ -4228,6 +3929,15 @@ impl VmAggregateCodec for BackgroundTaskDescriptorAbi<VmAbi> {
                 context,
             )?,
             <u64 as VmAggregateCodec>::encode_with_context(self.minimum_interval_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.earliest_begin_unix_ns, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.requires_network, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.requires_unmetered_network,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.requires_charging, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.requires_idle, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.persisted, context)?,
         ];
         context
             .allocate_aggregate(slots)
@@ -4246,6 +3956,18 @@ pub struct BackgroundTaskDescriptorValue {
     pub trigger: BackgroundTriggerKind,
     /// Effective minimum repeat interval in nanoseconds.
     pub minimum_interval_ns: u64,
+    /// Earliest target execution timestamp in UTC nanoseconds.
+    pub earliest_begin_unix_ns: u64,
+    /// Whether one network route is required.
+    pub requires_network: bool,
+    /// Whether one unmetered network route is required.
+    pub requires_unmetered_network: bool,
+    /// Whether charging power is required.
+    pub requires_charging: bool,
+    /// Whether idle mode is required.
+    pub requires_idle: bool,
+    /// Whether this registration persists across host restart.
+    pub persisted: bool,
 }
 
 impl NativeAbiCodec for BackgroundTaskDescriptorAbi<NativeAbi> {
@@ -4262,6 +3984,20 @@ impl NativeAbiCodec for BackgroundTaskDescriptorAbi<NativeAbi> {
             minimum_interval_ns: unsafe {
                 <u64 as NativeAbiCodec>::into_value(self.minimum_interval_ns)?
             },
+            earliest_begin_unix_ns: unsafe {
+                <u64 as NativeAbiCodec>::into_value(self.earliest_begin_unix_ns)?
+            },
+            requires_network: unsafe {
+                <bool as NativeAbiCodec>::into_value(self.requires_network)?
+            },
+            requires_unmetered_network: unsafe {
+                <bool as NativeAbiCodec>::into_value(self.requires_unmetered_network)?
+            },
+            requires_charging: unsafe {
+                <bool as NativeAbiCodec>::into_value(self.requires_charging)?
+            },
+            requires_idle: unsafe { <bool as NativeAbiCodec>::into_value(self.requires_idle)? },
+            persisted: unsafe { <bool as NativeAbiCodec>::into_value(self.persisted)? },
         })
     }
 
@@ -4273,6 +4009,21 @@ impl NativeAbiCodec for BackgroundTaskDescriptorAbi<NativeAbi> {
                 binding,
                 value.minimum_interval_ns,
             ),
+            earliest_begin_unix_ns: <u64 as NativeAbiCodec>::from_value(
+                binding,
+                value.earliest_begin_unix_ns,
+            ),
+            requires_network: <bool as NativeAbiCodec>::from_value(binding, value.requires_network),
+            requires_unmetered_network: <bool as NativeAbiCodec>::from_value(
+                binding,
+                value.requires_unmetered_network,
+            ),
+            requires_charging: <bool as NativeAbiCodec>::from_value(
+                binding,
+                value.requires_charging,
+            ),
+            requires_idle: <bool as NativeAbiCodec>::from_value(binding, value.requires_idle),
+            persisted: <bool as NativeAbiCodec>::from_value(binding, value.persisted),
         }
     }
 }
@@ -4291,6 +4042,18 @@ impl VmAbiCodec for BackgroundTaskDescriptorAbi<VmAbi> {
                 self.minimum_interval_ns,
                 context,
             )?,
+            earliest_begin_unix_ns: <u64 as VmAbiCodec>::into_value(
+                self.earliest_begin_unix_ns,
+                context,
+            )?,
+            requires_network: <bool as VmAbiCodec>::into_value(self.requires_network, context)?,
+            requires_unmetered_network: <bool as VmAbiCodec>::into_value(
+                self.requires_unmetered_network,
+                context,
+            )?,
+            requires_charging: <bool as VmAbiCodec>::into_value(self.requires_charging, context)?,
+            requires_idle: <bool as VmAbiCodec>::into_value(self.requires_idle, context)?,
+            persisted: <bool as VmAbiCodec>::into_value(self.persisted, context)?,
         })
     }
 
@@ -4305,6 +4068,18 @@ impl VmAbiCodec for BackgroundTaskDescriptorAbi<VmAbi> {
                 context,
                 value.minimum_interval_ns,
             )?,
+            earliest_begin_unix_ns: <u64 as VmAbiCodec>::from_value(
+                context,
+                value.earliest_begin_unix_ns,
+            )?,
+            requires_network: <bool as VmAbiCodec>::from_value(context, value.requires_network)?,
+            requires_unmetered_network: <bool as VmAbiCodec>::from_value(
+                context,
+                value.requires_unmetered_network,
+            )?,
+            requires_charging: <bool as VmAbiCodec>::from_value(context, value.requires_charging)?,
+            requires_idle: <bool as VmAbiCodec>::from_value(context, value.requires_idle)?,
+            persisted: <bool as VmAbiCodec>::from_value(context, value.persisted)?,
         })
     }
 }
@@ -4465,6 +4240,18 @@ pub struct BackgroundTaskOptionsAbi<A: BindingAbi> {
     pub trigger: BackgroundTriggerKind,
     /// Requested minimum repeat interval in nanoseconds.
     pub minimum_interval_ns: u64,
+    /// Earliest target execution timestamp in UTC nanoseconds.
+    pub earliest_begin_unix_ns: u64,
+    /// Whether one network route is required.
+    pub requires_network: bool,
+    /// Whether one unmetered network route is required.
+    pub requires_unmetered_network: bool,
+    /// Whether charging power is required.
+    pub requires_charging: bool,
+    /// Whether idle mode is required.
+    pub requires_idle: bool,
+    /// Whether this registration should persist across host restart.
+    pub persisted: bool,
 }
 
 pub type BackgroundTaskOptions = BackgroundTaskOptionsAbi<NativeAbi>;
@@ -4506,10 +4293,10 @@ impl VmAggregateCodec for BackgroundTaskOptionsAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 9 fields",
             ))
             .boxed());
         }
@@ -4519,10 +4306,27 @@ impl VmAggregateCodec for BackgroundTaskOptionsAbi<VmAbi> {
             <BackgroundTriggerKind as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_minimum_interval_ns =
             <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_earliest_begin_unix_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_requires_network =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_requires_unmetered_network =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_requires_charging =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_requires_idle =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_persisted = <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         Ok(Self {
             identifier: field_identifier,
             trigger: field_trigger,
             minimum_interval_ns: field_minimum_interval_ns,
+            earliest_begin_unix_ns: field_earliest_begin_unix_ns,
+            requires_network: field_requires_network,
+            requires_unmetered_network: field_requires_unmetered_network,
+            requires_charging: field_requires_charging,
+            requires_idle: field_requires_idle,
+            persisted: field_persisted,
         })
     }
 
@@ -4537,6 +4341,15 @@ impl VmAggregateCodec for BackgroundTaskOptionsAbi<VmAbi> {
                 context,
             )?,
             <u64 as VmAggregateCodec>::encode_with_context(self.minimum_interval_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.earliest_begin_unix_ns, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.requires_network, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.requires_unmetered_network,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.requires_charging, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.requires_idle, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.persisted, context)?,
         ];
         context
             .allocate_aggregate(slots)
@@ -4555,6 +4368,18 @@ pub struct BackgroundTaskOptionsValue {
     pub trigger: BackgroundTriggerKind,
     /// Requested minimum repeat interval in nanoseconds.
     pub minimum_interval_ns: u64,
+    /// Earliest target execution timestamp in UTC nanoseconds.
+    pub earliest_begin_unix_ns: u64,
+    /// Whether one network route is required.
+    pub requires_network: bool,
+    /// Whether one unmetered network route is required.
+    pub requires_unmetered_network: bool,
+    /// Whether charging power is required.
+    pub requires_charging: bool,
+    /// Whether idle mode is required.
+    pub requires_idle: bool,
+    /// Whether this registration should persist across host restart.
+    pub persisted: bool,
 }
 
 impl NativeAbiCodec for BackgroundTaskOptionsAbi<NativeAbi> {
@@ -4571,6 +4396,20 @@ impl NativeAbiCodec for BackgroundTaskOptionsAbi<NativeAbi> {
             minimum_interval_ns: unsafe {
                 <u64 as NativeAbiCodec>::into_value(self.minimum_interval_ns)?
             },
+            earliest_begin_unix_ns: unsafe {
+                <u64 as NativeAbiCodec>::into_value(self.earliest_begin_unix_ns)?
+            },
+            requires_network: unsafe {
+                <bool as NativeAbiCodec>::into_value(self.requires_network)?
+            },
+            requires_unmetered_network: unsafe {
+                <bool as NativeAbiCodec>::into_value(self.requires_unmetered_network)?
+            },
+            requires_charging: unsafe {
+                <bool as NativeAbiCodec>::into_value(self.requires_charging)?
+            },
+            requires_idle: unsafe { <bool as NativeAbiCodec>::into_value(self.requires_idle)? },
+            persisted: unsafe { <bool as NativeAbiCodec>::into_value(self.persisted)? },
         })
     }
 
@@ -4582,6 +4421,21 @@ impl NativeAbiCodec for BackgroundTaskOptionsAbi<NativeAbi> {
                 binding,
                 value.minimum_interval_ns,
             ),
+            earliest_begin_unix_ns: <u64 as NativeAbiCodec>::from_value(
+                binding,
+                value.earliest_begin_unix_ns,
+            ),
+            requires_network: <bool as NativeAbiCodec>::from_value(binding, value.requires_network),
+            requires_unmetered_network: <bool as NativeAbiCodec>::from_value(
+                binding,
+                value.requires_unmetered_network,
+            ),
+            requires_charging: <bool as NativeAbiCodec>::from_value(
+                binding,
+                value.requires_charging,
+            ),
+            requires_idle: <bool as NativeAbiCodec>::from_value(binding, value.requires_idle),
+            persisted: <bool as NativeAbiCodec>::from_value(binding, value.persisted),
         }
     }
 }
@@ -4600,6 +4454,18 @@ impl VmAbiCodec for BackgroundTaskOptionsAbi<VmAbi> {
                 self.minimum_interval_ns,
                 context,
             )?,
+            earliest_begin_unix_ns: <u64 as VmAbiCodec>::into_value(
+                self.earliest_begin_unix_ns,
+                context,
+            )?,
+            requires_network: <bool as VmAbiCodec>::into_value(self.requires_network, context)?,
+            requires_unmetered_network: <bool as VmAbiCodec>::into_value(
+                self.requires_unmetered_network,
+                context,
+            )?,
+            requires_charging: <bool as VmAbiCodec>::into_value(self.requires_charging, context)?,
+            requires_idle: <bool as VmAbiCodec>::into_value(self.requires_idle, context)?,
+            persisted: <bool as VmAbiCodec>::into_value(self.persisted, context)?,
         })
     }
 
@@ -4614,6 +4480,18 @@ impl VmAbiCodec for BackgroundTaskOptionsAbi<VmAbi> {
                 context,
                 value.minimum_interval_ns,
             )?,
+            earliest_begin_unix_ns: <u64 as VmAbiCodec>::from_value(
+                context,
+                value.earliest_begin_unix_ns,
+            )?,
+            requires_network: <bool as VmAbiCodec>::from_value(context, value.requires_network)?,
+            requires_unmetered_network: <bool as VmAbiCodec>::from_value(
+                context,
+                value.requires_unmetered_network,
+            )?,
+            requires_charging: <bool as VmAbiCodec>::from_value(context, value.requires_charging)?,
+            requires_idle: <bool as VmAbiCodec>::from_value(context, value.requires_idle)?,
+            persisted: <bool as VmAbiCodec>::from_value(context, value.persisted)?,
         })
     }
 }
@@ -6799,10 +6677,8 @@ impl VmCollectionElement for CalendarRecurrenceWeekday {}
 pub struct CalendarRelativeReminderAbi<A: BindingAbi> {
     /// Discriminator for this calendar reminder variant.
     pub kind: A::String,
-    /// Reminder anchor for one relative reminder.
-    pub anchor: CalendarReminderAnchor,
-    /// Signed offset in seconds relative to the selected anchor.
-    pub offset_seconds: i64,
+    /// Minutes before start time for one relative reminder.
+    pub minutes_before_start: i32,
 }
 
 pub type CalendarRelativeReminder = CalendarRelativeReminderAbi<NativeAbi>;
@@ -6844,23 +6720,20 @@ impl VmAggregateCodec for CalendarRelativeReminderAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
         let field_kind =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_anchor =
-            <CalendarReminderAnchor as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_offset_seconds =
-            <i64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_minutes_before_start =
+            <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             kind: field_kind,
-            anchor: field_anchor,
-            offset_seconds: field_offset_seconds,
+            minutes_before_start: field_minutes_before_start,
         })
     }
 
@@ -6870,11 +6743,7 @@ impl VmAggregateCodec for CalendarRelativeReminderAbi<VmAbi> {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <CalendarReminderAnchor as VmAggregateCodec>::encode_with_context(
-                self.anchor,
-                context,
-            )?,
-            <i64 as VmAggregateCodec>::encode_with_context(self.offset_seconds, context)?,
+            <i32 as VmAggregateCodec>::encode_with_context(self.minutes_before_start, context)?,
         ];
         context
             .allocate_aggregate(slots)
@@ -6889,10 +6758,8 @@ impl VmCollectionElement for CalendarRelativeReminderAbi<VmAbi> {}
 pub struct CalendarRelativeReminderValue {
     /// Discriminator for this calendar reminder variant.
     pub kind: String,
-    /// Reminder anchor for one relative reminder.
-    pub anchor: CalendarReminderAnchor,
-    /// Signed offset in seconds relative to the selected anchor.
-    pub offset_seconds: i64,
+    /// Minutes before start time for one relative reminder.
+    pub minutes_before_start: i32,
 }
 
 impl NativeAbiCodec for CalendarRelativeReminderAbi<NativeAbi> {
@@ -6901,16 +6768,19 @@ impl NativeAbiCodec for CalendarRelativeReminderAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(CalendarRelativeReminderValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            anchor: unsafe { <CalendarReminderAnchor as NativeAbiCodec>::into_value(self.anchor)? },
-            offset_seconds: unsafe { <i64 as NativeAbiCodec>::into_value(self.offset_seconds)? },
+            minutes_before_start: unsafe {
+                <i32 as NativeAbiCodec>::into_value(self.minutes_before_start)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            anchor: <CalendarReminderAnchor as NativeAbiCodec>::from_value(binding, value.anchor),
-            offset_seconds: <i64 as NativeAbiCodec>::from_value(binding, value.offset_seconds),
+            minutes_before_start: <i32 as NativeAbiCodec>::from_value(
+                binding,
+                value.minutes_before_start,
+            ),
         }
     }
 }
@@ -6924,8 +6794,10 @@ impl VmAbiCodec for CalendarRelativeReminderAbi<VmAbi> {
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CalendarRelativeReminderValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
-            anchor: <CalendarReminderAnchor as VmAbiCodec>::into_value(self.anchor, context)?,
-            offset_seconds: <i64 as VmAbiCodec>::into_value(self.offset_seconds, context)?,
+            minutes_before_start: <i32 as VmAbiCodec>::into_value(
+                self.minutes_before_start,
+                context,
+            )?,
         })
     }
 
@@ -6935,8 +6807,10 @@ impl VmAbiCodec for CalendarRelativeReminderAbi<VmAbi> {
     ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            anchor: <CalendarReminderAnchor as VmAbiCodec>::from_value(context, value.anchor)?,
-            offset_seconds: <i64 as VmAbiCodec>::from_value(context, value.offset_seconds)?,
+            minutes_before_start: <i32 as VmAbiCodec>::from_value(
+                context,
+                value.minutes_before_start,
+            )?,
         })
     }
 }
@@ -9534,170 +9408,6 @@ impl VmAbiCodec for CredentialWriteOptionsAbi<VmAbi> {
     }
 }
 
-/// ABI struct for DocumentAccessGrant.
-#[repr(C)]
-pub struct DocumentAccessGrantAbi<A: BindingAbi> {
-    /// Stable persisted grant identifier.
-    pub id: A::String,
-    /// Granted document descriptor.
-    pub document: platform_os::DocumentDescriptorAbi<A>,
-    /// Granted access mode.
-    pub access: DocumentAccess,
-    /// Grant persistence timestamp in UTC nanoseconds.
-    pub persisted_unix_ns: u64,
-}
-
-pub type DocumentAccessGrant = DocumentAccessGrantAbi<NativeAbi>;
-pub type DocumentAccessGrantVm = DocumentAccessGrantAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for DocumentAccessGrantAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("DocumentAccessGrantAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for DocumentAccessGrantAbi<NativeAbi> {}
-impl Clone for DocumentAccessGrantAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for DocumentAccessGrantAbi<VmAbi> {}
-impl Clone for DocumentAccessGrantAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for DocumentAccessGrantAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "DocumentAccessGrant",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 4 fields",
-            ))
-            .boxed());
-        }
-        let field_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_document =
-            <DocumentDescriptorVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_access =
-            <DocumentAccess as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_persisted_unix_ns =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        Ok(Self {
-            id: field_id,
-            document: field_document,
-            access: field_access,
-            persisted_unix_ns: field_persisted_unix_ns,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
-            <DocumentDescriptorVm as VmAggregateCodec>::encode_with_context(
-                self.document,
-                context,
-            )?,
-            <DocumentAccess as VmAggregateCodec>::encode_with_context(self.access, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.persisted_unix_ns, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-impl VmCollectionElement for DocumentAccessGrantAbi<VmAbi> {}
-
-/// Value type for DocumentAccessGrant.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct DocumentAccessGrantValue {
-    /// Stable persisted grant identifier.
-    pub id: String,
-    /// Granted document descriptor.
-    pub document: DocumentDescriptorValue,
-    /// Granted access mode.
-    pub access: DocumentAccess,
-    /// Grant persistence timestamp in UTC nanoseconds.
-    pub persisted_unix_ns: u64,
-}
-
-impl NativeAbiCodec for DocumentAccessGrantAbi<NativeAbi> {
-    type Value = DocumentAccessGrantValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(DocumentAccessGrantValue {
-            id: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.id)? },
-            document: unsafe { <DocumentDescriptor as NativeAbiCodec>::into_value(self.document)? },
-            access: unsafe { <DocumentAccess as NativeAbiCodec>::into_value(self.access)? },
-            persisted_unix_ns: unsafe {
-                <u64 as NativeAbiCodec>::into_value(self.persisted_unix_ns)?
-            },
-        })
-    }
-
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self {
-            id: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.id),
-            document: <DocumentDescriptor as NativeAbiCodec>::from_value(binding, value.document),
-            access: <DocumentAccess as NativeAbiCodec>::from_value(binding, value.access),
-            persisted_unix_ns: <u64 as NativeAbiCodec>::from_value(
-                binding,
-                value.persisted_unix_ns,
-            ),
-        }
-    }
-}
-
-impl VmAbiCodec for DocumentAccessGrantAbi<VmAbi> {
-    type Value = DocumentAccessGrantValue;
-
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(DocumentAccessGrantValue {
-            id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
-            document: <DocumentDescriptorVm as VmAbiCodec>::into_value(self.document, context)?,
-            access: <DocumentAccess as VmAbiCodec>::into_value(self.access, context)?,
-            persisted_unix_ns: <u64 as VmAbiCodec>::into_value(self.persisted_unix_ns, context)?,
-        })
-    }
-
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self {
-            id: <vm::StringHandle as VmAbiCodec>::from_value(context, value.id)?,
-            document: <DocumentDescriptorVm as VmAbiCodec>::from_value(context, value.document)?,
-            access: <DocumentAccess as VmAbiCodec>::from_value(context, value.access)?,
-            persisted_unix_ns: <u64 as VmAbiCodec>::from_value(context, value.persisted_unix_ns)?,
-        })
-    }
-}
-
 /// ABI struct for DocumentDescriptor.
 #[repr(C)]
 pub struct DocumentDescriptorAbi<A: BindingAbi> {
@@ -9706,15 +9416,15 @@ pub struct DocumentDescriptorAbi<A: BindingAbi> {
     pub uri: A::String,
     /// Host-visible document name.
     pub name: A::String,
-    /// Normalized content type when the host reports it.
-    pub content_type: Option<A::String>,
+    /// Document MIME type payload when available.
+    pub mime_type: Option<A::String>,
     /// Document size in bytes when available.
     pub size_bytes: Option<u64>,
     /// Document modification timestamp in UTC nanoseconds when available.
     pub modified_unix_ns: Option<u64>,
     /// Whether this descriptor represents one directory.
     pub is_directory: bool,
-    /// Runtime-visible local path when the host grants direct local access or one app-storage import exists.
+    /// Runtime-visible local path when the host grants direct local access or one sandbox copy exists.
     pub local_path: Option<platform_fs::OsPathAbi<A>>,
 }
 
@@ -9768,7 +9478,7 @@ impl VmAggregateCodec for DocumentDescriptorAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_name =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_content_type =
+        let field_mime_type =
             <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_size_bytes =
             <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
@@ -9781,7 +9491,7 @@ impl VmAggregateCodec for DocumentDescriptorAbi<VmAbi> {
         Ok(Self {
             uri: field_uri,
             name: field_name,
-            content_type: field_content_type,
+            mime_type: field_mime_type,
             size_bytes: field_size_bytes,
             modified_unix_ns: field_modified_unix_ns,
             is_directory: field_is_directory,
@@ -9797,7 +9507,7 @@ impl VmAggregateCodec for DocumentDescriptorAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.uri, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
             <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.content_type,
+                self.mime_type,
                 context,
             )?,
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.size_bytes, context)?,
@@ -9824,15 +9534,15 @@ pub struct DocumentDescriptorValue {
     pub uri: String,
     /// Host-visible document name.
     pub name: String,
-    /// Normalized content type when the host reports it.
-    pub content_type: Option<String>,
+    /// Document MIME type payload when available.
+    pub mime_type: Option<String>,
     /// Document size in bytes when available.
     pub size_bytes: Option<u64>,
     /// Document modification timestamp in UTC nanoseconds when available.
     pub modified_unix_ns: Option<u64>,
     /// Whether this descriptor represents one directory.
     pub is_directory: bool,
-    /// Runtime-visible local path when the host grants direct local access or one app-storage import exists.
+    /// Runtime-visible local path when the host grants direct local access or one sandbox copy exists.
     pub local_path: Option<platform_fs::abi_generated::OsPathValue>,
 }
 
@@ -9843,8 +9553,8 @@ impl NativeAbiCodec for DocumentDescriptorAbi<NativeAbi> {
         Ok(DocumentDescriptorValue {
             uri: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.uri)? },
             name: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.name)? },
-            content_type: unsafe {
-                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.content_type)?
+            mime_type: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.mime_type)?
             },
             size_bytes: unsafe { <Option<u64> as NativeAbiCodec>::into_value(self.size_bytes)? },
             modified_unix_ns: unsafe {
@@ -9861,9 +9571,9 @@ impl NativeAbiCodec for DocumentDescriptorAbi<NativeAbi> {
         Self {
             uri: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.uri),
             name: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.name),
-            content_type: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+            mime_type: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
                 binding,
-                value.content_type,
+                value.mime_type,
             ),
             size_bytes: <Option<u64> as NativeAbiCodec>::from_value(binding, value.size_bytes),
             modified_unix_ns: <Option<u64> as NativeAbiCodec>::from_value(
@@ -9889,8 +9599,8 @@ impl VmAbiCodec for DocumentDescriptorAbi<VmAbi> {
         Ok(DocumentDescriptorValue {
             uri: <vm::StringHandle as VmAbiCodec>::into_value(self.uri, context)?,
             name: <vm::StringHandle as VmAbiCodec>::into_value(self.name, context)?,
-            content_type: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
-                self.content_type,
+            mime_type: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.mime_type,
                 context,
             )?,
             size_bytes: <Option<u64> as VmAbiCodec>::into_value(self.size_bytes, context)?,
@@ -9910,9 +9620,9 @@ impl VmAbiCodec for DocumentDescriptorAbi<VmAbi> {
         Ok(Self {
             uri: <vm::StringHandle as VmAbiCodec>::from_value(context, value.uri)?,
             name: <vm::StringHandle as VmAbiCodec>::from_value(context, value.name)?,
-            content_type: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+            mime_type: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
                 context,
-                value.content_type,
+                value.mime_type,
             )?,
             size_bytes: <Option<u64> as VmAbiCodec>::from_value(context, value.size_bytes)?,
             modified_unix_ns: <Option<u64> as VmAbiCodec>::from_value(
@@ -9931,14 +9641,16 @@ impl VmAbiCodec for DocumentDescriptorAbi<VmAbi> {
 /// ABI struct for DocumentPickOptions.
 #[repr(C)]
 pub struct DocumentPickOptionsAbi<A: BindingAbi> {
-    /// Content-type filters, empty means any type.
-    pub content_types: A::Array<A::String>,
+    /// MIME-type filters, empty means any type.
+    pub mime_types: A::Array<A::String>,
     /// File-extension filters without the leading dot.
     pub extensions: A::Array<A::String>,
     /// Whether multiple selection is allowed.
     pub multiple: bool,
     /// Whether directory selection is allowed.
     pub allow_directories: bool,
+    /// Whether the host should copy selected files to one runtime-visible sandbox path when possible.
+    pub copy_to_sandbox: bool,
 }
 
 pub type DocumentPickOptions = DocumentPickOptionsAbi<NativeAbi>;
@@ -9980,14 +9692,14 @@ impl VmAggregateCodec for DocumentPickOptionsAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 5 fields",
             ))
             .boxed());
         }
-        let field_content_types =
+        let field_mime_types =
             <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_with_context(
                 context, slots[0],
             )?;
@@ -9998,11 +9710,14 @@ impl VmAggregateCodec for DocumentPickOptionsAbi<VmAbi> {
         let field_multiple = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_allow_directories =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_copy_to_sandbox =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
-            content_types: field_content_types,
+            mime_types: field_mime_types,
             extensions: field_extensions,
             multiple: field_multiple,
             allow_directories: field_allow_directories,
+            copy_to_sandbox: field_copy_to_sandbox,
         })
     }
 
@@ -10012,7 +9727,7 @@ impl VmAggregateCodec for DocumentPickOptionsAbi<VmAbi> {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <VmArray<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.content_types,
+                self.mime_types,
                 context,
             )?,
             <VmArray<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
@@ -10021,6 +9736,7 @@ impl VmAggregateCodec for DocumentPickOptionsAbi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.multiple, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.allow_directories, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.copy_to_sandbox, context)?,
         ];
         context
             .allocate_aggregate(slots)
@@ -10033,14 +9749,16 @@ impl VmCollectionElement for DocumentPickOptionsAbi<VmAbi> {}
 /// Value type for DocumentPickOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DocumentPickOptionsValue {
-    /// Content-type filters, empty means any type.
-    pub content_types: Vec<String>,
+    /// MIME-type filters, empty means any type.
+    pub mime_types: Vec<String>,
     /// File-extension filters without the leading dot.
     pub extensions: Vec<String>,
     /// Whether multiple selection is allowed.
     pub multiple: bool,
     /// Whether directory selection is allowed.
     pub allow_directories: bool,
+    /// Whether the host should copy selected files to one runtime-visible sandbox path when possible.
+    pub copy_to_sandbox: bool,
 }
 
 impl NativeAbiCodec for DocumentPickOptionsAbi<NativeAbi> {
@@ -10048,8 +9766,8 @@ impl NativeAbiCodec for DocumentPickOptionsAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(DocumentPickOptionsValue {
-            content_types: unsafe {
-                <NativeArray<NativeStringRef> as NativeAbiCodec>::into_value(self.content_types)?
+            mime_types: unsafe {
+                <NativeArray<NativeStringRef> as NativeAbiCodec>::into_value(self.mime_types)?
             },
             extensions: unsafe {
                 <NativeArray<NativeStringRef> as NativeAbiCodec>::into_value(self.extensions)?
@@ -10058,14 +9776,15 @@ impl NativeAbiCodec for DocumentPickOptionsAbi<NativeAbi> {
             allow_directories: unsafe {
                 <bool as NativeAbiCodec>::into_value(self.allow_directories)?
             },
+            copy_to_sandbox: unsafe { <bool as NativeAbiCodec>::into_value(self.copy_to_sandbox)? },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
-            content_types: <NativeArray<NativeStringRef> as NativeAbiCodec>::from_value(
+            mime_types: <NativeArray<NativeStringRef> as NativeAbiCodec>::from_value(
                 binding,
-                value.content_types,
+                value.mime_types,
             ),
             extensions: <NativeArray<NativeStringRef> as NativeAbiCodec>::from_value(
                 binding,
@@ -10076,6 +9795,7 @@ impl NativeAbiCodec for DocumentPickOptionsAbi<NativeAbi> {
                 binding,
                 value.allow_directories,
             ),
+            copy_to_sandbox: <bool as NativeAbiCodec>::from_value(binding, value.copy_to_sandbox),
         }
     }
 }
@@ -10088,8 +9808,8 @@ impl VmAbiCodec for DocumentPickOptionsAbi<VmAbi> {
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(DocumentPickOptionsValue {
-            content_types: <VmArray<vm::StringHandle> as VmAbiCodec>::into_value(
-                self.content_types,
+            mime_types: <VmArray<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.mime_types,
                 context,
             )?,
             extensions: <VmArray<vm::StringHandle> as VmAbiCodec>::into_value(
@@ -10098,6 +9818,7 @@ impl VmAbiCodec for DocumentPickOptionsAbi<VmAbi> {
             )?,
             multiple: <bool as VmAbiCodec>::into_value(self.multiple, context)?,
             allow_directories: <bool as VmAbiCodec>::into_value(self.allow_directories, context)?,
+            copy_to_sandbox: <bool as VmAbiCodec>::into_value(self.copy_to_sandbox, context)?,
         })
     }
 
@@ -10106,9 +9827,9 @@ impl VmAbiCodec for DocumentPickOptionsAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
-            content_types: <VmArray<vm::StringHandle> as VmAbiCodec>::from_value(
+            mime_types: <VmArray<vm::StringHandle> as VmAbiCodec>::from_value(
                 context,
-                value.content_types,
+                value.mime_types,
             )?,
             extensions: <VmArray<vm::StringHandle> as VmAbiCodec>::from_value(
                 context,
@@ -10116,6 +9837,7 @@ impl VmAbiCodec for DocumentPickOptionsAbi<VmAbi> {
             )?,
             multiple: <bool as VmAbiCodec>::from_value(context, value.multiple)?,
             allow_directories: <bool as VmAbiCodec>::from_value(context, value.allow_directories)?,
+            copy_to_sandbox: <bool as VmAbiCodec>::from_value(context, value.copy_to_sandbox)?,
         })
     }
 }
@@ -10462,8 +10184,8 @@ pub struct IntentCustomActionPayloadAbi<A: BindingAbi> {
     pub paths: A::Array<platform_fs::OsPathAbi<A>>,
     /// Text payload when provided by host.
     pub text: Option<A::String>,
-    /// Normalized content type when provided by host.
-    pub content_type: Option<A::String>,
+    /// MIME type when provided by host.
+    pub mime_type: Option<A::String>,
 }
 
 pub type IntentCustomActionPayload = IntentCustomActionPayloadAbi<NativeAbi>;
@@ -10520,14 +10242,14 @@ impl VmAggregateCodec for IntentCustomActionPayloadAbi<VmAbi> {
             <VmArray<fs::OsPathVm> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_text =
             <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_content_type =
+        let field_mime_type =
             <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             action: field_action,
             url: field_url,
             paths: field_paths,
             text: field_text,
-            content_type: field_content_type,
+            mime_type: field_mime_type,
         })
     }
 
@@ -10543,7 +10265,7 @@ impl VmAggregateCodec for IntentCustomActionPayloadAbi<VmAbi> {
                 self.text, context,
             )?,
             <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.content_type,
+                self.mime_type,
                 context,
             )?,
         ];
@@ -10566,8 +10288,8 @@ pub struct IntentCustomActionPayloadValue {
     pub paths: Vec<platform_fs::abi_generated::OsPathValue>,
     /// Text payload when provided by host.
     pub text: Option<String>,
-    /// Normalized content type when provided by host.
-    pub content_type: Option<String>,
+    /// MIME type when provided by host.
+    pub mime_type: Option<String>,
 }
 
 impl NativeAbiCodec for IntentCustomActionPayloadAbi<NativeAbi> {
@@ -10579,8 +10301,8 @@ impl NativeAbiCodec for IntentCustomActionPayloadAbi<NativeAbi> {
             url: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.url)? },
             paths: unsafe { <NativeArray<fs::OsPath> as NativeAbiCodec>::into_value(self.paths)? },
             text: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.text)? },
-            content_type: unsafe {
-                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.content_type)?
+            mime_type: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.mime_type)?
             },
         })
     }
@@ -10591,9 +10313,9 @@ impl NativeAbiCodec for IntentCustomActionPayloadAbi<NativeAbi> {
             url: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.url),
             paths: <NativeArray<fs::OsPath> as NativeAbiCodec>::from_value(binding, value.paths),
             text: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.text),
-            content_type: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+            mime_type: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
                 binding,
-                value.content_type,
+                value.mime_type,
             ),
         }
     }
@@ -10611,8 +10333,8 @@ impl VmAbiCodec for IntentCustomActionPayloadAbi<VmAbi> {
             url: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.url, context)?,
             paths: <VmArray<fs::OsPathVm> as VmAbiCodec>::into_value(self.paths, context)?,
             text: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.text, context)?,
-            content_type: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
-                self.content_type,
+            mime_type: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.mime_type,
                 context,
             )?,
         })
@@ -10627,9 +10349,9 @@ impl VmAbiCodec for IntentCustomActionPayloadAbi<VmAbi> {
             url: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.url)?,
             paths: <VmArray<fs::OsPathVm> as VmAbiCodec>::from_value(context, value.paths)?,
             text: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.text)?,
-            content_type: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+            mime_type: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
                 context,
-                value.content_type,
+                value.mime_type,
             )?,
         })
     }
@@ -10941,8 +10663,8 @@ impl VmAbiCodec for IntentOpenFileEventAbi<VmAbi> {
 pub struct IntentOpenFilePayloadAbi<A: BindingAbi> {
     /// File target payload.
     pub path: platform_fs::OsPathAbi<A>,
-    /// Normalized content type when provided by host.
-    pub content_type: Option<A::String>,
+    /// MIME type when provided by host.
+    pub mime_type: Option<A::String>,
 }
 
 pub type IntentOpenFilePayload = IntentOpenFilePayloadAbi<NativeAbi>;
@@ -10993,11 +10715,11 @@ impl VmAggregateCodec for IntentOpenFilePayloadAbi<VmAbi> {
         }
         let field_path =
             <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_content_type =
+        let field_mime_type =
             <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             path: field_path,
-            content_type: field_content_type,
+            mime_type: field_mime_type,
         })
     }
 
@@ -11008,7 +10730,7 @@ impl VmAggregateCodec for IntentOpenFilePayloadAbi<VmAbi> {
         let slots = vec![
             <fs::OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
             <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.content_type,
+                self.mime_type,
                 context,
             )?,
         ];
@@ -11025,8 +10747,8 @@ impl VmCollectionElement for IntentOpenFilePayloadAbi<VmAbi> {}
 pub struct IntentOpenFilePayloadValue {
     /// File target payload.
     pub path: platform_fs::abi_generated::OsPathValue,
-    /// Normalized content type when provided by host.
-    pub content_type: Option<String>,
+    /// MIME type when provided by host.
+    pub mime_type: Option<String>,
 }
 
 impl NativeAbiCodec for IntentOpenFilePayloadAbi<NativeAbi> {
@@ -11035,8 +10757,8 @@ impl NativeAbiCodec for IntentOpenFilePayloadAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(IntentOpenFilePayloadValue {
             path: unsafe { <fs::OsPath as NativeAbiCodec>::into_value(self.path)? },
-            content_type: unsafe {
-                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.content_type)?
+            mime_type: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.mime_type)?
             },
         })
     }
@@ -11044,9 +10766,9 @@ impl NativeAbiCodec for IntentOpenFilePayloadAbi<NativeAbi> {
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             path: <fs::OsPath as NativeAbiCodec>::from_value(binding, value.path),
-            content_type: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+            mime_type: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
                 binding,
-                value.content_type,
+                value.mime_type,
             ),
         }
     }
@@ -11061,8 +10783,8 @@ impl VmAbiCodec for IntentOpenFilePayloadAbi<VmAbi> {
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(IntentOpenFilePayloadValue {
             path: <fs::OsPathVm as VmAbiCodec>::into_value(self.path, context)?,
-            content_type: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
-                self.content_type,
+            mime_type: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.mime_type,
                 context,
             )?,
         })
@@ -11074,9 +10796,9 @@ impl VmAbiCodec for IntentOpenFilePayloadAbi<VmAbi> {
     ) -> RuntimeResult<Self> {
         Ok(Self {
             path: <fs::OsPathVm as VmAbiCodec>::from_value(context, value.path)?,
-            content_type: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+            mime_type: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
                 context,
-                value.content_type,
+                value.mime_type,
             )?,
         })
     }
@@ -11620,8 +11342,8 @@ impl VmAbiCodec for IntentShareFilesEventAbi<VmAbi> {
 pub struct IntentShareFilesPayloadAbi<A: BindingAbi> {
     /// Shared file payloads.
     pub paths: A::Array<platform_fs::OsPathAbi<A>>,
-    /// Normalized content type when provided by host.
-    pub content_type: Option<A::String>,
+    /// MIME type when provided by host.
+    pub mime_type: Option<A::String>,
 }
 
 pub type IntentShareFilesPayload = IntentShareFilesPayloadAbi<NativeAbi>;
@@ -11672,11 +11394,11 @@ impl VmAggregateCodec for IntentShareFilesPayloadAbi<VmAbi> {
         }
         let field_paths =
             <VmArray<fs::OsPathVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_content_type =
+        let field_mime_type =
             <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             paths: field_paths,
-            content_type: field_content_type,
+            mime_type: field_mime_type,
         })
     }
 
@@ -11687,7 +11409,7 @@ impl VmAggregateCodec for IntentShareFilesPayloadAbi<VmAbi> {
         let slots = vec![
             <VmArray<fs::OsPathVm> as VmAggregateCodec>::encode_with_context(self.paths, context)?,
             <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.content_type,
+                self.mime_type,
                 context,
             )?,
         ];
@@ -11704,8 +11426,8 @@ impl VmCollectionElement for IntentShareFilesPayloadAbi<VmAbi> {}
 pub struct IntentShareFilesPayloadValue {
     /// Shared file payloads.
     pub paths: Vec<platform_fs::abi_generated::OsPathValue>,
-    /// Normalized content type when provided by host.
-    pub content_type: Option<String>,
+    /// MIME type when provided by host.
+    pub mime_type: Option<String>,
 }
 
 impl NativeAbiCodec for IntentShareFilesPayloadAbi<NativeAbi> {
@@ -11714,8 +11436,8 @@ impl NativeAbiCodec for IntentShareFilesPayloadAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(IntentShareFilesPayloadValue {
             paths: unsafe { <NativeArray<fs::OsPath> as NativeAbiCodec>::into_value(self.paths)? },
-            content_type: unsafe {
-                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.content_type)?
+            mime_type: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.mime_type)?
             },
         })
     }
@@ -11723,9 +11445,9 @@ impl NativeAbiCodec for IntentShareFilesPayloadAbi<NativeAbi> {
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             paths: <NativeArray<fs::OsPath> as NativeAbiCodec>::from_value(binding, value.paths),
-            content_type: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+            mime_type: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
                 binding,
-                value.content_type,
+                value.mime_type,
             ),
         }
     }
@@ -11740,8 +11462,8 @@ impl VmAbiCodec for IntentShareFilesPayloadAbi<VmAbi> {
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(IntentShareFilesPayloadValue {
             paths: <VmArray<fs::OsPathVm> as VmAbiCodec>::into_value(self.paths, context)?,
-            content_type: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
-                self.content_type,
+            mime_type: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.mime_type,
                 context,
             )?,
         })
@@ -11753,9 +11475,9 @@ impl VmAbiCodec for IntentShareFilesPayloadAbi<VmAbi> {
     ) -> RuntimeResult<Self> {
         Ok(Self {
             paths: <VmArray<fs::OsPathVm> as VmAbiCodec>::from_value(context, value.paths)?,
-            content_type: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+            mime_type: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
                 context,
-                value.content_type,
+                value.mime_type,
             )?,
         })
     }
@@ -11920,8 +11642,8 @@ impl VmAbiCodec for IntentShareTextEventAbi<VmAbi> {
 pub struct IntentShareTextPayloadAbi<A: BindingAbi> {
     /// Shared text payload.
     pub text: A::String,
-    /// Normalized content type when provided by host.
-    pub content_type: Option<A::String>,
+    /// MIME type when provided by host.
+    pub mime_type: Option<A::String>,
 }
 
 pub type IntentShareTextPayload = IntentShareTextPayloadAbi<NativeAbi>;
@@ -11972,11 +11694,11 @@ impl VmAggregateCodec for IntentShareTextPayloadAbi<VmAbi> {
         }
         let field_text =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_content_type =
+        let field_mime_type =
             <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             text: field_text,
-            content_type: field_content_type,
+            mime_type: field_mime_type,
         })
     }
 
@@ -11987,7 +11709,7 @@ impl VmAggregateCodec for IntentShareTextPayloadAbi<VmAbi> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.text, context)?,
             <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.content_type,
+                self.mime_type,
                 context,
             )?,
         ];
@@ -12004,8 +11726,8 @@ impl VmCollectionElement for IntentShareTextPayloadAbi<VmAbi> {}
 pub struct IntentShareTextPayloadValue {
     /// Shared text payload.
     pub text: String,
-    /// Normalized content type when provided by host.
-    pub content_type: Option<String>,
+    /// MIME type when provided by host.
+    pub mime_type: Option<String>,
 }
 
 impl NativeAbiCodec for IntentShareTextPayloadAbi<NativeAbi> {
@@ -12014,8 +11736,8 @@ impl NativeAbiCodec for IntentShareTextPayloadAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(IntentShareTextPayloadValue {
             text: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.text)? },
-            content_type: unsafe {
-                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.content_type)?
+            mime_type: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.mime_type)?
             },
         })
     }
@@ -12023,9 +11745,9 @@ impl NativeAbiCodec for IntentShareTextPayloadAbi<NativeAbi> {
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             text: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.text),
-            content_type: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+            mime_type: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
                 binding,
-                value.content_type,
+                value.mime_type,
             ),
         }
     }
@@ -12040,8 +11762,8 @@ impl VmAbiCodec for IntentShareTextPayloadAbi<VmAbi> {
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(IntentShareTextPayloadValue {
             text: <vm::StringHandle as VmAbiCodec>::into_value(self.text, context)?,
-            content_type: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
-                self.content_type,
+            mime_type: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.mime_type,
                 context,
             )?,
         })
@@ -12053,9 +11775,9 @@ impl VmAbiCodec for IntentShareTextPayloadAbi<VmAbi> {
     ) -> RuntimeResult<Self> {
         Ok(Self {
             text: <vm::StringHandle as VmAbiCodec>::from_value(context, value.text)?,
-            content_type: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+            mime_type: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
                 context,
-                value.content_type,
+                value.mime_type,
             )?,
         })
     }
@@ -13626,15 +13348,15 @@ pub struct LocationSample {
     /// Longitude in degrees.
     pub longitude_degrees: f64,
     /// Altitude in meters above mean sea level when available.
-    pub altitude_meters: Option<f64>,
-    /// Horizontal accuracy radius in meters when available.
-    pub horizontal_accuracy_meters: Option<f64>,
+    pub altitude_meters: f64,
+    /// Horizontal accuracy radius in meters.
+    pub horizontal_accuracy_meters: f64,
     /// Vertical accuracy in meters when available.
-    pub vertical_accuracy_meters: Option<f64>,
+    pub vertical_accuracy_meters: f64,
     /// Speed in meters per second when available.
-    pub speed_meters_per_second: Option<f64>,
+    pub speed_meters_per_second: f64,
     /// Heading in degrees when available.
-    pub heading_degrees: Option<f64>,
+    pub heading_degrees: f64,
     /// UTC timestamp in nanoseconds.
     pub timestamp_unix_ns: u64,
 }
@@ -13668,15 +13390,15 @@ impl VmAggregateCodec for LocationSample {
         let field_longitude_degrees =
             <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_altitude_meters =
-            <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_horizontal_accuracy_meters =
-            <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_vertical_accuracy_meters =
-            <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_speed_meters_per_second =
-            <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_heading_degrees =
-            <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         let field_timestamp_unix_ns =
             <u64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         Ok(Self {
@@ -13698,20 +13420,14 @@ impl VmAggregateCodec for LocationSample {
         let slots = vec![
             <f64 as VmAggregateCodec>::encode_with_context(self.latitude_degrees, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.longitude_degrees, context)?,
-            <Option<f64> as VmAggregateCodec>::encode_with_context(self.altitude_meters, context)?,
-            <Option<f64> as VmAggregateCodec>::encode_with_context(
+            <f64 as VmAggregateCodec>::encode_with_context(self.altitude_meters, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(
                 self.horizontal_accuracy_meters,
                 context,
             )?,
-            <Option<f64> as VmAggregateCodec>::encode_with_context(
-                self.vertical_accuracy_meters,
-                context,
-            )?,
-            <Option<f64> as VmAggregateCodec>::encode_with_context(
-                self.speed_meters_per_second,
-                context,
-            )?,
-            <Option<f64> as VmAggregateCodec>::encode_with_context(self.heading_degrees, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.vertical_accuracy_meters, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.speed_meters_per_second, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.heading_degrees, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_unix_ns, context)?,
         ];
         context
@@ -13860,162 +13576,31 @@ impl VmAbiCodec for LocationWatchOptions {
 
 impl VmCollectionElement for LocationWatchOptions {}
 
-/// ABI struct for MediaAddedEvent.
-#[repr(C)]
-pub struct MediaAddedEventAbi<A: BindingAbi> {
-    /// Discriminator for this media event variant.
-    pub kind: A::String,
-    /// Shared event metadata.
-    pub metadata: MediaEventMetadata,
-    /// Current asset summary payload.
-    pub asset: platform_os::MediaAssetSummaryAbi<A>,
-}
-
-pub type MediaAddedEvent = MediaAddedEventAbi<NativeAbi>;
-pub type MediaAddedEventVm = MediaAddedEventAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for MediaAddedEventAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("MediaAddedEventAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for MediaAddedEventAbi<NativeAbi> {}
-impl Clone for MediaAddedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for MediaAddedEventAbi<VmAbi> {}
-impl Clone for MediaAddedEventAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for MediaAddedEventAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "MediaAddedEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata =
-            <MediaEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_asset =
-            <MediaAssetSummaryVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        Ok(Self {
-            kind: field_kind,
-            metadata: field_metadata,
-            asset: field_asset,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <MediaEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?,
-            <MediaAssetSummaryVm as VmAggregateCodec>::encode_with_context(self.asset, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-impl VmCollectionElement for MediaAddedEventAbi<VmAbi> {}
-
-/// Value type for MediaAddedEvent.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MediaAddedEventValue {
-    /// Discriminator for this media event variant.
-    pub kind: String,
-    /// Shared event metadata.
-    pub metadata: MediaEventMetadata,
-    /// Current asset summary payload.
-    pub asset: MediaAssetSummaryValue,
-}
-
-impl NativeAbiCodec for MediaAddedEventAbi<NativeAbi> {
-    type Value = MediaAddedEventValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(MediaAddedEventValue {
-            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <MediaEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            asset: unsafe { <MediaAssetSummary as NativeAbiCodec>::into_value(self.asset)? },
-        })
-    }
-
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self {
-            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            metadata: <MediaEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            asset: <MediaAssetSummary as NativeAbiCodec>::from_value(binding, value.asset),
-        }
-    }
-}
-
-impl VmAbiCodec for MediaAddedEventAbi<VmAbi> {
-    type Value = MediaAddedEventValue;
-
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(MediaAddedEventValue {
-            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
-            metadata: <MediaEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            asset: <MediaAssetSummaryVm as VmAbiCodec>::into_value(self.asset, context)?,
-        })
-    }
-
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self {
-            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            metadata: <MediaEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            asset: <MediaAssetSummaryVm as VmAbiCodec>::from_value(context, value.asset)?,
-        })
-    }
-}
-
 /// ABI struct for MediaAssetDescriptor.
 #[repr(C)]
 pub struct MediaAssetDescriptorAbi<A: BindingAbi> {
-    /// Shared asset summary payload.
-    pub asset: platform_os::MediaAssetSummaryAbi<A>,
-    /// Asset dimensions for image and video assets when available.
-    pub dimensions: Option<MediaDimensions>,
+    /// Stable asset identifier.
+    pub id: A::String,
+    /// Host URI for this asset.
+    pub uri: A::String,
+    /// Asset filename payload.
+    pub filename: A::String,
+    /// Asset MIME type payload when available.
+    pub mime_type: A::String,
+    /// Asset class.
+    pub kind: MediaAssetKind,
+    /// Asset width in pixels when available.
+    pub width: u32,
+    /// Asset height in pixels when available.
+    pub height: u32,
     /// Asset duration in milliseconds for time-based assets.
-    pub duration_ms: Option<u64>,
+    pub duration_ms: u64,
+    /// Asset size in bytes when available.
+    pub size_bytes: u64,
+    /// Asset creation timestamp in UTC nanoseconds when available.
+    pub created_unix_ns: u64,
+    /// Asset modification timestamp in UTC nanoseconds when available.
+    pub modified_unix_ns: u64,
 }
 
 pub type MediaAssetDescriptor = MediaAssetDescriptorAbi<NativeAbi>;
@@ -14057,180 +13642,10 @@ impl VmAggregateCodec for MediaAssetDescriptorAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let field_asset =
-            <MediaAssetSummaryVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_dimensions =
-            <Option<MediaDimensionsVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[1],
-            )?;
-        let field_duration_ms =
-            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        Ok(Self {
-            asset: field_asset,
-            dimensions: field_dimensions,
-            duration_ms: field_duration_ms,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <MediaAssetSummaryVm as VmAggregateCodec>::encode_with_context(self.asset, context)?,
-            <Option<MediaDimensionsVm> as VmAggregateCodec>::encode_with_context(
-                self.dimensions,
-                context,
-            )?,
-            <Option<u64> as VmAggregateCodec>::encode_with_context(self.duration_ms, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-impl VmCollectionElement for MediaAssetDescriptorAbi<VmAbi> {}
-
-/// Value type for MediaAssetDescriptor.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MediaAssetDescriptorValue {
-    /// Shared asset summary payload.
-    pub asset: MediaAssetSummaryValue,
-    /// Asset dimensions for image and video assets when available.
-    pub dimensions: Option<MediaDimensions>,
-    /// Asset duration in milliseconds for time-based assets.
-    pub duration_ms: Option<u64>,
-}
-
-impl NativeAbiCodec for MediaAssetDescriptorAbi<NativeAbi> {
-    type Value = MediaAssetDescriptorValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(MediaAssetDescriptorValue {
-            asset: unsafe { <MediaAssetSummary as NativeAbiCodec>::into_value(self.asset)? },
-            dimensions: unsafe {
-                <Option<MediaDimensions> as NativeAbiCodec>::into_value(self.dimensions)?
-            },
-            duration_ms: unsafe { <Option<u64> as NativeAbiCodec>::into_value(self.duration_ms)? },
-        })
-    }
-
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self {
-            asset: <MediaAssetSummary as NativeAbiCodec>::from_value(binding, value.asset),
-            dimensions: <Option<MediaDimensions> as NativeAbiCodec>::from_value(
-                binding,
-                value.dimensions,
-            ),
-            duration_ms: <Option<u64> as NativeAbiCodec>::from_value(binding, value.duration_ms),
-        }
-    }
-}
-
-impl VmAbiCodec for MediaAssetDescriptorAbi<VmAbi> {
-    type Value = MediaAssetDescriptorValue;
-
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(MediaAssetDescriptorValue {
-            asset: <MediaAssetSummaryVm as VmAbiCodec>::into_value(self.asset, context)?,
-            dimensions: <Option<MediaDimensionsVm> as VmAbiCodec>::into_value(
-                self.dimensions,
-                context,
-            )?,
-            duration_ms: <Option<u64> as VmAbiCodec>::into_value(self.duration_ms, context)?,
-        })
-    }
-
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self {
-            asset: <MediaAssetSummaryVm as VmAbiCodec>::from_value(context, value.asset)?,
-            dimensions: <Option<MediaDimensionsVm> as VmAbiCodec>::from_value(
-                context,
-                value.dimensions,
-            )?,
-            duration_ms: <Option<u64> as VmAbiCodec>::from_value(context, value.duration_ms)?,
-        })
-    }
-}
-
-/// ABI struct for MediaAssetSummary.
-#[repr(C)]
-pub struct MediaAssetSummaryAbi<A: BindingAbi> {
-    /// Stable asset identifier.
-    pub id: A::String,
-    /// Host URI for this asset.
-    pub uri: A::String,
-    /// Asset filename payload.
-    pub filename: A::String,
-    /// Asset class.
-    pub kind: MediaAssetKind,
-    /// Normalized content type when the host reports it.
-    pub content_type: Option<A::String>,
-    /// Asset size in bytes when available.
-    pub size_bytes: Option<u64>,
-    /// Asset creation timestamp in UTC nanoseconds when available.
-    pub created_unix_ns: Option<u64>,
-    /// Asset modification timestamp in UTC nanoseconds when available.
-    pub modified_unix_ns: Option<u64>,
-}
-
-pub type MediaAssetSummary = MediaAssetSummaryAbi<NativeAbi>;
-pub type MediaAssetSummaryVm = MediaAssetSummaryAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for MediaAssetSummaryAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("MediaAssetSummaryAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for MediaAssetSummaryAbi<NativeAbi> {}
-impl Clone for MediaAssetSummaryAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for MediaAssetSummaryAbi<VmAbi> {}
-impl Clone for MediaAssetSummaryAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for MediaAssetSummaryAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "MediaAssetSummary",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 8 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 8 fields",
+                "expected 11 fields",
             ))
             .boxed());
         }
@@ -14240,22 +13655,27 @@ impl VmAggregateCodec for MediaAssetSummaryAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_filename =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_mime_type =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_kind =
-            <MediaAssetKind as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_content_type =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_size_bytes =
-            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <MediaAssetKind as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_width = <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_height = <u32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_duration_ms = <u64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_size_bytes = <u64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         let field_created_unix_ns =
-            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
         let field_modified_unix_ns =
-            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
         Ok(Self {
             id: field_id,
             uri: field_uri,
             filename: field_filename,
+            mime_type: field_mime_type,
             kind: field_kind,
-            content_type: field_content_type,
+            width: field_width,
+            height: field_height,
+            duration_ms: field_duration_ms,
             size_bytes: field_size_bytes,
             created_unix_ns: field_created_unix_ns,
             modified_unix_ns: field_modified_unix_ns,
@@ -14270,14 +13690,14 @@ impl VmAggregateCodec for MediaAssetSummaryAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.uri, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.filename, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.mime_type, context)?,
             <MediaAssetKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.content_type,
-                context,
-            )?,
-            <Option<u64> as VmAggregateCodec>::encode_with_context(self.size_bytes, context)?,
-            <Option<u64> as VmAggregateCodec>::encode_with_context(self.created_unix_ns, context)?,
-            <Option<u64> as VmAggregateCodec>::encode_with_context(self.modified_unix_ns, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.duration_ms, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.size_bytes, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.created_unix_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.modified_unix_ns, context)?,
         ];
         context
             .allocate_aggregate(slots)
@@ -14285,47 +13705,52 @@ impl VmAggregateCodec for MediaAssetSummaryAbi<VmAbi> {
     }
 }
 
-impl VmCollectionElement for MediaAssetSummaryAbi<VmAbi> {}
+impl VmCollectionElement for MediaAssetDescriptorAbi<VmAbi> {}
 
-/// Value type for MediaAssetSummary.
+/// Value type for MediaAssetDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MediaAssetSummaryValue {
+pub struct MediaAssetDescriptorValue {
     /// Stable asset identifier.
     pub id: String,
     /// Host URI for this asset.
     pub uri: String,
     /// Asset filename payload.
     pub filename: String,
+    /// Asset MIME type payload when available.
+    pub mime_type: String,
     /// Asset class.
     pub kind: MediaAssetKind,
-    /// Normalized content type when the host reports it.
-    pub content_type: Option<String>,
+    /// Asset width in pixels when available.
+    pub width: u32,
+    /// Asset height in pixels when available.
+    pub height: u32,
+    /// Asset duration in milliseconds for time-based assets.
+    pub duration_ms: u64,
     /// Asset size in bytes when available.
-    pub size_bytes: Option<u64>,
+    pub size_bytes: u64,
     /// Asset creation timestamp in UTC nanoseconds when available.
-    pub created_unix_ns: Option<u64>,
+    pub created_unix_ns: u64,
     /// Asset modification timestamp in UTC nanoseconds when available.
-    pub modified_unix_ns: Option<u64>,
+    pub modified_unix_ns: u64,
 }
 
-impl NativeAbiCodec for MediaAssetSummaryAbi<NativeAbi> {
-    type Value = MediaAssetSummaryValue;
+impl NativeAbiCodec for MediaAssetDescriptorAbi<NativeAbi> {
+    type Value = MediaAssetDescriptorValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(MediaAssetSummaryValue {
+        Ok(MediaAssetDescriptorValue {
             id: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.id)? },
             uri: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.uri)? },
             filename: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.filename)? },
+            mime_type: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.mime_type)? },
             kind: unsafe { <MediaAssetKind as NativeAbiCodec>::into_value(self.kind)? },
-            content_type: unsafe {
-                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.content_type)?
-            },
-            size_bytes: unsafe { <Option<u64> as NativeAbiCodec>::into_value(self.size_bytes)? },
-            created_unix_ns: unsafe {
-                <Option<u64> as NativeAbiCodec>::into_value(self.created_unix_ns)?
-            },
+            width: unsafe { <u32 as NativeAbiCodec>::into_value(self.width)? },
+            height: unsafe { <u32 as NativeAbiCodec>::into_value(self.height)? },
+            duration_ms: unsafe { <u64 as NativeAbiCodec>::into_value(self.duration_ms)? },
+            size_bytes: unsafe { <u64 as NativeAbiCodec>::into_value(self.size_bytes)? },
+            created_unix_ns: unsafe { <u64 as NativeAbiCodec>::into_value(self.created_unix_ns)? },
             modified_unix_ns: unsafe {
-                <Option<u64> as NativeAbiCodec>::into_value(self.modified_unix_ns)?
+                <u64 as NativeAbiCodec>::into_value(self.modified_unix_ns)?
             },
         })
     }
@@ -14335,49 +13760,37 @@ impl NativeAbiCodec for MediaAssetSummaryAbi<NativeAbi> {
             id: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.id),
             uri: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.uri),
             filename: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.filename),
+            mime_type: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.mime_type),
             kind: <MediaAssetKind as NativeAbiCodec>::from_value(binding, value.kind),
-            content_type: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
-                binding,
-                value.content_type,
-            ),
-            size_bytes: <Option<u64> as NativeAbiCodec>::from_value(binding, value.size_bytes),
-            created_unix_ns: <Option<u64> as NativeAbiCodec>::from_value(
-                binding,
-                value.created_unix_ns,
-            ),
-            modified_unix_ns: <Option<u64> as NativeAbiCodec>::from_value(
-                binding,
-                value.modified_unix_ns,
-            ),
+            width: <u32 as NativeAbiCodec>::from_value(binding, value.width),
+            height: <u32 as NativeAbiCodec>::from_value(binding, value.height),
+            duration_ms: <u64 as NativeAbiCodec>::from_value(binding, value.duration_ms),
+            size_bytes: <u64 as NativeAbiCodec>::from_value(binding, value.size_bytes),
+            created_unix_ns: <u64 as NativeAbiCodec>::from_value(binding, value.created_unix_ns),
+            modified_unix_ns: <u64 as NativeAbiCodec>::from_value(binding, value.modified_unix_ns),
         }
     }
 }
 
-impl VmAbiCodec for MediaAssetSummaryAbi<VmAbi> {
-    type Value = MediaAssetSummaryValue;
+impl VmAbiCodec for MediaAssetDescriptorAbi<VmAbi> {
+    type Value = MediaAssetDescriptorValue;
 
     fn into_value(
         self,
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(MediaAssetSummaryValue {
+        Ok(MediaAssetDescriptorValue {
             id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
             uri: <vm::StringHandle as VmAbiCodec>::into_value(self.uri, context)?,
             filename: <vm::StringHandle as VmAbiCodec>::into_value(self.filename, context)?,
+            mime_type: <vm::StringHandle as VmAbiCodec>::into_value(self.mime_type, context)?,
             kind: <MediaAssetKind as VmAbiCodec>::into_value(self.kind, context)?,
-            content_type: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
-                self.content_type,
-                context,
-            )?,
-            size_bytes: <Option<u64> as VmAbiCodec>::into_value(self.size_bytes, context)?,
-            created_unix_ns: <Option<u64> as VmAbiCodec>::into_value(
-                self.created_unix_ns,
-                context,
-            )?,
-            modified_unix_ns: <Option<u64> as VmAbiCodec>::into_value(
-                self.modified_unix_ns,
-                context,
-            )?,
+            width: <u32 as VmAbiCodec>::into_value(self.width, context)?,
+            height: <u32 as VmAbiCodec>::into_value(self.height, context)?,
+            duration_ms: <u64 as VmAbiCodec>::into_value(self.duration_ms, context)?,
+            size_bytes: <u64 as VmAbiCodec>::into_value(self.size_bytes, context)?,
+            created_unix_ns: <u64 as VmAbiCodec>::into_value(self.created_unix_ns, context)?,
+            modified_unix_ns: <u64 as VmAbiCodec>::into_value(self.modified_unix_ns, context)?,
         })
     }
 
@@ -14389,211 +13802,23 @@ impl VmAbiCodec for MediaAssetSummaryAbi<VmAbi> {
             id: <vm::StringHandle as VmAbiCodec>::from_value(context, value.id)?,
             uri: <vm::StringHandle as VmAbiCodec>::from_value(context, value.uri)?,
             filename: <vm::StringHandle as VmAbiCodec>::from_value(context, value.filename)?,
+            mime_type: <vm::StringHandle as VmAbiCodec>::from_value(context, value.mime_type)?,
             kind: <MediaAssetKind as VmAbiCodec>::from_value(context, value.kind)?,
-            content_type: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
-                context,
-                value.content_type,
-            )?,
-            size_bytes: <Option<u64> as VmAbiCodec>::from_value(context, value.size_bytes)?,
-            created_unix_ns: <Option<u64> as VmAbiCodec>::from_value(
-                context,
-                value.created_unix_ns,
-            )?,
-            modified_unix_ns: <Option<u64> as VmAbiCodec>::from_value(
-                context,
-                value.modified_unix_ns,
-            )?,
+            width: <u32 as VmAbiCodec>::from_value(context, value.width)?,
+            height: <u32 as VmAbiCodec>::from_value(context, value.height)?,
+            duration_ms: <u64 as VmAbiCodec>::from_value(context, value.duration_ms)?,
+            size_bytes: <u64 as VmAbiCodec>::from_value(context, value.size_bytes)?,
+            created_unix_ns: <u64 as VmAbiCodec>::from_value(context, value.created_unix_ns)?,
+            modified_unix_ns: <u64 as VmAbiCodec>::from_value(context, value.modified_unix_ns)?,
         })
     }
 }
-
-/// ABI struct for MediaDimensions.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct MediaDimensions {
-    /// Asset width in pixels.
-    pub width: u32,
-    /// Asset height in pixels.
-    pub height: u32,
-}
-
-pub type MediaDimensionsVm = MediaDimensions;
-
-impl VmAggregateCodec for MediaDimensions {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "MediaDimensions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let field_width = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_height = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        Ok(Self {
-            width: field_width,
-            height: field_height,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-/// Value type for MediaDimensions.
-pub type MediaDimensionsValue = MediaDimensions;
-
-impl NativeAbiCodec for MediaDimensions {
-    type Value = MediaDimensionsValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
-    }
-}
-
-impl VmAbiCodec for MediaDimensions {
-    type Value = MediaDimensionsValue;
-
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(value)
-    }
-}
-
-impl VmCollectionElement for MediaDimensions {}
-
-/// ABI struct for MediaEventMetadata.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct MediaEventMetadata {
-    /// Monotonic event timestamp in nanoseconds.
-    pub timestamp_ns: u64,
-    /// Monotonic sequence number for this watch stream.
-    pub sequence: u64,
-}
-
-pub type MediaEventMetadataVm = MediaEventMetadata;
-
-impl VmAggregateCodec for MediaEventMetadata {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "MediaEventMetadata",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        Ok(Self {
-            timestamp_ns: field_timestamp_ns,
-            sequence: field_sequence,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-/// Value type for MediaEventMetadata.
-pub type MediaEventMetadataValue = MediaEventMetadata;
-
-impl NativeAbiCodec for MediaEventMetadata {
-    type Value = MediaEventMetadataValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
-    }
-}
-
-impl VmAbiCodec for MediaEventMetadata {
-    type Value = MediaEventMetadataValue;
-
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(value)
-    }
-}
-
-impl VmCollectionElement for MediaEventMetadata {}
 
 /// ABI struct for MediaPage.
 #[repr(C)]
 pub struct MediaPageAbi<A: BindingAbi> {
     /// Asset items for this page.
-    pub assets: A::Array<platform_os::MediaAssetSummaryAbi<A>>,
+    pub assets: A::Array<platform_os::MediaAssetDescriptorAbi<A>>,
     /// Opaque cursor for the next page, empty when unavailable.
     pub next_cursor: A::String,
     /// Whether more assets are available.
@@ -14646,9 +13871,10 @@ impl VmAggregateCodec for MediaPageAbi<VmAbi> {
             ))
             .boxed());
         }
-        let field_assets = <VmArray<MediaAssetSummaryVm> as VmAggregateCodec>::decode_with_context(
-            context, slots[0],
-        )?;
+        let field_assets =
+            <VmArray<MediaAssetDescriptorVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[0],
+            )?;
         let field_next_cursor =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_has_more = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
@@ -14664,7 +13890,7 @@ impl VmAggregateCodec for MediaPageAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <VmArray<MediaAssetSummaryVm> as VmAggregateCodec>::encode_with_context(
+            <VmArray<MediaAssetDescriptorVm> as VmAggregateCodec>::encode_with_context(
                 self.assets,
                 context,
             )?,
@@ -14683,7 +13909,7 @@ impl VmCollectionElement for MediaPageAbi<VmAbi> {}
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MediaPageValue {
     /// Asset items for this page.
-    pub assets: Vec<MediaAssetSummaryValue>,
+    pub assets: Vec<MediaAssetDescriptorValue>,
     /// Opaque cursor for the next page, empty when unavailable.
     pub next_cursor: String,
     /// Whether more assets are available.
@@ -14696,7 +13922,7 @@ impl NativeAbiCodec for MediaPageAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(MediaPageValue {
             assets: unsafe {
-                <NativeArray<MediaAssetSummary> as NativeAbiCodec>::into_value(self.assets)?
+                <NativeArray<MediaAssetDescriptor> as NativeAbiCodec>::into_value(self.assets)?
             },
             next_cursor: unsafe {
                 <NativeStringRef as NativeAbiCodec>::into_value(self.next_cursor)?
@@ -14707,7 +13933,7 @@ impl NativeAbiCodec for MediaPageAbi<NativeAbi> {
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
-            assets: <NativeArray<MediaAssetSummary> as NativeAbiCodec>::from_value(
+            assets: <NativeArray<MediaAssetDescriptor> as NativeAbiCodec>::from_value(
                 binding,
                 value.assets,
             ),
@@ -14728,7 +13954,10 @@ impl VmAbiCodec for MediaPageAbi<VmAbi> {
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MediaPageValue {
-            assets: <VmArray<MediaAssetSummaryVm> as VmAbiCodec>::into_value(self.assets, context)?,
+            assets: <VmArray<MediaAssetDescriptorVm> as VmAbiCodec>::into_value(
+                self.assets,
+                context,
+            )?,
             next_cursor: <vm::StringHandle as VmAbiCodec>::into_value(self.next_cursor, context)?,
             has_more: <bool as VmAbiCodec>::into_value(self.has_more, context)?,
         })
@@ -14739,7 +13968,7 @@ impl VmAbiCodec for MediaPageAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
-            assets: <VmArray<MediaAssetSummaryVm> as VmAbiCodec>::from_value(
+            assets: <VmArray<MediaAssetDescriptorVm> as VmAbiCodec>::from_value(
                 context,
                 value.assets,
             )?,
@@ -14913,475 +14142,6 @@ impl VmAbiCodec for MediaQueryAbi<VmAbi> {
             limit: <Option<u32> as VmAbiCodec>::from_value(context, value.limit)?,
             kinds: <VmArray<MediaAssetKind> as VmAbiCodec>::from_value(context, value.kinds)?,
             include_hidden: <bool as VmAbiCodec>::from_value(context, value.include_hidden)?,
-        })
-    }
-}
-
-/// ABI struct for MediaRemovedEvent.
-#[repr(C)]
-pub struct MediaRemovedEventAbi<A: BindingAbi> {
-    /// Discriminator for this media event variant.
-    pub kind: A::String,
-    /// Shared event metadata.
-    pub metadata: MediaEventMetadata,
-    /// Last known asset summary payload.
-    pub asset: platform_os::MediaAssetSummaryAbi<A>,
-}
-
-pub type MediaRemovedEvent = MediaRemovedEventAbi<NativeAbi>;
-pub type MediaRemovedEventVm = MediaRemovedEventAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for MediaRemovedEventAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("MediaRemovedEventAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for MediaRemovedEventAbi<NativeAbi> {}
-impl Clone for MediaRemovedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for MediaRemovedEventAbi<VmAbi> {}
-impl Clone for MediaRemovedEventAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for MediaRemovedEventAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "MediaRemovedEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata =
-            <MediaEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_asset =
-            <MediaAssetSummaryVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        Ok(Self {
-            kind: field_kind,
-            metadata: field_metadata,
-            asset: field_asset,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <MediaEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?,
-            <MediaAssetSummaryVm as VmAggregateCodec>::encode_with_context(self.asset, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-impl VmCollectionElement for MediaRemovedEventAbi<VmAbi> {}
-
-/// Value type for MediaRemovedEvent.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MediaRemovedEventValue {
-    /// Discriminator for this media event variant.
-    pub kind: String,
-    /// Shared event metadata.
-    pub metadata: MediaEventMetadata,
-    /// Last known asset summary payload.
-    pub asset: MediaAssetSummaryValue,
-}
-
-impl NativeAbiCodec for MediaRemovedEventAbi<NativeAbi> {
-    type Value = MediaRemovedEventValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(MediaRemovedEventValue {
-            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <MediaEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            asset: unsafe { <MediaAssetSummary as NativeAbiCodec>::into_value(self.asset)? },
-        })
-    }
-
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self {
-            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            metadata: <MediaEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            asset: <MediaAssetSummary as NativeAbiCodec>::from_value(binding, value.asset),
-        }
-    }
-}
-
-impl VmAbiCodec for MediaRemovedEventAbi<VmAbi> {
-    type Value = MediaRemovedEventValue;
-
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(MediaRemovedEventValue {
-            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
-            metadata: <MediaEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            asset: <MediaAssetSummaryVm as VmAbiCodec>::into_value(self.asset, context)?,
-        })
-    }
-
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self {
-            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            metadata: <MediaEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            asset: <MediaAssetSummaryVm as VmAbiCodec>::from_value(context, value.asset)?,
-        })
-    }
-}
-
-/// ABI struct for MediaUpdatedEvent.
-#[repr(C)]
-pub struct MediaUpdatedEventAbi<A: BindingAbi> {
-    /// Discriminator for this media event variant.
-    pub kind: A::String,
-    /// Shared event metadata.
-    pub metadata: MediaEventMetadata,
-    /// Current asset summary payload.
-    pub asset: platform_os::MediaAssetSummaryAbi<A>,
-}
-
-pub type MediaUpdatedEvent = MediaUpdatedEventAbi<NativeAbi>;
-pub type MediaUpdatedEventVm = MediaUpdatedEventAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for MediaUpdatedEventAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("MediaUpdatedEventAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for MediaUpdatedEventAbi<NativeAbi> {}
-impl Clone for MediaUpdatedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for MediaUpdatedEventAbi<VmAbi> {}
-impl Clone for MediaUpdatedEventAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for MediaUpdatedEventAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "MediaUpdatedEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata =
-            <MediaEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_asset =
-            <MediaAssetSummaryVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        Ok(Self {
-            kind: field_kind,
-            metadata: field_metadata,
-            asset: field_asset,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <MediaEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?,
-            <MediaAssetSummaryVm as VmAggregateCodec>::encode_with_context(self.asset, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-impl VmCollectionElement for MediaUpdatedEventAbi<VmAbi> {}
-
-/// Value type for MediaUpdatedEvent.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MediaUpdatedEventValue {
-    /// Discriminator for this media event variant.
-    pub kind: String,
-    /// Shared event metadata.
-    pub metadata: MediaEventMetadata,
-    /// Current asset summary payload.
-    pub asset: MediaAssetSummaryValue,
-}
-
-impl NativeAbiCodec for MediaUpdatedEventAbi<NativeAbi> {
-    type Value = MediaUpdatedEventValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(MediaUpdatedEventValue {
-            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <MediaEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            asset: unsafe { <MediaAssetSummary as NativeAbiCodec>::into_value(self.asset)? },
-        })
-    }
-
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self {
-            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            metadata: <MediaEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            asset: <MediaAssetSummary as NativeAbiCodec>::from_value(binding, value.asset),
-        }
-    }
-}
-
-impl VmAbiCodec for MediaUpdatedEventAbi<VmAbi> {
-    type Value = MediaUpdatedEventValue;
-
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(MediaUpdatedEventValue {
-            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
-            metadata: <MediaEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            asset: <MediaAssetSummaryVm as VmAbiCodec>::into_value(self.asset, context)?,
-        })
-    }
-
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self {
-            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            metadata: <MediaEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            asset: <MediaAssetSummaryVm as VmAbiCodec>::from_value(context, value.asset)?,
-        })
-    }
-}
-
-/// ABI struct for MediaWatchOptions.
-#[repr(C)]
-pub struct MediaWatchOptionsAbi<A: BindingAbi> {
-    /// Included asset classes, empty means all classes.
-    pub kinds: A::Array<MediaAssetKind>,
-    /// Whether hidden assets should be included.
-    pub include_hidden: bool,
-    /// Whether added-asset events should be included.
-    pub include_added: bool,
-    /// Whether updated-asset events should be included.
-    pub include_updated: bool,
-    /// Whether removed-asset events should be included.
-    pub include_removed: bool,
-}
-
-pub type MediaWatchOptions = MediaWatchOptionsAbi<NativeAbi>;
-pub type MediaWatchOptionsVm = MediaWatchOptionsAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for MediaWatchOptionsAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("MediaWatchOptionsAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for MediaWatchOptionsAbi<NativeAbi> {}
-impl Clone for MediaWatchOptionsAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for MediaWatchOptionsAbi<VmAbi> {}
-impl Clone for MediaWatchOptionsAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for MediaWatchOptionsAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "MediaWatchOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 5 fields",
-            ))
-            .boxed());
-        }
-        let field_kinds =
-            <VmArray<MediaAssetKind> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_include_hidden =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_include_added =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_include_updated =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_include_removed =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        Ok(Self {
-            kinds: field_kinds,
-            include_hidden: field_include_hidden,
-            include_added: field_include_added,
-            include_updated: field_include_updated,
-            include_removed: field_include_removed,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <VmArray<MediaAssetKind> as VmAggregateCodec>::encode_with_context(
-                self.kinds, context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.include_hidden, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.include_added, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.include_updated, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.include_removed, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-impl VmCollectionElement for MediaWatchOptionsAbi<VmAbi> {}
-
-/// Value type for MediaWatchOptions.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MediaWatchOptionsValue {
-    /// Included asset classes, empty means all classes.
-    pub kinds: Vec<MediaAssetKind>,
-    /// Whether hidden assets should be included.
-    pub include_hidden: bool,
-    /// Whether added-asset events should be included.
-    pub include_added: bool,
-    /// Whether updated-asset events should be included.
-    pub include_updated: bool,
-    /// Whether removed-asset events should be included.
-    pub include_removed: bool,
-}
-
-impl NativeAbiCodec for MediaWatchOptionsAbi<NativeAbi> {
-    type Value = MediaWatchOptionsValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(MediaWatchOptionsValue {
-            kinds: unsafe {
-                <NativeArray<MediaAssetKind> as NativeAbiCodec>::into_value(self.kinds)?
-            },
-            include_hidden: unsafe { <bool as NativeAbiCodec>::into_value(self.include_hidden)? },
-            include_added: unsafe { <bool as NativeAbiCodec>::into_value(self.include_added)? },
-            include_updated: unsafe { <bool as NativeAbiCodec>::into_value(self.include_updated)? },
-            include_removed: unsafe { <bool as NativeAbiCodec>::into_value(self.include_removed)? },
-        })
-    }
-
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self {
-            kinds: <NativeArray<MediaAssetKind> as NativeAbiCodec>::from_value(
-                binding,
-                value.kinds,
-            ),
-            include_hidden: <bool as NativeAbiCodec>::from_value(binding, value.include_hidden),
-            include_added: <bool as NativeAbiCodec>::from_value(binding, value.include_added),
-            include_updated: <bool as NativeAbiCodec>::from_value(binding, value.include_updated),
-            include_removed: <bool as NativeAbiCodec>::from_value(binding, value.include_removed),
-        }
-    }
-}
-
-impl VmAbiCodec for MediaWatchOptionsAbi<VmAbi> {
-    type Value = MediaWatchOptionsValue;
-
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(MediaWatchOptionsValue {
-            kinds: <VmArray<MediaAssetKind> as VmAbiCodec>::into_value(self.kinds, context)?,
-            include_hidden: <bool as VmAbiCodec>::into_value(self.include_hidden, context)?,
-            include_added: <bool as VmAbiCodec>::into_value(self.include_added, context)?,
-            include_updated: <bool as VmAbiCodec>::into_value(self.include_updated, context)?,
-            include_removed: <bool as VmAbiCodec>::into_value(self.include_removed, context)?,
-        })
-    }
-
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self {
-            kinds: <VmArray<MediaAssetKind> as VmAbiCodec>::from_value(context, value.kinds)?,
-            include_hidden: <bool as VmAbiCodec>::from_value(context, value.include_hidden)?,
-            include_added: <bool as VmAbiCodec>::from_value(context, value.include_added)?,
-            include_updated: <bool as VmAbiCodec>::from_value(context, value.include_updated)?,
-            include_removed: <bool as VmAbiCodec>::from_value(context, value.include_removed)?,
         })
     }
 }
@@ -18667,6 +17427,18 @@ pub struct BackgroundtaskdescriptorReplayRecord {
     pub trigger: BackgroundTriggerKind,
     /// Effective minimum repeat interval in nanoseconds.
     pub minimum_interval_ns: u64,
+    /// Earliest target execution timestamp in UTC nanoseconds.
+    pub earliest_begin_unix_ns: u64,
+    /// Whether one network route is required.
+    pub requires_network: bool,
+    /// Whether one unmetered network route is required.
+    pub requires_unmetered_network: bool,
+    /// Whether charging power is required.
+    pub requires_charging: bool,
+    /// Whether idle mode is required.
+    pub requires_idle: bool,
+    /// Whether this registration persists across host restart.
+    pub persisted: bool,
 }
 
 /// Replay struct for BackgroundTaskExpiredEvent.
@@ -18687,6 +17459,18 @@ pub struct BackgroundtaskoptionsReplayRecord {
     pub trigger: BackgroundTriggerKind,
     /// Requested minimum repeat interval in nanoseconds.
     pub minimum_interval_ns: u64,
+    /// Earliest target execution timestamp in UTC nanoseconds.
+    pub earliest_begin_unix_ns: u64,
+    /// Whether one network route is required.
+    pub requires_network: bool,
+    /// Whether one unmetered network route is required.
+    pub requires_unmetered_network: bool,
+    /// Whether charging power is required.
+    pub requires_charging: bool,
+    /// Whether idle mode is required.
+    pub requires_idle: bool,
+    /// Whether this registration should persist across host restart.
+    pub persisted: bool,
 }
 
 /// Replay struct for BackgroundTaskReadyEvent.
@@ -18870,10 +17654,8 @@ pub struct CalendarrecurrenceruleReplayRecord {
 pub struct CalendarrelativereminderReplayRecord {
     /// Discriminator for this calendar reminder variant.
     pub kind: String,
-    /// Reminder anchor for one relative reminder.
-    pub anchor: CalendarReminderAnchor,
-    /// Signed offset in seconds relative to the selected anchor.
-    pub offset_seconds: i64,
+    /// Minutes before start time for one relative reminder.
+    pub minutes_before_start: i32,
 }
 
 /// Replay struct for Contact.
@@ -19077,19 +17859,6 @@ pub struct CredentialwriteoptionsReplayRecord {
     pub replace_existing: bool,
 }
 
-/// Replay struct for DocumentAccessGrant.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct DocumentaccessgrantReplayRecord {
-    /// Stable persisted grant identifier.
-    pub id: String,
-    /// Granted document descriptor.
-    pub document: DocumentdescriptorReplayRecord,
-    /// Granted access mode.
-    pub access: DocumentAccess,
-    /// Grant persistence timestamp in UTC nanoseconds.
-    pub persisted_unix_ns: u64,
-}
-
 /// Replay struct for DocumentDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DocumentdescriptorReplayRecord {
@@ -19098,29 +17867,31 @@ pub struct DocumentdescriptorReplayRecord {
     pub uri: String,
     /// Host-visible document name.
     pub name: String,
-    /// Normalized content type when the host reports it.
-    pub content_type: Option<String>,
+    /// Document MIME type payload when available.
+    pub mime_type: Option<String>,
     /// Document size in bytes when available.
     pub size_bytes: Option<u64>,
     /// Document modification timestamp in UTC nanoseconds when available.
     pub modified_unix_ns: Option<u64>,
     /// Whether this descriptor represents one directory.
     pub is_directory: bool,
-    /// Runtime-visible local path when the host grants direct local access or one app-storage import exists.
+    /// Runtime-visible local path when the host grants direct local access or one sandbox copy exists.
     pub local_path: Option<fs::OspathReplayRecord>,
 }
 
 /// Replay struct for DocumentPickOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DocumentpickoptionsReplayRecord {
-    /// Content-type filters, empty means any type.
-    pub content_types: Vec<String>,
+    /// MIME-type filters, empty means any type.
+    pub mime_types: Vec<String>,
     /// File-extension filters without the leading dot.
     pub extensions: Vec<String>,
     /// Whether multiple selection is allowed.
     pub multiple: bool,
     /// Whether directory selection is allowed.
     pub allow_directories: bool,
+    /// Whether the host should copy selected files to one runtime-visible sandbox path when possible.
+    pub copy_to_sandbox: bool,
 }
 
 /// Replay struct for HostIdentity.
@@ -19158,8 +17929,8 @@ pub struct IntentcustomactionpayloadReplayRecord {
     pub paths: Vec<fs::OspathReplayRecord>,
     /// Text payload when provided by host.
     pub text: Option<String>,
-    /// Normalized content type when provided by host.
-    pub content_type: Option<String>,
+    /// MIME type when provided by host.
+    pub mime_type: Option<String>,
 }
 
 /// Replay struct for IntentEventMetadata.
@@ -19189,8 +17960,8 @@ pub struct IntentopenfileeventReplayRecord {
 pub struct IntentopenfilepayloadReplayRecord {
     /// File target payload.
     pub path: fs::OspathReplayRecord,
-    /// Normalized content type when provided by host.
-    pub content_type: Option<String>,
+    /// MIME type when provided by host.
+    pub mime_type: Option<String>,
 }
 
 /// Replay struct for IntentOpenUrlEvent.
@@ -19227,8 +17998,8 @@ pub struct IntentsharefileseventReplayRecord {
 pub struct IntentsharefilespayloadReplayRecord {
     /// Shared file payloads.
     pub paths: Vec<fs::OspathReplayRecord>,
-    /// Normalized content type when provided by host.
-    pub content_type: Option<String>,
+    /// MIME type when provided by host.
+    pub mime_type: Option<String>,
 }
 
 /// Replay struct for IntentShareTextEvent.
@@ -19247,8 +18018,8 @@ pub struct IntentsharetexteventReplayRecord {
 pub struct IntentsharetextpayloadReplayRecord {
     /// Shared text payload.
     pub text: String,
-    /// Normalized content type when provided by host.
-    pub content_type: Option<String>,
+    /// MIME type when provided by host.
+    pub mime_type: Option<String>,
 }
 
 /// Replay struct for LifecycleBackgroundEvent.
@@ -19327,54 +18098,38 @@ pub struct LifecycleterminateeventReplayRecord {
     pub metadata: LifecycleEventMetadata,
 }
 
-/// Replay struct for MediaAddedEvent.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MediaaddedeventReplayRecord {
-    /// Discriminator for this media event variant.
-    pub kind: String,
-    /// Shared event metadata.
-    pub metadata: MediaEventMetadata,
-    /// Current asset summary payload.
-    pub asset: MediaassetsummaryReplayRecord,
-}
-
 /// Replay struct for MediaAssetDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MediaassetdescriptorReplayRecord {
-    /// Shared asset summary payload.
-    pub asset: MediaassetsummaryReplayRecord,
-    /// Asset dimensions for image and video assets when available.
-    pub dimensions: Option<MediaDimensions>,
-    /// Asset duration in milliseconds for time-based assets.
-    pub duration_ms: Option<u64>,
-}
-
-/// Replay struct for MediaAssetSummary.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MediaassetsummaryReplayRecord {
     /// Stable asset identifier.
     pub id: String,
     /// Host URI for this asset.
     pub uri: String,
     /// Asset filename payload.
     pub filename: String,
+    /// Asset MIME type payload when available.
+    pub mime_type: String,
     /// Asset class.
     pub kind: MediaAssetKind,
-    /// Normalized content type when the host reports it.
-    pub content_type: Option<String>,
+    /// Asset width in pixels when available.
+    pub width: u32,
+    /// Asset height in pixels when available.
+    pub height: u32,
+    /// Asset duration in milliseconds for time-based assets.
+    pub duration_ms: u64,
     /// Asset size in bytes when available.
-    pub size_bytes: Option<u64>,
+    pub size_bytes: u64,
     /// Asset creation timestamp in UTC nanoseconds when available.
-    pub created_unix_ns: Option<u64>,
+    pub created_unix_ns: u64,
     /// Asset modification timestamp in UTC nanoseconds when available.
-    pub modified_unix_ns: Option<u64>,
+    pub modified_unix_ns: u64,
 }
 
 /// Replay struct for MediaPage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MediapageReplayRecord {
     /// Asset items for this page.
-    pub assets: Vec<MediaassetsummaryReplayRecord>,
+    pub assets: Vec<MediaassetdescriptorReplayRecord>,
     /// Opaque cursor for the next page, empty when unavailable.
     pub next_cursor: String,
     /// Whether more assets are available.
@@ -19392,43 +18147,6 @@ pub struct MediaqueryReplayRecord {
     pub kinds: Vec<MediaAssetKind>,
     /// Whether hidden assets should be included.
     pub include_hidden: bool,
-}
-
-/// Replay struct for MediaRemovedEvent.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MediaremovedeventReplayRecord {
-    /// Discriminator for this media event variant.
-    pub kind: String,
-    /// Shared event metadata.
-    pub metadata: MediaEventMetadata,
-    /// Last known asset summary payload.
-    pub asset: MediaassetsummaryReplayRecord,
-}
-
-/// Replay struct for MediaUpdatedEvent.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MediaupdatedeventReplayRecord {
-    /// Discriminator for this media event variant.
-    pub kind: String,
-    /// Shared event metadata.
-    pub metadata: MediaEventMetadata,
-    /// Current asset summary payload.
-    pub asset: MediaassetsummaryReplayRecord,
-}
-
-/// Replay struct for MediaWatchOptions.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MediawatchoptionsReplayRecord {
-    /// Included asset classes, empty means all classes.
-    pub kinds: Vec<MediaAssetKind>,
-    /// Whether hidden assets should be included.
-    pub include_hidden: bool,
-    /// Whether added-asset events should be included.
-    pub include_added: bool,
-    /// Whether updated-asset events should be included.
-    pub include_updated: bool,
-    /// Whether removed-asset events should be included.
-    pub include_removed: bool,
 }
 
 /// Replay struct for MountEntry.
@@ -19681,17 +18399,6 @@ pub enum LifecycleeventReplayRecord {
     LifecycleResumeEvent(LifecycleresumeeventReplayRecord),
     /// LifecycleTerminateEvent variant.
     LifecycleTerminateEvent(LifecycleterminateeventReplayRecord),
-}
-
-/// Replay enum for MediaEvent.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum MediaeventReplayRecord {
-    /// MediaAddedEvent variant.
-    MediaAddedEvent(MediaaddedeventReplayRecord),
-    /// MediaRemovedEvent variant.
-    MediaRemovedEvent(MediaremovedeventReplayRecord),
-    /// MediaUpdatedEvent variant.
-    MediaUpdatedEvent(MediaupdatedeventReplayRecord),
 }
 
 /// Replay enum for NotificationEvent.

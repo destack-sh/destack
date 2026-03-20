@@ -185,7 +185,7 @@ fn appkit_capability_ceiling_mask() -> u64 {
         | display_platform::DISPLAY_BACKEND_CAP_TRANSPARENCY.0
         | display_platform::DISPLAY_BACKEND_CAP_ALWAYS_ON_TOP.0
         | display_platform::DISPLAY_BACKEND_CAP_ATTENTION_REQUEST.0
-        | display_platform::DISPLAY_BACKEND_CAP_REFRESH_REQUEST.0
+        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_INVALIDATE.0
         | display_platform::DISPLAY_BACKEND_CAP_SAFE_AREA.0
         | display_platform::DISPLAY_BACKEND_CAP_THEME.0
         | display_platform::DISPLAY_BACKEND_CAP_OCCLUSION.0
@@ -224,7 +224,7 @@ fn x11_capability_ceiling_mask() -> u64 {
         | display_platform::DISPLAY_BACKEND_CAP_TRANSPARENCY.0
         | display_platform::DISPLAY_BACKEND_CAP_ALWAYS_ON_TOP.0
         | display_platform::DISPLAY_BACKEND_CAP_ATTENTION_REQUEST.0
-        | display_platform::DISPLAY_BACKEND_CAP_REFRESH_REQUEST.0
+        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_INVALIDATE.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ICON.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_OPACITY.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_FOCUS.0
@@ -261,7 +261,7 @@ fn wayland_capability_ceiling_mask() -> u64 {
         | display_platform::DISPLAY_BACKEND_CAP_CURSOR_VISIBILITY.0
         | display_platform::DISPLAY_BACKEND_CAP_TRANSPARENCY.0
         | display_platform::DISPLAY_BACKEND_CAP_ATTENTION_REQUEST.0
-        | display_platform::DISPLAY_BACKEND_CAP_REFRESH_REQUEST.0
+        | display_platform::DISPLAY_BACKEND_CAP_WINDOW_INVALIDATE.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ICON.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_OPACITY.0
         | display_platform::DISPLAY_BACKEND_CAP_WINDOW_FOCUS.0
@@ -656,19 +656,13 @@ pub(crate) fn test_display_window_surface_supports_strict_backend_selection() {
                 continue;
             };
 
-            context.destack_display_window_request_refresh(window)?;
             let event = context.destack_display_window_event_read(stream, 100_000_000)?;
-            let saw_refresh_or_created = matches!(
+            let saw_created = matches!(
                 event,
-                HarnessValue::Native(display_platform::WindowEvent::WindowRefreshRequestedEvent(
-                    _
-                )) | HarnessValue::Native(display_platform::WindowEvent::WindowCreatedEvent(_))
-                    | HarnessValue::Vm(
-                        display_platform::WindowEventVm::WindowRefreshRequestedEvent(_)
-                    )
+                HarnessValue::Native(display_platform::WindowEvent::WindowCreatedEvent(_))
                     | HarnessValue::Vm(display_platform::WindowEventVm::WindowCreatedEvent(_))
             );
-            assert!(saw_refresh_or_created);
+            assert!(saw_created);
 
             context.destack_display_window_set_visibility(window, WindowVisibility::Minimized)?;
             assert!(wait_window_visibility(
@@ -815,7 +809,6 @@ pub(crate) fn test_display_window_remaining_surface_calls_follow_backend_contrac
                 }
             };
 
-            context.destack_display_window_request_refresh(window)?;
             let batch = context.destack_display_window_event_read_batch(stream, 8, 100_000_000)?;
             let batch_len = match batch {
                 HarnessValue::Native(values) => {
@@ -1200,21 +1193,14 @@ pub(crate) fn test_display_backend_identity_tracks_strict_backend_selection() {
                 continue;
             };
 
-            context.destack_display_window_request_refresh(window)?;
             let event = context.destack_display_window_event_read(stream, 100_000_000)?;
             let event_backend = match event {
                 HarnessValue::Native(display_platform::WindowEvent::WindowCreatedEvent(value)) => {
                     value.metadata.backend
                 }
-                HarnessValue::Native(
-                    display_platform::WindowEvent::WindowRefreshRequestedEvent(value),
-                ) => value.metadata.backend,
                 HarnessValue::Vm(display_platform::WindowEventVm::WindowCreatedEvent(value)) => {
                     value.metadata.backend
                 }
-                HarnessValue::Vm(display_platform::WindowEventVm::WindowRefreshRequestedEvent(
-                    value,
-                )) => value.metadata.backend,
                 _ => {
                     context.destack_display_window_event_close(stream)?;
                     context.destack_display_window_close(window)?;

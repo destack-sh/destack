@@ -40,8 +40,8 @@ enum DecodedIntentEvent {
         source: Option<String>,
         /// Path payload.
         path: String,
-        /// Normalized content type when provided by the host.
-        content_type: Option<String>,
+        /// Normalized MIME type when provided by the host.
+        mime_type: Option<String>,
     },
 }
 
@@ -80,17 +80,17 @@ fn decode_native_intent_event(value: IntentEvent) -> RuntimeResult<DecodedIntent
                 .source
                 .map(|source| unsafe { source.as_str().map(str::to_string) })
                 .transpose()?;
-            let content_type = event
+            let mime_type = event
                 .payload
-                .content_type
-                .map(|content_type| unsafe { content_type.as_str().map(str::to_string) })
+                .mime_type
+                .map(|mime_type| unsafe { mime_type.as_str().map(str::to_string) })
                 .transpose()?;
 
             Ok(DecodedIntentEvent::OpenFile {
                 sequence: event.metadata.sequence,
                 source,
                 path,
-                content_type,
+                mime_type,
             })
         }
         _ => panic!("unexpected intent event kind"),
@@ -145,10 +145,10 @@ fn decode_vm_intent_event(
                 ),
                 None => None,
             };
-            let content_type = match event.payload.content_type {
-                Some(content_type) => Some(
+            let mime_type = match event.payload.mime_type {
+                Some(mime_type) => Some(
                     vm_context
-                        .string_ref(content_type)
+                        .string_ref(mime_type)
                         .map_err(Box::from)?
                         .as_str()
                         .to_string(),
@@ -160,7 +160,7 @@ fn decode_vm_intent_event(
                 sequence: event.metadata.sequence,
                 source,
                 path,
-                content_type,
+                mime_type,
             })
         }
         _ => panic!("unexpected intent event kind"),

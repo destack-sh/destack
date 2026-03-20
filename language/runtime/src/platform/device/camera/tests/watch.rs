@@ -79,7 +79,7 @@ fn assert_camera_watch_events(events: &[CameraWatchEventValue]) {
     // validate every event in delivery order
     for event in events {
         match event {
-            CameraWatchEventValue::CameraInstanceEvent(value) => {
+            CameraWatchEventValue::CameraAttachedEvent(value) => {
                 assert_eq!(value.kind, "attached");
                 assert_watch_sequence(value.metadata.sequence, &mut last_sequence);
                 assert_camera_device_descriptor_shape(&value.metadata.device);
@@ -113,7 +113,7 @@ fn assert_seeded_watch_delivery(
 
     let attached_count = events
         .iter()
-        .filter(|event| matches!(event, CameraWatchEventValue::CameraInstanceEvent(_)))
+        .filter(|event| matches!(event, CameraWatchEventValue::CameraAttachedEvent(_)))
         .count();
 
     assert!(

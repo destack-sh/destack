@@ -23,6 +23,14 @@ pub(crate) fn destack_display_backend_list(
     Err(RuntimeError::from(PlatformError::not_supported("destack.display.backend.list")).boxed())
 }
 
+pub(crate) use crate::platform::display::vm::{
+    destack_display_begin_frame_close, destack_display_begin_frame_open,
+    destack_display_begin_frame_read, destack_display_begin_frame_read_batch,
+    destack_display_begin_frame_try_read, destack_display_begin_frame_try_read_batch,
+    destack_display_window_content_rect, destack_display_window_framebuffer_size,
+    destack_display_window_invalidate, destack_display_window_render_state,
+};
+
 /// Close one display endpoint.
 ///
 /// Close one opened display endpoint and release host resources.

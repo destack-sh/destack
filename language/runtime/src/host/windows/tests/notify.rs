@@ -118,11 +118,11 @@ fn test_notify_location_sample_enqueues_location_event_for_runtime_bridge() {
     let sample = LocationSampleValue {
         latitude_degrees: 1.0,
         longitude_degrees: 2.0,
-        altitude_meters: Some(3.0),
-        horizontal_accuracy_meters: Some(4.0),
-        vertical_accuracy_meters: Some(5.0),
-        speed_meters_per_second: Some(6.0),
-        heading_degrees: Some(7.0),
+        altitude_meters: 3.0,
+        horizontal_accuracy_meters: 4.0,
+        vertical_accuracy_meters: 5.0,
+        speed_meters_per_second: 6.0,
+        heading_degrees: 7.0,
         timestamp_unix_ns: 8,
     };
 

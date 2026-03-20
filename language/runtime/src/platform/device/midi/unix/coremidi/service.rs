@@ -175,7 +175,7 @@ pub(crate) fn core_midi_service(operation: &'static str) -> RuntimeResult<Arc<Co
         let operation_client = create_core_midi_client("Destack MIDI", operation, None)?;
 
         Ok(CoreMidiService {
-            executor: InlineExecutor::new("platform.midi.coremidi"),
+            executor: InlineExecutor::new("platform.device.midi.coremidi"),
             operation_client,
             notify_client,
             native_event_registry,

@@ -6,13 +6,13 @@ use crate::platform::os::{
     CalendarEventQueryVm, CalendarEventVm, ContactDraftVm, ContactPageVm, ContactQueryVm,
     ContactVm, CredentialAuthenticationOptionsVm, CredentialAuthenticationResultVm,
     CredentialQueryVm, CredentialRecordVm, CredentialWriteOptionsVm, DocumentAccess,
-    DocumentAccessGrantVm, DocumentDescriptorVm, DocumentPickOptionsVm, HostIdentityVm,
-    IntentEventVm, IntentOpenOptionsVm, LifecycleEventVm, LifecycleState, LoadAverageVm,
-    LocationSampleVm, LocationWatchOptionsVm, MediaAssetDescriptorVm, MediaAssetKind, MediaEventVm,
-    MediaPageVm, MediaQueryVm, MediaWatchOptionsVm, MountEntryVm, NetworkEventVm, NetworkStateVm,
-    NotificationCategoryVm, NotificationEventOpenOptionsVm, NotificationEventVm,
-    NotificationPermissionState, NotificationRequestVm, NotificationScheduledDescriptorVm,
-    Permission, PermissionEntryVm, PermissionState, PowerState, SystemSnapshotVm,
+    DocumentDescriptorVm, DocumentPickOptionsVm, HostIdentityVm, IntentEventVm,
+    IntentOpenOptionsVm, LifecycleEventVm, LifecycleState, LoadAverageVm, LocationSampleVm,
+    LocationWatchOptionsVm, MediaAssetDescriptorVm, MediaAssetKind, MediaPageVm, MediaQueryVm,
+    MountEntryVm, NetworkEventVm, NetworkStateVm, NotificationCategoryVm,
+    NotificationEventOpenOptionsVm, NotificationEventVm, NotificationPermissionState,
+    NotificationRequestVm, NotificationScheduledDescriptorVm, Permission, PermissionEntryVm,
+    PermissionState, PowerState, SystemSnapshotVm,
 };
 use crate::platform::{VmAbiCodec, VmArray, VmSlice, fs, resource};
 use crate::runtime::BindingCallContext;
@@ -757,51 +757,6 @@ pub(crate) fn destack_os_document_close(
     document::close(binding, handle)
 }
 
-/// List persisted document-access grants.
-pub(crate) fn destack_os_document_access_list(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<VmArray<DocumentAccessGrantVm>> {
-    document::access_list_vm(binding, context)
-}
-
-/// Open one persisted document-access grant.
-pub(crate) fn destack_os_document_access_open(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    id: vm::StringHandle,
-    access: DocumentAccess,
-) -> RuntimeResult<resource::DocumentHandle> {
-    let id = context
-        .string_ref(id)
-        .map_err(|error| RuntimeError::from(error).boxed())?;
-
-    document::access_open(binding, id.as_str(), access)
-}
-
-/// Persist external document access for later reopen.
-pub(crate) fn destack_os_document_access_persist(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    documents: VmArray<DocumentDescriptorVm>,
-    access: DocumentAccess,
-) -> RuntimeResult<VmArray<DocumentAccessGrantVm>> {
-    let documents = documents.into_value(context)?;
-
-    document::access_persist_vm(binding, context, documents, access)
-}
-
-/// Revoke persisted document-access grants.
-pub(crate) fn destack_os_document_access_revoke(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    ids: VmArray<vm::StringHandle>,
-) -> RuntimeResult<u32> {
-    let ids = ids.into_value(context)?;
-
-    document::access_revoke(binding, ids)
-}
-
 /// Flush one opened document handle.
 ///
 /// Flush buffered outbound document bytes for one opened handle.
@@ -824,17 +779,6 @@ pub(crate) fn destack_os_document_flush(
     handle: resource::DocumentHandle,
 ) -> RuntimeResult<()> {
     document::flush(binding, handle)
-}
-
-/// Import selected documents into app-owned storage.
-pub(crate) fn destack_os_document_import(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    documents: VmArray<DocumentDescriptorVm>,
-) -> RuntimeResult<VmArray<DocumentDescriptorVm>> {
-    let documents = documents.into_value(context)?;
-
-    document::import_vm(binding, context, documents)
 }
 
 /// Open one document URI.
@@ -1715,9 +1659,9 @@ pub(crate) fn destack_os_media_list(
     media::page_vm(context, page)
 }
 
-/// Describe one media asset descriptor.
+/// Read one media asset descriptor.
 ///
-/// Read one richer host media asset descriptor by stable identifier.
+/// Read one host media asset descriptor by stable identifier.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1731,118 +1675,15 @@ pub(crate) fn destack_os_media_list(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) fn destack_os_media_describe(
+pub(crate) fn destack_os_media_read(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<MediaAssetDescriptorVm> {
     let id = <vm::StringHandle as VmAbiCodec>::into_value(id, context)?;
-    let descriptor = media::describe(binding, id.as_str())?;
+    let descriptor = media::read(binding, id.as_str())?;
 
     media::descriptor_vm(context, descriptor)
-}
-
-/// Close one media watch stream.
-///
-/// Close one opened media watch stream and release runtime watch resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime media watch state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.media.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_os_media_watch_close(
-    binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::MediaWatchHandle,
-) -> RuntimeResult<()> {
-    media::watch_close(binding, handle)
-}
-
-/// Open media watch stream.
-///
-/// Open one runtime-owned media watch stream and track add or update or remove events for one filtered asset set.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host media-list queries and runtime watch state.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.media.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_os_media_watch_open(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    options: MediaWatchOptionsVm,
-) -> RuntimeResult<resource::MediaWatchHandle> {
-    let options = options.into_value(context)?;
-
-    media::watch_open(binding, options)
-}
-
-/// Wait for one media watch event.
-///
-/// Wait for one queued media watch event from one opened watch stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime media watch state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `os.media.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_os_media_watch_read(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::MediaWatchHandle,
-    timeoutns: u64,
-) -> RuntimeResult<MediaEventVm> {
-    let event = media::watch_read(binding, handle, timeoutns)?;
-
-    media::event_vm(context, event)
-}
-
-/// Poll one media watch event without blocking.
-///
-/// Poll one queued media watch event from one opened watch stream without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime media watch state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.media.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_os_media_watch_try_read(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::MediaWatchHandle,
-) -> RuntimeResult<MediaEventVm> {
-    let event = media::watch_try_read(binding, handle)?;
-
-    media::event_vm(context, event)
 }
 
 /// Mount one filesystem target.

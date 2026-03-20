@@ -74,12 +74,24 @@ fn background_task_options(
                 identifier,
                 trigger: BackgroundTriggerKind::AppRefresh,
                 minimum_interval_ns: 300_000_000_000,
+                earliest_begin_unix_ns: 0,
+                requires_network: false,
+                requires_unmetered_network: false,
+                requires_charging: false,
+                requires_idle: false,
+                persisted: false,
             })
         }
         None => context.harness_value(BackgroundTaskOptions {
             identifier: context.call_context.store_string(identifier),
             trigger: BackgroundTriggerKind::AppRefresh,
             minimum_interval_ns: 300_000_000_000,
+            earliest_begin_unix_ns: 0,
+            requires_network: false,
+            requires_unmetered_network: false,
+            requires_charging: false,
+            requires_idle: false,
+            persisted: false,
         }),
     }
 }

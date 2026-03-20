@@ -4,16 +4,16 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::os::{
     BackgroundEventOpenOptionsVm, BackgroundEventVm, BackgroundStatus, BackgroundTaskDescriptorVm,
     BackgroundTaskOptionsVm, BackgroundTaskResult, CalendarDescriptorVm, CalendarEventDraftVm,
-    CalendarEventQueryVm, CalendarEventVm, ClipboardBinaryFormat, ContactDraftVm, ContactPageVm,
-    ContactQueryVm, ContactVm, CredentialAuthenticationOptionsVm, CredentialAuthenticationResultVm,
+    CalendarEventQueryVm, CalendarEventVm, ContactDraftVm, ContactPageVm, ContactQueryVm,
+    ContactVm, CredentialAuthenticationOptionsVm, CredentialAuthenticationResultVm,
     CredentialQueryVm, CredentialRecordVm, CredentialWriteOptionsVm, DocumentAccess,
-    DocumentAccessGrantVm, DocumentDescriptorVm, DocumentPickOptionsVm, HostIdentityVm,
-    IntentEventVm, IntentOpenOptionsVm, LifecycleEventVm, LifecycleState, LoadAverageVm,
-    LocationSampleVm, LocationWatchOptionsVm, MediaAssetDescriptorVm, MediaAssetKind, MediaEventVm,
-    MediaPageVm, MediaQueryVm, MediaWatchOptionsVm, MountEntryVm, NetworkEventVm, NetworkStateVm,
-    NotificationCategoryVm, NotificationEventOpenOptionsVm, NotificationEventVm,
-    NotificationPermissionState, NotificationRequestVm, NotificationScheduledDescriptorVm,
-    Permission, PermissionEntryVm, PermissionState, PowerState, SystemSnapshotVm,
+    DocumentDescriptorVm, DocumentPickOptionsVm, HostIdentityVm, IntentEventVm,
+    IntentOpenOptionsVm, LifecycleEventVm, LifecycleState, LoadAverageVm, LocationSampleVm,
+    LocationWatchOptionsVm, MediaAssetDescriptorVm, MediaAssetKind, MediaPageVm, MediaQueryVm,
+    MountEntryVm, NetworkEventVm, NetworkStateVm, NotificationCategoryVm,
+    NotificationEventOpenOptionsVm, NotificationEventVm, NotificationPermissionState,
+    NotificationRequestVm, NotificationScheduledDescriptorVm, Permission, PermissionEntryVm,
+    PermissionState, PowerState, SystemSnapshotVm,
 };
 use crate::platform::{PlatformError, VmArray, VmSlice, fs, resource};
 use crate::runtime::BindingCallContext;
@@ -463,190 +463,6 @@ pub(crate) fn destack_os_calendar_list(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.calendar.list")).boxed())
 }
 
-/// Clear clipboard payload.
-///
-/// Clear current host clipboard ownership or payload contents.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard clear and owner-reset APIs.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.write`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) fn destack_os_clipboard_clear(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.os.clipboard.clear")).boxed())
-}
-
-/// Query whether text clipboard payload exists.
-///
-/// Return whether one text payload is currently available on the host clipboard.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard query APIs and selection ownership checks.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_os_clipboard_has_text(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<bool> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.os.clipboard.hasText")).boxed())
-}
-
-/// Read binary clipboard payload.
-///
-/// Read one binary payload in one selected clipboard format.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard APIs for binary format extraction.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_os_clipboard_read_bytes(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    format: ClipboardBinaryFormat,
-) -> RuntimeResult<VmSlice<u8>> {
-    let _ = format;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.clipboard.readBytes",
-    ))
-    .boxed())
-}
-
-/// Read text clipboard payload.
-///
-/// Read one text payload from the host clipboard.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard APIs such as X11 or Wayland selection protocols and Win32 clipboard APIs.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_os_clipboard_read_text(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<vm::StringHandle> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.clipboard.readText",
-    ))
-    .boxed())
-}
-
-/// Read clipboard sequence number.
-///
-/// Read one monotonic sequence marker for host clipboard contents.
-/// Sequence semantics are host defined but monotonic within one host clipboard service lifetime.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard sequence APIs where available.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_os_clipboard_sequence(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<u64> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.clipboard.sequence",
-    ))
-    .boxed())
-}
-
-/// Write binary clipboard payload.
-///
-/// Write one binary payload in one selected clipboard format.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard APIs for binary format insertion.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.write`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) fn destack_os_clipboard_write_bytes(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    format: ClipboardBinaryFormat,
-    argument_bytes: VmSlice<u8>,
-) -> RuntimeResult<()> {
-    let _ = (format, argument_bytes);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.clipboard.writeBytes",
-    ))
-    .boxed())
-}
-
-/// Write text clipboard payload.
-///
-/// Write one text payload into the host clipboard.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host clipboard write APIs and ownership semantics.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.clipboard.write`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) fn destack_os_clipboard_write_text(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    text: vm::StringHandle,
-) -> RuntimeResult<()> {
-    let _ = text;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.clipboard.writeText",
-    ))
-    .boxed())
-}
-
 /// Create one contact.
 ///
 /// Create one host contact record and return its stable identifier.
@@ -961,15 +777,6 @@ pub(crate) fn destack_os_credentials_write(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_os_document_access_list(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<VmArray<DocumentAccessGrantVm>> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.document.access.list",
-    ))
-    .boxed())
-}
 
 /// Open one persisted document-access grant.
 ///
@@ -987,18 +794,6 @@ pub(crate) fn destack_os_document_access_list(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) fn destack_os_document_access_open(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    id: vm::StringHandle,
-    access: DocumentAccess,
-) -> RuntimeResult<resource::DocumentHandle> {
-    let _ = (id, access);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.document.access.open",
-    ))
-    .boxed())
-}
 
 /// Persist external document access for later reopen.
 ///
@@ -1016,18 +811,6 @@ pub(crate) fn destack_os_document_access_open(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) fn destack_os_document_access_persist(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    documents: VmArray<DocumentDescriptorVm>,
-    access: DocumentAccess,
-) -> RuntimeResult<VmArray<DocumentAccessGrantVm>> {
-    let _ = (documents, access);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.document.access.persist",
-    ))
-    .boxed())
-}
 
 /// Revoke persisted document-access grants.
 ///
@@ -1045,17 +828,6 @@ pub(crate) fn destack_os_document_access_persist(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) fn destack_os_document_access_revoke(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    ids: VmArray<vm::StringHandle>,
-) -> RuntimeResult<u32> {
-    let _ = ids;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.document.access.revoke",
-    ))
-    .boxed())
-}
 
 /// Close one opened document handle.
 ///
@@ -1115,23 +887,6 @@ pub(crate) fn destack_os_document_flush(
 /// Unix and Windows.
 /// Uses host-local filesystem import after one prior picker or provider selection.
 ///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.document.write`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) fn destack_os_document_import(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    documents: VmArray<DocumentDescriptorVm>,
-) -> RuntimeResult<VmArray<DocumentDescriptorVm>> {
-    let _ = documents;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.os.document.import")).boxed())
-}
-
 /// Open one document URI.
 ///
 /// Open one document URI with one selected access mode.
@@ -1947,13 +1702,13 @@ pub(crate) fn destack_os_media_delete(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) fn destack_os_media_describe(
+pub(crate) fn destack_os_media_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
 ) -> RuntimeResult<MediaAssetDescriptorVm> {
     let _ = id;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.os.media.describe")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.media.read")).boxed())
 }
 
 /// Import one file path into host media library.
@@ -2025,14 +1780,6 @@ pub(crate) fn destack_os_media_list(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_os_media_watch_close(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::MediaWatchHandle,
-) -> RuntimeResult<()> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.os.media.watchClose")).boxed())
-}
 
 /// Open media watch stream.
 ///
@@ -2051,14 +1798,6 @@ pub(crate) fn destack_os_media_watch_close(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_os_media_watch_open(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    options: MediaWatchOptionsVm,
-) -> RuntimeResult<resource::MediaWatchHandle> {
-    let _ = options;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.os.media.watchOpen")).boxed())
-}
 
 /// Wait for one media watch event.
 ///
@@ -2076,15 +1815,6 @@ pub(crate) fn destack_os_media_watch_open(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_os_media_watch_read(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::MediaWatchHandle,
-    timeoutns: u64,
-) -> RuntimeResult<MediaEventVm> {
-    let _ = (handle, timeoutns);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.os.media.watchRead")).boxed())
-}
 
 /// Poll one media watch event without blocking.
 ///
@@ -2102,17 +1832,6 @@ pub(crate) fn destack_os_media_watch_read(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_os_media_watch_try_read(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::MediaWatchHandle,
-) -> RuntimeResult<MediaEventVm> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.media.watchTryRead",
-    ))
-    .boxed())
-}
 
 /// Enumerate mount table entries.
 ///
