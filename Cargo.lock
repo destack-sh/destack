@@ -1380,6 +1380,7 @@ dependencies = [
  "filetime",
  "indexmap",
  "parking_lot",
+ "postcard",
  "pprof",
  "rustc-hash 2.1.1",
  "serde",
