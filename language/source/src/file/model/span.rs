@@ -37,6 +37,16 @@ impl Span {
         }
     }
 
+    /// Return this span with a different file id.
+    #[inline]
+    pub fn with_file(self, file: FileId) -> Self {
+        Self {
+            file,
+            start: self.start,
+            end: self.end,
+        }
+    }
+
     /// Merge two Spans.
     /// The resulting Span will be the smallest Span that contains both.
     pub fn merge(self, other: Self) -> Self {

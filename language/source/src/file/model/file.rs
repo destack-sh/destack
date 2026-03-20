@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{FileType, Span, Uri, strip_json};
+use crate::{FileType, Span, Uri, fnv1a_64, strip_json};
 
 /// The id of a File.
 #[repr(transparent)]
@@ -24,6 +24,38 @@ impl FileId {
     /// Turn a u32 into a FileId.
     pub fn new(id: u32) -> Self {
         Self(id)
+    }
+}
+
+/// Stable identity for a file across sessions.
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct FileKey(pub u64);
+
+impl std::fmt::Debug for FileKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "#{:016x}", self.0)
+    }
+}
+
+impl std::fmt::Display for FileKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "#{:016x}", self.0)
+    }
+}
+
+impl FileKey {
+    /// Well-known key for ephemeral files.
+    pub const EPHEMERAL: Self = Self(0);
+
+    /// Create a file key from a raw hash value.
+    pub fn new(key: u64) -> Self {
+        Self(key)
+    }
+
+    /// Create a file key from a stable uri.
+    pub fn from_uri(uri: &Uri) -> Self {
+        Self(fnv1a_64(uri.as_ref().as_bytes()))
     }
 }
 
@@ -64,6 +96,8 @@ impl FileVersion {
 pub struct File {
     /// The id of the File.
     pub id: FileId,
+    /// The stable key of the File.
+    pub key: FileKey,
     /// The version of the File (increments on each change).
     pub version: FileVersion,
     /// The name of the source (usually the last segment of the URI).
@@ -109,8 +143,10 @@ impl File {
         path: Option<PathBuf>,
         ty: FileType,
     ) -> Self {
+        let key = FileKey::from_uri(&uri);
         Self {
             id,
+            key,
             version: FileVersion::INITIAL,
             name,
             uri,
@@ -130,8 +166,10 @@ impl File {
         path: Option<PathBuf>,
         ty: FileType,
     ) -> Self {
+        let key = FileKey::from_uri(&uri);
         Self {
             id,
+            key,
             version: FileVersion::INITIAL,
             name,
             uri,
@@ -199,8 +237,10 @@ impl File {
         let content = Self::normalize_line_endings(content);
         let len = content.len() as u32;
         let line_start_offsets = Self::precompute_line_start_offsets(&content);
+        let key = FileKey::from_uri(&uri);
         Self {
             id,
+            key,
             version: FileVersion::INITIAL,
             name,
             uri,
@@ -228,8 +268,10 @@ impl File {
         let json = serde_json::from_str(json_str)?;
         let len = content.len() as u32;
         let line_start_offsets = Self::precompute_line_start_offsets(&content);
+        let key = FileKey::from_uri(&uri);
         let file = Self {
             id,
+            key,
             version: FileVersion::INITIAL,
             name,
             uri,
@@ -271,8 +313,10 @@ impl File {
         let json = serde_json::from_str(&json_str)?;
         let len = content.len() as u32;
         let line_start_offsets = Self::precompute_line_start_offsets(&content);
+        let key = FileKey::from_uri(&uri);
         let file = Self {
             id,
+            key,
             version: FileVersion::INITIAL,
             name,
             uri,
@@ -286,6 +330,31 @@ impl File {
             line_start_offsets: Some(line_start_offsets),
         };
         Ok(file)
+    }
+
+    /// Create a new binary file from bytes.
+    pub fn from_binary(
+        id: FileId,
+        name: String,
+        uri: Uri,
+        path: Option<PathBuf>,
+        ty: FileType,
+        content: Vec<u8>,
+    ) -> Self {
+        let len = content.len() as u32;
+        let key = FileKey::from_uri(&uri);
+        Self {
+            id,
+            key,
+            version: FileVersion::INITIAL,
+            name,
+            uri,
+            path,
+            ty,
+            len,
+            content: FileContent::Binary { content },
+            line_start_offsets: None,
+        }
     }
 
     /// Create a new file from bytes as JSON.

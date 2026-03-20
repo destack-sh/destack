@@ -446,4 +446,39 @@ impl NodeSourceMap {
             },
         );
     }
+
+    /// Rebind all spans in the map to one file id.
+    pub fn rebind_file(&mut self, file: crate::FileId) {
+        // enclosing spans
+        for span in &mut self.enclosing_spans {
+            span.file = file;
+        }
+
+        // main spans
+        for (index, span) in self.main_spans.iter_mut().enumerate() {
+            let Some(flags) = self.side_span_flags.get(index) else {
+                continue;
+            };
+            if (flags & MAIN_SPAN_FLAG) != 0 {
+                span.file = file;
+            }
+        }
+
+        // type spans
+        for (index, span) in self.type_spans.iter_mut().enumerate() {
+            let Some(flags) = self.side_span_flags.get(index) else {
+                continue;
+            };
+            if (flags & TYPE_SPAN_FLAG) != 0 {
+                span.file = file;
+            }
+        }
+
+        // extra side spans
+        for span in self.side_spans.values_mut() {
+            span.file = file;
+        }
+
+        self.invalidate_position_index();
+    }
 }
