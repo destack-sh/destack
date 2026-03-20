@@ -67,6 +67,6 @@ fn enqueue_build_tasks(
 ) {
     for (module_id, target_id) in module_targets {
         let _profile = program.profile_id_for_target_or_default(*module_id, target_id);
-        compiler.enqueue(ArtifactKey::module_emit(*module_id, target_id.clone()));
+        compiler.enqueue(ArtifactKey::module_output(*module_id, target_id.clone()));
     }
 }
