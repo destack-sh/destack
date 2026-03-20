@@ -252,13 +252,17 @@ pub(crate) fn parse_composite_eds_identifier(
                 format!("{argument_name} has one invalid evolution source component: {error}"),
             )
         })
-        .and_then(|bytes| String::from_utf8(bytes).map_err(|error| {
-            io_operation_error(
-                operation,
-                Some(PlatformErrorCode::IoInvalidData),
-                format!("{argument_name} has one invalid UTF-8 evolution source component: {error}"),
-            )
-        }))?;
+        .and_then(|bytes| {
+            String::from_utf8(bytes).map_err(|error| {
+                io_operation_error(
+                    operation,
+                    Some(PlatformErrorCode::IoInvalidData),
+                    format!(
+                        "{argument_name} has one invalid UTF-8 evolution source component: {error}"
+                    ),
+                )
+            })
+        })?;
     let object_uid = URL_SAFE_NO_PAD
         .decode(encoded_object_uid)
         .map_err(|error| {
@@ -268,13 +272,17 @@ pub(crate) fn parse_composite_eds_identifier(
                 format!("{argument_name} has one invalid evolution object component: {error}"),
             )
         })
-        .and_then(|bytes| String::from_utf8(bytes).map_err(|error| {
-            io_operation_error(
-                operation,
-                Some(PlatformErrorCode::IoInvalidData),
-                format!("{argument_name} has one invalid UTF-8 evolution object component: {error}"),
-            )
-        }))?;
+        .and_then(|bytes| {
+            String::from_utf8(bytes).map_err(|error| {
+                io_operation_error(
+                    operation,
+                    Some(PlatformErrorCode::IoInvalidData),
+                    format!(
+                        "{argument_name} has one invalid UTF-8 evolution object component: {error}"
+                    ),
+                )
+            })
+        })?;
 
     Ok((source_uid, object_uid))
 }
@@ -307,13 +315,15 @@ fn open_backend(
             )
         },
     )?;
-    let reply = factory.call_method(method_name, &(source_uid,)).map_err(|error| {
-        io_operation_error(
-            operation,
-            Some(PlatformErrorCode::IoInvalidData),
-            format!("evolution {backend_name} open failed: {error}"),
-        )
-    })?;
+    let reply = factory
+        .call_method(method_name, &(source_uid,))
+        .map_err(|error| {
+            io_operation_error(
+                operation,
+                Some(PlatformErrorCode::IoInvalidData),
+                format!("evolution {backend_name} open failed: {error}"),
+            )
+        })?;
 
     // newer EDS generations return both object path and backend bus name
     if let Ok((object_path, bus_name)) = reply.body().deserialize::<(String, String)>() {
@@ -358,7 +368,9 @@ fn select_service_name<'a>(
     Err(io_operation_error(
         operation,
         Some(PlatformErrorCode::IoNotFound),
-        format!("no reachable evolution {service_kind} service was found on the desktop session bus"),
+        format!(
+            "no reachable evolution {service_kind} service was found on the desktop session bus"
+        ),
     ))
 }
 
@@ -372,11 +384,7 @@ fn parsed_eds_source(
     let source_config = parse_key_file(&source_data);
 
     // disabled sources
-    if !bool_key(
-        source_config.get("Data Source"),
-        "Enabled",
-        true,
-    ) {
+    if !bool_key(source_config.get("Data Source"), "Enabled", true) {
         return None;
     }
 
@@ -429,10 +437,7 @@ fn parse_source_color_argb(value: &str) -> Option<u32> {
 }
 
 /// Return one string property from one D-Bus interface map.
-fn string_property(
-    interface: &HashMap<String, OwnedValue>,
-    property_name: &str,
-) -> Option<String> {
+fn string_property(interface: &HashMap<String, OwnedValue>, property_name: &str) -> Option<String> {
     let value = interface.get(property_name)?;
 
     String::try_from(value.clone()).ok()
@@ -453,7 +458,9 @@ fn parse_key_file(data: &str) -> HashMap<String, HashMap<String, String>> {
         }
 
         // section header
-        if let Some(section_name) = line.strip_prefix('[').and_then(|value| value.strip_suffix(']'))
+        if let Some(section_name) = line
+            .strip_prefix('[')
+            .and_then(|value| value.strip_suffix(']'))
         {
             current_section = section_name.trim().to_string();
             sections.entry(current_section.clone()).or_default();
@@ -519,7 +526,9 @@ mod tests {
         );
 
         assert_eq!(
-            source.get("Data Source").and_then(|section| section.get("DisplayName")),
+            source
+                .get("Data Source")
+                .and_then(|section| section.get("DisplayName")),
             Some(&"Contacts".to_string())
         );
         assert!(bool_key(source.get("Data Source"), "Enabled", false));
