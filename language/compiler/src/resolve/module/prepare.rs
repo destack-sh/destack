@@ -1,7 +1,7 @@
 use crate::timing::tags;
 use crate::{Compiler, ResolveError, ResolveResult};
 use destack_dir::{DependencyItem, Export, GlobalSymbolId, LocalSymbolId};
-use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
+use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{
     ArtifactKey, DirPrepared, ExportedSymbolTable, ImportMeta, ImportMetaTarget,
     ImportedModuleTable, ModuleBindingExportTable, ProfileId, TargetEnv, TargetVendor,
@@ -26,6 +26,18 @@ impl Compiler {
 
         self.require_dir_base(module_id)?;
 
+        // reuse one persisted prepared dir image after the current source state is known
+        let artifact_key = ArtifactKey::dir_prepared(module_id, profile_id);
+        if self
+            .load_published_artifact(artifact_key.clone(), |compiler| {
+                compiler.load_dir_prepared_image(module_id, module_version, profile_id)
+            })
+            .is_some()
+        {
+            tracing::trace!(?module_id, ?profile_id, "resolve.module.prepare.cache_hit");
+            return Ok(());
+        }
+
         // data/text/binary modules have simpler preparation
         if !self.is_code_module(module_id) {
             return self.resolve_data_module_prepare(
@@ -35,10 +47,6 @@ impl Compiler {
                 profile_version,
             );
         }
-
-        // resolve cache handle
-        let cache_handle =
-            self.cache_handle_for_module(module_id, Some(profile_id), None, CacheKind::DirPrepared);
 
         // load the module
         self.ensure_module_profile_matches::<ResolveError>(
@@ -55,21 +63,6 @@ impl Compiler {
             profile_id,
             profile_version,
         )?;
-        // try to load profile DIR from cache
-        if let Some(cache) = cache_handle.as_ref()
-            && let Ok(Some(entry)) = cache.read_dir_prepared()
-        {
-            tracing::trace!(?module_id, ?profile_id, "resolve.module.prepare.cache");
-            self.program.artifacts.publish(
-                ArtifactKey::DirPrepared {
-                    module: module_id,
-                    profile: profile_id,
-                },
-                entry.payload,
-            );
-            return Ok(());
-        }
-
         // load the base dir and profile
         let base = self
             .artifact_dir_base(module_id)
@@ -194,26 +187,12 @@ impl Compiler {
             exported_symbols,
         );
 
-        // write profile DIR to cache
-        if let Some(cache) = cache_handle.as_ref() {
-            let _timing = self.timing_scope(tags::RESOLVE_MODULE_PREPARE_CACHE_WRITE);
-            if let Err(error) = cache.write_dir_prepared(dir.clone()) {
-                tracing::debug!(
-                    ?module_id,
-                    ?profile_id,
-                    ?error,
-                    "resolve.module.cache.write"
-                );
-            }
-        }
-
-        self.program.artifacts.publish(
-            ArtifactKey::DirPrepared {
-                module: module_id,
-                profile: profile_id,
-            },
-            dir,
-        );
+        self.program
+            .artifacts
+            .publish(artifact_key.clone(), dir.clone());
+        self.store_artifact(&artifact_key, &dir, |compiler, dir| {
+            compiler.store_dir_prepared_image(module_id, profile_id, dir)
+        });
 
         Ok(())
     }
@@ -350,10 +329,6 @@ impl Compiler {
         module_version: ModuleVersion,
         profile_version: ProfileVersion,
     ) -> ResolveResult<()> {
-        // resolve cache handle
-        let cache_handle =
-            self.cache_handle_for_module(module_id, Some(profile_id), None, CacheKind::DirPrepared);
-
         let module = self.program.modules.get(module_id);
 
         // skip stale tasks
@@ -370,21 +345,6 @@ impl Compiler {
             profile_id,
             profile_version,
         )?;
-
-        // try to load profile DIR from cache
-        if let Some(cache) = cache_handle.as_ref()
-            && let Ok(Some(entry)) = cache.read_dir_prepared()
-        {
-            tracing::trace!(?module_id, ?profile_id, "resolve.module.prepare.cache");
-            self.program.artifacts.publish(
-                ArtifactKey::DirPrepared {
-                    module: module_id,
-                    profile: profile_id,
-                },
-                entry.payload,
-            );
-            return Ok(());
-        }
 
         // get base DIR (must exist for parsed data modules)
         let base = self
@@ -418,13 +378,6 @@ impl Compiler {
             ImportedModuleTable::default(),
             exported_symbols,
         );
-
-        // write profile DIR to cache
-        if let Some(cache) = cache_handle.as_ref() {
-            if let Err(error) = cache.write_dir_prepared(payload.clone()) {
-                tracing::debug!(?module_id, ?profile_id, ?error, "resolve.data.cache.write");
-            }
-        }
 
         self.program.artifacts.publish(
             ArtifactKey::DirPrepared {

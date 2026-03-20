@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
-use destack_builtin::BuiltinLibKind;
+use destack_builtin::BuiltinLibraryKind;
 use destack_dir::{DependencyKind, DependencySource, Expression, ScalarLiteral};
 use destack_source::ModuleId;
 use destack_workspace::{ModuleSource, ProfileId};
 
-use crate::{AnalyzeError, AnalyzeResult, BuildKey, BuildRequirementSet, Compiler, ResolveError};
+use crate::{AnalyzeError, AnalyzeResult, ArtifactRequirementSet, Compiler, ResolveError};
 
 impl Compiler {
     /// Require declared and interface analysis for type-import dependencies used during infer.
@@ -148,15 +148,13 @@ impl Compiler {
         &self,
         required: &mut HashSet<ModuleId>,
         origin_module_id: ModuleId,
-        requirement: &BuildRequirementSet,
+        requirement: &ArtifactRequirementSet,
     ) -> bool {
         let mut did_collect = false;
 
         // collect module ids from exact artifact requirements
         requirement.for_each(|requirement| {
-            let BuildKey::Artifact(key) = &requirement.key else {
-                return;
-            };
+            let key = &requirement.key;
             let Some(module_id) = key.module_id() else {
                 return;
             };
@@ -260,7 +258,7 @@ impl Compiler {
 
     /// Return true when one dependency should be skipped for infer preconditions.
     fn skip_builtin_lib_dependency_for_infer(&self, module_id: ModuleId) -> bool {
-        if self.options.load_libs {
+        if self.options.load_libraries {
             return false;
         }
 
@@ -268,7 +266,7 @@ impl Compiler {
         let module = module.as_ref();
         matches!(
             module.source,
-            ModuleSource::Builtin(BuiltinLibKind::Library)
+            ModuleSource::Builtin(BuiltinLibraryKind::Library)
         )
     }
 

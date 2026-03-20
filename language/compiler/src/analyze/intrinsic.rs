@@ -4,17 +4,21 @@ use destack_workspace::{ArtifactKey, IntrinsicEnvironment, ProfileId, WellKnownI
 
 use crate::analyze::common::{CanonicalSymbolMode, ModuleSymbolView};
 use crate::{
-    AnalyzeError, AnalyzeResult, BuildKey, BuildRequirementCollector, BuildRequirementError,
-    Compiler,
+    AnalyzeError, AnalyzeResult, ArtifactRequirementCollector, ArtifactRequirementError, Compiler,
 };
 
 impl Compiler {
     /// Process the intrinsic environment for a profile.
     pub(crate) fn process_intrinsic_environment(&self, profile: ProfileId) -> AnalyzeResult<()> {
         let environment = self.resolve_intrinsic_environment(profile)?;
+        let artifact_key = ArtifactKey::intrinsic_environment(profile);
         self.program
             .artifacts
-            .publish(ArtifactKey::intrinsic_environment(profile), environment);
+            .publish(artifact_key.clone(), environment.clone());
+
+        if let Err(error) = self.store_intrinsic_environment_image(profile, environment) {
+            tracing::warn!(?error, ?artifact_key, "compiler.cache.image.store_failed");
+        }
 
         Ok(())
     }
@@ -23,10 +27,8 @@ impl Compiler {
     pub(crate) fn require_intrinsic_environment(
         &self,
         profile: ProfileId,
-    ) -> Result<(), BuildRequirementError> {
-        self.require_build_key(BuildKey::artifact(ArtifactKey::intrinsic_environment(
-            profile,
-        )))
+    ) -> Result<(), ArtifactRequirementError> {
+        self.require_artifact(ArtifactKey::intrinsic_environment(profile))
     }
 
     /// Resolve the intrinsic environment for a profile.
@@ -44,8 +46,17 @@ impl Compiler {
             return Ok(environment.as_ref().clone());
         }
 
+        let artifact_key = ArtifactKey::intrinsic_environment(profile);
+        match self.load_intrinsic_environment_image(profile) {
+            Ok(Some(environment)) => return Ok(environment),
+            Ok(None) => {}
+            Err(error) => {
+                tracing::warn!(?error, ?artifact_key, "compiler.cache.image.load_failed");
+            }
+        }
+
         // collect builtin modules that can host intrinsic bindings
-        let mut collector = BuildRequirementCollector::new();
+        let mut collector = ArtifactRequirementCollector::new();
         let builtins = self
             .program
             .builtins
@@ -124,7 +135,11 @@ impl Compiler {
                     });
                 };
 
-                let Some(name_id) = binding.name.or(symbol.name()) else {
+                let Some(name) = binding
+                    .name
+                    .or(symbol.name())
+                    .map(|name_id| self.program.strings.get(name_id).to_string())
+                else {
                     let message = self
                         .program
                         .strings
@@ -136,14 +151,9 @@ impl Compiler {
                 };
 
                 // reject duplicate binding names
-                if let Some(existing) = intrinsics.symbols_by_name.get(&name_id)
+                if let Some(existing) = intrinsics.symbols_by_name.get(name.as_str())
                     && *existing != canonical_symbol_id
                 {
-                    // copy name text before interning to avoid read-write lock inversion
-                    let name = {
-                        let name = self.program.strings.get(name_id);
-                        name.to_string()
-                    };
                     let message = self
                         .program
                         .strings
@@ -157,10 +167,8 @@ impl Compiler {
                 // record the binding mapping
                 intrinsics
                     .names_by_symbol
-                    .insert(canonical_symbol_id, name_id);
-                intrinsics
-                    .symbols_by_name
-                    .insert(name_id, canonical_symbol_id);
+                    .insert(canonical_symbol_id, name.clone());
+                intrinsics.symbols_by_name.insert(name, canonical_symbol_id);
             }
         }
 

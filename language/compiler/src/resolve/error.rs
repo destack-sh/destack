@@ -165,13 +165,13 @@ pub enum ResolveError {
     MissingLanguageSymbol { item: LanguageSymbol },
 
     /// Missing builtin library.
-    #[error(code = "ER401", message = "missing builtin lib '{name}'")]
+    #[error(code = "ER401", message = "missing builtin library '{name}'")]
     MissingBuiltinLibrary { name: String },
 
-    /// Conflicting builtin lib versions.
+    /// Conflicting builtin library versions.
     #[error(
         code = "ER402",
-        message = "conflicting builtin lib versions for '{base}': {libs}"
+        message = "conflicting builtin library versions for '{base}': {libs}"
     )]
     ConflictingBuiltinLibraryVersions { base: String, libs: String },
 

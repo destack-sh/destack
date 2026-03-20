@@ -1,8 +1,7 @@
 use crate::analyze::common::TypeContext;
 use crate::timing::tags;
 use crate::{
-    AnalyzeError, AnalyzeResult, BuildKey, BuildRequirementCollector, BuildRequirementError,
-    Compiler,
+    AnalyzeError, AnalyzeResult, ArtifactRequirementCollector, ArtifactRequirementError, Compiler,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{ArtifactKey, DirInterface, ProfileId};
@@ -14,24 +13,20 @@ impl Compiler {
         &self,
         module: ModuleId,
         profile: ProfileId,
-    ) -> Result<(), BuildRequirementError> {
+    ) -> Result<(), ArtifactRequirementError> {
         // ensure the component graph exists before selecting an anchor
         self.require_resolved_dependency_closure([module], profile)?;
 
         // avoid self dependency when already analyzing this module interface
-        if self.current_build_key()
-            == Some(BuildKey::artifact(ArtifactKey::dir_interface(
-                module, profile,
-            )))
-        {
+        if self.current_artifact_key() == Some(ArtifactKey::dir_interface(module, profile)) {
             return Ok(());
         }
 
         // avoid same-component self cycles only from the canonical anchor task
-        if let Some(BuildKey::Artifact(ArtifactKey::DirInterface {
+        if let Some(ArtifactKey::DirInterface {
             module: current_module,
             profile: current_profile,
-        })) = self.current_build_key()
+        }) = self.current_artifact_key()
             && current_profile == profile
         {
             let current_anchor = self.interface_component_anchor_module_id(current_module, profile);
@@ -55,10 +50,7 @@ impl Compiler {
         }
 
         let anchor_module_id = self.interface_component_anchor_module_id(module, profile);
-        self.require_build_key(BuildKey::artifact(ArtifactKey::dir_interface(
-            anchor_module_id,
-            profile,
-        )))
+        self.require_artifact(ArtifactKey::dir_interface(anchor_module_id, profile))
     }
 
     /// Phase 2: Build interface summaries.
@@ -120,7 +112,7 @@ impl Compiler {
         let exported_symbols = resolved.exported_symbols.clone();
         let mut types = dir.types.as_ref().clone();
         {
-            let mut collector = BuildRequirementCollector::new();
+            let mut collector = ArtifactRequirementCollector::new();
 
             if self.is_code_module(module_id) {
                 let options = self.analyze_context_options_for_module(module_id);

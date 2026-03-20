@@ -1,20 +1,21 @@
+use destack_workspace::{ArtifactDependency, ArtifactKey};
+
 use crate::{
-    BuildDependency, BuildKey, BuildRequirement, BuildRequirementError, BuildRequirementSet,
+    ArtifactRequirement, ArtifactRequirementError, ArtifactRequirementSet, ArtifactTaskKeyExt,
     Compiler, TaskId, TaskStatus,
 };
-use destack_workspace::{ArtifactKey, OutputKey};
 
 impl Compiler {
-    /// Require one build key to be available, returning an error if it's not ready or has failed.
-    pub(crate) fn require_build_key(
+    /// Require one artifact key to be available, returning an error if it is not ready or failed.
+    pub(crate) fn require_artifact(
         &self,
-        build_key: BuildKey,
-    ) -> Result<(), BuildRequirementError> {
-        let anchor = build_key.anchor();
-        let requirement = BuildRequirement {
+        artifact_key: ArtifactKey,
+    ) -> Result<(), ArtifactRequirementError> {
+        let anchor = artifact_key.anchor();
+        let requirement = ArtifactRequirement {
             anchor: anchor.clone(),
-            key: build_key.clone(),
-            dependency: self.build_dependency_for_key(&build_key),
+            key: artifact_key.clone(),
+            dependency: self.artifact_dependency_for_key(&artifact_key),
             error: None,
         };
 
@@ -22,38 +23,38 @@ impl Compiler {
             return Ok(());
         }
 
-        if self.build_key_satisfies_dependency(&build_key, requirement.dependency)
-            && self.build_key_requirements_are_satisfied(&build_key)
+        if self.artifact_satisfies_dependency(&artifact_key, requirement.dependency)
+            && self.artifact_requirements_are_satisfied(&artifact_key)
         {
             self.record_current_requirement(requirement);
             return Ok(());
         }
 
-        if let Some(TaskStatus::Failed { error }) = self.queue.find_task_status(&build_key) {
-            return Err(BuildRequirementError::Failed {
-                requirement: BuildRequirementSet::one(BuildRequirement {
+        if let Some(TaskStatus::Failed { error }) = self.queue.find_task_status(&artifact_key) {
+            return Err(ArtifactRequirementError::Failed {
+                requirement: ArtifactRequirementSet::one(ArtifactRequirement {
                     error: Some(Box::new(error)),
                     ..requirement.clone()
                 }),
             });
         }
 
-        Err(BuildRequirementError::NotReady {
-            requirement: BuildRequirementSet::one(requirement),
+        Err(ArtifactRequirementError::NotReady {
+            requirement: ArtifactRequirementSet::one(requirement),
         })
     }
 
-    /// Return whether one build key has a published product available.
-    pub(crate) fn build_key_is_available(&self, build_key: &BuildKey) -> bool {
-        let dependency = self.build_dependency_for_key(build_key);
+    /// Return whether one artifact key is currently available.
+    pub(crate) fn artifact_key_is_available(&self, artifact_key: &ArtifactKey) -> bool {
+        let dependency = self.artifact_dependency_for_key(artifact_key);
 
-        self.build_key_satisfies_dependency(build_key, dependency)
-            && self.build_key_requirements_are_satisfied(build_key)
+        self.artifact_satisfies_dependency(artifact_key, dependency)
+            && self.artifact_requirements_are_satisfied(artifact_key)
     }
 
-    /// Return whether one build key still satisfies its last completed exact requirements.
-    pub(crate) fn build_key_requirements_are_satisfied(&self, build_key: &BuildKey) -> bool {
-        let Some(task_id) = self.queue.find_task_id(build_key) else {
+    /// Return whether one artifact key still satisfies its last completed exact requirements.
+    pub(crate) fn artifact_requirements_are_satisfied(&self, artifact_key: &ArtifactKey) -> bool {
+        let Some(task_id) = self.queue.find_task_id(artifact_key) else {
             return true;
         };
 
@@ -90,7 +91,7 @@ impl Compiler {
         }
 
         let is_satisfied = handle.final_requirements.iter().all(|requirement| {
-            self.build_key_satisfies_dependency(&requirement.key, requirement.dependency)
+            self.artifact_satisfies_dependency(&requirement.key, requirement.dependency)
                 && self
                     .queue
                     .find_task_id(&requirement.key)
@@ -106,31 +107,22 @@ impl Compiler {
         is_satisfied
     }
 
-    /// Return whether one build key satisfies one specific dependency.
-    pub(crate) fn build_key_satisfies_dependency(
-        &self,
-        build_key: &BuildKey,
-        dependency: BuildDependency,
-    ) -> bool {
-        match build_key {
-            BuildKey::Artifact(artifact_key) => {
-                self.artifact_is_available(artifact_key, dependency)
-            }
-            BuildKey::Output(output_key) => self.output_is_available(output_key, dependency),
-        }
-    }
-
-    /// Return whether one semantic artifact is published.
-    pub(crate) fn artifact_is_available(
+    /// Return whether one artifact key satisfies one specific dependency.
+    pub(crate) fn artifact_satisfies_dependency(
         &self,
         artifact_key: &ArtifactKey,
-        dependency: BuildDependency,
+        dependency: ArtifactDependency,
     ) -> bool {
-        let BuildDependency::Artifact(expected_dependency) = dependency else {
-            return false;
-        };
+        self.artifact_is_published(artifact_key, dependency)
+    }
 
-        if self.program.artifacts.dependency(artifact_key) != Some(expected_dependency) {
+    /// Return whether one artifact is published with the expected dependency stamp.
+    pub(crate) fn artifact_is_published(
+        &self,
+        artifact_key: &ArtifactKey,
+        dependency: ArtifactDependency,
+    ) -> bool {
+        if self.program.artifacts.dependency(artifact_key) != Some(dependency) {
             return false;
         }
 
@@ -148,9 +140,11 @@ impl Compiler {
                 .artifacts
                 .intrinsic_environment(*profile)
                 .is_some(),
-            ArtifactKey::LibEnvironment { profile } => {
-                self.program.artifacts.lib_environment(*profile).is_some()
-            }
+            ArtifactKey::LibraryEnvironment { profile } => self
+                .program
+                .artifacts
+                .library_environment(*profile)
+                .is_some(),
             ArtifactKey::Ast { module } => self.program.artifacts.ast(*module).is_some(),
             ArtifactKey::DirBase { module } => self.program.artifacts.dir_base(*module).is_some(),
             ArtifactKey::DirPrepared { module, profile } => self
@@ -206,20 +200,16 @@ impl Compiler {
                 .artifacts
                 .mir_optimized(*module, *profile, target)
                 .is_some(),
+            ArtifactKey::ModuleOutput { module, target } => self
+                .program
+                .artifacts
+                .module_output(*module, target)
+                .is_some(),
+            ArtifactKey::PackageOutput { package, target } => self
+                .program
+                .artifacts
+                .package_output(*package, target)
+                .is_some(),
         }
-    }
-
-    /// Return whether one output product is published.
-    pub(crate) fn output_is_available(
-        &self,
-        output_key: &OutputKey,
-        dependency: BuildDependency,
-    ) -> bool {
-        let BuildDependency::Output(expected_dependency) = dependency else {
-            return false;
-        };
-
-        self.program.outputs.dependency(output_key) == Some(expected_dependency)
-            && self.program.outputs.contains_key(output_key)
     }
 }

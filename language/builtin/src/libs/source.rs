@@ -197,18 +197,18 @@ impl BuiltinLibrarySource {
     /// Return the full virtual path.
     pub fn virtual_path(&self) -> String {
         if self.path.is_empty() {
-            format!("builtin://{}/{}", self.root, self.name)
+            format!("builtin://{}", self.name)
         } else {
-            format!("builtin://{}/{}/{}", self.root, self.path, self.name)
+            format!("builtin://{}/{}", self.path, self.name)
         }
     }
 
     /// Return the relative module path.
     pub fn module_path(&self) -> String {
         if self.path.is_empty() {
-            format!("{}/{}", self.root, self.name)
+            self.name.to_string()
         } else {
-            format!("{}/{}/{}", self.root, self.path, self.name)
+            format!("{}/{}", self.path, self.name)
         }
     }
 

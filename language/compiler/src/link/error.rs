@@ -1,5 +1,6 @@
 use crate::{
-    BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition, TaskError,
+    ArtifactRequirementError, ArtifactRequirementSet, DiagnosticAnchor, DiagnosticDefinition,
+    TaskError,
 };
 use destack_compiler_macros::DefineError;
 use destack_source::PackageId;
@@ -12,13 +13,13 @@ pub enum LinkError {
     // -------------------------------------------------------------------------
     // 0xx: Yield / requirement
     // -------------------------------------------------------------------------
-    /// Wait for build requirement.
+    /// Wait for artifact requirement.
     #[error(code = "EK000", r#yield)]
-    Yield { requirement: BuildRequirementSet },
+    Yield { requirement: ArtifactRequirementSet },
 
     /// Yield requirement has failed.
     #[error(code = "EK001", yield_failed)]
-    UnsatisfiedRequirement { requirement: BuildRequirementSet },
+    UnsatisfiedRequirement { requirement: ArtifactRequirementSet },
 
     /// Task was skipped due to stale versions.
     #[error(code = "EK002", message = "task skipped")]

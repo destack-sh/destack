@@ -9,7 +9,7 @@ use destack_source::ModuleId;
 use destack_workspace::{ArtifactKey, ProfileId};
 
 use crate::analyze::common::{ModuleSymbolView, TypeContext};
-use crate::{BuildRequirementError, Compiler};
+use crate::{ArtifactRequirementError, Compiler};
 
 /// Control how canonical symbol resolution treats aliases.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -126,7 +126,7 @@ impl Compiler {
         symbol: GlobalSymbolId,
         mode: CanonicalSymbolMode,
         artifact_key: fn(ModuleId, ProfileId) -> ArtifactKey,
-    ) -> Result<GlobalSymbolId, BuildRequirementError> {
+    ) -> Result<GlobalSymbolId, ArtifactRequirementError> {
         let mut current_symbol = symbol;
         let mut visited = Vec::new();
 
@@ -182,7 +182,7 @@ impl Compiler {
         view: ModuleSymbolView<'_>,
         symbol: GlobalSymbolId,
         artifact_key: fn(ModuleId, ProfileId) -> ArtifactKey,
-    ) -> Result<Option<GlobalSymbolId>, BuildRequirementError> {
+    ) -> Result<Option<GlobalSymbolId>, ArtifactRequirementError> {
         let mut current_symbol = self.canonical_symbol_id_for_artifact(
             view,
             symbol,

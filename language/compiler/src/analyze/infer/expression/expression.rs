@@ -4317,11 +4317,12 @@ impl Compiler {
         ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
     ) -> LocalTypeId {
-        self.error(AnalyzeError::TypeOnlyValue {
+        let error = AnalyzeError::TypeOnlyValue {
             node: expression_id
                 .into_global_any(ctx.module.id)
                 .into_anchored(Some(ctx.profile)),
-        });
+        };
+        self.error(error);
         ctx.types.insert_type_from(Type::Error, expression_id)
     }
 
@@ -4399,7 +4400,6 @@ impl Compiler {
     ) -> AnalyzeResult<LocalTypeId> {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_REFERENCE);
         let mut allow_type_only_reference = false;
-
         // validate local references against type-only exports
         if target_symbol.module_id == ctx.module.id {
             let symbol_entry = ctx.symbols.get_symbol(target_symbol.local_id);

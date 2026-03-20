@@ -1,6 +1,6 @@
 use crate::analyze::common::TypeContext;
 use crate::timing::tags;
-use crate::{AnalyzeError, AnalyzeResult, BuildKey, BuildRequirementError, Compiler};
+use crate::{AnalyzeError, AnalyzeResult, ArtifactRequirementError, Compiler};
 use destack_dir::{
     Annotation, Declaration, Expression, LocalNodeIdAny, Member, NodeTree, Parameter, Pattern,
     SymbolTable, TypeTable,
@@ -14,10 +14,8 @@ impl Compiler {
         &self,
         module: ModuleId,
         profile: ProfileId,
-    ) -> Result<(), BuildRequirementError> {
-        self.require_build_key(BuildKey::artifact(ArtifactKey::dir_analyzed(
-            module, profile,
-        )))
+    ) -> Result<(), ArtifactRequirementError> {
+        self.require_artifact(ArtifactKey::dir_analyzed(module, profile))
     }
 
     /// Final pass: run validation checks over committed semantics.

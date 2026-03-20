@@ -1,6 +1,6 @@
 use super::*;
 use crate::AnalyzeError;
-use destack_dir::FloatType;
+use destack_dir::{FloatType, SymbolSpace};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ParallelValueKind {
@@ -491,7 +491,7 @@ values.first() satisfies number | undefined;
         .expect("missing Array group");
     let ambient_merge_group = test
         .compiler
-        .get_lib_symbol_sources_for_merge(profile, key, SymbolSpace::Type)
+        .get_library_symbol_sources_for_merge(profile, key, SymbolSpace::Type)
         .unwrap_or_default();
     let array_symbol = type_group
         .iter()
@@ -1081,6 +1081,163 @@ weird.call(0);
     test.analyze_module(module_id);
     test.compile();
     test.check_no_diagnostic_code("EA236");
+}
+
+/// Reject value-position uses of type-only exports forwarded through export-star barrels.
+#[test]
+fn test_export_star_forwarded_type_only_exports_reject_value_use() {
+    let test = TestProgram::memory_sequential();
+    test.add_file(
+        "types.ts",
+        r#"
+export type User = { name: string };
+export const value = 1;
+"#,
+    );
+    test.add_file(
+        "module-b.ts",
+        r#"
+export * from "./types";
+"#,
+    );
+    let main_id = test.add_module(
+        "main.ts",
+        r#"
+import { value, User } from "./module-b";
+
+value satisfies number;
+type Alias = User;
+User;
+"#,
+    );
+    test.apply_destack_config(
+        main_id,
+        r#"{
+            "compiler": {
+                "checkTs": true,
+                "checkJs": true
+            }
+        }"#,
+    );
+
+    test.resolve_module(main_id);
+    test.compile_check_clean();
+
+    test.analyze_module(main_id);
+    test.compile();
+    test.check_has_diagnostic("EA117");
+}
+
+/// Reject value-position uses of type-only reexports in one direct analyze pass.
+#[test]
+fn test_export_type_reexport_rejects_value_use_in_one_pass() {
+    let test = TestProgram::memory_sequential();
+    test.add_file(
+        "types.ts",
+        r#"
+export type User = { name: string };
+"#,
+    );
+    let main_id = test.add_module(
+        "main.ts",
+        r#"
+export type { User } from "./types";
+import { User } from "./main";
+
+type Alias = User;
+User;
+"#,
+    );
+    test.apply_destack_config(
+        main_id,
+        r#"{
+            "compiler": {
+                "checkTs": true,
+                "checkJs": true
+            }
+        }"#,
+    );
+
+    test.analyze_module(main_id);
+    test.compile();
+    test.check_has_diagnostic("EA117");
+}
+
+/// Reject value-position uses of type-only export-star reexports in one direct analyze pass.
+#[test]
+fn test_export_type_star_reexport_rejects_value_use_in_one_pass() {
+    let test = TestProgram::memory_sequential();
+    test.add_file(
+        "types.ts",
+        r#"
+export type User = { name: string };
+export const value = 1;
+"#,
+    );
+    test.add_file(
+        "mod.ts",
+        r#"
+export * from "./types";
+"#,
+    );
+    let main_id = test.add_module(
+        "main.ts",
+        r#"
+import { value, User } from "./mod";
+
+value satisfies number;
+type Alias = User;
+User;
+"#,
+    );
+    test.apply_destack_config(
+        main_id,
+        r#"{
+            "compiler": {
+                "checkTs": true,
+                "checkJs": true
+            }
+        }"#,
+    );
+
+    test.analyze_module(main_id);
+    test.compile();
+    test.check_has_diagnostic("EA117");
+}
+
+/// Reject unannotated export inference cycles in one direct analyze pass.
+#[test]
+fn test_export_inference_cycle_requires_annotation_in_one_pass() {
+    let test = TestProgram::memory_sequential();
+    test.add_file(
+        "a.ts",
+        r#"
+import { y } from "./b";
+
+export const x = y;
+"#,
+    );
+    let main_id = test.add_module(
+        "b.ts",
+        r#"
+import { x } from "./a";
+
+export const y = x;
+"#,
+    );
+    test.apply_destack_config(
+        main_id,
+        r#"{
+            "compiler": {
+                "checkTs": true,
+                "checkJs": true
+            }
+        }"#,
+    );
+
+    test.analyze_module(main_id);
+    test.compile();
+    test.check_has_diagnostic("EA116");
 }
 
 /// Analyze cross module extension associated comptime value projection through re-exports.

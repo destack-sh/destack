@@ -4,7 +4,7 @@ use crate::analyze::common::{InferContext, NormalizationMode, TypeContext};
 use crate::analyze::r#type::json_value_to_type;
 use crate::timing::tags;
 use crate::{
-    AnalyzeError, AnalyzeResult, BuildRequirementCollector, Compiler, FlowContext, InferSession,
+    AnalyzeError, AnalyzeResult, ArtifactRequirementCollector, Compiler, FlowContext, InferSession,
 };
 use destack_dir::{
     Declaration, Declarator, Expression, FlowGraphBuilder, InferTable, IntType, LocalNodeId,
@@ -103,7 +103,7 @@ impl Compiler {
         self.require_declare_dependencies_for_infer(module_id, profile)?;
         self.require_interface_dependencies(module_id, profile)?;
 
-        let mut collector = BuildRequirementCollector::new();
+        let mut collector = ArtifactRequirementCollector::new();
         let options = self.analyze_context_options_for_module(module.id);
 
         // initialize infer session state

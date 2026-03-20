@@ -7,7 +7,7 @@ use destack_source::ModuleId;
 use destack_workspace::{DirAnalyzed, DirDeclared, ProfileId, Program, WellKnownIntrinsics};
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{BuildRequirementError, Compiler, LowerError, LowerResult};
+use crate::{ArtifactRequirementError, Compiler, LowerError, LowerResult};
 
 use super::constructor::ConstructorState;
 use super::policy::RuntimeCheckConfig;
@@ -214,10 +214,10 @@ impl<'a> FunctionLowerer<'a> {
 
         match snapshot {
             Ok(snapshot) => Ok(snapshot),
-            Err(BuildRequirementError::NotReady { requirement }) => {
+            Err(ArtifactRequirementError::NotReady { requirement }) => {
                 Err(LowerError::Yield { requirement })
             }
-            Err(BuildRequirementError::Failed { requirement }) => {
+            Err(ArtifactRequirementError::Failed { requirement }) => {
                 Err(LowerError::UnsatisfiedRequirement { requirement })
             }
         }
@@ -318,7 +318,7 @@ impl<'a> FunctionLowerer<'a> {
 
         // resolve the string type for the literal
         let ty = self.env.type_lowerer.string_type().ok_or_else(|| {
-            let message = "missing builtin String layout (load lib/native)".to_string();
+            let message = "missing builtin String layout (load library/native)".to_string();
             match anchor {
                 Some(anchor) => LowerError::UnsupportedConstruct {
                     node: anchor,

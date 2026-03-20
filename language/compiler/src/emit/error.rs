@@ -1,11 +1,12 @@
 use std::path::PathBuf;
 
 use crate::{
-    BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition, TaskError,
+    ArtifactRequirementError, ArtifactRequirementSet, DiagnosticAnchor, DiagnosticDefinition,
+    TaskError,
 };
 use destack_compiler_macros::DefineError;
 use destack_source::{FileType, PackageId, Uri};
-use destack_workspace::{OutputId, Program, TargetId};
+use destack_workspace::{Program, TargetId};
 
 /// Errors during the emit phase.
 #[derive(Debug, Clone, PartialEq, DefineError)]
@@ -14,13 +15,13 @@ pub enum EmitError {
     // -------------------------------------------------------------------------
     // 0xx: Yield / requirement
     // -------------------------------------------------------------------------
-    /// Wait for build requirement.
+    /// Wait for artifact requirement.
     #[error(code = "EW000", r#yield)]
-    Yield { requirement: BuildRequirementSet },
+    Yield { requirement: ArtifactRequirementSet },
 
     /// Yield requirement has failed.
     #[error(code = "EW001", yield_failed)]
-    UnsatisfiedRequirement { requirement: BuildRequirementSet },
+    UnsatisfiedRequirement { requirement: ArtifactRequirementSet },
 
     /// Task was skipped due to stale versions.
     #[error(code = "EW002", message = "task skipped")]
@@ -48,15 +49,11 @@ pub enum EmitError {
     // -------------------------------------------------------------------------
     /// Output has invalid or missing output path.
     #[error(code = "EW200", message = "output has invalid output path: {uri}")]
-    InvalidOutputPath { output: OutputId, uri: Uri },
+    InvalidOutputPath { uri: Uri },
 
     /// Unsupported output.
     #[error(code = "EW201", message = "unsupported output type '{file_type}'")]
-    UnsupportedOutput {
-        output: OutputId,
-        uri: Uri,
-        file_type: FileType,
-    },
+    UnsupportedOutput { uri: Uri, file_type: FileType },
 
     // -------------------------------------------------------------------------
     // 3xx: Write issues
@@ -64,7 +61,6 @@ pub enum EmitError {
     /// Failed to write output file.
     #[error(code = "EW300", message = "failed to write file '{path}': {message}")]
     FailedWrite {
-        output: OutputId,
         path: PathBuf,
         message: Option<String>,
     },

@@ -158,7 +158,7 @@ impl Compiler {
                     }
                 }
 
-                let is_ambient = self.is_ambient_lib_module(profile, symbol.module_id);
+                let is_ambient = self.is_ambient_library_module(profile, symbol.module_id);
                 if !is_ambient {
                     return None;
                 }
@@ -177,12 +177,13 @@ impl Compiler {
         // resolve Symbol.* member keys
         if let Expression::Member { left, name, .. } = expression {
             let well_known = self.get_well_known_symbols(profile)?;
+            let name = self.program.strings.get(*name);
             let symbol_key = tree.get(*left).target_symbol().and_then(|base_symbol| {
                 well_known
-                    .symbol_key_for_member(base_symbol, *name)
+                    .symbol_key_for_member(base_symbol, name.as_ref())
                     .or_else(|| {
                         let normalized = normalize_well_known_symbol(base_symbol, &well_known)?;
-                        well_known.symbol_key_for_member(normalized, *name)
+                        well_known.symbol_key_for_member(normalized, name.as_ref())
                     })
             })?;
             return Some(StaticKey::Symbol(SymbolKey::WellKnown(symbol_key)));

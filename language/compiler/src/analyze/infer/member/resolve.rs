@@ -56,7 +56,7 @@ impl Compiler {
         let symbol_name = self.program.strings.intern(well_known_symbol.export_name());
         let symbol_key = StaticKey::Name(symbol_name);
         if let Some(symbol) = self
-            .get_lib_symbol_sources_for_space_order(
+            .get_library_symbol_sources_for_space_order(
                 profile,
                 symbol_key,
                 SymbolSpaceOrder::TypeThenValue,
@@ -66,7 +66,7 @@ impl Compiler {
             return Some(symbol);
         }
 
-        self.get_declared_lib_symbol_from(profile, symbol_name, SymbolSpaceOrder::TypeThenValue)
+        self.get_declared_library_symbol_from(profile, symbol_name, SymbolSpaceOrder::TypeThenValue)
     }
 
     /// Resolve the preferred member type for a symbol-aware lookup.
@@ -981,8 +981,8 @@ impl Compiler {
 
         let mut symbol =
             self.resolve_implicit_well_known_carrier_symbol(profile, well_known_symbol);
-        if symbol.is_none() && module.is_user() && self.options.load_libs {
-            self.require_lib_environment(profile)
+        if symbol.is_none() && module.is_user() && self.options.load_libraries {
+            self.require_library_environment(profile)
                 .map_err(AnalyzeError::from)?;
             symbol = self.resolve_implicit_well_known_carrier_symbol(profile, well_known_symbol);
         }

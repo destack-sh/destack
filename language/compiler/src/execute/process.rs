@@ -1,5 +1,5 @@
 use crate::timing::tags;
-use crate::{BuildKey, BuildRequirementError, Compiler, ExecuteError, ExecuteResult};
+use crate::{ArtifactRequirementError, Compiler, ExecuteError, ExecuteResult};
 
 use destack_source::ModuleId;
 use destack_workspace::{ArtifactKey, ProfileId};
@@ -15,6 +15,18 @@ impl Compiler {
             profile,
             profile_version,
         )?;
+
+        // reuse a persisted patched dir when it is still valid
+        let artifact_key = ArtifactKey::dir_patched(module, profile);
+        if self
+            .load_published_artifact(artifact_key.clone(), |compiler| {
+                compiler.load_dir_patched_image(module, module_version, profile)
+            })
+            .is_some()
+        {
+            return Ok(());
+        }
+
         let _timing = self.timing_scope(tags::EXECUTE_MODULE_PATCH);
         self.require_intrinsic_environment(profile)
             .map_err(ExecuteError::from)?;
@@ -26,7 +38,10 @@ impl Compiler {
 
         self.program
             .artifacts
-            .publish(ArtifactKey::dir_patched(module, profile), payload);
+            .publish(artifact_key.clone(), payload.clone());
+        self.store_artifact(&artifact_key, &payload, |compiler, payload| {
+            compiler.store_dir_patched_image(module, profile, payload)
+        });
 
         Ok(())
     }
@@ -36,9 +51,7 @@ impl Compiler {
         &self,
         module: ModuleId,
         profile: ProfileId,
-    ) -> Result<(), BuildRequirementError> {
-        self.require_build_key(BuildKey::artifact(ArtifactKey::dir_patched(
-            module, profile,
-        )))
+    ) -> Result<(), ArtifactRequirementError> {
+        self.require_artifact(ArtifactKey::dir_patched(module, profile))
     }
 }

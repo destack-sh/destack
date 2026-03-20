@@ -4,12 +4,12 @@ use std::sync::OnceLock;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use destack_workspace::{ArtifactKey, OutputScope};
+use destack_workspace::ArtifactKey;
 
 use crate::{
-    AnalyzeError, BuildKey, BuildRequirementSet, Compiler, CompilerEvent, ElaborateError,
-    ExecuteError, GenerateError, ImportError, InternalError, LinkError, LowerError, OptimizeError,
-    ResolveError, TaskError, TaskHandle, TaskId, TaskOutcome, TaskPhase, TaskStatus,
+    AnalyzeError, ArtifactRequirementSet, ArtifactTaskKeyExt, Compiler, CompilerEvent,
+    ElaborateError, ExecuteError, GenerateError, ImportError, InternalError, LinkError, LowerError,
+    OptimizeError, ResolveError, TaskError, TaskHandle, TaskId, TaskOutcome, TaskPhase, TaskStatus,
 };
 
 #[cfg(feature = "parallel")]
@@ -23,24 +23,24 @@ thread_local! {
     /// Flag to detect if we're inside a worker loop (to prevent nested run_task calls).
     static IN_WORKER_LOOP: Cell<bool> = const { Cell::new(false) };
     /// The task currently being executed on this worker.
-    static CURRENT_TASK: RefCell<Option<BuildKey>> = const { RefCell::new(None) };
-    /// The exact build requirements satisfied by the current task attempt.
-    static CURRENT_REQUIREMENTS: RefCell<Vec<crate::BuildRequirement>> = const { RefCell::new(Vec::new()) };
+    static CURRENT_TASK: RefCell<Option<ArtifactKey>> = const { RefCell::new(None) };
+    /// The exact artifact requirements satisfied by the current task attempt.
+    static CURRENT_REQUIREMENTS: RefCell<Vec<crate::ArtifactRequirement>> = const { RefCell::new(Vec::new()) };
 }
 
 impl Compiler {
     /// Return the task currently executing on this worker thread.
-    pub(crate) fn current_task(&self) -> Option<BuildKey> {
+    pub(crate) fn current_task(&self) -> Option<ArtifactKey> {
         CURRENT_TASK.with(|current| current.borrow().clone())
     }
 
-    /// Return the build key currently executing on this worker thread.
-    pub(crate) fn current_build_key(&self) -> Option<BuildKey> {
+    /// Return the artifact key currently executing on this worker thread.
+    pub(crate) fn current_artifact_key(&self) -> Option<ArtifactKey> {
         self.current_task()
     }
 
-    /// Record one satisfied build requirement for the current task attempt.
-    pub(crate) fn record_current_requirement(&self, requirement: crate::BuildRequirement) {
+    /// Record one satisfied artifact requirement for the current task attempt.
+    pub(crate) fn record_current_requirement(&self, requirement: crate::ArtifactRequirement) {
         if !self.should_record_current_requirement(&requirement) {
             return;
         }
@@ -60,7 +60,7 @@ impl Compiler {
     /// Return whether one exact requirement was already satisfied in the current task attempt.
     pub(crate) fn current_requirement_is_recorded(
         &self,
-        requirement: &crate::BuildRequirement,
+        requirement: &crate::ArtifactRequirement,
     ) -> bool {
         CURRENT_REQUIREMENTS.with(|requirements| {
             requirements.borrow().iter().any(|existing| {
@@ -70,30 +70,29 @@ impl Compiler {
     }
 
     /// Return whether one satisfied requirement should persist past task completion.
-    fn should_record_current_requirement(&self, requirement: &crate::BuildRequirement) -> bool {
-        match (&self.current_build_key(), &requirement.key) {
+    fn should_record_current_requirement(&self, requirement: &crate::ArtifactRequirement) -> bool {
+        match (&self.current_artifact_key(), &requirement.key) {
             (None, _) => false,
             (
-                Some(BuildKey::Artifact(
+                Some(
                     ArtifactKey::LanguageEnvironment { .. }
                     | ArtifactKey::IntrinsicEnvironment { .. }
-                    | ArtifactKey::LibEnvironment { .. },
-                )),
+                    | ArtifactKey::LibraryEnvironment { .. },
+                ),
                 _,
             ) => false,
-            (Some(BuildKey::Artifact(_)), BuildKey::Artifact(required_key)) => {
+            (Some(_), required_key) => {
                 if matches!(
                     required_key,
                     ArtifactKey::LanguageEnvironment { .. }
                         | ArtifactKey::IntrinsicEnvironment { .. }
-                        | ArtifactKey::LibEnvironment { .. }
+                        | ArtifactKey::LibraryEnvironment { .. }
                 ) {
                     return false;
                 }
 
                 true
             }
-            _ => true,
         }
     }
 
@@ -105,30 +104,45 @@ impl Compiler {
     }
 
     /// Take the current task requirement log.
-    fn take_current_requirements(&self) -> Vec<crate::BuildRequirement> {
+    fn take_current_requirements(&self) -> Vec<crate::ArtifactRequirement> {
         CURRENT_REQUIREMENTS.with(|requirements| std::mem::take(&mut *requirements.borrow_mut()))
     }
 
     /// Enqueue a task to the compiler.
     /// Noop if we already have the same task queued, returns the existing TaskId.
-    pub fn enqueue<T: Into<BuildKey>>(&self, build_key: T) -> (TaskId, bool) {
-        let build_key: BuildKey = build_key.into();
-        let event = format!("{}.{}.enqueue", build_key.phase().name(), build_key.name());
-        let args = build_key.trace_args(&self.program);
+    pub fn enqueue<T: Into<ArtifactKey>>(&self, artifact_key: T) -> (TaskId, bool) {
+        let artifact_key: ArtifactKey = artifact_key.into();
+        let event = format!(
+            "{}.{}.enqueue",
+            artifact_key.phase().name(),
+            artifact_key.name()
+        );
+        let args = artifact_key.trace_args(&self.program);
 
         // reuse existing queued or running tasks directly
-        if let Some(handle) = self.queue.find_task_handle(&build_key) {
+        if let Some(handle) = self.queue.find_task_handle(&artifact_key) {
             if !handle.status.is_final() {
                 self.stats.record_enqueue();
                 tracing::trace!(%event, %args, task_id = ?handle.id, "compile.enqueue");
                 return (handle.id, false);
             }
 
-            // rerun stale final tasks when the current build requirement is no longer satisfied
-            if !self.build_key_is_available(&build_key) {
+            // rerun stale final tasks when the current artifact requirement is no longer satisfied
+            if !self.artifact_key_is_available(&artifact_key) {
+                if std::env::var_os("DESTACK_DEBUG_REQUEUE").is_some() {
+                    let current_dependency = self.artifact_dependency_for_key(&artifact_key);
+                    let published_dependency = self.program.artifacts.dependency(&artifact_key);
+                    let requirements_satisfied =
+                        self.artifact_requirements_are_satisfied(&artifact_key);
+                    eprintln!(
+                        "REQUEUE artifact={args} key={artifact_key:?} task_id={:?} published={published_dependency:?} current={current_dependency:?} requirements_satisfied={requirements_satisfied:?} final_requirements={:?}",
+                        handle.id, handle.final_requirements
+                    );
+                }
+
                 let task_id = self
                     .queue
-                    .try_requeue_final(&build_key)
+                    .try_requeue_final(&artifact_key)
                     .expect("existing final task should requeue");
                 self.stats.record_enqueue();
                 tracing::trace!(%event, %args, ?task_id, "compile.enqueue");
@@ -136,7 +150,7 @@ impl Compiler {
             }
         }
 
-        let (task_id, is_new) = self.queue.enqueue(build_key);
+        let (task_id, is_new) = self.queue.enqueue(artifact_key);
         if is_new {
             self.stats.record_enqueue();
             tracing::trace!(%event, %args, ?task_id, "compile.enqueue");
@@ -144,26 +158,18 @@ impl Compiler {
         (task_id, is_new)
     }
 
-    /// Enqueue the producer task for one build key.
-    pub fn enqueue_build_key(&self, build_key: BuildKey) -> (TaskId, bool) {
-        self.enqueue(build_key)
+    /// Get the status of an artifact key.
+    pub fn get_status(&self, artifact_key: &ArtifactKey) -> Option<TaskStatus> {
+        self.queue.find_task_status(artifact_key)
     }
 
-    /// Get the status of a build key.
-    pub fn get_status(&self, build_key: &BuildKey) -> Option<TaskStatus> {
-        self.queue.find_task_status(build_key)
-    }
-
-    /// Get the outcome of a build key.
-    pub fn get_outcome(&self, build_key: &BuildKey) -> Option<TaskOutcome> {
-        self.queue.find_task_outcome(build_key)
+    /// Get the outcome of an artifact key.
+    pub fn get_outcome(&self, artifact_key: &ArtifactKey) -> Option<TaskOutcome> {
+        self.queue.find_task_outcome(artifact_key)
     }
 
     /// Runs the compiler loop until there is nothing left to do.
     pub fn compile(&self) {
-        // compiler-local binding tables are only valid for one compile invocation
-        self.module_binding_tables.clear();
-
         // resolve worker count for this build mode
         let worker_count = effective_worker_count(self.options.workers);
 
@@ -193,7 +199,7 @@ impl Compiler {
         // flush remaining diagnostics
         self.flush_diagnostics();
 
-        // flush workspace index snapshot
+        // flush workspace index
         if let Err(error) = self.flush_workspace_index() {
             tracing::warn!(?error, "compile.cache.workspace_index.flush_failed");
         }
@@ -256,12 +262,12 @@ impl Compiler {
     ///
     /// # Panics
     /// Panics if called from within `worker_loop`. Use yielding instead.
-    pub fn run_task<T: Into<BuildKey>>(&self, build_key: T) -> TaskOutcome {
+    pub fn run_task<T: Into<ArtifactKey>>(&self, artifact_key: T) -> TaskOutcome {
         assert!(
             !IN_WORKER_LOOP.get(),
             "run_task_loop cannot be called from within worker_loop"
         );
-        let (target_id, _) = self.enqueue(build_key);
+        let (target_id, _) = self.enqueue(artifact_key);
         loop {
             // check if target reached a final state
             if let Some(status) = self.queue.get_status(target_id) {
@@ -298,22 +304,17 @@ impl Compiler {
         }
     }
 
-    /// Run one build key producer to completion.
-    pub fn run_build_key(&self, build_key: BuildKey) -> TaskOutcome {
-        self.run_task(build_key)
-    }
-
     /// Process a single task 'step' (run until outcome, not final state).
     fn step_task(&self, task_id: TaskId) {
         let handle = self.queue.get_task(task_id);
 
         // get task description for events
-        let description = handle.build_key.trace_args(&self.program);
+        let description = handle.artifact_key.trace_args(&self.program);
 
         // emit task started event
         self.emit_event(CompilerEvent::TaskStarted {
             task_id,
-            build_key: handle.build_key.clone(),
+            artifact_key: handle.artifact_key.clone(),
             phase: handle.phase(),
             description: description.clone(),
         });
@@ -323,7 +324,7 @@ impl Compiler {
         self.queue.set_status(task_id, TaskStatus::Running);
         self.clear_current_requirements();
         CURRENT_TASK.with(|current| {
-            *current.borrow_mut() = Some(handle.build_key.clone());
+            *current.borrow_mut() = Some(handle.artifact_key.clone());
         });
         let outcome = self.process_task(&handle);
         CURRENT_TASK.with(|current| {
@@ -335,14 +336,18 @@ impl Compiler {
         if let Some(threshold) = slow_task_threshold()
             && elapsed >= threshold
         {
-            let event = format!("{}.{}.slow", handle.phase().name(), handle.build_key.name());
+            let event = format!(
+                "{}.{}.slow",
+                handle.phase().name(),
+                handle.artifact_key.name()
+            );
             tracing::info!(%event, %description, ?task_id, ?elapsed, "compile.task.slow");
             self.stats.record_slow_task();
 
             // emit slow task event
             self.emit_event(CompilerEvent::TaskSlow {
                 task_id,
-                build_key: handle.build_key.clone(),
+                artifact_key: handle.artifact_key.clone(),
                 phase: handle.phase(),
                 elapsed,
                 description: description.clone(),
@@ -354,9 +359,9 @@ impl Compiler {
     /// Process a compiler task and return the outcome.
     fn process_task(&self, handle: &TaskHandle) -> TaskOutcome {
         // trace
-        let build_key = &handle.build_key;
+        let artifact_key = &handle.artifact_key;
         let task_id = handle.id;
-        let args = build_key.trace_args(&self.program);
+        let args = artifact_key.trace_args(&self.program);
         let event_name = if handle.last_outcome.is_some() {
             "resume"
         } else {
@@ -364,82 +369,76 @@ impl Compiler {
         };
         let event = format!(
             "{}.{}.{}",
-            build_key.phase().name(),
-            build_key.name(),
+            artifact_key.phase().name(),
+            artifact_key.name(),
             event_name
         );
         tracing::debug!(%event, %args, ?task_id);
 
         // process
-        let outcome = match build_key {
-            BuildKey::Artifact(ArtifactKey::ModuleGraph { .. }) => {
-                panic!("module graphs are published as side effects of resolved dir updates")
-            }
-            BuildKey::Artifact(ArtifactKey::Ast { module }) => self.process_ast(*module).into(),
-            BuildKey::Artifact(ArtifactKey::DirBase { module }) => {
-                self.process_dir_base(*module).into()
-            }
-            BuildKey::Artifact(ArtifactKey::DirPrepared { module, profile }) => {
+        let outcome = match artifact_key {
+            ArtifactKey::ModuleGraph { profile } => self.process_module_graph(*profile).into(),
+            ArtifactKey::Ast { module } => self.process_ast(*module).into(),
+            ArtifactKey::DirBase { module } => self.process_dir_base(*module).into(),
+            ArtifactKey::DirPrepared { module, profile } => {
                 self.process_dir_prepared(*module, *profile).into()
             }
-            BuildKey::Artifact(ArtifactKey::LanguageEnvironment { profile }) => {
+            ArtifactKey::LanguageEnvironment { profile } => {
                 self.process_language_environment(*profile).into()
             }
-            BuildKey::Artifact(ArtifactKey::IntrinsicEnvironment { profile }) => {
+            ArtifactKey::IntrinsicEnvironment { profile } => {
                 self.process_intrinsic_environment(*profile).into()
             }
-            BuildKey::Artifact(ArtifactKey::LibEnvironment { profile }) => {
-                self.process_lib_environment(*profile).into()
+            ArtifactKey::LibraryEnvironment { profile } => {
+                self.process_library_environment(*profile).into()
             }
-            BuildKey::Artifact(ArtifactKey::DirResolved { module, profile }) => {
+            ArtifactKey::DirResolved { module, profile } => {
                 self.process_dir_resolved(*module, *profile).into()
             }
-            BuildKey::Artifact(ArtifactKey::DirDeclared { module, profile }) => {
+            ArtifactKey::DirDeclared { module, profile } => {
                 self.process_dir_declared(*module, *profile).into()
             }
-            BuildKey::Artifact(ArtifactKey::DirInterface { module, profile }) => {
+            ArtifactKey::DirInterface { module, profile } => {
                 self.process_dir_interface(*module, *profile).into()
             }
-            BuildKey::Artifact(ArtifactKey::DirAnalyzed { module, profile }) => {
+            ArtifactKey::DirAnalyzed { module, profile } => {
                 self.process_dir_analyzed(*module, *profile).into()
             }
-            BuildKey::Artifact(ArtifactKey::DirElaborated { module, profile }) => {
+            ArtifactKey::DirElaborated { module, profile } => {
                 self.process_dir_elaborated(*module, *profile).into()
             }
-            BuildKey::Artifact(ArtifactKey::DirPatched { module, profile }) => {
+            ArtifactKey::DirPatched { module, profile } => {
                 self.process_dir_patched(*module, *profile).into()
             }
-            BuildKey::Artifact(ArtifactKey::MirBase {
+            ArtifactKey::MirBase {
                 module,
                 profile,
                 target,
-            }) => self.process_mir(*module, *profile, target.clone()).into(),
-            BuildKey::Artifact(ArtifactKey::MirOptimized {
+            } => self.process_mir(*module, *profile, target.clone()).into(),
+            ArtifactKey::MirOptimized {
                 module,
                 profile,
                 target,
-            }) => self
+            } => self
                 .process_mir_optimized(*module, *profile, target.clone())
                 .into(),
-            BuildKey::Output(output_key) => match output_key.scope {
-                OutputScope::Module(module) => {
-                    let profile = self
-                        .program
-                        .profile_id_for_target(module, &output_key.target)
-                        .unwrap_or_else(|| {
-                            panic!(
-                                "missing profile for module {:?} target {:?}",
-                                module, output_key.target
-                            )
-                        });
+            ArtifactKey::ModuleOutput { module, target } => {
+                let profile = self
+                    .program
+                    .profile_id_for_target(*module, target)
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "missing profile for module {:?} target {:?}",
+                            module, target
+                        )
+                    });
 
-                    self.process_module_output(module, profile, output_key.target.clone())
-                        .into()
-                }
-                OutputScope::Package(package) => self
-                    .process_package_output(package, output_key.target.clone())
-                    .into(),
-            },
+                self.process_module_output(*module, profile, target.clone())
+                    .into()
+            }
+            ArtifactKey::PackageOutput { package, target } => {
+                self.process_package_output(*package, target.clone()).into()
+            }
         };
 
         outcome
@@ -455,7 +454,7 @@ impl Compiler {
         description: String,
     ) {
         // record per-task timing
-        let task_name = format!("{}.{}", handle.phase().name(), handle.build_key.name());
+        let task_name = format!("{}.{}", handle.phase().name(), handle.artifact_key.name());
         self.stats.record_task_name_time(&task_name, elapsed);
 
         let mut requeued = false;
@@ -465,12 +464,12 @@ impl Compiler {
                 let event = format!(
                     "{}.{}.complete",
                     handle.phase().name(),
-                    handle.build_key.name()
+                    handle.artifact_key.name()
                 );
                 tracing::debug!(%event, %description, ?task_id);
 
                 // publish the current dependency stamp before waking waiters
-                self.commit_completed_build(&handle.build_key);
+                self.commit_completed_artifact(&handle.artifact_key);
                 self.queue
                     .set_final_requirements(task_id, self.take_current_requirements());
                 self.queue.set_status(task_id, TaskStatus::Complete);
@@ -479,7 +478,7 @@ impl Compiler {
                 self.stats.record_phase_time(handle.phase(), elapsed);
 
                 // record per-package time from task anchor
-                let anchor = handle.build_key.anchor();
+                let anchor = handle.artifact_key.anchor();
                 if let Some(module_id) = anchor.module_id() {
                     let package_id = self.program.modules.get(module_id).package_id;
                     self.stats.record_package_time(package_id, elapsed);
@@ -490,14 +489,18 @@ impl Compiler {
                 // emit task completed event
                 self.emit_event(CompilerEvent::TaskCompleted {
                     task_id,
-                    build_key: handle.build_key.clone(),
+                    artifact_key: handle.artifact_key.clone(),
                     phase: handle.phase(),
                     elapsed,
                     description,
                 });
             }
             TaskOutcome::Skipped => {
-                let event = format!("{}.{}.skip", handle.phase().name(), handle.build_key.name());
+                let event = format!(
+                    "{}.{}.skip",
+                    handle.phase().name(),
+                    handle.artifact_key.name()
+                );
                 tracing::debug!(%event, %description, ?task_id);
                 self.queue.clear_final_requirements(task_id);
                 self.clear_current_requirements();
@@ -507,7 +510,7 @@ impl Compiler {
                 self.wake_waiters(task_id);
 
                 // record per-package time from task anchor
-                let anchor = handle.build_key.anchor();
+                let anchor = handle.artifact_key.anchor();
                 if let Some(module_id) = anchor.module_id() {
                     let package_id = self.program.modules.get(module_id).package_id;
                     self.stats.record_package_time(package_id, elapsed);
@@ -518,7 +521,7 @@ impl Compiler {
                 // emit task skipped event
                 self.emit_event(CompilerEvent::TaskSkipped {
                     task_id,
-                    build_key: handle.build_key.clone(),
+                    artifact_key: handle.artifact_key.clone(),
                     phase: handle.phase(),
                     description,
                 });
@@ -528,7 +531,7 @@ impl Compiler {
                 let event = format!(
                     "{}.{}.error",
                     handle.phase().name(),
-                    handle.build_key.name()
+                    handle.artifact_key.name()
                 );
                 tracing::debug!(%event, %description, ?task_id);
                 self.stats.record_fail();
@@ -546,7 +549,7 @@ impl Compiler {
                 // emit task failed event
                 self.emit_event(CompilerEvent::TaskFailed {
                     task_id,
-                    build_key: handle.build_key.clone(),
+                    artifact_key: handle.artifact_key.clone(),
                     phase: handle.phase(),
                     error: error.clone(),
                 });
@@ -559,7 +562,7 @@ impl Compiler {
                     let event = format!(
                         "{}.{}.circuit",
                         handle.phase().name(),
-                        handle.build_key.name()
+                        handle.artifact_key.name()
                     );
                     tracing::error!(%event, %description, ?task_id);
                     self.queue.set_status(
@@ -574,7 +577,7 @@ impl Compiler {
                     // emit task failed event for circuit breaker
                     self.emit_event(CompilerEvent::TaskFailed {
                         task_id,
-                        build_key: handle.build_key.clone(),
+                        artifact_key: handle.artifact_key.clone(),
                         phase: handle.phase(),
                         error: internal_error.into(),
                     });
@@ -599,7 +602,7 @@ impl Compiler {
                 // emit task yielded event
                 self.emit_event(CompilerEvent::TaskYielded {
                     task_id,
-                    build_key: handle.build_key.clone(),
+                    artifact_key: handle.artifact_key.clone(),
                     phase: handle.phase(),
                 });
             }
@@ -615,7 +618,7 @@ impl Compiler {
         &self,
         task_id: TaskId,
         handle: &TaskHandle,
-        requirement: &BuildRequirementSet,
+        requirement: &ArtifactRequirementSet,
     ) -> Option<InternalError> {
         // check for repeated yield to the same requirement
         if let Some(TaskOutcome::Yield {
@@ -633,7 +636,7 @@ impl Compiler {
         if handle.yield_count >= MAX_TOTAL_YIELD_COUNT {
             return Some(InternalError::ExcessiveYield {
                 task_id,
-                build_key: handle.build_key.clone(),
+                artifact_key: handle.artifact_key.clone(),
                 requirement: requirement.clone(),
                 yield_count: handle.yield_count,
             });
@@ -644,7 +647,7 @@ impl Compiler {
 
     /// Yield to a requirement, register waiters, and check if already satisfied.
     /// Returns true if the task was immediately requeued.
-    fn yield_requirement(&self, waiter_id: TaskId, requirement: &BuildRequirementSet) -> bool {
+    fn yield_requirement(&self, waiter_id: TaskId, requirement: &ArtifactRequirementSet) -> bool {
         // first, register all sub-requirements
         self.register_requirement(waiter_id, requirement);
 
@@ -658,7 +661,7 @@ impl Compiler {
     }
 
     /// Register waiters for all sub-requirements without re-queuing.
-    fn register_requirement(&self, waiter_id: TaskId, requirement: &BuildRequirementSet) {
+    fn register_requirement(&self, waiter_id: TaskId, requirement: &ArtifactRequirementSet) {
         requirement.for_each(|requirement| {
             let (required_id, _) = self.enqueue(requirement.key.clone());
 
@@ -673,16 +676,17 @@ impl Compiler {
     }
 
     /// Check if a requirement is satisfied.
-    fn is_requirement_satisfied(&self, requirement: &BuildRequirementSet) -> bool {
+    fn is_requirement_satisfied(&self, requirement: &ArtifactRequirementSet) -> bool {
         requirement.all(|requirement| {
-            self.build_key_satisfies_dependency(&requirement.key, requirement.dependency)
+            self.artifact_satisfies_dependency(&requirement.key, requirement.dependency)
+                && self.artifact_requirements_are_satisfied(&requirement.key)
         })
     }
 
-    /// Wake all tasks waiting for the completed build key.
+    /// Wake all tasks waiting for the completed artifact key.
     fn wake_waiters(&self, completed_id: TaskId) {
         let completed_handle = self.queue.get_task(completed_id);
-        let completed_key = completed_handle.build_key.clone();
+        let completed_key = completed_handle.artifact_key.clone();
         let waiters = self.queue.take_waiters(&completed_key);
         for waiter_id in waiters {
             // a completed dependency means the waiter must recompute its requirements
@@ -695,10 +699,10 @@ impl Compiler {
         }
     }
 
-    /// Fail all tasks waiting for the failed build key.
+    /// Fail all tasks waiting for the failed artifact key.
     fn fail_waiters(&self, failed_id: TaskId) {
         let failed_handle = self.queue.get_task(failed_id);
-        let failed_key = failed_handle.build_key.clone();
+        let failed_key = failed_handle.artifact_key.clone();
         let waiters = self.queue.take_waiters(&failed_key);
         for waiter_id in waiters {
             if let Some(TaskStatus::Yielded { requirement }) = self.queue.get_status(waiter_id) {
@@ -707,7 +711,7 @@ impl Compiler {
         }
     }
     /// Fail a waiter using the fallback error from its requirement.
-    fn fail_waiter(&self, waiter_id: TaskId, requirement: &BuildRequirementSet) {
+    fn fail_waiter(&self, waiter_id: TaskId, requirement: &ArtifactRequirementSet) {
         let error: TaskError = Self::get_fallback_error(requirement)
             .unwrap_or_else(|| self.get_yield_failed_error(waiter_id, requirement));
         self.queue.set_status(
@@ -720,7 +724,7 @@ impl Compiler {
     }
 
     /// Get the fallback error from a requirement.
-    fn get_fallback_error(requirement: &BuildRequirementSet) -> Option<TaskError> {
+    fn get_fallback_error(requirement: &ArtifactRequirementSet) -> Option<TaskError> {
         requirement.find_map(|requirement| requirement.error.as_ref().map(|error| *error.clone()))
     }
 
@@ -728,7 +732,7 @@ impl Compiler {
     fn get_yield_failed_error(
         &self,
         waiter_id: TaskId,
-        requirement: &BuildRequirementSet,
+        requirement: &ArtifactRequirementSet,
     ) -> TaskError {
         let handle = self.queue.get_task(waiter_id);
         match handle.phase() {

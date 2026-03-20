@@ -21,9 +21,18 @@ impl BuiltinSource {
     /// Return the full virtual path.
     pub fn virtual_path(&self) -> String {
         if self.path.is_empty() {
-            format!("builtin://intrinsic/{}", self.name)
+            format!("builtin://{}", self.name)
         } else {
-            format!("builtin://intrinsic/{}/{}", self.path, self.name)
+            format!("builtin://{}/{}", self.path, self.name)
+        }
+    }
+
+    /// Return the relative module path.
+    pub fn module_path(&self) -> String {
+        if self.path.is_empty() {
+            self.name.to_string()
+        } else {
+            format!("{}/{}", self.path, self.name)
         }
     }
 }
@@ -171,7 +180,7 @@ mod tests {
     fn test_virtual_path() {
         assert_eq!(
             OPERATOR_ARITHMETIC.virtual_path(),
-            "builtin://intrinsic/operator/arithmetic.ds"
+            "builtin://operator/arithmetic.ds"
         );
     }
 

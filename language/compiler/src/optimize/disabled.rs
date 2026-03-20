@@ -1,7 +1,7 @@
 use destack_source::ModuleId;
 use destack_workspace::{ArtifactKey, ProfileId, TargetId};
 
-use crate::{BuildKey, BuildRequirementError, Compiler, OptimizeError, OptimizeResult};
+use crate::{ArtifactRequirementError, Compiler, OptimizeError, OptimizeResult};
 
 impl Compiler {
     /// Build optimized MIR for one module and target.
@@ -32,11 +32,7 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
         target: &TargetId,
-    ) -> Result<(), BuildRequirementError> {
-        self.require_build_key(BuildKey::artifact(ArtifactKey::mir_optimized(
-            module,
-            profile,
-            target.clone(),
-        )))
+    ) -> Result<(), ArtifactRequirementError> {
+        self.require_artifact(ArtifactKey::mir_optimized(module, profile, target.clone()))
     }
 }

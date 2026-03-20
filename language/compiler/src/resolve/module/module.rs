@@ -1,7 +1,7 @@
 use crate::resolve::binding::cache::ResolveExpressionCache;
 use crate::resolve::dependency::cache::ResolveDependencyItemCache;
 use crate::timing::tags;
-use crate::{BuildRequirementCollector, Compiler, ResolveError, ResolveResult};
+use crate::{ArtifactRequirementCollector, Compiler, ResolveError, ResolveResult};
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, Expression, GlobalSymbolId, LocalNodeId,
     LocalScopeId, NamespaceExport, NodeTree, SymbolSpace, SymbolTable,
@@ -97,7 +97,7 @@ impl Compiler {
         expression_ids: &[LocalNodeId<Expression>],
         expression_cache: &mut ResolveExpressionCache,
     ) -> ResolveResult<()> {
-        let mut collector = BuildRequirementCollector::new();
+        let mut collector = ArtifactRequirementCollector::new();
         for expression_id in expression_ids {
             if !self.is_node_active(tree, symbols, (*expression_id).into_any()) {
                 continue;
@@ -149,12 +149,13 @@ impl Compiler {
         }
 
         // builtin declarations can skip eager expression validation in some modes
-        let is_selected_lib_module = self.is_selected_lib_module(profile, module.id);
-        let is_standard_lib_environment_module = self.is_standard_lib_environment_module(module.id);
+        let is_selected_library_module = self.is_selected_library_module(profile, module.id);
+        let is_standard_library_environment_module =
+            self.is_standard_library_environment_module(module.id);
         let skip_builtin_declaration_expressions = module.language_type.is_declaration()
             && module.is_builtin()
             && !self.options.validate_builtin_libs
-            && (!is_selected_lib_module || !is_standard_lib_environment_module);
+            && (!is_selected_library_module || !is_standard_library_environment_module);
         let skip_builtin_global_symbol_table = module.language_type.is_declaration()
             && module.is_builtin()
             && !self.options.validate_builtin_libs;
@@ -217,7 +218,7 @@ impl Compiler {
         // declarations
         {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_DECLARATIONS);
-            let mut collector = BuildRequirementCollector::new();
+            let mut collector = ArtifactRequirementCollector::new();
             for declaration_id in &worklist.declaration_ids {
                 if !self.is_node_active(tree, symbols, (*declaration_id).into_any()) {
                     continue;
@@ -320,7 +321,7 @@ impl Compiler {
         let item_ids = cache.dependency_item_ids_for(module.id, tree);
 
         // resolve dependency items
-        let mut collector = BuildRequirementCollector::new();
+        let mut collector = ArtifactRequirementCollector::new();
         let mut resolved_items = Vec::new();
         for item_id in item_ids {
             let resolved_item = self.resolve_dependency_item(

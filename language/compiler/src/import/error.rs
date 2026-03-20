@@ -1,5 +1,6 @@
 use crate::{
-    BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition, TaskError,
+    ArtifactRequirementError, ArtifactRequirementSet, DiagnosticAnchor, DiagnosticDefinition,
+    TaskError,
 };
 use destack_ast::StringId;
 use destack_compiler_macros::DefineError;
@@ -15,13 +16,13 @@ pub enum ImportError {
     // -------------------------------------------------------------------------
     // 0xx: Yield / requirement
     // -------------------------------------------------------------------------
-    /// Yield to a build requirement.
+    /// Yield to an artifact requirement.
     #[error(code = "EI000", r#yield)]
-    Yield { requirement: BuildRequirementSet },
+    Yield { requirement: ArtifactRequirementSet },
 
     /// Unsatisfied requirement (requirement failed).
     #[error(code = "EI001", yield_failed)]
-    UnsatisfiedRequirement { requirement: BuildRequirementSet },
+    UnsatisfiedRequirement { requirement: ArtifactRequirementSet },
 
     /// Task was skipped due to stale versions.
     #[error(code = "EI002", message = "task skipped")]

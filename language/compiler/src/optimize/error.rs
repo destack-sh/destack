@@ -4,7 +4,8 @@ use destack_source::PackageId;
 use destack_workspace::{Program, TargetId};
 
 use crate::{
-    BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition, TaskError,
+    ArtifactRequirementError, ArtifactRequirementSet, DiagnosticAnchor, DiagnosticDefinition,
+    TaskError,
 };
 
 /// Errors during the optimize phase.
@@ -14,13 +15,13 @@ pub enum OptimizeError {
     // -------------------------------------------------------------------------
     // 0xx: Yield / requirement
     // -------------------------------------------------------------------------
-    /// Wait for build requirement.
+    /// Wait for artifact requirement.
     #[error(code = "EO000", r#yield)]
-    Yield { requirement: BuildRequirementSet },
+    Yield { requirement: ArtifactRequirementSet },
 
     /// Yield requirement has failed.
     #[error(code = "EO001", yield_failed)]
-    UnsatisfiedRequirement { requirement: BuildRequirementSet },
+    UnsatisfiedRequirement { requirement: ArtifactRequirementSet },
 
     /// Task was skipped due to stale versions.
     #[error(code = "EO002", message = "task skipped")]

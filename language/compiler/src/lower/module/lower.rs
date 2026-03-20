@@ -12,7 +12,7 @@ use destack_workspace::{
 use indexmap::IndexSet;
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{BuildRequirementError, Compiler, LowerError, LowerResult};
+use crate::{ArtifactRequirementError, Compiler, LowerError, LowerResult};
 
 use crate::lower::{
     BuiltinTypeLayouts, ClosureEnvLayout, GlobalBinding, InstanceKey, InterfaceEntry, MethodKey,
@@ -155,7 +155,7 @@ impl<'a> ModuleLowerer<'a> {
         builder.strings().copy_from_immutable(&strings);
 
         // resolve vector builtin symbols for SIMD lowering
-        let vector_symbol = compiler.get_well_known_symbol_from(
+        let vector_symbol = compiler.get_well_known_concrete_symbol_from(
             profile,
             dir::WellKnownSymbol::Vector,
             dir::SymbolSpaceOrder::TypeThenValue,
@@ -260,10 +260,10 @@ impl<'a> ModuleLowerer<'a> {
             .require_artifact_dir_analyzed(module_id, self.profile);
         match snapshot {
             Ok(snapshot) => Ok(snapshot),
-            Err(BuildRequirementError::NotReady { requirement }) => {
+            Err(ArtifactRequirementError::NotReady { requirement }) => {
                 Err(LowerError::Yield { requirement })
             }
-            Err(BuildRequirementError::Failed { requirement }) => {
+            Err(ArtifactRequirementError::Failed { requirement }) => {
                 Err(LowerError::UnsatisfiedRequirement { requirement })
             }
         }
@@ -742,12 +742,12 @@ impl<'a> ModuleLowerer<'a> {
             if let Some(anchor) = anchor {
                 return Err(LowerError::UnsupportedConstruct {
                     node: anchor,
-                    message: "missing builtin String layout (load lib/native)".to_string(),
+                    message: "missing builtin String layout (load library/native)".to_string(),
                 });
             }
             return Err(LowerError::Internal {
                 module: self.module_id,
-                message: "missing builtin String layout (load lib/native)".to_string(),
+                message: "missing builtin String layout (load library/native)".to_string(),
             });
         };
 

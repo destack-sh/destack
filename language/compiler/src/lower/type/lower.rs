@@ -448,7 +448,7 @@ impl TypeLowerer {
                 self.ty_string
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
                         node,
-                        message: "missing builtin String layout (load lib/native)".to_string(),
+                        message: "missing builtin String layout (load library/native)".to_string(),
                     })
             }
         }

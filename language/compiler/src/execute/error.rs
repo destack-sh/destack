@@ -1,6 +1,6 @@
 use crate::{
-    BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition, LowerError,
-    TaskError,
+    ArtifactRequirementError, ArtifactRequirementSet, DiagnosticAnchor, DiagnosticDefinition,
+    LowerError, TaskError,
 };
 use destack_compiler_macros::DefineError;
 use destack_dir::AnchoredGlobalNodeId;
@@ -14,13 +14,13 @@ pub enum ExecuteError {
     // -------------------------------------------------------------------------
     // 0xx: Yield / requirement
     // -------------------------------------------------------------------------
-    /// Wait for build requirement.
+    /// Wait for artifact requirement.
     #[error(code = "EX000", r#yield)]
-    Yield { requirement: BuildRequirementSet },
+    Yield { requirement: ArtifactRequirementSet },
 
     /// Yield requirement has failed.
     #[error(code = "EX001", yield_failed)]
-    UnsatisfiedRequirement { requirement: BuildRequirementSet },
+    UnsatisfiedRequirement { requirement: ArtifactRequirementSet },
 
     /// Task was skipped due to stale versions.
     #[error(code = "EX002", message = "task skipped")]

@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashSet};
 use std::time::{Duration, Instant};
 
-use destack_builtin::{BuiltinLib, BuiltinLibKind, LANGUAGE_LIBS, LIBRARY_LIBS};
+use destack_builtin::{BuiltinLibrary, BuiltinLibraryKind, LANGUAGE_LIBS, LIBRARY_LIBS};
 use destack_source::{DiagnosticSeverity, ModuleId};
 
 use crate::{StatsSnapshot, TaskPhase, default_workers};
@@ -192,7 +192,7 @@ pub fn run_bench(options: &BenchOptions) {
         BenchRun::AnalyzeFast => run_analyze_all_builtin_libs_fast(options),
         BenchRun::AnalyzeFull => run_analyze_all_builtin_libs_full(options),
         BenchRun::AnalyzeCombined => run_analyze_builtin_libs_combined(options),
-        BenchRun::ListModules => run_list_builtin_lib_modules(options),
+        BenchRun::ListModules => run_list_builtin_library_modules(options),
     }
 }
 
@@ -209,7 +209,7 @@ pub(crate) fn run_resolve_builtin_lib_symbols(mode: BenchMode) {
         let profile = test.default_profile_id_for_root();
         for &symbol in lib.declared_symbols {
             let name_id = test.program.strings.intern(symbol);
-            let declared_symbol = test.compiler.get_declared_lib_symbol(profile, name_id);
+            let declared_symbol = test.compiler.get_declared_library_symbol(profile, name_id);
             assert!(
                 declared_symbol.is_some(),
                 "missing declared lib symbol {}:{}",
@@ -286,12 +286,12 @@ fn run_builtin_libs_per_lib(options: &BenchOptions) {
         }
 
         // import lib modules
-        let (import_modules, import_duration) = import_lib_modules(&test, &libs, timeout);
+        let (import_modules, import_duration) = import_library_modules(&test, &libs, timeout);
         let line_stats = collect_line_stats(&test, &import_modules);
 
         // resolve builtins and libs
         let resolve_duration = resolve_builtins_and_libs(&test, timeout);
-        let analyze_duration = analyze_lib_modules(&test, &import_modules, timeout);
+        let analyze_duration = analyze_library_modules(&test, &import_modules, timeout);
 
         timings.push(LibTiming {
             name: lib.name.to_string(),
@@ -402,10 +402,10 @@ fn report_timing_tag_summary(snapshot: &StatsSnapshot, top_n: usize) {
 }
 
 /// Build the lib list for a builtin lib run.
-fn libs_for_builtin(lib: &BuiltinLib) -> Vec<&'static str> {
+fn libs_for_builtin(lib: &BuiltinLibrary) -> Vec<&'static str> {
     // include a baseline es lib for runtime libraries that require them
     let mut libs = Vec::new();
-    if lib.kind == BuiltinLibKind::Library
+    if lib.kind == BuiltinLibraryKind::Library
         && !lib.name.starts_with("es")
         && !lib.name.starts_with("decorators")
     {
@@ -417,7 +417,7 @@ fn libs_for_builtin(lib: &BuiltinLib) -> Vec<&'static str> {
 }
 
 /// Import lib modules and return module ids plus elapsed time.
-fn import_lib_modules(
+fn import_library_modules(
     test: &BenchProgram,
     libs: &[&str],
     timeout: Duration,
@@ -426,7 +426,7 @@ fn import_lib_modules(
     let import_start = Instant::now();
     let import_modules = test
         .compiler
-        .load_lib_modules_for_bench(libs)
+        .load_library_modules_for_bench(libs)
         .unwrap_or_else(|error| panic!("failed to load lib modules for bench: {error}"));
     for module_id in &import_modules {
         test.import_module(*module_id);
@@ -447,7 +447,11 @@ fn resolve_builtins_and_libs(test: &BenchProgram, timeout: Duration) -> Duration
 }
 
 /// Analyze imported lib modules for a test program.
-fn analyze_lib_modules(test: &BenchProgram, modules: &[ModuleId], timeout: Duration) -> Duration {
+fn analyze_library_modules(
+    test: &BenchProgram,
+    modules: &[ModuleId],
+    timeout: Duration,
+) -> Duration {
     // analyze each module once
     let analyze_start = Instant::now();
     let mut seen_modules = HashSet::new();
@@ -548,12 +552,12 @@ fn run_builtin_libs_combined(options: &BenchOptions) {
     let test = test_program_for_mode(options.mode).with_profile_libs(&lib_refs);
     let timeout = options.effective_timeout();
 
-    let (import_modules, import_duration) = import_lib_modules(&test, &lib_refs, timeout);
+    let (import_modules, import_duration) = import_library_modules(&test, &lib_refs, timeout);
     let line_stats = collect_line_stats(&test, &import_modules);
 
     // resolve builtins and libs
     let resolve_duration = resolve_builtins_and_libs(&test, timeout);
-    let analyze_duration = analyze_lib_modules(&test, &import_modules, timeout);
+    let analyze_duration = analyze_library_modules(&test, &import_modules, timeout);
 
     let label = format!("combined({})", libs.join(","));
     let timing = LibTiming {
@@ -585,7 +589,7 @@ fn run_builtin_libs_combined(options: &BenchOptions) {
 }
 
 /// List builtin lib modules in dependency order.
-fn run_list_builtin_lib_modules(options: &BenchOptions) {
+fn run_list_builtin_library_modules(options: &BenchOptions) {
     // resolve the combined lib list
     let mut libs = if let Some(list) = options.combined_libs.as_ref() {
         list.clone()
@@ -609,7 +613,7 @@ fn run_list_builtin_lib_modules(options: &BenchOptions) {
     let test = test_program_for_mode(options.mode).with_profile_libs(&lib_refs);
     let timeout = options.effective_timeout();
 
-    let (import_modules, _import_duration) = import_lib_modules(&test, &lib_refs, timeout);
+    let (import_modules, _import_duration) = import_library_modules(&test, &lib_refs, timeout);
 
     let mut entries = Vec::new();
     let mut lib_stats = BTreeMap::new();

@@ -1,4 +1,4 @@
-use crate::{BuildRequirementError, Compiler};
+use crate::{ArtifactRequirementError, Compiler};
 use destack_source::ModuleId;
 use destack_workspace::{ModuleGraph, ProfileId};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -53,7 +53,7 @@ impl Compiler {
         &self,
         modules: impl IntoIterator<Item = ModuleId>,
         profile: ProfileId,
-    ) -> Result<(), BuildRequirementError> {
+    ) -> Result<(), ArtifactRequirementError> {
         let mut pending = modules.into_iter().collect::<VecDeque<_>>();
         let mut visited = FxHashSet::default();
 

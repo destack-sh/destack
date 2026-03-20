@@ -157,7 +157,7 @@ impl Compiler {
 
             // selected lib globals
             if let Some(lib_symbols) =
-                self.get_lib_symbol_sources_for_merge(ctx.profile, key, target_space)
+                self.get_library_symbol_sources_for_merge(ctx.profile, key, target_space)
             {
                 merge_symbols.extend(lib_symbols);
             }

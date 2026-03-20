@@ -7,7 +7,7 @@ use destack_dir::{
 use destack_source::ModuleId;
 use destack_workspace::{ArtifactKey, DirBase};
 
-use crate::{BuildKey, BuildRequirementError, Compiler, ImportError, ImportResult};
+use crate::{ArtifactRequirementError, Compiler, ImportError, ImportResult};
 
 impl Compiler {
     /// Create a stable module-level anchor node.
@@ -46,20 +46,15 @@ impl Compiler {
         let module_version = self.module_version(module);
         self.ensure_module_version_matches::<ImportError>(module, module_version)?;
         self.require_ast(module)?;
+        let artifact_key = ArtifactKey::dir_base(module);
 
-        // resolve cache handle
-        let cache_handle =
-            self.cache_handle_for_module(module, None, None, destack_source::CacheKind::DirBase);
-
-        // return cached base DIR directly when available
-        if let Some(cache) = cache_handle.as_ref()
-            && let Ok(Some(entry)) = cache.read_dir_base()
+        // reuse one persisted base dir image when available
+        if self
+            .load_published_artifact(artifact_key.clone(), |compiler| {
+                compiler.load_dir_base_image(module, module_version)
+            })
+            .is_some()
         {
-            self.ensure_module_version_matches::<ImportError>(module, module_version)?;
-            tracing::trace!(?module, "import.module.bind.cache");
-            self.program
-                .artifacts
-                .publish(ArtifactKey::DirBase { module }, entry.payload);
             return Ok(());
         }
 
@@ -195,28 +190,23 @@ impl Compiler {
             module_bindings: Arc::new(module_bindings),
         };
 
-        // write base DIR to cache
-        if let Some(cache) = cache_handle.as_ref() {
-            self.ensure_module_version_matches::<ImportError>(module, module_version)?;
-            if let Err(error) = cache.write_dir_base(dir.clone()) {
-                tracing::debug!(?module, ?error, "import.module.bind.cache.write");
-            }
-        }
-
         self.program
             .artifacts
-            .publish(ArtifactKey::DirBase { module }, dir);
+            .publish(artifact_key.clone(), dir.clone());
+        self.store_artifact(&artifact_key, &dir, |compiler, dir| {
+            compiler.store_dir_base_image(module, dir)
+        });
 
         Ok(())
     }
 
     /// Ensure a module AST exists.
-    pub fn require_ast(&self, module: ModuleId) -> Result<(), BuildRequirementError> {
-        self.require_build_key(BuildKey::artifact(ArtifactKey::ast(module)))
+    pub fn require_ast(&self, module: ModuleId) -> Result<(), ArtifactRequirementError> {
+        self.require_artifact(ArtifactKey::ast(module))
     }
 
     /// Ensure a module base DIR exists.
-    pub fn require_dir_base(&self, module: ModuleId) -> Result<(), BuildRequirementError> {
-        self.require_build_key(BuildKey::artifact(ArtifactKey::dir_base(module)))
+    pub fn require_dir_base(&self, module: ModuleId) -> Result<(), ArtifactRequirementError> {
+        self.require_artifact(ArtifactKey::dir_base(module))
     }
 }

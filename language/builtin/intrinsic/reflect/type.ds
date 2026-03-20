@@ -1,6 +1,6 @@
 import { type Property, type Variant } from "./property.ds";
 import { type DecoratorInfo } from "./decorator.ds";
-import { intrinsic } from "../intrinsic/decorator.ds";
+import { intrinsic } from "../primitive/decorator.ds";
 
 /// Stable unique identifier for a type.
 ///

@@ -4,6 +4,34 @@ use destack_source::{ModuleId, ModuleVersion};
 use destack_workspace::{ArtifactKey, DirResolved, ModuleGraph, ProfileId};
 
 impl Compiler {
+    /// Build or load the module graph for one profile.
+    pub(crate) fn process_module_graph(&self, profile_id: ProfileId) -> ResolveResult<()> {
+        let artifact_key = ArtifactKey::module_graph(profile_id);
+
+        // reuse one persisted module graph image when available
+        if self
+            .load_published_artifact(artifact_key.clone(), |compiler| {
+                compiler.load_module_graph_image(profile_id)
+            })
+            .is_some()
+        {
+            return Ok(());
+        }
+
+        // start with an empty graph when nothing has been published yet
+        if self.program.artifacts.module_graph(profile_id).is_none() {
+            let graph = ModuleGraph::new(profile_id);
+            self.program
+                .artifacts
+                .publish(artifact_key.clone(), graph.clone());
+            self.store_artifact(&artifact_key, &graph, |compiler, graph| {
+                compiler.store_module_graph_image(profile_id, graph)
+            });
+        }
+
+        Ok(())
+    }
+
     /// Update the module graph from one resolved DIR snapshot.
     pub(crate) fn update_module_graph_from_dir(
         &self,
@@ -56,7 +84,12 @@ impl Compiler {
             .unwrap_or_else(|| ModuleGraph::new(profile_id));
         let mut graph = graph;
         graph.update_module(module_id, module_version, dependencies);
-        self.program.artifacts.publish(artifact_key, graph);
+        self.program
+            .artifacts
+            .publish(artifact_key.clone(), graph.clone());
+        self.store_artifact(&artifact_key, &graph, |compiler, graph| {
+            compiler.store_module_graph_image(profile_id, graph)
+        });
 
         Ok(())
     }

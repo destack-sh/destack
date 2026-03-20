@@ -22,10 +22,8 @@ const BUILTIN_EXTENSIONS: &[&str] = &[
 ];
 
 /// Protocol namespace roots mapped to builtin module roots.
-const BUILTIN_NAMESPACE_ROOTS: &[(&str, &str)] = &[
-    ("destack", "library/destack"),
-    ("platform", "library/platform"),
-];
+const BUILTIN_NAMESPACE_ROOTS: &[(&str, &str)] =
+    &[("destack", "destack"), ("platform", "platform")];
 
 /// Source module resolve policy derived from package and tsconfig ownership.
 #[derive(Debug, Clone)]

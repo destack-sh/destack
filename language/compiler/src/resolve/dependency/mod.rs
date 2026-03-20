@@ -10,5 +10,3 @@ pub(crate) mod loader;
 mod namespace;
 mod reexport;
 mod target;
-
-pub(crate) use target::*;

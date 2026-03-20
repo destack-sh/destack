@@ -1,8 +1,8 @@
 use crate::timing::tags;
-use crate::{BuildKey, BuildRequirementError, Compiler, GenerateError, GenerateResult};
+use crate::{ArtifactRequirementError, Compiler, GenerateError, GenerateResult};
 
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{OutputFormat, OutputKey, ProfileId, TargetId};
+use destack_workspace::{ArtifactKey, OutputFormat, ProfileId, TargetId};
 
 impl Compiler {
     /// Build one module output.
@@ -20,6 +20,18 @@ impl Compiler {
             profile_stamp.id,
             profile_stamp.version,
         )?;
+        let artifact_key = ArtifactKey::module_output(module, target.clone());
+
+        // reuse one persisted module output image when available
+        if self
+            .load_published_artifact(artifact_key.clone(), |compiler| {
+                compiler.load_module_output_image(module, module_stamp.version, profile, &target)
+            })
+            .is_some()
+        {
+            return Ok(());
+        }
+
         let _timing = self.timing_scope(tags::GENERATE_MODULE);
         self.generate_module(
             module_stamp.id,
@@ -28,6 +40,17 @@ impl Compiler {
             profile_stamp.version,
             &target,
         )?;
+        let output = self
+            .program
+            .artifacts
+            .module_output(module, &target)
+            .ok_or_else(|| GenerateError::Internal {
+                module,
+                message: format!("missing module output artifact for target '{target}'"),
+            })?;
+        self.store_artifact(&artifact_key, output.as_ref(), |compiler, output| {
+            compiler.store_module_output_image(module, profile, &target, output)
+        });
         self.stats.record_generate();
 
         Ok(())
@@ -97,14 +120,14 @@ impl Compiler {
         }
     }
 
-    /// Require one module output build product.
+    /// Require one module output artifact.
     pub fn require_module_output(
         &self,
         module: ModuleId,
         profile: ProfileId,
         target: &TargetId,
-    ) -> Result<(), BuildRequirementError> {
+    ) -> Result<(), ArtifactRequirementError> {
         let _ = profile;
-        self.require_build_key(BuildKey::output(OutputKey::module(module, target.clone())))
+        self.require_artifact(ArtifactKey::module_output(module, target.clone()))
     }
 }

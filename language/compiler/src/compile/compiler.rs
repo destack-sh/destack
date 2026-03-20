@@ -1,16 +1,18 @@
 use std::sync::Arc;
 
+use dashmap::DashMap;
 use destack_resolver::Resolver;
-use destack_source::{DiagnosticCollector, DiagnosticSeverity, ModuleId, PackageId, Uri};
+use destack_source::{DiagnosticCollector, DiagnosticSeverity, ModuleId, Uri};
 use destack_workspace::{Program, Session, Target};
 use parking_lot::Mutex;
 
-use crate::resolve::ModuleBindingTable;
 use crate::{
-    BuildRequirementCollector, BuildRequirementSet, CacheRegistry, CompileDiagnostic,
-    CompilerEvent, CompilerOptions, CompilerStats, ProfileId, TaskError, TaskQueue, TaskWarning,
+    ArtifactRequirementCollector, ArtifactRequirementSet, CompileDiagnostic, CompilerEvent,
+    CompilerOptions, CompilerStats, TaskError, TaskQueue, TaskWarning,
 };
-use dashmap::DashMap;
+
+#[cfg(test)]
+use crate::TaskHandle;
 
 /// Compile files and sources into something (via DIR).
 /// #Architecture: should Compiler be per-target? what about comptime though?
@@ -39,11 +41,6 @@ pub struct Compiler {
     pub(super) queue: TaskQueue,
     /// Compilation statistics.
     pub stats: Arc<CompilerStats>,
-    /// Cache registry for compiler artifacts.
-    pub cache: CacheRegistry,
-    /// Module binding tables cached per package and profile for one compiler instance.
-    pub(crate) module_binding_tables: DashMap<(PackageId, ProfileId), ModuleBindingTable>,
-
     /// Locks for serializing module creation per (URI, loader) pair.
     /// The loader salt distinguishes imports with non-default loaders.
     import_locks: DashMap<(Uri, Option<String>), Arc<Mutex<Option<ModuleId>>>>,
@@ -80,11 +77,9 @@ impl Compiler {
             queue: TaskQueue::new(),
             import_locks: DashMap::new(),
             stats: Arc::new(CompilerStats::new_with_timings(timings)),
-            cache: CacheRegistry::new(),
-            module_binding_tables: DashMap::new(),
         };
 
-        // load workspace index snapshot when available
+        // load workspace index when available
         if let Err(error) = compiler.load_workspace_index() {
             tracing::warn!(?error, "compiler.cache.workspace_index.load_failed");
         }
@@ -98,6 +93,12 @@ impl Compiler {
         if let Some(handler) = &self.options.event_handler {
             handler(event);
         }
+    }
+
+    /// Snapshot all tracked task handles.
+    #[cfg(test)]
+    pub(crate) fn task_handles(&self) -> Vec<TaskHandle> {
+        self.queue.task_handles()
     }
 
     /// Clone the base resolver with one request specific option set.
@@ -159,17 +160,17 @@ impl Compiler {
         seen.push(warning);
     }
 
-    /// Collect a result into a BuildRequirementCollector, reporting non-yield errors.
+    /// Collect a result into a ArtifactRequirementCollector, reporting non-yield errors.
     ///
     /// Returns `Some(value)` on success, `None` on error (yield or hard error).
     /// Yields are collected into the collector, hard errors are reported via `self.error()`.
     pub fn collect<T, E>(
         &self,
-        collector: &mut BuildRequirementCollector,
+        collector: &mut ArtifactRequirementCollector,
         result: Result<T, E>,
     ) -> Option<T>
     where
-        E: TryInto<BuildRequirementSet, Error = E> + Into<TaskError>,
+        E: TryInto<ArtifactRequirementSet, Error = E> + Into<TaskError>,
     {
         match &result {
             Ok(_) => {}
@@ -183,8 +184,8 @@ impl Compiler {
         result.ok()
     }
 
-    /// Enqueue all build keys needed by a requirement set.
-    pub fn enqueue_requirements(&self, requirement: &BuildRequirementSet) {
+    /// Enqueue all artifact keys needed by a requirement set.
+    pub fn enqueue_requirements(&self, requirement: &ArtifactRequirementSet) {
         requirement.for_each(|requirement| {
             self.enqueue(requirement.key.clone());
         });
@@ -194,7 +195,7 @@ impl Compiler {
     pub fn drive<T, E, F>(&self, mut action: F) -> Result<T, E>
     where
         F: FnMut(&Self) -> Result<T, E>,
-        E: TryInto<BuildRequirementSet, Error = E>,
+        E: TryInto<ArtifactRequirementSet, Error = E>,
     {
         loop {
             let result = action(self);

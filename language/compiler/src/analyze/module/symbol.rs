@@ -2,7 +2,7 @@ use destack_dir::{GlobalSymbolId, LocalSymbolId, SymbolTable};
 use destack_source::ModuleId;
 use destack_workspace::{ArtifactKey, Module, ProfileId};
 
-use crate::{BuildRequirementError, Compiler};
+use crate::{ArtifactRequirementError, Compiler};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -28,7 +28,7 @@ impl Compiler {
         symbols: &SymbolTable,
         artifact_key: fn(ModuleId, ProfileId) -> ArtifactKey,
         handle: impl FnOnce(&Module, &SymbolTable) -> R,
-    ) -> Result<R, BuildRequirementError> {
+    ) -> Result<R, ArtifactRequirementError> {
         if module_id == module.id {
             return Ok(handle(module, symbols));
         }

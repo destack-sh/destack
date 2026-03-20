@@ -880,7 +880,7 @@ impl From<&CompilerOptionsJson> for CompilerOptions {
             no_property_access_from_index_signature: json
                 .no_property_access_from_index_signature
                 .map(DiagnosticPolicy::from)
-                .unwrap_or(DiagnosticPolicy::Deny),
+                .unwrap_or(DiagnosticPolicy::Allow),
 
             // Destack-specific checking
             no_any: json

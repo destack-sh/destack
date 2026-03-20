@@ -4,7 +4,7 @@ use destack_dir::{
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{BuildRequirementError, LowerError, LowerResult};
+use crate::{ArtifactRequirementError, LowerError, LowerResult};
 
 use crate::lower::ModuleLowerer;
 
@@ -274,10 +274,10 @@ impl ModuleLowerer<'_> {
 
         // map task errors to lowering diagnostics
         match error {
-            BuildRequirementError::NotReady { requirement } => {
+            ArtifactRequirementError::NotReady { requirement } => {
                 Err(LowerError::Yield { requirement })
             }
-            BuildRequirementError::Failed { requirement } => {
+            ArtifactRequirementError::Failed { requirement } => {
                 Err(LowerError::UnsatisfiedRequirement { requirement })
             }
         }

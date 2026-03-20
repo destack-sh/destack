@@ -1,4 +1,4 @@
-use destack_builtin::builtin_lib;
+use destack_builtin::builtin_library;
 use destack_core::StringId;
 use destack_dir::{
     Argument, DependencyKind, DependencySource, Expression, GlobalNodeIdAny, GlobalSymbolId,
@@ -11,7 +11,7 @@ use indexmap::IndexMap;
 use std::collections::VecDeque;
 
 use crate::resolve::binding::cache::ResolveScopeIndexCache;
-use crate::{BuildRequirementError, Compiler, ResolveError, ResolveResult};
+use crate::{ArtifactRequirementError, Compiler, ResolveError, ResolveResult};
 
 /// Key for grouping global symbols by name and space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -142,7 +142,7 @@ impl Compiler {
 
         // fall back to selected lib symbol cache when global cache misses
         let target_symbol = target_symbol
-            .or_else(|| self.get_lib_symbol_from(profile_id, first_segment, space_order));
+            .or_else(|| self.get_library_symbol_from(profile_id, first_segment, space_order));
         let target_symbol = match target_symbol {
             Some(target_symbol) => Some(target_symbol),
             None => self.resolve_selected_lib_symbol(
@@ -162,10 +162,10 @@ impl Compiler {
         // ensure the target module is prepared before reading its symbols
         self.require_dir_prepared_if_other(module.id, target_symbol.module_id, profile_id)
             .map_err(|error| match error {
-                BuildRequirementError::NotReady { requirement } => {
+                ArtifactRequirementError::NotReady { requirement } => {
                     ResolveError::Yield { requirement }
                 }
-                BuildRequirementError::Failed { requirement } => {
+                ArtifactRequirementError::Failed { requirement } => {
                     ResolveError::UnsatisfiedRequirement { requirement }
                 }
             })?;
@@ -488,8 +488,8 @@ impl Compiler {
     fn module_exposes_namespace_scope_globals(&self, module: &Module) -> bool {
         // ambient libs always contribute top-level global declarations
         if let Some(builtins) = self.program.builtins.as_ref()
-            && let Some(lib_name) = builtins.lib_name_for_module(module.id)
-            && let Some(lib) = builtin_lib(lib_name)
+            && let Some(lib_name) = builtins.library_name_for_module(module.id)
+            && let Some(lib) = builtin_library(lib_name)
             && lib.is_ambient
         {
             return true;

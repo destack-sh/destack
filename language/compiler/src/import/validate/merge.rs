@@ -44,8 +44,10 @@ impl Compiler {
         symbols: &mut SymbolTable,
     ) -> (Option<LocalSymbolId>, Option<LocalMergeGroupId>) {
         // skip merge handling when declaration merging is disabled
+        let supports_destack_runtime_namespace_merge = module.language_type.is_destack()
+            && (symbol_type == SymbolType::Function || kind == SymbolKind::Namespace);
         if !module.language_type.supports_declaration_merging()
-            && (!module.language_type.is_destack() || symbol_type != SymbolType::Function)
+            && !supports_destack_runtime_namespace_merge
         {
             return (None, None);
         }
@@ -104,19 +106,7 @@ pub(crate) fn can_merge_declarations(
     left: SymbolDescriptor,
     right: SymbolDescriptor,
 ) -> bool {
-    // allow function overloads in destack modules
-    if !language_type.supports_declaration_merging() {
-        let is_function_overload =
-            left.symbol_type == SymbolType::Function && right.symbol_type == SymbolType::Function;
-        return language_type.is_destack() && is_function_overload;
-    }
-
-    // reject type aliases in merge candidates
-    if left.symbol_type == SymbolType::TypeAlias || right.symbol_type == SymbolType::TypeAlias {
-        return false;
-    }
-
-    // allow namespaces to merge (TS rules)
+    // namespace merges
     if left.kind == SymbolKind::Namespace || right.kind == SymbolKind::Namespace {
         let (namespace, other, namespace_is_left) = if left.kind == SymbolKind::Namespace {
             (left, right, true)
@@ -131,6 +121,12 @@ pub(crate) fn can_merge_declarations(
 
         // class and function declarations merge with ambient namespaces in any order
         if matches!(other.symbol_type, SymbolType::Class | SymbolType::Function) {
+            if !language_type.supports_declaration_merging()
+                && !(language_type.is_destack() && other.symbol_type == SymbolType::Function)
+            {
+                return false;
+            }
+
             if namespace.binding == SymbolBinding::Ambient
                 || other.binding == SymbolBinding::Ambient
             {
@@ -151,6 +147,18 @@ pub(crate) fn can_merge_declarations(
             return namespace.binding == SymbolBinding::Ambient;
         }
 
+        return false;
+    }
+
+    // allow function overloads in destack modules
+    if !language_type.supports_declaration_merging() {
+        let is_function_overload =
+            left.symbol_type == SymbolType::Function && right.symbol_type == SymbolType::Function;
+        return language_type.is_destack() && is_function_overload;
+    }
+
+    // reject type aliases in merge candidates
+    if left.symbol_type == SymbolType::TypeAlias || right.symbol_type == SymbolType::TypeAlias {
         return false;
     }
 

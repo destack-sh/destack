@@ -19,8 +19,8 @@ use crate::{
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Return true when one builtin lib module contributes to the early language surface.
-    pub fn is_standard_lib_environment_module(&self, module_id: ModuleId) -> bool {
+    /// Return true when one builtin library module contributes to the early language surface.
+    pub fn is_standard_library_environment_module(&self, module_id: ModuleId) -> bool {
         let Some(builtins) = self.program.builtins.as_ref() else {
             return false;
         };
@@ -114,7 +114,7 @@ impl Compiler {
         self.program.artifacts.library_environment(profile)
     }
 
-    /// Return the selected lib modules for one profile.
+    /// Return the selected library modules for one profile.
     pub fn selected_library_modules(&self, profile: ProfileId) -> Vec<ModuleId> {
         if let Some(environment) = self.library_environment(profile) {
             return environment.supporting_modules();
@@ -124,7 +124,7 @@ impl Compiler {
             .unwrap_or_default()
     }
 
-    /// Return the ambient lib modules for one profile.
+    /// Return the ambient library modules for one profile.
     pub fn ambient_library_modules(&self, profile: ProfileId) -> Vec<ModuleId> {
         if let Some(environment) = self.library_environment(profile) {
             return environment.ambient_modules.clone();
@@ -267,29 +267,43 @@ impl Compiler {
             .unwrap_or_else(|| panic!("language item {item:?} not available"))
     }
 
-    /// Get a cached declared lib symbol for a profile and name.
-    pub fn get_declared_lib_symbol(
+    /// Get a cached declared library symbol for a profile and name.
+    pub fn get_declared_library_symbol(
         &self,
         profile_id: ProfileId,
         name: StringId,
     ) -> Option<GlobalSymbolId> {
-        self.get_declared_lib_symbol_from(profile_id, name, SymbolSpaceOrder::ValueThenType)
+        self.get_declared_library_symbol_from(profile_id, name, SymbolSpaceOrder::ValueThenType)
     }
 
-    /// Get a cached declared lib symbol for a profile, name, and space order.
-    pub fn get_declared_lib_symbol_from(
+    /// Get a cached declared library symbol for a profile, name, and space order.
+    pub fn get_declared_library_symbol_from(
         &self,
         profile_id: ProfileId,
         name: StringId,
         order: SymbolSpaceOrder,
     ) -> Option<GlobalSymbolId> {
         let name = self.program.strings.get(name);
+        let key = CanonicalStaticKey::Name(name.to_string());
         self.library_environment(profile_id)?
-            .declared_symbol_from(name.as_ref(), order)
+            .declared_symbol_from_key(&key, order)
     }
 
-    /// Get selected lib symbol sources for a profile, key, and space.
-    pub fn get_lib_symbol_sources(
+    /// Get one declared library symbol that must use the concrete runtime declaration.
+    pub fn get_declared_concrete_library_symbol_from(
+        &self,
+        profile_id: ProfileId,
+        name: StringId,
+        order: SymbolSpaceOrder,
+    ) -> Option<GlobalSymbolId> {
+        let name = self.program.strings.get(name);
+        let key = CanonicalStaticKey::Name(name.to_string());
+        self.library_environment(profile_id)?
+            .declared_concrete_symbol_from_key(&key, order)
+    }
+
+    /// Get selected library symbol sources for a profile, key, and space.
+    pub fn get_library_symbol_sources(
         &self,
         profile_id: ProfileId,
         key: StaticKey,
@@ -298,29 +312,30 @@ impl Compiler {
         let key = CanonicalStaticKey::from_static_key(key, &self.program.strings);
         self.library_environment(profile_id)?
             .symbol_sources(&key, space)
-            .cloned()
+            .map(<[GlobalSymbolId]>::to_vec)
     }
 
-    /// Get one selected lib symbol using a space order.
-    pub fn get_lib_symbol_from(
+    /// Get one selected library symbol using a space order.
+    pub fn get_library_symbol_from(
         &self,
         profile_id: ProfileId,
         name: StringId,
         order: SymbolSpaceOrder,
     ) -> Option<GlobalSymbolId> {
-        let environment = self.library_environment(profile_id)?;
         let name = self.program.strings.get(name);
+        let key = CanonicalStaticKey::Name(name.to_string());
+        let environment = self.library_environment(profile_id)?;
 
-        // prefer the declared lib surface first
-        if let Some(symbol) = environment.declared_symbol_from(name.as_ref(), order) {
+        // prefer the declared library surface first
+        if let Some(symbol) = environment.declared_symbol_from_key(&key, order) {
             return Some(symbol);
         }
 
-        environment.symbol_from(name.as_ref(), order)
+        environment.symbol_from_key(&key, order)
     }
 
-    /// Get selected lib symbol sources for merge (includes type-value sources).
-    pub fn get_lib_symbol_sources_for_merge(
+    /// Get selected library symbol sources for merge (includes type-value sources).
+    pub fn get_library_symbol_sources_for_merge(
         &self,
         profile_id: ProfileId,
         key: StaticKey,
@@ -329,7 +344,7 @@ impl Compiler {
         let mut sources = Vec::new();
         let mut seen = HashSet::new();
         let mut push_sources = |space| {
-            if let Some(group) = self.get_lib_symbol_sources(profile_id, key, space) {
+            if let Some(group) = self.get_library_symbol_sources(profile_id, key, space) {
                 for symbol in group {
                     if seen.insert(symbol) {
                         sources.push(symbol);
@@ -362,55 +377,32 @@ impl Compiler {
         }
     }
 
-    /// Get selected lib symbol sources for a profile, key, and space order.
-    pub fn get_lib_symbol_sources_for_space_order(
+    /// Get selected library symbol sources for a profile, key, and space order.
+    pub fn get_library_symbol_sources_for_space_order(
         &self,
         profile_id: ProfileId,
         key: StaticKey,
         order: SymbolSpaceOrder,
     ) -> Option<Vec<GlobalSymbolId>> {
-        let mut sources = Vec::new();
-        let mut seen = HashSet::new();
-        let mut push_sources = |space| {
-            if let Some(group) = self.get_lib_symbol_sources(profile_id, key, space) {
-                for symbol in group {
-                    if seen.insert(symbol) {
-                        sources.push(symbol);
-                    }
-                }
-            }
-        };
+        let key = CanonicalStaticKey::from_static_key(key, &self.program.strings);
+        let environment = self.library_environment(profile_id)?;
+        let sources = environment.symbol_sources_for_space_order(&key, order);
 
-        for space in order.spaces() {
-            push_sources(*space);
-            if matches!(space, SymbolSpace::Type | SymbolSpace::Value) {
-                push_sources(SymbolSpace::TypeValue);
-            }
-        }
-
-        if sources.is_empty() {
-            None
-        } else {
-            Some(sources)
-        }
+        (!sources.is_empty()).then_some(sources)
     }
 
-    /// Get a declared lib symbol from the cache, panicking if not found.
-    pub fn declared_lib_symbol(&self, profile_id: ProfileId, name: StringId) -> GlobalSymbolId {
-        self.get_declared_lib_symbol(profile_id, name)
+    /// Get a declared library symbol from the cache, panicking if not found.
+    pub fn declared_library_symbol(&self, profile_id: ProfileId, name: StringId) -> GlobalSymbolId {
+        self.get_declared_library_symbol(profile_id, name)
             .unwrap_or_else(|| {
                 let name = self.program.strings.get(name);
-                panic!("declared lib symbol '{}' not available", name.as_ref())
+                panic!("declared library symbol '{}' not available", name.as_ref())
             })
     }
 
     /// Get well-known symbols for a profile.
     pub fn get_well_known_symbols(&self, profile_id: ProfileId) -> Option<WellKnownSymbols> {
-        Some(
-            self.library_environment(profile_id)?
-                .well_known_symbols
-                .clone(),
-        )
+        Some(self.library_environment(profile_id)?.well_known_symbols())
     }
 
     /// Get well-known symbols for a profile, panicking if not found.
@@ -447,16 +439,19 @@ impl Compiler {
         symbol: WellKnownSymbol,
         order: SymbolSpaceOrder,
     ) -> Option<GlobalSymbolId> {
-        if let Some(well_known_symbols) = self.get_well_known_symbols(profile_id)
-            && let Some(symbol_id) = well_known_symbols
-                .get_group(symbol)
-                .and_then(|group| group.symbol_for_space_order(order))
-        {
-            return Some(symbol_id);
-        }
+        let symbol_name = self.program.strings.intern(symbol.export_name());
+        self.get_declared_library_symbol_from(profile_id, symbol_name, order)
+    }
 
-        self.library_environment(profile_id)?
-            .declared_symbol_from(symbol.export_name(), order)
+    /// Get one well-known symbol using the concrete runtime declaration.
+    pub fn get_well_known_concrete_symbol_from(
+        &self,
+        profile_id: ProfileId,
+        symbol: WellKnownSymbol,
+        order: SymbolSpaceOrder,
+    ) -> Option<GlobalSymbolId> {
+        let symbol_name = self.program.strings.intern(symbol.export_name());
+        self.get_declared_concrete_library_symbol_from(profile_id, symbol_name, order)
     }
 
     /// Get a specific well-known symbol for a profile, panicking if not found.

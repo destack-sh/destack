@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 use destack_workspace::{ProfileId, WellKnownIntrinsics};
 
 use crate::lower::{FunctionLowerer, ModuleLowerer};
-use crate::{BuildRequirementError, Compiler, LowerError, LowerResult};
+use crate::{ArtifactRequirementError, Compiler, LowerError, LowerResult};
 
 impl ModuleLowerer<'_> {
     /// Resolve the intrinsic binding name for a symbol.
@@ -62,8 +62,8 @@ fn resolve_intrinsic_binding_name_id(
     // resolve canonical symbol for intrinsic lookup
     let canonical_symbol =
         resolve_canonical_symbol(module_id, profile, compiler, local_symbols, target_symbol)?;
-    if let Some(name_id) = well_known_intrinsics.name_for_symbol(canonical_symbol) {
-        return Ok(Some(name_id));
+    if let Some(name) = well_known_intrinsics.name_for_symbol(canonical_symbol) {
+        return Ok(Some(compiler.program.strings.intern(name)));
     }
 
     Ok(None)
@@ -84,10 +84,10 @@ fn resolve_canonical_symbol(
         let snapshot = compiler.require_artifact_dir_analyzed(symbol_id.module_id, profile);
         let snapshot = match snapshot {
             Ok(snapshot) => snapshot,
-            Err(BuildRequirementError::NotReady { requirement }) => {
+            Err(ArtifactRequirementError::NotReady { requirement }) => {
                 return Err(LowerError::Yield { requirement });
             }
-            Err(BuildRequirementError::Failed { requirement }) => {
+            Err(ArtifactRequirementError::Failed { requirement }) => {
                 return Err(LowerError::UnsatisfiedRequirement { requirement });
             }
         };

@@ -1,5 +1,5 @@
 use crate::timing::tags;
-use crate::{BuildKey, BuildRequirementError, Compiler, OptimizeError, OptimizeResult};
+use crate::{ArtifactRequirementError, Compiler, OptimizeError, OptimizeResult};
 use std::mem;
 use std::str::FromStr;
 
@@ -32,6 +32,17 @@ impl Compiler {
             profile_stamp.version,
         )?;
         let _timing = self.timing_scope(tags::OPTIMIZE_MODULE);
+        let artifact_key = ArtifactKey::mir_optimized(module, profile, target.clone());
+
+        // reuse one persisted optimized mir image when available
+        if self
+            .load_published_artifact(artifact_key.clone(), |compiler| {
+                compiler.load_mir_optimized_image(module, module_stamp.version, profile, &target)
+            })
+            .is_some()
+        {
+            return Ok(());
+        }
 
         // require MIR for this module and target
         self.require_mir(module_stamp.id, profile_stamp.id, &target)?;
@@ -46,7 +57,10 @@ impl Compiler {
         )?;
         self.program
             .artifacts
-            .publish(ArtifactKey::mir_optimized(module, profile, target), payload);
+            .publish(artifact_key.clone(), payload.clone());
+        self.store_artifact(&artifact_key, &payload, |compiler, mir| {
+            compiler.store_mir_optimized_image(module, profile, &target, mir)
+        });
 
         Ok(())
     }
@@ -57,7 +71,7 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
         target: &TargetId,
-    ) -> Result<(), BuildRequirementError> {
+    ) -> Result<(), ArtifactRequirementError> {
         let resolved_profile = self.program.profile_id_for_target(module, target);
         if resolved_profile != Some(profile) {
             self.error(OptimizeError::InvalidTarget {
@@ -68,11 +82,7 @@ impl Compiler {
             return Ok(());
         }
 
-        self.require_build_key(BuildKey::artifact(ArtifactKey::mir_optimized(
-            module,
-            profile,
-            target.clone(),
-        )))
+        self.require_artifact(ArtifactKey::mir_optimized(module, profile, target.clone()))
     }
 
     /// Optimize a module's MIR.

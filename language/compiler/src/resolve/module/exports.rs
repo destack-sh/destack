@@ -3,11 +3,11 @@ use std::collections::HashSet;
 
 use crate::import::{SymbolDescriptor, can_merge_declarations};
 use crate::{Compiler, ImportError};
-use destack_builtin::builtin_lib;
+use destack_builtin::builtin_library;
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, Export, ExportKind, Expression,
     GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId, ModuleBinding,
-    ModuleBindingExports, NodeTree, NodeVisitor, NodeVisitorOptions, StaticKey, SymbolKind,
+    ModuleBindingExports, NodeTree, NodeVisitor, NodeVisitorOptions, StaticKey, Symbol, SymbolKind,
     SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, walk_expression,
 };
 use destack_source::{LanguageType, ModuleId};
@@ -299,6 +299,9 @@ impl Compiler {
             if !symbol.is_active() {
                 continue;
             }
+            if symbol.origin.is_global_augmentation() {
+                continue;
+            }
             let Some(export_mode) = symbol.export else {
                 continue;
             };
@@ -368,6 +371,9 @@ impl Compiler {
             }
             let symbol = symbols.get_symbol(symbol_id);
             if !symbol.is_active() {
+                continue;
+            }
+            if symbol.origin.is_global_augmentation() {
                 continue;
             }
             let Some(export_mode) = symbol.export else {
@@ -572,6 +578,9 @@ impl Compiler {
 
             // skip anonymous symbols
             let symbol = symbols.get_symbol(symbol_id);
+            if symbol.origin.is_global_augmentation() {
+                continue;
+            }
             let Some(name) = symbol.name() else {
                 continue;
             };
@@ -600,6 +609,9 @@ impl Compiler {
             // collect namespace symbols, including those in merge groups
             let mut namespace_symbols = Vec::new();
             let symbol = symbols.get_symbol(symbol_id);
+            if symbol.origin.is_global_augmentation() {
+                continue;
+            }
             if symbol.kind == destack_dir::SymbolKind::Namespace {
                 namespace_symbols.push(symbol_id);
             }
@@ -608,6 +620,9 @@ impl Compiler {
             if let Some(merge_group) = symbol.merge_group {
                 for &group_symbol_id in symbols.merge_group_symbols(merge_group) {
                     let group_symbol = symbols.get_symbol(group_symbol_id);
+                    if group_symbol.origin.is_global_augmentation() {
+                        continue;
+                    }
                     if group_symbol.kind == destack_dir::SymbolKind::Namespace {
                         namespace_symbols.push(group_symbol_id);
                     }
@@ -910,6 +925,9 @@ impl Compiler {
             }
             let symbol = symbols.get_symbol(symbol_id);
             if !symbol.is_active() {
+                continue;
+            }
+            if symbol.origin.is_global_augmentation() {
                 continue;
             }
             let Some(export_mode) = symbol.export else {
@@ -1402,10 +1420,10 @@ impl Compiler {
         let Some(builtins) = self.program.builtins.as_ref() else {
             return false;
         };
-        let Some(lib_name) = builtins.lib_name_for_module(module.id) else {
+        let Some(lib_name) = builtins.library_name_for_module(module.id) else {
             return false;
         };
-        let Some(lib) = builtin_lib(lib_name) else {
+        let Some(lib) = builtin_library(lib_name) else {
             return false;
         };
         lib.is_ambient
@@ -1540,7 +1558,15 @@ impl Compiler {
         profile: ProfileId,
         symbol: GlobalSymbolId,
     ) -> bool {
-        // load the symbol entry
+        if let Some(dir) = self
+            .program
+            .artifacts
+            .dir_resolved(symbol.module_id, profile)
+        {
+            let entry = dir.symbols.get_symbol(symbol.local_id);
+            return symbol_entry_is_value_capable(entry);
+        }
+
         let dir = self
             .program
             .artifacts
@@ -1552,34 +1578,7 @@ impl Compiler {
                 )
             });
         let entry = dir.symbols.get_symbol(symbol.local_id);
-
-        // value-space symbols are always value-capable
-        if entry.space == SymbolSpace::Value {
-            return true;
-        }
-
-        // nominal declarations always introduce a value-capable symbol
-        if matches!(
-            entry.ty,
-            SymbolType::Struct
-                | SymbolType::Class
-                | SymbolType::Enum
-                | SymbolType::Newtype
-                | SymbolType::Function
-        ) {
-            return true;
-        }
-
-        // type-value symbols only exclude type-only declarations
-        if entry.space == SymbolSpace::TypeValue {
-            return !matches!(
-                entry.ty,
-                SymbolType::Interface | SymbolType::TypeAlias | SymbolType::Extension
-            );
-        }
-
-        // fall back to not value-capable
-        false
+        symbol_entry_is_value_capable(entry)
     }
 
     /// Insert exports into the table and report conflicts.
@@ -1723,4 +1722,31 @@ impl Compiler {
             _ => can_merge_declarations(language_type, left_descriptor, right_descriptor),
         }
     }
+}
+
+/// Return true when a symbol entry can be used as a value.
+fn symbol_entry_is_value_capable(entry: &Symbol) -> bool {
+    if entry.space == SymbolSpace::Value {
+        return true;
+    }
+
+    if matches!(
+        entry.ty,
+        SymbolType::Struct
+            | SymbolType::Class
+            | SymbolType::Enum
+            | SymbolType::Newtype
+            | SymbolType::Function
+    ) {
+        return true;
+    }
+
+    if entry.space == SymbolSpace::TypeValue {
+        return !matches!(
+            entry.ty,
+            SymbolType::Interface | SymbolType::TypeAlias | SymbolType::Extension
+        );
+    }
+
+    false
 }

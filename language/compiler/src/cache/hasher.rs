@@ -4,42 +4,31 @@ use destack_resolver::{
     EnforceExtension, ResolveOptions, Restriction, TypeScriptOptionsDiscovery,
     TypeScriptOptionsReferences,
 };
-use destack_workspace::{hash_bytes, hash_json_value};
 use rustc_hash::FxHasher;
 
 use crate::compile::CompilerOptions;
 
-/// Hasher for cache context data.
-pub(super) struct CacheHasher {
+/// Hasher for cache context and workspace index data.
+pub(crate) struct CacheHasher {
     /// The underlying hash state.
     hasher: FxHasher,
 }
 
 impl CacheHasher {
     /// Create a new cache hasher.
-    pub(super) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             hasher: FxHasher::default(),
         }
     }
 
     /// Hash a value into the cache hash.
-    pub(super) fn hash_value<T: Hash>(&mut self, value: &T) {
+    pub(crate) fn hash_value<T: Hash>(&mut self, value: &T) {
         value.hash(&mut self.hasher);
     }
 
-    /// Hash raw bytes into the cache hash.
-    pub(super) fn hash_bytes(&mut self, bytes: &[u8]) {
-        hash_bytes(bytes).hash(&mut self.hasher);
-    }
-
-    /// Hash a JSON value into the cache hash.
-    pub(super) fn hash_json_value(&mut self, value: &serde_json::Value) {
-        hash_json_value(value).hash(&mut self.hasher);
-    }
-
     /// Hash compiler options into the cache hash.
-    pub(super) fn hash_compiler_options(&mut self, options: &CompilerOptions) {
+    pub(crate) fn hash_compiler_options(&mut self, options: &CompilerOptions) {
         // hash import options
         self.hash_value(&options.follow_imports);
         self.hash_resolve_options(&options.import_resolve);
@@ -48,7 +37,7 @@ impl CacheHasher {
         self.hash_value(&options.default_int_width);
         self.hash_value(&options.default_float_width);
         self.hash_value(&options.inject_prelude);
-        self.hash_value(&options.load_libs);
+        self.hash_value(&options.load_libraries);
 
         // hash emit shaping options
         self.hash_value(&options.source_map);
@@ -66,7 +55,7 @@ impl CacheHasher {
     }
 
     /// Hash resolve options into the cache hash.
-    pub(super) fn hash_resolve_options(&mut self, options: &ResolveOptions) {
+    pub(crate) fn hash_resolve_options(&mut self, options: &ResolveOptions) {
         // hash basic settings
         self.hash_value(&options.cwd);
         self.hash_tsconfig_discovery(&options.tsconfig);
@@ -179,7 +168,7 @@ impl CacheHasher {
     }
 
     /// Finish and return the hash value.
-    pub(super) fn finish(self) -> u64 {
+    pub(crate) fn finish(self) -> u64 {
         self.hasher.finish()
     }
 }

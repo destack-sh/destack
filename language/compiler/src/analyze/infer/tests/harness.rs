@@ -16,8 +16,8 @@ pub(super) use destack_dir::{
     ExtensionKind, FlowEdgeKind, FlowGraphBuilder, GlobalNodeIdAny, GlobalSymbolId, IfCondition,
     IfKind, IntType, LocalNodeId, LocalScopeMark, LocalTypeId, MatchCase, MatchSelector, Member,
     NodeTree, Pattern, PatternField, PrimitiveType, ScalarLiteral, StaticArgument,
-    StaticExpression, StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType, Type, TypeField,
-    TypeLiteral, TypeTable, TypeUnaryOperator,
+    StaticExpression, StaticKey, SymbolKind, SymbolTable, SymbolType, Type, TypeField, TypeLiteral,
+    TypeTable, TypeUnaryOperator,
 };
 pub(super) use destack_source::ModuleId;
 pub(super) use destack_workspace::{CompilerOptions, Module, ProfileId};

@@ -1,9 +1,8 @@
-use crate::{BuildRequirementCollector, Compiler, ResolveError, ResolveResult};
+use crate::{ArtifactRequirementCollector, Compiler, ResolveError, ResolveResult};
 use destack_core::StringId;
 use destack_dir::{Declaration, LocalNodeId, ModuleTarget};
 use destack_source::{ModuleId, PackageId};
-use destack_workspace::{ModuleFormat, ProfileId};
-use indexmap::IndexMap;
+use destack_workspace::{ModuleFormat, PackageKind, ProfileId};
 
 /// Reference a module binding declaration in a module.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -14,81 +13,22 @@ pub(crate) struct ModuleBindingReference {
     pub declaration: LocalNodeId<Declaration>,
 }
 
-/// Track module bindings reachable from a root set.
-#[derive(Debug, Clone)]
-pub(crate) struct ModuleBindingTable {
-    /// Module bindings by specifier.
-    pub bindings_by_specifier: IndexMap<StringId, Vec<ModuleBindingReference>>,
-}
-
-impl Default for ModuleBindingTable {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl ModuleBindingTable {
-    /// Create an empty table.
-    fn new() -> Self {
-        Self {
-            bindings_by_specifier: IndexMap::new(),
-        }
-    }
-}
-
 impl Compiler {
-    /// Return one cached module binding table for a profile when one already exists.
-    fn cached_module_binding_table_for_profile(
+    /// Return whether one source set contains a matching module binding.
+    pub(crate) fn module_binding_exists_in_modules(
         &self,
-        profile_id: ProfileId,
-    ) -> Option<ModuleBindingTable> {
-        self.module_binding_tables
-            .iter()
-            .find(|entry| entry.key().1 == profile_id)
-            .map(|entry| entry.value().clone())
-    }
-
-    /// Require the base DIR artifacts that can contribute module bindings.
-    pub(crate) fn require_module_binding_sources(
-        &self,
-        package_id: PackageId,
-        profile_id: ProfileId,
-    ) -> ResolveResult<()> {
-        let mut collector = BuildRequirementCollector::new();
-
-        // require the full source set before building one transient table
-        for module_id in self.module_binding_source_ids(package_id, profile_id)? {
-            if let Err(error) = self.require_dir_base(module_id)
-                && let Some(error) = collector.try_collect::<(), _>(Err(error))
-            {
-                let requirement = error.into_requirement();
-                return Err(ResolveError::UnsatisfiedRequirement { requirement });
+        module_ids: &[ModuleId],
+        specifier: StringId,
+    ) -> ResolveResult<bool> {
+        for &module_id in module_ids {
+            self.require_dir_base(module_id)
+                .map_err(ResolveError::from)?;
+            if self.module_has_binding_specifier(module_id, specifier)? {
+                return Ok(true);
             }
         }
 
-        if let Some(requirement) = collector.try_into_requirement() {
-            return Err(ResolveError::Yield { requirement });
-        }
-
-        Ok(())
-    }
-
-    /// Build the module binding table for one module and profile.
-    pub(crate) fn module_binding_table_for_module(
-        &self,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> ResolveResult<ModuleBindingTable> {
-        let module = self.program.modules.get(module_id);
-
-        // builtin modules should reuse the active profile binding table when one exists
-        if module.is_builtin()
-            && let Some(cache) = self.cached_module_binding_table_for_profile(profile_id)
-        {
-            return Ok(cache);
-        }
-
-        self.build_module_binding_table(module.package_id, profile_id)
+        Ok(false)
     }
 
     /// Resolve a specifier to a module binding target when available.
@@ -98,9 +38,14 @@ impl Compiler {
         profile_id: ProfileId,
         specifier: StringId,
     ) -> ResolveResult<Option<ModuleTarget>> {
-        let cache = self.module_binding_table_for_module(module_id, profile_id)?;
+        let package_id = self.program.modules.get(module_id).package_id;
+        let package_module_ids = self.package_module_ids(package_id);
+        if self.module_binding_exists_in_modules(&package_module_ids, specifier)? {
+            return Ok(Some(ModuleTarget::Binding(specifier)));
+        }
 
-        if cache.bindings_by_specifier.contains_key(&specifier) {
+        let ambient_module_ids = self.ambient_binding_module_ids(profile_id)?;
+        if self.module_binding_exists_in_modules(&ambient_module_ids, specifier)? {
             return Ok(Some(ModuleTarget::Binding(specifier)));
         }
 
@@ -114,8 +59,19 @@ impl Compiler {
         profile_id: ProfileId,
         specifier: StringId,
     ) -> ResolveResult<Option<Vec<ModuleBindingReference>>> {
-        let cache = self.module_binding_table_for_module(module_id, profile_id)?;
-        Ok(cache.bindings_by_specifier.get(&specifier).cloned())
+        let package_id = self.program.modules.get(module_id).package_id;
+        let package_module_ids = self.package_module_ids(package_id);
+        let ambient_module_ids = self.ambient_binding_module_ids(profile_id)?;
+        let mut bindings = Vec::new();
+
+        self.collect_module_bindings_for_specifier(&mut bindings, &package_module_ids, specifier)?;
+        self.collect_module_bindings_for_specifier(&mut bindings, &ambient_module_ids, specifier)?;
+
+        if bindings.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(bindings))
+        }
     }
 
     /// Detect one runtime module format for a target.
@@ -187,83 +143,24 @@ impl Compiler {
         Ok(None)
     }
 
-    /// Build the module binding table for one package and profile.
-    fn build_module_binding_table(
-        &self,
-        package_id: PackageId,
-        profile_id: ProfileId,
-    ) -> ResolveResult<ModuleBindingTable> {
-        // reuse the table while one compile invocation is in flight
-        if let Some(cache) = self.module_binding_tables.get(&(package_id, profile_id)) {
-            return Ok(cache.clone());
-        }
-
-        // require the full binding source set before reading committed base artifacts
-        self.require_module_binding_sources(package_id, profile_id)?;
-
-        let mut cache = ModuleBindingTable::new();
-
-        // collect module bindings from the published base surface
-        for module_id in self.module_binding_source_ids(package_id, profile_id)? {
-            self.append_module_bindings_from_module(&mut cache, module_id)?;
-        }
-
-        // cache the fresh table for later target lookups in this compiler instance
-        self.module_binding_tables
-            .insert((package_id, profile_id), cache.clone());
-
-        Ok(cache)
-    }
-
-    /// Append bindings declared in one module to a module binding table.
-    fn append_module_bindings_from_module(
-        &self,
-        cache: &mut ModuleBindingTable,
-        module_id: ModuleId,
-    ) -> ResolveResult<()> {
-        let module = self.program.modules.get(module_id);
-        let module = module.as_ref();
-
-        // only code modules can contribute module bindings
-        if !module.is_code() {
-            return Ok(());
-        }
-
-        // read the already-required base artifact directly
-        let dir = self
-            .artifact_dir_base(module_id)
-            .unwrap_or_else(|| panic!("missing committed base dir artifact for {module_id:?}"));
-        let module_bindings = dir.module_bindings.clone();
-
-        for module_binding in module_bindings.iter() {
-            let binding_ref = ModuleBindingReference {
-                module_id,
-                declaration: module_binding.declaration,
-            };
-
-            let entries = cache
-                .bindings_by_specifier
-                .entry(module_binding.specifier)
-                .or_default();
-            if entries.iter().any(|entry| entry == &binding_ref) {
-                continue;
-            }
-            entries.push(binding_ref);
-        }
-
-        Ok(())
-    }
-
     /// Collect ambient modules that can contribute module bindings.
     pub(crate) fn ambient_binding_module_ids(
         &self,
         profile_id: ProfileId,
     ) -> ResolveResult<Vec<ModuleId>> {
-        self.ambient_lib_modules_from_input(profile_id)
+        self.ambient_library_modules_from_input(profile_id)
     }
 
     /// Collect module ids that belong to one package.
     fn package_module_ids(&self, package_id: PackageId) -> Vec<ModuleId> {
+        let package = self.program.packages.get(package_id);
+        let package = package.read();
+
+        // builtin modules are a synthetic aggregate package, not one package-local binding scope
+        if package.kind == PackageKind::Builtin {
+            return Vec::new();
+        }
+
         let mut module_ids = Vec::new();
 
         // collect modules from the target package
@@ -278,17 +175,97 @@ impl Compiler {
         module_ids
     }
 
-    /// Collect the full module-binding source set for one package/profile pair.
-    fn module_binding_source_ids(
+    /// Collect matching bindings from one source set.
+    fn collect_module_bindings_for_specifier(
         &self,
-        package_id: PackageId,
-        profile_id: ProfileId,
-    ) -> ResolveResult<Vec<ModuleId>> {
-        let mut module_ids = self.package_module_ids(package_id);
-        module_ids.extend(self.ambient_binding_module_ids(profile_id)?);
-        module_ids.sort_unstable();
-        module_ids.dedup();
+        bindings: &mut Vec<ModuleBindingReference>,
+        module_ids: &[ModuleId],
+        specifier: StringId,
+    ) -> ResolveResult<()> {
+        let mut collector = ArtifactRequirementCollector::new();
 
-        Ok(module_ids)
+        for &module_id in module_ids {
+            if let Err(error) = self.require_dir_base(module_id)
+                && let Some(error) = collector.try_collect::<(), _>(Err(error))
+            {
+                let requirement = error.into_requirement();
+                return Err(ResolveError::UnsatisfiedRequirement { requirement });
+            }
+
+            if self.artifact_dir_base(module_id).is_none() {
+                continue;
+            }
+
+            self.append_module_bindings_for_specifier(bindings, module_id, specifier)?;
+        }
+
+        if let Some(requirement) = collector.try_into_requirement() {
+            return Err(ResolveError::Yield { requirement });
+        }
+
+        Ok(())
+    }
+
+    /// Return whether one module contributes a specific binding specifier.
+    fn module_has_binding_specifier(
+        &self,
+        module_id: ModuleId,
+        specifier: StringId,
+    ) -> ResolveResult<bool> {
+        let module = self.program.modules.get(module_id);
+        let module = module.as_ref();
+
+        // only code modules can contribute module bindings
+        if !module.is_code() {
+            return Ok(false);
+        }
+
+        self.require_dir_base(module_id)
+            .map_err(ResolveError::from)?;
+        let dir = self
+            .artifact_dir_base(module_id)
+            .unwrap_or_else(|| panic!("missing committed base dir artifact for {module_id:?}"));
+
+        Ok(dir
+            .module_bindings
+            .iter()
+            .any(|binding| binding.specifier == specifier))
+    }
+
+    /// Append one module's matching bindings to the result set.
+    fn append_module_bindings_for_specifier(
+        &self,
+        bindings: &mut Vec<ModuleBindingReference>,
+        module_id: ModuleId,
+        specifier: StringId,
+    ) -> ResolveResult<()> {
+        let module = self.program.modules.get(module_id);
+        let module = module.as_ref();
+
+        // only code modules can contribute module bindings
+        if !module.is_code() {
+            return Ok(());
+        }
+
+        let dir = self
+            .artifact_dir_base(module_id)
+            .unwrap_or_else(|| panic!("missing committed base dir artifact for {module_id:?}"));
+
+        for module_binding in dir.module_bindings.iter() {
+            if module_binding.specifier != specifier {
+                continue;
+            }
+
+            let binding_ref = ModuleBindingReference {
+                module_id,
+                declaration: module_binding.declaration,
+            };
+            if bindings.iter().any(|entry| entry == &binding_ref) {
+                continue;
+            }
+            bindings.push(binding_ref);
+        }
+
+        Ok(())
     }
 }

@@ -1,8 +1,8 @@
 use indexmap::IndexMap;
 
-use crate::{BuildRequirementCollector, Compiler, ExecuteError, ExecuteResult};
+use crate::{ArtifactRequirementCollector, Compiler, ExecuteError, ExecuteResult};
 
-use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
+use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{ComptimeOutput, DirPatched, ProfileId, TrustPolicy};
 
 use super::{ComptimePatch, collect_comptime_dependencies};
@@ -29,25 +29,6 @@ impl Compiler {
             profile_version,
         )?;
 
-        // resolve cache handle
-        let cache_handle =
-            self.cache_handle_for_module(module_id, Some(profile_id), None, CacheKind::DirPatched);
-
-        // try to load executed DIR from cache
-        if let Some(cache) = cache_handle.as_ref()
-            && let Ok(Some(entry)) = cache.read_dir_patched()
-        {
-            self.ensure_module_profile_matches::<ExecuteError>(
-                module_id,
-                module_version,
-                profile_id,
-                profile_version,
-            )?;
-            let payload = entry.payload;
-            tracing::trace!(?module_id, ?profile_id, "execute.module.cache");
-            return Ok(payload);
-        }
-
         // skip modules without executable comptime state
         if !self.is_code_module(module_id) {
             let elaborated = self.require_dir_elaborated_data(module_id, profile_id)?;
@@ -72,7 +53,7 @@ impl Compiler {
         };
 
         // execute each comptime expression
-        let mut collector = BuildRequirementCollector::new();
+        let mut collector = ArtifactRequirementCollector::new();
         let mut results = ComptimeResults::new();
         for expression_id in &comptime_nodes {
             self.collect(
@@ -121,24 +102,6 @@ impl Compiler {
 
         // publish the patched artifact with updated comptime tree state
         let payload = DirPatched::from_elaborated_with(elaborated.as_ref(), tree);
-
-        // write executed DIR to cache
-        if let Some(cache) = cache_handle.as_ref() {
-            self.ensure_module_profile_matches::<ExecuteError>(
-                module_id,
-                module_version,
-                profile_id,
-                profile_version,
-            )?;
-            if let Err(error) = cache.write_dir_patched(payload.clone()) {
-                tracing::debug!(
-                    ?module_id,
-                    ?profile_id,
-                    ?error,
-                    "execute.module.cache.write"
-                );
-            }
-        }
 
         Ok(payload)
     }

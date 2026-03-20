@@ -1,6 +1,6 @@
 use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use destack_compiler::{BuildKey, Compiler, CompilerOptions};
+use destack_compiler::{Compiler, CompilerOptions};
 use destack_linter::Linter;
 use destack_source::{FileType, ModuleId, ModuleStamp, ProfileStamp, Uri, glob};
 use destack_workspace::{ArtifactKey, ProfileId, Session};
@@ -152,9 +152,9 @@ fn run_compile(compiler: &Compiler, modules: &[ModuleId], mode: CompileMode) {
         let profile_id: ProfileId = compiler.program.default_profile_id_for_module(module_id);
         // enqueue task
         match mode {
-            CompileMode::Check | CompileMode::Lint => compiler.enqueue(BuildKey::artifact(
-                ArtifactKey::dir_analyzed(module_id, profile_id),
-            )),
+            CompileMode::Check | CompileMode::Lint => {
+                compiler.enqueue(ArtifactKey::dir_analyzed(module_id, profile_id))
+            }
         }
     }
 

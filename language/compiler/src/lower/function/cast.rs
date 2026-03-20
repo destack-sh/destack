@@ -106,7 +106,7 @@ impl FunctionLowerer<'_> {
                         node: expression_id
                             .into_global_any(self.env.module_id)
                             .into_anchored(Some(self.env.profile)),
-                        message: "missing builtin String layout (load lib/native)".to_string(),
+                        message: "missing builtin String layout (load library/native)".to_string(),
                     }
                 })?;
                 let source_type = self.lower_type_for_expression(value_id)?;

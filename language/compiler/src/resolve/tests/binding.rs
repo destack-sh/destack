@@ -55,6 +55,67 @@ outer: while (true) {
     }
 }
 
+/// Ignore global augmentation symbols when building module exports.
+#[test]
+fn test_resolve_module_exports_ignore_global_augmentations() {
+    let test = TestProgram::memory_sequential();
+    test.add_module(
+        "url.d.ts",
+        r#"
+export {};
+
+declare global {
+    interface URL {}
+    var URL: { new(): URL };
+}
+
+export class URL {}
+"#,
+    );
+    let main_module_id = test.add_module(
+        "main.ts",
+        r#"
+import { URL } from "./url";
+
+const url = new URL();
+"#,
+    );
+
+    test.resolve_module(main_module_id);
+    test.compile_check_clean();
+}
+
+/// Ignore global augmentations inside declared module bindings when exporting names.
+#[test]
+fn test_resolve_module_binding_exports_ignore_global_augmentations() {
+    let test = TestProgram::memory_sequential();
+    test.add_module(
+        "decl.d.ts",
+        r#"
+declare module "url" {
+    class URL {}
+
+    global {
+        interface URL {}
+        var URL: { new(): URL };
+    }
+}
+"#,
+    );
+    let main_module_id = test.add_module(
+        "main.ts",
+        r#"
+import "./decl.d.ts";
+import { URL } from "url";
+
+const url = new URL();
+"#,
+    );
+
+    test.resolve_module(main_module_id);
+    test.compile_check_clean();
+}
+
 /// Resolve labeled continue in nested loops.
 #[test]
 fn test_resolve_labeled_continue() {
@@ -514,6 +575,38 @@ type Alias = Options;
     let options_symbol_id = test.resolve_to_symbol("consumer.ts", "Options").unwrap();
     let options_symbol = test.symbol_by_id(options_symbol_id);
     assert_eq!(options_symbol.space, SymbolSpace::Type);
+}
+
+/// Ensure export-star forwarding keeps type-only imports in type space.
+#[test]
+fn test_resolve_export_star_type_only_import_space() {
+    let test = TestProgram::memory_sequential();
+    test.add_file(
+        "types.ts",
+        r#"
+export type User = { name: string };
+export const value = 1;
+"#,
+    );
+    test.add_file(
+        "module-b.ts",
+        r#"
+export * from "./types";
+"#,
+    );
+    let consumer_id = test.add_module(
+        "consumer.ts",
+        r#"
+import { User } from "./module-b";
+type Alias = User;
+"#,
+    );
+    test.resolve_module(consumer_id);
+    test.compile_check_clean();
+
+    let user_symbol_id = test.resolve_to_symbol("consumer.ts", "User").unwrap();
+    let user_symbol = test.symbol_by_id(user_symbol_id);
+    assert_eq!(user_symbol.space, SymbolSpace::Type);
 }
 
 /// Verify canonical_symbol chains through multi-level type aliases.
