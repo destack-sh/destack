@@ -121,12 +121,14 @@ where
     });
 }
 
-/// Assert one optional platform code is not not-supported.
-pub(crate) fn assert_code_is_not_not_supported(
+/// Assert one optional platform code is one of the allowed values.
+pub(crate) fn assert_code_is_one_of(
     code: Option<PlatformErrorCode>,
+    allowed: &[PlatformErrorCode],
     message: &str,
 ) -> RuntimeResult<()> {
-    assert!(!is_not_supported_code(code), "{message}");
+    let is_allowed = allowed.iter().any(|value| Some(*value) == code);
+    assert!(is_allowed, "{message}: got {code:?}");
 
     Ok(())
 }

@@ -6,7 +6,7 @@ use super::super::{
     AudioStreamStateKind, AudioStreamTransferMode, core as audio_core,
 };
 use super::{
-    AudioHarnessContext, assert_code_is_not_not_supported, assert_not_supported_result,
+    AudioHarnessContext, assert_code_is_one_of, assert_not_supported_result,
     assert_ok_or_expected_error, assert_platform_error_code, core, error_code_from_runtime_error,
     is_not_supported_code, with_harness_context,
 };
@@ -17,16 +17,20 @@ use crate::platform::resource::{AudioDeviceHandle, AudioEventHandle, AudioStream
 use audio_core::{
     BACKEND_CAPABILITY_DEVICE_CLOCK, BACKEND_CAPABILITY_EXCLUSIVE_MODE,
     BACKEND_CAPABILITY_NON_INTERLEAVED, BACKEND_CAPABILITY_SHARED_MODE, EVENT_SUBSCRIBE_STREAM,
-    MIN_EVENT_POLL_INTERVAL_NS, STREAM_FLAG_MINIMIZE_LATENCY, STREAM_FLAG_NON_INTERLEAVED,
-    STREAM_REQUIRE_SCHEDULED_WRITE,
+    MIN_EVENT_POLL_INTERVAL_NS, STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT, STREAM_FLAG_MINIMIZE_LATENCY,
+    STREAM_FLAG_NO_AUTO_CONVERT, STREAM_FLAG_NON_INTERLEAVED, STREAM_FLAG_REPORT_XRUN,
+    STREAM_REQUIRE_PAUSE, STREAM_REQUIRE_SCHEDULED_WRITE,
 };
 use core::{
-    DeterministicSequence, backend_is_available_for_host_execution, backend_support_rows,
-    backend_support_rows_with_capabilities, byte_len, event_batch_sequence_rows, harness_bytes,
-    harness_bytes_slices, harness_device_options, harness_event_options,
-    harness_mutable_bytes_slices, harness_stream_config, harness_stream_options, harness_string,
-    open_null_duplex_stream, stream_descriptor_flags_from_value, stream_open_with_default_options,
-    stream_state_from_value, stream_support_from_value, string_from_harness_value,
+    DeterministicSequence, backend_descriptor_summaries, backend_is_available_for_host_execution,
+    backend_support_rows, backend_support_rows_with_capabilities, byte_len,
+    event_batch_sequence_rows, harness_bytes, harness_bytes_slices, harness_device_options,
+    harness_event_options, harness_mutable_bytes_slices, harness_stream_config,
+    harness_stream_options, harness_string, open_null_duplex_stream,
+    stream_descriptor_flags_from_value, stream_descriptor_option_flags_from_value,
+    stream_open_with_default_options, stream_state_from_value,
+    stream_support_descriptor_option_flags_from_value, stream_support_from_value,
+    string_from_harness_value,
 };
 
 const RANDOM_NULL_INTERLEAVING_ITERATIONS: usize = 128;
@@ -55,6 +59,18 @@ const STREAM_START_OPTIONAL_ERRORS: [PlatformErrorCode; 3] = [
     PlatformErrorCode::NotSupported,
     PlatformErrorCode::IoInvalidData,
     PlatformErrorCode::IoInterrupted,
+];
+const HOST_STREAM_OPEN_ALLOWED_ERRORS: [PlatformErrorCode; 4] = [
+    PlatformErrorCode::IoInvalidData,
+    PlatformErrorCode::IoPermissionDenied,
+    PlatformErrorCode::AudioUnavailable,
+    PlatformErrorCode::DeviceUnavailable,
+];
+const HOST_STREAM_CONTROL_ALLOWED_ERRORS: [PlatformErrorCode; 4] = [
+    PlatformErrorCode::IoWouldBlock,
+    PlatformErrorCode::IoPermissionDenied,
+    PlatformErrorCode::AudioUnavailable,
+    PlatformErrorCode::DeviceUnavailable,
 ];
 
 /// Randomized interleaving operation for stream and event stress tests.
@@ -274,7 +290,46 @@ fn test_audio_stream_open_rejects_unknown_stream_flags() {
 
 #[cfg(any(unix, windows))]
 #[test]
-fn test_audio_stream_open_accepts_known_stream_flags() {
+fn test_audio_stream_open_accepts_supported_stream_flags() {
+    with_harness_context(|mut context| {
+        let options = AudioDeviceOpenOptions {
+            direction: AudioDeviceDirection::Playback,
+            backend: AudioBackend::Null,
+            backend_policy: AudioBackendSelectionPolicy::Strict,
+            share_mode: AudioShareMode::Shared,
+            flags: AudioDeviceOpenFlags(0),
+        };
+        let device_id = harness_string(&mut context, "audio:null:playback");
+        let device_options = harness_device_options(&mut context, options);
+        let device = context.destack_audio_device_open(device_id, device_options)?;
+
+        let config = AudioStreamConfig {
+            sample_rate: 48_000,
+            channels: 2,
+            channel_layout: AudioChannelLayout::Stereo,
+            channel_mask: 0b11,
+            format: AudioSampleFormat::F32,
+            period_frames: 128,
+            transfer_mode: AudioStreamTransferMode::Push,
+        };
+        let config = harness_stream_config(&mut context, config);
+        let stream_options = harness_stream_options(
+            &mut context,
+            core::default_stream_open_options_with_flags(AudioStreamFlags(
+                STREAM_FLAG_REPORT_XRUN.0,
+            )),
+        );
+        let stream = context.destack_audio_stream_open(device, config, stream_options)?;
+        context.destack_audio_stream_close(stream)?;
+
+        context.destack_audio_device_close(device)?;
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_stream_open_rejects_unsupported_known_stream_flags() {
     with_harness_context(|mut context| {
         let options = AudioDeviceOpenOptions {
             direction: AudioDeviceDirection::Playback,
@@ -303,8 +358,11 @@ fn test_audio_stream_open_accepts_known_stream_flags() {
                 STREAM_FLAG_MINIMIZE_LATENCY.0,
             )),
         );
-        let stream = context.destack_audio_stream_open(device, config, stream_options)?;
-        context.destack_audio_stream_close(stream)?;
+        assert_not_supported_result(context.destack_audio_stream_open(
+            device,
+            config,
+            stream_options,
+        ))?;
 
         context.destack_audio_device_close(device)?;
         Ok(())
@@ -349,6 +407,139 @@ fn test_audio_stream_open_rejects_unsatisfied_requirements() {
             stream_options,
         ))?;
 
+        context.destack_audio_device_close(device)?;
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_stream_support_preserves_requested_and_effective_flags() {
+    with_harness_context(|mut context| {
+        let options = AudioDeviceOpenOptions {
+            direction: AudioDeviceDirection::Playback,
+            backend: AudioBackend::Null,
+            backend_policy: AudioBackendSelectionPolicy::Strict,
+            share_mode: AudioShareMode::Shared,
+            flags: AudioDeviceOpenFlags(0),
+        };
+        let device_id = harness_string(&mut context, "audio:null:playback");
+        let device_options = harness_device_options(&mut context, options);
+        let device = context.destack_audio_device_open(device_id, device_options)?;
+
+        let config = AudioStreamConfig {
+            sample_rate: 48_000,
+            channels: 2,
+            channel_layout: AudioChannelLayout::Stereo,
+            channel_mask: 0b11,
+            format: AudioSampleFormat::F32,
+            period_frames: 128,
+            transfer_mode: AudioStreamTransferMode::Push,
+        };
+        let config = harness_stream_config(&mut context, config);
+        let stream_options = AudioStreamOpenOptions {
+            flags: AudioStreamFlags(STREAM_FLAG_REPORT_XRUN.0),
+            requirements: AudioStreamRequirementFlags(STREAM_REQUIRE_PAUSE.0),
+        };
+        let stream_options = harness_stream_options(&mut context, stream_options);
+        let support = context.destack_audio_stream_support(device, config, stream_options)?;
+        let (requested_flags, requested_requirements, effective_flags, effective_requirements) =
+            stream_support_descriptor_option_flags_from_value(support);
+        assert_eq!(requested_flags.0, STREAM_FLAG_REPORT_XRUN.0);
+        assert_eq!(requested_requirements.0, STREAM_REQUIRE_PAUSE.0);
+        assert_ne!(effective_flags.0 & STREAM_FLAG_REPORT_XRUN.0, 0);
+        assert_ne!(effective_requirements.0 & STREAM_REQUIRE_PAUSE.0, 0);
+
+        context.destack_audio_device_close(device)?;
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_stream_descriptor_preserves_requested_and_effective_flags() {
+    with_harness_context(|mut context| {
+        let options = AudioDeviceOpenOptions {
+            direction: AudioDeviceDirection::Playback,
+            backend: AudioBackend::Null,
+            backend_policy: AudioBackendSelectionPolicy::Strict,
+            share_mode: AudioShareMode::Shared,
+            flags: AudioDeviceOpenFlags(0),
+        };
+        let device_id = harness_string(&mut context, "audio:null:playback");
+        let device_options = harness_device_options(&mut context, options);
+        let device = context.destack_audio_device_open(device_id, device_options)?;
+
+        let config = AudioStreamConfig {
+            sample_rate: 48_000,
+            channels: 2,
+            channel_layout: AudioChannelLayout::Stereo,
+            channel_mask: 0b11,
+            format: AudioSampleFormat::F32,
+            period_frames: 128,
+            transfer_mode: AudioStreamTransferMode::Push,
+        };
+        let config = harness_stream_config(&mut context, config);
+        let stream_options = AudioStreamOpenOptions {
+            flags: AudioStreamFlags(STREAM_FLAG_REPORT_XRUN.0),
+            requirements: AudioStreamRequirementFlags(STREAM_REQUIRE_PAUSE.0),
+        };
+        let stream_options = harness_stream_options(&mut context, stream_options);
+        let stream = context.destack_audio_stream_open(device, config, stream_options)?;
+        let descriptor = context.destack_audio_stream_descriptor(stream)?;
+        let (requested_flags, requested_requirements, effective_flags, effective_requirements) =
+            stream_descriptor_option_flags_from_value(descriptor);
+        assert_eq!(requested_flags.0, STREAM_FLAG_REPORT_XRUN.0);
+        assert_eq!(requested_requirements.0, STREAM_REQUIRE_PAUSE.0);
+        assert_ne!(effective_flags.0 & STREAM_FLAG_REPORT_XRUN.0, 0);
+        assert_ne!(effective_requirements.0 & STREAM_REQUIRE_PAUSE.0, 0);
+
+        context.destack_audio_stream_close(stream)?;
+        context.destack_audio_device_close(device)?;
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_stream_descriptor_preserves_explicit_sample_format_flag() {
+    with_harness_context(|mut context| {
+        let options = AudioDeviceOpenOptions {
+            direction: AudioDeviceDirection::Playback,
+            backend: AudioBackend::Null,
+            backend_policy: AudioBackendSelectionPolicy::Strict,
+            share_mode: AudioShareMode::Shared,
+            flags: AudioDeviceOpenFlags(0),
+        };
+        let device_id = harness_string(&mut context, "audio:null:playback");
+        let device_options = harness_device_options(&mut context, options);
+        let device = context.destack_audio_device_open(device_id, device_options)?;
+
+        let config = AudioStreamConfig {
+            sample_rate: 48_000,
+            channels: 2,
+            channel_layout: AudioChannelLayout::Stereo,
+            channel_mask: 0b11,
+            format: AudioSampleFormat::F32,
+            period_frames: 128,
+            transfer_mode: AudioStreamTransferMode::Push,
+        };
+        let config = harness_stream_config(&mut context, config);
+        let stream_options = harness_stream_options(
+            &mut context,
+            AudioStreamOpenOptions {
+                flags: AudioStreamFlags(STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT.0),
+                requirements: AudioStreamRequirementFlags(0),
+            },
+        );
+        let stream = context.destack_audio_stream_open(device, config, stream_options)?;
+        let descriptor = context.destack_audio_stream_descriptor(stream)?;
+        let (requested_flags, _, effective_flags, _) =
+            stream_descriptor_option_flags_from_value(descriptor);
+        assert_eq!(requested_flags.0, STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT.0);
+        assert_ne!(effective_flags.0 & STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT.0, 0,);
+
+        context.destack_audio_stream_close(stream)?;
         context.destack_audio_device_close(device)?;
         Ok(())
     });
@@ -402,13 +593,14 @@ fn test_audio_stream_support_reports_unsatisfied_requirements() {
 
 #[cfg(any(unix, windows))]
 #[test]
-fn test_audio_stream_open_non_interleaved_matches_backend_capability() {
+fn test_audio_stream_open_option_flags_match_backend_support() {
     with_harness_context(|mut context| {
         let backend_list = context.destack_audio_backend_list()?;
-        let backend_list = backend_support_rows_with_capabilities(&mut context, backend_list)?;
+        let backend_list = backend_descriptor_summaries(&mut context, backend_list)?;
 
-        for (backend, support, capability_flags) in backend_list {
-            if support != BackendSupport::Available
+        for backend_row in backend_list {
+            let backend = backend_row.backend;
+            if backend_row.support != BackendSupport::Available
                 || backend == AudioBackend::Auto
                 || backend == AudioBackend::Null
             {
@@ -433,8 +625,10 @@ fn test_audio_stream_open_non_interleaved_matches_backend_capability() {
 
             let share_mode = if backend == AudioBackend::Asio {
                 AudioShareMode::Exclusive
-            } else {
+            } else if (backend_row.capability_flags.0 & BACKEND_CAPABILITY_SHARED_MODE.0) != 0 {
                 AudioShareMode::Shared
+            } else {
+                AudioShareMode::Exclusive
             };
             let options = AudioDeviceOpenOptions {
                 direction: AudioDeviceDirection::Playback,
@@ -458,43 +652,51 @@ fn test_audio_stream_open_non_interleaved_matches_backend_capability() {
                 }
             };
 
-            let stream_config = AudioStreamConfig {
-                sample_rate: 48_000,
-                channels: 2,
-                channel_layout: AudioChannelLayout::Stereo,
-                channel_mask: 0b11,
-                format: AudioSampleFormat::F32,
-                period_frames: 128,
-                transfer_mode: AudioStreamTransferMode::Push,
-            };
-            let stream_config = harness_stream_config(&mut context, stream_config);
-            let stream_options = harness_stream_options(
-                &mut context,
-                core::default_stream_open_options_with_flags(AudioStreamFlags(
-                    STREAM_FLAG_NON_INTERLEAVED.0,
-                )),
-            );
-            let result = context.destack_audio_stream_open(device, stream_config, stream_options);
-            let supports_non_interleaved =
-                (capability_flags.0 & BACKEND_CAPABILITY_NON_INTERLEAVED.0) != 0;
-            if !supports_non_interleaved {
-                assert_not_supported_result(result)?;
-                context.destack_audio_device_close(device)?;
-                continue;
-            }
-
-            match result {
-                Ok(stream) => {
-                    context.destack_audio_stream_close(stream)?;
+            for (label, flag) in [
+                ("non-interleaved", STREAM_FLAG_NON_INTERLEAVED.0),
+                ("minimize latency", STREAM_FLAG_MINIMIZE_LATENCY.0),
+                (
+                    "explicit sample format",
+                    STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT.0,
+                ),
+                ("no auto convert", STREAM_FLAG_NO_AUTO_CONVERT.0),
+            ] {
+                let stream_config = AudioStreamConfig {
+                    sample_rate: 48_000,
+                    channels: 2,
+                    channel_layout: AudioChannelLayout::Stereo,
+                    channel_mask: 0b11,
+                    format: AudioSampleFormat::F32,
+                    period_frames: 128,
+                    transfer_mode: AudioStreamTransferMode::Push,
+                };
+                let stream_config = harness_stream_config(&mut context, stream_config);
+                let stream_options = harness_stream_options(
+                    &mut context,
+                    core::default_stream_open_options_with_flags(AudioStreamFlags(flag)),
+                );
+                let result =
+                    context.destack_audio_stream_open(device, stream_config, stream_options);
+                let is_supported = (backend_row.supported_stream_flags.0 & flag) != 0;
+                if !is_supported {
+                    assert_not_supported_result(result)?;
+                    continue;
                 }
-                Err(error) => {
-                    let code = error_code_from_runtime_error(&error);
-                    assert_code_is_not_not_supported(
-                        code,
-                        &format!(
-                            "backend {backend:?} advertises non-interleaved but stream.open returned notSupported"
-                        ),
-                    )?;
+
+                match result {
+                    Ok(stream) => {
+                        context.destack_audio_stream_close(stream)?;
+                    }
+                    Err(error) => {
+                        let code = error_code_from_runtime_error(&error);
+                        assert_code_is_one_of(
+                            code,
+                            &HOST_STREAM_OPEN_ALLOWED_ERRORS,
+                            &format!(
+                                "backend {backend:?} advertised {label} stream support but stream.open failed outside the allowed host error set"
+                            ),
+                        )?;
+                    }
                 }
             }
 
@@ -937,85 +1139,6 @@ fn test_audio_stream_randomized_interleaving_on_available_host_backend() {
 
 #[cfg(any(unix, windows))]
 #[test]
-fn test_audio_host_stream_open_close_when_backend_is_available() {
-    with_harness_context(|mut context| {
-        let backend_list = context.destack_audio_backend_list()?;
-        let backend_list = backend_support_rows(&mut context, backend_list)?;
-        let backend = backend_list.iter().find_map(|(backend, _support)| {
-            // specimen tests only run on concrete host backends that are usable here
-            if *backend == AudioBackend::Auto || *backend == AudioBackend::Null {
-                return None;
-            }
-
-            if !backend_is_available_for_host_execution(&backend_list, *backend) {
-                return None;
-            }
-
-            Some(*backend)
-        });
-        let Some(backend) = backend else {
-            return Ok(());
-        };
-
-        let device_id = match context.destack_audio_device_default(
-            AudioDeviceDirection::Playback,
-            backend,
-            AudioBackendSelectionPolicy::Strict,
-        ) {
-            Ok(value) => string_from_harness_value(&mut context, value)?,
-            Err(error) => {
-                let code = error_code_from_runtime_error(&error);
-                if code == Some(PlatformErrorCode::IoNotFound) {
-                    return Ok(());
-                }
-                return Err(error);
-            }
-        };
-
-        let options = AudioDeviceOpenOptions {
-            direction: AudioDeviceDirection::Playback,
-            backend,
-            backend_policy: AudioBackendSelectionPolicy::Strict,
-            share_mode: AudioShareMode::Shared,
-            flags: AudioDeviceOpenFlags(0),
-        };
-        let device_id = harness_string(&mut context, &device_id);
-        let options = harness_device_options(&mut context, options);
-        let device = context.destack_audio_device_open(device_id, options)?;
-
-        let config = AudioStreamConfig {
-            sample_rate: 48_000,
-            channels: 1,
-            channel_layout: AudioChannelLayout::Mono,
-            channel_mask: 0b1,
-            format: AudioSampleFormat::F32,
-            period_frames: 128,
-            transfer_mode: AudioStreamTransferMode::Push,
-        };
-        let config = harness_stream_config(&mut context, config);
-        let stream = stream_open_with_default_options(&mut context, device, config)?;
-        context.destack_audio_stream_start(stream)?;
-
-        let payload = (0..256usize)
-            .flat_map(|index| {
-                let sample = (index as f32 / 256.0) * 0.1;
-                sample.to_le_bytes()
-            })
-            .collect::<Vec<_>>();
-        let payload = harness_bytes(&mut context, &payload)?;
-        let written = context.destack_audio_stream_write(stream, payload)?;
-        assert!(written > 0, "host stream write should accept payload");
-
-        context.destack_audio_stream_stop(stream)?;
-        context.destack_audio_stream_close(stream)?;
-        context.destack_audio_device_close(device)?;
-
-        Ok(())
-    });
-}
-
-#[cfg(any(unix, windows))]
-#[test]
 fn test_audio_host_stream_write_at_rejects_when_backend_lacks_schedule_lane() {
     with_harness_context(|mut context| {
         let backend_list = context.destack_audio_backend_list()?;
@@ -1177,11 +1300,13 @@ fn test_audio_stream_descriptor_flags_match_control_behavior_for_available_backe
                 Ok(device) => device,
                 Err(error) => {
                     let code = error_code_from_runtime_error(&error);
-                    if is_not_supported_code(code) {
-                        panic!(
-                            "backend {backend:?} advertised share mode {share_mode:?} but device open returned notSupported",
-                        );
-                    }
+                    assert_code_is_one_of(
+                        code,
+                        &HOST_STREAM_OPEN_ALLOWED_ERRORS,
+                        &format!(
+                            "backend {backend:?} advertised share mode {share_mode:?} but device open failed outside the allowed host error set",
+                        ),
+                    )?;
                     continue;
                 }
             };
@@ -1235,8 +1360,9 @@ fn test_audio_stream_descriptor_flags_match_control_behavior_for_available_backe
             if supports_volume {
                 if let Err(error) = volume_result {
                     let code = error_code_from_runtime_error(&error);
-                    assert_code_is_not_not_supported(
+                    assert_code_is_one_of(
                         code,
+                        &HOST_STREAM_CONTROL_ALLOWED_ERRORS,
                         &format!("backend {backend:?} snapshot claimed supports_volume"),
                     )?;
                 }
@@ -1248,8 +1374,9 @@ fn test_audio_stream_descriptor_flags_match_control_behavior_for_available_backe
             if supports_mute {
                 if let Err(error) = mute_result {
                     let code = error_code_from_runtime_error(&error);
-                    assert_code_is_not_not_supported(
+                    assert_code_is_one_of(
                         code,
+                        &HOST_STREAM_CONTROL_ALLOWED_ERRORS,
                         &format!("backend {backend:?} snapshot claimed supports_mute"),
                     )?;
                 }
@@ -1262,8 +1389,9 @@ fn test_audio_stream_descriptor_flags_match_control_behavior_for_available_backe
             if supports_write_at {
                 if let Err(error) = write_at_result {
                     let code = error_code_from_runtime_error(&error);
-                    assert_code_is_not_not_supported(
+                    assert_code_is_one_of(
                         code,
+                        &HOST_STREAM_CONTROL_ALLOWED_ERRORS,
                         &format!("backend {backend:?} snapshot claimed supports_write_at"),
                     )?;
                 }

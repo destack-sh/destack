@@ -224,6 +224,13 @@ fn backend_capability_flags(
         flags |= audio_core::BACKEND_CAPABILITY_BACKEND_DISCONNECT_EVENTS.0;
     }
 
+    // native device-event ingress
+    if backend != AudioBackend::Null
+        && native_audio::backend_supports_native_device_monitor(backend)
+    {
+        flags |= audio_core::BACKEND_CAPABILITY_NATIVE_EVENT_FEED.0;
+    }
+
     AudioBackendCapabilityFlags(flags)
 }
 
@@ -278,7 +285,8 @@ fn descriptor_lanes(
     };
 
     // advertise stream-related lanes only when stream creation is usable
-    let is_stream_supported = native_audio::backend_stream_supported(descriptor_backend);
+    let is_stream_supported = descriptor_backend == AudioBackend::Null
+        || native_audio::backend_stream_supported(descriptor_backend);
 
     AudioBackendDescriptorLanes::for_backend(descriptor_backend, is_stream_supported)
 }

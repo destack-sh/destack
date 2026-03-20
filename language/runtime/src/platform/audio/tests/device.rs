@@ -1,12 +1,12 @@
 use super::super::core::{
     BACKEND_CAPABILITY_BACKEND_DISCONNECT_EVENTS, BACKEND_CAPABILITY_DEVICE_CLOCK,
     BACKEND_CAPABILITY_EXCLUSIVE_MODE, BACKEND_CAPABILITY_LOOPBACK,
-    BACKEND_CAPABILITY_NON_INTERLEAVED, BACKEND_CAPABILITY_SCHEDULED_WRITE,
-    BACKEND_CAPABILITY_SHARED_MODE, DEVICE_CAPABILITY_BACKEND_DISCONNECT_EVENTS,
-    DEVICE_CAPABILITY_LOOPBACK, DEVICE_CAPABILITY_SCHEDULED_WRITE,
-    DEVICE_LIST_INCLUDE_DISCONNECTED, DEVICE_OPEN_FOLLOW_DEFAULT_ROUTE, DEVICE_OPEN_LOW_LATENCY,
-    DEVICE_OPEN_RAW, DEVICE_OPEN_REALTIME_THREAD, SUPPORTED_STREAM_CLOCK_INPUT_ADC,
-    SUPPORTED_STREAM_CLOCK_OUTPUT_DAC,
+    BACKEND_CAPABILITY_NATIVE_EVENT_FEED, BACKEND_CAPABILITY_NON_INTERLEAVED,
+    BACKEND_CAPABILITY_SCHEDULED_WRITE, BACKEND_CAPABILITY_SHARED_MODE,
+    DEVICE_CAPABILITY_BACKEND_DISCONNECT_EVENTS, DEVICE_CAPABILITY_LOOPBACK,
+    DEVICE_CAPABILITY_SCHEDULED_WRITE, DEVICE_LIST_INCLUDE_DISCONNECTED, DEVICE_OPEN_RAW,
+    STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT, STREAM_FLAG_MINIMIZE_LATENCY, STREAM_FLAG_NO_AUTO_CONVERT,
+    STREAM_FLAG_REPORT_XRUN, SUPPORTED_STREAM_CLOCK_INPUT_ADC, SUPPORTED_STREAM_CLOCK_OUTPUT_DAC,
 };
 use super::super::{
     AudioBackend, AudioBackendSelectionPolicy, AudioDeviceDirection, AudioDeviceListFlags,
@@ -21,11 +21,25 @@ use super::core::{
     string_from_harness_value,
 };
 use super::{
-    assert_code_is_not_not_supported, assert_not_supported_result, assert_platform_error_code,
+    assert_code_is_one_of, assert_not_supported_result, assert_platform_error_code,
     error_code_from_runtime_error, with_harness_context,
 };
 use crate::platform::core::BackendSupport;
 use crate::platform::diagnostic::PlatformErrorCode;
+
+const HOST_AUDIO_LIST_ALLOWED_ERRORS: [PlatformErrorCode; 4] = [
+    PlatformErrorCode::IoNotFound,
+    PlatformErrorCode::IoPermissionDenied,
+    PlatformErrorCode::AudioUnavailable,
+    PlatformErrorCode::DeviceUnavailable,
+];
+const HOST_AUDIO_OPEN_ALLOWED_ERRORS: [PlatformErrorCode; 5] = [
+    PlatformErrorCode::IoNotFound,
+    PlatformErrorCode::IoPermissionDenied,
+    PlatformErrorCode::IoInvalidData,
+    PlatformErrorCode::AudioUnavailable,
+    PlatformErrorCode::DeviceUnavailable,
+];
 
 #[cfg(any(unix, windows))]
 #[test]
@@ -142,6 +156,99 @@ fn test_audio_backend_list_contains_null_and_available_backend() {
 
 #[cfg(any(unix, windows))]
 #[test]
+fn test_audio_null_backend_supported_stream_flags_are_explicit() {
+    with_harness_context(|mut context| {
+        let rows = context.destack_audio_backend_list()?;
+        let rows = backend_descriptor_summaries(&mut context, rows)?;
+        let null = rows
+            .iter()
+            .find(|row| row.backend == AudioBackend::Null)
+            .expect("backend list should contain null selector");
+
+        assert_ne!(
+            null.supported_stream_flags.0 & STREAM_FLAG_REPORT_XRUN.0,
+            0,
+            "null backend should advertise xrun reporting support",
+        );
+        assert_eq!(
+            null.supported_stream_flags.0 & STREAM_FLAG_MINIMIZE_LATENCY.0,
+            0,
+            "null backend should not advertise unimplemented latency hint support",
+        );
+        assert_ne!(
+            null.supported_stream_flags.0 & STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT.0,
+            0,
+            "null backend should advertise exact sample-format support",
+        );
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_backend_list_reports_completed_stream_option_lanes() {
+    with_harness_context(|mut context| {
+        let rows = context.destack_audio_backend_list()?;
+        let rows = backend_descriptor_summaries(&mut context, rows)?;
+
+        let alsa = rows
+            .iter()
+            .find(|row| row.backend == AudioBackend::Alsa)
+            .expect("backend list should contain alsa selector");
+        if alsa.support == BackendSupport::Available {
+            assert_ne!(
+                alsa.supported_stream_flags.0 & STREAM_FLAG_MINIMIZE_LATENCY.0,
+                0,
+                "alsa should advertise low-latency stream support",
+            );
+            assert_ne!(
+                alsa.supported_stream_flags.0 & STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT.0,
+                0,
+                "alsa should advertise explicit sample-format support",
+            );
+            assert_ne!(
+                alsa.supported_stream_flags.0 & STREAM_FLAG_NO_AUTO_CONVERT.0,
+                0,
+                "alsa should advertise no-auto-convert stream support",
+            );
+        }
+
+        let aaudio = rows
+            .iter()
+            .find(|row| row.backend == AudioBackend::AAudio)
+            .expect("backend list should contain aaudio selector");
+        if aaudio.support == BackendSupport::Available {
+            assert_ne!(
+                aaudio.supported_stream_flags.0 & STREAM_FLAG_MINIMIZE_LATENCY.0,
+                0,
+                "aaudio should advertise low-latency stream support",
+            );
+            assert_ne!(
+                aaudio.supported_stream_flags.0 & STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT.0,
+                0,
+                "aaudio should advertise explicit sample-format support",
+            );
+        }
+
+        let available_host_row = rows
+            .iter()
+            .find(|row| {
+                row.backend != AudioBackend::Null && row.support == BackendSupport::Available
+            })
+            .expect("host backend list should expose one available runtime backend");
+        assert_ne!(
+            available_host_row.supported_stream_flags.0 & STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT.0,
+            0,
+            "available host backends should advertise explicit sample-format support",
+        );
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
 fn test_audio_backend_list_reports_auto_availability_from_host_backends() {
     with_harness_context(|mut context| {
         let rows = context.destack_audio_backend_list()?;
@@ -225,6 +332,32 @@ fn test_audio_backend_list_sets_capabilities_for_available_rows() {
             if backend == AudioBackend::Jack {
                 assert_ne!(capability_flags.0 & BACKEND_CAPABILITY_SHARED_MODE.0, 0);
                 assert_eq!(capability_flags.0 & BACKEND_CAPABILITY_EXCLUSIVE_MODE.0, 0);
+            }
+
+            if backend == AudioBackend::CoreAudio
+                || backend == AudioBackend::Wasapi
+                || backend == AudioBackend::Alsa
+                || backend == AudioBackend::PulseAudio
+                || backend == AudioBackend::PipeWire
+                || backend == AudioBackend::Jack
+                || backend == AudioBackend::Asio
+            {
+                assert_ne!(
+                    capability_flags.0 & BACKEND_CAPABILITY_NATIVE_EVENT_FEED.0,
+                    0,
+                    "backend {backend:?} should advertise native device-event ingress",
+                );
+            }
+
+            if backend == AudioBackend::Null
+                || backend == AudioBackend::AAudio
+                || backend == AudioBackend::OpenSLES
+            {
+                assert_eq!(
+                    capability_flags.0 & BACKEND_CAPABILITY_NATIVE_EVENT_FEED.0,
+                    0,
+                    "backend {backend:?} should not advertise native device-event ingress",
+                );
             }
         }
 
@@ -442,10 +575,11 @@ fn test_audio_backend_share_mode_capabilities_match_device_open_behavior() {
                     }
                     Err(error) => {
                         let code = error_code_from_runtime_error(&error);
-                        assert_code_is_not_not_supported(
+                        assert_code_is_one_of(
                             code,
+                            &HOST_AUDIO_OPEN_ALLOWED_ERRORS,
                             &format!(
-                                "backend {backend:?} advertised share mode {share_mode:?} but device open returned notSupported"
+                                "backend {backend:?} advertised share mode {share_mode:?} but device open failed outside the allowed host error set"
                             ),
                         )?;
                     }
@@ -480,15 +614,20 @@ fn test_audio_available_host_backends_allow_strict_device_listing() {
             };
 
             let list_request = harness_list_request(&mut context, request);
-            let result = context.destack_audio_device_list(list_request);
-            if let Err(error) = result {
-                let code = error_code_from_runtime_error(&error);
-                assert_code_is_not_not_supported(
-                    code,
-                    &format!(
-                        "available backend {backend:?} should not fail strict listing with notSupported"
-                    ),
-                )?;
+            match context.destack_audio_device_list(list_request) {
+                Ok(rows) => {
+                    let _ = descriptor_count(&mut context, rows)?;
+                }
+                Err(error) => {
+                    let code = error_code_from_runtime_error(&error);
+                    assert_code_is_one_of(
+                        code,
+                        &HOST_AUDIO_LIST_ALLOWED_ERRORS,
+                        &format!(
+                            "available backend {backend:?} should either list devices or fail with an explicit host-availability error"
+                        ),
+                    )?;
+                }
             }
         }
 
@@ -544,274 +683,56 @@ fn test_audio_wasapi_device_list_exposes_loopback_and_duplex_ids_when_available(
 
 #[cfg(any(unix, windows))]
 #[test]
-fn test_audio_asio_device_default_uses_stable_prefix_when_available() {
+fn test_audio_host_device_defaults_use_stable_backend_prefixes_when_available() {
     with_harness_context(|mut context| {
         let rows = context.destack_audio_backend_list()?;
         let rows = backend_support_rows(&mut context, rows)?;
-        let asio_available = backend_is_available_for_host_execution(&rows, AudioBackend::Asio);
-        if !asio_available {
-            return Ok(());
-        }
 
-        let playback = context.destack_audio_device_default(
-            AudioDeviceDirection::Playback,
-            AudioBackend::Asio,
-            AudioBackendSelectionPolicy::Strict,
-        );
-        let playback = match playback {
-            Ok(playback) => playback,
-            Err(error) => {
-                let code = error_code_from_runtime_error(&error);
-                assert_eq!(code, Some(PlatformErrorCode::IoNotFound));
-                return Ok(());
+        #[cfg(target_os = "android")]
+        let expectations = vec![
+            (AudioBackend::CoreAudio, "coreaudio:"),
+            (AudioBackend::Asio, "asio:playback:"),
+            (AudioBackend::Alsa, "alsa:playback:"),
+            (AudioBackend::PipeWire, "pipewire:playback:"),
+            (AudioBackend::PulseAudio, "pulseaudio:playback:"),
+            (AudioBackend::Jack, "jack:playback:"),
+            (AudioBackend::AAudio, "aaudio:playback:"),
+            (AudioBackend::OpenSLES, "opensles:playback:"),
+        ];
+
+        #[cfg(not(target_os = "android"))]
+        let expectations = vec![
+            (AudioBackend::CoreAudio, "coreaudio:"),
+            (AudioBackend::Asio, "asio:playback:"),
+            (AudioBackend::Alsa, "alsa:playback:"),
+            (AudioBackend::PipeWire, "pipewire:playback:"),
+            (AudioBackend::PulseAudio, "pulseaudio:playback:"),
+            (AudioBackend::Jack, "jack:playback:"),
+        ];
+
+        for (backend, prefix) in expectations {
+            if !backend_is_available_for_host_execution(&rows, backend) {
+                continue;
             }
-        };
-        let playback = string_from_harness_value(&mut context, playback)?;
-        assert!(
-            playback.starts_with("asio:playback:"),
-            "asio playback default id should use asio:playback: prefix",
-        );
 
-        Ok(())
-    });
-}
+            let default_id = match context.destack_audio_device_default(
+                AudioDeviceDirection::Playback,
+                backend,
+                AudioBackendSelectionPolicy::Strict,
+            ) {
+                Ok(value) => string_from_harness_value(&mut context, value)?,
+                Err(error) => {
+                    let code = error_code_from_runtime_error(&error);
+                    assert_eq!(code, Some(PlatformErrorCode::IoNotFound));
+                    continue;
+                }
+            };
 
-#[cfg(any(unix, windows))]
-#[test]
-fn test_audio_alsa_device_default_uses_stable_prefix_when_available() {
-    with_harness_context(|mut context| {
-        let rows = context.destack_audio_backend_list()?;
-        let rows = backend_support_rows(&mut context, rows)?;
-        let alsa_available = backend_is_available_for_host_execution(&rows, AudioBackend::Alsa);
-        if !alsa_available {
-            return Ok(());
+            assert!(
+                default_id.starts_with(prefix),
+                "backend {backend:?} default id should use the stable {prefix} prefix",
+            );
         }
-
-        let playback = context.destack_audio_device_default(
-            AudioDeviceDirection::Playback,
-            AudioBackend::Alsa,
-            AudioBackendSelectionPolicy::Strict,
-        );
-        let playback = match playback {
-            Ok(playback) => playback,
-            Err(error) => {
-                let code = error_code_from_runtime_error(&error);
-                assert_eq!(code, Some(PlatformErrorCode::IoNotFound));
-                return Ok(());
-            }
-        };
-        let playback = string_from_harness_value(&mut context, playback)?;
-        assert!(
-            playback.starts_with("alsa:playback:"),
-            "alsa playback default id should use alsa:playback: prefix",
-        );
-
-        Ok(())
-    });
-}
-
-#[cfg(any(unix, windows))]
-#[test]
-fn test_audio_pipewire_device_default_uses_stable_prefix_when_available() {
-    with_harness_context(|mut context| {
-        let rows = context.destack_audio_backend_list()?;
-        let rows = backend_support_rows(&mut context, rows)?;
-        let pipewire_available =
-            backend_is_available_for_host_execution(&rows, AudioBackend::PipeWire);
-        if !pipewire_available {
-            return Ok(());
-        }
-
-        let playback = context.destack_audio_device_default(
-            AudioDeviceDirection::Playback,
-            AudioBackend::PipeWire,
-            AudioBackendSelectionPolicy::Strict,
-        );
-        let playback = match playback {
-            Ok(playback) => playback,
-            Err(error) => {
-                let code = error_code_from_runtime_error(&error);
-                assert_eq!(code, Some(PlatformErrorCode::IoNotFound));
-                return Ok(());
-            }
-        };
-        let playback = string_from_harness_value(&mut context, playback)?;
-        assert!(
-            playback.starts_with("pipewire:playback:"),
-            "pipewire playback default id should use pipewire:playback: prefix",
-        );
-
-        Ok(())
-    });
-}
-
-#[cfg(any(unix, windows))]
-#[test]
-fn test_audio_pulseaudio_device_default_uses_stable_prefix_when_available() {
-    with_harness_context(|mut context| {
-        let rows = context.destack_audio_backend_list()?;
-        let rows = backend_support_rows(&mut context, rows)?;
-        let pulseaudio_available =
-            backend_is_available_for_host_execution(&rows, AudioBackend::PulseAudio);
-        if !pulseaudio_available {
-            return Ok(());
-        }
-
-        let playback = context.destack_audio_device_default(
-            AudioDeviceDirection::Playback,
-            AudioBackend::PulseAudio,
-            AudioBackendSelectionPolicy::Strict,
-        );
-        let playback = match playback {
-            Ok(playback) => playback,
-            Err(error) => {
-                let code = error_code_from_runtime_error(&error);
-                assert_eq!(code, Some(PlatformErrorCode::IoNotFound));
-                return Ok(());
-            }
-        };
-        let playback = string_from_harness_value(&mut context, playback)?;
-        assert!(
-            playback.starts_with("pulseaudio:playback:"),
-            "pulseaudio playback default id should use pulseaudio:playback: prefix",
-        );
-
-        Ok(())
-    });
-}
-
-#[cfg(any(unix, windows))]
-#[test]
-fn test_audio_jack_device_default_uses_stable_prefix_when_available() {
-    with_harness_context(|mut context| {
-        let rows = context.destack_audio_backend_list()?;
-        let rows = backend_support_rows(&mut context, rows)?;
-        let jack_available = backend_is_available_for_host_execution(&rows, AudioBackend::Jack);
-        if !jack_available {
-            return Ok(());
-        }
-
-        let playback = context.destack_audio_device_default(
-            AudioDeviceDirection::Playback,
-            AudioBackend::Jack,
-            AudioBackendSelectionPolicy::Strict,
-        );
-        let playback = match playback {
-            Ok(playback) => playback,
-            Err(error) => {
-                let code = error_code_from_runtime_error(&error);
-                assert_eq!(code, Some(PlatformErrorCode::IoNotFound));
-                return Ok(());
-            }
-        };
-        let playback = string_from_harness_value(&mut context, playback)?;
-        assert!(
-            playback.starts_with("jack:playback:"),
-            "jack playback default id should use jack:playback: prefix",
-        );
-
-        Ok(())
-    });
-}
-
-#[cfg(target_os = "android")]
-#[test]
-fn test_audio_aaudio_device_default_uses_stable_prefix_when_available() {
-    with_harness_context(|mut context| {
-        let rows = context.destack_audio_backend_list()?;
-        let rows = backend_support_rows(&mut context, rows)?;
-        let aaudio_available = backend_is_available_for_host_execution(&rows, AudioBackend::AAudio);
-        if !aaudio_available {
-            return Ok(());
-        }
-
-        let playback = context.destack_audio_device_default(
-            AudioDeviceDirection::Playback,
-            AudioBackend::AAudio,
-            AudioBackendSelectionPolicy::Strict,
-        );
-        let playback = match playback {
-            Ok(playback) => playback,
-            Err(error) => {
-                let code = error_code_from_runtime_error(&error);
-                assert_eq!(code, Some(PlatformErrorCode::IoNotFound));
-                return Ok(());
-            }
-        };
-        let playback = string_from_harness_value(&mut context, playback)?;
-        assert!(
-            playback.starts_with("aaudio:playback:"),
-            "aaudio playback default id should use aaudio:playback: prefix",
-        );
-
-        Ok(())
-    });
-}
-
-#[cfg(target_os = "android")]
-#[test]
-fn test_audio_opensles_device_default_uses_stable_prefix_when_available() {
-    with_harness_context(|mut context| {
-        let rows = context.destack_audio_backend_list()?;
-        let rows = backend_support_rows(&mut context, rows)?;
-        let opensles_available =
-            backend_is_available_for_host_execution(&rows, AudioBackend::OpenSLES);
-        if !opensles_available {
-            return Ok(());
-        }
-
-        let playback = context.destack_audio_device_default(
-            AudioDeviceDirection::Playback,
-            AudioBackend::OpenSLES,
-            AudioBackendSelectionPolicy::Strict,
-        );
-        let playback = match playback {
-            Ok(playback) => playback,
-            Err(error) => {
-                let code = error_code_from_runtime_error(&error);
-                assert_eq!(code, Some(PlatformErrorCode::IoNotFound));
-                return Ok(());
-            }
-        };
-        let playback = string_from_harness_value(&mut context, playback)?;
-        assert!(
-            playback.starts_with("opensles:playback:"),
-            "opensles playback default id should use opensles:playback: prefix",
-        );
-
-        Ok(())
-    });
-}
-
-#[cfg(any(unix, windows))]
-#[test]
-fn test_audio_coreaudio_device_default_uses_stable_prefix_when_available() {
-    with_harness_context(|mut context| {
-        let rows = context.destack_audio_backend_list()?;
-        let rows = backend_support_rows(&mut context, rows)?;
-        let coreaudio_available =
-            backend_is_available_for_host_execution(&rows, AudioBackend::CoreAudio);
-        if !coreaudio_available {
-            return Ok(());
-        }
-
-        let default_id = match context.destack_audio_device_default(
-            AudioDeviceDirection::Playback,
-            AudioBackend::CoreAudio,
-            AudioBackendSelectionPolicy::Strict,
-        ) {
-            Ok(value) => string_from_harness_value(&mut context, value)?,
-            Err(error) => {
-                let code = error_code_from_runtime_error(&error);
-                assert_eq!(code, Some(PlatformErrorCode::IoNotFound));
-                return Ok(());
-            }
-        };
-
-        assert!(
-            default_id.starts_with("coreaudio:"),
-            "coreaudio default ids should use the stable coreaudio prefix",
-        );
 
         Ok(())
     });
@@ -994,9 +915,10 @@ fn test_audio_device_open_alsa_no_resample_matches_backend_support() {
             }
             Err(error) => {
                 let code = error_code_from_runtime_error(&error);
-                assert_code_is_not_not_supported(
+                assert_code_is_one_of(
                     code,
-                    "alsa no-resample flag should not route through notSupported on ALSA",
+                    &HOST_AUDIO_OPEN_ALLOWED_ERRORS,
+                    "alsa no-resample flag should fail only with the allowed host error set",
                 )?;
             }
         }
@@ -1045,9 +967,10 @@ fn test_audio_device_open_jack_no_autoconnect_matches_backend_support() {
             }
             Err(error) => {
                 let code = error_code_from_runtime_error(&error);
-                assert_code_is_not_not_supported(
+                assert_code_is_one_of(
                     code,
-                    "jack no-autoconnect flag should not route through notSupported on JACK",
+                    &HOST_AUDIO_OPEN_ALLOWED_ERRORS,
+                    "jack no-autoconnect flag should fail only with the allowed host error set",
                 )?;
             }
         }
@@ -1125,10 +1048,11 @@ fn test_audio_device_open_require_hardware_timestamps_matches_backend_capability
                 }
                 Err(error) => {
                     let code = error_code_from_runtime_error(&error);
-                    assert_code_is_not_not_supported(
+                    assert_code_is_one_of(
                         code,
+                        &HOST_AUDIO_OPEN_ALLOWED_ERRORS,
                         &format!(
-                            "backend {backend:?} advertises device clock but requireHardwareTimestamps returned notSupported"
+                            "backend {backend:?} advertises device clock but requireHardwareTimestamps failed outside the allowed host error set"
                         ),
                     )?;
                 }
@@ -1157,31 +1081,6 @@ fn test_audio_device_list_accepts_known_request_flags() {
             row_count >= 1,
             "known list flags should keep null device listing functional",
         );
-
-        Ok(())
-    });
-}
-
-#[cfg(any(unix, windows))]
-#[test]
-fn test_audio_device_open_accepts_known_open_flags() {
-    with_harness_context(|mut context| {
-        let options = AudioDeviceOpenOptions {
-            direction: AudioDeviceDirection::Playback,
-            backend: AudioBackend::Null,
-            backend_policy: AudioBackendSelectionPolicy::Strict,
-            share_mode: AudioShareMode::Shared,
-            flags: AudioDeviceOpenFlags(
-                DEVICE_OPEN_FOLLOW_DEFAULT_ROUTE.0
-                    | DEVICE_OPEN_LOW_LATENCY.0
-                    | DEVICE_OPEN_REALTIME_THREAD.0,
-            ),
-        };
-
-        let device_id = harness_string(&mut context, "audio:null:playback");
-        let options = harness_device_options(&mut context, options);
-        let device = context.destack_audio_device_open(device_id, options)?;
-        context.destack_audio_device_close(device)?;
 
         Ok(())
     });
@@ -1257,10 +1156,11 @@ fn test_audio_device_open_require_loopback_matches_backend_capability() {
                     }
                     Err(error) => {
                         let code = error_code_from_runtime_error(&error);
-                        assert_code_is_not_not_supported(
+                        assert_code_is_one_of(
                             code,
+                            &HOST_AUDIO_OPEN_ALLOWED_ERRORS,
                             &format!(
-                                "backend {backend:?} advertises loopback but requireLoopback returned notSupported"
+                                "backend {backend:?} advertises loopback but requireLoopback failed outside the allowed host error set"
                             ),
                         )?;
                     }

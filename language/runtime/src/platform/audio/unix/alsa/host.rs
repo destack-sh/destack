@@ -278,15 +278,29 @@ fn format_tokens(format: audio_types::AudioSampleFormat) -> &'static [&'static s
     }
 }
 
+/// Return ALSA format tokens for one strict sample-format request.
+fn exact_format_tokens(format: audio_types::AudioSampleFormat) -> &'static [&'static str] {
+    match format {
+        audio_types::AudioSampleFormat::S24 => &["S24_LE"],
+        _ => format_tokens(format),
+    }
+}
+
 /// Apply one stream format, channel, rate, and period contract.
 fn configure_pcm(
     library: &Arc<AlsaLibrary>,
     raw_pcm: *mut AlsaPcm,
     config: audio_types::AudioStreamConfig,
     backend_flags: audio_core::AudioBackendOpenFlags,
+    requested_flags: audio_types::AudioStreamFlags,
 ) -> RuntimeResult<(u32, u16, u32, bool, bool)> {
     // enforce backend no-resample mode when the caller requests it
-    let request_no_resample = (backend_flags.0 & audio_core::BACKEND_OPEN_ALSA_NO_RESAMPLE.0) != 0;
+    let request_no_resample = (backend_flags.0 & audio_core::BACKEND_OPEN_ALSA_NO_RESAMPLE.0) != 0
+        || (requested_flags.0 & audio_core::STREAM_FLAG_NO_AUTO_CONVERT.0) != 0;
+    let request_explicit_sample_format =
+        (requested_flags.0 & audio_core::STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT.0) != 0;
+    let request_minimize_latency =
+        (requested_flags.0 & audio_core::STREAM_FLAG_MINIMIZE_LATENCY.0) != 0;
 
     let parameters = allocate_hardware_params(library, "destack.audio.stream.open")?;
 
@@ -337,7 +351,13 @@ fn configure_pcm(
     let mut selected_format = None;
 
     // select one compatible ALSA sample format for this runtime stream format
-    for token in format_tokens(config.format) {
+    let format_tokens = if request_explicit_sample_format {
+        exact_format_tokens(config.format)
+    } else {
+        format_tokens(config.format)
+    };
+
+    for token in format_tokens {
         let Some(value) = format_value(library, token) else {
             continue;
         };
@@ -418,7 +438,8 @@ fn configure_pcm(
         ));
     }
 
-    let mut buffer_size = negotiated_period.saturating_mul(4);
+    let mut buffer_size =
+        negotiated_period.saturating_mul(if request_minimize_latency { 2 } else { 4 });
 
     // request one conservative ring-buffer size target
     let _ = unsafe {
@@ -494,6 +515,7 @@ pub(super) fn open_configured_pcm(
     stream_selector: c_int,
     config: audio_types::AudioStreamConfig,
     backend_flags: audio_core::AudioBackendOpenFlags,
+    requested_flags: audio_types::AudioStreamFlags,
 ) -> RuntimeResult<ConfiguredAlsaPcm> {
     let library = require_alsa_library(operation)?;
     let raw_pcm = open_pcm(
@@ -504,7 +526,8 @@ pub(super) fn open_configured_pcm(
         ALSA_FLAG_NONE,
     )?;
 
-    let configured = match configure_pcm(&library, raw_pcm, config, backend_flags) {
+    let configured = match configure_pcm(&library, raw_pcm, config, backend_flags, requested_flags)
+    {
         Ok(configured) => configured,
         Err(error) => {
             unsafe {

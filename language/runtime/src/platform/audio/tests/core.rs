@@ -598,6 +598,31 @@ pub(super) fn stream_descriptor_flags_from_value(
     }
 }
 
+/// Decode one stream descriptor payload into requested and effective option fields.
+pub(super) fn stream_descriptor_option_flags_from_value(
+    value: HarnessValue<AudioStreamDescriptor, AudioStreamDescriptorVm>,
+) -> (
+    AudioStreamFlags,
+    AudioStreamRequirementFlags,
+    AudioStreamFlags,
+    AudioStreamRequirementFlags,
+) {
+    match value {
+        HarnessValue::Native(value) => (
+            value.requested_flags,
+            value.requested_requirements,
+            value.effective_flags,
+            value.effective_requirements,
+        ),
+        HarnessValue::Vm(value) => (
+            value.requested_flags,
+            value.requested_requirements,
+            value.effective_flags,
+            value.effective_requirements,
+        ),
+    }
+}
+
 /// Decode one stream support payload into support and requirement flags.
 pub(super) fn stream_support_from_value(
     value: HarnessValue<AudioStreamSupport, AudioStreamSupportVm>,
@@ -616,6 +641,31 @@ pub(super) fn stream_support_from_value(
             value.supported,
             value.satisfied_requirements,
             value.unsatisfied_requirements,
+        ),
+    }
+}
+
+/// Decode one stream support payload into descriptor option fields.
+pub(super) fn stream_support_descriptor_option_flags_from_value(
+    value: HarnessValue<AudioStreamSupport, AudioStreamSupportVm>,
+) -> (
+    AudioStreamFlags,
+    AudioStreamRequirementFlags,
+    AudioStreamFlags,
+    AudioStreamRequirementFlags,
+) {
+    match value {
+        HarnessValue::Native(value) => (
+            value.descriptor.requested_flags,
+            value.descriptor.requested_requirements,
+            value.descriptor.effective_flags,
+            value.descriptor.effective_requirements,
+        ),
+        HarnessValue::Vm(value) => (
+            value.descriptor.requested_flags,
+            value.descriptor.requested_requirements,
+            value.descriptor.effective_flags,
+            value.descriptor.effective_requirements,
         ),
     }
 }
@@ -868,37 +918,6 @@ pub(super) fn event_batch_sequence_rows(
                 .map(|value| {
                     let (sequence, dropped_count, _, _, _) = vm_event_row(value);
                     (sequence, dropped_count)
-                })
-                .collect::<Vec<_>>())
-        }
-    }
-}
-
-/// Decode one event-batch payload into kind and xrun-delta rows.
-pub(super) fn event_batch_kind_rows(
-    context: &mut AudioHarnessContext<'_>,
-    value: HarnessValue<NativeSlice<AudioEvent>, VmSlice<AudioEventVm>>,
-) -> RuntimeResult<Vec<(AudioEventKind, u64, AudioEventSource)>> {
-    match value {
-        HarnessValue::Native(value) => {
-            let values = unsafe { value.as_slice()? };
-            Ok(values
-                .iter()
-                .map(|value| {
-                    let (_, _, kind, xrun_count_delta, source) = native_event_row(value);
-                    (kind, xrun_count_delta, source)
-                })
-                .collect::<Vec<_>>())
-        }
-        HarnessValue::Vm(value) => {
-            let vm_context = vm_context_mut(context)
-                .expect("vm payload requires vm context to decode event slice");
-            let values = value.read_values(vm_context)?;
-            Ok(values
-                .iter()
-                .map(|value| {
-                    let (_, _, kind, xrun_count_delta, source) = vm_event_row(value);
-                    (kind, xrun_count_delta, source)
                 })
                 .collect::<Vec<_>>())
         }
