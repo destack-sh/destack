@@ -54,6 +54,12 @@ fn test_device_camera_photo_queries_follow_one_open_stream_config_when_present()
                 assert_eq!(capability_options[0].width, config.width);
                 assert_eq!(capability_options[0].height, config.height);
                 assert_eq!(capability_options[0].pixel_format, config.pixel_format);
+                assert!(photo_capabilities.quality_range.is_none());
+                assert!(photo_capabilities.flash_modes.is_none());
+                assert!(photo_capabilities.red_eye_reduction.is_none());
+                assert!(photo_state.quality.is_none());
+                assert!(photo_state.flash_mode.is_none());
+                assert!(photo_state.red_eye_reduction_enabled.is_none());
 
                 Ok(())
             },
@@ -155,6 +161,12 @@ fn test_device_camera_vm_photo_queries_follow_one_open_stream_config_when_presen
                     photo_capabilities.options[0].pixel_format,
                     config.pixel_format
                 );
+                assert!(photo_capabilities.quality_range.is_none());
+                assert!(photo_capabilities.flash_modes.is_none());
+                assert!(photo_capabilities.red_eye_reduction.is_none());
+                assert!(photo_state.quality.is_none());
+                assert!(photo_state.flash_mode.is_none());
+                assert!(photo_state.red_eye_reduction_enabled.is_none());
 
                 Ok(())
             },

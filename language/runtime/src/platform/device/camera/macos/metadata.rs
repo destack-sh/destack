@@ -188,13 +188,7 @@ fn extend_frame_rates(frame_rates: &mut BTreeSet<u32>, range: &AVFrameRateRange)
 
 /// Build one control-mode snapshot from one AVFoundation device.
 pub(super) fn camera_control_modes(device: &AVCaptureDevice) -> CameraControlModes {
-    let mut modes = CameraControlModes {
-        exposure_modes: Vec::new(),
-        white_balance_modes: Vec::new(),
-        focus_modes: Vec::new(),
-        stabilization_modes: vec![CameraStabilizationMode::Off],
-        torch_modes: vec![CameraTorchMode::Off],
-    };
+    let mut modes = empty_camera_control_modes();
 
     if unsafe {
         device.isExposureModeSupported(objc2_av_foundation::AVCaptureExposureMode::AutoExpose)
@@ -268,9 +262,8 @@ pub(super) fn camera_control_modes(device: &AVCaptureDevice) -> CameraControlMod
 
 /// Return the stabilization modes one format can support.
 fn stabilization_modes_for_format(format: &AVCaptureDeviceFormat) -> Vec<CameraStabilizationMode> {
-    let mut modes = vec![CameraStabilizationMode::Off];
-
-    if unsafe {
+    let mut modes = Vec::new();
+    let has_standard_mode = unsafe {
         format.isVideoStabilizationModeSupported(AVCaptureVideoStabilizationMode::Standard)
     } || unsafe {
         format.isVideoStabilizationModeSupported(AVCaptureVideoStabilizationMode::Cinematic)
@@ -280,17 +273,26 @@ fn stabilization_modes_for_format(format: &AVCaptureDeviceFormat) -> Vec<CameraS
         format.isVideoStabilizationModeSupported(AVCaptureVideoStabilizationMode::LowLatency)
     } || unsafe {
         format.isVideoStabilizationModeSupported(AVCaptureVideoStabilizationMode::Auto)
-    } {
-        modes.push(CameraStabilizationMode::Standard);
-    }
-
-    if unsafe {
+    };
+    let has_high_quality_mode = unsafe {
         format.isVideoStabilizationModeSupported(AVCaptureVideoStabilizationMode::CinematicExtended)
     } || unsafe {
         format.isVideoStabilizationModeSupported(
             AVCaptureVideoStabilizationMode::CinematicExtendedEnhanced,
         )
-    } {
+    };
+
+    if !has_standard_mode && !has_high_quality_mode {
+        return modes;
+    }
+
+    modes.push(CameraStabilizationMode::Off);
+
+    if has_standard_mode {
+        modes.push(CameraStabilizationMode::Standard);
+    }
+
+    if has_high_quality_mode {
         modes.push(CameraStabilizationMode::HighQuality);
     }
 

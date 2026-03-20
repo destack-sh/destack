@@ -265,10 +265,6 @@ fn decode_exposure_modes(flags: u32) -> Vec<CameraExposureMode> {
         values.push(CameraExposureMode::Manual);
     }
 
-    if values.is_empty() {
-        values.push(CameraExposureMode::Auto);
-    }
-
     values
 }
 
@@ -284,10 +280,6 @@ fn decode_white_balance_modes(flags: u32) -> Vec<CameraWhiteBalanceMode> {
     }
     if flags & CAMERA_WHITE_BALANCE_MODE_MANUAL != 0 {
         values.push(CameraWhiteBalanceMode::Manual);
-    }
-
-    if values.is_empty() {
-        values.push(CameraWhiteBalanceMode::Auto);
     }
 
     values
@@ -307,10 +299,6 @@ fn decode_focus_modes(flags: u32) -> Vec<CameraFocusMode> {
         values.push(CameraFocusMode::Manual);
     }
 
-    if values.is_empty() {
-        values.push(CameraFocusMode::Auto);
-    }
-
     values
 }
 
@@ -328,10 +316,6 @@ fn decode_stabilization_modes(flags: u32) -> Vec<CameraStabilizationMode> {
         values.push(CameraStabilizationMode::HighQuality);
     }
 
-    if values.is_empty() {
-        values.push(CameraStabilizationMode::Off);
-    }
-
     values
 }
 
@@ -347,10 +331,6 @@ fn decode_torch_modes(flags: u32) -> Vec<CameraTorchMode> {
     }
     if flags & CAMERA_TORCH_MODE_AUTO != 0 {
         values.push(CameraTorchMode::Auto);
-    }
-
-    if values.is_empty() {
-        values.push(CameraTorchMode::Off);
     }
 
     values

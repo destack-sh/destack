@@ -2,8 +2,10 @@ use super::core::{
     assert_camera_frame_or_would_block, with_camera_harness_context, with_camera_native_context,
     with_first_openable_local_camera_stream_native, with_first_openable_local_camera_stream_vm,
 };
-use crate::platform::VmAbiCodec;
-use crate::platform::device::{native as device_native, vm as device_vm};
+use crate::platform::device::{
+    CameraColorSpace, CameraDynamicRange, native as device_native, vm as device_vm,
+};
+use crate::platform::{NativeAbiCodec, VmAbiCodec};
 
 /// Open one listed camera, query stream metadata, and close it again.
 #[cfg(any(unix, windows))]
@@ -26,9 +28,22 @@ fn test_device_camera_open_queries_stream_metadata_and_closes_first_device_when_
                     )?;
                 }
                 let active_config = unsafe { active_config.assume_init() };
-                let active_config =
-                    unsafe { <_ as crate::platform::NativeAbiCodec>::into_value(active_config)? };
+                let active_config = unsafe { NativeAbiCodec::into_value(active_config)? };
                 assert_eq!(active_config, capability.config);
+                assert!(
+                    capability.color_spaces.contains(
+                        &active_config
+                            .color_space
+                            .unwrap_or(CameraColorSpace::Unknown,)
+                    )
+                );
+                assert!(
+                    capability.dynamic_ranges.contains(
+                        &active_config
+                            .dynamic_range
+                            .unwrap_or(CameraDynamicRange::Standard,)
+                    )
+                );
 
                 let mut frame_out = std::mem::MaybeUninit::uninit();
                 let frame_result = unsafe {
@@ -72,8 +87,22 @@ fn test_device_camera_vm_open_queries_stream_metadata_when_devices_are_present()
                     vm_context,
                     stream_handle,
                 )?;
-                let active_config = active_config.into_value(vm_context)?;
+                let active_config = VmAbiCodec::into_value(active_config, vm_context)?;
                 assert_eq!(active_config, capability.config);
+                assert!(
+                    capability.color_spaces.contains(
+                        &active_config
+                            .color_space
+                            .unwrap_or(CameraColorSpace::Unknown,)
+                    )
+                );
+                assert!(
+                    capability.dynamic_ranges.contains(
+                        &active_config
+                            .dynamic_range
+                            .unwrap_or(CameraDynamicRange::Standard,)
+                    )
+                );
 
                 let frame = device_vm::destack_device_camera_stream_try_read(
                     context.call_context,

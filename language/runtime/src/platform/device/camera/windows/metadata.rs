@@ -36,7 +36,7 @@ pub(super) fn facing_mode_from_panel(panel: Option<Panel>) -> CameraFacingMode {
         Some(Panel::Back) => CameraFacingMode::Environment,
         Some(Panel::Left) => CameraFacingMode::Left,
         Some(Panel::Right) => CameraFacingMode::Right,
-        _ => CameraFacingMode::External,
+        _ => CameraFacingMode::Unknown,
     }
 }
 
@@ -271,7 +271,7 @@ pub(super) fn capture_video_device_controller(
 pub(super) fn camera_control_modes(
     controller: &VideoDeviceController,
 ) -> RuntimeResult<CameraControlModes> {
-    let mut modes = default_camera_control_modes();
+    let mut modes = empty_camera_control_modes();
 
     // exposure modes
     let exposure = controller.ExposureControl().map_err(|error| {
@@ -367,9 +367,6 @@ pub(super) fn camera_control_modes(
                 _ => {}
             }
         }
-        if modes.focus_modes.is_empty() {
-            modes.focus_modes.push(CameraFocusMode::Auto);
-        }
     }
 
     // stabilization modes
@@ -419,9 +416,6 @@ pub(super) fn camera_control_modes(
                 }
                 _ => {}
             }
-        }
-        if modes.stabilization_modes.is_empty() {
-            modes.stabilization_modes.push(CameraStabilizationMode::Off);
         }
     }
 
