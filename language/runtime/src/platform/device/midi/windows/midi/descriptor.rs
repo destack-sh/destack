@@ -7,7 +7,7 @@ use crate::platform::device::midi::core::{
 };
 use crate::platform::device::{
     MIDI_PROTOCOL_FLAG_MIDI1, MIDI_PROTOCOL_FLAG_MIDI2, MidiBackend, MidiPortDirection,
-    MidiPortListFlags, MidiProtocolFlags,
+    MidiPortListFlags, MidiProtocol, MidiProtocolFlags,
 };
 
 use super::core::{WindowsMidiEndpointInfo, exact_transport_support};
@@ -53,7 +53,7 @@ fn endpoint_supported_protocols(
 }
 
 /// Return one stable container guid string.
-fn container_id_string(container_id: windows::core::GUID) -> String {
+pub(super) fn container_id_string(container_id: windows::core::GUID) -> String {
     format!(
         "{:08x}-{:04x}-{:04x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
         container_id.data1,
@@ -71,10 +71,18 @@ fn container_id_string(container_id: windows::core::GUID) -> String {
 }
 
 /// Build one stable runtime id for one Windows MIDI endpoint.
-fn runtime_id(direction: MidiPortDirection, backend_id: &str) -> String {
+pub(super) fn runtime_id(direction: MidiPortDirection, backend_id: &str) -> String {
     let direction_name = endpoint_direction_name(direction);
 
     format!("windows-midi:{direction_name}:{backend_id}")
+}
+
+/// Return one exact protocol-flag set for one selected protocol.
+fn exact_protocol_flags(protocol: MidiProtocol) -> MidiProtocolFlags {
+    match protocol {
+        MidiProtocol::Midi1 => MidiProtocolFlags(MIDI_PROTOCOL_FLAG_MIDI1.0),
+        MidiProtocol::Midi2 => MidiProtocolFlags(MIDI_PROTOCOL_FLAG_MIDI2.0),
+    }
 }
 
 /// Build one descriptor row from one Windows MIDI device-information record.
@@ -104,6 +112,39 @@ pub(super) fn device_descriptor(
         is_virtual: false,
         is_connected: true,
     })
+}
+
+/// Build one descriptor for one runtime-created Windows MIDI virtual endpoint.
+pub(super) fn virtual_device_descriptor(
+    direction: MidiPortDirection,
+    backend_id: String,
+    association_id: windows::core::GUID,
+    name: String,
+    manufacturer: Option<String>,
+    model: Option<String>,
+    version: Option<String>,
+    protocol: MidiProtocol,
+) -> MidiPortDescriptorValue {
+    let (supported_data_formats, default_data_format, supported_protocols, default_protocol) =
+        exact_transport_support(exact_protocol_flags(protocol));
+
+    MidiPortDescriptorValue {
+        backend: MidiBackend::WindowsMidi,
+        id: runtime_id(direction, &backend_id),
+        group_id: Some(container_id_string(association_id)),
+        backend_id: Some(backend_id),
+        name,
+        group_name: None,
+        manufacturer,
+        model,
+        version,
+        supported_data_formats,
+        default_data_format,
+        supported_protocols,
+        default_protocol,
+        is_virtual: true,
+        is_connected: true,
+    }
 }
 
 /// Filter cached descriptors according to list flags.

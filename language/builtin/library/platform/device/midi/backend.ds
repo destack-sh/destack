@@ -83,7 +83,7 @@ declare namespace device {
     /// Enumerate backend selectors, support state, and backend-level feature flags.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns ioNotFound, ioInvalidData, notSupported.
@@ -97,7 +97,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.midi.port"],
-        platforms: ["android", "windows", "unix"],
+        platforms: ["android", "windows", "unix", "ios"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",

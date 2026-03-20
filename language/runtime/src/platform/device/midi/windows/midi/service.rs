@@ -32,10 +32,13 @@ use super::core::{
 use super::descriptor::device_descriptor;
 use super::event::{queue_backend_disconnected_events, refresh_native_event_sessions};
 use super::sdk::{
-    MidiEndpointConnection, MidiEndpointConnectionBasicSettings, MidiEndpointDeviceInformation,
+    MidiDeclaredDeviceIdentity, MidiDeclaredEndpointInfo, MidiEndpointConnection,
+    MidiEndpointConnectionBasicSettings, MidiEndpointDeviceInformation,
     MidiEndpointDeviceInformationAddedEventArgs, MidiEndpointDeviceInformationRemovedEventArgs,
     MidiEndpointDeviceInformationUpdatedEventArgs, MidiEndpointDeviceWatcher,
-    MidiMessageReceivedEventArgs, MidiMessageStruct, MidiSendMessageResults, MidiSession,
+    MidiEndpointUserSuppliedInfo, MidiMessageReceivedEventArgs, MidiMessageStruct,
+    MidiSendMessageResults, MidiSession, MidiVirtualDevice, MidiVirtualDeviceCreationConfig,
+    MidiVirtualDeviceManager,
 };
 
 /// One process-global Windows MIDI runtime service.
@@ -84,6 +87,8 @@ struct WindowsMidiInputHostSession {
     connection: MidiEndpointConnection,
     /// Message-received registration token.
     token: i64,
+    /// Owned virtual device when this session created one.
+    _virtual_device: Option<MidiVirtualDevice>,
 }
 
 /// One host-owned output session.
@@ -92,6 +97,8 @@ struct WindowsMidiOutputHostSession {
     session: MidiSession,
     /// Opened Windows MIDI connection.
     connection: MidiEndpointConnection,
+    /// Owned virtual device when this session created one.
+    _virtual_device: Option<MidiVirtualDevice>,
 }
 
 /// One watcher registration bundle.
@@ -140,6 +147,90 @@ impl Drop for WindowsMidiWatcherRegistration {
 }
 
 impl WindowsMidiService {
+    /// Create one virtual input host session on the dedicated service thread.
+    pub(super) fn create_virtual_input_session(
+        &self,
+        name: String,
+        manufacturer: Option<String>,
+        model: Option<String>,
+        version: Option<String>,
+        protocol: MidiProtocol,
+        queue: Arc<BoundedQueue<MidiInputRecordValue>>,
+        terminal_error: Arc<Mutex<Option<String>>>,
+        operation: &'static str,
+    ) -> RuntimeResult<(u64, MidiPortDescriptorValue)> {
+        self.executor.call(operation, move |state| {
+            // virtual device
+            let (virtual_device, device_endpoint_id, descriptor) = create_virtual_device(
+                MidiPortDirection::Input,
+                name,
+                manufacturer,
+                model,
+                version,
+                protocol,
+                operation,
+            )?;
+
+            // device-side connection
+            let connection =
+                open_endpoint_connection(&state._session, &device_endpoint_id, operation)?;
+
+            // input callback
+            let callback_queue = queue.clone();
+            let callback_terminal_error = terminal_error.clone();
+            let token = connection_add_message_received(
+                &connection,
+                &TypedEventHandler::new(
+                    move |_connection: Ref<'_, MidiEndpointConnection>,
+                          args: Ref<'_, MidiMessageReceivedEventArgs>| {
+                        if let Some(args) = args.as_ref() {
+                            match decode_input_message(None, Some(protocol), args) {
+                                Ok(record) => callback_queue.push_drop_oldest(record),
+                                Err(error) => {
+                                    let mut terminal_error = callback_terminal_error.lock();
+                                    if terminal_error.is_none() {
+                                        *terminal_error = Some(format!(
+                                            "windows midi virtual input session failed to decode one inbound message: {error}",
+                                        ));
+                                    }
+                                    callback_queue.close();
+                                }
+                            }
+                        }
+
+                        Ok(())
+                    },
+                ),
+            )
+            .map_err(|error| {
+                windows_midi_error(operation, "MidiEndpointConnection::MessageReceived", &error)
+            })?;
+
+            // publish one new host session id
+            let host_session_id = state.next_input_session_id;
+            state.next_input_session_id = state.next_input_session_id.saturating_add(1);
+            state.input_sessions.insert(
+                host_session_id,
+                WindowsMidiInputHostSession {
+                    session: state._session.clone(),
+                    connection,
+                    token,
+                    _virtual_device: Some(virtual_device),
+                },
+            );
+
+            // publish topology updates
+            refresh_topology_cache(&state._topology, operation)?;
+            refresh_native_event_sessions(
+                &state._topology,
+                &state._native_event_registry,
+                MidiEventSource::Native,
+            );
+
+            Ok((host_session_id, descriptor))
+        })
+    }
+
     /// Open one input host session on the dedicated service thread.
     pub(super) fn open_input_session(
         &self,
@@ -169,7 +260,7 @@ impl WindowsMidiService {
                           args: Ref<'_, MidiMessageReceivedEventArgs>| {
                         if let Some(args) = args.as_ref()
                         {
-                            match decode_input_message(source_id.clone(), protocol, args) {
+                            match decode_input_message(Some(source_id.clone()), protocol, args) {
                                 Ok(record) => callback_queue.push_drop_oldest(record),
                                 Err(error) => {
                                     let mut terminal_error = callback_terminal_error.lock();
@@ -200,6 +291,7 @@ impl WindowsMidiService {
                     session: state._session.clone(),
                     connection,
                     token,
+                    _virtual_device: None,
                 },
             );
 
@@ -212,10 +304,78 @@ impl WindowsMidiService {
         let _ = self.executor.call(
             "destack.device.midi.windows-midi.input.drop",
             move |state| {
-                state.input_sessions.remove(&host_session_id);
+                let removed_session = state.input_sessions.remove(&host_session_id);
+                let is_virtual = removed_session
+                    .as_ref()
+                    .and_then(|session| session._virtual_device.as_ref())
+                    .is_some();
+                drop(removed_session);
+
+                if is_virtual {
+                    refresh_topology_cache(
+                        &state._topology,
+                        "destack.device.midi.windows-midi.input.drop",
+                    )?;
+                    refresh_native_event_sessions(
+                        &state._topology,
+                        &state._native_event_registry,
+                        MidiEventSource::Native,
+                    );
+                }
+
                 Ok(())
             },
         );
+    }
+
+    /// Create one virtual output host session on the dedicated service thread.
+    pub(super) fn create_virtual_output_session(
+        &self,
+        name: String,
+        manufacturer: Option<String>,
+        model: Option<String>,
+        version: Option<String>,
+        protocol: MidiProtocol,
+        operation: &'static str,
+    ) -> RuntimeResult<(u64, MidiPortDescriptorValue)> {
+        self.executor.call(operation, move |state| {
+            // virtual device
+            let (virtual_device, device_endpoint_id, descriptor) = create_virtual_device(
+                MidiPortDirection::Output,
+                name,
+                manufacturer,
+                model,
+                version,
+                protocol,
+                operation,
+            )?;
+
+            // device-side connection
+            let connection =
+                open_endpoint_connection(&state._session, &device_endpoint_id, operation)?;
+
+            // publish one new host session id
+            let host_session_id = state.next_output_session_id;
+            state.next_output_session_id = state.next_output_session_id.saturating_add(1);
+            state.output_sessions.insert(
+                host_session_id,
+                WindowsMidiOutputHostSession {
+                    session: state._session.clone(),
+                    connection,
+                    _virtual_device: Some(virtual_device),
+                },
+            );
+
+            // publish topology updates
+            refresh_topology_cache(&state._topology, operation)?;
+            refresh_native_event_sessions(
+                &state._topology,
+                &state._native_event_registry,
+                MidiEventSource::Native,
+            );
+
+            Ok((host_session_id, descriptor))
+        })
     }
 
     /// Open one output host session on the dedicated service thread.
@@ -240,6 +400,7 @@ impl WindowsMidiService {
                 WindowsMidiOutputHostSession {
                     session: state._session.clone(),
                     connection,
+                    _virtual_device: None,
                 },
             );
 
@@ -252,7 +413,25 @@ impl WindowsMidiService {
         let _ = self.executor.call(
             "destack.device.midi.windows-midi.output.drop",
             move |state| {
-                state.output_sessions.remove(&host_session_id);
+                let removed_session = state.output_sessions.remove(&host_session_id);
+                let is_virtual = removed_session
+                    .as_ref()
+                    .and_then(|session| session._virtual_device.as_ref())
+                    .is_some();
+                drop(removed_session);
+
+                if is_virtual {
+                    refresh_topology_cache(
+                        &state._topology,
+                        "destack.device.midi.windows-midi.output.drop",
+                    )?;
+                    refresh_native_event_sessions(
+                        &state._topology,
+                        &state._native_event_registry,
+                        MidiEventSource::Native,
+                    );
+                }
+
                 Ok(())
             },
         );
@@ -370,7 +549,7 @@ fn disconnect_connection(session: &MidiSession, connection: &MidiEndpointConnect
 
 /// Decode one Windows MIDI input message into one inbound record.
 fn decode_input_message(
-    source_id: Arc<str>,
+    source_id: Option<Arc<str>>,
     protocol: Option<MidiProtocol>,
     args: &MidiMessageReceivedEventArgs,
 ) -> windows::core::Result<MidiInputRecordValue> {
@@ -393,12 +572,163 @@ fn decode_input_message(
 
     Ok(MidiInputRecordValue {
         received_at_ns,
-        source_id: Some(source_id),
+        source_id,
         data_format: MidiDataFormat::Ump,
         protocol,
         framing: MidiRecordFraming::Complete,
         data,
     })
+}
+
+/// Return whether the Windows MIDI virtual-device transport is available.
+pub(crate) fn windows_midi_virtual_transport_available(
+    operation: &'static str,
+) -> RuntimeResult<bool> {
+    MidiVirtualDeviceManager::IsTransportAvailable().map_err(|error| {
+        windows_midi_error(
+            operation,
+            "MidiVirtualDeviceManager::IsTransportAvailable",
+            &error,
+        )
+    })
+}
+
+/// Reject virtual-device requests when the Windows MIDI transport is unavailable.
+fn require_virtual_transport_available(operation: &'static str) -> RuntimeResult<()> {
+    if windows_midi_virtual_transport_available(operation)? {
+        return Ok(());
+    }
+
+    Err(core_platform::not_supported(format!(
+        "{operation}: Windows MIDI virtual devices are unavailable on this host",
+    )))
+}
+
+/// Return one virtual endpoint description from optional model and version strings.
+fn virtual_endpoint_description(model: Option<&str>, version: Option<&str>) -> String {
+    match (model, version) {
+        (Some(model), Some(version)) if !model.is_empty() && !version.is_empty() => {
+            format!("{model} {version}")
+        }
+        (Some(model), _) if !model.is_empty() => model.to_string(),
+        (_, Some(version)) if !version.is_empty() => version.to_string(),
+        _ => String::new(),
+    }
+}
+
+/// Build one declared endpoint-info payload for one requested protocol.
+fn virtual_declared_endpoint_info(name: &str, protocol: MidiProtocol) -> MidiDeclaredEndpointInfo {
+    MidiDeclaredEndpointInfo {
+        Name: HSTRING::from(name),
+        ProductInstanceId: HSTRING::new(),
+        SupportsMidi10Protocol: matches!(protocol, MidiProtocol::Midi1),
+        SupportsMidi20Protocol: matches!(protocol, MidiProtocol::Midi2),
+        SupportsReceivingJitterReductionTimestamps: false,
+        SupportsSendingJitterReductionTimestamps: false,
+        HasStaticFunctionBlocks: false,
+        DeclaredFunctionBlockCount: 0,
+        SpecificationVersionMajor: 2,
+        SpecificationVersionMinor: 0,
+    }
+}
+
+/// Build one user-supplied-info payload for one virtual endpoint.
+fn virtual_user_supplied_info(name: &str, description: &str) -> MidiEndpointUserSuppliedInfo {
+    MidiEndpointUserSuppliedInfo {
+        Name: HSTRING::from(name),
+        Description: HSTRING::from(description),
+        ImageFileName: HSTRING::new(),
+        RequiresNoteOffTranslation: false,
+        RecommendedControlChangeAutomationIntervalMilliseconds: 0,
+        SupportsMidiPolyphonicExpression: false,
+    }
+}
+
+/// Create one Windows MIDI virtual device and descriptor for one direction-scoped handle.
+fn create_virtual_device(
+    direction: MidiPortDirection,
+    name: String,
+    manufacturer: Option<String>,
+    model: Option<String>,
+    version: Option<String>,
+    protocol: MidiProtocol,
+    operation: &'static str,
+) -> RuntimeResult<(MidiVirtualDevice, String, MidiPortDescriptorValue)> {
+    require_virtual_transport_available(operation)?;
+
+    // config
+    let description = virtual_endpoint_description(model.as_deref(), version.as_deref());
+    let declared_endpoint_info = virtual_declared_endpoint_info(&name, protocol);
+    let user_supplied_info = virtual_user_supplied_info(&name, &description);
+    let manufacturer_name = HSTRING::from(manufacturer.clone().unwrap_or_default());
+    let description_name = HSTRING::from(description);
+    let endpoint_name = HSTRING::from(name.clone());
+    let config = MidiVirtualDeviceCreationConfig::CreateInstance3(
+        &endpoint_name,
+        &description_name,
+        &manufacturer_name,
+        &declared_endpoint_info,
+        MidiDeclaredDeviceIdentity::default(),
+        &user_supplied_info,
+    )
+    .map_err(|error| {
+        windows_midi_error(
+            operation,
+            "MidiVirtualDeviceCreationConfig::CreateInstance3",
+            &error,
+        )
+    })?;
+    config.SetCreateOnlyUmpEndpoints(true).map_err(|error| {
+        windows_midi_error(
+            operation,
+            "MidiVirtualDeviceCreationConfig::SetCreateOnlyUmpEndpoints",
+            &error,
+        )
+    })?;
+
+    // virtual device
+    let virtual_device =
+        MidiVirtualDeviceManager::CreateVirtualDevice(&config).map_err(|error| {
+            windows_midi_error(
+                operation,
+                "MidiVirtualDeviceManager::CreateVirtualDevice",
+                &error,
+            )
+        })?;
+    let device_endpoint_id = virtual_device
+        .DeviceEndpointDeviceId()
+        .map_err(|error| {
+            windows_midi_error(
+                operation,
+                "MidiVirtualDevice::DeviceEndpointDeviceId",
+                &error,
+            )
+        })?
+        .to_string();
+    if device_endpoint_id.is_empty() {
+        return Err(core_platform::io_operation_error(
+            operation,
+            None,
+            "MidiVirtualDevice returned one empty device endpoint id",
+        ));
+    }
+
+    // descriptor
+    let association_id = virtual_device.AssociationId().map_err(|error| {
+        windows_midi_error(operation, "MidiVirtualDevice::AssociationId", &error)
+    })?;
+    let descriptor = super::descriptor::virtual_device_descriptor(
+        direction,
+        device_endpoint_id.clone(),
+        association_id,
+        name,
+        manufacturer,
+        model,
+        version,
+        protocol,
+    );
+
+    Ok((virtual_device, device_endpoint_id, descriptor))
 }
 
 /// Convert one outbound record into one UMP word vector.

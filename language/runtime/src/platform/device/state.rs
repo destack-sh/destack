@@ -270,13 +270,11 @@ impl PlatformDeviceState {
 }
 
 /// Resource finalizer that releases one retained device runtime-activity unit.
-#[cfg(any(target_os = "linux", target_os = "macos"))]
 pub(crate) struct PlatformDeviceActivityFinalizer {
     /// Shared live device activity counter.
     activity_count: Arc<AtomicUsize>,
 }
 
-#[cfg(any(target_os = "linux", target_os = "macos"))]
 impl ResourceFinalizer for PlatformDeviceActivityFinalizer {
     /// Release one retained device runtime-activity unit.
     fn finalize(self: Box<Self>, _resource_id: ResourceId) {
