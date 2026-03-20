@@ -10,6 +10,7 @@ pub enum FileType {
     Destack,
     /// `.d.ds`
     DestackDeclaration,
+    // FUGU: remove .dst and .dsb
     /// `.dst`
     DestackText,
     /// `.dsb`
@@ -57,11 +58,7 @@ pub enum FileType {
     /// Object file `.o`
     Object,
 
-    // compiler artifacts
-    /// `.ast` - Destack AST cache
-    DestackAst,
-    /// `.dir` - Destack DIR cache
-    DestackDir,
+    // compiler text artifacts
     /// `.mir`, `.dsmir` - Destack MIR text.
     DestackMir,
 
@@ -148,9 +145,7 @@ impl FileType {
             "map" => FileType::SourceMap,
             "o" => FileType::Object,
 
-            // compiler artifacts
-            "ast" => FileType::DestackAst,
-            "dir" => FileType::DestackDir,
+            // compiler text artifacts
             "mir" | "dsmir" => FileType::DestackMir,
 
             // images
@@ -257,9 +252,7 @@ impl FileType {
             FileType::SourceMap => "map",
             FileType::Object => "o",
 
-            // compiler artifacts
-            FileType::DestackAst => "ast",
-            FileType::DestackDir => "dir",
+            // compiler text artifacts
             FileType::DestackMir => "mir",
 
             // coarse categories have no single extension
@@ -327,8 +320,6 @@ impl FileType {
                 | FileType::Node
                 | FileType::Object
                 | FileType::DestackBinary
-                | FileType::DestackAst
-                | FileType::DestackDir
                 | FileType::Image
                 | FileType::Font
                 | FileType::Audio
@@ -367,8 +358,6 @@ impl FileType {
             FileType::Node => &["**/*.node"],
             FileType::SourceMap => &["**/*.map"],
             FileType::Object => &["**/*.o"],
-            FileType::DestackAst => &["**/*.ast"],
-            FileType::DestackDir => &["**/*.dir"],
             FileType::DestackMir => &["**/*.mir", "**/*.dsmir"],
             FileType::Image
             | FileType::Font

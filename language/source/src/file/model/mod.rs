@@ -1,4 +1,3 @@
-mod cache;
 mod file;
 mod hash;
 mod language;
@@ -10,7 +9,6 @@ mod span;
 mod target;
 mod r#type;
 
-pub use cache::*;
 pub use file::*;
 pub use hash::*;
 pub use language::*;

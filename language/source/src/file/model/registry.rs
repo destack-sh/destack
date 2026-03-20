@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use dashmap::DashMap;
 
-use crate::{File, FileId, Uri};
+use crate::{File, FileId, FileKey, Uri};
 
 /// Registry of files. THREAD-SAFE.
 /// NOTE @Robustness: use single/extra lock around both id<->file and uri<->id mappings?
@@ -12,6 +12,8 @@ use crate::{File, FileId, Uri};
 pub struct FileRegistry {
     /// The files by id.
     files_by_id: DashMap<FileId, Arc<File>>,
+    /// The files by stable key.
+    files_by_key: DashMap<FileKey, FileId>,
     /// The files by uri.
     files_by_uri: DashMap<Uri, FileId>,
     /// The files by path (only for files with valid paths).
@@ -31,6 +33,7 @@ impl FileRegistry {
     pub fn new() -> Self {
         Self {
             files_by_id: DashMap::new(),
+            files_by_key: DashMap::new(),
             files_by_uri: DashMap::new(),
             files_by_path: DashMap::new(),
             next_file_id: AtomicU32::new(0),
@@ -49,10 +52,14 @@ impl FileRegistry {
     /// Panics if a file with the same id already exists.
     pub fn insert(&self, file: File) {
         let id = file.id;
+        let key = file.key;
         assert!(
             !self.files_by_id.contains_key(&id),
             "file already exists for id: {id:?}"
         );
+
+        // multiple live file ids may share one stable key for different loader views
+        self.files_by_key.entry(key).or_insert(id);
         self.files_by_uri.insert(file.uri.clone(), id);
         if let Some(path) = &file.path {
             self.files_by_path.insert(path.clone(), id);
@@ -69,10 +76,21 @@ impl FileRegistry {
     /// Panics if no file with the given id exists.
     pub fn replace(&self, file: File) {
         let id = file.id;
+        let key = file.key;
         assert!(
             self.files_by_id.contains_key(&id),
             "file does not exist for id: {id:?}"
         );
+
+        let existing = self.get(id);
+        assert_eq!(
+            existing.key, key,
+            "file key changed during replace for {id:?}"
+        );
+
+        // preserve the first stable key mapping when one already exists
+        self.files_by_key.entry(key).or_insert(id);
+
         // uri/path mappings stay the same, just update the file content
         self.files_by_id.insert(id, Arc::new(file));
     }
@@ -91,6 +109,22 @@ impl FileRegistry {
     /// Get a file by id, returning None if it is not found.
     pub fn get_maybe(&self, id: FileId) -> Option<Arc<File>> {
         self.files_by_id.get(&id).map(|entry| entry.clone())
+    }
+
+    /// Get a file id by its stable key.
+    pub fn get_id_by_key(&self, key: FileKey) -> Option<FileId> {
+        self.files_by_key.get(&key).map(|entry| *entry.value())
+    }
+
+    /// Get a file by stable key.
+    pub fn get_by_key(&self, key: FileKey) -> Option<Arc<File>> {
+        let id = self.get_id_by_key(key)?;
+        Some(self.get(id))
+    }
+
+    /// Check if a file exists with the given stable key.
+    pub fn contains_key(&self, key: FileKey) -> bool {
+        self.files_by_key.contains_key(&key)
     }
 
     /// Get a file id by its URI.
