@@ -5,12 +5,25 @@ use super::core::*;
 use super::identity::*;
 use super::io::*;
 use super::state::*;
+#[cfg(test)]
+use crate::platform::device::serial::{
+    close_test_serial_resource, test_serial_config, test_serial_configure, test_serial_descriptor,
+    test_serial_discard_input, test_serial_discard_output, test_serial_drain,
+    test_serial_get_signals, test_serial_read_event, test_serial_read_into, test_serial_resource,
+    test_serial_set_signals, test_serial_try_read_event, test_serial_try_read_into,
+    test_serial_write, try_open_test_serial,
+};
 
 /// Close one serial endpoint.
 pub(crate) unsafe fn destack_device_serial_close(
     binding: &BindingCallContext,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
+    #[cfg(test)]
+    if test_serial_resource(binding, handle).is_some() {
+        return close_test_serial_resource(binding, handle, "destack.device.serial.close");
+    }
+
     close_serial_resource(binding, handle, "destack.device.serial.close")
 }
 
@@ -21,6 +34,15 @@ pub(crate) unsafe fn destack_device_serial_config(
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
     core_platform::ensure_out(out, "out")?;
+
+    #[cfg(test)]
+    if let Some(resource) = test_serial_resource(binding, handle) {
+        unsafe {
+            out.write(test_serial_config(&resource));
+        }
+
+        return Ok(());
+    }
 
     let resource = serial_resource(binding, handle, "destack.device.serial.config")?;
     let _operation_lock = resource.operation_lock.lock();
@@ -39,6 +61,11 @@ pub(crate) unsafe fn destack_device_serial_configure(
     handle: resource::SerialPortHandle,
     config: SerialPortConfig,
 ) -> RuntimeResult<()> {
+    #[cfg(test)]
+    if let Some(resource) = test_serial_resource(binding, handle) {
+        return test_serial_configure(&resource, config);
+    }
+
     let resource = serial_resource(binding, handle, "destack.device.serial.configure")?;
     let _operation_lock = resource.operation_lock.lock();
 
@@ -52,6 +79,15 @@ pub(crate) unsafe fn destack_device_serial_descriptor(
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
     core_platform::ensure_out(out, "out")?;
+
+    #[cfg(test)]
+    if let Some(resource) = test_serial_resource(binding, handle) {
+        unsafe {
+            out.write(test_serial_descriptor(binding, &resource));
+        }
+
+        return Ok(());
+    }
 
     let resource = serial_resource(binding, handle, "destack.device.serial.descriptor")?;
     let descriptor = serial_descriptor_from_info(binding, &resource.descriptor_info);
@@ -68,6 +104,13 @@ pub(crate) unsafe fn destack_device_serial_discard_input(
     binding: &BindingCallContext,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
+    #[cfg(test)]
+    if let Some(resource) = test_serial_resource(binding, handle) {
+        test_serial_discard_input(&resource);
+
+        return Ok(());
+    }
+
     let resource = serial_resource(binding, handle, "destack.device.serial.discardInput")?;
     let _operation_lock = resource.operation_lock.lock();
 
@@ -88,6 +131,13 @@ pub(crate) unsafe fn destack_device_serial_discard_output(
     binding: &BindingCallContext,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
+    #[cfg(test)]
+    if let Some(resource) = test_serial_resource(binding, handle) {
+        test_serial_discard_output(&resource);
+
+        return Ok(());
+    }
+
     let resource = serial_resource(binding, handle, "destack.device.serial.discardOutput")?;
     let _operation_lock = resource.operation_lock.lock();
 
@@ -108,6 +158,11 @@ pub(crate) unsafe fn destack_device_serial_drain(
     binding: &BindingCallContext,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
+    #[cfg(test)]
+    if let Some(resource) = test_serial_resource(binding, handle) {
+        return test_serial_drain(&resource, "destack.device.serial.drain");
+    }
+
     let resource = serial_resource(binding, handle, "destack.device.serial.drain")?;
     let _operation_lock = resource.operation_lock.lock();
 
@@ -130,6 +185,15 @@ pub(crate) unsafe fn destack_device_serial_get_signals(
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
     core_platform::ensure_out(out, "out")?;
+
+    #[cfg(test)]
+    if let Some(resource) = test_serial_resource(binding, handle) {
+        unsafe {
+            out.write(test_serial_get_signals(&resource));
+        }
+
+        return Ok(());
+    }
 
     let resource = serial_resource(binding, handle, "destack.device.serial.getSignals")?;
     let signals = read_signals(resource.handle, "destack.device.serial.getSignals")?;
@@ -177,6 +241,16 @@ pub(crate) unsafe fn destack_device_serial_open(
 
     // decode the selected COM identifier and open the host endpoint
     let id = unsafe { id.as_str()? };
+
+    #[cfg(test)]
+    if let Some(handle) = try_open_test_serial(binding, id)? {
+        unsafe {
+            out.write(handle);
+        }
+
+        return Ok(());
+    }
+
     let port_number = decode_serial_port_number(id)?;
     let port_name = serial_port_name(port_number);
     let descriptor_info = descriptor_info_for_port_name(&port_name, "destack.device.serial.open")?;
@@ -287,6 +361,22 @@ pub(crate) unsafe fn destack_device_serial_read_event(
 ) -> RuntimeResult<()> {
     core_platform::ensure_out(out, "out")?;
 
+    #[cfg(test)]
+    if let Some(resource) = test_serial_resource(binding, handle) {
+        let event = test_serial_read_event(
+            binding,
+            &resource,
+            timeout_ns,
+            "destack.device.serial.readEvent",
+        )?;
+
+        unsafe {
+            out.write(event);
+        }
+
+        return Ok(());
+    }
+
     let resource = serial_resource(binding, handle, "destack.device.serial.readEvent")?;
     let event = wait_serial_event(
         binding,
@@ -312,6 +402,22 @@ pub(crate) unsafe fn destack_device_serial_read_into(
 ) -> RuntimeResult<()> {
     core_platform::ensure_out(out, "out")?;
 
+    #[cfg(test)]
+    if let Some(resource) = test_serial_resource(binding, handle) {
+        let read = test_serial_read_into(
+            &resource,
+            buffer,
+            timeout_ns,
+            "destack.device.serial.readInto",
+        )?;
+
+        unsafe {
+            out.write(read);
+        }
+
+        return Ok(());
+    }
+
     let resource = serial_resource(binding, handle, "destack.device.serial.readInto")?;
     let read = read_serial_bytes(
         &resource,
@@ -333,6 +439,11 @@ pub(crate) unsafe fn destack_device_serial_set_signals(
     handle: resource::SerialPortHandle,
     signals: SerialOutputSignals,
 ) -> RuntimeResult<()> {
+    #[cfg(test)]
+    if let Some(resource) = test_serial_resource(binding, handle) {
+        return test_serial_set_signals(&resource, signals, "destack.device.serial.setSignals");
+    }
+
     let resource = serial_resource(binding, handle, "destack.device.serial.setSignals")?;
     let _operation_lock = resource.operation_lock.lock();
 
@@ -373,6 +484,18 @@ pub(crate) unsafe fn destack_device_serial_try_read_event(
 ) -> RuntimeResult<()> {
     core_platform::ensure_out(out, "out")?;
 
+    #[cfg(test)]
+    if let Some(resource) = test_serial_resource(binding, handle) {
+        let event =
+            test_serial_try_read_event(binding, &resource, "destack.device.serial.tryReadEvent")?;
+
+        unsafe {
+            out.write(event);
+        }
+
+        return Ok(());
+    }
+
     let resource = serial_resource(binding, handle, "destack.device.serial.tryReadEvent")?;
     if let Some(dropped_count) = take_event_overflow_count(&resource) {
         let sequence = next_event_sequence(&resource);
@@ -407,6 +530,18 @@ pub(crate) unsafe fn destack_device_serial_try_read_into(
 ) -> RuntimeResult<()> {
     core_platform::ensure_out(out, "out")?;
 
+    #[cfg(test)]
+    if let Some(resource) = test_serial_resource(binding, handle) {
+        let read =
+            test_serial_try_read_into(&resource, buffer, "destack.device.serial.tryReadInto")?;
+
+        unsafe {
+            out.write(read);
+        }
+
+        return Ok(());
+    }
+
     let resource = serial_resource(binding, handle, "destack.device.serial.tryReadInto")?;
     let read = try_read_serial_bytes(&resource, buffer, "destack.device.serial.tryReadInto")?;
 
@@ -426,6 +561,17 @@ pub(crate) unsafe fn destack_device_serial_write(
     timeout_ns: u64,
 ) -> RuntimeResult<()> {
     core_platform::ensure_out(out, "out")?;
+
+    #[cfg(test)]
+    if let Some(resource) = test_serial_resource(binding, handle) {
+        let written = test_serial_write(&resource, data, "destack.device.serial.write")?;
+
+        unsafe {
+            out.write(written);
+        }
+
+        return Ok(());
+    }
 
     let resource = serial_resource(binding, handle, "destack.device.serial.write")?;
     let written = write_serial_bytes(&resource, data, timeout_ns, "destack.device.serial.write")?;

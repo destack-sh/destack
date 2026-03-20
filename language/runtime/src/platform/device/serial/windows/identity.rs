@@ -495,15 +495,22 @@ pub(super) fn classify_serial_transport(
         return SerialPortTransport::Bluetooth;
     }
 
-    // usb serial devices carry vid and pid fragments
-    if instance_upper.contains("USB\\")
-        && instance_upper.contains("VID_")
+    // usb serial devices usually surface through usb or vendor bus instance ids
+    if instance_upper.contains("VID_")
         && instance_upper.contains("PID_")
+        && (instance_upper.contains("USB\\")
+            || instance_upper.contains("FTDIBUS\\")
+            || interface_upper.contains("USB#"))
     {
         return SerialPortTransport::Usb;
     }
 
-    SerialPortTransport::Native
+    // native windows serial controllers are the standard PNP serial classes
+    if instance_upper.contains("PNP0500") || instance_upper.contains("PNP0501") {
+        return SerialPortTransport::Native;
+    }
+
+    SerialPortTransport::Unknown
 }
 
 /// Extract one optional usb serial number from one instance identifier.
@@ -673,9 +680,14 @@ pub(super) fn descriptor_info_for_port_name(
     }
 
     // fall back to one minimal descriptor for races during open
-    Ok(WindowsSerialDescriptorInfo {
+    Ok(minimal_descriptor_info_for_port_name(port_name))
+}
+
+/// Build one minimal descriptor when live SetupAPI metadata is unavailable.
+fn minimal_descriptor_info_for_port_name(port_name: &str) -> WindowsSerialDescriptorInfo {
+    WindowsSerialDescriptorInfo {
         id: port_name.to_string(),
-        transport: SerialPortTransport::Native,
+        transport: SerialPortTransport::Unknown,
         name: port_name.to_string(),
         manufacturer: None,
         product: None,
@@ -684,7 +696,7 @@ pub(super) fn descriptor_info_for_port_name(
         usb_vendor_id: None,
         usb_product_id: None,
         bluetooth_service_class_id: None,
-    })
+    }
 }
 
 /// Build one stable windows serial descriptor snapshot keyed by identifier.
@@ -780,11 +792,18 @@ mod tests {
         assert_eq!(usb_serial_number(instance_id), None);
     }
 
-    /// Classify windows serial transports from instance ids and interface paths.
+    /// Classify windows serial transports without overclaiming unknown buses.
     #[test]
-    fn test_classify_serial_transport_detects_usb_and_bluetooth() {
+    fn test_classify_serial_transport_detects_usb_bluetooth_native_and_unknown() {
         assert_eq!(
             classify_serial_transport(r"USB\VID_1A86&PID_7523\SER123", r"\\?\usb#vid_1a86"),
+            SerialPortTransport::Usb,
+        );
+        assert_eq!(
+            classify_serial_transport(
+                r"FTDIBUS\VID_0403+PID_6001+A50285BIA\0000",
+                r"\\?\usb#vid_0403&pid_6001#..."
+            ),
             SerialPortTransport::Usb,
         );
         assert_eq!(
@@ -798,6 +817,10 @@ mod tests {
             classify_serial_transport(r"ACPI\PNP0501\1", r"\\?\ACPI#PNP0501"),
             SerialPortTransport::Native,
         );
+        assert_eq!(
+            classify_serial_transport(r"ROOT\VIRTUALCOM\0000", r"\\?\ROOT#VIRTUALCOM#0000"),
+            SerialPortTransport::Unknown,
+        );
     }
 
     /// Extract bluetooth service class identifiers from bthenum instance ids.
@@ -809,6 +832,20 @@ mod tests {
         assert_eq!(
             bluetooth_service_class_id(instance_id).as_deref(),
             Some("00001101-0000-1000-8000-00805F9B34FB"),
+        );
+    }
+
+    /// Leave transport unclassified when the live SetupAPI snapshot is unavailable.
+    #[test]
+    fn test_minimal_descriptor_info_for_port_name_uses_unknown_transport() {
+        let descriptor = minimal_descriptor_info_for_port_name("COM9");
+
+        assert_eq!(descriptor.id, "COM9");
+        assert_eq!(descriptor.name, "COM9");
+        assert_eq!(descriptor.transport, SerialPortTransport::Unknown);
+        assert_eq!(
+            String::from_utf16_lossy(&descriptor.path_units),
+            String::from(r"\\.\COM9")
         );
     }
 }

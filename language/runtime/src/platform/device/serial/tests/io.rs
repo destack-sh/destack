@@ -1,11 +1,11 @@
 use super::core::{
     assert_platform_error_codes, close_descriptor, default_serial_options, open_serial_handle,
-    open_test_pty_pair, read_exact, serial_config_value, serial_descriptor_value,
-    serial_write_bytes_argument, slave_path, write_all,
+    open_test_pty_pair, read_exact, serial_config_argument, serial_config_value,
+    serial_descriptor_value, serial_write_bytes_argument, slave_path, write_all,
 };
 use crate::diagnostic::RuntimeResult;
-use crate::platform::device::SerialDataBits;
 use crate::platform::device::tests::{DeviceHarnessContext, with_harness_context};
+use crate::platform::device::{SerialDataBits, SerialParity, SerialPortConfig, SerialStopBits};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::SerialPortHandle;
 use crate::platform::{NativeAbiCodec, NativeSlice, VmSlice};
@@ -80,6 +80,76 @@ fn test_device_serial_open_reads_descriptor_on_one_pty_slave() {
             let config = serial_config_value(&mut context, config)?;
             assert_eq!(config.baud_rate, 115_200);
             assert_eq!(config.data_bits, SerialDataBits::Eight);
+
+            Ok(())
+        })();
+
+        context.destack_device_serial_close(handle)?;
+        close_descriptor(controller);
+
+        result
+    });
+}
+
+/// Apply one new line configuration and report the live snapshot back to the caller.
+#[test]
+fn test_device_serial_configure_updates_the_live_serial_snapshot() {
+    with_harness_context(|mut context| {
+        let (controller, worker) = open_test_pty_pair()?;
+        let path = slave_path(worker)?;
+        close_descriptor(worker);
+
+        // open one pty-backed handle
+        let handle = open_serial_handle(&mut context, &path)?;
+
+        let result = (|| {
+            // apply one distinct configuration through the public surface
+            let config = SerialPortConfig {
+                baud_rate: 9_600,
+                data_bits: SerialDataBits::Seven,
+                parity: SerialParity::Even,
+                stop_bits: SerialStopBits::Two,
+                flow_control: default_serial_options().config.flow_control,
+            };
+            let config = serial_config_argument(&mut context, config)?;
+            context.destack_device_serial_configure(handle, config)?;
+
+            // read the live host snapshot back and compare the full configuration
+            let config = context.destack_device_serial_config(handle)?;
+            let config = serial_config_value(&mut context, config)?;
+            assert_eq!(config.baud_rate, 9_600);
+            assert_eq!(config.data_bits, SerialDataBits::Seven);
+            assert_eq!(config.parity, SerialParity::Even);
+            assert_eq!(config.stop_bits, SerialStopBits::Two);
+
+            Ok(())
+        })();
+
+        context.destack_device_serial_close(handle)?;
+        close_descriptor(controller);
+
+        result
+    });
+}
+
+/// Discard queued inbound bytes without consuming them through one read call.
+#[test]
+fn test_device_serial_discard_input_clears_the_pending_receive_queue() {
+    with_harness_context(|mut context| {
+        let (controller, worker) = open_test_pty_pair()?;
+        let path = slave_path(worker)?;
+        close_descriptor(worker);
+
+        // open one pty-backed handle
+        let handle = open_serial_handle(&mut context, &path)?;
+
+        let result = (|| {
+            // queue one inbound payload and drop it at the host boundary
+            write_all(controller, b"queued")?;
+            context.destack_device_serial_discard_input(handle)?;
+
+            // keep the cleared queue honest after the discard
+            assert_try_read_would_block(&mut context, handle)?;
 
             Ok(())
         })();
