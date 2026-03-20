@@ -339,6 +339,13 @@ impl CompilerOptions {
         // require strict checks for native targets
         self.apply_strict_defaults();
 
+        // keep lint-style diagnostics configurable under native targets
+        self.no_unused_locals = DiagnosticPolicy::Allow;
+        self.no_unused_parameters = DiagnosticPolicy::Allow;
+        self.no_fallthrough_cases_in_switch = DiagnosticPolicy::Allow;
+        self.allow_unreachable_code = DiagnosticPolicy::Allow;
+        self.allow_unused_labels = DiagnosticPolicy::Allow;
+
         // enforce soundness defaults for native targets
         self.no_any = DiagnosticPolicy::Deny;
         self.no_imprecise_primitives = DiagnosticPolicy::Deny;

@@ -6,6 +6,7 @@ use dashmap::DashMap;
 use destack_builtin::{
     BuiltinLibKind, BuiltinLibSource, BuiltinOutputFormat, BuiltinPlatform, BuiltinRuntime,
     INTRINSIC_SOURCES, LanguageSymbol, PRELUDE_BUILTIN_SOURCE, builtin_lib,
+    resolve_profile_builtin_lib_name,
 };
 use destack_source::{
     File, FileRegistry, FileType, LanguageType, ModuleId, ModuleVersion, PackageId, PackageVersion,
@@ -270,12 +271,13 @@ impl Builtins {
         profile_key: &ProfileKey,
     ) -> Option<Vec<ModuleId>> {
         let _guard = self.lib_load_lock.lock();
+        let name = self.profile_builtin_lib_name(name, profile_key);
 
         // create a local cycle guard
         let mut loading = HashSet::new();
 
         // load the lib with cycle tracking
-        self.load_lib_inner(name, files, modules, profile_key, &mut loading)
+        self.load_lib_inner(&name, files, modules, profile_key, &mut loading)
     }
 
     /// Load a lib module set with cycle tracking.
@@ -326,15 +328,17 @@ impl Builtins {
 
         // seed dependencies from lib metadata
         for &dependency in lib.dependencies {
-            if seen_dependencies.insert(dependency.to_string()) {
-                dependencies.push(dependency.to_string());
+            let dependency = self.profile_builtin_lib_name(dependency, profile_key);
+            if seen_dependencies.insert(dependency.clone()) {
+                dependencies.push(dependency);
             }
         }
 
         // extend dependencies with reference lib directives
-        for reference in lib.reference_libs() {
-            if seen_dependencies.insert(reference.to_string()) {
-                dependencies.push(reference.to_string());
+        for &reference in lib.reference_libs {
+            let reference = self.profile_builtin_lib_name(reference, profile_key);
+            if seen_dependencies.insert(reference.clone()) {
+                dependencies.push(reference);
             }
         }
 
@@ -383,6 +387,11 @@ impl Builtins {
         loading.remove(name);
 
         Some(module_ids)
+    }
+
+    /// Resolve one builtin lib name against the active profile lib set.
+    fn profile_builtin_lib_name(&self, name: &str, profile_key: &ProfileKey) -> String {
+        resolve_profile_builtin_lib_name(name, &profile_key.lib).unwrap_or_else(|| name.to_string())
     }
 
     /// Clone cached module ids and refresh lib name mappings.
