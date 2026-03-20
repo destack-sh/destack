@@ -44,14 +44,14 @@ declare namespace device {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `midi.port`.
+    /// Requires `device.midi.port`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.device.midi.input.port.list", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["midi.port"],
+        capabilities: ["device.midi.port"],
         platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
@@ -72,14 +72,14 @@ declare namespace device {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `midi.port`.
+    /// Requires `device.midi.port`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.device.midi.input.port.open", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["midi.port"],
+        capabilities: ["device.midi.port"],
         platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
@@ -103,14 +103,14 @@ declare namespace device {
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `midi.port`.
+    /// Requires `device.midi.port`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.device.midi.input.port.descriptor", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["midi.port"],
+        capabilities: ["device.midi.port"],
         platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
@@ -130,14 +130,14 @@ declare namespace device {
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `midi.port`.
+    /// Requires `device.midi.port`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.device.midi.input.port.close", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["midi.port"],
+        capabilities: ["device.midi.port"],
         platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
@@ -160,14 +160,14 @@ declare namespace device {
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
     ///
     /// # Security
-    /// Requires `midi.read`.
+    /// Requires `device.midi.read`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.device.midi.input.read", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["midi.read"],
+        capabilities: ["device.midi.read"],
         platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
@@ -193,14 +193,14 @@ declare namespace device {
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
     ///
     /// # Security
-    /// Requires `midi.read`.
+    /// Requires `device.midi.read`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.device.midi.input.readBatch", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["midi.read"],
+        capabilities: ["device.midi.read"],
         platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
@@ -227,14 +227,14 @@ declare namespace device {
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `midi.read`.
+    /// Requires `device.midi.read`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.device.midi.input.tryRead", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["midi.read"],
+        capabilities: ["device.midi.read"],
         platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
@@ -257,14 +257,14 @@ declare namespace device {
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `midi.read`.
+    /// Requires `device.midi.read`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.device.midi.input.tryReadBatch", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["midi.read"],
+        capabilities: ["device.midi.read"],
         platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
@@ -287,14 +287,14 @@ declare namespace device {
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `midi.virtual`.
+    /// Requires `device.midi.virtual`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.device.midi.input.virtual.create", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["midi.virtual"],
+        capabilities: ["device.midi.virtual"],
         platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
