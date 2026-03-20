@@ -21,6 +21,7 @@ The current language suite taxonomy is:
 | **Smoke** | Correctness | Quick | `fixtures/smoke/` | Broad sanity checks for parser and compiler flows |
 | **Emit** | Correctness | Standalone | `fixtures/emit/` | Emitted output matches curated snapshots |
 | **Specification** | Correctness | Quick | `fixtures/specification/` | First-party language semantics and diagnostics |
+| **Regression** | Correctness | Quick | `fixtures/regression/` | Targeted bug reproductions that do not fit cleanly elsewhere |
 | **Query** | Correctness | Quick | `fixtures/query/` | Query-layer IDE behavior |
 | **LSP** | Correctness | Quick | `fixtures/lsp/` | Applied editor scenarios over the real in-process LSP server |
 | **Resolver** | Correctness | Quick | `fixtures/resolver/` | Module and package resolution |
@@ -73,6 +74,7 @@ just test-unit
 just test-smoke
 just test-emit
 just test-specification
+just test-regression
 just test-query
 just test-lsp
 just test-resolver

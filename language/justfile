@@ -213,6 +213,7 @@ test:
     # FUGU #Broken: emit currently stalls in the compiler dependency chain before artifact generation
     # just test-emit
     just test-specification
+    just test-regression
     just test-query
     just test-lsp
     just test-resolver
@@ -301,6 +302,10 @@ test-resolver:
 # run specification tests (type checking specification)
 test-specification:
     just _run-destack-test specification
+
+# run targeted regression tests
+test-regression:
+    just _run-destack-test regression
 
 # validate tree sitter overlay coverage
 test-grammar-overlay:

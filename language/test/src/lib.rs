@@ -1,3 +1,4 @@
+pub mod conformance;
 pub mod ecosystem;
 pub mod emit;
 pub mod formatter;
@@ -7,6 +8,7 @@ pub mod mdtest;
 pub mod optimize;
 pub mod parser;
 pub mod query;
+pub mod regression;
 pub mod smoke;
 pub mod specification;
 pub mod stress;
