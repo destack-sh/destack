@@ -253,7 +253,7 @@ impl CompilerContext {
                 let package_id = module_ref.package_id;
                 let target_id = TargetId::new(package_id, target);
                 self.compiler
-                    .enqueue(ArtifactKey::module_emit(module, target_id));
+                    .enqueue(ArtifactKey::module_output(module, target_id));
             }
         }
     }

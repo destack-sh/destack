@@ -470,20 +470,16 @@ pub fn print_stats_summary(
     // cache summary when activity is present
     let cache_totals = stats.cache_totals();
     let cache_activity = cache_totals.hits_memory
-        + cache_totals.hits_disk
         + cache_totals.misses
         + cache_totals.writes_memory
-        + cache_totals.writes_disk
         + cache_totals.errors;
     if cache_activity > 0 {
-        let hits = cache_totals.hits_memory + cache_totals.hits_disk;
-        let writes = cache_totals.writes_memory + cache_totals.writes_disk;
+        let hits = cache_totals.hits_memory;
+        let writes = cache_totals.writes_memory;
         let hit_rate = stats.cache_hit_rate() * 100.0;
         let cache_line = format!(
-            "cache: {} hits ({} mem, {} disk) · {} misses · {} writes · {} errors · {:.0}% hit rate",
+            "cache: {} hits · {} misses · {} writes · {} errors · {:.0}% hit rate",
             format_number(hits as u64),
-            format_number(cache_totals.hits_memory as u64),
-            format_number(cache_totals.hits_disk as u64),
             format_number(cache_totals.misses as u64),
             format_number(writes as u64),
             format_number(cache_totals.errors as u64),
@@ -697,14 +693,12 @@ pub fn print_command_stats_summary(
 
     // cache summary when activity is present
     if let Some(cache) = stats.cache.as_ref() {
-        let hits = cache.hits_memory + cache.hits_disk;
-        let writes = cache.writes_memory + cache.writes_disk;
+        let hits = cache.hits_memory;
+        let writes = cache.writes_memory;
         let hit_rate = cache.hit_rate * 100.0;
         let cache_line = format!(
-            "cache: {} hits ({} mem, {} disk) · {} misses · {} writes · {} errors · {:.0}% hit rate",
+            "cache: {} hits · {} misses · {} writes · {} errors · {:.0}% hit rate",
             format_number(hits),
-            format_number(cache.hits_memory),
-            format_number(cache.hits_disk),
             format_number(cache.misses),
             format_number(writes),
             format_number(cache.errors),
