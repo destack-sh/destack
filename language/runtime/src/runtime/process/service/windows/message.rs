@@ -27,10 +27,7 @@ pub(crate) const WINDOWS_HOST_LOOP_SERVICE_MESSAGE_ID: u32 =
     windows_sys::Win32::UI::WindowsAndMessaging::WM_APP + 0x2541;
 
 /// Register one windows loop callback queue.
-pub(in super::super) fn register_windows_loop_queue(
-    thread_id: u32,
-    queue: &Arc<WindowsLoopQueue>,
-) {
+pub(in super::super) fn register_windows_loop_queue(thread_id: u32, queue: &Arc<WindowsLoopQueue>) {
     let registry = windows_loop_registry();
     let mut queues_by_thread = registry.queues_by_thread.lock();
 
