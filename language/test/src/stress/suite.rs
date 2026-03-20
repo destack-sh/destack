@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use destack_compiler::{BuildKey, Compiler, CompilerOptions};
+use destack_compiler::{Compiler, CompilerOptions};
 use destack_parser::Parser;
 use destack_source::{
     File, FileRegistry, FileSystem, FileType, LanguageType, MemoryFileSystem, Uri,
@@ -190,10 +190,10 @@ fn run_resolver_stress(test: &TestCase) -> TestResult {
 
     // resolve schedules import + bind automatically
     let profile = program.default_profile_id_for_module(module_id);
-    compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirResolved {
+    compiler.enqueue(ArtifactKey::DirResolved {
         module: module_id,
         profile,
-    }));
+    });
     compiler.compile();
 
     let elapsed = start.elapsed();
@@ -271,10 +271,10 @@ fn run_checker_stress(test: &TestCase) -> TestResult {
 
     // analyze schedules import + bind + resolve automatically
     let profile = program.default_profile_id_for_module(module_id);
-    compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+    compiler.enqueue(ArtifactKey::DirAnalyzed {
         module: module_id,
         profile,
-    }));
+    });
     compiler.compile();
 
     let elapsed = start.elapsed();

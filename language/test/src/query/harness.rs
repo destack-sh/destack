@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_compiler::{BuildKey, Compiler, CompilerOptions};
+use destack_compiler::{Compiler, CompilerOptions};
 use destack_source::{FileId, FileSystem, FileType, MemoryFileSystem, Uri};
 use destack_workspace::{ArtifactKey, MemoryCacheStore, Session};
 
@@ -189,7 +189,7 @@ impl QueryTestSession {
             session.clone(),
             program.clone(),
             CompilerOptions {
-                load_libs: false,
+                load_libraries: false,
                 workers: 1,
                 ..Default::default()
             },
@@ -209,8 +209,8 @@ impl QueryTestSession {
             .resolve_path_to_module(&main_path)
             .expect("failed to resolve module");
 
-        let (profile, load_libs) = select_profile_for_mdtest(&program, module_id, test, false);
-        compiler.options.load_libs = load_libs;
+        let (profile, load_libraries) = select_profile_for_mdtest(&program, module_id, test, false);
+        compiler.options.load_libraries = load_libraries;
 
         // resolve all test modules so auto import queries can see exports
         let mut module_ids = vec![module_id];
@@ -229,10 +229,10 @@ impl QueryTestSession {
         module_ids.dedup();
 
         for module_id in module_ids {
-            compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+            compiler.enqueue(ArtifactKey::DirAnalyzed {
                 module: module_id,
                 profile,
-            }));
+            });
         }
         compiler.compile();
         drop(compiler);

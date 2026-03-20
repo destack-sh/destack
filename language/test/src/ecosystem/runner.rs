@@ -208,7 +208,7 @@ impl EcosystemSuite {
         }
 
         // discover candidate source files for this package phase
-        let files = discover_package_files(
+        let files = discover_package_output(
             &package_dir,
             manifest,
             phase,
@@ -2023,7 +2023,7 @@ fn count_source_lines(files: &[PathBuf]) -> usize {
 }
 
 /// Discover source files for a package and phase.
-fn discover_package_files(
+fn discover_package_output(
     package_dir: &Path,
     manifest: &EcosystemManifest,
     phase: EcosystemPhase,

@@ -50,16 +50,26 @@ fn test_timeout_seconds() -> u64 {
         .and_then(|value| value.parse::<u64>().ok())
         .unwrap_or(DEFAULT_TEST_TIMEOUT_SECONDS);
 
-    let test_threads = std::env::var("RUST_TEST_THREADS")
-        .ok()
-        .and_then(|value| value.parse::<u64>().ok())
-        .unwrap_or(1)
-        .max(1);
+    // libtest does not reliably export its thread count, so fall back to host parallelism
+    let test_threads = configured_test_threads() as u64;
 
     // scale timeout under heavily parallel cargo test runs
     let timeout_scale = (((test_threads - 1) / 2) + 1).min(6);
 
     base_timeout * timeout_scale
+}
+
+/// Get the effective libtest thread count or a reasonable host fallback.
+fn configured_test_threads() -> usize {
+    std::env::var("RUST_TEST_THREADS")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or_else(|| {
+            std::thread::available_parallelism()
+                .map(|parallelism| parallelism.get())
+                .unwrap_or(1)
+        })
+        .max(1)
 }
 
 /// Choose a worker count for parallel tests without oversubscribing the host.
@@ -69,10 +79,10 @@ fn test_parallel_workers() -> u16 {
         return default_workers;
     }
 
-    let test_threads = std::env::var("RUST_TEST_THREADS")
-        .ok()
-        .and_then(|value| value.parse::<u16>().ok())
-        .unwrap_or(default_workers)
+    let test_threads = configured_test_threads()
+        .min(u16::MAX as usize)
+        .try_into()
+        .unwrap_or(u16::MAX)
         .max(1);
     let base = (default_workers / test_threads).max(1);
     let min_workers = 2;
@@ -981,17 +991,17 @@ impl TestProgram {
         )
     }
 
-    /// Load a lib module set (builder pattern).
+    /// Load a library module set (builder pattern).
     pub fn with_lib(self, name: &str) -> Self {
         let profile_id = self.default_profile_id_for_root();
         let profile_key = self.program.profile(profile_id).key.clone();
         self.session
             .load_library(name, &profile_key)
-            .unwrap_or_else(|| panic!("missing builtin lib '{name}'"));
+            .unwrap_or_else(|| panic!("missing builtin library '{name}'"));
         self
     }
 
-    /// Override the default profile with an explicit lib set.
+    /// Override the default profile with an explicit library set.
     pub fn with_profile_libs(mut self, libs: &[&str]) -> Self {
         let default_profile = self.program.profile(self.default_profile_id_for_root());
         let mut key = default_profile.key.clone();
@@ -1160,7 +1170,7 @@ impl TestProgram {
             .unwrap_or_else(|error| panic!("failed to resolve language environment: {error:?}"));
     }
 
-    /// Resolve builtin libs for the default root profile.
+    /// Resolve builtin libraries for the default root profile.
     pub fn resolve_libs(&self) {
         let profile = self.default_profile_id_for_root();
         self.compiler

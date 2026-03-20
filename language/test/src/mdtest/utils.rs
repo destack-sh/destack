@@ -125,7 +125,7 @@ pub fn select_profile_for_mdtest(
     program: &Program,
     module_id: ModuleId,
     test: &MdTestCase,
-    default_load_libs: bool,
+    default_load_libraries: bool,
 ) -> (ProfileId, bool) {
     // load base profile state
     let base_profile_id = program.default_profile_id_for_module(module_id);
@@ -134,7 +134,7 @@ pub fn select_profile_for_mdtest(
     let lib_override = parse_mdtest_libs(test);
 
     // seed override state
-    let mut load_libs = default_load_libs;
+    let mut load_libraries = default_load_libraries;
     let mut key = base_profile.key.clone();
     let mut recompute_test = false;
 
@@ -162,11 +162,11 @@ pub fn select_profile_for_mdtest(
     if let Some(lib_override) = lib_override {
         match lib_override {
             MdTestLibs::None => {
-                load_libs = false;
+                load_libraries = false;
                 key.lib.clear();
             }
             MdTestLibs::Default => {
-                load_libs = true;
+                load_libraries = true;
                 if overrides.has_lib_overrides() {
                     let target = Target {
                         runtime: key.runtime,
@@ -179,7 +179,7 @@ pub fn select_profile_for_mdtest(
             }
             MdTestLibs::Explicit(libs) => {
                 key.lib = libs;
-                load_libs = true;
+                load_libraries = true;
             }
         }
     }
@@ -193,9 +193,9 @@ pub fn select_profile_for_mdtest(
     // return the resolved profile
     if key != base_profile.key {
         let profile_id = program.profiles.get_or_create(key);
-        (profile_id, load_libs)
+        (profile_id, load_libraries)
     } else {
-        (base_profile_id, load_libs)
+        (base_profile_id, load_libraries)
     }
 }
 

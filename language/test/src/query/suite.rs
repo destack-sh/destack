@@ -1,9 +1,3 @@
-use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::Duration;
-
 use crate::harness::{
     RunContext, Suite, TestCase, TestOptions, TestResult, fixtures_dir, save_expected_failures,
 };
@@ -15,6 +9,11 @@ use crate::query::{QueryTestSession, runner};
 use destack_query as query;
 use destack_source::{BatchEdit, Edit, MemoryFileSystem};
 use destack_workspace::MemoryCacheStore;
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
 
 /// Type of query test.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -266,12 +265,13 @@ impl Suite for QuerySuite {
             let has_libs = parse_mdtest_libs(&query_test.base)
                 .map(|libs| !matches!(libs, MdTestLibs::None))
                 .unwrap_or(false);
-            let timeout_ms = if has_libs {
-                context.options.mdtest_timeout_ms.saturating_mul(5) // #Performance
+
+            // library-backed query cases do more setup and analysis work
+            if has_libs {
+                context.options.mdtest_timeout_with_multiplier(5)
             } else {
-                context.options.mdtest_timeout_ms
-            };
-            Duration::from_millis(timeout_ms.max(1))
+                context.options.mdtest_timeout()
+            }
         });
         let test = query_test.clone();
         run_with_timeout(test.base.clone(), timeout, move |_| run_query_test(&test))
