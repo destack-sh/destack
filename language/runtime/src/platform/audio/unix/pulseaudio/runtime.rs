@@ -107,6 +107,8 @@ pub(super) fn open_stream(
     device_info: &audio_core::HostDeviceDescriptor,
     config: audio_types::AudioStreamConfig,
     share_mode: audio_types::AudioShareMode,
+    requested_flags: audio_types::AudioStreamFlags,
+    requested_requirements: audio_types::AudioStreamRequirementFlags,
 ) -> RuntimeResult<Arc<audio_core::AudioStreamHostState>> {
     // reject unsupported share-mode requests
     if share_mode != audio_types::AudioShareMode::Shared {
@@ -223,6 +225,8 @@ pub(super) fn open_stream(
         device: device_info.clone(),
         direction: device_info.direction,
         requested: config,
+        requested_flags,
+        requested_requirements,
         sample_rate: runtime.sample_rate,
         channels: runtime.channels,
         period_frames: runtime.period_frames,

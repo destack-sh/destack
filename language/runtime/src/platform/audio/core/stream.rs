@@ -19,14 +19,11 @@ use crate::runtime::BindingCallContext;
 use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
 
 use super::constants::{
-    DEVICE_CAPABILITY_BIT_EXACT_PCM, MIN_STREAM_PERIOD_FRAMES, STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT,
-    STREAM_FLAG_MINIMIZE_LATENCY, STREAM_FLAG_NEVER_DROP_INPUT, STREAM_FLAG_NO_AUTO_CONVERT,
-    STREAM_FLAG_NON_INTERLEAVED, STREAM_FLAG_PRIME_OUTPUT_BUFFERS, STREAM_FLAG_REPORT_XRUN,
-    STREAM_FLAG_SCHEDULE_REALTIME, STREAM_REQUIRE_BIT_EXACT_PCM,
-    STREAM_REQUIRE_HARDWARE_TIMESTAMPS, STREAM_REQUIRE_NON_INTERLEAVED, STREAM_REQUIRE_PAUSE,
-    STREAM_REQUIRE_SCHEDULED_WRITE, STREAM_STATUS_INPUT_OVERFLOW, STREAM_STATUS_OUTPUT_UNDERFLOW,
-    host_monotonic_nanos, resolved_max_queued_frames, resolved_stream_wait_slice_ns,
-    resolved_worker_poll_period,
+    DEVICE_CAPABILITY_BIT_EXACT_PCM, MIN_STREAM_PERIOD_FRAMES, STREAM_FLAG_NON_INTERLEAVED,
+    STREAM_FLAG_REPORT_XRUN, STREAM_REQUIRE_BIT_EXACT_PCM, STREAM_REQUIRE_HARDWARE_TIMESTAMPS,
+    STREAM_REQUIRE_NON_INTERLEAVED, STREAM_REQUIRE_PAUSE, STREAM_REQUIRE_SCHEDULED_WRITE,
+    STREAM_STATUS_INPUT_OVERFLOW, STREAM_STATUS_OUTPUT_UNDERFLOW, host_monotonic_nanos,
+    resolved_max_queued_frames, resolved_stream_wait_slice_ns, resolved_worker_poll_period,
 };
 use super::error::{stream_shutdown_error, stream_state_is_terminal};
 use super::event::publish::publish_stream_event_native;
@@ -266,17 +263,17 @@ pub(crate) fn stream_timing_snapshot(
 
 /// Build one stream-option mask from stream runtime capabilities.
 pub(crate) fn effective_stream_flags(stream: &AudioStreamHostState) -> AudioStreamFlags {
-    let mut flags = STREAM_FLAG_REPORT_XRUN.0;
-    flags |= STREAM_FLAG_MINIMIZE_LATENCY.0;
-    flags |= STREAM_FLAG_SCHEDULE_REALTIME.0;
-    flags |= STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT.0;
-    flags |= STREAM_FLAG_NO_AUTO_CONVERT.0;
-    flags |= STREAM_FLAG_NEVER_DROP_INPUT.0;
-    flags |= STREAM_FLAG_PRIME_OUTPUT_BUFFERS.0;
+    let mut flags = stream.requested_flags.0
+        & super::device::supported_backend_stream_flags(stream.device.backend).0;
 
     if stream.runtime_capabilities.supports_non_interleaved {
         flags |= STREAM_FLAG_NON_INTERLEAVED.0;
+    } else {
+        flags &= !STREAM_FLAG_NON_INTERLEAVED.0;
     }
+
+    // xrun reporting is part of the core stream state for all current stream backends
+    flags |= STREAM_FLAG_REPORT_XRUN.0;
 
     AudioStreamFlags(flags)
 }
@@ -355,8 +352,8 @@ pub(crate) fn stream_descriptor(
         period_frames: stream.period_frames,
         transfer_mode: stream.requested.transfer_mode,
         share_mode: stream.share_mode,
-        requested_flags: AudioStreamFlags(0),
-        requested_requirements: AudioStreamRequirementFlags(0),
+        requested_flags: stream.requested_flags,
+        requested_requirements: stream.requested_requirements,
         effective_flags: effective_stream_flags(stream),
         effective_requirements: satisfied_stream_requirements(stream),
         period_jitter_ns: state.last_period_jitter_ns,
@@ -586,6 +583,8 @@ pub(crate) fn open_null_stream(
     opened_direction: AudioDeviceDirection,
     config: AudioStreamConfig,
     share_mode: AudioShareMode,
+    requested_flags: AudioStreamFlags,
+    requested_requirements: AudioStreamRequirementFlags,
 ) -> Arc<AudioStreamHostState> {
     let sync = Arc::new(AudioStreamSync {
         state: Mutex::new(initial_stream_state()),
@@ -596,6 +595,8 @@ pub(crate) fn open_null_stream(
         device: device.clone(),
         direction: opened_direction,
         requested: config,
+        requested_flags,
+        requested_requirements,
         sample_rate: config.sample_rate,
         channels: config.channels,
         period_frames: config.period_frames.max(MIN_STREAM_PERIOD_FRAMES),

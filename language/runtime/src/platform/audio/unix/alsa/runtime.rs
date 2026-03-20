@@ -19,6 +19,8 @@ pub(super) fn open_stream(
     config: audio_types::AudioStreamConfig,
     share_mode: audio_types::AudioShareMode,
     backend_flags: audio_core::AudioBackendOpenFlags,
+    requested_flags: audio_types::AudioStreamFlags,
+    requested_requirements: audio_types::AudioStreamRequirementFlags,
 ) -> RuntimeResult<Arc<audio_core::AudioStreamHostState>> {
     // open one initialized ALSA runtime payload from one stable id
     let runtime = open_runtime(
@@ -27,6 +29,7 @@ pub(super) fn open_stream(
         config,
         share_mode,
         backend_flags,
+        requested_flags,
     )?;
 
     // install one ALSA host-ops payload for stream control transitions
@@ -39,6 +42,8 @@ pub(super) fn open_stream(
         device: device_info.clone(),
         direction: device_info.direction,
         requested: config,
+        requested_flags,
+        requested_requirements,
         sample_rate: runtime.sample_rate,
         channels: runtime.channels,
         period_frames: runtime.period_frames,
@@ -85,6 +90,7 @@ fn open_runtime(
     config: audio_types::AudioStreamConfig,
     share_mode: audio_types::AudioShareMode,
     backend_flags: audio_core::AudioBackendOpenFlags,
+    requested_flags: audio_types::AudioStreamFlags,
 ) -> RuntimeResult<Arc<AlsaStreamRuntime>> {
     // reject ALSA loopback direction since plain ALSA has no generic host loopback lane
     if direction == audio_types::AudioDeviceDirection::Loopback {
@@ -108,6 +114,7 @@ fn open_runtime(
             ALSA_STREAM_PLAYBACK,
             config,
             backend_flags,
+            requested_flags,
         )?);
     }
 
@@ -124,6 +131,7 @@ fn open_runtime(
             ALSA_STREAM_CAPTURE,
             config,
             backend_flags,
+            requested_flags,
         )?);
     }
 

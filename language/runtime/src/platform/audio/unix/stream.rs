@@ -317,6 +317,8 @@ pub(crate) unsafe fn destack_audio_stream_open(
             device_binding.opened_direction,
             config,
             device_binding.options.share_mode,
+            options.flags,
+            options.requirements,
         )
     } else {
         audio_platform_core::open_host_stream(
@@ -324,6 +326,8 @@ pub(crate) unsafe fn destack_audio_stream_open(
             config,
             device_binding.options.share_mode,
             device_binding.options.flags,
+            options.flags,
+            options.requirements,
         )?
     };
 
@@ -400,6 +404,8 @@ pub(crate) unsafe fn destack_audio_stream_support(
             device_binding.opened_direction,
             config,
             device_binding.options.share_mode,
+            options.flags,
+            options.requirements,
         )
     } else {
         audio_platform_core::open_host_stream(
@@ -407,6 +413,8 @@ pub(crate) unsafe fn destack_audio_stream_support(
             config,
             device_binding.options.share_mode,
             device_binding.options.flags,
+            options.flags,
+            options.requirements,
         )?
     };
 

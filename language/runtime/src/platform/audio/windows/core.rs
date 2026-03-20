@@ -2,7 +2,9 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core::constants::AudioBackendOpenFlags;
 use crate::platform::audio::core::model::{AudioStreamHostState, HostDeviceDescriptor};
 use crate::platform::audio::core::monitor::AudioMonitorHandle;
-use crate::platform::audio::{AudioBackend, AudioShareMode, AudioStreamConfig};
+use crate::platform::audio::{
+    AudioBackend, AudioShareMode, AudioStreamConfig, AudioStreamFlags, AudioStreamRequirementFlags,
+};
 use crate::platform::core::BackendSupport;
 
 use super::backend;
@@ -42,8 +44,17 @@ pub(crate) fn open_host_stream(
     config: AudioStreamConfig,
     share_mode: AudioShareMode,
     backend_flags: AudioBackendOpenFlags,
+    requested_flags: AudioStreamFlags,
+    requested_requirements: AudioStreamRequirementFlags,
 ) -> RuntimeResult<std::sync::Arc<AudioStreamHostState>> {
-    backend::open_host_stream(device_info, config, share_mode, backend_flags)
+    backend::open_host_stream(
+        device_info,
+        config,
+        share_mode,
+        backend_flags,
+        requested_flags,
+        requested_requirements,
+    )
 }
 
 /// Trigger one windows backend device rescan.

@@ -28,7 +28,9 @@ use crate::platform::audio::core::model::{
 };
 #[cfg(not(target_os = "macos"))]
 use crate::platform::audio::core::model::{AudioStreamHostState, HostDeviceDescriptor};
-use crate::platform::audio::{AudioShareMode, AudioStreamConfig};
+use crate::platform::audio::{
+    AudioShareMode, AudioStreamConfig, AudioStreamFlags, AudioStreamRequirementFlags,
+};
 
 /// Build an initialized stream host state for a CoreAudio stream open request.
 #[cfg(target_os = "macos")]
@@ -36,6 +38,8 @@ fn new_stream_state(
     device_info: &HostDeviceDescriptor,
     config: AudioStreamConfig,
     share_mode: AudioShareMode,
+    requested_flags: AudioStreamFlags,
+    requested_requirements: AudioStreamRequirementFlags,
     runtime: Arc<CoreAudioStreamRuntime>,
 ) -> Arc<AudioStreamHostState> {
     // install host stream operations for queue lifecycle control
@@ -46,6 +50,8 @@ fn new_stream_state(
         device: device_info.clone(),
         direction: device_info.direction,
         requested: config,
+        requested_flags,
+        requested_requirements,
         sample_rate: config.sample_rate,
         channels: config.channels,
         period_frames: config.period_frames.max(MIN_STREAM_PERIOD_FRAMES),
@@ -80,6 +86,8 @@ fn open_host_stream_macos(
     device_info: &HostDeviceDescriptor,
     config: AudioStreamConfig,
     share_mode: AudioShareMode,
+    requested_flags: AudioStreamFlags,
+    requested_requirements: AudioStreamRequirementFlags,
 ) -> RuntimeResult<Arc<AudioStreamHostState>> {
     // resolve and validate device configuration before queue creation
     let device_id = device_id_from_stable_id(&device_info.id)?;
@@ -98,7 +106,14 @@ fn open_host_stream_macos(
         device_id,
         release_hog_mode_on_drop,
     });
-    let stream_state = new_stream_state(device_info, config, share_mode, runtime.clone());
+    let stream_state = new_stream_state(
+        device_info,
+        config,
+        share_mode,
+        requested_flags,
+        requested_requirements,
+        runtime.clone(),
+    );
 
     // derive queue requirements from stream direction
     let needs_playback_queue = matches!(
@@ -165,16 +180,31 @@ pub(crate) fn open_host_stream(
     config: AudioStreamConfig,
     share_mode: AudioShareMode,
     backend_flags: AudioBackendOpenFlags,
+    requested_flags: AudioStreamFlags,
+    requested_requirements: AudioStreamRequirementFlags,
 ) -> RuntimeResult<Arc<AudioStreamHostState>> {
     #[cfg(target_os = "macos")]
     {
         let _ = backend_flags;
-        open_host_stream_macos(device_info, config, share_mode)
+        open_host_stream_macos(
+            device_info,
+            config,
+            share_mode,
+            requested_flags,
+            requested_requirements,
+        )
     }
 
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = (device_info, config, share_mode, backend_flags);
+        let _ = (
+            device_info,
+            config,
+            share_mode,
+            backend_flags,
+            requested_flags,
+            requested_requirements,
+        );
         Err(backend_not_supported(
             "destack.audio.stream.open",
             "coreaudio",

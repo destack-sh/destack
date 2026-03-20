@@ -131,6 +131,8 @@ pub(super) fn open_stream(
     config: audio_types::AudioStreamConfig,
     share_mode: audio_types::AudioShareMode,
     backend_flags: audio_core::AudioBackendOpenFlags,
+    requested_flags: audio_types::AudioStreamFlags,
+    requested_requirements: audio_types::AudioStreamRequirementFlags,
 ) -> RuntimeResult<Arc<audio_core::AudioStreamHostState>> {
     // keep ports disconnected when no-autoconnect is explicitly requested
     let request_no_autoconnect =
@@ -301,6 +303,8 @@ pub(super) fn open_stream(
         device: device_info.clone(),
         direction: device_info.direction,
         requested: config,
+        requested_flags,
+        requested_requirements,
         sample_rate,
         channels: negotiated_channels,
         period_frames,
