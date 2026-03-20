@@ -89,14 +89,14 @@ declare namespace device {
     /// Returns ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `midi.port`.
+    /// Requires `device.midi.port`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.device.midi.backend.list", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["midi.port"],
+        capabilities: ["device.midi.port"],
         platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
