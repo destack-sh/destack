@@ -1,24 +1,24 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{invalid_argument, not_supported};
-use crate::platform::os::ClipboardBinaryFormat;
+use crate::platform::input::ClipboardBinaryFormat;
 
 /// Clipboard read-text binding name.
-pub(super) const CLIPBOARD_READ_TEXT_OPERATION: &str = "destack.os.clipboard.readText";
+pub(super) const CLIPBOARD_READ_TEXT_OPERATION: &str = "destack.input.clipboard.readText";
 /// Clipboard write-text binding name.
-pub(super) const CLIPBOARD_WRITE_TEXT_OPERATION: &str = "destack.os.clipboard.writeText";
+pub(super) const CLIPBOARD_WRITE_TEXT_OPERATION: &str = "destack.input.clipboard.writeText";
 /// Clipboard read-bytes binding name.
-pub(super) const CLIPBOARD_READ_BYTES_OPERATION: &str = "destack.os.clipboard.readBytes";
+pub(super) const CLIPBOARD_READ_BYTES_OPERATION: &str = "destack.input.clipboard.readBytes";
 /// Clipboard write-bytes binding name.
-pub(super) const CLIPBOARD_WRITE_BYTES_OPERATION: &str = "destack.os.clipboard.writeBytes";
+pub(super) const CLIPBOARD_WRITE_BYTES_OPERATION: &str = "destack.input.clipboard.writeBytes";
 /// Clipboard has-text binding name.
 #[cfg(all(not(windows), not(target_os = "macos")))]
-pub(super) const CLIPBOARD_HAS_TEXT_OPERATION: &str = "destack.os.clipboard.hasText";
+pub(super) const CLIPBOARD_HAS_TEXT_OPERATION: &str = "destack.input.clipboard.hasText";
 /// Clipboard sequence binding name.
 #[cfg(not(windows))]
-pub(super) const CLIPBOARD_SEQUENCE_OPERATION: &str = "destack.os.clipboard.sequence";
+pub(super) const CLIPBOARD_SEQUENCE_OPERATION: &str = "destack.input.clipboard.sequence";
 /// Clipboard clear binding name.
 #[cfg(not(target_os = "macos"))]
-pub(super) const CLIPBOARD_CLEAR_OPERATION: &str = "destack.os.clipboard.clear";
+pub(super) const CLIPBOARD_CLEAR_OPERATION: &str = "destack.input.clipboard.clear";
 
 /// Query whether one text payload exists.
 pub(crate) fn has_text() -> RuntimeResult<bool> {

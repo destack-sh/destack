@@ -10,7 +10,6 @@ pub(crate) use bindings_generated::*;
 
 pub(crate) mod background;
 pub(crate) mod calendar;
-pub(crate) mod clipboard;
 pub(crate) mod contact;
 pub(crate) mod credentials;
 pub(crate) mod document;

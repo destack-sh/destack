@@ -12,7 +12,7 @@ use windows_sys::Win32::System::Ole::CF_UNICODETEXT;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{io_not_found, io_operation_error, io_would_block};
-use crate::platform::os::clipboard::core::{
+use crate::platform::input::clipboard::core::{
     CLIPBOARD_CLEAR_OPERATION, CLIPBOARD_READ_BYTES_OPERATION, CLIPBOARD_READ_TEXT_OPERATION,
     CLIPBOARD_WRITE_BYTES_OPERATION, CLIPBOARD_WRITE_TEXT_OPERATION,
 };

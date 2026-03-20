@@ -2,7 +2,7 @@ use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::os::ClipboardBinaryFormat;
+use crate::platform::input::ClipboardBinaryFormat;
 use crate::platform::os::tests::{HarnessContext, HarnessValue};
 use crate::platform::{NativeSlice, NativeStringRef, VmSlice};
 use crate::tests::platform::error_code_from_runtime_error;
@@ -101,14 +101,14 @@ pub(super) fn decode_clipboard_bytes(
 pub(super) fn snapshot_clipboard(
     context: &mut HarnessContext<'_>,
 ) -> RuntimeResult<ClipboardSnapshot> {
-    let text = if context.destack_os_clipboard_has_text()? {
-        let value = context.destack_os_clipboard_read_text()?;
+    let text = if context.destack_input_clipboard_has_text()? {
+        let value = context.destack_input_clipboard_read_text()?;
         Some(decode_clipboard_text(context, value)?)
     } else {
         None
     };
 
-    let html = match context.destack_os_clipboard_read_bytes(ClipboardBinaryFormat::Html) {
+    let html = match context.destack_input_clipboard_read_bytes(ClipboardBinaryFormat::Html) {
         Ok(value) => Some(decode_clipboard_bytes(context, value)?),
         Err(error) => {
             let error_code = error_code_from_runtime_error(&error);
@@ -132,13 +132,13 @@ pub(super) fn restore_clipboard(
 ) -> RuntimeResult<()> {
     if let Some(html) = snapshot.html {
         let html = bytes_harness_value(context, &html)?;
-        return context.destack_os_clipboard_write_bytes(ClipboardBinaryFormat::Html, html);
+        return context.destack_input_clipboard_write_bytes(ClipboardBinaryFormat::Html, html);
     }
 
     if let Some(text) = snapshot.text {
         let text = string_harness_value(context, &text);
-        return context.destack_os_clipboard_write_text(text);
+        return context.destack_input_clipboard_write_text(text);
     }
 
-    context.destack_os_clipboard_clear()
+    context.destack_input_clipboard_clear()
 }

@@ -7,10 +7,10 @@ use crate::platform::core::{
     values_array_to_vm,
 };
 use crate::platform::input::{
-    InputCompositionEvent, InputCompositionEventPayloadVm, InputCompositionEventVm,
-    InputDeviceCapabilities, InputDeviceCapabilitiesVm, InputDeviceDescriptor,
-    InputDeviceDescriptorVm, InputDeviceEventVm, InputEvent, InputEventMetadata,
-    InputEventMetadataVm, InputEventVm, InputGamepadEventVm, InputGamepadState,
+    ClipboardBinaryFormat, InputCompositionEvent, InputCompositionEventPayloadVm,
+    InputCompositionEventVm, InputDeviceCapabilities, InputDeviceCapabilitiesVm,
+    InputDeviceDescriptor, InputDeviceDescriptorVm, InputDeviceEventVm, InputEvent,
+    InputEventMetadata, InputEventMetadataVm, InputEventVm, InputGamepadEventVm, InputGamepadState,
     InputGamepadStateVm, InputHapticEffectParametersVm, InputHapticEffectType, InputHapticsResult,
     InputKeyEventVm, InputKeyboardState, InputKeyboardStateVm, InputMonitorChangeEventVm,
     InputMonitorConnectEventVm, InputMonitorDisconnectEventVm, InputMonitorEvent,
@@ -20,7 +20,7 @@ use crate::platform::input::{
     InputSensorConfigVm, InputSensorDescriptorVm, InputSensorEffectiveConfigVm, InputSensorEventVm,
     InputSensorKind, InputSensorSampleVm, InputTextEventPayloadVm, InputTextEventVm,
     InputTextInputAreaVm, InputTextInputType, InputTouchEventVm, InputTouchState,
-    InputTouchStateVm, InputWindowTargetVm, host as host_input,
+    InputTouchStateVm, InputWindowTargetVm, clipboard, host as host_input,
 };
 use crate::platform::{VmArray, VmSlice, resource};
 use crate::runtime::{BindingCallContext, NativeStringRef};
@@ -1591,4 +1591,76 @@ pub(crate) fn destack_input_touch_state(
     let value =
         call_out(|out| unsafe { host_input::destack_input_touch_state(binding, out, handle) })?;
     touch_state_to_vm(context, value)
+}
+
+/// Clear clipboard payload.
+pub(crate) fn destack_input_clipboard_clear(
+    _binding: &BindingCallContext,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+) -> RuntimeResult<()> {
+    clipboard::clear()
+}
+
+/// Query whether text clipboard payload exists.
+pub(crate) fn destack_input_clipboard_has_text(
+    _binding: &BindingCallContext,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+) -> RuntimeResult<bool> {
+    clipboard::has_text()
+}
+
+/// Read binary clipboard payload.
+pub(crate) fn destack_input_clipboard_read_bytes(
+    _binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    format: ClipboardBinaryFormat,
+) -> RuntimeResult<VmSlice<u8>> {
+    let value = clipboard::read_bytes(format)?;
+
+    VmSlice::from_bytes(context, &value)
+}
+
+/// Read text clipboard payload.
+pub(crate) fn destack_input_clipboard_read_text(
+    _binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+) -> RuntimeResult<destack_vm::StringHandle> {
+    let value = clipboard::read_text()?;
+
+    Ok(destack_vm::StringHandle::new(
+        context.intern_string(&value)?,
+    ))
+}
+
+/// Read clipboard sequence number.
+pub(crate) fn destack_input_clipboard_sequence(
+    _binding: &BindingCallContext,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+) -> RuntimeResult<u64> {
+    clipboard::sequence()
+}
+
+/// Write binary clipboard payload.
+pub(crate) fn destack_input_clipboard_write_bytes(
+    _binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    format: ClipboardBinaryFormat,
+    argument_bytes: VmSlice<u8>,
+) -> RuntimeResult<()> {
+    let bytes = argument_bytes.read_bytes(context)?;
+
+    clipboard::write_bytes(format, &bytes)
+}
+
+/// Write text clipboard payload.
+pub(crate) fn destack_input_clipboard_write_text(
+    _binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    text: destack_vm::StringHandle,
+) -> RuntimeResult<()> {
+    let text = context
+        .string_ref(text)
+        .map_err(|error| RuntimeError::from(error).boxed())?;
+
+    clipboard::write_text(text.as_str())
 }

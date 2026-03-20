@@ -5,7 +5,7 @@ use objc2_foundation::{NSArray, NSCopying, NSData, NSString};
 use crate::diagnostic::RuntimeResult;
 use crate::host::apple::execution::call_process_main_context_if_needed;
 use crate::platform::core::{invalid_argument, io_not_found, io_operation_error};
-use crate::platform::os::clipboard::core::{
+use crate::platform::input::clipboard::core::{
     CLIPBOARD_READ_BYTES_OPERATION, CLIPBOARD_READ_TEXT_OPERATION, CLIPBOARD_SEQUENCE_OPERATION,
     CLIPBOARD_WRITE_BYTES_OPERATION, CLIPBOARD_WRITE_TEXT_OPERATION,
 };

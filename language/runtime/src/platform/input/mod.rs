@@ -8,6 +8,8 @@ mod bindings_generated;
 pub(crate) use abi_generated::*;
 pub(crate) use bindings_generated::*;
 
+pub(crate) mod clipboard;
+
 /// Internal event kind used by host backends when constructing input events.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
