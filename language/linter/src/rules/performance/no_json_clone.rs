@@ -71,7 +71,7 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
         let json_name = ctx.program.strings.intern("JSON");
         let parse_name = ctx.program.strings.intern("parse");
         let stringify_name = ctx.program.strings.intern("stringify");
-        let json_symbol = ctx.declared_lib_symbol(json_name);
+        let json_symbol = ctx.declared_library_symbol(json_name);
         let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {

@@ -76,7 +76,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         let replace_name = ctx.program.strings.intern("replace");
         let replace_all_name = ctx.program.strings.intern("replaceAll");
         let regexp_name = ctx.program.strings.intern("RegExp");
-        let regexp_symbol = ctx.get_declared_lib_symbol(regexp_name);
+        let regexp_symbol = ctx.get_declared_library_symbol(regexp_name);
         let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {

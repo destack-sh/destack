@@ -71,7 +71,7 @@ impl<'a, 'b> NoObjectSpreadInReduceVisitor<'a, 'b> {
         let reduce_name = ctx.program.strings.intern("reduce");
         let reduce_right_name = ctx.program.strings.intern("reduceRight");
         let object_name = ctx.program.strings.intern("Object");
-        let object_symbol = ctx.get_declared_lib_symbol(object_name);
+        let object_symbol = ctx.get_declared_library_symbol(object_name);
         let assign_name = ctx.program.strings.intern("assign");
 
         Self {

@@ -76,9 +76,9 @@ impl<'a, 'b> NoAlertVisitor<'a, 'b> {
         let alert_name = ctx.program.strings.intern("alert");
         let confirm_name = ctx.program.strings.intern("confirm");
         let prompt_name = ctx.program.strings.intern("prompt");
-        let alert_symbol = ctx.get_declared_lib_symbol(alert_name);
-        let confirm_symbol = ctx.get_declared_lib_symbol(confirm_name);
-        let prompt_symbol = ctx.get_declared_lib_symbol(prompt_name);
+        let alert_symbol = ctx.get_declared_library_symbol(alert_name);
+        let confirm_symbol = ctx.get_declared_library_symbol(confirm_name);
+        let prompt_symbol = ctx.get_declared_library_symbol(prompt_name);
         let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {

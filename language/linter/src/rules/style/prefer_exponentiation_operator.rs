@@ -66,7 +66,7 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let math_name = ctx.program.strings.intern("Math");
         let pow_name = ctx.program.strings.intern("pow");
-        let math_symbol = ctx.declared_lib_symbol(math_name);
+        let math_symbol = ctx.declared_library_symbol(math_name);
         let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {

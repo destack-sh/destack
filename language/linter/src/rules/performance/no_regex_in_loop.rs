@@ -55,7 +55,7 @@ impl<'a, 'b> NoRegexInLoopVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         // intern and resolve regexp symbol
         let regexp_name = ctx.program.strings.intern("RegExp");
-        let regexp_symbol = ctx.get_declared_lib_symbol(regexp_name);
+        let regexp_symbol = ctx.get_declared_library_symbol(regexp_name);
 
         Self {
             ctx,
