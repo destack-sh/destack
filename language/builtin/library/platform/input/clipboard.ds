@@ -12,27 +12,26 @@ export enum ClipboardBinaryFormat {
 }
 
 /// Clipboard bindings.
-declare namespace os {
+declare namespace input {
     /// Query whether text clipboard payload exists.
     ///
     /// Return whether one text payload is currently available on the host clipboard.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host clipboard query APIs and selection ownership checks.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `os.clipboard.read`.
+    /// Requires `input.clipboard.read`.
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.os.clipboard.hasText", {
+    @binding("destack.input.clipboard.hasText", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["os.clipboard.read"],
+        capabilities: ["input.clipboard.read"],
         platforms: ["windows", "unix"],
         simulation: "model",
         scope: "host",
@@ -47,20 +46,19 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host clipboard APIs such as X11 or Wayland selection protocols and Win32 clipboard APIs.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `os.clipboard.read`.
+    /// Requires `input.clipboard.read`.
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.os.clipboard.readText", {
+    @binding("destack.input.clipboard.readText", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["os.clipboard.read"],
+        capabilities: ["input.clipboard.read"],
         platforms: ["windows", "unix"],
         simulation: "model",
         scope: "host",
@@ -75,20 +73,19 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host clipboard write APIs and ownership semantics.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `os.clipboard.write`.
+    /// Requires `input.clipboard.write`.
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding("destack.os.clipboard.writeText", {
+    @binding("destack.input.clipboard.writeText", {
         effect: "external",
         replay: "nonrecordable",
-        capabilities: ["os.clipboard.write"],
+        capabilities: ["input.clipboard.write"],
         platforms: ["windows", "unix"],
         simulation: "model",
         scope: "host",
@@ -103,20 +100,19 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host clipboard APIs for binary format extraction.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `os.clipboard.read`.
+    /// Requires `input.clipboard.read`.
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.os.clipboard.readBytes", {
+    @binding("destack.input.clipboard.readBytes", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["os.clipboard.read"],
+        capabilities: ["input.clipboard.read"],
         platforms: ["windows", "unix"],
         simulation: "model",
         scope: "host",
@@ -131,20 +127,19 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host clipboard APIs for binary format insertion.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `os.clipboard.write`.
+    /// Requires `input.clipboard.write`.
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding("destack.os.clipboard.writeBytes", {
+    @binding("destack.input.clipboard.writeBytes", {
         effect: "external",
         replay: "nonrecordable",
-        capabilities: ["os.clipboard.write"],
+        capabilities: ["input.clipboard.write"],
         platforms: ["windows", "unix"],
         simulation: "model",
         scope: "host",
@@ -159,24 +154,22 @@ declare namespace os {
     /// Read clipboard sequence number.
     ///
     /// Read one monotonic sequence marker for host clipboard contents.
-    /// Sequence semantics are host defined but monotonic within one host clipboard service lifetime.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host clipboard sequence APIs where available.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `os.clipboard.read`.
+    /// Requires `input.clipboard.read`.
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.os.clipboard.sequence", {
+    @binding("destack.input.clipboard.sequence", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["os.clipboard.read"],
+        capabilities: ["input.clipboard.read"],
         platforms: ["windows", "unix"],
         simulation: "model",
         scope: "host",
@@ -191,20 +184,19 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host clipboard clear and owner-reset APIs.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `os.clipboard.write`.
+    /// Requires `input.clipboard.write`.
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding("destack.os.clipboard.clear", {
+    @binding("destack.input.clipboard.clear", {
         effect: "external",
         replay: "nonrecordable",
-        capabilities: ["os.clipboard.write"],
+        capabilities: ["input.clipboard.write"],
         platforms: ["windows", "unix"],
         simulation: "model",
         scope: "host",

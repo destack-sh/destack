@@ -1,6 +1,9 @@
+import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
+import { ClipboardItemDescriptor } from "./clipboard.ds";
+import { InputCompositionEvent, InputEventMetadata } from "./event.ds";
+import { InputDragTransfer } from "./drag.ds";
 import { InputDeviceHandle } from "../resource/index.ds";
-import { InputCompositionEvent } from "./event.ds";
 import { InputWindowTarget } from "./target.ds";
 
 /// Text input type hint.
@@ -17,6 +20,16 @@ export enum InputTextInputType {
     Password = 4,
     /// Phone number text input.
     Phone = 5,
+    /// Search text input.
+    Search = 6,
+}
+
+/// Text offset range in UTF-16 code units.
+export struct InputTextRange {
+    /// Inclusive start offset.
+    startOffset: uint32;
+    /// Exclusive end offset.
+    endOffset: uint32;
 }
 
 /// Text input area geometry.
@@ -31,6 +44,146 @@ export struct InputTextInputArea {
     height: uint32;
     /// Cursor offset inside the text area.
     cursor: int32;
+}
+
+/// Edit intent kind aligned with web `beforeinput` input types.
+export enum InputEditIntentType {
+    /// `insertText`.
+    InsertText = 1,
+    /// `insertReplacementText`.
+    InsertReplacementText = 2,
+    /// `insertLineBreak`.
+    InsertLineBreak = 3,
+    /// `insertParagraph`.
+    InsertParagraph = 4,
+    /// `insertOrderedList`.
+    InsertOrderedList = 5,
+    /// `insertUnorderedList`.
+    InsertUnorderedList = 6,
+    /// `insertHorizontalRule`.
+    InsertHorizontalRule = 7,
+    /// `insertLink`.
+    InsertLink = 8,
+    /// `insertFromYank`.
+    InsertFromYank = 9,
+    /// `insertFromDrop`.
+    InsertFromDrop = 10,
+    /// `insertFromPaste`.
+    InsertFromPaste = 11,
+    /// `insertFromPasteAsQuotation`.
+    InsertFromPasteAsQuotation = 12,
+    /// `insertTranspose`.
+    InsertTranspose = 13,
+    /// `insertCompositionText`.
+    InsertCompositionText = 14,
+    /// `deleteWordBackward`.
+    DeleteWordBackward = 15,
+    /// `deleteWordForward`.
+    DeleteWordForward = 16,
+    /// `deleteSoftLineBackward`.
+    DeleteSoftLineBackward = 17,
+    /// `deleteSoftLineForward`.
+    DeleteSoftLineForward = 18,
+    /// `deleteEntireSoftLine`.
+    DeleteEntireSoftLine = 19,
+    /// `deleteHardLineBackward`.
+    DeleteHardLineBackward = 20,
+    /// `deleteHardLineForward`.
+    DeleteHardLineForward = 21,
+    /// `deleteByDrag`.
+    DeleteByDrag = 22,
+    /// `deleteByCut`.
+    DeleteByCut = 23,
+    /// `deleteContent`.
+    DeleteContent = 24,
+    /// `deleteContentBackward`.
+    DeleteContentBackward = 25,
+    /// `deleteContentForward`.
+    DeleteContentForward = 26,
+    /// `historyUndo`.
+    HistoryUndo = 27,
+    /// `historyRedo`.
+    HistoryRedo = 28,
+    /// `formatBold`.
+    FormatBold = 29,
+    /// `formatItalic`.
+    FormatItalic = 30,
+    /// `formatUnderline`.
+    FormatUnderline = 31,
+    /// `formatStrikeThrough`.
+    FormatStrikeThrough = 32,
+    /// `formatSuperscript`.
+    FormatSuperscript = 33,
+    /// `formatSubscript`.
+    FormatSubscript = 34,
+    /// `formatJustifyCenter`.
+    FormatJustifyCenter = 35,
+    /// `formatJustifyFull`.
+    FormatJustifyFull = 36,
+    /// `formatJustifyLeft`.
+    FormatJustifyLeft = 37,
+    /// `formatJustifyRight`.
+    FormatJustifyRight = 38,
+    /// `formatIndent`.
+    FormatIndent = 39,
+    /// `formatOutdent`.
+    FormatOutdent = 40,
+    /// `formatRemove`.
+    FormatRemove = 41,
+    /// `formatSetBlockTextDirection`.
+    FormatSetBlockTextDirection = 42,
+    /// `formatSetInlineTextDirection`.
+    FormatSetInlineTextDirection = 43,
+    /// `formatBackColor`.
+    FormatBackColor = 44,
+    /// `formatFontColor`.
+    FormatFontColor = 45,
+    /// `formatFontName`.
+    FormatFontName = 46,
+}
+
+/// One edit intent event.
+export struct InputEditIntentEvent {
+    /// Discriminator for this text event variant.
+    kind: "editIntent";
+    /// Shared event metadata.
+    metadata: InputEventMetadata;
+    /// Edit intent kind.
+    inputType: InputEditIntentType;
+    /// Text payload when the edit intent carries one direct string.
+    data: string | void;
+    /// Target text ranges in source order when the backend exposes them.
+    targetRanges: Slice<InputTextRange>;
+    /// Clipboard item descriptors when this edit intent originated from paste or yank.
+    clipboardItems: Slice<ClipboardItemDescriptor> | void;
+    /// Drag transfer metadata when this edit intent originated from a drop session.
+    drag: InputDragTransfer | void;
+    /// Whether this edit intent belongs to one active composition session.
+    isComposing: boolean;
+}
+
+/// Clipboard command kind aligned with web clipboard and editing events.
+export enum InputClipboardCommandType {
+    /// Copy the current selection.
+    Copy = 1,
+    /// Cut the current selection.
+    Cut = 2,
+    /// Paste from the clipboard.
+    Paste = 3,
+}
+
+/// One clipboard command event.
+export struct InputClipboardCommandEvent {
+    /// Discriminator for this text event variant.
+    kind: "clipboardCommand";
+    /// Shared event metadata.
+    metadata: InputEventMetadata;
+    /// Clipboard command kind.
+    command: InputClipboardCommandType;
+    /// Clipboard item descriptors when the command carries readable clipboard data.
+    clipboardItems: Slice<ClipboardItemDescriptor> | void;
+    /// Whether this command belongs to one active composition session.
+    isComposing: boolean;
 }
 
 /// Input text bindings.
@@ -255,4 +408,120 @@ declare namespace input {
         affinity: "any",
     })
     export function textTryReadComposition(handle: InputDeviceHandle): Result<InputCompositionEvent, PlatformError>;
+
+    /// Read one edit intent event.
+    ///
+    /// Read one pending edit intent for one opened text-capable input device.
+    /// Edit intents align with web `beforeinput` semantics for text insertion, deletion, formatting, paste, and drop operations.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where edit intents are unavailable.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.text`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.input.text.readEditIntent", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["input.text"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function textReadEditIntent(handle: InputDeviceHandle): Result<InputEditIntentEvent, PlatformError>;
+
+    /// Poll one edit intent event without blocking.
+    ///
+    /// Poll one pending edit intent event and return immediately when no event is queued.
+    /// Empty queue state is reported through ioWouldBlock.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where edit intents are unavailable.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.text`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.input.text.tryReadEditIntent", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["input.text"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
+    export function textTryReadEditIntent(handle: InputDeviceHandle): Result<InputEditIntentEvent, PlatformError>;
+
+    /// Read one clipboard command event.
+    ///
+    /// Read one pending clipboard or selection command for one opened text-capable input device.
+    /// This lane aligns with web `copy`, `cut`, `paste`, and selection command semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where clipboard command events are unavailable.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.text`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.input.text.readClipboardCommand", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["input.text"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function textReadClipboardCommand(
+        handle: InputDeviceHandle,
+    ): Result<InputClipboardCommandEvent, PlatformError>;
+
+    /// Poll one clipboard command event without blocking.
+    ///
+    /// Poll one pending clipboard command event and return immediately when no event is queued.
+    /// Empty queue state is reported through ioWouldBlock.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where clipboard command events are unavailable.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.text`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.input.text.tryReadClipboardCommand", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["input.text"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
+    export function textTryReadClipboardCommand(
+        handle: InputDeviceHandle,
+    ): Result<InputClipboardCommandEvent, PlatformError>;
 }

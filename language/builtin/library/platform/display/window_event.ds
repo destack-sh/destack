@@ -1,6 +1,8 @@
 import { Array } from "native";
 import type { PlatformError } from "../error/index.ds";
-import { OsPath } from "../fs/path.ds";
+import {
+    InputDragTransfer,
+} from "../input/drag.ds";
 import { DisplayHandle, WindowEventHandle, WindowHandle } from "../resource/index.ds";
 import {
     DisplayBackend,
@@ -192,38 +194,6 @@ export struct WindowAspectRatioPayload {
     previousAspectRatio: WindowAspectRatio | void;
     /// Aspect-ratio lock after this event.
     currentAspectRatio: WindowAspectRatio | void;
-}
-
-/// Window file-drop payload.
-export struct WindowDropFilePayload {
-    /// Dropped path payload.
-    path: OsPath | void;
-    /// Drop position in desktop coordinates when provided by the backend.
-    position: WindowPosition | void;
-}
-
-/// Window text-drop payload.
-export struct WindowDropTextPayload {
-    /// Dropped text content.
-    text: string;
-    /// Drop position in desktop coordinates when provided by the backend.
-    position: WindowPosition | void;
-}
-
-/// Window drop-hover payload.
-export struct WindowDropHoverPayload {
-    /// Hovered path payload.
-    path: OsPath | void;
-    /// Hover position in desktop coordinates when provided by the backend.
-    position: WindowPosition | void;
-}
-
-/// Window drop-hover-leave payload.
-export struct WindowDropHoverLeavePayload {
-    /// Last hovered path payload when available.
-    previousPath: OsPath | void;
-    /// Last hover position in desktop coordinates when provided by the backend.
-    position: WindowPosition | void;
 }
 
 /// Shared metadata for all window events.
@@ -474,68 +444,44 @@ export struct WindowAspectRatioChangedEvent {
     payload: WindowAspectRatioPayload;
 }
 
-/// Window drop-session-started event.
-export struct WindowDropStartedEvent {
+/// Window drag-entered event.
+export struct WindowDragEnteredEvent {
     /// Discriminator for this window event variant.
-    kind: "dropStarted";
+    kind: "dragEntered";
     /// Shared event metadata.
     metadata: WindowEventMetadata;
+    /// Drag-transfer payload.
+    payload: InputDragTransfer;
 }
 
-/// Window file-hovered event.
-export struct WindowFileHoveredEvent {
+/// Window drag-updated event.
+export struct WindowDragUpdatedEvent {
     /// Discriminator for this window event variant.
-    kind: "fileHovered";
+    kind: "dragUpdated";
     /// Shared event metadata.
     metadata: WindowEventMetadata;
-    /// Drop-hover payload.
-    payload: WindowDropHoverPayload;
+    /// Drag-transfer payload.
+    payload: InputDragTransfer;
 }
 
-/// Window drop-session-cancelled event.
-export struct WindowDropCancelledEvent {
+/// Window drag-exited event.
+export struct WindowDragExitedEvent {
     /// Discriminator for this window event variant.
-    kind: "dropCancelled";
+    kind: "dragExited";
     /// Shared event metadata.
     metadata: WindowEventMetadata;
+    /// Drag-transfer payload.
+    payload: InputDragTransfer;
 }
 
-/// Window drop-session-completed event.
-export struct WindowDropCompletedEvent {
+/// Window dropped event.
+export struct WindowDroppedEvent {
     /// Discriminator for this window event variant.
-    kind: "dropCompleted";
+    kind: "dropped";
     /// Shared event metadata.
     metadata: WindowEventMetadata;
-}
-
-/// Window file-hover-left event.
-export struct WindowFileHoverLeftEvent {
-    /// Discriminator for this window event variant.
-    kind: "fileHoverLeft";
-    /// Shared event metadata.
-    metadata: WindowEventMetadata;
-    /// Drop-hover-leave payload.
-    payload: WindowDropHoverLeavePayload;
-}
-
-/// Window file-dropped event.
-export struct WindowFileDroppedEvent {
-    /// Discriminator for this window event variant.
-    kind: "fileDropped";
-    /// Shared event metadata.
-    metadata: WindowEventMetadata;
-    /// File-drop payload.
-    payload: WindowDropFilePayload;
-}
-
-/// Window text-dropped event.
-export struct WindowTextDroppedEvent {
-    /// Discriminator for this window event variant.
-    kind: "textDropped";
-    /// Shared event metadata.
-    metadata: WindowEventMetadata;
-    /// Text-drop payload.
-    payload: WindowDropTextPayload;
+    /// Drag-transfer payload.
+    payload: InputDragTransfer;
 }
 
 /// Window event payload.
@@ -564,13 +510,10 @@ export newtype WindowEvent =
     | WindowModalChangedEvent
     | WindowMousePassthroughChangedEvent
     | WindowAspectRatioChangedEvent
-    | WindowDropStartedEvent
-    | WindowFileHoveredEvent
-    | WindowDropCancelledEvent
-    | WindowDropCompletedEvent
-    | WindowFileHoverLeftEvent
-    | WindowFileDroppedEvent
-    | WindowTextDroppedEvent;
+    | WindowDragEnteredEvent
+    | WindowDragUpdatedEvent
+    | WindowDragExitedEvent
+    | WindowDroppedEvent;
 
 /// Window-event kind filter mask.
 export newtype WindowEventKindMask = uint64;
@@ -623,20 +566,14 @@ export const WINDOW_EVENT_KIND_MODAL_CHANGED: WindowEventKindMask = WindowEventK
 export const WINDOW_EVENT_KIND_MOUSE_PASSTHROUGH_CHANGED: WindowEventKindMask = WindowEventKindMask(0x400000);
 /// Event kind bit for `aspectRatioChanged`.
 export const WINDOW_EVENT_KIND_ASPECT_RATIO_CHANGED: WindowEventKindMask = WindowEventKindMask(0x800000);
-/// Event kind bit for `dropStarted`.
-export const WINDOW_EVENT_KIND_DROP_STARTED: WindowEventKindMask = WindowEventKindMask(0x1000000);
-/// Event kind bit for `fileHovered`.
-export const WINDOW_EVENT_KIND_FILE_HOVERED: WindowEventKindMask = WindowEventKindMask(0x2000000);
-/// Event kind bit for `dropCancelled`.
-export const WINDOW_EVENT_KIND_DROP_CANCELLED: WindowEventKindMask = WindowEventKindMask(0x4000000);
-/// Event kind bit for `dropCompleted`.
-export const WINDOW_EVENT_KIND_DROP_COMPLETED: WindowEventKindMask = WindowEventKindMask(0x8000000);
-/// Event kind bit for `fileHoverLeft`.
-export const WINDOW_EVENT_KIND_FILE_HOVER_LEFT: WindowEventKindMask = WindowEventKindMask(0x10000000);
-/// Event kind bit for `fileDropped`.
-export const WINDOW_EVENT_KIND_FILE_DROPPED: WindowEventKindMask = WindowEventKindMask(0x20000000);
-/// Event kind bit for `textDropped`.
-export const WINDOW_EVENT_KIND_TEXT_DROPPED: WindowEventKindMask = WindowEventKindMask(0x40000000);
+/// Event kind bit for `dragEntered`.
+export const WINDOW_EVENT_KIND_DRAG_ENTERED: WindowEventKindMask = WindowEventKindMask(0x1000000);
+/// Event kind bit for `dragUpdated`.
+export const WINDOW_EVENT_KIND_DRAG_UPDATED: WindowEventKindMask = WindowEventKindMask(0x2000000);
+/// Event kind bit for `dragExited`.
+export const WINDOW_EVENT_KIND_DRAG_EXITED: WindowEventKindMask = WindowEventKindMask(0x4000000);
+/// Event kind bit for `dropped`.
+export const WINDOW_EVENT_KIND_DROPPED: WindowEventKindMask = WindowEventKindMask(0x8000000);
 
 /// Window-event stream filter options.
 export struct WindowEventFilter {

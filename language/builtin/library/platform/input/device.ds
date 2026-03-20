@@ -26,6 +26,12 @@ export struct InputDeviceDescriptor {
     instanceId: string;
     /// Stable backend hardware identifier when available.
     hardwareId: string;
+    /// Stable backend serial number when available.
+    serialNumber: string | void;
+    /// Stable backend location identifier when available.
+    locationId: string | void;
+    /// Stable gamepad-style guid when available.
+    guid: string | void;
     /// Host device name.
     name: string;
     /// Backend transport name when available.
@@ -161,6 +167,8 @@ export struct InputDeviceCapabilities {
     supportsTextInput: boolean;
     /// Whether composition events are supported.
     supportsComposition: boolean;
+    /// Whether edit-intent events are supported.
+    supportsEditIntents: boolean;
     /// Whether whole-device rumble is supported.
     supportsRumble: boolean;
     /// Whether trigger rumble is supported.
@@ -175,6 +183,14 @@ export struct InputDeviceCapabilities {
     supportsRawHid: boolean;
     /// Whether player-index assignment is supported.
     supportsPlayerIndex: boolean;
+    /// Whether pointer-event coalescing metadata is supported.
+    supportsPointerCoalescing: boolean;
+    /// Whether predicted pointer updates are supported.
+    supportsPointerPrediction: boolean;
+    /// Whether stylus hover distance is supported.
+    supportsPenHoverDistance: boolean;
+    /// Whether stylus azimuth and altitude angles are supported.
+    supportsPenOrientationAngles: boolean;
 }
 
 /// Input device bindings.

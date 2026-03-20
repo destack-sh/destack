@@ -1,7 +1,16 @@
-import { Array } from "native";
+import { Array, Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
-import { InputDeviceHandle, InputMonitorHandle } from "../resource/index.ds";
+import { InputDeviceHandle, InputMonitorHandle, WindowHandle } from "../resource/index.ds";
 import { InputDeviceKind } from "./device.ds";
+import { InputKeyLocation, InputModifierState } from "./keyboard.ds";
+import {
+    InputCoordinateSpace,
+    InputPointerMotionSample,
+    InputPenState,
+    InputPointerContactGeometry,
+    InputPointerType,
+    InputWheelDeltaMode,
+} from "./pointer.ds";
 
 /// Input event action.
 export enum InputEventAction {
@@ -43,10 +52,26 @@ export enum InputReadMode {
     Raw = 2,
 }
 
+/// Gamepad control kind.
+export enum InputGamepadControlKind {
+    /// One gamepad button.
+    Button = 1,
+    /// One gamepad axis.
+    Axis = 2,
+    /// One gamepad touch contact.
+    Touch = 3,
+}
+
 /// Key event payload.
 export struct InputKeyEventPayload {
     /// Key action.
     action: InputEventAction;
+    /// Normalized logical key value when available.
+    key: string | void;
+    /// Normalized physical code value when available.
+    code: string | void;
+    /// Physical key location.
+    location: InputKeyLocation;
     /// Backend-native key code.
     backendCode: uint32;
     /// Backend-native scan code when available.
@@ -54,81 +79,157 @@ export struct InputKeyEventPayload {
     /// Backend-native key value.
     backendValue: int64;
     /// Backend modifier bitset.
-    modifiers: uint32;
+    backendModifiers: uint32;
+    /// Normalized modifier and lock state.
+    modifierState: InputModifierState;
     /// Whether this key event is a repeat.
     repeat: boolean;
+    /// Whether this key event belongs to one active composition session.
+    isComposing: boolean;
 }
 
 /// Pointer motion event payload.
 export struct InputPointerMotionEventPayload {
-    /// Pointer x coordinate or delta.
-    x: float64;
-    /// Pointer y coordinate or delta.
-    y: float64;
-    /// Backend button bitset.
+    /// Stable pointer identifier.
+    pointerId: uint64;
+    /// Pointer device family.
+    pointerType: InputPointerType;
+    /// Whether this is the primary pointer for its type.
+    isPrimary: boolean;
+    /// Coordinate space for the reported position.
+    coordinateSpace: InputCoordinateSpace;
+    /// Absolute x coordinate when available.
+    positionX: float64;
+    /// Absolute y coordinate when available.
+    positionY: float64;
+    /// Relative x delta when available.
+    deltaX: float64;
+    /// Relative y delta when available.
+    deltaY: float64;
+    /// Canonical pressed-button bitset.
     buttons: uint32;
-    /// Backend modifier bitset.
-    modifiers: uint32;
+    /// Backend button bitset.
+    backendButtons: uint32;
+    /// Normalized modifier and lock state.
+    modifierState: InputModifierState;
+    /// Contact geometry when available.
+    contact: InputPointerContactGeometry | void;
+    /// Pen-specific state when available.
+    pen: InputPenState | void;
+    /// Coalesced motion samples represented by this update.
+    coalescedSamples: Slice<InputPointerMotionSample>;
+    /// Predicted motion samples when the backend exposes them.
+    predictedSamples: Slice<InputPointerMotionSample>;
 }
 
 /// Pointer button event payload.
 export struct InputPointerButtonEventPayload {
     /// Button action.
     action: InputEventAction;
+    /// Stable pointer identifier.
+    pointerId: uint64;
+    /// Pointer device family.
+    pointerType: InputPointerType;
+    /// Whether this is the primary pointer for its type.
+    isPrimary: boolean;
+    /// Canonical button index when available.
+    button: int16;
+    /// Canonical pressed-button bitset after this event.
+    buttons: uint32;
     /// Backend-native button code.
     backendCode: uint32;
     /// Backend-native button value.
     backendValue: int64;
     /// Pointer x coordinate.
-    x: float64;
+    positionX: float64;
     /// Pointer y coordinate.
-    y: float64;
-    /// Backend modifier bitset.
-    modifiers: uint32;
+    positionY: float64;
+    /// Coordinate space for the reported position.
+    coordinateSpace: InputCoordinateSpace;
+    /// Normalized modifier and lock state.
+    modifierState: InputModifierState;
+    /// Contact geometry when available.
+    contact: InputPointerContactGeometry | void;
+    /// Pen-specific state when available.
+    pen: InputPenState | void;
 }
 
 /// Scroll event payload.
 export struct InputScrollEventPayload {
+    /// Stable pointer identifier when available.
+    pointerId: uint64 | void;
+    /// Pointer device family when available.
+    pointerType: InputPointerType | void;
+    /// Scroll delta unit.
+    deltaMode: InputWheelDeltaMode;
     /// Horizontal wheel delta.
-    wheelX: float64;
+    deltaX: float64;
     /// Vertical wheel delta.
-    wheelY: float64;
+    deltaY: float64;
     /// Pointer x coordinate.
-    x: float64;
+    positionX: float64;
     /// Pointer y coordinate.
-    y: float64;
-    /// Backend modifier bitset.
-    modifiers: uint32;
+    positionY: float64;
+    /// Coordinate space for the reported position.
+    coordinateSpace: InputCoordinateSpace;
+    /// Canonical pressed-button bitset.
+    buttons: uint32;
+    /// Normalized modifier and lock state.
+    modifierState: InputModifierState;
 }
 
 /// Touch event payload.
 export struct InputTouchEventPayload {
     /// Touch action.
     action: InputEventAction;
-    /// Backend contact identifier.
-    contactId: uint32;
+    /// Stable pointer identifier for this contact.
+    pointerId: uint64;
+    /// Whether this is the primary touch contact.
+    isPrimary: boolean;
     /// Contact x coordinate.
-    x: float64;
+    positionX: float64;
     /// Contact y coordinate.
-    y: float64;
+    positionY: float64;
+    /// Coordinate space for the reported position.
+    coordinateSpace: InputCoordinateSpace;
     /// Contact pressure when available.
     pressure: float64;
+    /// Contact geometry when available.
+    contact: InputPointerContactGeometry | void;
+    /// Contact tilt around x axis in degrees when available.
+    tiltX: float64;
+    /// Contact tilt around y axis in degrees when available.
+    tiltY: float64;
+    /// Contact twist in degrees when available.
+    twist: float64;
 }
 
 /// Gamepad event payload.
 export struct InputGamepadEventPayload {
     /// Gamepad action.
     action: InputEventAction;
+    /// Control kind.
+    controlKind: InputGamepadControlKind;
+    /// Canonical control index when available.
+    controlIndex: uint32;
     /// Backend-native control code.
     backendCode: uint32;
     /// Backend-native control value.
     backendValue: int64;
+    /// Normalized control value.
+    value: float64;
+    /// Whether the control is pressed after this event when applicable.
+    pressed: boolean;
+    /// Whether the control is touched after this event when applicable.
+    touched: boolean;
 }
 
 /// Text event payload.
 export struct InputTextEventPayload {
     /// UTF-8 text payload.
     text: string;
+    /// Whether this text emission belongs to one active composition session.
+    isComposing: boolean;
 }
 
 /// Device event payload.
@@ -155,6 +256,8 @@ export struct InputSensorEventPayload {
     y: float64;
     /// Sensor z component when available.
     z: float64;
+    /// Sensor w component when available.
+    w: float64;
 }
 
 /// Composition event payload.
@@ -177,6 +280,8 @@ export struct InputEventMetadata {
     sequence: uint64;
     /// Stable source device identifier.
     deviceId: string;
+    /// Target window when this input event is routed to one concrete window.
+    targetWindow: WindowHandle | void;
 }
 
 /// Key input event.
@@ -300,6 +405,8 @@ export struct InputMonitorEventMetadata {
     sequence: uint64;
     /// Stable source device identifier.
     deviceId: string;
+    /// Stable source instance identifier when available.
+    instanceId: string | void;
     /// Device kind when available.
     deviceKind: InputDeviceKind;
     /// Whether the device is connected after this event.
@@ -468,7 +575,6 @@ declare namespace input {
     /// Read one pending input event from one opened device stream.
     /// Per-device streams report control and motion events for that device and exclude global device topology events.
     /// Backend framing packets are filtered from this semantic stream.
-    /// Queue pressure can report one device cancel packet through the typed payload.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
@@ -502,7 +608,6 @@ declare namespace input {
     /// Poll one pending input event from one opened device stream and return immediately when no event is queued.
     /// Empty queue state is reported through ioWouldBlock.
     /// Backend framing packets are filtered from this semantic stream.
-    /// Queue pressure can report one device cancel packet through the typed payload.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
@@ -536,7 +641,6 @@ declare namespace input {
     /// Read up to `maxEvents` events from one opened device stream in one call.
     /// Batch ordering matches backend delivery order and excludes global device topology events.
     /// Backend framing packets are filtered from this semantic stream.
-    /// Queue pressure can report one device cancel packet through the typed payload.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
@@ -569,7 +673,6 @@ declare namespace input {
     ///
     /// Toggle exclusive-grab mode for one input device when the host backend supports it.
     /// This is one device-wide exclusivity control and is distinct from pointer confinement or locking modes.
-    /// Grabs can prevent event delivery to other clients.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` where exclusive grab is not defined by host policy.
