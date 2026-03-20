@@ -5,8 +5,7 @@ use crate::host::core::{HostQueue, HostRuntimeRegistry};
 use crate::host::ios::{
     IosHostBindings, IosHostMediaCallbacks, destack_host_ios_media_delete,
     destack_host_ios_media_describe, destack_host_ios_media_import_path,
-    destack_host_ios_media_list, destack_host_ios_media_watch_close,
-    destack_host_ios_media_watch_open, destack_host_ios_register_bindings, unregister_ios_bindings,
+    destack_host_ios_media_list, destack_host_ios_register_bindings, unregister_ios_bindings,
 };
 use crate::host::{
     HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
@@ -14,8 +13,7 @@ use crate::host::{
 };
 use crate::platform::os::MediaAssetKind;
 use crate::platform::os::abi_generated::{
-    MediaAssetDescriptorValue, MediaAssetSummaryValue, MediaDimensionsValue, MediaPageValue,
-    MediaQueryValue, MediaWatchOptionsValue,
+    MediaAssetDescriptorValue, MediaPageValue, MediaQueryValue,
 };
 use crate::runtime::{NativeSlice, NativeStringRef};
 
@@ -56,7 +54,7 @@ unsafe extern "C" fn test_media_list_callback(
         output,
         output_written,
         &MediaPageValue {
-            assets: vec![test_media_asset_summary()],
+            assets: vec![test_media_asset_descriptor()],
             next_cursor: "next".to_string(),
             has_more: true,
         },
@@ -103,30 +101,6 @@ unsafe extern "C" fn test_media_delete_callback(
     HOST_STATUS_OK
 }
 
-unsafe extern "C" fn test_media_watch_open_callback(
-    _runtime_id: u64,
-    watch_id: NativeStringRef,
-    options: NativeSlice<u8>,
-) -> u32 {
-    let watch_id = unsafe { watch_id.as_str() }.unwrap();
-    assert_eq!(watch_id, "watch-1");
-    let options = unsafe { options.as_slice() }.unwrap();
-    let options = serde_json::from_slice::<MediaWatchOptionsValue>(options).unwrap();
-    assert_eq!(options, test_media_watch_options());
-
-    HOST_STATUS_OK
-}
-
-unsafe extern "C" fn test_media_watch_close_callback(
-    _runtime_id: u64,
-    watch_id: NativeStringRef,
-) -> u32 {
-    let watch_id = unsafe { watch_id.as_str() }.unwrap();
-    assert_eq!(watch_id, "watch-1");
-
-    HOST_STATUS_OK
-}
-
 #[test]
 fn test_media_callbacks_report_missing_runtime_registration() {
     let runtime_id = next_host_runtime_id().0;
@@ -169,8 +143,6 @@ fn test_media_callbacks_route_registered_handlers() {
                 describe: Some(test_media_describe_callback),
                 import_path: Some(test_media_import_path_callback),
                 delete: Some(test_media_delete_callback),
-                watch_open: Some(test_media_watch_open_callback),
-                watch_close: Some(test_media_watch_close_callback),
             },
             ..IosHostBindings::default()
         },
@@ -203,7 +175,7 @@ fn test_media_callbacks_route_registered_handlers() {
     assert_eq!(list_status, HOST_STATUS_OK);
     let page =
         serde_json::from_slice::<MediaPageValue>(&page_output[..page_written as usize]).unwrap();
-    assert_eq!(page.assets, vec![test_media_asset_summary()]);
+    assert_eq!(page.assets, vec![test_media_asset_descriptor()]);
     assert_eq!(page.next_cursor, "next");
     assert!(page.has_more);
 
@@ -261,23 +233,6 @@ fn test_media_callbacks_route_registered_handlers() {
     };
     assert_eq!(delete_status, HOST_STATUS_OK);
     assert_eq!(deleted_count, 2);
-
-    let options = serde_json::to_vec(&test_media_watch_options()).unwrap();
-    let watch_open_status = unsafe {
-        destack_host_ios_media_watch_open(
-            runtime_id,
-            NativeStringRef::from("watch-1"),
-            NativeSlice {
-                data: options.as_ptr() as *mut u8,
-                len: options.len() as u32,
-            },
-        )
-    };
-    assert_eq!(watch_open_status, HOST_STATUS_OK);
-
-    let watch_close_status =
-        unsafe { destack_host_ios_media_watch_close(runtime_id, NativeStringRef::from("watch-1")) };
-    assert_eq!(watch_close_status, HOST_STATUS_OK);
 }
 
 #[test]
@@ -316,16 +271,6 @@ fn empty_output() -> NativeSlice<u8> {
     }
 }
 
-fn test_media_watch_options() -> MediaWatchOptionsValue {
-    MediaWatchOptionsValue {
-        kinds: vec![MediaAssetKind::Image, MediaAssetKind::Video],
-        include_hidden: false,
-        include_added: true,
-        include_updated: true,
-        include_removed: true,
-    }
-}
-
 fn write_json_output<T: serde::Serialize>(
     output: NativeSlice<u8>,
     output_written: *mut u32,
@@ -356,24 +301,16 @@ fn write_bytes_output(output: NativeSlice<u8>, output_written: *mut u32, bytes: 
 
 fn test_media_asset_descriptor() -> MediaAssetDescriptorValue {
     MediaAssetDescriptorValue {
-        asset: test_media_asset_summary(),
-        dimensions: Some(MediaDimensionsValue {
-            width: 800,
-            height: 600,
-        }),
-        duration_ms: Some(0),
-    }
-}
-
-fn test_media_asset_summary() -> MediaAssetSummaryValue {
-    MediaAssetSummaryValue {
         id: "asset-1".to_string(),
         uri: "content://example/asset-1".to_string(),
         filename: "example.jpg".to_string(),
-        content_type: Some("image/jpeg".to_string()),
+        mime_type: "image/jpeg".to_string(),
         kind: MediaAssetKind::Image,
-        size_bytes: Some(123),
-        created_unix_ns: Some(456),
-        modified_unix_ns: Some(789),
+        width: 800,
+        height: 600,
+        duration_ms: 0,
+        size_bytes: 123,
+        created_unix_ns: 456,
+        modified_unix_ns: 789,
     }
 }

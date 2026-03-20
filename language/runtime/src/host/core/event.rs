@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::platform::os::abi_generated::{
-    BackgroundEventValue, LocationSampleValue, MediaAssetSummaryValue, NotificationEventValue,
+    BackgroundEventValue, LocationSampleValue, NotificationEventValue,
 };
 
 /// Host lifecycle state.
@@ -69,8 +69,6 @@ pub enum HostEventKind {
     Notification,
     /// Location watch sample events.
     Location,
-    /// Media watch add or update or remove events.
-    Media,
     /// Permission result events.
     Permission,
     /// Interruption events.
@@ -98,8 +96,6 @@ pub enum HostEvent {
     Notification(Box<HostNotificationEvent>),
     /// Host location watch sample event.
     Location(Box<HostLocationEvent>),
-    /// Host media watch asset event.
-    Media(Box<HostMediaEvent>),
     /// Host permission flow result event.
     Permission(HostPermissionEvent),
     /// Host interruption event.
@@ -123,7 +119,6 @@ impl HostEvent {
             HostEvent::Background(_) => HostEventKind::Background,
             HostEvent::Notification(_) => HostEventKind::Notification,
             HostEvent::Location(_) => HostEventKind::Location,
-            HostEvent::Media(_) => HostEventKind::Media,
             HostEvent::Permission(_) => HostEventKind::Permission,
             HostEvent::Interruption(_) => HostEventKind::Interruption,
             HostEvent::MemoryPressure(_) => HostEventKind::MemoryPressure,
@@ -178,30 +173,6 @@ pub struct HostLocationEvent {
 }
 
 impl Eq for HostLocationEvent {}
-
-/// Host media watch event kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum HostMediaEventKind {
-    /// One media asset was added.
-    Added,
-    /// One media asset was updated.
-    Updated,
-    /// One media asset was removed.
-    Removed,
-}
-
-/// Host media watch event payload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct HostMediaEvent {
-    /// Runtime-scoped watch identifier.
-    pub watch_id: String,
-    /// Host media watch event kind.
-    pub kind: HostMediaEventKind,
-    /// Media asset summary delivered by the host.
-    pub asset: MediaAssetSummaryValue,
-}
-
-impl Eq for HostMediaEvent {}
 
 /// Host intent ingress variants.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

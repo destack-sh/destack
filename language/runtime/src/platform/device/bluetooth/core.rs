@@ -4,9 +4,9 @@ use parking_lot::Mutex;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::device::{
-    BluetoothAdapterChangedEventValue, BluetoothAdapterDescriptorValue,
-    BluetoothAdapterDetachedEventValue, BluetoothAdapterEvent, BluetoothAdapterEventMetadataValue,
-    BluetoothAdapterEventValue, BluetoothAdapterInstanceEventValue, BluetoothDataFilterValue,
+    BluetoothAdapterAttachedEventValue, BluetoothAdapterChangedEventValue,
+    BluetoothAdapterDescriptorValue, BluetoothAdapterDetachedEventValue, BluetoothAdapterEvent,
+    BluetoothAdapterEventMetadataValue, BluetoothAdapterEventValue, BluetoothDataFilterValue,
     BluetoothDeviceDescriptorValue, BluetoothGattValueEvent, BluetoothGattValueEventValue,
     BluetoothPairState, BluetoothScanDiscoveredEventValue, BluetoothScanEvent,
     BluetoothScanEventMetadataValue, BluetoothScanEventValue, BluetoothScanFilterValue,
@@ -151,7 +151,7 @@ pub(super) fn adapter_attached_event(
     state: &Mutex<BluetoothEventState>,
     adapter: BluetoothAdapterDescriptorValue,
 ) -> BluetoothAdapterEventValue {
-    BluetoothAdapterEventValue::BluetoothAdapterInstanceEvent(BluetoothAdapterInstanceEventValue {
+    BluetoothAdapterEventValue::BluetoothAdapterAttachedEvent(BluetoothAdapterAttachedEventValue {
         kind: String::from("attached"),
         metadata: next_adapter_metadata(state, adapter),
     })

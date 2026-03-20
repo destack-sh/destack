@@ -68,10 +68,9 @@ pub use core::{
     HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
     HOST_STATUS_PERMISSION_DENIED, HostBackgroundEvent, HostEvent, HostEventKind, HostIntentEvent,
     HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState,
-    HostLocationEvent, HostMediaEvent, HostMediaEventKind, HostMemoryPressureEvent,
-    HostMemoryPressureLevel, HostNotificationEvent, HostPermissionEvent, HostPollOutcome,
-    HostPowerMode, HostPowerModeEvent, HostSession, HostThermalEvent, HostThermalState,
-    HostWallClockEvent,
+    HostLocationEvent, HostMemoryPressureEvent, HostMemoryPressureLevel, HostNotificationEvent,
+    HostPermissionEvent, HostPollOutcome, HostPowerMode, HostPowerModeEvent, HostSession,
+    HostThermalEvent, HostThermalState, HostWallClockEvent,
 };
 pub use destack_workspace::Platform;
 #[cfg(windows)]

@@ -8,13 +8,12 @@ pub(crate) use std::time::Duration;
 pub(crate) use crate::diagnostic::{RuntimeError, RuntimeResult};
 pub(crate) use crate::host::core::{HostEventObserver, HostQueue, HostRuntimeRegistry};
 pub(crate) use crate::host::operation::{
-    background as host_background, location as host_location, media as host_media,
-    notification as host_notification, permission as host_permission,
+    background as host_background, location as host_location, notification as host_notification,
+    permission as host_permission,
 };
 pub(crate) use crate::host::{
     HostBackgroundEvent, HostEvent, HostIntentEvent, HostIntentPayload, HostLifecycleState,
-    HostLocationEvent, HostMediaEvent, HostMediaEventKind, HostMemoryPressureLevel,
-    HostNotificationEvent, HostPowerMode,
+    HostLocationEvent, HostMemoryPressureLevel, HostNotificationEvent, HostPowerMode,
 };
 pub(crate) use crate::platform::core::{
     invalid_argument, io_would_block, monotonic_now_ns, not_supported,
@@ -23,10 +22,9 @@ pub(crate) use crate::platform::diagnostic::PlatformErrorCode;
 pub(crate) use crate::platform::os::abi_generated::{
     BackgroundEventOpenOptionsValue, BackgroundEventValue, BackgroundStatusValue,
     BackgroundTaskDescriptorValue, BackgroundTaskOptionsValue, BackgroundTaskResultValue,
-    LocationSampleValue, LocationWatchOptionsValue, MediaAddedEventValue, MediaAssetSummaryValue,
-    MediaEventMetadata, MediaEventValue, MediaRemovedEventValue, MediaUpdatedEventValue,
-    MediaWatchOptionsValue, NotificationCategoryValue, NotificationEventOpenOptionsValue,
-    NotificationEventValue, NotificationRequestValue, NotificationScheduledDescriptorValue,
+    LocationSampleValue, LocationWatchOptionsValue, NotificationCategoryValue,
+    NotificationEventOpenOptionsValue, NotificationEventValue, NotificationRequestValue,
+    NotificationScheduledDescriptorValue,
 };
 pub(crate) use crate::platform::os::{
     IntentOpenOptions, LifecycleBackgroundEventValue, LifecycleEventMetadata, LifecycleEventValue,

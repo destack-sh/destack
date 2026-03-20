@@ -13,7 +13,7 @@ mod state;
 mod tests;
 pub mod vm;
 
-pub use crate::platform::resource::{ListenerHandle, SocketHandle};
+pub(crate) use crate::platform::resource::SocketHandle;
 pub(crate) use abi_generated::*;
 pub(crate) use bindings_generated::*;
 pub(crate) use state::*;

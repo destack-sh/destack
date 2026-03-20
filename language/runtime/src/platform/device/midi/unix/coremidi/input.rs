@@ -50,7 +50,7 @@ pub(crate) fn midi_input_port_list(
     let service = binding
         .agent()
         .platform_state
-        .midi
+        .device
         .core_midi_service("destack.device.midi.input.port.list")?;
 
     Ok(filtered_descriptors(
@@ -74,7 +74,7 @@ pub(crate) fn midi_input_port_open(
     let service = binding
         .agent()
         .platform_state
-        .midi
+        .device
         .core_midi_service("destack.device.midi.input.port.open")?;
 
     let (endpoint, descriptor) = resolve_endpoint(
@@ -326,7 +326,7 @@ pub(crate) fn midi_input_virtual_create(
     let service = binding
         .agent()
         .platform_state
-        .midi
+        .device
         .core_midi_service("destack.device.midi.input.virtual.create")?;
 
     validate_record_shape(

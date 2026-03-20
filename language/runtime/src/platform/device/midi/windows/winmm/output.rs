@@ -161,7 +161,7 @@ pub(crate) fn midi_output_port_list(
     let service = binding
         .agent()
         .platform_state
-        .midi
+        .device
         .winmm_service("destack.device.midi.output.port.list")?;
     service.refresh_topology("destack.device.midi.output.port.list")?;
 
@@ -182,7 +182,7 @@ pub(crate) fn midi_output_port_open(
     let service = binding
         .agent()
         .platform_state
-        .midi
+        .device
         .winmm_service("destack.device.midi.output.port.open")?;
     service.refresh_topology("destack.device.midi.output.port.open")?;
 

@@ -650,7 +650,7 @@ pub(crate) fn harness_display_mode(
         width,
         height,
         refresh_milli_hz,
-        format: 0,
+        format: display::DisplayPixelFormat(0),
         bit_depth,
     };
 

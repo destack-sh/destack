@@ -170,7 +170,7 @@ pub(crate) fn midi_event_open(
     let description = binding
         .agent()
         .platform_state
-        .midi
+        .device
         .describe_android_backend(binding, "destack.device.midi.event.open")?;
     let has_native_event_feed =
         description.capability_flags.0 & MIDI_BACKEND_CAP_NATIVE_EVENT_FEED.0 != 0;

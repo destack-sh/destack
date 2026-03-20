@@ -157,15 +157,11 @@ pub(crate) fn test_display_window_surface_open_mutate_and_observe_roundtrip() {
 
         let event_stream = context
             .destack_display_window_event_open(default_window_event_open_options(&context))?;
-        context.destack_display_window_request_refresh(window)?;
 
         let event = context.destack_display_window_event_read(event_stream, 100_000_000)?;
         assert!(matches!(
             event,
-            HarnessValue::Native(display_platform::WindowEvent::WindowRefreshRequestedEvent(
-                _
-            )) | HarnessValue::Native(display_platform::WindowEvent::WindowCreatedEvent(_))
-                | HarnessValue::Vm(display_platform::WindowEventVm::WindowRefreshRequestedEvent(_))
+            HarnessValue::Native(display_platform::WindowEvent::WindowCreatedEvent(_))
                 | HarnessValue::Vm(display_platform::WindowEventVm::WindowCreatedEvent(_))
         ));
 

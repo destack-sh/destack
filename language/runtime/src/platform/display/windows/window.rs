@@ -19,3 +19,7 @@ pub(crate) use super::backend::{
     destack_display_window_set_transient_for, destack_display_window_set_visibility,
     destack_display_window_state,
 };
+pub(crate) use crate::platform::display::unsupported::{
+    destack_display_window_content_rect, destack_display_window_framebuffer_size,
+    destack_display_window_invalidate, destack_display_window_render_state,
+};

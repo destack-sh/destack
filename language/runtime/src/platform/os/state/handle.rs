@@ -107,19 +107,6 @@ pub(super) fn resolve_location_stream(
         .ok_or_else(|| invalid_handle("unknown location watch stream handle"))
 }
 
-/// Resolve one media watch handle into one runtime-owned stream.
-pub(super) fn resolve_media_stream(
-    binding: &BindingCallContext,
-    handle: resource::MediaWatchHandle,
-) -> RuntimeResult<Arc<MediaWatchStream>> {
-    let watch_id = resolve_watch_id(binding, handle.0, "unknown media watch stream handle")?;
-    let runtime = os_state(binding)?;
-
-    runtime
-        .media_watch(watch_id.as_str())
-        .ok_or_else(|| invalid_handle("unknown media watch stream handle"))
-}
-
 /// Build one invalid-handle runtime error.
 pub(crate) fn invalid_handle(detail: &'static str) -> Box<RuntimeError> {
     invalid_argument("handle", detail)

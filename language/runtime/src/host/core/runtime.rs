@@ -369,18 +369,6 @@ mod tests {
                 HostRequest::OsDocumentPick { .. } => HostRequestOutcome::immediate(
                     HostRequestResult::DocumentDescriptors(Vec::new()),
                 ),
-                HostRequest::OsDocumentImport { .. } => HostRequestOutcome::immediate(
-                    HostRequestResult::DocumentDescriptors(Vec::new()),
-                ),
-                HostRequest::OsDocumentAccessPersist { .. } => HostRequestOutcome::immediate(
-                    HostRequestResult::DocumentAccessGrants(Vec::new()),
-                ),
-                HostRequest::OsDocumentAccessList => HostRequestOutcome::immediate(
-                    HostRequestResult::DocumentAccessGrants(Vec::new()),
-                ),
-                HostRequest::OsDocumentAccessRevoke { .. } => {
-                    HostRequestOutcome::immediate(HostRequestResult::U32(0))
-                }
                 HostRequest::OsPermissionRequest { .. } => HostRequestOutcome::immediate(
                     HostRequestResult::PermissionState(PermissionState::Granted),
                 ),
@@ -496,10 +484,11 @@ mod tests {
         let outcome = host
             .submit_request(HostRequest::OsDocumentPick {
                 options: DocumentPickOptionsValue {
-                    content_types: Vec::new(),
+                    mime_types: Vec::new(),
                     extensions: Vec::new(),
                     multiple: false,
                     allow_directories: false,
+                    copy_to_sandbox: false,
                 },
             })
             .expect("document picker request should remain declaration-free");

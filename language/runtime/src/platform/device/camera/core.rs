@@ -11,22 +11,22 @@ use std::time::Duration;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 #[cfg(any(target_os = "android", target_os = "linux"))]
 use crate::platform::device::CameraPhoto;
-#[cfg(any(target_os = "android", target_os = "macos", windows))]
 use crate::platform::device::{
-    CameraAudioCodec, CameraRecording, CameraRecordingContainer, CameraVideoCodec,
-};
-#[cfg(any(target_os = "linux", target_os = "macos", windows))]
-use crate::platform::device::{CameraColorSpace, CameraDynamicRange};
-use crate::platform::device::{
-    CameraControlCapabilitiesValue, CameraDetachedEvent, CameraDeviceDescriptor,
-    CameraDeviceDescriptorValue, CameraFloatControlRange, CameraFrame, CameraFrameValue,
-    CameraInstanceEvent, CameraPhotoCapabilities, CameraPhotoFlashMode, CameraPhotoOptions,
+    CameraAttachedEvent, CameraControlCapabilitiesValue, CameraDetachedEvent,
+    CameraDeviceDescriptor, CameraDeviceDescriptorValue, CameraFloatControlRange, CameraFrame,
+    CameraFrameValue, CameraPhotoCapabilities, CameraPhotoFlashMode, CameraPhotoOptions,
     CameraPhotoSettings, CameraPhotoState, CameraRecordingCapabilities,
     CameraRecordingCapabilitiesValue, CameraRecordingOptions, CameraRecordingOptionsValue,
     CameraRecordingState, CameraRedEyeReduction, CameraStreamCapability,
     CameraStreamCapabilityValue, CameraStreamConfigValue, CameraWatchEvent,
     CameraWatchEventMetadata,
 };
+#[cfg(any(target_os = "android", target_os = "macos", windows))]
+use crate::platform::device::{
+    CameraAudioCodec, CameraRecording, CameraRecordingContainer, CameraVideoCodec,
+};
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
+use crate::platform::device::{CameraColorSpace, CameraDynamicRange};
 #[cfg(any(
     target_os = "android",
     target_os = "linux",
@@ -622,7 +622,7 @@ pub(super) fn attached_watch_event(
     state: &Mutex<CameraWatchEventState>,
     descriptor: CameraDeviceDescriptorValue,
 ) -> CameraWatchEvent {
-    CameraWatchEvent::CameraInstanceEvent(CameraInstanceEvent {
+    CameraWatchEvent::CameraAttachedEvent(CameraAttachedEvent {
         kind: binding.store_string("attached"),
         metadata: next_watch_metadata(binding, state, descriptor),
     })

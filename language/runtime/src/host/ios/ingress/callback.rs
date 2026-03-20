@@ -6,13 +6,11 @@ use crate::diagnostic::RuntimeResult;
 use crate::host::core::{HostQueue, HostRuntimeId, HostRuntimeRegistry};
 use crate::host::{
     HostBackgroundEvent, HostEvent, HostIntentEvent, HostIntentPayload, HostInterruptionEvent,
-    HostLifecycleEvent, HostLifecycleState, HostLocationEvent, HostMediaEvent, HostMediaEventKind,
-    HostMemoryPressureEvent, HostMemoryPressureLevel, HostNotificationEvent, HostPermissionEvent,
-    HostPowerMode, HostPowerModeEvent, HostThermalEvent, HostThermalState, HostWallClockEvent,
+    HostLifecycleEvent, HostLifecycleState, HostLocationEvent, HostMemoryPressureEvent,
+    HostMemoryPressureLevel, HostNotificationEvent, HostPermissionEvent, HostPowerMode,
+    HostPowerModeEvent, HostThermalEvent, HostThermalState, HostWallClockEvent,
 };
-use crate::platform::os::{
-    BackgroundEventValue, LocationSampleValue, MediaEventValue, NotificationEventValue,
-};
+use crate::platform::os::{BackgroundEventValue, LocationSampleValue, NotificationEventValue};
 /// iOS application lifecycle transitions from native callbacks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum IosApplicationLifecycle {
@@ -215,19 +213,6 @@ pub(crate) fn ios_notify_location_sample(
     Ok(())
 }
 
-/// Submit one iOS media callback.
-pub(crate) fn ios_notify_media_event(
-    runtime_id: u64,
-    watch_id: &str,
-    event: MediaEventValue,
-) -> RuntimeResult<()> {
-    let bridge = ios_host_bridge(runtime_id)?;
-    let event = host_media_event(watch_id, event);
-    bridge.enqueue(HostEvent::Media(Box::new(event)));
-
-    Ok(())
-}
-
 /// Submit one iOS memory pressure callback.
 pub(crate) fn ios_notify_memory_pressure_changed(
     runtime_id: u64,
@@ -275,27 +260,6 @@ pub(crate) fn ios_notify_wake(runtime_id: u64) -> RuntimeResult<()> {
     bridge.poll_wake_handle().wake()?;
 
     Ok(())
-}
-
-/// Convert one media event payload into one host media event.
-fn host_media_event(watch_id: &str, event: MediaEventValue) -> HostMediaEvent {
-    match event {
-        MediaEventValue::MediaAddedEvent(value) => HostMediaEvent {
-            watch_id: watch_id.to_string(),
-            kind: HostMediaEventKind::Added,
-            asset: value.asset,
-        },
-        MediaEventValue::MediaUpdatedEvent(value) => HostMediaEvent {
-            watch_id: watch_id.to_string(),
-            kind: HostMediaEventKind::Updated,
-            asset: value.asset,
-        },
-        MediaEventValue::MediaRemovedEvent(value) => HostMediaEvent {
-            watch_id: watch_id.to_string(),
-            kind: HostMediaEventKind::Removed,
-            asset: value.asset,
-        },
-    }
 }
 
 /// Map one iOS application lifecycle transition to host lifecycle state.

@@ -106,10 +106,6 @@ pub(crate) fn request_requirements(
         | HostRequest::OsIntentShareText { .. }
         | HostRequest::OsIntentSharePaths { .. }
         | HostRequest::OsDocumentPick { .. }
-        | HostRequest::OsDocumentImport { .. }
-        | HostRequest::OsDocumentAccessPersist { .. }
-        | HostRequest::OsDocumentAccessList
-        | HostRequest::OsDocumentAccessRevoke { .. }
         | HostRequest::OsPermissionOpenSettings => Vec::new(),
         HostRequest::OsLocationServicesEnabled
         | HostRequest::OsLocationLastKnown
@@ -119,10 +115,7 @@ pub(crate) fn request_requirements(
                 RuntimeAppPermission::Location,
             )]
         }
-        HostRequest::OsMediaList { .. }
-        | HostRequest::OsMediaDescribe { .. }
-        | HostRequest::OsMediaWatchOpen { .. }
-        | HostRequest::OsMediaWatchClose { .. } => {
+        HostRequest::OsMediaList { .. } | HostRequest::OsMediaRead { .. } => {
             vec![HostRequestRequirement::Permission(
                 RuntimeAppPermission::MediaRead,
             )]

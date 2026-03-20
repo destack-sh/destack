@@ -10,19 +10,189 @@ use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::display::{
-    DisplayAddedPayload, DisplayBackendCapabilityFlags, DisplayColorState, DisplayDescriptor,
+    DisplayAddedPayload, DisplayBackendCapabilityFlags, DisplayBeginFrameEvent,
+    DisplayBeginFrameOpenOptions, DisplayColorState, DisplayDescriptor,
     DisplayDescriptorChangedPayload, DisplayGammaRamp, DisplayHdrMode, DisplayMode,
     DisplayModeChangedPayload, DisplayMonitorEvent, DisplayMonitorEventOpenOptions,
     DisplayMonitorListRequest, DisplayMonitorOpenOptions, DisplayOrientation,
     DisplayPrimaryPayload, DisplayRemovedPayload, WindowAspectRatio, WindowAttentionLevel,
     WindowChromeKind, WindowCursorIcon, WindowCursorMode, WindowDescriptor, WindowDisplayPayload,
-    WindowEvent, WindowEventOpenOptions, WindowFocusPayload, WindowIconSet, WindowLogicalSize,
-    WindowModeOptions, WindowModePayload, WindowOcclusionPayload, WindowOptions,
-    WindowPhysicalSize, WindowPosition, WindowPositionPayload, WindowResizeEdge,
+    WindowEvent, WindowEventOpenOptions, WindowFocusPayload, WindowIconSet, WindowLogicalRect,
+    WindowLogicalSize, WindowModeOptions, WindowModePayload, WindowOcclusionPayload, WindowOptions,
+    WindowPhysicalSize, WindowPosition, WindowPositionPayload, WindowRenderState, WindowResizeEdge,
     WindowScaleFactorPayload, WindowSizeConstraints, WindowSizePayload, WindowState, WindowTheme,
     WindowThemePayload, WindowVisibility, WindowVisibilityPayload,
 };
 use crate::platform::resource;
+
+/// Close one begin-frame stream.
+pub(crate) unsafe fn destack_display_begin_frame_close(
+    _binding: &BindingCallContext,
+    handle: resource::DisplayBeginFrameHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.frame.beginClose",
+    ))
+    .boxed())
+}
+
+/// Open one begin-frame stream.
+pub(crate) unsafe fn destack_display_begin_frame_open(
+    _binding: &BindingCallContext,
+    out: *mut resource::DisplayBeginFrameHandle,
+    options: DisplayBeginFrameOpenOptions,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    let _ = options;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.frame.beginOpen",
+    ))
+    .boxed())
+}
+
+/// Read one begin-frame event.
+pub(crate) unsafe fn destack_display_begin_frame_read(
+    _binding: &BindingCallContext,
+    out: *mut DisplayBeginFrameEvent,
+    handle: resource::DisplayBeginFrameHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    let _ = (handle, timeoutns);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.frame.beginRead",
+    ))
+    .boxed())
+}
+
+/// Read one batch of begin-frame events.
+pub(crate) unsafe fn destack_display_begin_frame_read_batch(
+    _binding: &BindingCallContext,
+    out: *mut NativeArray<DisplayBeginFrameEvent>,
+    handle: resource::DisplayBeginFrameHandle,
+    maxevents: u32,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    let _ = (handle, maxevents, timeoutns);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.frame.beginReadBatch",
+    ))
+    .boxed())
+}
+
+/// Poll one begin-frame event without blocking.
+pub(crate) unsafe fn destack_display_begin_frame_try_read(
+    _binding: &BindingCallContext,
+    out: *mut DisplayBeginFrameEvent,
+    handle: resource::DisplayBeginFrameHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    let _ = handle;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.frame.beginTryRead",
+    ))
+    .boxed())
+}
+
+/// Poll one batch of begin-frame events without blocking.
+pub(crate) unsafe fn destack_display_begin_frame_try_read_batch(
+    _binding: &BindingCallContext,
+    out: *mut NativeArray<DisplayBeginFrameEvent>,
+    handle: resource::DisplayBeginFrameHandle,
+    maxevents: u32,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    let _ = (handle, maxevents);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.frame.beginTryReadBatch",
+    ))
+    .boxed())
+}
+
+/// Read one logical content rectangle.
+pub(crate) unsafe fn destack_display_window_content_rect(
+    _binding: &BindingCallContext,
+    out: *mut WindowLogicalRect,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    let _ = window;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.contentRect",
+    ))
+    .boxed())
+}
+
+/// Read one drawable framebuffer size.
+pub(crate) unsafe fn destack_display_window_framebuffer_size(
+    _binding: &BindingCallContext,
+    out: *mut WindowPhysicalSize,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    let _ = window;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.framebufferSize",
+    ))
+    .boxed())
+}
+
+/// Invalidate one window and schedule another frame.
+pub(crate) unsafe fn destack_display_window_invalidate(
+    binding: &BindingCallContext,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    unsafe { destack_display_window_request_refresh(binding, window) }
+}
+
+/// Read one current render state.
+pub(crate) unsafe fn destack_display_window_render_state(
+    _binding: &BindingCallContext,
+    out: *mut WindowRenderState,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    let _ = window;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.renderState",
+    ))
+    .boxed())
+}
 
 /// Close one display endpoint.
 ///

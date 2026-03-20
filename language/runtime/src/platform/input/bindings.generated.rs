@@ -10,9 +10,9 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
-    InputAxisMetadata, InputAxisMetadataVm, InputButtonMetadata, InputButtonMetadataVm,
-    InputCapabilityMetadataFidelity, InputCapabilityMetadataOrigin, InputCompositionEvent,
-    InputCompositionEventPayload, InputCompositionEventPayloadValue,
+    ClipboardBinaryFormat, InputAxisMetadata, InputAxisMetadataVm, InputButtonMetadata,
+    InputButtonMetadataVm, InputCapabilityMetadataFidelity, InputCapabilityMetadataOrigin,
+    InputCompositionEvent, InputCompositionEventPayload, InputCompositionEventPayloadValue,
     InputCompositionEventPayloadVm, InputCompositionEventValue, InputCompositionEventVm,
     InputDeviceCapabilities, InputDeviceCapabilitiesValue, InputDeviceCapabilitiesVm,
     InputDeviceCapabilityKind, InputDeviceDescriptor, InputDeviceDescriptorValue,
@@ -253,6 +253,141 @@ fn decode_array<T>(
     expected: &'static str,
 ) -> RuntimeResult<VmArray<T>> {
     VmArray::<T>::from_value(context, value, name, expected)
+}
+
+/// Encode the result for destack.input.clipboard.clear.
+#[inline]
+fn encode_destack_input_clipboard_clear_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Encode the result for destack.input.clipboard.hasText.
+#[inline]
+fn encode_destack_input_clipboard_has_text_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<bool>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| Ok(vm::Value::bool(value)))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.input.clipboard.readBytes.
+#[inline]
+fn decode_destack_input_clipboard_read_bytes_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(ClipboardBinaryFormat,)> {
+    let format_value = arg_value(args, 0, "format", "ClipboardBinaryFormat")?;
+    let format_raw = decode_int32(format_value, "format_raw", "ClipboardBinaryFormat")?;
+    let format = match format_raw {
+        1i32 => ClipboardBinaryFormat::TextUtf8,
+        2i32 => ClipboardBinaryFormat::Html,
+        3i32 => ClipboardBinaryFormat::Binary,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "format",
+                "unknown ClipboardBinaryFormat value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((format,))
+}
+
+/// Encode the result for destack.input.clipboard.readBytes.
+#[inline]
+fn encode_destack_input_clipboard_read_bytes_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
+}
+
+/// Encode the result for destack.input.clipboard.readText.
+#[inline]
+fn encode_destack_input_clipboard_read_text_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<vm::StringHandle>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| Ok(value.value()))
+        .and_then(|value| value)
+}
+
+/// Encode the result for destack.input.clipboard.sequence.
+#[inline]
+fn encode_destack_input_clipboard_sequence_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<u64>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| Ok(vm::Value::uint(value, 64)))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.input.clipboard.writeBytes.
+#[inline]
+fn decode_destack_input_clipboard_write_bytes_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(ClipboardBinaryFormat, VmSlice<u8>)> {
+    let format_value = arg_value(args, 0, "format", "ClipboardBinaryFormat")?;
+    let format_raw = decode_int32(format_value, "format_raw", "ClipboardBinaryFormat")?;
+    let format = match format_raw {
+        1i32 => ClipboardBinaryFormat::TextUtf8,
+        2i32 => ClipboardBinaryFormat::Html,
+        3i32 => ClipboardBinaryFormat::Binary,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "format",
+                "unknown ClipboardBinaryFormat value",
+            ))
+            .boxed());
+        }
+    };
+    let argument_bytes_value = arg_value(args, 1, "argument_bytes", "Slice<uint8>")?;
+    let argument_bytes = decode_slice::<u8>(
+        context,
+        argument_bytes_value,
+        "argument_bytes",
+        "Slice<uint8>",
+    )?;
+    Ok((format, argument_bytes))
+}
+
+/// Encode the result for destack.input.clipboard.writeBytes.
+#[inline]
+fn encode_destack_input_clipboard_write_bytes_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.input.clipboard.writeText.
+#[inline]
+fn decode_destack_input_clipboard_write_text_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle,)> {
+    let text_value = arg_value(args, 0, "text", "string")?;
+    let text = decode_string(text_value, "text", "string")?;
+    Ok((text,))
+}
+
+/// Encode the result for destack.input.clipboard.writeText.
+#[inline]
+fn encode_destack_input_clipboard_write_text_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.input.device.capabilities.
@@ -2961,6 +3096,34 @@ fn encode_destack_input_touch_state_result(
         .and_then(|value| value)
 }
 
+/// Replay payload for destack.input.clipboard.hasText.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputClipboardHasTextReplayRecord {
+    /// Replay result payload.
+    pub result: Result<bool, TraceError>,
+}
+
+/// Replay payload for destack.input.clipboard.readBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputClipboardReadBytesReplayRecord {
+    /// Replay result payload.
+    pub result: Result<Vec<u8>, TraceError>,
+}
+
+/// Replay payload for destack.input.clipboard.readText.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputClipboardReadTextReplayRecord {
+    /// Replay result payload.
+    pub result: Result<String, TraceError>,
+}
+
+/// Replay payload for destack.input.clipboard.sequence.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct InputClipboardSequenceReplayRecord {
+    /// Replay result payload.
+    pub result: Result<u64, TraceError>,
+}
+
 /// Replay payload for destack.input.device.capabilities.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct InputDeviceCapabilitiesReplayRecord {
@@ -3262,6 +3425,174 @@ struct InputTouchStateReplayRecord {
     pub result: Result<InputtouchstateReplayRecord, TraceError>,
 }
 
+/// Binding descriptor for destack.input.clipboard.clear.
+pub(crate) const INPUT_CLIPBOARD_CLEAR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.input.clipboard.clear",
+        "export function clipboardClear(): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::BindingCall,
+        &["input.clipboard.write"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+        BindingAffinity::Any,
+    )
+    .with_namespace("input")
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.input.clipboard.hasText.
+pub(crate) const INPUT_CLIPBOARD_HAS_TEXT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.input.clipboard.hasText",
+        "export function clipboardHasText(): Result<boolean, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::BindingCall,
+        &["input.clipboard.read"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+        BindingAffinity::Any,
+    )
+    .with_namespace("input")
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.input.clipboard.readBytes.
+pub(crate) const INPUT_CLIPBOARD_READ_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.clipboard.readBytes",
+    "export function clipboardReadBytes(format: ClipboardBinaryFormat): Result<Slice<uint8>, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["input.clipboard.read"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("input")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.clipboard.readText.
+pub(crate) const INPUT_CLIPBOARD_READ_TEXT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.input.clipboard.readText",
+        "export function clipboardReadText(): Result<string, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::BindingCall,
+        &["input.clipboard.read"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+        BindingAffinity::Any,
+    )
+    .with_namespace("input")
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.input.clipboard.sequence.
+pub(crate) const INPUT_CLIPBOARD_SEQUENCE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.input.clipboard.sequence",
+        "export function clipboardSequence(): Result<uint64, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::BindingCall,
+        &["input.clipboard.read"],
+        BindingScope::Host,
+        BindingBlocking::Never,
+        BindingAffinity::Any,
+    )
+    .with_namespace("input")
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.input.clipboard.writeBytes.
+pub(crate) const INPUT_CLIPBOARD_WRITE_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.clipboard.writeBytes",
+    "export function clipboardWriteBytes(format: ClipboardBinaryFormat, bytes: Slice<uint8>): Result<void, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::BindingCall,
+    &["input.clipboard.write"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("input")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.input.clipboard.writeText.
+pub(crate) const INPUT_CLIPBOARD_WRITE_TEXT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.input.clipboard.writeText",
+        "export function clipboardWriteText(text: string): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::BindingCall,
+        &["input.clipboard.write"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+        BindingAffinity::Any,
+    )
+    .with_namespace("input")
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
 /// Binding descriptor for destack.input.device.capabilities.
 pub(crate) const INPUT_DEVICE_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.device.capabilities",
@@ -3475,7 +3806,7 @@ pub(crate) const INPUT_EVENT_READ: BindingDescriptor =
 /// Binding descriptor for destack.input.event.readBatch.
 pub(crate) const INPUT_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.event.readBatch",
-    "export function readBatch(handle: InputDeviceHandle, maxEvents: uint32): Result<Array<InputEvent>, PlatformError>",
+    "export function readBatch(handle: InputDeviceHandle, maxEvents: uint32): Result<InputEvent[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["input.read"],
@@ -3587,7 +3918,7 @@ pub(crate) const INPUT_GAMEPAD_STATE: BindingDescriptor = BindingDescriptor::ext
 /// Binding descriptor for destack.input.haptics.effects.
 pub(crate) const INPUT_HAPTICS_EFFECTS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.haptics.effects",
-    "export function hapticsEffects(handle: InputDeviceHandle): Result<Array<InputHapticEffectType>, PlatformError>",
+    "export function hapticsEffects(handle: InputDeviceHandle): Result<InputHapticEffectType[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["input.haptics"],
@@ -3825,7 +4156,7 @@ pub(crate) const INPUT_SENSOR_CONFIGURE: BindingDescriptor = BindingDescriptor::
 /// Binding descriptor for destack.input.sensor.list.
 pub(crate) const INPUT_SENSOR_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.sensor.list",
-    "export function sensorList(handle: InputDeviceHandle): Result<Array<InputSensorDescriptor>, PlatformError>",
+    "export function sensorList(handle: InputDeviceHandle): Result<InputSensorDescriptor[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["input.read"],
@@ -3994,6 +4325,41 @@ pub(crate) const INPUT_TOUCH_STATE: BindingDescriptor = BindingDescriptor::exter
 pub(crate) const INPUT_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "input",
     bindings: &[
+        NativeBinding::new(
+            INPUT_CLIPBOARD_CLEAR,
+            "destack.input.clipboard.clear",
+            destack_input_clipboard_clear as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_CLIPBOARD_HAS_TEXT,
+            "destack.input.clipboard.hasText",
+            destack_input_clipboard_has_text as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_CLIPBOARD_READ_BYTES,
+            "destack.input.clipboard.readBytes",
+            destack_input_clipboard_read_bytes as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_CLIPBOARD_READ_TEXT,
+            "destack.input.clipboard.readText",
+            destack_input_clipboard_read_text as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_CLIPBOARD_SEQUENCE,
+            "destack.input.clipboard.sequence",
+            destack_input_clipboard_sequence as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_CLIPBOARD_WRITE_BYTES,
+            "destack.input.clipboard.writeBytes",
+            destack_input_clipboard_write_bytes as *const (),
+        ),
+        NativeBinding::new(
+            INPUT_CLIPBOARD_WRITE_TEXT,
+            "destack.input.clipboard.writeText",
+            destack_input_clipboard_write_text as *const (),
+        ),
         NativeBinding::new(
             INPUT_DEVICE_CAPABILITIES,
             "destack.input.device.capabilities",
@@ -4213,6 +4579,220 @@ pub(crate) const INPUT_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 };
 
 /// Native replay implementations for input bindings.
+#[inline]
+fn destack_input_clipboard_has_text_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut bool,
+) -> RuntimeResult<()> {
+    binding.trace().run_binding_without_context(
+        INPUT_CLIPBOARD_HAS_TEXT,
+        binding.replay_payload_for(INPUT_CLIPBOARD_HAS_TEXT)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_clipboard_has_text(binding, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_input_clipboard_has_text(binding, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: bool = unsafe { out.read() };
+                let result_recorded = result_value;
+                let payload = InputClipboardHasTextReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    InputClipboardHasTextReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    unsafe { out.write(value) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_clipboard_read_bytes_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeSlice<u8>,
+    format: ClipboardBinaryFormat,
+) -> RuntimeResult<()> {
+    let _ = &format;
+
+    binding.trace().run_binding_without_context(
+        INPUT_CLIPBOARD_READ_BYTES,
+        binding.replay_payload_for(INPUT_CLIPBOARD_READ_BYTES)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_clipboard_read_bytes(binding, out, format)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_input_clipboard_read_bytes(binding, out, format)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: NativeSlice<u8> = unsafe { out.read() };
+                let mut result_recorded = Vec::new();
+                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = InputClipboardReadBytesReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    InputClipboardReadBytesReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::new();
+                    for value_native_item in value.iter().cloned() {
+                        let value_native_decoded = value_native_item;
+                        value_native_values.push(value_native_decoded);
+                    }
+                    let value_native = binding.store_slice(value_native_values);
+                    unsafe { out.write(value_native) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_clipboard_read_text_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeStringRef,
+) -> RuntimeResult<()> {
+    binding.trace().run_binding_without_context(
+        INPUT_CLIPBOARD_READ_TEXT,
+        binding.replay_payload_for(INPUT_CLIPBOARD_READ_TEXT)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_clipboard_read_text(binding, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_input_clipboard_read_text(binding, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: NativeStringRef = unsafe { out.read() };
+                let result_recorded = unsafe { result_value.as_str()? }.to_string();
+                let payload = InputClipboardReadTextReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    InputClipboardReadTextReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = binding.store_string(value.as_str());
+                    unsafe { out.write(value_native) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_input_clipboard_sequence_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut u64,
+) -> RuntimeResult<()> {
+    binding.trace().run_binding_without_context(
+        INPUT_CLIPBOARD_SEQUENCE,
+        binding.replay_payload_for(INPUT_CLIPBOARD_SEQUENCE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_clipboard_sequence(binding, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_input_clipboard_sequence(binding, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: u64 = unsafe { out.read() };
+                let result_recorded = result_value;
+                let payload = InputClipboardSequenceReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    InputClipboardSequenceReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    unsafe { out.write(value) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
 #[inline]
 fn destack_input_device_capabilities_replay(
     binding: &BindingCallContext,
@@ -9413,6 +9993,136 @@ fn destack_input_touch_state_replay(
 }
 
 /// Native export wrappers for input bindings.
+#[unsafe(export_name = "destack.input.clipboard.clear")]
+pub(crate) unsafe extern "C" fn destack_input_clipboard_clear() -> RuntimeStatus {
+    native_call(|context| {
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_CLIPBOARD_CLEAR)?;
+        match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_input_clipboard_clear(context)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_input_clipboard_clear(context)
+            },
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.input.clipboard.hasText")]
+pub(crate) unsafe extern "C" fn destack_input_clipboard_has_text(out: *mut bool) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_CLIPBOARD_HAS_TEXT)?;
+        destack_input_clipboard_has_text_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.input.clipboard.readBytes")]
+pub(crate) unsafe extern "C" fn destack_input_clipboard_read_bytes(
+    out: *mut NativeSlice<u8>,
+    format: ClipboardBinaryFormat,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &format);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_CLIPBOARD_READ_BYTES)?;
+        destack_input_clipboard_read_bytes_replay(context, world, out, format)
+    })
+}
+
+#[unsafe(export_name = "destack.input.clipboard.readText")]
+pub(crate) unsafe extern "C" fn destack_input_clipboard_read_text(
+    out: *mut NativeStringRef,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_CLIPBOARD_READ_TEXT)?;
+        destack_input_clipboard_read_text_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.input.clipboard.sequence")]
+pub(crate) unsafe extern "C" fn destack_input_clipboard_sequence(out: *mut u64) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_CLIPBOARD_SEQUENCE)?;
+        destack_input_clipboard_sequence_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.input.clipboard.writeBytes")]
+pub(crate) unsafe extern "C" fn destack_input_clipboard_write_bytes(
+    format: ClipboardBinaryFormat,
+    argument_bytes: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&format, &argument_bytes);
+
+        {
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(INPUT_CLIPBOARD_WRITE_BYTES)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_input_clipboard_write_bytes(
+                        context,
+                        format,
+                        argument_bytes,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_input_clipboard_write_bytes(
+                        context,
+                        format,
+                        argument_bytes,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.input.clipboard.writeText")]
+pub(crate) unsafe extern "C" fn destack_input_clipboard_write_text(
+    text: NativeStringRef,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &text;
+
+        {
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(INPUT_CLIPBOARD_WRITE_TEXT)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_input_clipboard_write_text(context, text)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_input_clipboard_write_text(context, text)
+                },
+            }
+        }
+    })
+}
+
 #[unsafe(export_name = "destack.input.device.capabilities")]
 pub(crate) unsafe extern "C" fn destack_input_device_capabilities(
     out: *mut InputDeviceCapabilities,
@@ -10119,6 +10829,228 @@ pub(crate) unsafe extern "C" fn destack_input_touch_state(
 }
 
 /// VM replay implementations for input bindings.
+#[inline]
+fn destack_input_clipboard_has_text_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        INPUT_CLIPBOARD_HAS_TEXT,
+        binding.replay_payload_for(INPUT_CLIPBOARD_HAS_TEXT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_input_clipboard_has_text(binding, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_input_clipboard_has_text(binding, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: bool = value.clone();
+                let result_recorded = result_value;
+                let payload = InputClipboardHasTextReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    InputClipboardHasTextReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_input_clipboard_has_text_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_clipboard_read_bytes_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    format: ClipboardBinaryFormat,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        INPUT_CLIPBOARD_READ_BYTES,
+        binding.replay_payload_for(INPUT_CLIPBOARD_READ_BYTES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_input_clipboard_read_bytes(binding, context, format)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_input_clipboard_read_bytes(binding, context, format)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<u8> = value.clone();
+                let result_recorded = result_value.read_bytes(context)?;
+                let payload = InputClipboardReadBytesReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    InputClipboardReadBytesReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref())?;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_input_clipboard_read_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_clipboard_read_text_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        INPUT_CLIPBOARD_READ_TEXT,
+        binding.replay_payload_for(INPUT_CLIPBOARD_READ_TEXT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_input_clipboard_read_text(binding, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_input_clipboard_read_text(binding, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: vm::StringHandle = value.clone();
+                let result_recorded = {
+                    let result_recorded_ref = context
+                        .string_ref(result_value)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_ref.as_str().to_string()
+                };
+                let payload = InputClipboardReadTextReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    InputClipboardReadTextReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = context
+                        .string_handle(value.as_str())
+                        .map_err(Box::<RuntimeError>::from)?;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_input_clipboard_read_text_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_input_clipboard_sequence_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        INPUT_CLIPBOARD_SEQUENCE,
+        binding.replay_payload_for(INPUT_CLIPBOARD_SEQUENCE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_input_clipboard_sequence(binding, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_input_clipboard_sequence(binding, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = InputClipboardSequenceReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    InputClipboardSequenceReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_input_clipboard_sequence_result(context, result)?;
+    Ok(result)
+}
+
 #[inline]
 fn destack_input_device_capabilities_vm_replay(
     binding: &BindingCallContext,
@@ -16190,6 +17122,170 @@ fn destack_input_touch_state_vm_replay(
 
 /// Register VM bindings for input.
 pub(crate) fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_CLIPBOARD_CLEAR,
+            move |context, _args| {
+                with_binding_call_context(|binding| {
+                    // execute binding
+                    let result = {
+                        let (world, _binding_hook_guard) =
+                            binding.on_before_binding_resolve_world(INPUT_CLIPBOARD_CLEAR)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_input_clipboard_clear(binding, context)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_input_clipboard_clear(
+                                    binding, context,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_input_clipboard_clear_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_CLIPBOARD_HAS_TEXT,
+            move |context, _args| {
+                with_binding_call_context(|binding| {
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(INPUT_CLIPBOARD_HAS_TEXT)?;
+                    destack_input_clipboard_has_text_vm_replay(binding, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_CLIPBOARD_READ_BYTES,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (format,) = decode_destack_input_clipboard_read_bytes_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(INPUT_CLIPBOARD_READ_BYTES)?;
+                    destack_input_clipboard_read_bytes_vm_replay(binding, context, world, format)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_CLIPBOARD_READ_TEXT,
+            move |context, _args| {
+                with_binding_call_context(|binding| {
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(INPUT_CLIPBOARD_READ_TEXT)?;
+                    destack_input_clipboard_read_text_vm_replay(binding, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_CLIPBOARD_SEQUENCE,
+            move |context, _args| {
+                with_binding_call_context(|binding| {
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(INPUT_CLIPBOARD_SEQUENCE)?;
+                    destack_input_clipboard_sequence_vm_replay(binding, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_CLIPBOARD_WRITE_BYTES,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (format, argument_bytes) =
+                        decode_destack_input_clipboard_write_bytes_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let (world, _binding_hook_guard) =
+                            binding.on_before_binding_resolve_world(INPUT_CLIPBOARD_WRITE_BYTES)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_input_clipboard_write_bytes(
+                                binding,
+                                context,
+                                format,
+                                argument_bytes,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_input_clipboard_write_bytes(
+                                    binding,
+                                    context,
+                                    format,
+                                    argument_bytes,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_input_clipboard_write_bytes_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            INPUT_CLIPBOARD_WRITE_TEXT,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (text,) = decode_destack_input_clipboard_write_text_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let (world, _binding_hook_guard) =
+                            binding.on_before_binding_resolve_world(INPUT_CLIPBOARD_WRITE_TEXT)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_input_clipboard_write_text(
+                                binding, context, text,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_input_clipboard_write_text(
+                                    binding, context, text,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_input_clipboard_write_text_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
     {
         binding!(
             registry,

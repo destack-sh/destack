@@ -9,14 +9,13 @@ use crate::platform::os::{
     BackgroundTaskOptions, BackgroundTaskResult, CalendarDescriptor, CalendarEvent,
     CalendarEventDraft, CalendarEventQuery, Contact, ContactDraft, ContactPage, ContactQuery,
     CredentialAuthenticationOptions, CredentialAuthenticationResult, CredentialQuery,
-    CredentialRecord, CredentialWriteOptions, DocumentAccess, DocumentAccessGrant,
-    DocumentDescriptor, DocumentPickOptions, HostIdentity, IntentEvent, IntentOpenOptions,
-    LifecycleEvent, LifecycleState, LoadAverage, LocationSample, LocationWatchOptions,
-    MediaAssetDescriptor, MediaAssetKind, MediaEvent, MediaPage, MediaQuery, MediaWatchOptions,
-    MountEntry, NetworkEvent, NetworkState, NotificationCategory, NotificationEvent,
-    NotificationEventOpenOptions, NotificationPermissionState, NotificationRequest,
-    NotificationScheduledDescriptor, Permission, PermissionEntry, PermissionState, PowerState,
-    SystemSnapshot,
+    CredentialRecord, CredentialWriteOptions, DocumentAccess, DocumentDescriptor,
+    DocumentPickOptions, HostIdentity, IntentEvent, IntentOpenOptions, LifecycleEvent,
+    LifecycleState, LoadAverage, LocationSample, LocationWatchOptions, MediaAssetDescriptor,
+    MediaAssetKind, MediaPage, MediaQuery, MountEntry, NetworkEvent, NetworkState,
+    NotificationCategory, NotificationEvent, NotificationEventOpenOptions,
+    NotificationPermissionState, NotificationRequest, NotificationScheduledDescriptor, Permission,
+    PermissionEntry, PermissionState, PowerState, SystemSnapshot,
 };
 use crate::platform::{fs, resource};
 
@@ -875,85 +874,6 @@ pub(crate) unsafe fn destack_os_document_close(
     document::close(binding, handle)
 }
 
-/// List persisted document-access grants.
-pub(crate) unsafe fn destack_os_document_access_list(
-    binding: &BindingCallContext,
-    out: *mut NativeArray<DocumentAccessGrant>,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let values = document::access_list_native(binding)?;
-    let values = binding.store_array(values);
-
-    unsafe {
-        out.write(values);
-    }
-
-    Ok(())
-}
-
-/// Open one persisted document-access grant.
-pub(crate) unsafe fn destack_os_document_access_open(
-    binding: &BindingCallContext,
-    out: *mut resource::DocumentHandle,
-    id: NativeStringRef,
-    access: DocumentAccess,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let id = unsafe { id.as_str()? };
-    let value = document::access_open(binding, id, access)?;
-
-    unsafe {
-        out.write(value);
-    }
-
-    Ok(())
-}
-
-/// Persist external document access for later reopen.
-pub(crate) unsafe fn destack_os_document_access_persist(
-    binding: &BindingCallContext,
-    out: *mut NativeArray<DocumentAccessGrant>,
-    documents: NativeArray<DocumentDescriptor>,
-    access: DocumentAccess,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let documents =
-        unsafe { <NativeArray<DocumentDescriptor> as NativeAbiCodec>::into_value(documents)? };
-    let values = document::access_persist_native(binding, documents, access)?;
-    let values = binding.store_array(values);
-
-    unsafe {
-        out.write(values);
-    }
-
-    Ok(())
-}
-
-/// Revoke persisted document-access grants.
-pub(crate) unsafe fn destack_os_document_access_revoke(
-    binding: &BindingCallContext,
-    out: *mut u32,
-    ids: NativeArray<NativeStringRef>,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let ids = unsafe { <NativeArray<NativeStringRef> as NativeAbiCodec>::into_value(ids)? };
-    let value = document::access_revoke(binding, ids)?;
-
-    unsafe {
-        out.write(value);
-    }
-
-    Ok(())
-}
-
 /// Flush one opened document handle.
 ///
 /// Flush buffered outbound document bytes for one opened handle.
@@ -975,27 +895,6 @@ pub(crate) unsafe fn destack_os_document_flush(
     handle: resource::DocumentHandle,
 ) -> RuntimeResult<()> {
     document::flush(binding, handle)
-}
-
-/// Import selected documents into app-owned storage.
-pub(crate) unsafe fn destack_os_document_import(
-    binding: &BindingCallContext,
-    out: *mut NativeArray<DocumentDescriptor>,
-    documents: NativeArray<DocumentDescriptor>,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let documents =
-        unsafe { <NativeArray<DocumentDescriptor> as NativeAbiCodec>::into_value(documents)? };
-    let values = document::import_native(binding, documents)?;
-    let values = binding.store_array(values);
-
-    unsafe {
-        out.write(values);
-    }
-
-    Ok(())
 }
 
 /// Open one document URI.
@@ -2005,9 +1904,9 @@ pub(crate) unsafe fn destack_os_media_list(
     Ok(())
 }
 
-/// Describe one media asset descriptor.
+/// Read one media asset descriptor.
 ///
-/// Read one richer host media asset descriptor by stable identifier.
+/// Read one host media asset descriptor by stable identifier.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -2021,7 +1920,7 @@ pub(crate) unsafe fn destack_os_media_list(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_media_describe(
+pub(crate) unsafe fn destack_os_media_read(
     binding: &BindingCallContext,
     out: *mut MediaAssetDescriptor,
     id: NativeStringRef,
@@ -2030,140 +1929,11 @@ pub(crate) unsafe fn destack_os_media_describe(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let id = unsafe { <NativeStringRef as NativeAbiCodec>::into_value(id)? };
-    let descriptor = media::describe(binding, id.as_str())?;
+    let descriptor = media::read(binding, id.as_str())?;
     let descriptor = <MediaAssetDescriptor as NativeAbiCodec>::from_value(binding, descriptor);
 
     unsafe {
         out.write(descriptor);
-    }
-
-    Ok(())
-}
-
-/// Close one media watch stream.
-///
-/// Close one opened media watch stream and release runtime watch resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime media watch state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.media.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_os_media_watch_close(
-    binding: &BindingCallContext,
-    handle: resource::MediaWatchHandle,
-) -> RuntimeResult<()> {
-    media::watch_close(binding, handle)
-}
-
-/// Open media watch stream.
-///
-/// Open one runtime-owned media watch stream and track add or update or remove events for one filtered asset set.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host media-list queries and runtime watch state.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.media.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_os_media_watch_open(
-    binding: &BindingCallContext,
-    out: *mut resource::MediaWatchHandle,
-    options: MediaWatchOptions,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-
-    let options = unsafe { <MediaWatchOptions as NativeAbiCodec>::into_value(options)? };
-    let handle = media::watch_open(binding, options)?;
-
-    unsafe {
-        out.write(handle);
-    }
-
-    Ok(())
-}
-
-/// Wait for one media watch event.
-///
-/// Wait for one queued media watch event from one opened watch stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime media watch state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `os.media.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_os_media_watch_read(
-    binding: &BindingCallContext,
-    out: *mut MediaEvent,
-    handle: resource::MediaWatchHandle,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-
-    let event = media::watch_read(binding, handle, timeoutns)?;
-    let event = <MediaEvent as NativeAbiCodec>::from_value(binding, event);
-
-    unsafe {
-        out.write(event);
-    }
-
-    Ok(())
-}
-
-/// Poll one media watch event without blocking.
-///
-/// Poll one queued media watch event from one opened watch stream without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime media watch state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.media.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_os_media_watch_try_read(
-    binding: &BindingCallContext,
-    out: *mut MediaEvent,
-    handle: resource::MediaWatchHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-
-    let event = media::watch_try_read(binding, handle)?;
-    let event = <MediaEvent as NativeAbiCodec>::from_value(binding, event);
-
-    unsafe {
-        out.write(event);
     }
 
     Ok(())

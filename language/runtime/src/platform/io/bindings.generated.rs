@@ -1694,7 +1694,7 @@ pub(crate) const IO_COMPLETION_SUBMIT_BATCH: BindingDescriptor = BindingDescript
 /// Binding descriptor for destack.io.completion.wait.
 pub(crate) const IO_COMPLETION_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.completion.wait",
-    "export function completionWait(handle: CompletionHandle, timeoutNs: uint64, maxEvents: uint32): Result<Array<CompletionEvent>, PlatformError>",
+    "export function completionWait(handle: CompletionHandle, timeoutNs: uint64, maxEvents: uint32): Result<CompletionEvent[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.completion"],
@@ -2002,7 +2002,7 @@ pub(crate) const IO_POLL_UPDATE: BindingDescriptor = BindingDescriptor::external
 /// Binding descriptor for destack.io.poll.wait.
 pub(crate) const IO_POLL_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.poll.wait",
-    "export function pollWait(handle: PollHandle, timeoutNs: uint64, maxEvents: uint32): Result<Array<PollEvent>, PlatformError>",
+    "export function pollWait(handle: PollHandle, timeoutNs: uint64, maxEvents: uint32): Result<PollEvent[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.poll"],

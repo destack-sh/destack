@@ -164,7 +164,7 @@ pub(crate) fn midi_output_write(
     let description = binding
         .agent()
         .platform_state
-        .midi
+        .device
         .describe_android_backend(binding, "destack.device.midi.output.write")?;
     let scheduled_output_supported =
         description.capability_flags.0 & MIDI_BACKEND_CAP_SCHEDULED_OUTPUT.0 != 0;

@@ -5,9 +5,9 @@ use super::common::{
 use crate::platform::os::MediaAssetKind;
 use crate::platform::os::abi_generated::MediaQueryValue;
 
-/// Exercise desktop media list and describe through both harnesses.
+/// Exercise desktop media list and read through both harnesses.
 #[test]
-fn test_media_desktop_list_and_describe_roundtrip() {
+fn test_media_desktop_list_and_read_roundtrip() {
     with_desktop_media_context("list-read", |mut context, _roots| {
         // list all visible assets through the desktop media bridge
         let query = media_query_harness_value(
@@ -30,7 +30,7 @@ fn test_media_desktop_list_and_describe_roundtrip() {
 
         assert_eq!(file_names, vec!["photo.png", "song.mp3", "video.mp4"]);
 
-        // then describe one listed asset back by its stable identifier
+        // then read one listed asset back by its stable identifier
         let id = page
             .assets
             .iter()
@@ -38,18 +38,19 @@ fn test_media_desktop_list_and_describe_roundtrip() {
             .map(|asset| asset.id.clone())
             .expect("desktop media listing should include one photo asset");
         let read_id = string_harness_value(&mut context, &id);
-        let descriptor = context.destack_os_media_describe(read_id)?;
+        let descriptor = context.destack_os_media_read(read_id)?;
         let descriptor = decode_media_descriptor(&mut context, descriptor)?;
 
-        assert_eq!(descriptor.asset.filename, "photo.png");
-        assert_eq!(descriptor.asset.kind, MediaAssetKind::Image);
-        assert_eq!(descriptor.asset.content_type, None);
-        assert_eq!(descriptor.dimensions, None);
-        assert_eq!(descriptor.duration_ms, None);
-        assert_eq!(descriptor.asset.size_bytes, Some(68));
-        assert_eq!(descriptor.asset.uri, id);
+        assert_eq!(descriptor.filename, "photo.png");
+        assert_eq!(descriptor.kind, MediaAssetKind::Image);
+        assert_eq!(descriptor.mime_type, "");
+        assert_eq!(descriptor.width, 0);
+        assert_eq!(descriptor.height, 0);
+        assert_eq!(descriptor.duration_ms, 0);
+        assert_eq!(descriptor.size_bytes, 68);
+        assert_eq!(descriptor.uri, id);
 
         Ok(())
     })
-    .expect("desktop media list and describe should succeed")
+    .expect("desktop media list and read should succeed")
 }

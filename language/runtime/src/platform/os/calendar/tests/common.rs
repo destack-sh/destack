@@ -25,7 +25,7 @@ use crate::platform::os::tests::{HarnessContext, HarnessValue, with_configured_h
 use crate::platform::os::{
     CalendarAccess, CalendarAvailability, CalendarDescriptor, CalendarDescriptorVm, CalendarEvent,
     CalendarEventDraft, CalendarEventDraftVm, CalendarEventQuery, CalendarEventQueryVm,
-    CalendarEventVm, CalendarReminderAnchor,
+    CalendarEventVm,
 };
 use crate::platform::{NativeAbiCodec, NativeArray, NativeStringRef, VmAbiCodec, VmArray};
 
@@ -256,8 +256,7 @@ fn sample_calendar_reminders() -> Vec<CalendarReminderValue> {
     vec![
         CalendarReminderValue::CalendarRelativeReminder(CalendarRelativeReminderValue {
             kind: "relative".to_string(),
-            anchor: CalendarReminderAnchor::Start,
-            offset_seconds: -900,
+            minutes_before_start: 15,
         }),
         CalendarReminderValue::CalendarAbsoluteReminder(CalendarAbsoluteReminderValue {
             kind: "absolute".to_string(),

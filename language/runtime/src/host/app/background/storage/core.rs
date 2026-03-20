@@ -62,6 +62,12 @@ pub(in crate::host::app::background) fn background_descriptor_from_options(
         identifier: options.identifier,
         trigger: options.trigger,
         minimum_interval_ns: options.minimum_interval_ns,
+        earliest_begin_unix_ns: options.earliest_begin_unix_ns,
+        requires_network: options.requires_network,
+        requires_unmetered_network: options.requires_unmetered_network,
+        requires_charging: options.requires_charging,
+        requires_idle: options.requires_idle,
+        persisted: options.persisted,
     }
 }
 

@@ -1,6 +1,6 @@
 use objc2_core_graphics::{CGDirectDisplayID, CGDisplayMode, CGDisplayRotation};
 
-use crate::platform::display::{DisplayMode, DisplayOrientation};
+use crate::platform::display::{DisplayMode, DisplayOrientation, DisplayPixelFormat};
 
 use crate::platform::display::unix::appkit::core;
 
@@ -50,7 +50,7 @@ pub(crate) fn display_mode_from_native(mode: &CGDisplayMode) -> DisplayMode {
         width: CGDisplayMode::pixel_width(Some(mode)) as u32,
         height: CGDisplayMode::pixel_height(Some(mode)) as u32,
         refresh_milli_hz,
-        format: 0,
+        format: DisplayPixelFormat(0),
         bit_depth: 32,
     }
 }

@@ -201,7 +201,9 @@ pub(crate) fn display_event_record(kind: DisplayEventRecordKind) -> DisplayEvent
 #[cfg(test)]
 mod tests {
     use crate::platform::display::unix::appkit::model::MonitorSnapshot;
-    use crate::platform::display::{DisplayMode, DisplayOrientation, DisplaySupportStatus};
+    use crate::platform::display::{
+        DisplayMode, DisplayOrientation, DisplayPixelFormat, DisplaySupportStatus,
+    };
 
     use super::super::codec::monitor_topology_records;
     use super::{DisplayDescriptorSnapshot, DisplayEventRecordKind, appkit_core};
@@ -242,7 +244,7 @@ mod tests {
             width,
             height,
             refresh_milli_hz,
-            format: 0,
+            format: DisplayPixelFormat(0),
             bit_depth: 8,
         }
     }

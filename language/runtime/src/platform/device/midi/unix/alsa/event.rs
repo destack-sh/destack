@@ -228,7 +228,7 @@ pub(crate) fn midi_event_open(
     let service = binding
         .agent()
         .platform_state
-        .midi
+        .device
         .alsa_service("destack.device.midi.event.open")?;
     let delivery_kind = match options.delivery_mode {
         MidiEventDeliveryMode::PollOnly => AlsaEventDeliveryKind::Poll,

@@ -13,7 +13,9 @@ use crate::platform::display::{
     DisplayAddedEvent, DisplayAddedEventValue, DisplayAddedEventVm, DisplayAddedPayload,
     DisplayAddedPayloadValue, DisplayAddedPayloadVm, DisplayBackend, DisplayBackendCapabilityFlags,
     DisplayBackendDescriptor, DisplayBackendDescriptorValue, DisplayBackendDescriptorVm,
-    DisplayBackendSelectionPolicy, DisplayColorSpace, DisplayColorState, DisplayColorStateVm,
+    DisplayBackendSelectionPolicy, DisplayBeginFrameEvent, DisplayBeginFrameEventVm,
+    DisplayBeginFrameFilter, DisplayBeginFrameFilterVm, DisplayBeginFrameOpenOptions,
+    DisplayBeginFrameOpenOptionsVm, DisplayColorSpace, DisplayColorState, DisplayColorStateVm,
     DisplayDescriptor, DisplayDescriptorChangedEvent, DisplayDescriptorChangedEventValue,
     DisplayDescriptorChangedEventVm, DisplayDescriptorChangedPayload,
     DisplayDescriptorChangedPayloadValue, DisplayDescriptorChangedPayloadVm,
@@ -26,7 +28,7 @@ use crate::platform::display::{
     DisplayMonitorEventMetadata, DisplayMonitorEventMetadataValue, DisplayMonitorEventMetadataVm,
     DisplayMonitorEventOpenOptions, DisplayMonitorEventOpenOptionsVm, DisplayMonitorEventValue,
     DisplayMonitorEventVm, DisplayMonitorListRequest, DisplayMonitorListRequestVm,
-    DisplayMonitorOpenOptions, DisplayMonitorOpenOptionsVm, DisplayOrientation,
+    DisplayMonitorOpenOptions, DisplayMonitorOpenOptionsVm, DisplayOrientation, DisplayPixelFormat,
     DisplayPrimaryChangedEvent, DisplayPrimaryChangedEventValue, DisplayPrimaryChangedEventVm,
     DisplayPrimaryPayload, DisplayPrimaryPayloadValue, DisplayPrimaryPayloadVm,
     DisplayRemovedEvent, DisplayRemovedEventValue, DisplayRemovedEventVm, DisplayRemovedPayload,
@@ -44,28 +46,32 @@ use crate::platform::display::{
     WindowBorderlessModeOptionsValue, WindowBorderlessModeOptionsVm, WindowChromeChangedEvent,
     WindowChromeChangedEventValue, WindowChromeChangedEventVm, WindowChromeKind,
     WindowChromePayload, WindowChromePayloadVm, WindowCloseRequestedEvent,
-    WindowCloseRequestedEventValue, WindowCloseRequestedEventVm, WindowCreatedEvent,
-    WindowCreatedEventValue, WindowCreatedEventVm, WindowCursorIcon, WindowCursorMode,
-    WindowDescriptor, WindowDescriptorValue, WindowDescriptorVm, WindowDestroyedEvent,
-    WindowDestroyedEventValue, WindowDestroyedEventVm, WindowDisplayChangedEvent,
-    WindowDisplayChangedEventValue, WindowDisplayChangedEventVm, WindowDisplayPayload,
-    WindowDisplayPayloadVm, WindowDropCancelledEvent, WindowDropCancelledEventValue,
-    WindowDropCancelledEventVm, WindowDropCompletedEvent, WindowDropCompletedEventValue,
-    WindowDropCompletedEventVm, WindowDropFilePayload, WindowDropFilePayloadValue,
-    WindowDropFilePayloadVm, WindowDropHoverLeavePayload, WindowDropHoverLeavePayloadValue,
-    WindowDropHoverLeavePayloadVm, WindowDropHoverPayload, WindowDropHoverPayloadValue,
-    WindowDropHoverPayloadVm, WindowDropStartedEvent, WindowDropStartedEventValue,
-    WindowDropStartedEventVm, WindowDropTextPayload, WindowDropTextPayloadValue,
-    WindowDropTextPayloadVm, WindowEvent, WindowEventFilter, WindowEventFilterVm,
-    WindowEventKindMask, WindowEventMetadata, WindowEventMetadataVm, WindowEventOpenOptions,
-    WindowEventOpenOptionsVm, WindowEventValue, WindowEventVm,
+    WindowCloseRequestedEventValue, WindowCloseRequestedEventVm, WindowContentRectChangedEvent,
+    WindowContentRectChangedEventValue, WindowContentRectChangedEventVm, WindowContentRectPayload,
+    WindowContentRectPayloadVm, WindowCreatedEvent, WindowCreatedEventValue, WindowCreatedEventVm,
+    WindowCursorIcon, WindowCursorMode, WindowDescriptor, WindowDescriptorValue,
+    WindowDescriptorVm, WindowDestroyedEvent, WindowDestroyedEventValue, WindowDestroyedEventVm,
+    WindowDisplayChangedEvent, WindowDisplayChangedEventValue, WindowDisplayChangedEventVm,
+    WindowDisplayPayload, WindowDisplayPayloadVm, WindowDropCancelledEvent,
+    WindowDropCancelledEventValue, WindowDropCancelledEventVm, WindowDropCompletedEvent,
+    WindowDropCompletedEventValue, WindowDropCompletedEventVm, WindowDropFilePayload,
+    WindowDropFilePayloadValue, WindowDropFilePayloadVm, WindowDropHoverLeavePayload,
+    WindowDropHoverLeavePayloadValue, WindowDropHoverLeavePayloadVm, WindowDropHoverPayload,
+    WindowDropHoverPayloadValue, WindowDropHoverPayloadVm, WindowDropStartedEvent,
+    WindowDropStartedEventValue, WindowDropStartedEventVm, WindowDropTextPayload,
+    WindowDropTextPayloadValue, WindowDropTextPayloadVm, WindowEvent, WindowEventFilter,
+    WindowEventFilterVm, WindowEventKindMask, WindowEventMetadata, WindowEventMetadataVm,
+    WindowEventOpenOptions, WindowEventOpenOptionsVm, WindowEventValue, WindowEventVm,
     WindowExclusiveFullscreenModeOptions, WindowExclusiveFullscreenModeOptionsValue,
     WindowExclusiveFullscreenModeOptionsVm, WindowFileDroppedEvent, WindowFileDroppedEventValue,
     WindowFileDroppedEventVm, WindowFileHoverLeftEvent, WindowFileHoverLeftEventValue,
     WindowFileHoverLeftEventVm, WindowFileHoveredEvent, WindowFileHoveredEventValue,
     WindowFileHoveredEventVm, WindowFocusChangedEvent, WindowFocusChangedEventValue,
-    WindowFocusChangedEventVm, WindowFocusPayload, WindowFocusPayloadVm, WindowIconImage,
-    WindowIconImageVm, WindowIconPixelFormat, WindowIconSet, WindowIconSetVm, WindowLogicalSize,
+    WindowFocusChangedEventVm, WindowFocusPayload, WindowFocusPayloadVm,
+    WindowFramebufferSizeChangedEvent, WindowFramebufferSizeChangedEventValue,
+    WindowFramebufferSizeChangedEventVm, WindowFramebufferSizePayload,
+    WindowFramebufferSizePayloadVm, WindowIconImage, WindowIconImageVm, WindowIconPixelFormat,
+    WindowIconSet, WindowIconSetVm, WindowLogicalRect, WindowLogicalRectVm, WindowLogicalSize,
     WindowLogicalSizeVm, WindowModalChangedEvent, WindowModalChangedEventValue,
     WindowModalChangedEventVm, WindowModalPayload, WindowModalPayloadVm, WindowModeChangedEvent,
     WindowModeChangedEventValue, WindowModeChangedEventVm, WindowModeOptions,
@@ -80,15 +86,16 @@ use crate::platform::display::{
     WindowParentChangedEventValue, WindowParentChangedEventVm, WindowParentPayload,
     WindowParentPayloadVm, WindowPhysicalSize, WindowPhysicalSizeVm, WindowPosition,
     WindowPositionChangedEvent, WindowPositionChangedEventValue, WindowPositionChangedEventVm,
-    WindowPositionPayload, WindowPositionPayloadVm, WindowPositionVm, WindowRefreshRequestedEvent,
-    WindowRefreshRequestedEventValue, WindowRefreshRequestedEventVm, WindowResizeEdge, WindowRole,
-    WindowSafeAreaChangedEvent, WindowSafeAreaChangedEventValue, WindowSafeAreaChangedEventVm,
-    WindowSafeAreaInsets, WindowSafeAreaInsetsVm, WindowSafeAreaPayload, WindowSafeAreaPayloadVm,
-    WindowScaleFactorChangedEvent, WindowScaleFactorChangedEventValue,
-    WindowScaleFactorChangedEventVm, WindowScaleFactorPayload, WindowScaleFactorPayloadVm,
-    WindowSizeChangedEvent, WindowSizeChangedEventValue, WindowSizeChangedEventVm,
-    WindowSizeConstraints, WindowSizeConstraintsVm, WindowSizePayload, WindowSizePayloadVm,
-    WindowState, WindowStateVm, WindowTaskbarVisibilityChangedEvent,
+    WindowPositionPayload, WindowPositionPayloadVm, WindowPositionVm, WindowRenderState,
+    WindowRenderStateChangedEvent, WindowRenderStateChangedEventValue,
+    WindowRenderStateChangedEventVm, WindowRenderStatePayload, WindowRenderStatePayloadVm,
+    WindowResizeEdge, WindowRole, WindowSafeAreaChangedEvent, WindowSafeAreaChangedEventValue,
+    WindowSafeAreaChangedEventVm, WindowSafeAreaInsets, WindowSafeAreaInsetsVm,
+    WindowSafeAreaPayload, WindowSafeAreaPayloadVm, WindowScaleFactorChangedEvent,
+    WindowScaleFactorChangedEventValue, WindowScaleFactorChangedEventVm, WindowScaleFactorPayload,
+    WindowScaleFactorPayloadVm, WindowSizeChangedEvent, WindowSizeChangedEventValue,
+    WindowSizeChangedEventVm, WindowSizeConstraints, WindowSizeConstraintsVm, WindowSizePayload,
+    WindowSizePayloadVm, WindowState, WindowStateVm, WindowTaskbarVisibilityChangedEvent,
     WindowTaskbarVisibilityChangedEventValue, WindowTaskbarVisibilityChangedEventVm,
     WindowTaskbarVisibilityPayload, WindowTaskbarVisibilityPayloadVm, WindowTextDroppedEvent,
     WindowTextDroppedEventValue, WindowTextDroppedEventVm, WindowTheme, WindowThemeChangedEvent,
@@ -100,23 +107,25 @@ use crate::platform::display::{
     WindowWindowedModeOptions, WindowWindowedModeOptionsValue, WindowWindowedModeOptionsVm,
     WindowaspectratiochangedeventReplayRecord, WindowborderlessmodeoptionsReplayRecord,
     WindowchromechangedeventReplayRecord, WindowcloserequestedeventReplayRecord,
-    WindowcreatedeventReplayRecord, WindowdescriptorReplayRecord, WindowdestroyedeventReplayRecord,
+    WindowcontentrectchangedeventReplayRecord, WindowcreatedeventReplayRecord,
+    WindowdescriptorReplayRecord, WindowdestroyedeventReplayRecord,
     WindowdisplaychangedeventReplayRecord, WindowdropcancelledeventReplayRecord,
     WindowdropcompletedeventReplayRecord, WindowdropfilepayloadReplayRecord,
     WindowdrophoverleavepayloadReplayRecord, WindowdrophoverpayloadReplayRecord,
     WindowdropstartedeventReplayRecord, WindowdroptextpayloadReplayRecord, WindoweventReplayRecord,
     WindowexclusivefullscreenmodeoptionsReplayRecord, WindowfiledroppedeventReplayRecord,
     WindowfilehoveredeventReplayRecord, WindowfilehoverlefteventReplayRecord,
-    WindowfocuschangedeventReplayRecord, WindowmodalchangedeventReplayRecord,
-    WindowmodechangedeventReplayRecord, WindowmodeoptionsReplayRecord,
-    WindowmodepayloadReplayRecord, WindowmousepassthroughchangedeventReplayRecord,
-    WindowocclusionchangedeventReplayRecord, WindowopacitychangedeventReplayRecord,
-    WindowparentchangedeventReplayRecord, WindowpositionchangedeventReplayRecord,
-    WindowrefreshrequestedeventReplayRecord, WindowsafeareachangedeventReplayRecord,
-    WindowscalefactorchangedeventReplayRecord, WindowsizechangedeventReplayRecord,
-    WindowtaskbarvisibilitychangedeventReplayRecord, WindowtextdroppedeventReplayRecord,
-    WindowthemechangedeventReplayRecord, WindowtransientchangedeventReplayRecord,
-    WindowvisibilitychangedeventReplayRecord, WindowwindowedmodeoptionsReplayRecord,
+    WindowfocuschangedeventReplayRecord, WindowframebuffersizechangedeventReplayRecord,
+    WindowmodalchangedeventReplayRecord, WindowmodechangedeventReplayRecord,
+    WindowmodeoptionsReplayRecord, WindowmodepayloadReplayRecord,
+    WindowmousepassthroughchangedeventReplayRecord, WindowocclusionchangedeventReplayRecord,
+    WindowopacitychangedeventReplayRecord, WindowparentchangedeventReplayRecord,
+    WindowpositionchangedeventReplayRecord, WindowrenderstatechangedeventReplayRecord,
+    WindowsafeareachangedeventReplayRecord, WindowscalefactorchangedeventReplayRecord,
+    WindowsizechangedeventReplayRecord, WindowtaskbarvisibilitychangedeventReplayRecord,
+    WindowtextdroppedeventReplayRecord, WindowthemechangedeventReplayRecord,
+    WindowtransientchangedeventReplayRecord, WindowvisibilitychangedeventReplayRecord,
+    WindowwindowedmodeoptionsReplayRecord,
 };
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec,
@@ -317,6 +326,376 @@ fn encode_destack_display_backend_list_result(
         .and_then(|value| value)
 }
 
+/// Decode arguments for destack.display.frame.beginClose.
+#[inline]
+fn decode_destack_display_frame_begin_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DisplayBeginFrameHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "DisplayBeginFrameHandle")?;
+    let handle_inner_inner = decode_uint64(
+        handle_value,
+        "handle_inner_inner",
+        "DisplayBeginFrameHandle",
+    )?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::DisplayBeginFrameHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.display.frame.beginClose.
+#[inline]
+fn encode_destack_display_frame_begin_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.display.frame.beginOpen.
+#[inline]
+fn decode_destack_display_frame_begin_open_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(DisplayBeginFrameOpenOptionsVm,)> {
+    let options_value = arg_value(args, 0, "options", "DisplayBeginFrameOpenOptions")?;
+    let options = {
+        if options_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "options",
+                "DisplayBeginFrameOpenOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(options_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "options",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let options_backend_raw = decode_int32(slots[0], "options_backend_raw", "backend")?;
+        let options_backend = match options_backend_raw {
+            0i32 => DisplayBackend::Auto,
+            1i32 => DisplayBackend::Wayland,
+            2i32 => DisplayBackend::X11,
+            3i32 => DisplayBackend::Win32,
+            4i32 => DisplayBackend::AppKit,
+            5i32 => DisplayBackend::UIKit,
+            6i32 => DisplayBackend::Android,
+            255i32 => DisplayBackend::Null,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_backend",
+                    "unknown DisplayBackend value",
+                ))
+                .boxed());
+            }
+        };
+        let options_backend_policy_raw =
+            decode_int32(slots[1], "options_backend_policy_raw", "backendPolicy")?;
+        let options_backend_policy = match options_backend_policy_raw {
+            1i32 => DisplayBackendSelectionPolicy::Strict,
+            2i32 => DisplayBackendSelectionPolicy::AllowFallback,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_backend_policy",
+                    "unknown DisplayBackendSelectionPolicy value",
+                ))
+                .boxed());
+            }
+        };
+        let options_queue = {
+            if slots[2].tag() != vm::ValueTag::Aggregate {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                    "options_queue",
+                    "queue",
+                ))
+                .boxed());
+            }
+            let slots = context
+                .aggregate_slots(slots[2])
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            if slots.len() != 2 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_queue",
+                    "expected 2 fields",
+                ))
+                .boxed());
+            }
+            let options_queue_queue_capacity =
+                decode_uint32(slots[0], "options_queue_queue_capacity", "queueCapacity")?;
+            let options_queue_overflow_policy_raw = decode_int32(
+                slots[1],
+                "options_queue_overflow_policy_raw",
+                "overflowPolicy",
+            )?;
+            let options_queue_overflow_policy = match options_queue_overflow_policy_raw {
+                1i32 => DisplayEventOverflowPolicy::DropOldest,
+                2i32 => DisplayEventOverflowPolicy::DropNewest,
+                3i32 => DisplayEventOverflowPolicy::Error,
+                _ => {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "options_queue_overflow_policy",
+                        "unknown DisplayEventOverflowPolicy value",
+                    ))
+                    .boxed());
+                }
+            };
+            DisplayEventQueueOptionsVm {
+                queue_capacity: options_queue_queue_capacity,
+                overflow_policy: options_queue_overflow_policy,
+            }
+        };
+        let options_filter = if slots[3].tag() == vm::ValueTag::Void {
+            None
+        } else {
+            let options_filter_inner = {
+                if slots[3].tag() != vm::ValueTag::Aggregate {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                        "options_filter_inner",
+                        "filter",
+                    ))
+                    .boxed());
+                }
+                let slots = context
+                    .aggregate_slots(slots[3])
+                    .map_err(|error| RuntimeError::from(error).boxed())?;
+                if slots.len() != 1 {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "options_filter_inner",
+                        "expected 1 fields",
+                    ))
+                    .boxed());
+                }
+                let options_filter_inner_window = if slots[0].tag() == vm::ValueTag::Void {
+                    None
+                } else {
+                    let options_filter_inner_window_inner_inner_inner = decode_uint64(
+                        slots[0],
+                        "options_filter_inner_window_inner_inner_inner",
+                        "window",
+                    )?;
+                    let options_filter_inner_window_inner_inner =
+                        resource::ResourceId(options_filter_inner_window_inner_inner_inner);
+                    let options_filter_inner_window_inner =
+                        resource::WindowHandle(options_filter_inner_window_inner_inner);
+                    Some(options_filter_inner_window_inner)
+                };
+                DisplayBeginFrameFilterVm {
+                    window: options_filter_inner_window,
+                }
+            };
+            Some(options_filter_inner)
+        };
+        DisplayBeginFrameOpenOptionsVm {
+            backend: options_backend,
+            backend_policy: options_backend_policy,
+            queue: options_queue,
+            filter: options_filter,
+        }
+    };
+    Ok((options,))
+}
+
+/// Encode the result for destack.display.frame.beginOpen.
+#[inline]
+fn encode_destack_display_frame_begin_open_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::DisplayBeginFrameHandle>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.display.frame.beginRead.
+#[inline]
+fn decode_destack_display_frame_begin_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DisplayBeginFrameHandle, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "DisplayBeginFrameHandle")?;
+    let handle_inner_inner = decode_uint64(
+        handle_value,
+        "handle_inner_inner",
+        "DisplayBeginFrameHandle",
+    )?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::DisplayBeginFrameHandle(handle_inner);
+    let timeoutns_value = arg_value(args, 1, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, timeoutns))
+}
+
+/// Encode the result for destack.display.frame.beginRead.
+#[inline]
+fn encode_destack_display_frame_begin_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<DisplayBeginFrameEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.backend as i32 as i64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.window.0.0, 64));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.begin_frame_id, 64));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.scheduled_at_ns, 64));
+            let field_4: RuntimeResult<vm::Value> = match value.target_wakeup_timestamp_ns {
+                Some(value) => Ok(vm::Value::uint(value, 64)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_5: RuntimeResult<vm::Value> = match value.predicted_presentation_timestamp_ns
+            {
+                Some(value) => Ok(vm::Value::uint(value, 64)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_6: RuntimeResult<vm::Value> = match value.deadline_ns {
+                Some(value) => Ok(vm::Value::uint(value, 64)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_7: RuntimeResult<vm::Value> = match value.interval_ns {
+                Some(value) => Ok(vm::Value::uint(value, 64)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.delivered_at_ns, 64));
+            let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence, 64));
+            let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.dropped_count, 64));
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                    field_8?, field_9?, field_10?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.display.frame.beginReadBatch.
+#[inline]
+fn decode_destack_display_frame_begin_read_batch_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DisplayBeginFrameHandle, u32, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "DisplayBeginFrameHandle")?;
+    let handle_inner_inner = decode_uint64(
+        handle_value,
+        "handle_inner_inner",
+        "DisplayBeginFrameHandle",
+    )?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::DisplayBeginFrameHandle(handle_inner);
+    let maxevents_value = arg_value(args, 1, "maxevents", "uint32")?;
+    let maxevents = decode_uint32(maxevents_value, "maxevents", "uint32")?;
+    let timeoutns_value = arg_value(args, 2, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, maxevents, timeoutns))
+}
+
+/// Encode the result for destack.display.frame.beginReadBatch.
+#[inline]
+fn encode_destack_display_frame_begin_read_batch_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmArray<DisplayBeginFrameEventVm>>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.display.frame.beginTryRead.
+#[inline]
+fn decode_destack_display_frame_begin_try_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DisplayBeginFrameHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "DisplayBeginFrameHandle")?;
+    let handle_inner_inner = decode_uint64(
+        handle_value,
+        "handle_inner_inner",
+        "DisplayBeginFrameHandle",
+    )?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::DisplayBeginFrameHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.display.frame.beginTryRead.
+#[inline]
+fn encode_destack_display_frame_begin_try_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<DisplayBeginFrameEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.backend as i32 as i64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.window.0.0, 64));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.begin_frame_id, 64));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.scheduled_at_ns, 64));
+            let field_4: RuntimeResult<vm::Value> = match value.target_wakeup_timestamp_ns {
+                Some(value) => Ok(vm::Value::uint(value, 64)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_5: RuntimeResult<vm::Value> = match value.predicted_presentation_timestamp_ns
+            {
+                Some(value) => Ok(vm::Value::uint(value, 64)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_6: RuntimeResult<vm::Value> = match value.deadline_ns {
+                Some(value) => Ok(vm::Value::uint(value, 64)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_7: RuntimeResult<vm::Value> = match value.interval_ns {
+                Some(value) => Ok(vm::Value::uint(value, 64)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.delivered_at_ns, 64));
+            let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence, 64));
+            let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.dropped_count, 64));
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                    field_8?, field_9?, field_10?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.display.frame.beginTryReadBatch.
+#[inline]
+fn decode_destack_display_frame_begin_try_read_batch_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DisplayBeginFrameHandle, u32)> {
+    let handle_value = arg_value(args, 0, "handle", "DisplayBeginFrameHandle")?;
+    let handle_inner_inner = decode_uint64(
+        handle_value,
+        "handle_inner_inner",
+        "DisplayBeginFrameHandle",
+    )?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::DisplayBeginFrameHandle(handle_inner);
+    let maxevents_value = arg_value(args, 1, "maxevents", "uint32")?;
+    let maxevents = decode_uint32(maxevents_value, "maxevents", "uint32")?;
+    Ok((handle, maxevents))
+}
+
+/// Encode the result for destack.display.frame.beginTryReadBatch.
+#[inline]
+fn encode_destack_display_frame_begin_try_read_batch_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmArray<DisplayBeginFrameEventVm>>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
+}
+
 /// Decode arguments for destack.display.monitor.close.
 #[inline]
 fn decode_destack_display_monitor_close_args(
@@ -372,7 +751,8 @@ fn decode_destack_display_monitor_closest_mode_args(
         let requested_height = decode_uint32(slots[1], "requested_height", "height")?;
         let requested_refresh_milli_hz =
             decode_uint32(slots[2], "requested_refresh_milli_hz", "refreshMilliHz")?;
-        let requested_format = decode_uint32(slots[3], "requested_format", "format")?;
+        let requested_format_inner = decode_uint32(slots[3], "requested_format_inner", "format")?;
+        let requested_format = DisplayPixelFormat(requested_format_inner);
         let requested_bit_depth = decode_uint16(slots[4], "requested_bit_depth", "bitDepth")?;
         DisplayModeVm {
             width: requested_width,
@@ -397,7 +777,7 @@ fn encode_destack_display_monitor_closest_mode_result(
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
             let field_2: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
-            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.format as u64, 32));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.format.0 as u64, 32));
             let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bit_depth as u64, 16));
             context
                 .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
@@ -467,7 +847,7 @@ fn encode_destack_display_monitor_current_mode_result(
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
             let field_2: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
-            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.format as u64, 32));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.format.0 as u64, 32));
             let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bit_depth as u64, 16));
             context
                 .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
@@ -529,11 +909,27 @@ fn encode_destack_display_monitor_descriptor_result(
             ));
             let field_18: RuntimeResult<vm::Value> =
                 Ok(vm::Value::int(value.hdr_support as i32 as i64, 32));
+            let field_19: RuntimeResult<vm::Value> = match value.color_state {
+                Some(value) => {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.hdr_mode as i32 as i64, 32));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.color_space as i32 as i64, 32));
+                    let field_2: RuntimeResult<vm::Value> = match value.bits_per_channel {
+                        Some(value) => Ok(vm::Value::uint(value as u64, 16)),
+                        None => Ok(vm::Value::VOID),
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }
+                None => Ok(vm::Value::VOID),
+            };
             context
                 .allocate_aggregate(vec![
                     field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
                     field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
-                    field_15?, field_16?, field_17?, field_18?,
+                    field_15?, field_16?, field_17?, field_18?, field_19?,
                 ])
                 .map_err(Box::<RuntimeError>::from)
         })
@@ -565,7 +961,7 @@ fn encode_destack_display_monitor_desktop_mode_result(
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
             let field_2: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
-            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.format as u64, 32));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.format.0 as u64, 32));
             let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bit_depth as u64, 16));
             context
                 .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
@@ -881,12 +1277,31 @@ fn encode_destack_display_monitor_event_read_result(
                                 value.payload.descriptor.hdr_support as i32 as i64,
                                 32,
                             ));
+                            let field_19: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.color_state {
+                                    Some(value) => {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::int(value.hdr_mode as i32 as i64, 32));
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::int(value.color_space as i32 as i64, 32));
+                                        let field_2: RuntimeResult<vm::Value> = match value
+                                            .bits_per_channel
+                                        {
+                                            Some(value) => Ok(vm::Value::uint(value as u64, 16)),
+                                            None => Ok(vm::Value::VOID),
+                                        };
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }
+                                    None => Ok(vm::Value::VOID),
+                                };
                             context
                                 .allocate_aggregate(vec![
                                     field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
                                     field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
                                     field_12?, field_13?, field_14?, field_15?, field_16?,
-                                    field_17?, field_18?,
+                                    field_17?, field_18?, field_19?,
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
                         };
@@ -966,12 +1381,30 @@ fn encode_destack_display_monitor_event_read_result(
                                 ));
                                 let field_18: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::int(value.hdr_support as i32 as i64, 32));
+                                let field_19: RuntimeResult<vm::Value> = match value.color_state {
+                                    Some(value) => {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::int(value.hdr_mode as i32 as i64, 32));
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::int(value.color_space as i32 as i64, 32));
+                                        let field_2: RuntimeResult<vm::Value> = match value
+                                            .bits_per_channel
+                                        {
+                                            Some(value) => Ok(vm::Value::uint(value as u64, 16)),
+                                            None => Ok(vm::Value::VOID),
+                                        };
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }
+                                    None => Ok(vm::Value::VOID),
+                                };
                                 context
                                     .allocate_aggregate(vec![
                                         field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
                                         field_6?, field_7?, field_8?, field_9?, field_10?,
                                         field_11?, field_12?, field_13?, field_14?, field_15?,
-                                        field_16?, field_17?, field_18?,
+                                        field_16?, field_17?, field_18?, field_19?,
                                     ])
                                     .map_err(Box::<RuntimeError>::from)
                             }
@@ -1032,12 +1465,31 @@ fn encode_destack_display_monitor_event_read_result(
                                 value.payload.current.hdr_support as i32 as i64,
                                 32,
                             ));
+                            let field_19: RuntimeResult<vm::Value> =
+                                match value.payload.current.color_state {
+                                    Some(value) => {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::int(value.hdr_mode as i32 as i64, 32));
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::int(value.color_space as i32 as i64, 32));
+                                        let field_2: RuntimeResult<vm::Value> = match value
+                                            .bits_per_channel
+                                        {
+                                            Some(value) => Ok(vm::Value::uint(value as u64, 16)),
+                                            None => Ok(vm::Value::VOID),
+                                        };
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }
+                                    None => Ok(vm::Value::VOID),
+                                };
                             context
                                 .allocate_aggregate(vec![
                                     field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
                                     field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
                                     field_12?, field_13?, field_14?, field_15?, field_16?,
-                                    field_17?, field_18?,
+                                    field_17?, field_18?, field_19?,
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
                         };
@@ -1088,7 +1540,7 @@ fn encode_destack_display_monitor_event_read_result(
                                 let field_2: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
                                 let field_3: RuntimeResult<vm::Value> =
-                                    Ok(vm::Value::uint(value.format as u64, 32));
+                                    Ok(vm::Value::uint(value.format.0 as u64, 32));
                                 let field_4: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::uint(value.bit_depth as u64, 16));
                                 context
@@ -1109,7 +1561,7 @@ fn encode_destack_display_monitor_event_read_result(
                                 32,
                             ));
                             let field_3: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.payload.current.format as u64, 32));
+                                Ok(vm::Value::uint(value.payload.current.format.0 as u64, 32));
                             let field_4: RuntimeResult<vm::Value> =
                                 Ok(vm::Value::uint(value.payload.current.bit_depth as u64, 16));
                             context
@@ -1239,12 +1691,30 @@ fn encode_destack_display_monitor_event_read_result(
                                 ));
                                 let field_18: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::int(value.hdr_support as i32 as i64, 32));
+                                let field_19: RuntimeResult<vm::Value> = match value.color_state {
+                                    Some(value) => {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::int(value.hdr_mode as i32 as i64, 32));
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::int(value.color_space as i32 as i64, 32));
+                                        let field_2: RuntimeResult<vm::Value> = match value
+                                            .bits_per_channel
+                                        {
+                                            Some(value) => Ok(vm::Value::uint(value as u64, 16)),
+                                            None => Ok(vm::Value::VOID),
+                                        };
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }
+                                    None => Ok(vm::Value::VOID),
+                                };
                                 context
                                     .allocate_aggregate(vec![
                                         field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
                                         field_6?, field_7?, field_8?, field_9?, field_10?,
                                         field_11?, field_12?, field_13?, field_14?, field_15?,
-                                        field_16?, field_17?, field_18?,
+                                        field_16?, field_17?, field_18?, field_19?,
                                     ])
                                     .map_err(Box::<RuntimeError>::from)
                             }
@@ -1408,12 +1878,31 @@ fn encode_destack_display_monitor_event_try_read_result(
                                 value.payload.descriptor.hdr_support as i32 as i64,
                                 32,
                             ));
+                            let field_19: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.color_state {
+                                    Some(value) => {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::int(value.hdr_mode as i32 as i64, 32));
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::int(value.color_space as i32 as i64, 32));
+                                        let field_2: RuntimeResult<vm::Value> = match value
+                                            .bits_per_channel
+                                        {
+                                            Some(value) => Ok(vm::Value::uint(value as u64, 16)),
+                                            None => Ok(vm::Value::VOID),
+                                        };
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }
+                                    None => Ok(vm::Value::VOID),
+                                };
                             context
                                 .allocate_aggregate(vec![
                                     field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
                                     field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
                                     field_12?, field_13?, field_14?, field_15?, field_16?,
-                                    field_17?, field_18?,
+                                    field_17?, field_18?, field_19?,
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
                         };
@@ -1493,12 +1982,30 @@ fn encode_destack_display_monitor_event_try_read_result(
                                 ));
                                 let field_18: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::int(value.hdr_support as i32 as i64, 32));
+                                let field_19: RuntimeResult<vm::Value> = match value.color_state {
+                                    Some(value) => {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::int(value.hdr_mode as i32 as i64, 32));
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::int(value.color_space as i32 as i64, 32));
+                                        let field_2: RuntimeResult<vm::Value> = match value
+                                            .bits_per_channel
+                                        {
+                                            Some(value) => Ok(vm::Value::uint(value as u64, 16)),
+                                            None => Ok(vm::Value::VOID),
+                                        };
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }
+                                    None => Ok(vm::Value::VOID),
+                                };
                                 context
                                     .allocate_aggregate(vec![
                                         field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
                                         field_6?, field_7?, field_8?, field_9?, field_10?,
                                         field_11?, field_12?, field_13?, field_14?, field_15?,
-                                        field_16?, field_17?, field_18?,
+                                        field_16?, field_17?, field_18?, field_19?,
                                     ])
                                     .map_err(Box::<RuntimeError>::from)
                             }
@@ -1559,12 +2066,31 @@ fn encode_destack_display_monitor_event_try_read_result(
                                 value.payload.current.hdr_support as i32 as i64,
                                 32,
                             ));
+                            let field_19: RuntimeResult<vm::Value> =
+                                match value.payload.current.color_state {
+                                    Some(value) => {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::int(value.hdr_mode as i32 as i64, 32));
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::int(value.color_space as i32 as i64, 32));
+                                        let field_2: RuntimeResult<vm::Value> = match value
+                                            .bits_per_channel
+                                        {
+                                            Some(value) => Ok(vm::Value::uint(value as u64, 16)),
+                                            None => Ok(vm::Value::VOID),
+                                        };
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }
+                                    None => Ok(vm::Value::VOID),
+                                };
                             context
                                 .allocate_aggregate(vec![
                                     field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
                                     field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
                                     field_12?, field_13?, field_14?, field_15?, field_16?,
-                                    field_17?, field_18?,
+                                    field_17?, field_18?, field_19?,
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
                         };
@@ -1615,7 +2141,7 @@ fn encode_destack_display_monitor_event_try_read_result(
                                 let field_2: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
                                 let field_3: RuntimeResult<vm::Value> =
-                                    Ok(vm::Value::uint(value.format as u64, 32));
+                                    Ok(vm::Value::uint(value.format.0 as u64, 32));
                                 let field_4: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::uint(value.bit_depth as u64, 16));
                                 context
@@ -1636,7 +2162,7 @@ fn encode_destack_display_monitor_event_try_read_result(
                                 32,
                             ));
                             let field_3: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.payload.current.format as u64, 32));
+                                Ok(vm::Value::uint(value.payload.current.format.0 as u64, 32));
                             let field_4: RuntimeResult<vm::Value> =
                                 Ok(vm::Value::uint(value.payload.current.bit_depth as u64, 16));
                             context
@@ -1766,12 +2292,30 @@ fn encode_destack_display_monitor_event_try_read_result(
                                 ));
                                 let field_18: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::int(value.hdr_support as i32 as i64, 32));
+                                let field_19: RuntimeResult<vm::Value> = match value.color_state {
+                                    Some(value) => {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::int(value.hdr_mode as i32 as i64, 32));
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            Ok(vm::Value::int(value.color_space as i32 as i64, 32));
+                                        let field_2: RuntimeResult<vm::Value> = match value
+                                            .bits_per_channel
+                                        {
+                                            Some(value) => Ok(vm::Value::uint(value as u64, 16)),
+                                            None => Ok(vm::Value::VOID),
+                                        };
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }
+                                    None => Ok(vm::Value::VOID),
+                                };
                                 context
                                     .allocate_aggregate(vec![
                                         field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
                                         field_6?, field_7?, field_8?, field_9?, field_10?,
                                         field_11?, field_12?, field_13?, field_14?, field_15?,
-                                        field_16?, field_17?, field_18?,
+                                        field_16?, field_17?, field_18?, field_19?,
                                     ])
                                     .map_err(Box::<RuntimeError>::from)
                             }
@@ -2249,7 +2793,8 @@ fn decode_destack_display_monitor_set_mode_args(
         let mode_height = decode_uint32(slots[1], "mode_height", "height")?;
         let mode_refresh_milli_hz =
             decode_uint32(slots[2], "mode_refresh_milli_hz", "refreshMilliHz")?;
-        let mode_format = decode_uint32(slots[3], "mode_format", "format")?;
+        let mode_format_inner = decode_uint32(slots[3], "mode_format_inner", "format")?;
+        let mode_format = DisplayPixelFormat(mode_format_inner);
         let mode_bit_depth = decode_uint16(slots[4], "mode_bit_depth", "bitDepth")?;
         DisplayModeVm {
             width: mode_width,
@@ -2380,6 +2925,38 @@ fn encode_destack_display_window_close_result(
     result.map(|_| vm::Value::VOID)
 }
 
+/// Decode arguments for destack.display.window.contentRect.
+#[inline]
+fn decode_destack_display_window_content_rect_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::WindowHandle,)> {
+    let window_value = arg_value(args, 0, "window", "WindowHandle")?;
+    let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
+    let window_inner = resource::ResourceId(window_inner_inner);
+    let window = resource::WindowHandle(window_inner);
+    Ok((window,))
+}
+
+/// Encode the result for destack.display.window.contentRect.
+#[inline]
+fn encode_destack_display_window_content_rect_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<WindowLogicalRectVm>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.x));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.y));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.width));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.height));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
+}
+
 /// Decode arguments for destack.display.window.descriptor.
 #[inline]
 fn decode_destack_display_window_descriptor_args(
@@ -2439,7 +3016,7 @@ fn encode_destack_display_window_descriptor_result(
                                 let field_2: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
                                 let field_3: RuntimeResult<vm::Value> =
-                                    Ok(vm::Value::uint(value.format as u64, 32));
+                                    Ok(vm::Value::uint(value.format.0 as u64, 32));
                                 let field_4: RuntimeResult<vm::Value> =
                                     Ok(vm::Value::uint(value.bit_depth as u64, 16));
                                 context
@@ -2471,29 +3048,25 @@ fn encode_destack_display_window_descriptor_result(
                         .map_err(Box::<RuntimeError>::from)
                 }
             };
-            let field_5: RuntimeResult<vm::Value> = match value.display {
-                Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.resizable));
-            let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.decorated));
-            let field_8: RuntimeResult<vm::Value> =
+            let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.resizable));
+            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.decorated));
+            let field_7: RuntimeResult<vm::Value> =
                 Ok(vm::Value::int(value.chrome as i32 as i64, 32));
-            let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.taskbar_visible));
-            let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.transparent));
-            let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.opacity));
-            let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.always_on_top));
-            let field_13: RuntimeResult<vm::Value> = match value.parent {
+            let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.taskbar_visible));
+            let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.transparent));
+            let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.opacity));
+            let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.always_on_top));
+            let field_12: RuntimeResult<vm::Value> = match value.parent {
                 Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
                 None => Ok(vm::Value::VOID),
             };
-            let field_14: RuntimeResult<vm::Value> = match value.transient_for {
+            let field_13: RuntimeResult<vm::Value> = match value.transient_for {
                 Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
                 None => Ok(vm::Value::VOID),
             };
-            let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.modal));
-            let field_16: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.mouse_passthrough));
-            let field_17: RuntimeResult<vm::Value> = match value.aspect_ratio {
+            let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.modal));
+            let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.mouse_passthrough));
+            let field_16: RuntimeResult<vm::Value> = match value.aspect_ratio {
                 Some(value) => {
                     let field_0: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.numerator as u64, 32));
@@ -2509,7 +3082,7 @@ fn encode_destack_display_window_descriptor_result(
                 .allocate_aggregate(vec![
                     field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
                     field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
-                    field_15?, field_16?, field_17?,
+                    field_15?, field_16?,
                 ])
                 .map_err(Box::<RuntimeError>::from)
         })
@@ -2861,6 +3434,74 @@ fn encode_destack_display_window_event_read_result(
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowContentRectChangedEvent(value) => {
+                let tag_value = vm::Value::uint(2562695863u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.previous_content_rect_logical.x,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.previous_content_rect_logical.y,
+                            ));
+                            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.previous_content_rect_logical.width,
+                            ));
+                            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.previous_content_rect_logical.height,
+                            ));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        let field_1: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.current_content_rect_logical.x,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.current_content_rect_logical.y,
+                            ));
+                            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.current_content_rect_logical.width,
+                            ));
+                            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.current_content_rect_logical.height,
+                            ));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -3337,6 +3978,66 @@ fn encode_destack_display_window_event_read_result(
                     .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
             }
+            WindowEventVm::WindowFramebufferSizeChangedEvent(value) => {
+                let tag_value = vm::Value::uint(2471808910u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.previous_framebuffer_size.width as u64,
+                                32,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.previous_framebuffer_size.height as u64,
+                                32,
+                            ));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        let field_1: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.current_framebuffer_size.width as u64,
+                                32,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.current_framebuffer_size.height as u64,
+                                32,
+                            ));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
             WindowEventVm::WindowModalChangedEvent(value) => {
                 let tag_value = vm::Value::uint(3070869257u64, 32);
                 let payload_value = {
@@ -3431,7 +4132,7 @@ fn encode_destack_display_window_event_read_result(
                                                 vm::Value::uint(value.refresh_milli_hz as u64, 32),
                                             );
                                             let field_3: RuntimeResult<vm::Value> =
-                                                Ok(vm::Value::uint(value.format as u64, 32));
+                                                Ok(vm::Value::uint(value.format.0 as u64, 32));
                                             let field_4: RuntimeResult<vm::Value> =
                                                 Ok(vm::Value::uint(value.bit_depth as u64, 16));
                                             context
@@ -3498,7 +4199,7 @@ fn encode_destack_display_window_event_read_result(
                                                 vm::Value::uint(value.refresh_milli_hz as u64, 32),
                                             );
                                             let field_3: RuntimeResult<vm::Value> =
-                                                Ok(vm::Value::uint(value.format as u64, 32));
+                                                Ok(vm::Value::uint(value.format.0 as u64, 32));
                                             let field_4: RuntimeResult<vm::Value> =
                                                 Ok(vm::Value::uint(value.bit_depth as u64, 16));
                                             context
@@ -3756,8 +4457,8 @@ fn encode_destack_display_window_event_read_result(
                     .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
             }
-            WindowEventVm::WindowRefreshRequestedEvent(value) => {
-                let tag_value = vm::Value::uint(1316312880u64, 32);
+            WindowEventVm::WindowRenderStateChangedEvent(value) => {
+                let tag_value = vm::Value::uint(668745667u64, 32);
                 let payload_value = {
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = {
@@ -3777,8 +4478,21 @@ fn encode_destack_display_window_event_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                            value.payload.previous_render_state as i32 as i64,
+                            32,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                            value.payload.current_render_state as i32 as i64,
+                            32,
+                        ));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -4379,6 +5093,74 @@ fn encode_destack_display_window_event_try_read_result(
                     .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
             }
+            WindowEventVm::WindowContentRectChangedEvent(value) => {
+                let tag_value = vm::Value::uint(2562695863u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.previous_content_rect_logical.x,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.previous_content_rect_logical.y,
+                            ));
+                            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.previous_content_rect_logical.width,
+                            ));
+                            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.previous_content_rect_logical.height,
+                            ));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        let field_1: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.current_content_rect_logical.x,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.current_content_rect_logical.y,
+                            ));
+                            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.current_content_rect_logical.width,
+                            ));
+                            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.current_content_rect_logical.height,
+                            ));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
             WindowEventVm::WindowCreatedEvent(value) => {
                 let tag_value = vm::Value::uint(878591535u64, 32);
                 let payload_value = {
@@ -4849,6 +5631,66 @@ fn encode_destack_display_window_event_try_read_result(
                     .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
             }
+            WindowEventVm::WindowFramebufferSizeChangedEvent(value) => {
+                let tag_value = vm::Value::uint(2471808910u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.previous_framebuffer_size.width as u64,
+                                32,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.previous_framebuffer_size.height as u64,
+                                32,
+                            ));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        let field_1: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.current_framebuffer_size.width as u64,
+                                32,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.current_framebuffer_size.height as u64,
+                                32,
+                            ));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
             WindowEventVm::WindowModalChangedEvent(value) => {
                 let tag_value = vm::Value::uint(3070869257u64, 32);
                 let payload_value = {
@@ -4943,7 +5785,7 @@ fn encode_destack_display_window_event_try_read_result(
                                                 vm::Value::uint(value.refresh_milli_hz as u64, 32),
                                             );
                                             let field_3: RuntimeResult<vm::Value> =
-                                                Ok(vm::Value::uint(value.format as u64, 32));
+                                                Ok(vm::Value::uint(value.format.0 as u64, 32));
                                             let field_4: RuntimeResult<vm::Value> =
                                                 Ok(vm::Value::uint(value.bit_depth as u64, 16));
                                             context
@@ -5010,7 +5852,7 @@ fn encode_destack_display_window_event_try_read_result(
                                                 vm::Value::uint(value.refresh_milli_hz as u64, 32),
                                             );
                                             let field_3: RuntimeResult<vm::Value> =
-                                                Ok(vm::Value::uint(value.format as u64, 32));
+                                                Ok(vm::Value::uint(value.format.0 as u64, 32));
                                             let field_4: RuntimeResult<vm::Value> =
                                                 Ok(vm::Value::uint(value.bit_depth as u64, 16));
                                             context
@@ -5268,8 +6110,8 @@ fn encode_destack_display_window_event_try_read_result(
                     .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
             }
-            WindowEventVm::WindowRefreshRequestedEvent(value) => {
-                let tag_value = vm::Value::uint(1316312880u64, 32);
+            WindowEventVm::WindowRenderStateChangedEvent(value) => {
+                let tag_value = vm::Value::uint(668745667u64, 32);
                 let payload_value = {
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = {
@@ -5289,8 +6131,21 @@ fn encode_destack_display_window_event_try_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                            value.payload.previous_render_state as i32 as i64,
+                            32,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                            value.payload.current_render_state as i32 as i64,
+                            32,
+                        ));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -5752,6 +6607,58 @@ fn decode_destack_display_window_focus_args(
 /// Encode the result for destack.display.window.focus.
 #[inline]
 fn encode_destack_display_window_focus_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.display.window.framebufferSize.
+#[inline]
+fn decode_destack_display_window_framebuffer_size_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::WindowHandle,)> {
+    let window_value = arg_value(args, 0, "window", "WindowHandle")?;
+    let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
+    let window_inner = resource::ResourceId(window_inner_inner);
+    let window = resource::WindowHandle(window_inner);
+    Ok((window,))
+}
+
+/// Encode the result for destack.display.window.framebufferSize.
+#[inline]
+fn encode_destack_display_window_framebuffer_size_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<WindowPhysicalSizeVm>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.display.window.invalidate.
+#[inline]
+fn decode_destack_display_window_invalidate_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::WindowHandle,)> {
+    let window_value = arg_value(args, 0, "window", "WindowHandle")?;
+    let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
+    let window_inner = resource::ResourceId(window_inner_inner);
+    let window = resource::WindowHandle(window_inner);
+    Ok((window,))
+}
+
+/// Encode the result for destack.display.window.invalidate.
+#[inline]
+fn encode_destack_display_window_invalidate_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -6252,6 +7159,30 @@ fn encode_destack_display_window_raise_result(
     result.map(|_| vm::Value::VOID)
 }
 
+/// Decode arguments for destack.display.window.renderState.
+#[inline]
+fn decode_destack_display_window_render_state_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::WindowHandle,)> {
+    let window_value = arg_value(args, 0, "window", "WindowHandle")?;
+    let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
+    let window_inner = resource::ResourceId(window_inner_inner);
+    let window = resource::WindowHandle(window_inner);
+    Ok((window,))
+}
+
+/// Encode the result for destack.display.window.renderState.
+#[inline]
+fn encode_destack_display_window_render_state_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<WindowRenderState>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| Ok(vm::Value::int(value as i32 as i64, 32)))
+        .and_then(|value| value)
+}
+
 /// Decode arguments for destack.display.window.requestAttention.
 #[inline]
 fn decode_destack_display_window_request_attention_args(
@@ -6281,28 +7212,6 @@ fn decode_destack_display_window_request_attention_args(
 /// Encode the result for destack.display.window.requestAttention.
 #[inline]
 fn encode_destack_display_window_request_attention_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
-/// Decode arguments for destack.display.window.requestRefresh.
-#[inline]
-fn decode_destack_display_window_request_refresh_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::WindowHandle,)> {
-    let window_value = arg_value(args, 0, "window", "WindowHandle")?;
-    let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
-    let window_inner = resource::ResourceId(window_inner_inner);
-    let window = resource::WindowHandle(window_inner);
-    Ok((window,))
-}
-
-/// Encode the result for destack.display.window.requestRefresh.
-#[inline]
-fn encode_destack_display_window_request_refresh_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -7253,9 +8162,7 @@ fn encode_destack_display_window_state_result(
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> =
                 Ok(vm::Value::int(value.backend as i32 as i64, 32));
-            let field_1: RuntimeResult<vm::Value> =
-                Ok(vm::Value::int(value.role as i32 as i64, 32));
-            let field_2: RuntimeResult<vm::Value> = {
+            let field_1: RuntimeResult<vm::Value> = {
                 let field_0: RuntimeResult<vm::Value> =
                     Ok(vm::Value::int(value.position.x as i64, 32));
                 let field_1: RuntimeResult<vm::Value> =
@@ -7264,7 +8171,7 @@ fn encode_destack_display_window_state_result(
                     .allocate_aggregate(vec![field_0?, field_1?])
                     .map_err(Box::<RuntimeError>::from)
             };
-            let field_3: RuntimeResult<vm::Value> = {
+            let field_2: RuntimeResult<vm::Value> = {
                 let field_0: RuntimeResult<vm::Value> =
                     Ok(vm::Value::float64(value.size_logical.width));
                 let field_1: RuntimeResult<vm::Value> =
@@ -7273,7 +8180,7 @@ fn encode_destack_display_window_state_result(
                     .allocate_aggregate(vec![field_0?, field_1?])
                     .map_err(Box::<RuntimeError>::from)
             };
-            let field_4: RuntimeResult<vm::Value> = {
+            let field_3: RuntimeResult<vm::Value> = {
                 let field_0: RuntimeResult<vm::Value> =
                     Ok(vm::Value::uint(value.size_physical.width as u64, 32));
                 let field_1: RuntimeResult<vm::Value> =
@@ -7282,18 +8189,44 @@ fn encode_destack_display_window_state_result(
                     .allocate_aggregate(vec![field_0?, field_1?])
                     .map_err(Box::<RuntimeError>::from)
             };
-            let field_5: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.scale_factor_milli as u64, 32));
+            let field_4: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::float64(value.content_rect_logical.x));
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::float64(value.content_rect_logical.y));
+                let field_2: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::float64(value.content_rect_logical.width));
+                let field_3: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::float64(value.content_rect_logical.height));
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                    .map_err(Box::<RuntimeError>::from)
+            };
+            let field_5: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.framebuffer_size.width as u64, 32));
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.framebuffer_size.height as u64, 32));
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            };
             let field_6: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.scale_factor_milli as u64, 32));
+            let field_7: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.role as i32 as i64, 32));
+            let field_8: RuntimeResult<vm::Value> =
                 Ok(vm::Value::int(value.visibility as i32 as i64, 32));
-            let field_7: RuntimeResult<vm::Value> = match value.display {
+            let field_9: RuntimeResult<vm::Value> = match value.display {
                 Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
                 None => Ok(vm::Value::VOID),
             };
-            let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.focused));
-            let field_9: RuntimeResult<vm::Value> =
+            let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.focused));
+            let field_11: RuntimeResult<vm::Value> =
                 Ok(vm::Value::int(value.occlusion as i32 as i64, 32));
-            let field_10: RuntimeResult<vm::Value> = match value.safe_area_insets {
+            let field_12: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.render_state as i32 as i64, 32));
+            let field_13: RuntimeResult<vm::Value> = match value.safe_area_insets {
                 Some(value) => {
                     let field_0: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.left_px as u64, 32));
@@ -7309,24 +8242,24 @@ fn encode_destack_display_window_state_result(
                 }
                 None => Ok(vm::Value::VOID),
             };
-            let field_11: RuntimeResult<vm::Value> =
+            let field_14: RuntimeResult<vm::Value> =
                 Ok(vm::Value::int(value.theme as i32 as i64, 32));
-            let field_12: RuntimeResult<vm::Value> =
+            let field_15: RuntimeResult<vm::Value> =
                 Ok(vm::Value::int(value.chrome as i32 as i64, 32));
-            let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.taskbar_visible));
-            let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.opacity));
-            let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.always_on_top));
-            let field_16: RuntimeResult<vm::Value> = match value.parent {
+            let field_16: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.taskbar_visible));
+            let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.opacity));
+            let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.always_on_top));
+            let field_19: RuntimeResult<vm::Value> = match value.parent {
                 Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
                 None => Ok(vm::Value::VOID),
             };
-            let field_17: RuntimeResult<vm::Value> = match value.transient_for {
+            let field_20: RuntimeResult<vm::Value> = match value.transient_for {
                 Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
                 None => Ok(vm::Value::VOID),
             };
-            let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.modal));
-            let field_19: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.mouse_passthrough));
-            let field_20: RuntimeResult<vm::Value> = match value.aspect_ratio {
+            let field_21: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.modal));
+            let field_22: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.mouse_passthrough));
+            let field_23: RuntimeResult<vm::Value> = match value.aspect_ratio {
                 Some(value) => {
                     let field_0: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.numerator as u64, 32));
@@ -7342,7 +8275,8 @@ fn encode_destack_display_window_state_result(
                 .allocate_aggregate(vec![
                     field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
                     field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
-                    field_15?, field_16?, field_17?, field_18?, field_19?, field_20?,
+                    field_15?, field_16?, field_17?, field_18?, field_19?, field_20?, field_21?,
+                    field_22?, field_23?,
                 ])
                 .map_err(Box::<RuntimeError>::from)
         })
@@ -7354,6 +8288,48 @@ fn encode_destack_display_window_state_result(
 struct DisplayBackendListReplayRecord {
     /// Replay result payload.
     pub result: Result<Vec<DisplaybackenddescriptorReplayRecord>, TraceError>,
+}
+
+/// Replay payload for destack.display.frame.beginClose.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayFrameBeginCloseReplayRecord {
+    /// Replay result payload.
+    pub result: Result<(), TraceError>,
+}
+
+/// Replay payload for destack.display.frame.beginOpen.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayFrameBeginOpenReplayRecord {
+    /// Replay result payload.
+    pub result: Result<resource::DisplayBeginFrameHandle, TraceError>,
+}
+
+/// Replay payload for destack.display.frame.beginRead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayFrameBeginReadReplayRecord {
+    /// Replay result payload.
+    pub result: Result<DisplayBeginFrameEvent, TraceError>,
+}
+
+/// Replay payload for destack.display.frame.beginReadBatch.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayFrameBeginReadBatchReplayRecord {
+    /// Replay result payload.
+    pub result: Result<Vec<DisplayBeginFrameEvent>, TraceError>,
+}
+
+/// Replay payload for destack.display.frame.beginTryRead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayFrameBeginTryReadReplayRecord {
+    /// Replay result payload.
+    pub result: Result<DisplayBeginFrameEvent, TraceError>,
+}
+
+/// Replay payload for destack.display.frame.beginTryReadBatch.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayFrameBeginTryReadBatchReplayRecord {
+    /// Replay result payload.
+    pub result: Result<Vec<DisplayBeginFrameEvent>, TraceError>,
 }
 
 /// Replay payload for destack.display.monitor.close.
@@ -7510,6 +8486,13 @@ struct DisplayWindowCloseReplayRecord {
     pub result: Result<(), TraceError>,
 }
 
+/// Replay payload for destack.display.window.contentRect.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayWindowContentRectReplayRecord {
+    /// Replay result payload.
+    pub result: Result<WindowLogicalRect, TraceError>,
+}
+
 /// Replay payload for destack.display.window.descriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowDescriptorReplayRecord {
@@ -7566,6 +8549,20 @@ struct DisplayWindowFocusReplayRecord {
     pub result: Result<(), TraceError>,
 }
 
+/// Replay payload for destack.display.window.framebufferSize.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayWindowFramebufferSizeReplayRecord {
+    /// Replay result payload.
+    pub result: Result<WindowPhysicalSize, TraceError>,
+}
+
+/// Replay payload for destack.display.window.invalidate.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayWindowInvalidateReplayRecord {
+    /// Replay result payload.
+    pub result: Result<(), TraceError>,
+}
+
 /// Replay payload for destack.display.window.maximize.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowMaximizeReplayRecord {
@@ -7601,16 +8598,16 @@ struct DisplayWindowRaiseReplayRecord {
     pub result: Result<(), TraceError>,
 }
 
+/// Replay payload for destack.display.window.renderState.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayWindowRenderStateReplayRecord {
+    /// Replay result payload.
+    pub result: Result<WindowRenderState, TraceError>,
+}
+
 /// Replay payload for destack.display.window.requestAttention.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowRequestAttentionReplayRecord {
-    /// Replay result payload.
-    pub result: Result<(), TraceError>,
-}
-
-/// Replay payload for destack.display.window.requestRefresh.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct DisplayWindowRequestRefreshReplayRecord {
     /// Replay result payload.
     pub result: Result<(), TraceError>,
 }
@@ -7818,6 +8815,90 @@ pub(crate) const DISPLAY_BACKEND_LIST: BindingDescriptor =
         "windows",
     ]);
 
+/// Binding descriptor for destack.display.frame.beginClose.
+pub(crate) const DISPLAY_FRAME_BEGIN_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.frame.beginClose",
+    "export function beginFrameClose(handle: DisplayBeginFrameHandle): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["display.window"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
+)
+    .with_namespace("display")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.display.frame.beginOpen.
+pub(crate) const DISPLAY_FRAME_BEGIN_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.frame.beginOpen",
+    "export function beginFrameOpen(options: DisplayBeginFrameOpenOptions): Result<DisplayBeginFrameHandle, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["display.window"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
+)
+    .with_namespace("display")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.display.frame.beginRead.
+pub(crate) const DISPLAY_FRAME_BEGIN_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.frame.beginRead",
+    "export function beginFrameRead(handle: DisplayBeginFrameHandle, timeoutNs: uint64): Result<DisplayBeginFrameEvent, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["display.window"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
+)
+    .with_namespace("display")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.display.frame.beginReadBatch.
+pub(crate) const DISPLAY_FRAME_BEGIN_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.frame.beginReadBatch",
+    "export function beginFrameReadBatch(handle: DisplayBeginFrameHandle, maxEvents: uint32, timeoutNs: uint64): Result<DisplayBeginFrameEvent[], PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["display.window"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::EventLoop,
+)
+    .with_namespace("display")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.display.frame.beginTryRead.
+pub(crate) const DISPLAY_FRAME_BEGIN_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.frame.beginTryRead",
+    "export function beginFrameTryRead(handle: DisplayBeginFrameHandle): Result<DisplayBeginFrameEvent, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["display.window"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+    BindingAffinity::EventLoop,
+)
+    .with_namespace("display")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.display.frame.beginTryReadBatch.
+pub(crate) const DISPLAY_FRAME_BEGIN_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.frame.beginTryReadBatch",
+    "export function beginFrameTryReadBatch(handle: DisplayBeginFrameHandle, maxEvents: uint32): Result<DisplayBeginFrameEvent[], PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["display.window"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+    BindingAffinity::EventLoop,
+)
+    .with_namespace("display")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.display.monitor.close.
 pub(crate) const DISPLAY_MONITOR_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
@@ -7961,7 +9042,7 @@ pub(crate) const DISPLAY_MONITOR_EVENT_READ: BindingDescriptor = BindingDescript
 /// Binding descriptor for destack.display.monitor.eventReadBatch.
 pub(crate) const DISPLAY_MONITOR_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.eventReadBatch",
-    "export function monitorEventReadBatch(handle: DisplayEventHandle, maxEvents: uint32, timeoutNs: uint64): Result<Array<DisplayMonitorEvent>, PlatformError>",
+    "export function monitorEventReadBatch(handle: DisplayEventHandle, maxEvents: uint32, timeoutNs: uint64): Result<DisplayMonitorEvent[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["display.read"],
@@ -7989,7 +9070,7 @@ pub(crate) const DISPLAY_MONITOR_EVENT_TRY_READ: BindingDescriptor = BindingDesc
 /// Binding descriptor for destack.display.monitor.eventTryReadBatch.
 pub(crate) const DISPLAY_MONITOR_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.monitor.eventTryReadBatch",
-    "export function monitorEventTryReadBatch(handle: DisplayEventHandle, maxEvents: uint32): Result<Array<DisplayMonitorEvent>, PlatformError>",
+    "export function monitorEventTryReadBatch(handle: DisplayEventHandle, maxEvents: uint32): Result<DisplayMonitorEvent[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["display.read"],
@@ -8210,6 +9291,20 @@ pub(crate) const DISPLAY_WINDOW_CLOSE: BindingDescriptor =
         "windows",
     ]);
 
+/// Binding descriptor for destack.display.window.contentRect.
+pub(crate) const DISPLAY_WINDOW_CONTENT_RECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.window.contentRect",
+    "export function windowContentRect(window: WindowHandle): Result<WindowLogicalRect, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["display.window"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+    BindingAffinity::EventLoop,
+)
+    .with_namespace("display")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.display.window.descriptor.
 pub(crate) const DISPLAY_WINDOW_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.descriptor",
@@ -8283,7 +9378,7 @@ pub(crate) const DISPLAY_WINDOW_EVENT_READ: BindingDescriptor = BindingDescripto
 /// Binding descriptor for destack.display.window.eventReadBatch.
 pub(crate) const DISPLAY_WINDOW_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.eventReadBatch",
-    "export function windowEventReadBatch(handle: WindowEventHandle, maxEvents: uint32, timeoutNs: uint64): Result<Array<WindowEvent>, PlatformError>",
+    "export function windowEventReadBatch(handle: WindowEventHandle, maxEvents: uint32, timeoutNs: uint64): Result<WindowEvent[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["display.window.events"],
@@ -8311,7 +9406,7 @@ pub(crate) const DISPLAY_WINDOW_EVENT_TRY_READ: BindingDescriptor = BindingDescr
 /// Binding descriptor for destack.display.window.eventTryReadBatch.
 pub(crate) const DISPLAY_WINDOW_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.eventTryReadBatch",
-    "export function windowEventTryReadBatch(handle: WindowEventHandle, maxEvents: uint32): Result<Array<WindowEvent>, PlatformError>",
+    "export function windowEventTryReadBatch(handle: WindowEventHandle, maxEvents: uint32): Result<WindowEvent[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["display.window.events"],
@@ -8332,6 +9427,48 @@ pub(crate) const DISPLAY_WINDOW_FOCUS: BindingDescriptor =
         &["display.window"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
+        BindingAffinity::EventLoop,
+    )
+    .with_namespace("display")
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.display.window.framebufferSize.
+pub(crate) const DISPLAY_WINDOW_FRAMEBUFFER_SIZE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.window.framebufferSize",
+    "export function windowFramebufferSize(window: WindowHandle): Result<WindowPhysicalSize, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["display.window"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+    BindingAffinity::EventLoop,
+)
+    .with_namespace("display")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.display.window.invalidate.
+pub(crate) const DISPLAY_WINDOW_INVALIDATE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.display.window.invalidate",
+        "export function windowInvalidate(window: WindowHandle): Result<void, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::BindingCall,
+        &["display.window"],
+        BindingScope::Host,
+        BindingBlocking::Never,
         BindingAffinity::EventLoop,
     )
     .with_namespace("display")
@@ -8490,6 +9627,20 @@ pub(crate) const DISPLAY_WINDOW_RAISE: BindingDescriptor =
         "windows",
     ]);
 
+/// Binding descriptor for destack.display.window.renderState.
+pub(crate) const DISPLAY_WINDOW_RENDER_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.window.renderState",
+    "export function windowRenderState(window: WindowHandle): Result<WindowRenderState, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["display.window"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+    BindingAffinity::EventLoop,
+)
+    .with_namespace("display")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.display.window.requestAttention.
 pub(crate) const DISPLAY_WINDOW_REQUEST_ATTENTION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.requestAttention",
@@ -8503,34 +9654,6 @@ pub(crate) const DISPLAY_WINDOW_REQUEST_ATTENTION: BindingDescriptor = BindingDe
 )
     .with_namespace("display")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.display.window.requestRefresh.
-pub(crate) const DISPLAY_WINDOW_REQUEST_REFRESH: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.display.window.requestRefresh",
-        "export function windowRequestRefresh(window: WindowHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["display.window"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::EventLoop,
-    )
-    .with_namespace("display")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
 
 /// Binding descriptor for destack.display.window.restore.
 pub(crate) const DISPLAY_WINDOW_RESTORE: BindingDescriptor =
@@ -8920,6 +10043,36 @@ pub(crate) const DISPLAY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_display_backend_list as *const (),
         ),
         NativeBinding::new(
+            DISPLAY_FRAME_BEGIN_CLOSE,
+            "destack.display.frame.beginClose",
+            destack_display_frame_begin_close as *const (),
+        ),
+        NativeBinding::new(
+            DISPLAY_FRAME_BEGIN_OPEN,
+            "destack.display.frame.beginOpen",
+            destack_display_frame_begin_open as *const (),
+        ),
+        NativeBinding::new(
+            DISPLAY_FRAME_BEGIN_READ,
+            "destack.display.frame.beginRead",
+            destack_display_frame_begin_read as *const (),
+        ),
+        NativeBinding::new(
+            DISPLAY_FRAME_BEGIN_READ_BATCH,
+            "destack.display.frame.beginReadBatch",
+            destack_display_frame_begin_read_batch as *const (),
+        ),
+        NativeBinding::new(
+            DISPLAY_FRAME_BEGIN_TRY_READ,
+            "destack.display.frame.beginTryRead",
+            destack_display_frame_begin_try_read as *const (),
+        ),
+        NativeBinding::new(
+            DISPLAY_FRAME_BEGIN_TRY_READ_BATCH,
+            "destack.display.frame.beginTryReadBatch",
+            destack_display_frame_begin_try_read_batch as *const (),
+        ),
+        NativeBinding::new(
             DISPLAY_MONITOR_CLOSE,
             "destack.display.monitor.close",
             destack_display_monitor_close as *const (),
@@ -9045,6 +10198,11 @@ pub(crate) const DISPLAY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_display_window_close as *const (),
         ),
         NativeBinding::new(
+            DISPLAY_WINDOW_CONTENT_RECT,
+            "destack.display.window.contentRect",
+            destack_display_window_content_rect as *const (),
+        ),
+        NativeBinding::new(
             DISPLAY_WINDOW_DESCRIPTOR,
             "destack.display.window.descriptor",
             destack_display_window_descriptor as *const (),
@@ -9085,6 +10243,16 @@ pub(crate) const DISPLAY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_display_window_focus as *const (),
         ),
         NativeBinding::new(
+            DISPLAY_WINDOW_FRAMEBUFFER_SIZE,
+            "destack.display.window.framebufferSize",
+            destack_display_window_framebuffer_size as *const (),
+        ),
+        NativeBinding::new(
+            DISPLAY_WINDOW_INVALIDATE,
+            "destack.display.window.invalidate",
+            destack_display_window_invalidate as *const (),
+        ),
+        NativeBinding::new(
             DISPLAY_WINDOW_MAXIMIZE,
             "destack.display.window.maximize",
             destack_display_window_maximize as *const (),
@@ -9110,14 +10278,14 @@ pub(crate) const DISPLAY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_display_window_raise as *const (),
         ),
         NativeBinding::new(
+            DISPLAY_WINDOW_RENDER_STATE,
+            "destack.display.window.renderState",
+            destack_display_window_render_state as *const (),
+        ),
+        NativeBinding::new(
             DISPLAY_WINDOW_REQUEST_ATTENTION,
             "destack.display.window.requestAttention",
             destack_display_window_request_attention as *const (),
-        ),
-        NativeBinding::new(
-            DISPLAY_WINDOW_REQUEST_REFRESH,
-            "destack.display.window.requestRefresh",
-            destack_display_window_request_refresh as *const (),
         ),
         NativeBinding::new(
             DISPLAY_WINDOW_RESTORE,
@@ -9325,6 +10493,701 @@ fn destack_display_backend_list_replay(
                         value_native_values.push(value_native_decoded);
                     }
                     let value_native = binding.store_slice(value_native_values);
+                    unsafe { out.write(value_native) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_display_frame_begin_close_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::DisplayBeginFrameHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        DISPLAY_FRAME_BEGIN_CLOSE,
+        binding.replay_payload_for(DISPLAY_FRAME_BEGIN_CLOSE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_display_begin_frame_close(binding, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_display_begin_frame_close(binding, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DisplayFrameBeginCloseReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DisplayFrameBeginCloseReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_display_frame_begin_open_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut resource::DisplayBeginFrameHandle,
+    options: DisplayBeginFrameOpenOptions,
+) -> RuntimeResult<()> {
+    let _ = &options;
+
+    binding.trace().run_binding_without_context(
+        DISPLAY_FRAME_BEGIN_OPEN,
+        binding.replay_payload_for(DISPLAY_FRAME_BEGIN_OPEN)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_display_begin_frame_open(binding, out, options)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_display_begin_frame_open(binding, out, options)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: resource::DisplayBeginFrameHandle = unsafe { out.read() };
+                let result_recorded = result_value;
+                let payload = DisplayFrameBeginOpenReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DisplayFrameBeginOpenReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    unsafe { out.write(value) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_display_frame_begin_read_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut DisplayBeginFrameEvent,
+    handle: resource::DisplayBeginFrameHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &timeoutns);
+
+    binding.trace().run_binding_without_context(
+        DISPLAY_FRAME_BEGIN_READ,
+        binding.replay_payload_for(DISPLAY_FRAME_BEGIN_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_display_begin_frame_read(binding, out, handle, timeoutns)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_display_begin_frame_read(
+                    binding, out, handle, timeoutns,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: DisplayBeginFrameEvent = unsafe { out.read() };
+                let result_recorded_backend = result_value.backend;
+                let result_recorded_window = result_value.window;
+                let result_recorded_begin_frame_id = result_value.begin_frame_id;
+                let result_recorded_scheduled_at_ns = result_value.scheduled_at_ns;
+                let result_recorded_target_wakeup_timestamp_ns =
+                    if let Some(value) = result_value.target_wakeup_timestamp_ns {
+                        let result_recorded_target_wakeup_timestamp_ns_inner = value;
+                        Some(result_recorded_target_wakeup_timestamp_ns_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_predicted_presentation_timestamp_ns =
+                    if let Some(value) = result_value.predicted_presentation_timestamp_ns {
+                        let result_recorded_predicted_presentation_timestamp_ns_inner = value;
+                        Some(result_recorded_predicted_presentation_timestamp_ns_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_deadline_ns = if let Some(value) = result_value.deadline_ns {
+                    let result_recorded_deadline_ns_inner = value;
+                    Some(result_recorded_deadline_ns_inner)
+                } else {
+                    None
+                };
+                let result_recorded_interval_ns = if let Some(value) = result_value.interval_ns {
+                    let result_recorded_interval_ns_inner = value;
+                    Some(result_recorded_interval_ns_inner)
+                } else {
+                    None
+                };
+                let result_recorded_delivered_at_ns = result_value.delivered_at_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_dropped_count = result_value.dropped_count;
+                let result_recorded = DisplayBeginFrameEvent {
+                    backend: result_recorded_backend,
+                    window: result_recorded_window,
+                    begin_frame_id: result_recorded_begin_frame_id,
+                    scheduled_at_ns: result_recorded_scheduled_at_ns,
+                    target_wakeup_timestamp_ns: result_recorded_target_wakeup_timestamp_ns,
+                    predicted_presentation_timestamp_ns:
+                        result_recorded_predicted_presentation_timestamp_ns,
+                    deadline_ns: result_recorded_deadline_ns,
+                    interval_ns: result_recorded_interval_ns,
+                    delivered_at_ns: result_recorded_delivered_at_ns,
+                    sequence: result_recorded_sequence,
+                    dropped_count: result_recorded_dropped_count,
+                };
+                let payload = DisplayFrameBeginReadReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DisplayFrameBeginReadReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_backend = value.backend;
+                    let value_native_window = value.window;
+                    let value_native_begin_frame_id = value.begin_frame_id;
+                    let value_native_scheduled_at_ns = value.scheduled_at_ns;
+                    let value_native_target_wakeup_timestamp_ns =
+                        if let Some(value) = value.target_wakeup_timestamp_ns {
+                            let value_native_target_wakeup_timestamp_ns_inner = value;
+                            Some(value_native_target_wakeup_timestamp_ns_inner)
+                        } else {
+                            None
+                        };
+                    let value_native_predicted_presentation_timestamp_ns =
+                        if let Some(value) = value.predicted_presentation_timestamp_ns {
+                            let value_native_predicted_presentation_timestamp_ns_inner = value;
+                            Some(value_native_predicted_presentation_timestamp_ns_inner)
+                        } else {
+                            None
+                        };
+                    let value_native_deadline_ns = if let Some(value) = value.deadline_ns {
+                        let value_native_deadline_ns_inner = value;
+                        Some(value_native_deadline_ns_inner)
+                    } else {
+                        None
+                    };
+                    let value_native_interval_ns = if let Some(value) = value.interval_ns {
+                        let value_native_interval_ns_inner = value;
+                        Some(value_native_interval_ns_inner)
+                    } else {
+                        None
+                    };
+                    let value_native_delivered_at_ns = value.delivered_at_ns;
+                    let value_native_sequence = value.sequence;
+                    let value_native_dropped_count = value.dropped_count;
+                    let value_native = DisplayBeginFrameEvent {
+                        backend: value_native_backend,
+                        window: value_native_window,
+                        begin_frame_id: value_native_begin_frame_id,
+                        scheduled_at_ns: value_native_scheduled_at_ns,
+                        target_wakeup_timestamp_ns: value_native_target_wakeup_timestamp_ns,
+                        predicted_presentation_timestamp_ns:
+                            value_native_predicted_presentation_timestamp_ns,
+                        deadline_ns: value_native_deadline_ns,
+                        interval_ns: value_native_interval_ns,
+                        delivered_at_ns: value_native_delivered_at_ns,
+                        sequence: value_native_sequence,
+                        dropped_count: value_native_dropped_count,
+                    };
+                    unsafe { out.write(value_native) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_display_frame_begin_read_batch_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeArray<DisplayBeginFrameEvent>,
+    handle: resource::DisplayBeginFrameHandle,
+    maxevents: u32,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &maxevents, &timeoutns);
+
+    binding.trace().run_binding_without_context(
+        DISPLAY_FRAME_BEGIN_READ_BATCH,
+        binding.replay_payload_for(DISPLAY_FRAME_BEGIN_READ_BATCH)?,
+        || match world {
+            RuntimeWorld::Host => unsafe { platform_native::destack_display_begin_frame_read_batch(binding, out, handle, maxevents, timeoutns) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_display_begin_frame_read_batch(binding, out, handle, maxevents, timeoutns) },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: NativeArray<DisplayBeginFrameEvent> = unsafe { out.read() };
+                let mut result_recorded = Vec::new();
+                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                    let result_recorded_item_recorded_backend = result_recorded_item.backend;
+                    let result_recorded_item_recorded_window = result_recorded_item.window;
+                    let result_recorded_item_recorded_begin_frame_id = result_recorded_item.begin_frame_id;
+                    let result_recorded_item_recorded_scheduled_at_ns = result_recorded_item.scheduled_at_ns;
+                    let result_recorded_item_recorded_target_wakeup_timestamp_ns = if let Some(value) = result_recorded_item.target_wakeup_timestamp_ns {
+                        let result_recorded_item_recorded_target_wakeup_timestamp_ns_inner = value;
+                        Some(result_recorded_item_recorded_target_wakeup_timestamp_ns_inner)
+                    } else {
+                        None
+                    };
+                    let result_recorded_item_recorded_predicted_presentation_timestamp_ns = if let Some(value) = result_recorded_item.predicted_presentation_timestamp_ns {
+                        let result_recorded_item_recorded_predicted_presentation_timestamp_ns_inner = value;
+                        Some(result_recorded_item_recorded_predicted_presentation_timestamp_ns_inner)
+                    } else {
+                        None
+                    };
+                    let result_recorded_item_recorded_deadline_ns = if let Some(value) = result_recorded_item.deadline_ns {
+                        let result_recorded_item_recorded_deadline_ns_inner = value;
+                        Some(result_recorded_item_recorded_deadline_ns_inner)
+                    } else {
+                        None
+                    };
+                    let result_recorded_item_recorded_interval_ns = if let Some(value) = result_recorded_item.interval_ns {
+                        let result_recorded_item_recorded_interval_ns_inner = value;
+                        Some(result_recorded_item_recorded_interval_ns_inner)
+                    } else {
+                        None
+                    };
+                    let result_recorded_item_recorded_delivered_at_ns = result_recorded_item.delivered_at_ns;
+                    let result_recorded_item_recorded_sequence = result_recorded_item.sequence;
+                    let result_recorded_item_recorded_dropped_count = result_recorded_item.dropped_count;
+                    let result_recorded_item_recorded = DisplayBeginFrameEvent {
+                        backend: result_recorded_item_recorded_backend,
+                        window: result_recorded_item_recorded_window,
+                        begin_frame_id: result_recorded_item_recorded_begin_frame_id,
+                        scheduled_at_ns: result_recorded_item_recorded_scheduled_at_ns,
+                        target_wakeup_timestamp_ns: result_recorded_item_recorded_target_wakeup_timestamp_ns,
+                        predicted_presentation_timestamp_ns: result_recorded_item_recorded_predicted_presentation_timestamp_ns,
+                        deadline_ns: result_recorded_item_recorded_deadline_ns,
+                        interval_ns: result_recorded_item_recorded_interval_ns,
+                        delivered_at_ns: result_recorded_item_recorded_delivered_at_ns,
+                        sequence: result_recorded_item_recorded_sequence,
+                        dropped_count: result_recorded_item_recorded_dropped_count,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = DisplayFrameBeginReadBatchReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DisplayFrameBeginReadBatchReplayRecord {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::new();
+                    for value_native_item in value.iter().cloned() {
+                        let value_native_decoded_backend = value_native_item.backend;
+                        let value_native_decoded_window = value_native_item.window;
+                        let value_native_decoded_begin_frame_id = value_native_item.begin_frame_id;
+                        let value_native_decoded_scheduled_at_ns = value_native_item.scheduled_at_ns;
+                        let value_native_decoded_target_wakeup_timestamp_ns = if let Some(value) = value_native_item.target_wakeup_timestamp_ns {
+                            let value_native_decoded_target_wakeup_timestamp_ns_inner = value;
+                            Some(value_native_decoded_target_wakeup_timestamp_ns_inner)
+                        } else {
+                            None
+                        };
+                        let value_native_decoded_predicted_presentation_timestamp_ns = if let Some(value) = value_native_item.predicted_presentation_timestamp_ns {
+                            let value_native_decoded_predicted_presentation_timestamp_ns_inner = value;
+                            Some(value_native_decoded_predicted_presentation_timestamp_ns_inner)
+                        } else {
+                            None
+                        };
+                        let value_native_decoded_deadline_ns = if let Some(value) = value_native_item.deadline_ns {
+                            let value_native_decoded_deadline_ns_inner = value;
+                            Some(value_native_decoded_deadline_ns_inner)
+                        } else {
+                            None
+                        };
+                        let value_native_decoded_interval_ns = if let Some(value) = value_native_item.interval_ns {
+                            let value_native_decoded_interval_ns_inner = value;
+                            Some(value_native_decoded_interval_ns_inner)
+                        } else {
+                            None
+                        };
+                        let value_native_decoded_delivered_at_ns = value_native_item.delivered_at_ns;
+                        let value_native_decoded_sequence = value_native_item.sequence;
+                        let value_native_decoded_dropped_count = value_native_item.dropped_count;
+                        let value_native_decoded = DisplayBeginFrameEvent {
+                            backend: value_native_decoded_backend,
+                            window: value_native_decoded_window,
+                            begin_frame_id: value_native_decoded_begin_frame_id,
+                            scheduled_at_ns: value_native_decoded_scheduled_at_ns,
+                            target_wakeup_timestamp_ns: value_native_decoded_target_wakeup_timestamp_ns,
+                            predicted_presentation_timestamp_ns: value_native_decoded_predicted_presentation_timestamp_ns,
+                            deadline_ns: value_native_decoded_deadline_ns,
+                            interval_ns: value_native_decoded_interval_ns,
+                            delivered_at_ns: value_native_decoded_delivered_at_ns,
+                            sequence: value_native_decoded_sequence,
+                            dropped_count: value_native_decoded_dropped_count,
+                        };
+                        value_native_values.push(value_native_decoded);
+                    }
+                    let value_native = binding.store_array(value_native_values);
+                    unsafe { out.write(value_native) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_display_frame_begin_try_read_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut DisplayBeginFrameEvent,
+    handle: resource::DisplayBeginFrameHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        DISPLAY_FRAME_BEGIN_TRY_READ,
+        binding.replay_payload_for(DISPLAY_FRAME_BEGIN_TRY_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_display_begin_frame_try_read(binding, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_display_begin_frame_try_read(
+                    binding, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: DisplayBeginFrameEvent = unsafe { out.read() };
+                let result_recorded_backend = result_value.backend;
+                let result_recorded_window = result_value.window;
+                let result_recorded_begin_frame_id = result_value.begin_frame_id;
+                let result_recorded_scheduled_at_ns = result_value.scheduled_at_ns;
+                let result_recorded_target_wakeup_timestamp_ns =
+                    if let Some(value) = result_value.target_wakeup_timestamp_ns {
+                        let result_recorded_target_wakeup_timestamp_ns_inner = value;
+                        Some(result_recorded_target_wakeup_timestamp_ns_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_predicted_presentation_timestamp_ns =
+                    if let Some(value) = result_value.predicted_presentation_timestamp_ns {
+                        let result_recorded_predicted_presentation_timestamp_ns_inner = value;
+                        Some(result_recorded_predicted_presentation_timestamp_ns_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_deadline_ns = if let Some(value) = result_value.deadline_ns {
+                    let result_recorded_deadline_ns_inner = value;
+                    Some(result_recorded_deadline_ns_inner)
+                } else {
+                    None
+                };
+                let result_recorded_interval_ns = if let Some(value) = result_value.interval_ns {
+                    let result_recorded_interval_ns_inner = value;
+                    Some(result_recorded_interval_ns_inner)
+                } else {
+                    None
+                };
+                let result_recorded_delivered_at_ns = result_value.delivered_at_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_dropped_count = result_value.dropped_count;
+                let result_recorded = DisplayBeginFrameEvent {
+                    backend: result_recorded_backend,
+                    window: result_recorded_window,
+                    begin_frame_id: result_recorded_begin_frame_id,
+                    scheduled_at_ns: result_recorded_scheduled_at_ns,
+                    target_wakeup_timestamp_ns: result_recorded_target_wakeup_timestamp_ns,
+                    predicted_presentation_timestamp_ns:
+                        result_recorded_predicted_presentation_timestamp_ns,
+                    deadline_ns: result_recorded_deadline_ns,
+                    interval_ns: result_recorded_interval_ns,
+                    delivered_at_ns: result_recorded_delivered_at_ns,
+                    sequence: result_recorded_sequence,
+                    dropped_count: result_recorded_dropped_count,
+                };
+                let payload = DisplayFrameBeginTryReadReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DisplayFrameBeginTryReadReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_backend = value.backend;
+                    let value_native_window = value.window;
+                    let value_native_begin_frame_id = value.begin_frame_id;
+                    let value_native_scheduled_at_ns = value.scheduled_at_ns;
+                    let value_native_target_wakeup_timestamp_ns =
+                        if let Some(value) = value.target_wakeup_timestamp_ns {
+                            let value_native_target_wakeup_timestamp_ns_inner = value;
+                            Some(value_native_target_wakeup_timestamp_ns_inner)
+                        } else {
+                            None
+                        };
+                    let value_native_predicted_presentation_timestamp_ns =
+                        if let Some(value) = value.predicted_presentation_timestamp_ns {
+                            let value_native_predicted_presentation_timestamp_ns_inner = value;
+                            Some(value_native_predicted_presentation_timestamp_ns_inner)
+                        } else {
+                            None
+                        };
+                    let value_native_deadline_ns = if let Some(value) = value.deadline_ns {
+                        let value_native_deadline_ns_inner = value;
+                        Some(value_native_deadline_ns_inner)
+                    } else {
+                        None
+                    };
+                    let value_native_interval_ns = if let Some(value) = value.interval_ns {
+                        let value_native_interval_ns_inner = value;
+                        Some(value_native_interval_ns_inner)
+                    } else {
+                        None
+                    };
+                    let value_native_delivered_at_ns = value.delivered_at_ns;
+                    let value_native_sequence = value.sequence;
+                    let value_native_dropped_count = value.dropped_count;
+                    let value_native = DisplayBeginFrameEvent {
+                        backend: value_native_backend,
+                        window: value_native_window,
+                        begin_frame_id: value_native_begin_frame_id,
+                        scheduled_at_ns: value_native_scheduled_at_ns,
+                        target_wakeup_timestamp_ns: value_native_target_wakeup_timestamp_ns,
+                        predicted_presentation_timestamp_ns:
+                            value_native_predicted_presentation_timestamp_ns,
+                        deadline_ns: value_native_deadline_ns,
+                        interval_ns: value_native_interval_ns,
+                        delivered_at_ns: value_native_delivered_at_ns,
+                        sequence: value_native_sequence,
+                        dropped_count: value_native_dropped_count,
+                    };
+                    unsafe { out.write(value_native) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_display_frame_begin_try_read_batch_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeArray<DisplayBeginFrameEvent>,
+    handle: resource::DisplayBeginFrameHandle,
+    maxevents: u32,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &maxevents);
+
+    binding.trace().run_binding_without_context(
+        DISPLAY_FRAME_BEGIN_TRY_READ_BATCH,
+        binding.replay_payload_for(DISPLAY_FRAME_BEGIN_TRY_READ_BATCH)?,
+        || match world {
+            RuntimeWorld::Host => unsafe { platform_native::destack_display_begin_frame_try_read_batch(binding, out, handle, maxevents) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_display_begin_frame_try_read_batch(binding, out, handle, maxevents) },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: NativeArray<DisplayBeginFrameEvent> = unsafe { out.read() };
+                let mut result_recorded = Vec::new();
+                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                    let result_recorded_item_recorded_backend = result_recorded_item.backend;
+                    let result_recorded_item_recorded_window = result_recorded_item.window;
+                    let result_recorded_item_recorded_begin_frame_id = result_recorded_item.begin_frame_id;
+                    let result_recorded_item_recorded_scheduled_at_ns = result_recorded_item.scheduled_at_ns;
+                    let result_recorded_item_recorded_target_wakeup_timestamp_ns = if let Some(value) = result_recorded_item.target_wakeup_timestamp_ns {
+                        let result_recorded_item_recorded_target_wakeup_timestamp_ns_inner = value;
+                        Some(result_recorded_item_recorded_target_wakeup_timestamp_ns_inner)
+                    } else {
+                        None
+                    };
+                    let result_recorded_item_recorded_predicted_presentation_timestamp_ns = if let Some(value) = result_recorded_item.predicted_presentation_timestamp_ns {
+                        let result_recorded_item_recorded_predicted_presentation_timestamp_ns_inner = value;
+                        Some(result_recorded_item_recorded_predicted_presentation_timestamp_ns_inner)
+                    } else {
+                        None
+                    };
+                    let result_recorded_item_recorded_deadline_ns = if let Some(value) = result_recorded_item.deadline_ns {
+                        let result_recorded_item_recorded_deadline_ns_inner = value;
+                        Some(result_recorded_item_recorded_deadline_ns_inner)
+                    } else {
+                        None
+                    };
+                    let result_recorded_item_recorded_interval_ns = if let Some(value) = result_recorded_item.interval_ns {
+                        let result_recorded_item_recorded_interval_ns_inner = value;
+                        Some(result_recorded_item_recorded_interval_ns_inner)
+                    } else {
+                        None
+                    };
+                    let result_recorded_item_recorded_delivered_at_ns = result_recorded_item.delivered_at_ns;
+                    let result_recorded_item_recorded_sequence = result_recorded_item.sequence;
+                    let result_recorded_item_recorded_dropped_count = result_recorded_item.dropped_count;
+                    let result_recorded_item_recorded = DisplayBeginFrameEvent {
+                        backend: result_recorded_item_recorded_backend,
+                        window: result_recorded_item_recorded_window,
+                        begin_frame_id: result_recorded_item_recorded_begin_frame_id,
+                        scheduled_at_ns: result_recorded_item_recorded_scheduled_at_ns,
+                        target_wakeup_timestamp_ns: result_recorded_item_recorded_target_wakeup_timestamp_ns,
+                        predicted_presentation_timestamp_ns: result_recorded_item_recorded_predicted_presentation_timestamp_ns,
+                        deadline_ns: result_recorded_item_recorded_deadline_ns,
+                        interval_ns: result_recorded_item_recorded_interval_ns,
+                        delivered_at_ns: result_recorded_item_recorded_delivered_at_ns,
+                        sequence: result_recorded_item_recorded_sequence,
+                        dropped_count: result_recorded_item_recorded_dropped_count,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = DisplayFrameBeginTryReadBatchReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DisplayFrameBeginTryReadBatchReplayRecord {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::new();
+                    for value_native_item in value.iter().cloned() {
+                        let value_native_decoded_backend = value_native_item.backend;
+                        let value_native_decoded_window = value_native_item.window;
+                        let value_native_decoded_begin_frame_id = value_native_item.begin_frame_id;
+                        let value_native_decoded_scheduled_at_ns = value_native_item.scheduled_at_ns;
+                        let value_native_decoded_target_wakeup_timestamp_ns = if let Some(value) = value_native_item.target_wakeup_timestamp_ns {
+                            let value_native_decoded_target_wakeup_timestamp_ns_inner = value;
+                            Some(value_native_decoded_target_wakeup_timestamp_ns_inner)
+                        } else {
+                            None
+                        };
+                        let value_native_decoded_predicted_presentation_timestamp_ns = if let Some(value) = value_native_item.predicted_presentation_timestamp_ns {
+                            let value_native_decoded_predicted_presentation_timestamp_ns_inner = value;
+                            Some(value_native_decoded_predicted_presentation_timestamp_ns_inner)
+                        } else {
+                            None
+                        };
+                        let value_native_decoded_deadline_ns = if let Some(value) = value_native_item.deadline_ns {
+                            let value_native_decoded_deadline_ns_inner = value;
+                            Some(value_native_decoded_deadline_ns_inner)
+                        } else {
+                            None
+                        };
+                        let value_native_decoded_interval_ns = if let Some(value) = value_native_item.interval_ns {
+                            let value_native_decoded_interval_ns_inner = value;
+                            Some(value_native_decoded_interval_ns_inner)
+                        } else {
+                            None
+                        };
+                        let value_native_decoded_delivered_at_ns = value_native_item.delivered_at_ns;
+                        let value_native_decoded_sequence = value_native_item.sequence;
+                        let value_native_decoded_dropped_count = value_native_item.dropped_count;
+                        let value_native_decoded = DisplayBeginFrameEvent {
+                            backend: value_native_decoded_backend,
+                            window: value_native_decoded_window,
+                            begin_frame_id: value_native_decoded_begin_frame_id,
+                            scheduled_at_ns: value_native_decoded_scheduled_at_ns,
+                            target_wakeup_timestamp_ns: value_native_decoded_target_wakeup_timestamp_ns,
+                            predicted_presentation_timestamp_ns: value_native_decoded_predicted_presentation_timestamp_ns,
+                            deadline_ns: value_native_decoded_deadline_ns,
+                            interval_ns: value_native_decoded_interval_ns,
+                            delivered_at_ns: value_native_decoded_delivered_at_ns,
+                            sequence: value_native_decoded_sequence,
+                            dropped_count: value_native_decoded_dropped_count,
+                        };
+                        value_native_values.push(value_native_decoded);
+                    }
+                    let value_native = binding.store_array(value_native_values);
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -9666,6 +11529,25 @@ fn destack_display_monitor_descriptor_replay(
                 let result_recorded_variable_refresh_support =
                     result_value.variable_refresh_support;
                 let result_recorded_hdr_support = result_value.hdr_support;
+                let result_recorded_color_state = if let Some(value) = result_value.color_state {
+                    let result_recorded_color_state_inner_hdr_mode = value.hdr_mode;
+                    let result_recorded_color_state_inner_color_space = value.color_space;
+                    let result_recorded_color_state_inner_bits_per_channel =
+                        if let Some(value) = value.bits_per_channel {
+                            let result_recorded_color_state_inner_bits_per_channel_inner = value;
+                            Some(result_recorded_color_state_inner_bits_per_channel_inner)
+                        } else {
+                            None
+                        };
+                    let result_recorded_color_state_inner = DisplayColorState {
+                        hdr_mode: result_recorded_color_state_inner_hdr_mode,
+                        color_space: result_recorded_color_state_inner_color_space,
+                        bits_per_channel: result_recorded_color_state_inner_bits_per_channel,
+                    };
+                    Some(result_recorded_color_state_inner)
+                } else {
+                    None
+                };
                 let result_recorded = DisplaydescriptorReplayRecord {
                     backend: result_recorded_backend,
                     id: result_recorded_id,
@@ -9686,6 +11568,7 @@ fn destack_display_monitor_descriptor_replay(
                     builtin_panel: result_recorded_builtin_panel,
                     variable_refresh_support: result_recorded_variable_refresh_support,
                     hdr_support: result_recorded_hdr_support,
+                    color_state: result_recorded_color_state,
                 };
                 let payload = DisplayMonitorDescriptorReplayRecord {
                     result: Ok(result_recorded),
@@ -9726,6 +11609,25 @@ fn destack_display_monitor_descriptor_replay(
                     let value_native_builtin_panel = value.builtin_panel;
                     let value_native_variable_refresh_support = value.variable_refresh_support;
                     let value_native_hdr_support = value.hdr_support;
+                    let value_native_color_state = if let Some(value) = value.color_state {
+                        let value_native_color_state_inner_hdr_mode = value.hdr_mode;
+                        let value_native_color_state_inner_color_space = value.color_space;
+                        let value_native_color_state_inner_bits_per_channel =
+                            if let Some(value) = value.bits_per_channel {
+                                let value_native_color_state_inner_bits_per_channel_inner = value;
+                                Some(value_native_color_state_inner_bits_per_channel_inner)
+                            } else {
+                                None
+                            };
+                        let value_native_color_state_inner = DisplayColorState {
+                            hdr_mode: value_native_color_state_inner_hdr_mode,
+                            color_space: value_native_color_state_inner_color_space,
+                            bits_per_channel: value_native_color_state_inner_bits_per_channel,
+                        };
+                        Some(value_native_color_state_inner)
+                    } else {
+                        None
+                    };
                     let value_native = DisplayDescriptor {
                         backend: value_native_backend,
                         id: value_native_id,
@@ -9746,6 +11648,7 @@ fn destack_display_monitor_descriptor_replay(
                         builtin_panel: value_native_builtin_panel,
                         variable_refresh_support: value_native_variable_refresh_support,
                         hdr_support: value_native_hdr_support,
+                        color_state: value_native_color_state,
                     };
                     unsafe { out.write(value_native) };
                     Ok(())
@@ -9996,6 +11899,24 @@ fn destack_display_monitor_event_read_replay(
                         let result_recorded_display_added_event_payload_descriptor_builtin_panel = value.payload.descriptor.builtin_panel;
                         let result_recorded_display_added_event_payload_descriptor_variable_refresh_support = value.payload.descriptor.variable_refresh_support;
                         let result_recorded_display_added_event_payload_descriptor_hdr_support = value.payload.descriptor.hdr_support;
+                        let result_recorded_display_added_event_payload_descriptor_color_state = if let Some(value) = value.payload.descriptor.color_state {
+                            let result_recorded_display_added_event_payload_descriptor_color_state_inner_hdr_mode = value.hdr_mode;
+                            let result_recorded_display_added_event_payload_descriptor_color_state_inner_color_space = value.color_space;
+                            let result_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                let result_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner = value;
+                                Some(result_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_display_added_event_payload_descriptor_color_state_inner = DisplayColorState {
+                                hdr_mode: result_recorded_display_added_event_payload_descriptor_color_state_inner_hdr_mode,
+                                color_space: result_recorded_display_added_event_payload_descriptor_color_state_inner_color_space,
+                                bits_per_channel: result_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel,
+                            };
+                            Some(result_recorded_display_added_event_payload_descriptor_color_state_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_display_added_event_payload_descriptor = DisplaydescriptorReplayRecord {
                             backend: result_recorded_display_added_event_payload_descriptor_backend,
                             id: result_recorded_display_added_event_payload_descriptor_id,
@@ -10016,6 +11937,7 @@ fn destack_display_monitor_event_read_replay(
                             builtin_panel: result_recorded_display_added_event_payload_descriptor_builtin_panel,
                             variable_refresh_support: result_recorded_display_added_event_payload_descriptor_variable_refresh_support,
                             hdr_support: result_recorded_display_added_event_payload_descriptor_hdr_support,
+                            color_state: result_recorded_display_added_event_payload_descriptor_color_state,
                         };
                         let result_recorded_display_added_event_payload = DisplayaddedpayloadReplayRecord {
                             descriptor: result_recorded_display_added_event_payload_descriptor,
@@ -10066,6 +11988,24 @@ fn destack_display_monitor_event_read_replay(
                             let result_recorded_display_descriptor_changed_event_payload_previous_inner_builtin_panel = value.builtin_panel;
                             let result_recorded_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support = value.variable_refresh_support;
                             let result_recorded_display_descriptor_changed_event_payload_previous_inner_hdr_support = value.hdr_support;
+                            let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state = if let Some(value) = value.color_state {
+                                let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space = value.color_space;
+                                let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner = value;
+                                    Some(result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner = DisplayColorState {
+                                    hdr_mode: result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode,
+                                    color_space: result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space,
+                                    bits_per_channel: result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel,
+                                };
+                                Some(result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner)
+                            } else {
+                                None
+                            };
                             let result_recorded_display_descriptor_changed_event_payload_previous_inner = DisplaydescriptorReplayRecord {
                                 backend: result_recorded_display_descriptor_changed_event_payload_previous_inner_backend,
                                 id: result_recorded_display_descriptor_changed_event_payload_previous_inner_id,
@@ -10086,6 +12026,7 @@ fn destack_display_monitor_event_read_replay(
                                 builtin_panel: result_recorded_display_descriptor_changed_event_payload_previous_inner_builtin_panel,
                                 variable_refresh_support: result_recorded_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support,
                                 hdr_support: result_recorded_display_descriptor_changed_event_payload_previous_inner_hdr_support,
+                                color_state: result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state,
                             };
                             Some(result_recorded_display_descriptor_changed_event_payload_previous_inner)
                         } else {
@@ -10110,6 +12051,24 @@ fn destack_display_monitor_event_read_replay(
                         let result_recorded_display_descriptor_changed_event_payload_current_builtin_panel = value.payload.current.builtin_panel;
                         let result_recorded_display_descriptor_changed_event_payload_current_variable_refresh_support = value.payload.current.variable_refresh_support;
                         let result_recorded_display_descriptor_changed_event_payload_current_hdr_support = value.payload.current.hdr_support;
+                        let result_recorded_display_descriptor_changed_event_payload_current_color_state = if let Some(value) = value.payload.current.color_state {
+                            let result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode = value.hdr_mode;
+                            let result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_color_space = value.color_space;
+                            let result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                let result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner = value;
+                                Some(result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_display_descriptor_changed_event_payload_current_color_state_inner = DisplayColorState {
+                                hdr_mode: result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode,
+                                color_space: result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_color_space,
+                                bits_per_channel: result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel,
+                            };
+                            Some(result_recorded_display_descriptor_changed_event_payload_current_color_state_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_display_descriptor_changed_event_payload_current = DisplaydescriptorReplayRecord {
                             backend: result_recorded_display_descriptor_changed_event_payload_current_backend,
                             id: result_recorded_display_descriptor_changed_event_payload_current_id,
@@ -10130,6 +12089,7 @@ fn destack_display_monitor_event_read_replay(
                             builtin_panel: result_recorded_display_descriptor_changed_event_payload_current_builtin_panel,
                             variable_refresh_support: result_recorded_display_descriptor_changed_event_payload_current_variable_refresh_support,
                             hdr_support: result_recorded_display_descriptor_changed_event_payload_current_hdr_support,
+                            color_state: result_recorded_display_descriptor_changed_event_payload_current_color_state,
                         };
                         let result_recorded_display_descriptor_changed_event_payload_changed_mask = value.payload.changed_mask;
                         let result_recorded_display_descriptor_changed_event_payload = DisplaydescriptorchangedpayloadReplayRecord {
@@ -10285,6 +12245,24 @@ fn destack_display_monitor_event_read_replay(
                             let result_recorded_display_removed_event_payload_descriptor_inner_builtin_panel = value.builtin_panel;
                             let result_recorded_display_removed_event_payload_descriptor_inner_variable_refresh_support = value.variable_refresh_support;
                             let result_recorded_display_removed_event_payload_descriptor_inner_hdr_support = value.hdr_support;
+                            let result_recorded_display_removed_event_payload_descriptor_inner_color_state = if let Some(value) = value.color_state {
+                                let result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                let result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_color_space = value.color_space;
+                                let result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner = value;
+                                    Some(result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner = DisplayColorState {
+                                    hdr_mode: result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode,
+                                    color_space: result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_color_space,
+                                    bits_per_channel: result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel,
+                                };
+                                Some(result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner)
+                            } else {
+                                None
+                            };
                             let result_recorded_display_removed_event_payload_descriptor_inner = DisplaydescriptorReplayRecord {
                                 backend: result_recorded_display_removed_event_payload_descriptor_inner_backend,
                                 id: result_recorded_display_removed_event_payload_descriptor_inner_id,
@@ -10305,6 +12283,7 @@ fn destack_display_monitor_event_read_replay(
                                 builtin_panel: result_recorded_display_removed_event_payload_descriptor_inner_builtin_panel,
                                 variable_refresh_support: result_recorded_display_removed_event_payload_descriptor_inner_variable_refresh_support,
                                 hdr_support: result_recorded_display_removed_event_payload_descriptor_inner_hdr_support,
+                                color_state: result_recorded_display_removed_event_payload_descriptor_inner_color_state,
                             };
                             Some(result_recorded_display_removed_event_payload_descriptor_inner)
                         } else {
@@ -10383,6 +12362,24 @@ fn destack_display_monitor_event_read_replay(
                             let value_native_display_added_event_payload_descriptor_builtin_panel = value.payload.descriptor.builtin_panel;
                             let value_native_display_added_event_payload_descriptor_variable_refresh_support = value.payload.descriptor.variable_refresh_support;
                             let value_native_display_added_event_payload_descriptor_hdr_support = value.payload.descriptor.hdr_support;
+                            let value_native_display_added_event_payload_descriptor_color_state = if let Some(value) = value.payload.descriptor.color_state {
+                                let value_native_display_added_event_payload_descriptor_color_state_inner_hdr_mode = value.hdr_mode;
+                                let value_native_display_added_event_payload_descriptor_color_state_inner_color_space = value.color_space;
+                                let value_native_display_added_event_payload_descriptor_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let value_native_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner = value;
+                                    Some(value_native_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_display_added_event_payload_descriptor_color_state_inner = DisplayColorState {
+                                    hdr_mode: value_native_display_added_event_payload_descriptor_color_state_inner_hdr_mode,
+                                    color_space: value_native_display_added_event_payload_descriptor_color_state_inner_color_space,
+                                    bits_per_channel: value_native_display_added_event_payload_descriptor_color_state_inner_bits_per_channel,
+                                };
+                                Some(value_native_display_added_event_payload_descriptor_color_state_inner)
+                            } else {
+                                None
+                            };
                             let value_native_display_added_event_payload_descriptor = DisplayDescriptor {
                                 backend: value_native_display_added_event_payload_descriptor_backend,
                                 id: value_native_display_added_event_payload_descriptor_id,
@@ -10403,6 +12400,7 @@ fn destack_display_monitor_event_read_replay(
                                 builtin_panel: value_native_display_added_event_payload_descriptor_builtin_panel,
                                 variable_refresh_support: value_native_display_added_event_payload_descriptor_variable_refresh_support,
                                 hdr_support: value_native_display_added_event_payload_descriptor_hdr_support,
+                                color_state: value_native_display_added_event_payload_descriptor_color_state,
                             };
                             let value_native_display_added_event_payload = DisplayAddedPayload {
                                 descriptor: value_native_display_added_event_payload_descriptor,
@@ -10453,6 +12451,24 @@ fn destack_display_monitor_event_read_replay(
                                 let value_native_display_descriptor_changed_event_payload_previous_inner_builtin_panel = value.builtin_panel;
                                 let value_native_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support = value.variable_refresh_support;
                                 let value_native_display_descriptor_changed_event_payload_previous_inner_hdr_support = value.hdr_support;
+                                let value_native_display_descriptor_changed_event_payload_previous_inner_color_state = if let Some(value) = value.color_state {
+                                    let value_native_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let value_native_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space = value.color_space;
+                                    let value_native_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let value_native_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner = value;
+                                        Some(value_native_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_display_descriptor_changed_event_payload_previous_inner_color_state_inner = DisplayColorState {
+                                        hdr_mode: value_native_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode,
+                                        color_space: value_native_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space,
+                                        bits_per_channel: value_native_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(value_native_display_descriptor_changed_event_payload_previous_inner_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let value_native_display_descriptor_changed_event_payload_previous_inner = DisplayDescriptor {
                                     backend: value_native_display_descriptor_changed_event_payload_previous_inner_backend,
                                     id: value_native_display_descriptor_changed_event_payload_previous_inner_id,
@@ -10473,6 +12489,7 @@ fn destack_display_monitor_event_read_replay(
                                     builtin_panel: value_native_display_descriptor_changed_event_payload_previous_inner_builtin_panel,
                                     variable_refresh_support: value_native_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support,
                                     hdr_support: value_native_display_descriptor_changed_event_payload_previous_inner_hdr_support,
+                                    color_state: value_native_display_descriptor_changed_event_payload_previous_inner_color_state,
                                 };
                                 Some(value_native_display_descriptor_changed_event_payload_previous_inner)
                             } else {
@@ -10497,6 +12514,24 @@ fn destack_display_monitor_event_read_replay(
                             let value_native_display_descriptor_changed_event_payload_current_builtin_panel = value.payload.current.builtin_panel;
                             let value_native_display_descriptor_changed_event_payload_current_variable_refresh_support = value.payload.current.variable_refresh_support;
                             let value_native_display_descriptor_changed_event_payload_current_hdr_support = value.payload.current.hdr_support;
+                            let value_native_display_descriptor_changed_event_payload_current_color_state = if let Some(value) = value.payload.current.color_state {
+                                let value_native_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode = value.hdr_mode;
+                                let value_native_display_descriptor_changed_event_payload_current_color_state_inner_color_space = value.color_space;
+                                let value_native_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let value_native_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner = value;
+                                    Some(value_native_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_display_descriptor_changed_event_payload_current_color_state_inner = DisplayColorState {
+                                    hdr_mode: value_native_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode,
+                                    color_space: value_native_display_descriptor_changed_event_payload_current_color_state_inner_color_space,
+                                    bits_per_channel: value_native_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel,
+                                };
+                                Some(value_native_display_descriptor_changed_event_payload_current_color_state_inner)
+                            } else {
+                                None
+                            };
                             let value_native_display_descriptor_changed_event_payload_current = DisplayDescriptor {
                                 backend: value_native_display_descriptor_changed_event_payload_current_backend,
                                 id: value_native_display_descriptor_changed_event_payload_current_id,
@@ -10517,6 +12552,7 @@ fn destack_display_monitor_event_read_replay(
                                 builtin_panel: value_native_display_descriptor_changed_event_payload_current_builtin_panel,
                                 variable_refresh_support: value_native_display_descriptor_changed_event_payload_current_variable_refresh_support,
                                 hdr_support: value_native_display_descriptor_changed_event_payload_current_hdr_support,
+                                color_state: value_native_display_descriptor_changed_event_payload_current_color_state,
                             };
                             let value_native_display_descriptor_changed_event_payload_changed_mask = value.payload.changed_mask;
                             let value_native_display_descriptor_changed_event_payload = DisplayDescriptorChangedPayload {
@@ -10672,6 +12708,24 @@ fn destack_display_monitor_event_read_replay(
                                 let value_native_display_removed_event_payload_descriptor_inner_builtin_panel = value.builtin_panel;
                                 let value_native_display_removed_event_payload_descriptor_inner_variable_refresh_support = value.variable_refresh_support;
                                 let value_native_display_removed_event_payload_descriptor_inner_hdr_support = value.hdr_support;
+                                let value_native_display_removed_event_payload_descriptor_inner_color_state = if let Some(value) = value.color_state {
+                                    let value_native_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let value_native_display_removed_event_payload_descriptor_inner_color_state_inner_color_space = value.color_space;
+                                    let value_native_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let value_native_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner = value;
+                                        Some(value_native_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_display_removed_event_payload_descriptor_inner_color_state_inner = DisplayColorState {
+                                        hdr_mode: value_native_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode,
+                                        color_space: value_native_display_removed_event_payload_descriptor_inner_color_state_inner_color_space,
+                                        bits_per_channel: value_native_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(value_native_display_removed_event_payload_descriptor_inner_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let value_native_display_removed_event_payload_descriptor_inner = DisplayDescriptor {
                                     backend: value_native_display_removed_event_payload_descriptor_inner_backend,
                                     id: value_native_display_removed_event_payload_descriptor_inner_id,
@@ -10692,6 +12746,7 @@ fn destack_display_monitor_event_read_replay(
                                     builtin_panel: value_native_display_removed_event_payload_descriptor_inner_builtin_panel,
                                     variable_refresh_support: value_native_display_removed_event_payload_descriptor_inner_variable_refresh_support,
                                     hdr_support: value_native_display_removed_event_payload_descriptor_inner_hdr_support,
+                                    color_state: value_native_display_removed_event_payload_descriptor_inner_color_state,
                                 };
                                 Some(value_native_display_removed_event_payload_descriptor_inner)
                             } else {
@@ -10780,6 +12835,24 @@ fn destack_display_monitor_event_read_batch_replay(
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_builtin_panel = value.payload.descriptor.builtin_panel;
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_variable_refresh_support = value.payload.descriptor.variable_refresh_support;
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_hdr_support = value.payload.descriptor.hdr_support;
+                            let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state = if let Some(value) = value.payload.descriptor.color_state {
+                                let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_hdr_mode = value.hdr_mode;
+                                let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_color_space = value.color_space;
+                                let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner = value;
+                                    Some(result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner = DisplayColorState {
+                                    hdr_mode: result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_hdr_mode,
+                                    color_space: result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_color_space,
+                                    bits_per_channel: result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel,
+                                };
+                                Some(result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner)
+                            } else {
+                                None
+                            };
                             let result_recorded_item_recorded_display_added_event_payload_descriptor = DisplaydescriptorReplayRecord {
                                 backend: result_recorded_item_recorded_display_added_event_payload_descriptor_backend,
                                 id: result_recorded_item_recorded_display_added_event_payload_descriptor_id,
@@ -10800,6 +12873,7 @@ fn destack_display_monitor_event_read_batch_replay(
                                 builtin_panel: result_recorded_item_recorded_display_added_event_payload_descriptor_builtin_panel,
                                 variable_refresh_support: result_recorded_item_recorded_display_added_event_payload_descriptor_variable_refresh_support,
                                 hdr_support: result_recorded_item_recorded_display_added_event_payload_descriptor_hdr_support,
+                                color_state: result_recorded_item_recorded_display_added_event_payload_descriptor_color_state,
                             };
                             let result_recorded_item_recorded_display_added_event_payload = DisplayaddedpayloadReplayRecord {
                                 descriptor: result_recorded_item_recorded_display_added_event_payload_descriptor,
@@ -10850,6 +12924,24 @@ fn destack_display_monitor_event_read_batch_replay(
                                 let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_builtin_panel = value.builtin_panel;
                                 let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support = value.variable_refresh_support;
                                 let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_hdr_support = value.hdr_support;
+                                let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state = if let Some(value) = value.color_state {
+                                    let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space = value.color_space;
+                                    let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner = value;
+                                        Some(result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner = DisplayColorState {
+                                        hdr_mode: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode,
+                                        color_space: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space,
+                                        bits_per_channel: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner = DisplaydescriptorReplayRecord {
                                     backend: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_backend,
                                     id: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_id,
@@ -10870,6 +12962,7 @@ fn destack_display_monitor_event_read_batch_replay(
                                     builtin_panel: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_builtin_panel,
                                     variable_refresh_support: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support,
                                     hdr_support: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_hdr_support,
+                                    color_state: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state,
                                 };
                                 Some(result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner)
                             } else {
@@ -10894,6 +12987,24 @@ fn destack_display_monitor_event_read_batch_replay(
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_builtin_panel = value.payload.current.builtin_panel;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_variable_refresh_support = value.payload.current.variable_refresh_support;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_hdr_support = value.payload.current.hdr_support;
+                            let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state = if let Some(value) = value.payload.current.color_state {
+                                let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode = value.hdr_mode;
+                                let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_color_space = value.color_space;
+                                let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner = value;
+                                    Some(result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner = DisplayColorState {
+                                    hdr_mode: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode,
+                                    color_space: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_color_space,
+                                    bits_per_channel: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel,
+                                };
+                                Some(result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner)
+                            } else {
+                                None
+                            };
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_current = DisplaydescriptorReplayRecord {
                                 backend: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_backend,
                                 id: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_id,
@@ -10914,6 +13025,7 @@ fn destack_display_monitor_event_read_batch_replay(
                                 builtin_panel: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_builtin_panel,
                                 variable_refresh_support: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_variable_refresh_support,
                                 hdr_support: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_hdr_support,
+                                color_state: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state,
                             };
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_changed_mask = value.payload.changed_mask;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload = DisplaydescriptorchangedpayloadReplayRecord {
@@ -11069,6 +13181,24 @@ fn destack_display_monitor_event_read_batch_replay(
                                 let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_builtin_panel = value.builtin_panel;
                                 let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_variable_refresh_support = value.variable_refresh_support;
                                 let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_hdr_support = value.hdr_support;
+                                let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state = if let Some(value) = value.color_state {
+                                    let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_color_space = value.color_space;
+                                    let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner = value;
+                                        Some(result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner = DisplayColorState {
+                                        hdr_mode: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode,
+                                        color_space: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_color_space,
+                                        bits_per_channel: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner = DisplaydescriptorReplayRecord {
                                     backend: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_backend,
                                     id: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_id,
@@ -11089,6 +13219,7 @@ fn destack_display_monitor_event_read_batch_replay(
                                     builtin_panel: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_builtin_panel,
                                     variable_refresh_support: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_variable_refresh_support,
                                     hdr_support: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_hdr_support,
+                                    color_state: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state,
                                 };
                                 Some(result_recorded_item_recorded_display_removed_event_payload_descriptor_inner)
                             } else {
@@ -11171,6 +13302,24 @@ fn destack_display_monitor_event_read_batch_replay(
                                 let value_native_decoded_display_added_event_payload_descriptor_builtin_panel = value.payload.descriptor.builtin_panel;
                                 let value_native_decoded_display_added_event_payload_descriptor_variable_refresh_support = value.payload.descriptor.variable_refresh_support;
                                 let value_native_decoded_display_added_event_payload_descriptor_hdr_support = value.payload.descriptor.hdr_support;
+                                let value_native_decoded_display_added_event_payload_descriptor_color_state = if let Some(value) = value.payload.descriptor.color_state {
+                                    let value_native_decoded_display_added_event_payload_descriptor_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let value_native_decoded_display_added_event_payload_descriptor_color_state_inner_color_space = value.color_space;
+                                    let value_native_decoded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let value_native_decoded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner = value;
+                                        Some(value_native_decoded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_display_added_event_payload_descriptor_color_state_inner = DisplayColorState {
+                                        hdr_mode: value_native_decoded_display_added_event_payload_descriptor_color_state_inner_hdr_mode,
+                                        color_space: value_native_decoded_display_added_event_payload_descriptor_color_state_inner_color_space,
+                                        bits_per_channel: value_native_decoded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(value_native_decoded_display_added_event_payload_descriptor_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let value_native_decoded_display_added_event_payload_descriptor = DisplayDescriptor {
                                     backend: value_native_decoded_display_added_event_payload_descriptor_backend,
                                     id: value_native_decoded_display_added_event_payload_descriptor_id,
@@ -11191,6 +13340,7 @@ fn destack_display_monitor_event_read_batch_replay(
                                     builtin_panel: value_native_decoded_display_added_event_payload_descriptor_builtin_panel,
                                     variable_refresh_support: value_native_decoded_display_added_event_payload_descriptor_variable_refresh_support,
                                     hdr_support: value_native_decoded_display_added_event_payload_descriptor_hdr_support,
+                                    color_state: value_native_decoded_display_added_event_payload_descriptor_color_state,
                                 };
                                 let value_native_decoded_display_added_event_payload = DisplayAddedPayload {
                                     descriptor: value_native_decoded_display_added_event_payload_descriptor,
@@ -11241,6 +13391,24 @@ fn destack_display_monitor_event_read_batch_replay(
                                     let value_native_decoded_display_descriptor_changed_event_payload_previous_inner_builtin_panel = value.builtin_panel;
                                     let value_native_decoded_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support = value.variable_refresh_support;
                                     let value_native_decoded_display_descriptor_changed_event_payload_previous_inner_hdr_support = value.hdr_support;
+                                    let value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state = if let Some(value) = value.color_state {
+                                        let value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                        let value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space = value.color_space;
+                                        let value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                            let value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner = value;
+                                            Some(value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state_inner = DisplayColorState {
+                                            hdr_mode: value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode,
+                                            color_space: value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space,
+                                            bits_per_channel: value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel,
+                                        };
+                                        Some(value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state_inner)
+                                    } else {
+                                        None
+                                    };
                                     let value_native_decoded_display_descriptor_changed_event_payload_previous_inner = DisplayDescriptor {
                                         backend: value_native_decoded_display_descriptor_changed_event_payload_previous_inner_backend,
                                         id: value_native_decoded_display_descriptor_changed_event_payload_previous_inner_id,
@@ -11261,6 +13429,7 @@ fn destack_display_monitor_event_read_batch_replay(
                                         builtin_panel: value_native_decoded_display_descriptor_changed_event_payload_previous_inner_builtin_panel,
                                         variable_refresh_support: value_native_decoded_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support,
                                         hdr_support: value_native_decoded_display_descriptor_changed_event_payload_previous_inner_hdr_support,
+                                        color_state: value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state,
                                     };
                                     Some(value_native_decoded_display_descriptor_changed_event_payload_previous_inner)
                                 } else {
@@ -11285,6 +13454,24 @@ fn destack_display_monitor_event_read_batch_replay(
                                 let value_native_decoded_display_descriptor_changed_event_payload_current_builtin_panel = value.payload.current.builtin_panel;
                                 let value_native_decoded_display_descriptor_changed_event_payload_current_variable_refresh_support = value.payload.current.variable_refresh_support;
                                 let value_native_decoded_display_descriptor_changed_event_payload_current_hdr_support = value.payload.current.hdr_support;
+                                let value_native_decoded_display_descriptor_changed_event_payload_current_color_state = if let Some(value) = value.payload.current.color_state {
+                                    let value_native_decoded_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let value_native_decoded_display_descriptor_changed_event_payload_current_color_state_inner_color_space = value.color_space;
+                                    let value_native_decoded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let value_native_decoded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner = value;
+                                        Some(value_native_decoded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_display_descriptor_changed_event_payload_current_color_state_inner = DisplayColorState {
+                                        hdr_mode: value_native_decoded_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode,
+                                        color_space: value_native_decoded_display_descriptor_changed_event_payload_current_color_state_inner_color_space,
+                                        bits_per_channel: value_native_decoded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(value_native_decoded_display_descriptor_changed_event_payload_current_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let value_native_decoded_display_descriptor_changed_event_payload_current = DisplayDescriptor {
                                     backend: value_native_decoded_display_descriptor_changed_event_payload_current_backend,
                                     id: value_native_decoded_display_descriptor_changed_event_payload_current_id,
@@ -11305,6 +13492,7 @@ fn destack_display_monitor_event_read_batch_replay(
                                     builtin_panel: value_native_decoded_display_descriptor_changed_event_payload_current_builtin_panel,
                                     variable_refresh_support: value_native_decoded_display_descriptor_changed_event_payload_current_variable_refresh_support,
                                     hdr_support: value_native_decoded_display_descriptor_changed_event_payload_current_hdr_support,
+                                    color_state: value_native_decoded_display_descriptor_changed_event_payload_current_color_state,
                                 };
                                 let value_native_decoded_display_descriptor_changed_event_payload_changed_mask = value.payload.changed_mask;
                                 let value_native_decoded_display_descriptor_changed_event_payload = DisplayDescriptorChangedPayload {
@@ -11460,6 +13648,24 @@ fn destack_display_monitor_event_read_batch_replay(
                                     let value_native_decoded_display_removed_event_payload_descriptor_inner_builtin_panel = value.builtin_panel;
                                     let value_native_decoded_display_removed_event_payload_descriptor_inner_variable_refresh_support = value.variable_refresh_support;
                                     let value_native_decoded_display_removed_event_payload_descriptor_inner_hdr_support = value.hdr_support;
+                                    let value_native_decoded_display_removed_event_payload_descriptor_inner_color_state = if let Some(value) = value.color_state {
+                                        let value_native_decoded_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                        let value_native_decoded_display_removed_event_payload_descriptor_inner_color_state_inner_color_space = value.color_space;
+                                        let value_native_decoded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                            let value_native_decoded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner = value;
+                                            Some(value_native_decoded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let value_native_decoded_display_removed_event_payload_descriptor_inner_color_state_inner = DisplayColorState {
+                                            hdr_mode: value_native_decoded_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode,
+                                            color_space: value_native_decoded_display_removed_event_payload_descriptor_inner_color_state_inner_color_space,
+                                            bits_per_channel: value_native_decoded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel,
+                                        };
+                                        Some(value_native_decoded_display_removed_event_payload_descriptor_inner_color_state_inner)
+                                    } else {
+                                        None
+                                    };
                                     let value_native_decoded_display_removed_event_payload_descriptor_inner = DisplayDescriptor {
                                         backend: value_native_decoded_display_removed_event_payload_descriptor_inner_backend,
                                         id: value_native_decoded_display_removed_event_payload_descriptor_inner_id,
@@ -11480,6 +13686,7 @@ fn destack_display_monitor_event_read_batch_replay(
                                         builtin_panel: value_native_decoded_display_removed_event_payload_descriptor_inner_builtin_panel,
                                         variable_refresh_support: value_native_decoded_display_removed_event_payload_descriptor_inner_variable_refresh_support,
                                         hdr_support: value_native_decoded_display_removed_event_payload_descriptor_inner_hdr_support,
+                                        color_state: value_native_decoded_display_removed_event_payload_descriptor_inner_color_state,
                                     };
                                     Some(value_native_decoded_display_removed_event_payload_descriptor_inner)
                                 } else {
@@ -11567,6 +13774,24 @@ fn destack_display_monitor_event_try_read_replay(
                         let result_recorded_display_added_event_payload_descriptor_builtin_panel = value.payload.descriptor.builtin_panel;
                         let result_recorded_display_added_event_payload_descriptor_variable_refresh_support = value.payload.descriptor.variable_refresh_support;
                         let result_recorded_display_added_event_payload_descriptor_hdr_support = value.payload.descriptor.hdr_support;
+                        let result_recorded_display_added_event_payload_descriptor_color_state = if let Some(value) = value.payload.descriptor.color_state {
+                            let result_recorded_display_added_event_payload_descriptor_color_state_inner_hdr_mode = value.hdr_mode;
+                            let result_recorded_display_added_event_payload_descriptor_color_state_inner_color_space = value.color_space;
+                            let result_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                let result_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner = value;
+                                Some(result_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_display_added_event_payload_descriptor_color_state_inner = DisplayColorState {
+                                hdr_mode: result_recorded_display_added_event_payload_descriptor_color_state_inner_hdr_mode,
+                                color_space: result_recorded_display_added_event_payload_descriptor_color_state_inner_color_space,
+                                bits_per_channel: result_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel,
+                            };
+                            Some(result_recorded_display_added_event_payload_descriptor_color_state_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_display_added_event_payload_descriptor = DisplaydescriptorReplayRecord {
                             backend: result_recorded_display_added_event_payload_descriptor_backend,
                             id: result_recorded_display_added_event_payload_descriptor_id,
@@ -11587,6 +13812,7 @@ fn destack_display_monitor_event_try_read_replay(
                             builtin_panel: result_recorded_display_added_event_payload_descriptor_builtin_panel,
                             variable_refresh_support: result_recorded_display_added_event_payload_descriptor_variable_refresh_support,
                             hdr_support: result_recorded_display_added_event_payload_descriptor_hdr_support,
+                            color_state: result_recorded_display_added_event_payload_descriptor_color_state,
                         };
                         let result_recorded_display_added_event_payload = DisplayaddedpayloadReplayRecord {
                             descriptor: result_recorded_display_added_event_payload_descriptor,
@@ -11637,6 +13863,24 @@ fn destack_display_monitor_event_try_read_replay(
                             let result_recorded_display_descriptor_changed_event_payload_previous_inner_builtin_panel = value.builtin_panel;
                             let result_recorded_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support = value.variable_refresh_support;
                             let result_recorded_display_descriptor_changed_event_payload_previous_inner_hdr_support = value.hdr_support;
+                            let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state = if let Some(value) = value.color_state {
+                                let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space = value.color_space;
+                                let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner = value;
+                                    Some(result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner = DisplayColorState {
+                                    hdr_mode: result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode,
+                                    color_space: result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space,
+                                    bits_per_channel: result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel,
+                                };
+                                Some(result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner)
+                            } else {
+                                None
+                            };
                             let result_recorded_display_descriptor_changed_event_payload_previous_inner = DisplaydescriptorReplayRecord {
                                 backend: result_recorded_display_descriptor_changed_event_payload_previous_inner_backend,
                                 id: result_recorded_display_descriptor_changed_event_payload_previous_inner_id,
@@ -11657,6 +13901,7 @@ fn destack_display_monitor_event_try_read_replay(
                                 builtin_panel: result_recorded_display_descriptor_changed_event_payload_previous_inner_builtin_panel,
                                 variable_refresh_support: result_recorded_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support,
                                 hdr_support: result_recorded_display_descriptor_changed_event_payload_previous_inner_hdr_support,
+                                color_state: result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state,
                             };
                             Some(result_recorded_display_descriptor_changed_event_payload_previous_inner)
                         } else {
@@ -11681,6 +13926,24 @@ fn destack_display_monitor_event_try_read_replay(
                         let result_recorded_display_descriptor_changed_event_payload_current_builtin_panel = value.payload.current.builtin_panel;
                         let result_recorded_display_descriptor_changed_event_payload_current_variable_refresh_support = value.payload.current.variable_refresh_support;
                         let result_recorded_display_descriptor_changed_event_payload_current_hdr_support = value.payload.current.hdr_support;
+                        let result_recorded_display_descriptor_changed_event_payload_current_color_state = if let Some(value) = value.payload.current.color_state {
+                            let result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode = value.hdr_mode;
+                            let result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_color_space = value.color_space;
+                            let result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                let result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner = value;
+                                Some(result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_display_descriptor_changed_event_payload_current_color_state_inner = DisplayColorState {
+                                hdr_mode: result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode,
+                                color_space: result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_color_space,
+                                bits_per_channel: result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel,
+                            };
+                            Some(result_recorded_display_descriptor_changed_event_payload_current_color_state_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_display_descriptor_changed_event_payload_current = DisplaydescriptorReplayRecord {
                             backend: result_recorded_display_descriptor_changed_event_payload_current_backend,
                             id: result_recorded_display_descriptor_changed_event_payload_current_id,
@@ -11701,6 +13964,7 @@ fn destack_display_monitor_event_try_read_replay(
                             builtin_panel: result_recorded_display_descriptor_changed_event_payload_current_builtin_panel,
                             variable_refresh_support: result_recorded_display_descriptor_changed_event_payload_current_variable_refresh_support,
                             hdr_support: result_recorded_display_descriptor_changed_event_payload_current_hdr_support,
+                            color_state: result_recorded_display_descriptor_changed_event_payload_current_color_state,
                         };
                         let result_recorded_display_descriptor_changed_event_payload_changed_mask = value.payload.changed_mask;
                         let result_recorded_display_descriptor_changed_event_payload = DisplaydescriptorchangedpayloadReplayRecord {
@@ -11856,6 +14120,24 @@ fn destack_display_monitor_event_try_read_replay(
                             let result_recorded_display_removed_event_payload_descriptor_inner_builtin_panel = value.builtin_panel;
                             let result_recorded_display_removed_event_payload_descriptor_inner_variable_refresh_support = value.variable_refresh_support;
                             let result_recorded_display_removed_event_payload_descriptor_inner_hdr_support = value.hdr_support;
+                            let result_recorded_display_removed_event_payload_descriptor_inner_color_state = if let Some(value) = value.color_state {
+                                let result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                let result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_color_space = value.color_space;
+                                let result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner = value;
+                                    Some(result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner = DisplayColorState {
+                                    hdr_mode: result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode,
+                                    color_space: result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_color_space,
+                                    bits_per_channel: result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel,
+                                };
+                                Some(result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner)
+                            } else {
+                                None
+                            };
                             let result_recorded_display_removed_event_payload_descriptor_inner = DisplaydescriptorReplayRecord {
                                 backend: result_recorded_display_removed_event_payload_descriptor_inner_backend,
                                 id: result_recorded_display_removed_event_payload_descriptor_inner_id,
@@ -11876,6 +14158,7 @@ fn destack_display_monitor_event_try_read_replay(
                                 builtin_panel: result_recorded_display_removed_event_payload_descriptor_inner_builtin_panel,
                                 variable_refresh_support: result_recorded_display_removed_event_payload_descriptor_inner_variable_refresh_support,
                                 hdr_support: result_recorded_display_removed_event_payload_descriptor_inner_hdr_support,
+                                color_state: result_recorded_display_removed_event_payload_descriptor_inner_color_state,
                             };
                             Some(result_recorded_display_removed_event_payload_descriptor_inner)
                         } else {
@@ -11954,6 +14237,24 @@ fn destack_display_monitor_event_try_read_replay(
                             let value_native_display_added_event_payload_descriptor_builtin_panel = value.payload.descriptor.builtin_panel;
                             let value_native_display_added_event_payload_descriptor_variable_refresh_support = value.payload.descriptor.variable_refresh_support;
                             let value_native_display_added_event_payload_descriptor_hdr_support = value.payload.descriptor.hdr_support;
+                            let value_native_display_added_event_payload_descriptor_color_state = if let Some(value) = value.payload.descriptor.color_state {
+                                let value_native_display_added_event_payload_descriptor_color_state_inner_hdr_mode = value.hdr_mode;
+                                let value_native_display_added_event_payload_descriptor_color_state_inner_color_space = value.color_space;
+                                let value_native_display_added_event_payload_descriptor_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let value_native_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner = value;
+                                    Some(value_native_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_display_added_event_payload_descriptor_color_state_inner = DisplayColorState {
+                                    hdr_mode: value_native_display_added_event_payload_descriptor_color_state_inner_hdr_mode,
+                                    color_space: value_native_display_added_event_payload_descriptor_color_state_inner_color_space,
+                                    bits_per_channel: value_native_display_added_event_payload_descriptor_color_state_inner_bits_per_channel,
+                                };
+                                Some(value_native_display_added_event_payload_descriptor_color_state_inner)
+                            } else {
+                                None
+                            };
                             let value_native_display_added_event_payload_descriptor = DisplayDescriptor {
                                 backend: value_native_display_added_event_payload_descriptor_backend,
                                 id: value_native_display_added_event_payload_descriptor_id,
@@ -11974,6 +14275,7 @@ fn destack_display_monitor_event_try_read_replay(
                                 builtin_panel: value_native_display_added_event_payload_descriptor_builtin_panel,
                                 variable_refresh_support: value_native_display_added_event_payload_descriptor_variable_refresh_support,
                                 hdr_support: value_native_display_added_event_payload_descriptor_hdr_support,
+                                color_state: value_native_display_added_event_payload_descriptor_color_state,
                             };
                             let value_native_display_added_event_payload = DisplayAddedPayload {
                                 descriptor: value_native_display_added_event_payload_descriptor,
@@ -12024,6 +14326,24 @@ fn destack_display_monitor_event_try_read_replay(
                                 let value_native_display_descriptor_changed_event_payload_previous_inner_builtin_panel = value.builtin_panel;
                                 let value_native_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support = value.variable_refresh_support;
                                 let value_native_display_descriptor_changed_event_payload_previous_inner_hdr_support = value.hdr_support;
+                                let value_native_display_descriptor_changed_event_payload_previous_inner_color_state = if let Some(value) = value.color_state {
+                                    let value_native_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let value_native_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space = value.color_space;
+                                    let value_native_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let value_native_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner = value;
+                                        Some(value_native_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_display_descriptor_changed_event_payload_previous_inner_color_state_inner = DisplayColorState {
+                                        hdr_mode: value_native_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode,
+                                        color_space: value_native_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space,
+                                        bits_per_channel: value_native_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(value_native_display_descriptor_changed_event_payload_previous_inner_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let value_native_display_descriptor_changed_event_payload_previous_inner = DisplayDescriptor {
                                     backend: value_native_display_descriptor_changed_event_payload_previous_inner_backend,
                                     id: value_native_display_descriptor_changed_event_payload_previous_inner_id,
@@ -12044,6 +14364,7 @@ fn destack_display_monitor_event_try_read_replay(
                                     builtin_panel: value_native_display_descriptor_changed_event_payload_previous_inner_builtin_panel,
                                     variable_refresh_support: value_native_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support,
                                     hdr_support: value_native_display_descriptor_changed_event_payload_previous_inner_hdr_support,
+                                    color_state: value_native_display_descriptor_changed_event_payload_previous_inner_color_state,
                                 };
                                 Some(value_native_display_descriptor_changed_event_payload_previous_inner)
                             } else {
@@ -12068,6 +14389,24 @@ fn destack_display_monitor_event_try_read_replay(
                             let value_native_display_descriptor_changed_event_payload_current_builtin_panel = value.payload.current.builtin_panel;
                             let value_native_display_descriptor_changed_event_payload_current_variable_refresh_support = value.payload.current.variable_refresh_support;
                             let value_native_display_descriptor_changed_event_payload_current_hdr_support = value.payload.current.hdr_support;
+                            let value_native_display_descriptor_changed_event_payload_current_color_state = if let Some(value) = value.payload.current.color_state {
+                                let value_native_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode = value.hdr_mode;
+                                let value_native_display_descriptor_changed_event_payload_current_color_state_inner_color_space = value.color_space;
+                                let value_native_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let value_native_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner = value;
+                                    Some(value_native_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_display_descriptor_changed_event_payload_current_color_state_inner = DisplayColorState {
+                                    hdr_mode: value_native_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode,
+                                    color_space: value_native_display_descriptor_changed_event_payload_current_color_state_inner_color_space,
+                                    bits_per_channel: value_native_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel,
+                                };
+                                Some(value_native_display_descriptor_changed_event_payload_current_color_state_inner)
+                            } else {
+                                None
+                            };
                             let value_native_display_descriptor_changed_event_payload_current = DisplayDescriptor {
                                 backend: value_native_display_descriptor_changed_event_payload_current_backend,
                                 id: value_native_display_descriptor_changed_event_payload_current_id,
@@ -12088,6 +14427,7 @@ fn destack_display_monitor_event_try_read_replay(
                                 builtin_panel: value_native_display_descriptor_changed_event_payload_current_builtin_panel,
                                 variable_refresh_support: value_native_display_descriptor_changed_event_payload_current_variable_refresh_support,
                                 hdr_support: value_native_display_descriptor_changed_event_payload_current_hdr_support,
+                                color_state: value_native_display_descriptor_changed_event_payload_current_color_state,
                             };
                             let value_native_display_descriptor_changed_event_payload_changed_mask = value.payload.changed_mask;
                             let value_native_display_descriptor_changed_event_payload = DisplayDescriptorChangedPayload {
@@ -12243,6 +14583,24 @@ fn destack_display_monitor_event_try_read_replay(
                                 let value_native_display_removed_event_payload_descriptor_inner_builtin_panel = value.builtin_panel;
                                 let value_native_display_removed_event_payload_descriptor_inner_variable_refresh_support = value.variable_refresh_support;
                                 let value_native_display_removed_event_payload_descriptor_inner_hdr_support = value.hdr_support;
+                                let value_native_display_removed_event_payload_descriptor_inner_color_state = if let Some(value) = value.color_state {
+                                    let value_native_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let value_native_display_removed_event_payload_descriptor_inner_color_state_inner_color_space = value.color_space;
+                                    let value_native_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let value_native_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner = value;
+                                        Some(value_native_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_display_removed_event_payload_descriptor_inner_color_state_inner = DisplayColorState {
+                                        hdr_mode: value_native_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode,
+                                        color_space: value_native_display_removed_event_payload_descriptor_inner_color_state_inner_color_space,
+                                        bits_per_channel: value_native_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(value_native_display_removed_event_payload_descriptor_inner_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let value_native_display_removed_event_payload_descriptor_inner = DisplayDescriptor {
                                     backend: value_native_display_removed_event_payload_descriptor_inner_backend,
                                     id: value_native_display_removed_event_payload_descriptor_inner_id,
@@ -12263,6 +14621,7 @@ fn destack_display_monitor_event_try_read_replay(
                                     builtin_panel: value_native_display_removed_event_payload_descriptor_inner_builtin_panel,
                                     variable_refresh_support: value_native_display_removed_event_payload_descriptor_inner_variable_refresh_support,
                                     hdr_support: value_native_display_removed_event_payload_descriptor_inner_hdr_support,
+                                    color_state: value_native_display_removed_event_payload_descriptor_inner_color_state,
                                 };
                                 Some(value_native_display_removed_event_payload_descriptor_inner)
                             } else {
@@ -12350,6 +14709,24 @@ fn destack_display_monitor_event_try_read_batch_replay(
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_builtin_panel = value.payload.descriptor.builtin_panel;
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_variable_refresh_support = value.payload.descriptor.variable_refresh_support;
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_hdr_support = value.payload.descriptor.hdr_support;
+                            let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state = if let Some(value) = value.payload.descriptor.color_state {
+                                let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_hdr_mode = value.hdr_mode;
+                                let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_color_space = value.color_space;
+                                let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner = value;
+                                    Some(result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner = DisplayColorState {
+                                    hdr_mode: result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_hdr_mode,
+                                    color_space: result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_color_space,
+                                    bits_per_channel: result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel,
+                                };
+                                Some(result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner)
+                            } else {
+                                None
+                            };
                             let result_recorded_item_recorded_display_added_event_payload_descriptor = DisplaydescriptorReplayRecord {
                                 backend: result_recorded_item_recorded_display_added_event_payload_descriptor_backend,
                                 id: result_recorded_item_recorded_display_added_event_payload_descriptor_id,
@@ -12370,6 +14747,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                                 builtin_panel: result_recorded_item_recorded_display_added_event_payload_descriptor_builtin_panel,
                                 variable_refresh_support: result_recorded_item_recorded_display_added_event_payload_descriptor_variable_refresh_support,
                                 hdr_support: result_recorded_item_recorded_display_added_event_payload_descriptor_hdr_support,
+                                color_state: result_recorded_item_recorded_display_added_event_payload_descriptor_color_state,
                             };
                             let result_recorded_item_recorded_display_added_event_payload = DisplayaddedpayloadReplayRecord {
                                 descriptor: result_recorded_item_recorded_display_added_event_payload_descriptor,
@@ -12420,6 +14798,24 @@ fn destack_display_monitor_event_try_read_batch_replay(
                                 let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_builtin_panel = value.builtin_panel;
                                 let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support = value.variable_refresh_support;
                                 let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_hdr_support = value.hdr_support;
+                                let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state = if let Some(value) = value.color_state {
+                                    let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space = value.color_space;
+                                    let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner = value;
+                                        Some(result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner = DisplayColorState {
+                                        hdr_mode: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode,
+                                        color_space: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space,
+                                        bits_per_channel: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner = DisplaydescriptorReplayRecord {
                                     backend: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_backend,
                                     id: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_id,
@@ -12440,6 +14836,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                                     builtin_panel: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_builtin_panel,
                                     variable_refresh_support: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support,
                                     hdr_support: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_hdr_support,
+                                    color_state: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state,
                                 };
                                 Some(result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner)
                             } else {
@@ -12464,6 +14861,24 @@ fn destack_display_monitor_event_try_read_batch_replay(
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_builtin_panel = value.payload.current.builtin_panel;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_variable_refresh_support = value.payload.current.variable_refresh_support;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_hdr_support = value.payload.current.hdr_support;
+                            let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state = if let Some(value) = value.payload.current.color_state {
+                                let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode = value.hdr_mode;
+                                let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_color_space = value.color_space;
+                                let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner = value;
+                                    Some(result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner = DisplayColorState {
+                                    hdr_mode: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode,
+                                    color_space: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_color_space,
+                                    bits_per_channel: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel,
+                                };
+                                Some(result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner)
+                            } else {
+                                None
+                            };
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_current = DisplaydescriptorReplayRecord {
                                 backend: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_backend,
                                 id: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_id,
@@ -12484,6 +14899,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                                 builtin_panel: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_builtin_panel,
                                 variable_refresh_support: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_variable_refresh_support,
                                 hdr_support: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_hdr_support,
+                                color_state: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state,
                             };
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_changed_mask = value.payload.changed_mask;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload = DisplaydescriptorchangedpayloadReplayRecord {
@@ -12639,6 +15055,24 @@ fn destack_display_monitor_event_try_read_batch_replay(
                                 let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_builtin_panel = value.builtin_panel;
                                 let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_variable_refresh_support = value.variable_refresh_support;
                                 let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_hdr_support = value.hdr_support;
+                                let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state = if let Some(value) = value.color_state {
+                                    let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_color_space = value.color_space;
+                                    let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner = value;
+                                        Some(result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner = DisplayColorState {
+                                        hdr_mode: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode,
+                                        color_space: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_color_space,
+                                        bits_per_channel: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner = DisplaydescriptorReplayRecord {
                                     backend: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_backend,
                                     id: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_id,
@@ -12659,6 +15093,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                                     builtin_panel: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_builtin_panel,
                                     variable_refresh_support: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_variable_refresh_support,
                                     hdr_support: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_hdr_support,
+                                    color_state: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state,
                                 };
                                 Some(result_recorded_item_recorded_display_removed_event_payload_descriptor_inner)
                             } else {
@@ -12741,6 +15176,24 @@ fn destack_display_monitor_event_try_read_batch_replay(
                                 let value_native_decoded_display_added_event_payload_descriptor_builtin_panel = value.payload.descriptor.builtin_panel;
                                 let value_native_decoded_display_added_event_payload_descriptor_variable_refresh_support = value.payload.descriptor.variable_refresh_support;
                                 let value_native_decoded_display_added_event_payload_descriptor_hdr_support = value.payload.descriptor.hdr_support;
+                                let value_native_decoded_display_added_event_payload_descriptor_color_state = if let Some(value) = value.payload.descriptor.color_state {
+                                    let value_native_decoded_display_added_event_payload_descriptor_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let value_native_decoded_display_added_event_payload_descriptor_color_state_inner_color_space = value.color_space;
+                                    let value_native_decoded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let value_native_decoded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner = value;
+                                        Some(value_native_decoded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_display_added_event_payload_descriptor_color_state_inner = DisplayColorState {
+                                        hdr_mode: value_native_decoded_display_added_event_payload_descriptor_color_state_inner_hdr_mode,
+                                        color_space: value_native_decoded_display_added_event_payload_descriptor_color_state_inner_color_space,
+                                        bits_per_channel: value_native_decoded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(value_native_decoded_display_added_event_payload_descriptor_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let value_native_decoded_display_added_event_payload_descriptor = DisplayDescriptor {
                                     backend: value_native_decoded_display_added_event_payload_descriptor_backend,
                                     id: value_native_decoded_display_added_event_payload_descriptor_id,
@@ -12761,6 +15214,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                                     builtin_panel: value_native_decoded_display_added_event_payload_descriptor_builtin_panel,
                                     variable_refresh_support: value_native_decoded_display_added_event_payload_descriptor_variable_refresh_support,
                                     hdr_support: value_native_decoded_display_added_event_payload_descriptor_hdr_support,
+                                    color_state: value_native_decoded_display_added_event_payload_descriptor_color_state,
                                 };
                                 let value_native_decoded_display_added_event_payload = DisplayAddedPayload {
                                     descriptor: value_native_decoded_display_added_event_payload_descriptor,
@@ -12811,6 +15265,24 @@ fn destack_display_monitor_event_try_read_batch_replay(
                                     let value_native_decoded_display_descriptor_changed_event_payload_previous_inner_builtin_panel = value.builtin_panel;
                                     let value_native_decoded_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support = value.variable_refresh_support;
                                     let value_native_decoded_display_descriptor_changed_event_payload_previous_inner_hdr_support = value.hdr_support;
+                                    let value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state = if let Some(value) = value.color_state {
+                                        let value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                        let value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space = value.color_space;
+                                        let value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                            let value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner = value;
+                                            Some(value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state_inner = DisplayColorState {
+                                            hdr_mode: value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode,
+                                            color_space: value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space,
+                                            bits_per_channel: value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel,
+                                        };
+                                        Some(value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state_inner)
+                                    } else {
+                                        None
+                                    };
                                     let value_native_decoded_display_descriptor_changed_event_payload_previous_inner = DisplayDescriptor {
                                         backend: value_native_decoded_display_descriptor_changed_event_payload_previous_inner_backend,
                                         id: value_native_decoded_display_descriptor_changed_event_payload_previous_inner_id,
@@ -12831,6 +15303,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                                         builtin_panel: value_native_decoded_display_descriptor_changed_event_payload_previous_inner_builtin_panel,
                                         variable_refresh_support: value_native_decoded_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support,
                                         hdr_support: value_native_decoded_display_descriptor_changed_event_payload_previous_inner_hdr_support,
+                                        color_state: value_native_decoded_display_descriptor_changed_event_payload_previous_inner_color_state,
                                     };
                                     Some(value_native_decoded_display_descriptor_changed_event_payload_previous_inner)
                                 } else {
@@ -12855,6 +15328,24 @@ fn destack_display_monitor_event_try_read_batch_replay(
                                 let value_native_decoded_display_descriptor_changed_event_payload_current_builtin_panel = value.payload.current.builtin_panel;
                                 let value_native_decoded_display_descriptor_changed_event_payload_current_variable_refresh_support = value.payload.current.variable_refresh_support;
                                 let value_native_decoded_display_descriptor_changed_event_payload_current_hdr_support = value.payload.current.hdr_support;
+                                let value_native_decoded_display_descriptor_changed_event_payload_current_color_state = if let Some(value) = value.payload.current.color_state {
+                                    let value_native_decoded_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let value_native_decoded_display_descriptor_changed_event_payload_current_color_state_inner_color_space = value.color_space;
+                                    let value_native_decoded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let value_native_decoded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner = value;
+                                        Some(value_native_decoded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_display_descriptor_changed_event_payload_current_color_state_inner = DisplayColorState {
+                                        hdr_mode: value_native_decoded_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode,
+                                        color_space: value_native_decoded_display_descriptor_changed_event_payload_current_color_state_inner_color_space,
+                                        bits_per_channel: value_native_decoded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(value_native_decoded_display_descriptor_changed_event_payload_current_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let value_native_decoded_display_descriptor_changed_event_payload_current = DisplayDescriptor {
                                     backend: value_native_decoded_display_descriptor_changed_event_payload_current_backend,
                                     id: value_native_decoded_display_descriptor_changed_event_payload_current_id,
@@ -12875,6 +15366,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                                     builtin_panel: value_native_decoded_display_descriptor_changed_event_payload_current_builtin_panel,
                                     variable_refresh_support: value_native_decoded_display_descriptor_changed_event_payload_current_variable_refresh_support,
                                     hdr_support: value_native_decoded_display_descriptor_changed_event_payload_current_hdr_support,
+                                    color_state: value_native_decoded_display_descriptor_changed_event_payload_current_color_state,
                                 };
                                 let value_native_decoded_display_descriptor_changed_event_payload_changed_mask = value.payload.changed_mask;
                                 let value_native_decoded_display_descriptor_changed_event_payload = DisplayDescriptorChangedPayload {
@@ -13030,6 +15522,24 @@ fn destack_display_monitor_event_try_read_batch_replay(
                                     let value_native_decoded_display_removed_event_payload_descriptor_inner_builtin_panel = value.builtin_panel;
                                     let value_native_decoded_display_removed_event_payload_descriptor_inner_variable_refresh_support = value.variable_refresh_support;
                                     let value_native_decoded_display_removed_event_payload_descriptor_inner_hdr_support = value.hdr_support;
+                                    let value_native_decoded_display_removed_event_payload_descriptor_inner_color_state = if let Some(value) = value.color_state {
+                                        let value_native_decoded_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                        let value_native_decoded_display_removed_event_payload_descriptor_inner_color_state_inner_color_space = value.color_space;
+                                        let value_native_decoded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                            let value_native_decoded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner = value;
+                                            Some(value_native_decoded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let value_native_decoded_display_removed_event_payload_descriptor_inner_color_state_inner = DisplayColorState {
+                                            hdr_mode: value_native_decoded_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode,
+                                            color_space: value_native_decoded_display_removed_event_payload_descriptor_inner_color_state_inner_color_space,
+                                            bits_per_channel: value_native_decoded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel,
+                                        };
+                                        Some(value_native_decoded_display_removed_event_payload_descriptor_inner_color_state_inner)
+                                    } else {
+                                        None
+                                    };
                                     let value_native_decoded_display_removed_event_payload_descriptor_inner = DisplayDescriptor {
                                         backend: value_native_decoded_display_removed_event_payload_descriptor_inner_backend,
                                         id: value_native_decoded_display_removed_event_payload_descriptor_inner_id,
@@ -13050,6 +15560,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                                         builtin_panel: value_native_decoded_display_removed_event_payload_descriptor_inner_builtin_panel,
                                         variable_refresh_support: value_native_decoded_display_removed_event_payload_descriptor_inner_variable_refresh_support,
                                         hdr_support: value_native_decoded_display_removed_event_payload_descriptor_inner_hdr_support,
+                                        color_state: value_native_decoded_display_removed_event_payload_descriptor_inner_color_state,
                                     };
                                     Some(value_native_decoded_display_removed_event_payload_descriptor_inner)
                                 } else {
@@ -13246,12 +15757,8 @@ fn destack_display_monitor_list_replay(
         DISPLAY_MONITOR_LIST,
         binding.replay_payload_for(DISPLAY_MONITOR_LIST)?,
         || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_display_monitor_list(binding, out, request)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_display_monitor_list(binding, out, request)
-            },
+            RuntimeWorld::Host => unsafe { platform_native::destack_display_monitor_list(binding, out, request) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_display_monitor_list(binding, out, request) },
         },
         |result| {
             if let Ok(()) = result {
@@ -13259,35 +15766,42 @@ fn destack_display_monitor_list_replay(
                 let mut result_recorded = Vec::new();
                 for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
                     let result_recorded_item_recorded_backend = result_recorded_item.backend;
-                    let result_recorded_item_recorded_id =
-                        unsafe { result_recorded_item.id.as_str()? }.to_string();
-                    let result_recorded_item_recorded_name =
-                        unsafe { result_recorded_item.name.as_str()? }.to_string();
+                    let result_recorded_item_recorded_id = unsafe { result_recorded_item.id.as_str()? }.to_string();
+                    let result_recorded_item_recorded_name = unsafe { result_recorded_item.name.as_str()? }.to_string();
                     let result_recorded_item_recorded_primary = result_recorded_item.primary;
                     let result_recorded_item_recorded_x = result_recorded_item.x;
                     let result_recorded_item_recorded_y = result_recorded_item.y;
                     let result_recorded_item_recorded_width_px = result_recorded_item.width_px;
                     let result_recorded_item_recorded_height_px = result_recorded_item.height_px;
-                    let result_recorded_item_recorded_work_area_x =
-                        result_recorded_item.work_area_x;
-                    let result_recorded_item_recorded_work_area_y =
-                        result_recorded_item.work_area_y;
-                    let result_recorded_item_recorded_work_area_width_px =
-                        result_recorded_item.work_area_width_px;
-                    let result_recorded_item_recorded_work_area_height_px =
-                        result_recorded_item.work_area_height_px;
+                    let result_recorded_item_recorded_work_area_x = result_recorded_item.work_area_x;
+                    let result_recorded_item_recorded_work_area_y = result_recorded_item.work_area_y;
+                    let result_recorded_item_recorded_work_area_width_px = result_recorded_item.work_area_width_px;
+                    let result_recorded_item_recorded_work_area_height_px = result_recorded_item.work_area_height_px;
                     let result_recorded_item_recorded_width_mm = result_recorded_item.width_mm;
                     let result_recorded_item_recorded_height_mm = result_recorded_item.height_mm;
-                    let result_recorded_item_recorded_scale_factor_milli =
-                        result_recorded_item.scale_factor_milli;
-                    let result_recorded_item_recorded_orientation =
-                        result_recorded_item.orientation;
-                    let result_recorded_item_recorded_builtin_panel =
-                        result_recorded_item.builtin_panel;
-                    let result_recorded_item_recorded_variable_refresh_support =
-                        result_recorded_item.variable_refresh_support;
-                    let result_recorded_item_recorded_hdr_support =
-                        result_recorded_item.hdr_support;
+                    let result_recorded_item_recorded_scale_factor_milli = result_recorded_item.scale_factor_milli;
+                    let result_recorded_item_recorded_orientation = result_recorded_item.orientation;
+                    let result_recorded_item_recorded_builtin_panel = result_recorded_item.builtin_panel;
+                    let result_recorded_item_recorded_variable_refresh_support = result_recorded_item.variable_refresh_support;
+                    let result_recorded_item_recorded_hdr_support = result_recorded_item.hdr_support;
+                    let result_recorded_item_recorded_color_state = if let Some(value) = result_recorded_item.color_state {
+                        let result_recorded_item_recorded_color_state_inner_hdr_mode = value.hdr_mode;
+                        let result_recorded_item_recorded_color_state_inner_color_space = value.color_space;
+                        let result_recorded_item_recorded_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                            let result_recorded_item_recorded_color_state_inner_bits_per_channel_inner = value;
+                            Some(result_recorded_item_recorded_color_state_inner_bits_per_channel_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_item_recorded_color_state_inner = DisplayColorState {
+                            hdr_mode: result_recorded_item_recorded_color_state_inner_hdr_mode,
+                            color_space: result_recorded_item_recorded_color_state_inner_color_space,
+                            bits_per_channel: result_recorded_item_recorded_color_state_inner_bits_per_channel,
+                        };
+                        Some(result_recorded_item_recorded_color_state_inner)
+                    } else {
+                        None
+                    };
                     let result_recorded_item_recorded = DisplaydescriptorReplayRecord {
                         backend: result_recorded_item_recorded_backend,
                         id: result_recorded_item_recorded_id,
@@ -13306,9 +15820,9 @@ fn destack_display_monitor_list_replay(
                         scale_factor_milli: result_recorded_item_recorded_scale_factor_milli,
                         orientation: result_recorded_item_recorded_orientation,
                         builtin_panel: result_recorded_item_recorded_builtin_panel,
-                        variable_refresh_support:
-                            result_recorded_item_recorded_variable_refresh_support,
+                        variable_refresh_support: result_recorded_item_recorded_variable_refresh_support,
                         hdr_support: result_recorded_item_recorded_hdr_support,
+                        color_state: result_recorded_item_recorded_color_state,
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -13321,7 +15835,9 @@ fn destack_display_monitor_list_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
-                    DisplayMonitorListReplayRecord { result }
+                    DisplayMonitorListReplayRecord {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -13335,10 +15851,8 @@ fn destack_display_monitor_list_replay(
                     let mut value_native_values = Vec::new();
                     for value_native_item in value.iter().cloned() {
                         let value_native_decoded_backend = value_native_item.backend;
-                        let value_native_decoded_id =
-                            binding.store_string(value_native_item.id.as_str());
-                        let value_native_decoded_name =
-                            binding.store_string(value_native_item.name.as_str());
+                        let value_native_decoded_id = binding.store_string(value_native_item.id.as_str());
+                        let value_native_decoded_name = binding.store_string(value_native_item.name.as_str());
                         let value_native_decoded_primary = value_native_item.primary;
                         let value_native_decoded_x = value_native_item.x;
                         let value_native_decoded_y = value_native_item.y;
@@ -13346,19 +15860,33 @@ fn destack_display_monitor_list_replay(
                         let value_native_decoded_height_px = value_native_item.height_px;
                         let value_native_decoded_work_area_x = value_native_item.work_area_x;
                         let value_native_decoded_work_area_y = value_native_item.work_area_y;
-                        let value_native_decoded_work_area_width_px =
-                            value_native_item.work_area_width_px;
-                        let value_native_decoded_work_area_height_px =
-                            value_native_item.work_area_height_px;
+                        let value_native_decoded_work_area_width_px = value_native_item.work_area_width_px;
+                        let value_native_decoded_work_area_height_px = value_native_item.work_area_height_px;
                         let value_native_decoded_width_mm = value_native_item.width_mm;
                         let value_native_decoded_height_mm = value_native_item.height_mm;
-                        let value_native_decoded_scale_factor_milli =
-                            value_native_item.scale_factor_milli;
+                        let value_native_decoded_scale_factor_milli = value_native_item.scale_factor_milli;
                         let value_native_decoded_orientation = value_native_item.orientation;
                         let value_native_decoded_builtin_panel = value_native_item.builtin_panel;
-                        let value_native_decoded_variable_refresh_support =
-                            value_native_item.variable_refresh_support;
+                        let value_native_decoded_variable_refresh_support = value_native_item.variable_refresh_support;
                         let value_native_decoded_hdr_support = value_native_item.hdr_support;
+                        let value_native_decoded_color_state = if let Some(value) = value_native_item.color_state {
+                            let value_native_decoded_color_state_inner_hdr_mode = value.hdr_mode;
+                            let value_native_decoded_color_state_inner_color_space = value.color_space;
+                            let value_native_decoded_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                let value_native_decoded_color_state_inner_bits_per_channel_inner = value;
+                                Some(value_native_decoded_color_state_inner_bits_per_channel_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_decoded_color_state_inner = DisplayColorState {
+                                hdr_mode: value_native_decoded_color_state_inner_hdr_mode,
+                                color_space: value_native_decoded_color_state_inner_color_space,
+                                bits_per_channel: value_native_decoded_color_state_inner_bits_per_channel,
+                            };
+                            Some(value_native_decoded_color_state_inner)
+                        } else {
+                            None
+                        };
                         let value_native_decoded = DisplayDescriptor {
                             backend: value_native_decoded_backend,
                             id: value_native_decoded_id,
@@ -13379,6 +15907,7 @@ fn destack_display_monitor_list_replay(
                             builtin_panel: value_native_decoded_builtin_panel,
                             variable_refresh_support: value_native_decoded_variable_refresh_support,
                             hdr_support: value_native_decoded_hdr_support,
+                            color_state: value_native_decoded_color_state,
                         };
                         value_native_values.push(value_native_decoded);
                     }
@@ -13794,6 +16323,80 @@ fn destack_display_window_close_replay(
 }
 
 #[inline]
+fn destack_display_window_content_rect_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut WindowLogicalRect,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    let _ = &window;
+
+    binding.trace().run_binding_without_context(
+        DISPLAY_WINDOW_CONTENT_RECT,
+        binding.replay_payload_for(DISPLAY_WINDOW_CONTENT_RECT)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_display_window_content_rect(binding, out, window)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_display_window_content_rect(
+                    binding, out, window,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: WindowLogicalRect = unsafe { out.read() };
+                let result_recorded_x = result_value.x;
+                let result_recorded_y = result_value.y;
+                let result_recorded_width = result_value.width;
+                let result_recorded_height = result_value.height;
+                let result_recorded = WindowLogicalRect {
+                    x: result_recorded_x,
+                    y: result_recorded_y,
+                    width: result_recorded_width,
+                    height: result_recorded_height,
+                };
+                let payload = DisplayWindowContentRectReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DisplayWindowContentRectReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_x = value.x;
+                    let value_native_y = value.y;
+                    let value_native_width = value.width;
+                    let value_native_height = value.height;
+                    let value_native = WindowLogicalRect {
+                        x: value_native_x,
+                        y: value_native_y,
+                        width: value_native_width,
+                        height: value_native_height,
+                    };
+                    unsafe { out.write(value_native) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_display_window_descriptor_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
@@ -13866,12 +16469,6 @@ fn destack_display_window_descriptor_replay(
                         WindowmodeoptionsReplayRecord::WindowWindowedModeOptions(result_recorded_mode_window_windowed_mode_options)
                     }
                 };
-                let result_recorded_display = if let Some(value) = result_value.display {
-                    let result_recorded_display_inner = value;
-                    Some(result_recorded_display_inner)
-                } else {
-                    None
-                };
                 let result_recorded_resizable = result_value.resizable;
                 let result_recorded_decorated = result_value.decorated;
                 let result_recorded_chrome = result_value.chrome;
@@ -13910,7 +16507,6 @@ fn destack_display_window_descriptor_replay(
                     title: result_recorded_title,
                     role: result_recorded_role,
                     mode: result_recorded_mode,
-                    display: result_recorded_display,
                     resizable: result_recorded_resizable,
                     decorated: result_recorded_decorated,
                     chrome: result_recorded_chrome,
@@ -14000,12 +16596,6 @@ fn destack_display_window_descriptor_replay(
                             WindowModeOptions::WindowWindowedModeOptions(value_native_mode_window_windowed_mode_options)
                         }
                     };
-                    let value_native_display = if let Some(value) = value.display {
-                        let value_native_display_inner = value;
-                        Some(value_native_display_inner)
-                    } else {
-                        None
-                    };
                     let value_native_resizable = value.resizable;
                     let value_native_decorated = value.decorated;
                     let value_native_chrome = value.chrome;
@@ -14044,7 +16634,6 @@ fn destack_display_window_descriptor_replay(
                         title: value_native_title,
                         role: value_native_role,
                         mode: value_native_mode,
-                        display: value_native_display,
                         resizable: value_native_resizable,
                         decorated: value_native_decorated,
                         chrome: value_native_chrome,
@@ -14282,6 +16871,51 @@ fn destack_display_window_event_read_replay(
                             metadata: result_recorded_window_close_requested_event_metadata,
                         };
                         WindoweventReplayRecord::WindowCloseRequestedEvent(result_recorded_window_close_requested_event)
+                    }
+                    WindowEvent::WindowContentRectChangedEvent(value) => {
+                        let result_recorded_window_content_rect_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_content_rect_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_window_content_rect_changed_event_metadata_window = value.metadata.window;
+                        let result_recorded_window_content_rect_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_window_content_rect_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_window_content_rect_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_window_content_rect_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_content_rect_changed_event_metadata_backend,
+                            window: result_recorded_window_content_rect_changed_event_metadata_window,
+                            timestamp_ns: result_recorded_window_content_rect_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_window_content_rect_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_window_content_rect_changed_event_metadata_dropped_count,
+                        };
+                        let result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_x = value.payload.previous_content_rect_logical.x;
+                        let result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_y = value.payload.previous_content_rect_logical.y;
+                        let result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_width = value.payload.previous_content_rect_logical.width;
+                        let result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_height = value.payload.previous_content_rect_logical.height;
+                        let result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical = WindowLogicalRect {
+                            x: result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_x,
+                            y: result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_y,
+                            width: result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_width,
+                            height: result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_height,
+                        };
+                        let result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_x = value.payload.current_content_rect_logical.x;
+                        let result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_y = value.payload.current_content_rect_logical.y;
+                        let result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_width = value.payload.current_content_rect_logical.width;
+                        let result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_height = value.payload.current_content_rect_logical.height;
+                        let result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical = WindowLogicalRect {
+                            x: result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_x,
+                            y: result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_y,
+                            width: result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_width,
+                            height: result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_height,
+                        };
+                        let result_recorded_window_content_rect_changed_event_payload = WindowContentRectPayload {
+                            previous_content_rect_logical: result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical,
+                            current_content_rect_logical: result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical,
+                        };
+                        let result_recorded_window_content_rect_changed_event = WindowcontentrectchangedeventReplayRecord {
+                            kind: result_recorded_window_content_rect_changed_event_kind,
+                            metadata: result_recorded_window_content_rect_changed_event_metadata,
+                            payload: result_recorded_window_content_rect_changed_event_payload,
+                        };
+                        WindoweventReplayRecord::WindowContentRectChangedEvent(result_recorded_window_content_rect_changed_event)
                     }
                     WindowEvent::WindowCreatedEvent(value) => {
                         let result_recorded_window_created_event_kind = unsafe { value.kind.as_str()? }.to_string();
@@ -14660,6 +17294,43 @@ fn destack_display_window_event_read_replay(
                         };
                         WindoweventReplayRecord::WindowFocusChangedEvent(result_recorded_window_focus_changed_event)
                     }
+                    WindowEvent::WindowFramebufferSizeChangedEvent(value) => {
+                        let result_recorded_window_framebuffer_size_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_framebuffer_size_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_window_framebuffer_size_changed_event_metadata_window = value.metadata.window;
+                        let result_recorded_window_framebuffer_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_window_framebuffer_size_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_window_framebuffer_size_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_window_framebuffer_size_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_framebuffer_size_changed_event_metadata_backend,
+                            window: result_recorded_window_framebuffer_size_changed_event_metadata_window,
+                            timestamp_ns: result_recorded_window_framebuffer_size_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_window_framebuffer_size_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_window_framebuffer_size_changed_event_metadata_dropped_count,
+                        };
+                        let result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width = value.payload.previous_framebuffer_size.width;
+                        let result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height = value.payload.previous_framebuffer_size.height;
+                        let result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size = WindowPhysicalSize {
+                            width: result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width,
+                            height: result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height,
+                        };
+                        let result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width = value.payload.current_framebuffer_size.width;
+                        let result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height = value.payload.current_framebuffer_size.height;
+                        let result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size = WindowPhysicalSize {
+                            width: result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width,
+                            height: result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height,
+                        };
+                        let result_recorded_window_framebuffer_size_changed_event_payload = WindowFramebufferSizePayload {
+                            previous_framebuffer_size: result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size,
+                            current_framebuffer_size: result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size,
+                        };
+                        let result_recorded_window_framebuffer_size_changed_event = WindowframebuffersizechangedeventReplayRecord {
+                            kind: result_recorded_window_framebuffer_size_changed_event_kind,
+                            metadata: result_recorded_window_framebuffer_size_changed_event_metadata,
+                            payload: result_recorded_window_framebuffer_size_changed_event_payload,
+                        };
+                        WindoweventReplayRecord::WindowFramebufferSizeChangedEvent(result_recorded_window_framebuffer_size_changed_event)
+                    }
                     WindowEvent::WindowModalChangedEvent(value) => {
                         let result_recorded_window_modal_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_window_modal_changed_event_metadata_backend = value.metadata.backend;
@@ -14967,25 +17638,32 @@ fn destack_display_window_event_read_replay(
                         };
                         WindoweventReplayRecord::WindowPositionChangedEvent(result_recorded_window_position_changed_event)
                     }
-                    WindowEvent::WindowRefreshRequestedEvent(value) => {
-                        let result_recorded_window_refresh_requested_event_kind = unsafe { value.kind.as_str()? }.to_string();
-                        let result_recorded_window_refresh_requested_event_metadata_backend = value.metadata.backend;
-                        let result_recorded_window_refresh_requested_event_metadata_window = value.metadata.window;
-                        let result_recorded_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_window_refresh_requested_event_metadata_dropped_count = value.metadata.dropped_count;
-                        let result_recorded_window_refresh_requested_event_metadata = WindowEventMetadata {
-                            backend: result_recorded_window_refresh_requested_event_metadata_backend,
-                            window: result_recorded_window_refresh_requested_event_metadata_window,
-                            timestamp_ns: result_recorded_window_refresh_requested_event_metadata_timestamp_ns,
-                            sequence: result_recorded_window_refresh_requested_event_metadata_sequence,
-                            dropped_count: result_recorded_window_refresh_requested_event_metadata_dropped_count,
+                    WindowEvent::WindowRenderStateChangedEvent(value) => {
+                        let result_recorded_window_render_state_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_render_state_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_window_render_state_changed_event_metadata_window = value.metadata.window;
+                        let result_recorded_window_render_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_window_render_state_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_window_render_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_window_render_state_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_render_state_changed_event_metadata_backend,
+                            window: result_recorded_window_render_state_changed_event_metadata_window,
+                            timestamp_ns: result_recorded_window_render_state_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_window_render_state_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_window_render_state_changed_event_metadata_dropped_count,
                         };
-                        let result_recorded_window_refresh_requested_event = WindowrefreshrequestedeventReplayRecord {
-                            kind: result_recorded_window_refresh_requested_event_kind,
-                            metadata: result_recorded_window_refresh_requested_event_metadata,
+                        let result_recorded_window_render_state_changed_event_payload_previous_render_state = value.payload.previous_render_state;
+                        let result_recorded_window_render_state_changed_event_payload_current_render_state = value.payload.current_render_state;
+                        let result_recorded_window_render_state_changed_event_payload = WindowRenderStatePayload {
+                            previous_render_state: result_recorded_window_render_state_changed_event_payload_previous_render_state,
+                            current_render_state: result_recorded_window_render_state_changed_event_payload_current_render_state,
                         };
-                        WindoweventReplayRecord::WindowRefreshRequestedEvent(result_recorded_window_refresh_requested_event)
+                        let result_recorded_window_render_state_changed_event = WindowrenderstatechangedeventReplayRecord {
+                            kind: result_recorded_window_render_state_changed_event_kind,
+                            metadata: result_recorded_window_render_state_changed_event_metadata,
+                            payload: result_recorded_window_render_state_changed_event_payload,
+                        };
+                        WindoweventReplayRecord::WindowRenderStateChangedEvent(result_recorded_window_render_state_changed_event)
                     }
                     WindowEvent::WindowSafeAreaChangedEvent(value) => {
                         let result_recorded_window_safe_area_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
@@ -15393,6 +18071,51 @@ fn destack_display_window_event_read_replay(
                             };
                             WindowEvent::WindowCloseRequestedEvent(value_native_window_close_requested_event)
                         }
+                        WindoweventReplayRecord::WindowContentRectChangedEvent(value) => {
+                            let value_native_window_content_rect_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_window_content_rect_changed_event_metadata_backend = value.metadata.backend;
+                            let value_native_window_content_rect_changed_event_metadata_window = value.metadata.window;
+                            let value_native_window_content_rect_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_window_content_rect_changed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_window_content_rect_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_window_content_rect_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_content_rect_changed_event_metadata_backend,
+                                window: value_native_window_content_rect_changed_event_metadata_window,
+                                timestamp_ns: value_native_window_content_rect_changed_event_metadata_timestamp_ns,
+                                sequence: value_native_window_content_rect_changed_event_metadata_sequence,
+                                dropped_count: value_native_window_content_rect_changed_event_metadata_dropped_count,
+                            };
+                            let value_native_window_content_rect_changed_event_payload_previous_content_rect_logical_x = value.payload.previous_content_rect_logical.x;
+                            let value_native_window_content_rect_changed_event_payload_previous_content_rect_logical_y = value.payload.previous_content_rect_logical.y;
+                            let value_native_window_content_rect_changed_event_payload_previous_content_rect_logical_width = value.payload.previous_content_rect_logical.width;
+                            let value_native_window_content_rect_changed_event_payload_previous_content_rect_logical_height = value.payload.previous_content_rect_logical.height;
+                            let value_native_window_content_rect_changed_event_payload_previous_content_rect_logical = WindowLogicalRect {
+                                x: value_native_window_content_rect_changed_event_payload_previous_content_rect_logical_x,
+                                y: value_native_window_content_rect_changed_event_payload_previous_content_rect_logical_y,
+                                width: value_native_window_content_rect_changed_event_payload_previous_content_rect_logical_width,
+                                height: value_native_window_content_rect_changed_event_payload_previous_content_rect_logical_height,
+                            };
+                            let value_native_window_content_rect_changed_event_payload_current_content_rect_logical_x = value.payload.current_content_rect_logical.x;
+                            let value_native_window_content_rect_changed_event_payload_current_content_rect_logical_y = value.payload.current_content_rect_logical.y;
+                            let value_native_window_content_rect_changed_event_payload_current_content_rect_logical_width = value.payload.current_content_rect_logical.width;
+                            let value_native_window_content_rect_changed_event_payload_current_content_rect_logical_height = value.payload.current_content_rect_logical.height;
+                            let value_native_window_content_rect_changed_event_payload_current_content_rect_logical = WindowLogicalRect {
+                                x: value_native_window_content_rect_changed_event_payload_current_content_rect_logical_x,
+                                y: value_native_window_content_rect_changed_event_payload_current_content_rect_logical_y,
+                                width: value_native_window_content_rect_changed_event_payload_current_content_rect_logical_width,
+                                height: value_native_window_content_rect_changed_event_payload_current_content_rect_logical_height,
+                            };
+                            let value_native_window_content_rect_changed_event_payload = WindowContentRectPayload {
+                                previous_content_rect_logical: value_native_window_content_rect_changed_event_payload_previous_content_rect_logical,
+                                current_content_rect_logical: value_native_window_content_rect_changed_event_payload_current_content_rect_logical,
+                            };
+                            let value_native_window_content_rect_changed_event = WindowContentRectChangedEvent {
+                                kind: value_native_window_content_rect_changed_event_kind,
+                                metadata: value_native_window_content_rect_changed_event_metadata,
+                                payload: value_native_window_content_rect_changed_event_payload,
+                            };
+                            WindowEvent::WindowContentRectChangedEvent(value_native_window_content_rect_changed_event)
+                        }
                         WindoweventReplayRecord::WindowCreatedEvent(value) => {
                             let value_native_window_created_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_window_created_event_metadata_backend = value.metadata.backend;
@@ -15776,6 +18499,43 @@ fn destack_display_window_event_read_replay(
                             };
                             WindowEvent::WindowFocusChangedEvent(value_native_window_focus_changed_event)
                         }
+                        WindoweventReplayRecord::WindowFramebufferSizeChangedEvent(value) => {
+                            let value_native_window_framebuffer_size_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_window_framebuffer_size_changed_event_metadata_backend = value.metadata.backend;
+                            let value_native_window_framebuffer_size_changed_event_metadata_window = value.metadata.window;
+                            let value_native_window_framebuffer_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_window_framebuffer_size_changed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_window_framebuffer_size_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_window_framebuffer_size_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_framebuffer_size_changed_event_metadata_backend,
+                                window: value_native_window_framebuffer_size_changed_event_metadata_window,
+                                timestamp_ns: value_native_window_framebuffer_size_changed_event_metadata_timestamp_ns,
+                                sequence: value_native_window_framebuffer_size_changed_event_metadata_sequence,
+                                dropped_count: value_native_window_framebuffer_size_changed_event_metadata_dropped_count,
+                            };
+                            let value_native_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width = value.payload.previous_framebuffer_size.width;
+                            let value_native_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height = value.payload.previous_framebuffer_size.height;
+                            let value_native_window_framebuffer_size_changed_event_payload_previous_framebuffer_size = WindowPhysicalSize {
+                                width: value_native_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width,
+                                height: value_native_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height,
+                            };
+                            let value_native_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width = value.payload.current_framebuffer_size.width;
+                            let value_native_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height = value.payload.current_framebuffer_size.height;
+                            let value_native_window_framebuffer_size_changed_event_payload_current_framebuffer_size = WindowPhysicalSize {
+                                width: value_native_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width,
+                                height: value_native_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height,
+                            };
+                            let value_native_window_framebuffer_size_changed_event_payload = WindowFramebufferSizePayload {
+                                previous_framebuffer_size: value_native_window_framebuffer_size_changed_event_payload_previous_framebuffer_size,
+                                current_framebuffer_size: value_native_window_framebuffer_size_changed_event_payload_current_framebuffer_size,
+                            };
+                            let value_native_window_framebuffer_size_changed_event = WindowFramebufferSizeChangedEvent {
+                                kind: value_native_window_framebuffer_size_changed_event_kind,
+                                metadata: value_native_window_framebuffer_size_changed_event_metadata,
+                                payload: value_native_window_framebuffer_size_changed_event_payload,
+                            };
+                            WindowEvent::WindowFramebufferSizeChangedEvent(value_native_window_framebuffer_size_changed_event)
+                        }
                         WindoweventReplayRecord::WindowModalChangedEvent(value) => {
                             let value_native_window_modal_changed_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_window_modal_changed_event_metadata_backend = value.metadata.backend;
@@ -16083,25 +18843,32 @@ fn destack_display_window_event_read_replay(
                             };
                             WindowEvent::WindowPositionChangedEvent(value_native_window_position_changed_event)
                         }
-                        WindoweventReplayRecord::WindowRefreshRequestedEvent(value) => {
-                            let value_native_window_refresh_requested_event_kind = binding.store_string(value.kind.as_str());
-                            let value_native_window_refresh_requested_event_metadata_backend = value.metadata.backend;
-                            let value_native_window_refresh_requested_event_metadata_window = value.metadata.window;
-                            let value_native_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let value_native_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_window_refresh_requested_event_metadata_dropped_count = value.metadata.dropped_count;
-                            let value_native_window_refresh_requested_event_metadata = WindowEventMetadata {
-                                backend: value_native_window_refresh_requested_event_metadata_backend,
-                                window: value_native_window_refresh_requested_event_metadata_window,
-                                timestamp_ns: value_native_window_refresh_requested_event_metadata_timestamp_ns,
-                                sequence: value_native_window_refresh_requested_event_metadata_sequence,
-                                dropped_count: value_native_window_refresh_requested_event_metadata_dropped_count,
+                        WindoweventReplayRecord::WindowRenderStateChangedEvent(value) => {
+                            let value_native_window_render_state_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_window_render_state_changed_event_metadata_backend = value.metadata.backend;
+                            let value_native_window_render_state_changed_event_metadata_window = value.metadata.window;
+                            let value_native_window_render_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_window_render_state_changed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_window_render_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_window_render_state_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_render_state_changed_event_metadata_backend,
+                                window: value_native_window_render_state_changed_event_metadata_window,
+                                timestamp_ns: value_native_window_render_state_changed_event_metadata_timestamp_ns,
+                                sequence: value_native_window_render_state_changed_event_metadata_sequence,
+                                dropped_count: value_native_window_render_state_changed_event_metadata_dropped_count,
                             };
-                            let value_native_window_refresh_requested_event = WindowRefreshRequestedEvent {
-                                kind: value_native_window_refresh_requested_event_kind,
-                                metadata: value_native_window_refresh_requested_event_metadata,
+                            let value_native_window_render_state_changed_event_payload_previous_render_state = value.payload.previous_render_state;
+                            let value_native_window_render_state_changed_event_payload_current_render_state = value.payload.current_render_state;
+                            let value_native_window_render_state_changed_event_payload = WindowRenderStatePayload {
+                                previous_render_state: value_native_window_render_state_changed_event_payload_previous_render_state,
+                                current_render_state: value_native_window_render_state_changed_event_payload_current_render_state,
                             };
-                            WindowEvent::WindowRefreshRequestedEvent(value_native_window_refresh_requested_event)
+                            let value_native_window_render_state_changed_event = WindowRenderStateChangedEvent {
+                                kind: value_native_window_render_state_changed_event_kind,
+                                metadata: value_native_window_render_state_changed_event_metadata,
+                                payload: value_native_window_render_state_changed_event_payload,
+                            };
+                            WindowEvent::WindowRenderStateChangedEvent(value_native_window_render_state_changed_event)
                         }
                         WindoweventReplayRecord::WindowSafeAreaChangedEvent(value) => {
                             let value_native_window_safe_area_changed_event_kind = binding.store_string(value.kind.as_str());
@@ -16519,6 +19286,51 @@ fn destack_display_window_event_read_batch_replay(
                             };
                             WindoweventReplayRecord::WindowCloseRequestedEvent(result_recorded_item_recorded_window_close_requested_event)
                         }
+                        WindowEvent::WindowContentRectChangedEvent(value) => {
+                            let result_recorded_item_recorded_window_content_rect_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata_window = value.metadata.window;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_content_rect_changed_event_metadata_backend,
+                                window: result_recorded_item_recorded_window_content_rect_changed_event_metadata_window,
+                                timestamp_ns: result_recorded_item_recorded_window_content_rect_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_window_content_rect_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_window_content_rect_changed_event_metadata_dropped_count,
+                            };
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_x = value.payload.previous_content_rect_logical.x;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_y = value.payload.previous_content_rect_logical.y;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_width = value.payload.previous_content_rect_logical.width;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_height = value.payload.previous_content_rect_logical.height;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical = WindowLogicalRect {
+                                x: result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_x,
+                                y: result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_y,
+                                width: result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_width,
+                                height: result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_height,
+                            };
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_x = value.payload.current_content_rect_logical.x;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_y = value.payload.current_content_rect_logical.y;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_width = value.payload.current_content_rect_logical.width;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_height = value.payload.current_content_rect_logical.height;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical = WindowLogicalRect {
+                                x: result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_x,
+                                y: result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_y,
+                                width: result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_width,
+                                height: result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_height,
+                            };
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload = WindowContentRectPayload {
+                                previous_content_rect_logical: result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical,
+                                current_content_rect_logical: result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical,
+                            };
+                            let result_recorded_item_recorded_window_content_rect_changed_event = WindowcontentrectchangedeventReplayRecord {
+                                kind: result_recorded_item_recorded_window_content_rect_changed_event_kind,
+                                metadata: result_recorded_item_recorded_window_content_rect_changed_event_metadata,
+                                payload: result_recorded_item_recorded_window_content_rect_changed_event_payload,
+                            };
+                            WindoweventReplayRecord::WindowContentRectChangedEvent(result_recorded_item_recorded_window_content_rect_changed_event)
+                        }
                         WindowEvent::WindowCreatedEvent(value) => {
                             let result_recorded_item_recorded_window_created_event_kind = unsafe { value.kind.as_str()? }.to_string();
                             let result_recorded_item_recorded_window_created_event_metadata_backend = value.metadata.backend;
@@ -16896,6 +19708,43 @@ fn destack_display_window_event_read_batch_replay(
                             };
                             WindoweventReplayRecord::WindowFocusChangedEvent(result_recorded_item_recorded_window_focus_changed_event)
                         }
+                        WindowEvent::WindowFramebufferSizeChangedEvent(value) => {
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_window = value.metadata.window;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_backend,
+                                window: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_window,
+                                timestamp_ns: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_dropped_count,
+                            };
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width = value.payload.previous_framebuffer_size.width;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height = value.payload.previous_framebuffer_size.height;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size = WindowPhysicalSize {
+                                width: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width,
+                                height: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height,
+                            };
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width = value.payload.current_framebuffer_size.width;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height = value.payload.current_framebuffer_size.height;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size = WindowPhysicalSize {
+                                width: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width,
+                                height: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height,
+                            };
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload = WindowFramebufferSizePayload {
+                                previous_framebuffer_size: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size,
+                                current_framebuffer_size: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size,
+                            };
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event = WindowframebuffersizechangedeventReplayRecord {
+                                kind: result_recorded_item_recorded_window_framebuffer_size_changed_event_kind,
+                                metadata: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata,
+                                payload: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload,
+                            };
+                            WindoweventReplayRecord::WindowFramebufferSizeChangedEvent(result_recorded_item_recorded_window_framebuffer_size_changed_event)
+                        }
                         WindowEvent::WindowModalChangedEvent(value) => {
                             let result_recorded_item_recorded_window_modal_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
                             let result_recorded_item_recorded_window_modal_changed_event_metadata_backend = value.metadata.backend;
@@ -17203,25 +20052,32 @@ fn destack_display_window_event_read_batch_replay(
                             };
                             WindoweventReplayRecord::WindowPositionChangedEvent(result_recorded_item_recorded_window_position_changed_event)
                         }
-                        WindowEvent::WindowRefreshRequestedEvent(value) => {
-                            let result_recorded_item_recorded_window_refresh_requested_event_kind = unsafe { value.kind.as_str()? }.to_string();
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_backend = value.metadata.backend;
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_window = value.metadata.window;
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_dropped_count = value.metadata.dropped_count;
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata = WindowEventMetadata {
-                                backend: result_recorded_item_recorded_window_refresh_requested_event_metadata_backend,
-                                window: result_recorded_item_recorded_window_refresh_requested_event_metadata_window,
-                                timestamp_ns: result_recorded_item_recorded_window_refresh_requested_event_metadata_timestamp_ns,
-                                sequence: result_recorded_item_recorded_window_refresh_requested_event_metadata_sequence,
-                                dropped_count: result_recorded_item_recorded_window_refresh_requested_event_metadata_dropped_count,
+                        WindowEvent::WindowRenderStateChangedEvent(value) => {
+                            let result_recorded_item_recorded_window_render_state_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata_window = value.metadata.window;
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_render_state_changed_event_metadata_backend,
+                                window: result_recorded_item_recorded_window_render_state_changed_event_metadata_window,
+                                timestamp_ns: result_recorded_item_recorded_window_render_state_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_window_render_state_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_window_render_state_changed_event_metadata_dropped_count,
                             };
-                            let result_recorded_item_recorded_window_refresh_requested_event = WindowrefreshrequestedeventReplayRecord {
-                                kind: result_recorded_item_recorded_window_refresh_requested_event_kind,
-                                metadata: result_recorded_item_recorded_window_refresh_requested_event_metadata,
+                            let result_recorded_item_recorded_window_render_state_changed_event_payload_previous_render_state = value.payload.previous_render_state;
+                            let result_recorded_item_recorded_window_render_state_changed_event_payload_current_render_state = value.payload.current_render_state;
+                            let result_recorded_item_recorded_window_render_state_changed_event_payload = WindowRenderStatePayload {
+                                previous_render_state: result_recorded_item_recorded_window_render_state_changed_event_payload_previous_render_state,
+                                current_render_state: result_recorded_item_recorded_window_render_state_changed_event_payload_current_render_state,
                             };
-                            WindoweventReplayRecord::WindowRefreshRequestedEvent(result_recorded_item_recorded_window_refresh_requested_event)
+                            let result_recorded_item_recorded_window_render_state_changed_event = WindowrenderstatechangedeventReplayRecord {
+                                kind: result_recorded_item_recorded_window_render_state_changed_event_kind,
+                                metadata: result_recorded_item_recorded_window_render_state_changed_event_metadata,
+                                payload: result_recorded_item_recorded_window_render_state_changed_event_payload,
+                            };
+                            WindoweventReplayRecord::WindowRenderStateChangedEvent(result_recorded_item_recorded_window_render_state_changed_event)
                         }
                         WindowEvent::WindowSafeAreaChangedEvent(value) => {
                             let result_recorded_item_recorded_window_safe_area_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
@@ -17633,6 +20489,51 @@ fn destack_display_window_event_read_batch_replay(
                                 };
                                 WindowEvent::WindowCloseRequestedEvent(value_native_decoded_window_close_requested_event)
                             }
+                            WindoweventReplayRecord::WindowContentRectChangedEvent(value) => {
+                                let value_native_decoded_window_content_rect_changed_event_kind = binding.store_string(value.kind.as_str());
+                                let value_native_decoded_window_content_rect_changed_event_metadata_backend = value.metadata.backend;
+                                let value_native_decoded_window_content_rect_changed_event_metadata_window = value.metadata.window;
+                                let value_native_decoded_window_content_rect_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_decoded_window_content_rect_changed_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_decoded_window_content_rect_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_decoded_window_content_rect_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_decoded_window_content_rect_changed_event_metadata_backend,
+                                    window: value_native_decoded_window_content_rect_changed_event_metadata_window,
+                                    timestamp_ns: value_native_decoded_window_content_rect_changed_event_metadata_timestamp_ns,
+                                    sequence: value_native_decoded_window_content_rect_changed_event_metadata_sequence,
+                                    dropped_count: value_native_decoded_window_content_rect_changed_event_metadata_dropped_count,
+                                };
+                                let value_native_decoded_window_content_rect_changed_event_payload_previous_content_rect_logical_x = value.payload.previous_content_rect_logical.x;
+                                let value_native_decoded_window_content_rect_changed_event_payload_previous_content_rect_logical_y = value.payload.previous_content_rect_logical.y;
+                                let value_native_decoded_window_content_rect_changed_event_payload_previous_content_rect_logical_width = value.payload.previous_content_rect_logical.width;
+                                let value_native_decoded_window_content_rect_changed_event_payload_previous_content_rect_logical_height = value.payload.previous_content_rect_logical.height;
+                                let value_native_decoded_window_content_rect_changed_event_payload_previous_content_rect_logical = WindowLogicalRect {
+                                    x: value_native_decoded_window_content_rect_changed_event_payload_previous_content_rect_logical_x,
+                                    y: value_native_decoded_window_content_rect_changed_event_payload_previous_content_rect_logical_y,
+                                    width: value_native_decoded_window_content_rect_changed_event_payload_previous_content_rect_logical_width,
+                                    height: value_native_decoded_window_content_rect_changed_event_payload_previous_content_rect_logical_height,
+                                };
+                                let value_native_decoded_window_content_rect_changed_event_payload_current_content_rect_logical_x = value.payload.current_content_rect_logical.x;
+                                let value_native_decoded_window_content_rect_changed_event_payload_current_content_rect_logical_y = value.payload.current_content_rect_logical.y;
+                                let value_native_decoded_window_content_rect_changed_event_payload_current_content_rect_logical_width = value.payload.current_content_rect_logical.width;
+                                let value_native_decoded_window_content_rect_changed_event_payload_current_content_rect_logical_height = value.payload.current_content_rect_logical.height;
+                                let value_native_decoded_window_content_rect_changed_event_payload_current_content_rect_logical = WindowLogicalRect {
+                                    x: value_native_decoded_window_content_rect_changed_event_payload_current_content_rect_logical_x,
+                                    y: value_native_decoded_window_content_rect_changed_event_payload_current_content_rect_logical_y,
+                                    width: value_native_decoded_window_content_rect_changed_event_payload_current_content_rect_logical_width,
+                                    height: value_native_decoded_window_content_rect_changed_event_payload_current_content_rect_logical_height,
+                                };
+                                let value_native_decoded_window_content_rect_changed_event_payload = WindowContentRectPayload {
+                                    previous_content_rect_logical: value_native_decoded_window_content_rect_changed_event_payload_previous_content_rect_logical,
+                                    current_content_rect_logical: value_native_decoded_window_content_rect_changed_event_payload_current_content_rect_logical,
+                                };
+                                let value_native_decoded_window_content_rect_changed_event = WindowContentRectChangedEvent {
+                                    kind: value_native_decoded_window_content_rect_changed_event_kind,
+                                    metadata: value_native_decoded_window_content_rect_changed_event_metadata,
+                                    payload: value_native_decoded_window_content_rect_changed_event_payload,
+                                };
+                                WindowEvent::WindowContentRectChangedEvent(value_native_decoded_window_content_rect_changed_event)
+                            }
                             WindoweventReplayRecord::WindowCreatedEvent(value) => {
                                 let value_native_decoded_window_created_event_kind = binding.store_string(value.kind.as_str());
                                 let value_native_decoded_window_created_event_metadata_backend = value.metadata.backend;
@@ -18016,6 +20917,43 @@ fn destack_display_window_event_read_batch_replay(
                                 };
                                 WindowEvent::WindowFocusChangedEvent(value_native_decoded_window_focus_changed_event)
                             }
+                            WindoweventReplayRecord::WindowFramebufferSizeChangedEvent(value) => {
+                                let value_native_decoded_window_framebuffer_size_changed_event_kind = binding.store_string(value.kind.as_str());
+                                let value_native_decoded_window_framebuffer_size_changed_event_metadata_backend = value.metadata.backend;
+                                let value_native_decoded_window_framebuffer_size_changed_event_metadata_window = value.metadata.window;
+                                let value_native_decoded_window_framebuffer_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_decoded_window_framebuffer_size_changed_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_decoded_window_framebuffer_size_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_decoded_window_framebuffer_size_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_decoded_window_framebuffer_size_changed_event_metadata_backend,
+                                    window: value_native_decoded_window_framebuffer_size_changed_event_metadata_window,
+                                    timestamp_ns: value_native_decoded_window_framebuffer_size_changed_event_metadata_timestamp_ns,
+                                    sequence: value_native_decoded_window_framebuffer_size_changed_event_metadata_sequence,
+                                    dropped_count: value_native_decoded_window_framebuffer_size_changed_event_metadata_dropped_count,
+                                };
+                                let value_native_decoded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width = value.payload.previous_framebuffer_size.width;
+                                let value_native_decoded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height = value.payload.previous_framebuffer_size.height;
+                                let value_native_decoded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size = WindowPhysicalSize {
+                                    width: value_native_decoded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width,
+                                    height: value_native_decoded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height,
+                                };
+                                let value_native_decoded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width = value.payload.current_framebuffer_size.width;
+                                let value_native_decoded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height = value.payload.current_framebuffer_size.height;
+                                let value_native_decoded_window_framebuffer_size_changed_event_payload_current_framebuffer_size = WindowPhysicalSize {
+                                    width: value_native_decoded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width,
+                                    height: value_native_decoded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height,
+                                };
+                                let value_native_decoded_window_framebuffer_size_changed_event_payload = WindowFramebufferSizePayload {
+                                    previous_framebuffer_size: value_native_decoded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size,
+                                    current_framebuffer_size: value_native_decoded_window_framebuffer_size_changed_event_payload_current_framebuffer_size,
+                                };
+                                let value_native_decoded_window_framebuffer_size_changed_event = WindowFramebufferSizeChangedEvent {
+                                    kind: value_native_decoded_window_framebuffer_size_changed_event_kind,
+                                    metadata: value_native_decoded_window_framebuffer_size_changed_event_metadata,
+                                    payload: value_native_decoded_window_framebuffer_size_changed_event_payload,
+                                };
+                                WindowEvent::WindowFramebufferSizeChangedEvent(value_native_decoded_window_framebuffer_size_changed_event)
+                            }
                             WindoweventReplayRecord::WindowModalChangedEvent(value) => {
                                 let value_native_decoded_window_modal_changed_event_kind = binding.store_string(value.kind.as_str());
                                 let value_native_decoded_window_modal_changed_event_metadata_backend = value.metadata.backend;
@@ -18323,25 +21261,32 @@ fn destack_display_window_event_read_batch_replay(
                                 };
                                 WindowEvent::WindowPositionChangedEvent(value_native_decoded_window_position_changed_event)
                             }
-                            WindoweventReplayRecord::WindowRefreshRequestedEvent(value) => {
-                                let value_native_decoded_window_refresh_requested_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_window_refresh_requested_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_window_refresh_requested_event_metadata_window = value.metadata.window;
-                                let value_native_decoded_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_window_refresh_requested_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_window_refresh_requested_event_metadata = WindowEventMetadata {
-                                    backend: value_native_decoded_window_refresh_requested_event_metadata_backend,
-                                    window: value_native_decoded_window_refresh_requested_event_metadata_window,
-                                    timestamp_ns: value_native_decoded_window_refresh_requested_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_window_refresh_requested_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_window_refresh_requested_event_metadata_dropped_count,
+                            WindoweventReplayRecord::WindowRenderStateChangedEvent(value) => {
+                                let value_native_decoded_window_render_state_changed_event_kind = binding.store_string(value.kind.as_str());
+                                let value_native_decoded_window_render_state_changed_event_metadata_backend = value.metadata.backend;
+                                let value_native_decoded_window_render_state_changed_event_metadata_window = value.metadata.window;
+                                let value_native_decoded_window_render_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_decoded_window_render_state_changed_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_decoded_window_render_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_decoded_window_render_state_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_decoded_window_render_state_changed_event_metadata_backend,
+                                    window: value_native_decoded_window_render_state_changed_event_metadata_window,
+                                    timestamp_ns: value_native_decoded_window_render_state_changed_event_metadata_timestamp_ns,
+                                    sequence: value_native_decoded_window_render_state_changed_event_metadata_sequence,
+                                    dropped_count: value_native_decoded_window_render_state_changed_event_metadata_dropped_count,
                                 };
-                                let value_native_decoded_window_refresh_requested_event = WindowRefreshRequestedEvent {
-                                    kind: value_native_decoded_window_refresh_requested_event_kind,
-                                    metadata: value_native_decoded_window_refresh_requested_event_metadata,
+                                let value_native_decoded_window_render_state_changed_event_payload_previous_render_state = value.payload.previous_render_state;
+                                let value_native_decoded_window_render_state_changed_event_payload_current_render_state = value.payload.current_render_state;
+                                let value_native_decoded_window_render_state_changed_event_payload = WindowRenderStatePayload {
+                                    previous_render_state: value_native_decoded_window_render_state_changed_event_payload_previous_render_state,
+                                    current_render_state: value_native_decoded_window_render_state_changed_event_payload_current_render_state,
                                 };
-                                WindowEvent::WindowRefreshRequestedEvent(value_native_decoded_window_refresh_requested_event)
+                                let value_native_decoded_window_render_state_changed_event = WindowRenderStateChangedEvent {
+                                    kind: value_native_decoded_window_render_state_changed_event_kind,
+                                    metadata: value_native_decoded_window_render_state_changed_event_metadata,
+                                    payload: value_native_decoded_window_render_state_changed_event_payload,
+                                };
+                                WindowEvent::WindowRenderStateChangedEvent(value_native_decoded_window_render_state_changed_event)
                             }
                             WindoweventReplayRecord::WindowSafeAreaChangedEvent(value) => {
                                 let value_native_decoded_window_safe_area_changed_event_kind = binding.store_string(value.kind.as_str());
@@ -18758,6 +21703,51 @@ fn destack_display_window_event_try_read_replay(
                         };
                         WindoweventReplayRecord::WindowCloseRequestedEvent(result_recorded_window_close_requested_event)
                     }
+                    WindowEvent::WindowContentRectChangedEvent(value) => {
+                        let result_recorded_window_content_rect_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_content_rect_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_window_content_rect_changed_event_metadata_window = value.metadata.window;
+                        let result_recorded_window_content_rect_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_window_content_rect_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_window_content_rect_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_window_content_rect_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_content_rect_changed_event_metadata_backend,
+                            window: result_recorded_window_content_rect_changed_event_metadata_window,
+                            timestamp_ns: result_recorded_window_content_rect_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_window_content_rect_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_window_content_rect_changed_event_metadata_dropped_count,
+                        };
+                        let result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_x = value.payload.previous_content_rect_logical.x;
+                        let result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_y = value.payload.previous_content_rect_logical.y;
+                        let result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_width = value.payload.previous_content_rect_logical.width;
+                        let result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_height = value.payload.previous_content_rect_logical.height;
+                        let result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical = WindowLogicalRect {
+                            x: result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_x,
+                            y: result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_y,
+                            width: result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_width,
+                            height: result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_height,
+                        };
+                        let result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_x = value.payload.current_content_rect_logical.x;
+                        let result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_y = value.payload.current_content_rect_logical.y;
+                        let result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_width = value.payload.current_content_rect_logical.width;
+                        let result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_height = value.payload.current_content_rect_logical.height;
+                        let result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical = WindowLogicalRect {
+                            x: result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_x,
+                            y: result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_y,
+                            width: result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_width,
+                            height: result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_height,
+                        };
+                        let result_recorded_window_content_rect_changed_event_payload = WindowContentRectPayload {
+                            previous_content_rect_logical: result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical,
+                            current_content_rect_logical: result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical,
+                        };
+                        let result_recorded_window_content_rect_changed_event = WindowcontentrectchangedeventReplayRecord {
+                            kind: result_recorded_window_content_rect_changed_event_kind,
+                            metadata: result_recorded_window_content_rect_changed_event_metadata,
+                            payload: result_recorded_window_content_rect_changed_event_payload,
+                        };
+                        WindoweventReplayRecord::WindowContentRectChangedEvent(result_recorded_window_content_rect_changed_event)
+                    }
                     WindowEvent::WindowCreatedEvent(value) => {
                         let result_recorded_window_created_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_window_created_event_metadata_backend = value.metadata.backend;
@@ -19135,6 +22125,43 @@ fn destack_display_window_event_try_read_replay(
                         };
                         WindoweventReplayRecord::WindowFocusChangedEvent(result_recorded_window_focus_changed_event)
                     }
+                    WindowEvent::WindowFramebufferSizeChangedEvent(value) => {
+                        let result_recorded_window_framebuffer_size_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_framebuffer_size_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_window_framebuffer_size_changed_event_metadata_window = value.metadata.window;
+                        let result_recorded_window_framebuffer_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_window_framebuffer_size_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_window_framebuffer_size_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_window_framebuffer_size_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_framebuffer_size_changed_event_metadata_backend,
+                            window: result_recorded_window_framebuffer_size_changed_event_metadata_window,
+                            timestamp_ns: result_recorded_window_framebuffer_size_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_window_framebuffer_size_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_window_framebuffer_size_changed_event_metadata_dropped_count,
+                        };
+                        let result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width = value.payload.previous_framebuffer_size.width;
+                        let result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height = value.payload.previous_framebuffer_size.height;
+                        let result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size = WindowPhysicalSize {
+                            width: result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width,
+                            height: result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height,
+                        };
+                        let result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width = value.payload.current_framebuffer_size.width;
+                        let result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height = value.payload.current_framebuffer_size.height;
+                        let result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size = WindowPhysicalSize {
+                            width: result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width,
+                            height: result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height,
+                        };
+                        let result_recorded_window_framebuffer_size_changed_event_payload = WindowFramebufferSizePayload {
+                            previous_framebuffer_size: result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size,
+                            current_framebuffer_size: result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size,
+                        };
+                        let result_recorded_window_framebuffer_size_changed_event = WindowframebuffersizechangedeventReplayRecord {
+                            kind: result_recorded_window_framebuffer_size_changed_event_kind,
+                            metadata: result_recorded_window_framebuffer_size_changed_event_metadata,
+                            payload: result_recorded_window_framebuffer_size_changed_event_payload,
+                        };
+                        WindoweventReplayRecord::WindowFramebufferSizeChangedEvent(result_recorded_window_framebuffer_size_changed_event)
+                    }
                     WindowEvent::WindowModalChangedEvent(value) => {
                         let result_recorded_window_modal_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_window_modal_changed_event_metadata_backend = value.metadata.backend;
@@ -19442,25 +22469,32 @@ fn destack_display_window_event_try_read_replay(
                         };
                         WindoweventReplayRecord::WindowPositionChangedEvent(result_recorded_window_position_changed_event)
                     }
-                    WindowEvent::WindowRefreshRequestedEvent(value) => {
-                        let result_recorded_window_refresh_requested_event_kind = unsafe { value.kind.as_str()? }.to_string();
-                        let result_recorded_window_refresh_requested_event_metadata_backend = value.metadata.backend;
-                        let result_recorded_window_refresh_requested_event_metadata_window = value.metadata.window;
-                        let result_recorded_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_window_refresh_requested_event_metadata_dropped_count = value.metadata.dropped_count;
-                        let result_recorded_window_refresh_requested_event_metadata = WindowEventMetadata {
-                            backend: result_recorded_window_refresh_requested_event_metadata_backend,
-                            window: result_recorded_window_refresh_requested_event_metadata_window,
-                            timestamp_ns: result_recorded_window_refresh_requested_event_metadata_timestamp_ns,
-                            sequence: result_recorded_window_refresh_requested_event_metadata_sequence,
-                            dropped_count: result_recorded_window_refresh_requested_event_metadata_dropped_count,
+                    WindowEvent::WindowRenderStateChangedEvent(value) => {
+                        let result_recorded_window_render_state_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_render_state_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_window_render_state_changed_event_metadata_window = value.metadata.window;
+                        let result_recorded_window_render_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_window_render_state_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_window_render_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_window_render_state_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_render_state_changed_event_metadata_backend,
+                            window: result_recorded_window_render_state_changed_event_metadata_window,
+                            timestamp_ns: result_recorded_window_render_state_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_window_render_state_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_window_render_state_changed_event_metadata_dropped_count,
                         };
-                        let result_recorded_window_refresh_requested_event = WindowrefreshrequestedeventReplayRecord {
-                            kind: result_recorded_window_refresh_requested_event_kind,
-                            metadata: result_recorded_window_refresh_requested_event_metadata,
+                        let result_recorded_window_render_state_changed_event_payload_previous_render_state = value.payload.previous_render_state;
+                        let result_recorded_window_render_state_changed_event_payload_current_render_state = value.payload.current_render_state;
+                        let result_recorded_window_render_state_changed_event_payload = WindowRenderStatePayload {
+                            previous_render_state: result_recorded_window_render_state_changed_event_payload_previous_render_state,
+                            current_render_state: result_recorded_window_render_state_changed_event_payload_current_render_state,
                         };
-                        WindoweventReplayRecord::WindowRefreshRequestedEvent(result_recorded_window_refresh_requested_event)
+                        let result_recorded_window_render_state_changed_event = WindowrenderstatechangedeventReplayRecord {
+                            kind: result_recorded_window_render_state_changed_event_kind,
+                            metadata: result_recorded_window_render_state_changed_event_metadata,
+                            payload: result_recorded_window_render_state_changed_event_payload,
+                        };
+                        WindoweventReplayRecord::WindowRenderStateChangedEvent(result_recorded_window_render_state_changed_event)
                     }
                     WindowEvent::WindowSafeAreaChangedEvent(value) => {
                         let result_recorded_window_safe_area_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
@@ -19868,6 +22902,51 @@ fn destack_display_window_event_try_read_replay(
                             };
                             WindowEvent::WindowCloseRequestedEvent(value_native_window_close_requested_event)
                         }
+                        WindoweventReplayRecord::WindowContentRectChangedEvent(value) => {
+                            let value_native_window_content_rect_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_window_content_rect_changed_event_metadata_backend = value.metadata.backend;
+                            let value_native_window_content_rect_changed_event_metadata_window = value.metadata.window;
+                            let value_native_window_content_rect_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_window_content_rect_changed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_window_content_rect_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_window_content_rect_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_content_rect_changed_event_metadata_backend,
+                                window: value_native_window_content_rect_changed_event_metadata_window,
+                                timestamp_ns: value_native_window_content_rect_changed_event_metadata_timestamp_ns,
+                                sequence: value_native_window_content_rect_changed_event_metadata_sequence,
+                                dropped_count: value_native_window_content_rect_changed_event_metadata_dropped_count,
+                            };
+                            let value_native_window_content_rect_changed_event_payload_previous_content_rect_logical_x = value.payload.previous_content_rect_logical.x;
+                            let value_native_window_content_rect_changed_event_payload_previous_content_rect_logical_y = value.payload.previous_content_rect_logical.y;
+                            let value_native_window_content_rect_changed_event_payload_previous_content_rect_logical_width = value.payload.previous_content_rect_logical.width;
+                            let value_native_window_content_rect_changed_event_payload_previous_content_rect_logical_height = value.payload.previous_content_rect_logical.height;
+                            let value_native_window_content_rect_changed_event_payload_previous_content_rect_logical = WindowLogicalRect {
+                                x: value_native_window_content_rect_changed_event_payload_previous_content_rect_logical_x,
+                                y: value_native_window_content_rect_changed_event_payload_previous_content_rect_logical_y,
+                                width: value_native_window_content_rect_changed_event_payload_previous_content_rect_logical_width,
+                                height: value_native_window_content_rect_changed_event_payload_previous_content_rect_logical_height,
+                            };
+                            let value_native_window_content_rect_changed_event_payload_current_content_rect_logical_x = value.payload.current_content_rect_logical.x;
+                            let value_native_window_content_rect_changed_event_payload_current_content_rect_logical_y = value.payload.current_content_rect_logical.y;
+                            let value_native_window_content_rect_changed_event_payload_current_content_rect_logical_width = value.payload.current_content_rect_logical.width;
+                            let value_native_window_content_rect_changed_event_payload_current_content_rect_logical_height = value.payload.current_content_rect_logical.height;
+                            let value_native_window_content_rect_changed_event_payload_current_content_rect_logical = WindowLogicalRect {
+                                x: value_native_window_content_rect_changed_event_payload_current_content_rect_logical_x,
+                                y: value_native_window_content_rect_changed_event_payload_current_content_rect_logical_y,
+                                width: value_native_window_content_rect_changed_event_payload_current_content_rect_logical_width,
+                                height: value_native_window_content_rect_changed_event_payload_current_content_rect_logical_height,
+                            };
+                            let value_native_window_content_rect_changed_event_payload = WindowContentRectPayload {
+                                previous_content_rect_logical: value_native_window_content_rect_changed_event_payload_previous_content_rect_logical,
+                                current_content_rect_logical: value_native_window_content_rect_changed_event_payload_current_content_rect_logical,
+                            };
+                            let value_native_window_content_rect_changed_event = WindowContentRectChangedEvent {
+                                kind: value_native_window_content_rect_changed_event_kind,
+                                metadata: value_native_window_content_rect_changed_event_metadata,
+                                payload: value_native_window_content_rect_changed_event_payload,
+                            };
+                            WindowEvent::WindowContentRectChangedEvent(value_native_window_content_rect_changed_event)
+                        }
                         WindoweventReplayRecord::WindowCreatedEvent(value) => {
                             let value_native_window_created_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_window_created_event_metadata_backend = value.metadata.backend;
@@ -20251,6 +23330,43 @@ fn destack_display_window_event_try_read_replay(
                             };
                             WindowEvent::WindowFocusChangedEvent(value_native_window_focus_changed_event)
                         }
+                        WindoweventReplayRecord::WindowFramebufferSizeChangedEvent(value) => {
+                            let value_native_window_framebuffer_size_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_window_framebuffer_size_changed_event_metadata_backend = value.metadata.backend;
+                            let value_native_window_framebuffer_size_changed_event_metadata_window = value.metadata.window;
+                            let value_native_window_framebuffer_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_window_framebuffer_size_changed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_window_framebuffer_size_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_window_framebuffer_size_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_framebuffer_size_changed_event_metadata_backend,
+                                window: value_native_window_framebuffer_size_changed_event_metadata_window,
+                                timestamp_ns: value_native_window_framebuffer_size_changed_event_metadata_timestamp_ns,
+                                sequence: value_native_window_framebuffer_size_changed_event_metadata_sequence,
+                                dropped_count: value_native_window_framebuffer_size_changed_event_metadata_dropped_count,
+                            };
+                            let value_native_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width = value.payload.previous_framebuffer_size.width;
+                            let value_native_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height = value.payload.previous_framebuffer_size.height;
+                            let value_native_window_framebuffer_size_changed_event_payload_previous_framebuffer_size = WindowPhysicalSize {
+                                width: value_native_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width,
+                                height: value_native_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height,
+                            };
+                            let value_native_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width = value.payload.current_framebuffer_size.width;
+                            let value_native_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height = value.payload.current_framebuffer_size.height;
+                            let value_native_window_framebuffer_size_changed_event_payload_current_framebuffer_size = WindowPhysicalSize {
+                                width: value_native_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width,
+                                height: value_native_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height,
+                            };
+                            let value_native_window_framebuffer_size_changed_event_payload = WindowFramebufferSizePayload {
+                                previous_framebuffer_size: value_native_window_framebuffer_size_changed_event_payload_previous_framebuffer_size,
+                                current_framebuffer_size: value_native_window_framebuffer_size_changed_event_payload_current_framebuffer_size,
+                            };
+                            let value_native_window_framebuffer_size_changed_event = WindowFramebufferSizeChangedEvent {
+                                kind: value_native_window_framebuffer_size_changed_event_kind,
+                                metadata: value_native_window_framebuffer_size_changed_event_metadata,
+                                payload: value_native_window_framebuffer_size_changed_event_payload,
+                            };
+                            WindowEvent::WindowFramebufferSizeChangedEvent(value_native_window_framebuffer_size_changed_event)
+                        }
                         WindoweventReplayRecord::WindowModalChangedEvent(value) => {
                             let value_native_window_modal_changed_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_window_modal_changed_event_metadata_backend = value.metadata.backend;
@@ -20558,25 +23674,32 @@ fn destack_display_window_event_try_read_replay(
                             };
                             WindowEvent::WindowPositionChangedEvent(value_native_window_position_changed_event)
                         }
-                        WindoweventReplayRecord::WindowRefreshRequestedEvent(value) => {
-                            let value_native_window_refresh_requested_event_kind = binding.store_string(value.kind.as_str());
-                            let value_native_window_refresh_requested_event_metadata_backend = value.metadata.backend;
-                            let value_native_window_refresh_requested_event_metadata_window = value.metadata.window;
-                            let value_native_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let value_native_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_window_refresh_requested_event_metadata_dropped_count = value.metadata.dropped_count;
-                            let value_native_window_refresh_requested_event_metadata = WindowEventMetadata {
-                                backend: value_native_window_refresh_requested_event_metadata_backend,
-                                window: value_native_window_refresh_requested_event_metadata_window,
-                                timestamp_ns: value_native_window_refresh_requested_event_metadata_timestamp_ns,
-                                sequence: value_native_window_refresh_requested_event_metadata_sequence,
-                                dropped_count: value_native_window_refresh_requested_event_metadata_dropped_count,
+                        WindoweventReplayRecord::WindowRenderStateChangedEvent(value) => {
+                            let value_native_window_render_state_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_window_render_state_changed_event_metadata_backend = value.metadata.backend;
+                            let value_native_window_render_state_changed_event_metadata_window = value.metadata.window;
+                            let value_native_window_render_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_window_render_state_changed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_window_render_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_window_render_state_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_render_state_changed_event_metadata_backend,
+                                window: value_native_window_render_state_changed_event_metadata_window,
+                                timestamp_ns: value_native_window_render_state_changed_event_metadata_timestamp_ns,
+                                sequence: value_native_window_render_state_changed_event_metadata_sequence,
+                                dropped_count: value_native_window_render_state_changed_event_metadata_dropped_count,
                             };
-                            let value_native_window_refresh_requested_event = WindowRefreshRequestedEvent {
-                                kind: value_native_window_refresh_requested_event_kind,
-                                metadata: value_native_window_refresh_requested_event_metadata,
+                            let value_native_window_render_state_changed_event_payload_previous_render_state = value.payload.previous_render_state;
+                            let value_native_window_render_state_changed_event_payload_current_render_state = value.payload.current_render_state;
+                            let value_native_window_render_state_changed_event_payload = WindowRenderStatePayload {
+                                previous_render_state: value_native_window_render_state_changed_event_payload_previous_render_state,
+                                current_render_state: value_native_window_render_state_changed_event_payload_current_render_state,
                             };
-                            WindowEvent::WindowRefreshRequestedEvent(value_native_window_refresh_requested_event)
+                            let value_native_window_render_state_changed_event = WindowRenderStateChangedEvent {
+                                kind: value_native_window_render_state_changed_event_kind,
+                                metadata: value_native_window_render_state_changed_event_metadata,
+                                payload: value_native_window_render_state_changed_event_payload,
+                            };
+                            WindowEvent::WindowRenderStateChangedEvent(value_native_window_render_state_changed_event)
                         }
                         WindoweventReplayRecord::WindowSafeAreaChangedEvent(value) => {
                             let value_native_window_safe_area_changed_event_kind = binding.store_string(value.kind.as_str());
@@ -20993,6 +24116,51 @@ fn destack_display_window_event_try_read_batch_replay(
                             };
                             WindoweventReplayRecord::WindowCloseRequestedEvent(result_recorded_item_recorded_window_close_requested_event)
                         }
+                        WindowEvent::WindowContentRectChangedEvent(value) => {
+                            let result_recorded_item_recorded_window_content_rect_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata_window = value.metadata.window;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_content_rect_changed_event_metadata_backend,
+                                window: result_recorded_item_recorded_window_content_rect_changed_event_metadata_window,
+                                timestamp_ns: result_recorded_item_recorded_window_content_rect_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_window_content_rect_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_window_content_rect_changed_event_metadata_dropped_count,
+                            };
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_x = value.payload.previous_content_rect_logical.x;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_y = value.payload.previous_content_rect_logical.y;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_width = value.payload.previous_content_rect_logical.width;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_height = value.payload.previous_content_rect_logical.height;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical = WindowLogicalRect {
+                                x: result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_x,
+                                y: result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_y,
+                                width: result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_width,
+                                height: result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_height,
+                            };
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_x = value.payload.current_content_rect_logical.x;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_y = value.payload.current_content_rect_logical.y;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_width = value.payload.current_content_rect_logical.width;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_height = value.payload.current_content_rect_logical.height;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical = WindowLogicalRect {
+                                x: result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_x,
+                                y: result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_y,
+                                width: result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_width,
+                                height: result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_height,
+                            };
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload = WindowContentRectPayload {
+                                previous_content_rect_logical: result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical,
+                                current_content_rect_logical: result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical,
+                            };
+                            let result_recorded_item_recorded_window_content_rect_changed_event = WindowcontentrectchangedeventReplayRecord {
+                                kind: result_recorded_item_recorded_window_content_rect_changed_event_kind,
+                                metadata: result_recorded_item_recorded_window_content_rect_changed_event_metadata,
+                                payload: result_recorded_item_recorded_window_content_rect_changed_event_payload,
+                            };
+                            WindoweventReplayRecord::WindowContentRectChangedEvent(result_recorded_item_recorded_window_content_rect_changed_event)
+                        }
                         WindowEvent::WindowCreatedEvent(value) => {
                             let result_recorded_item_recorded_window_created_event_kind = unsafe { value.kind.as_str()? }.to_string();
                             let result_recorded_item_recorded_window_created_event_metadata_backend = value.metadata.backend;
@@ -21370,6 +24538,43 @@ fn destack_display_window_event_try_read_batch_replay(
                             };
                             WindoweventReplayRecord::WindowFocusChangedEvent(result_recorded_item_recorded_window_focus_changed_event)
                         }
+                        WindowEvent::WindowFramebufferSizeChangedEvent(value) => {
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_window = value.metadata.window;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_backend,
+                                window: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_window,
+                                timestamp_ns: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_dropped_count,
+                            };
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width = value.payload.previous_framebuffer_size.width;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height = value.payload.previous_framebuffer_size.height;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size = WindowPhysicalSize {
+                                width: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width,
+                                height: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height,
+                            };
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width = value.payload.current_framebuffer_size.width;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height = value.payload.current_framebuffer_size.height;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size = WindowPhysicalSize {
+                                width: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width,
+                                height: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height,
+                            };
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload = WindowFramebufferSizePayload {
+                                previous_framebuffer_size: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size,
+                                current_framebuffer_size: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size,
+                            };
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event = WindowframebuffersizechangedeventReplayRecord {
+                                kind: result_recorded_item_recorded_window_framebuffer_size_changed_event_kind,
+                                metadata: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata,
+                                payload: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload,
+                            };
+                            WindoweventReplayRecord::WindowFramebufferSizeChangedEvent(result_recorded_item_recorded_window_framebuffer_size_changed_event)
+                        }
                         WindowEvent::WindowModalChangedEvent(value) => {
                             let result_recorded_item_recorded_window_modal_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
                             let result_recorded_item_recorded_window_modal_changed_event_metadata_backend = value.metadata.backend;
@@ -21677,25 +24882,32 @@ fn destack_display_window_event_try_read_batch_replay(
                             };
                             WindoweventReplayRecord::WindowPositionChangedEvent(result_recorded_item_recorded_window_position_changed_event)
                         }
-                        WindowEvent::WindowRefreshRequestedEvent(value) => {
-                            let result_recorded_item_recorded_window_refresh_requested_event_kind = unsafe { value.kind.as_str()? }.to_string();
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_backend = value.metadata.backend;
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_window = value.metadata.window;
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_dropped_count = value.metadata.dropped_count;
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata = WindowEventMetadata {
-                                backend: result_recorded_item_recorded_window_refresh_requested_event_metadata_backend,
-                                window: result_recorded_item_recorded_window_refresh_requested_event_metadata_window,
-                                timestamp_ns: result_recorded_item_recorded_window_refresh_requested_event_metadata_timestamp_ns,
-                                sequence: result_recorded_item_recorded_window_refresh_requested_event_metadata_sequence,
-                                dropped_count: result_recorded_item_recorded_window_refresh_requested_event_metadata_dropped_count,
+                        WindowEvent::WindowRenderStateChangedEvent(value) => {
+                            let result_recorded_item_recorded_window_render_state_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata_window = value.metadata.window;
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_render_state_changed_event_metadata_backend,
+                                window: result_recorded_item_recorded_window_render_state_changed_event_metadata_window,
+                                timestamp_ns: result_recorded_item_recorded_window_render_state_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_window_render_state_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_window_render_state_changed_event_metadata_dropped_count,
                             };
-                            let result_recorded_item_recorded_window_refresh_requested_event = WindowrefreshrequestedeventReplayRecord {
-                                kind: result_recorded_item_recorded_window_refresh_requested_event_kind,
-                                metadata: result_recorded_item_recorded_window_refresh_requested_event_metadata,
+                            let result_recorded_item_recorded_window_render_state_changed_event_payload_previous_render_state = value.payload.previous_render_state;
+                            let result_recorded_item_recorded_window_render_state_changed_event_payload_current_render_state = value.payload.current_render_state;
+                            let result_recorded_item_recorded_window_render_state_changed_event_payload = WindowRenderStatePayload {
+                                previous_render_state: result_recorded_item_recorded_window_render_state_changed_event_payload_previous_render_state,
+                                current_render_state: result_recorded_item_recorded_window_render_state_changed_event_payload_current_render_state,
                             };
-                            WindoweventReplayRecord::WindowRefreshRequestedEvent(result_recorded_item_recorded_window_refresh_requested_event)
+                            let result_recorded_item_recorded_window_render_state_changed_event = WindowrenderstatechangedeventReplayRecord {
+                                kind: result_recorded_item_recorded_window_render_state_changed_event_kind,
+                                metadata: result_recorded_item_recorded_window_render_state_changed_event_metadata,
+                                payload: result_recorded_item_recorded_window_render_state_changed_event_payload,
+                            };
+                            WindoweventReplayRecord::WindowRenderStateChangedEvent(result_recorded_item_recorded_window_render_state_changed_event)
                         }
                         WindowEvent::WindowSafeAreaChangedEvent(value) => {
                             let result_recorded_item_recorded_window_safe_area_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
@@ -22107,6 +25319,51 @@ fn destack_display_window_event_try_read_batch_replay(
                                 };
                                 WindowEvent::WindowCloseRequestedEvent(value_native_decoded_window_close_requested_event)
                             }
+                            WindoweventReplayRecord::WindowContentRectChangedEvent(value) => {
+                                let value_native_decoded_window_content_rect_changed_event_kind = binding.store_string(value.kind.as_str());
+                                let value_native_decoded_window_content_rect_changed_event_metadata_backend = value.metadata.backend;
+                                let value_native_decoded_window_content_rect_changed_event_metadata_window = value.metadata.window;
+                                let value_native_decoded_window_content_rect_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_decoded_window_content_rect_changed_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_decoded_window_content_rect_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_decoded_window_content_rect_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_decoded_window_content_rect_changed_event_metadata_backend,
+                                    window: value_native_decoded_window_content_rect_changed_event_metadata_window,
+                                    timestamp_ns: value_native_decoded_window_content_rect_changed_event_metadata_timestamp_ns,
+                                    sequence: value_native_decoded_window_content_rect_changed_event_metadata_sequence,
+                                    dropped_count: value_native_decoded_window_content_rect_changed_event_metadata_dropped_count,
+                                };
+                                let value_native_decoded_window_content_rect_changed_event_payload_previous_content_rect_logical_x = value.payload.previous_content_rect_logical.x;
+                                let value_native_decoded_window_content_rect_changed_event_payload_previous_content_rect_logical_y = value.payload.previous_content_rect_logical.y;
+                                let value_native_decoded_window_content_rect_changed_event_payload_previous_content_rect_logical_width = value.payload.previous_content_rect_logical.width;
+                                let value_native_decoded_window_content_rect_changed_event_payload_previous_content_rect_logical_height = value.payload.previous_content_rect_logical.height;
+                                let value_native_decoded_window_content_rect_changed_event_payload_previous_content_rect_logical = WindowLogicalRect {
+                                    x: value_native_decoded_window_content_rect_changed_event_payload_previous_content_rect_logical_x,
+                                    y: value_native_decoded_window_content_rect_changed_event_payload_previous_content_rect_logical_y,
+                                    width: value_native_decoded_window_content_rect_changed_event_payload_previous_content_rect_logical_width,
+                                    height: value_native_decoded_window_content_rect_changed_event_payload_previous_content_rect_logical_height,
+                                };
+                                let value_native_decoded_window_content_rect_changed_event_payload_current_content_rect_logical_x = value.payload.current_content_rect_logical.x;
+                                let value_native_decoded_window_content_rect_changed_event_payload_current_content_rect_logical_y = value.payload.current_content_rect_logical.y;
+                                let value_native_decoded_window_content_rect_changed_event_payload_current_content_rect_logical_width = value.payload.current_content_rect_logical.width;
+                                let value_native_decoded_window_content_rect_changed_event_payload_current_content_rect_logical_height = value.payload.current_content_rect_logical.height;
+                                let value_native_decoded_window_content_rect_changed_event_payload_current_content_rect_logical = WindowLogicalRect {
+                                    x: value_native_decoded_window_content_rect_changed_event_payload_current_content_rect_logical_x,
+                                    y: value_native_decoded_window_content_rect_changed_event_payload_current_content_rect_logical_y,
+                                    width: value_native_decoded_window_content_rect_changed_event_payload_current_content_rect_logical_width,
+                                    height: value_native_decoded_window_content_rect_changed_event_payload_current_content_rect_logical_height,
+                                };
+                                let value_native_decoded_window_content_rect_changed_event_payload = WindowContentRectPayload {
+                                    previous_content_rect_logical: value_native_decoded_window_content_rect_changed_event_payload_previous_content_rect_logical,
+                                    current_content_rect_logical: value_native_decoded_window_content_rect_changed_event_payload_current_content_rect_logical,
+                                };
+                                let value_native_decoded_window_content_rect_changed_event = WindowContentRectChangedEvent {
+                                    kind: value_native_decoded_window_content_rect_changed_event_kind,
+                                    metadata: value_native_decoded_window_content_rect_changed_event_metadata,
+                                    payload: value_native_decoded_window_content_rect_changed_event_payload,
+                                };
+                                WindowEvent::WindowContentRectChangedEvent(value_native_decoded_window_content_rect_changed_event)
+                            }
                             WindoweventReplayRecord::WindowCreatedEvent(value) => {
                                 let value_native_decoded_window_created_event_kind = binding.store_string(value.kind.as_str());
                                 let value_native_decoded_window_created_event_metadata_backend = value.metadata.backend;
@@ -22490,6 +25747,43 @@ fn destack_display_window_event_try_read_batch_replay(
                                 };
                                 WindowEvent::WindowFocusChangedEvent(value_native_decoded_window_focus_changed_event)
                             }
+                            WindoweventReplayRecord::WindowFramebufferSizeChangedEvent(value) => {
+                                let value_native_decoded_window_framebuffer_size_changed_event_kind = binding.store_string(value.kind.as_str());
+                                let value_native_decoded_window_framebuffer_size_changed_event_metadata_backend = value.metadata.backend;
+                                let value_native_decoded_window_framebuffer_size_changed_event_metadata_window = value.metadata.window;
+                                let value_native_decoded_window_framebuffer_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_decoded_window_framebuffer_size_changed_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_decoded_window_framebuffer_size_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_decoded_window_framebuffer_size_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_decoded_window_framebuffer_size_changed_event_metadata_backend,
+                                    window: value_native_decoded_window_framebuffer_size_changed_event_metadata_window,
+                                    timestamp_ns: value_native_decoded_window_framebuffer_size_changed_event_metadata_timestamp_ns,
+                                    sequence: value_native_decoded_window_framebuffer_size_changed_event_metadata_sequence,
+                                    dropped_count: value_native_decoded_window_framebuffer_size_changed_event_metadata_dropped_count,
+                                };
+                                let value_native_decoded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width = value.payload.previous_framebuffer_size.width;
+                                let value_native_decoded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height = value.payload.previous_framebuffer_size.height;
+                                let value_native_decoded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size = WindowPhysicalSize {
+                                    width: value_native_decoded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width,
+                                    height: value_native_decoded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height,
+                                };
+                                let value_native_decoded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width = value.payload.current_framebuffer_size.width;
+                                let value_native_decoded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height = value.payload.current_framebuffer_size.height;
+                                let value_native_decoded_window_framebuffer_size_changed_event_payload_current_framebuffer_size = WindowPhysicalSize {
+                                    width: value_native_decoded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width,
+                                    height: value_native_decoded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height,
+                                };
+                                let value_native_decoded_window_framebuffer_size_changed_event_payload = WindowFramebufferSizePayload {
+                                    previous_framebuffer_size: value_native_decoded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size,
+                                    current_framebuffer_size: value_native_decoded_window_framebuffer_size_changed_event_payload_current_framebuffer_size,
+                                };
+                                let value_native_decoded_window_framebuffer_size_changed_event = WindowFramebufferSizeChangedEvent {
+                                    kind: value_native_decoded_window_framebuffer_size_changed_event_kind,
+                                    metadata: value_native_decoded_window_framebuffer_size_changed_event_metadata,
+                                    payload: value_native_decoded_window_framebuffer_size_changed_event_payload,
+                                };
+                                WindowEvent::WindowFramebufferSizeChangedEvent(value_native_decoded_window_framebuffer_size_changed_event)
+                            }
                             WindoweventReplayRecord::WindowModalChangedEvent(value) => {
                                 let value_native_decoded_window_modal_changed_event_kind = binding.store_string(value.kind.as_str());
                                 let value_native_decoded_window_modal_changed_event_metadata_backend = value.metadata.backend;
@@ -22797,25 +26091,32 @@ fn destack_display_window_event_try_read_batch_replay(
                                 };
                                 WindowEvent::WindowPositionChangedEvent(value_native_decoded_window_position_changed_event)
                             }
-                            WindoweventReplayRecord::WindowRefreshRequestedEvent(value) => {
-                                let value_native_decoded_window_refresh_requested_event_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_window_refresh_requested_event_metadata_backend = value.metadata.backend;
-                                let value_native_decoded_window_refresh_requested_event_metadata_window = value.metadata.window;
-                                let value_native_decoded_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let value_native_decoded_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
-                                let value_native_decoded_window_refresh_requested_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let value_native_decoded_window_refresh_requested_event_metadata = WindowEventMetadata {
-                                    backend: value_native_decoded_window_refresh_requested_event_metadata_backend,
-                                    window: value_native_decoded_window_refresh_requested_event_metadata_window,
-                                    timestamp_ns: value_native_decoded_window_refresh_requested_event_metadata_timestamp_ns,
-                                    sequence: value_native_decoded_window_refresh_requested_event_metadata_sequence,
-                                    dropped_count: value_native_decoded_window_refresh_requested_event_metadata_dropped_count,
+                            WindoweventReplayRecord::WindowRenderStateChangedEvent(value) => {
+                                let value_native_decoded_window_render_state_changed_event_kind = binding.store_string(value.kind.as_str());
+                                let value_native_decoded_window_render_state_changed_event_metadata_backend = value.metadata.backend;
+                                let value_native_decoded_window_render_state_changed_event_metadata_window = value.metadata.window;
+                                let value_native_decoded_window_render_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_decoded_window_render_state_changed_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_decoded_window_render_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_decoded_window_render_state_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_decoded_window_render_state_changed_event_metadata_backend,
+                                    window: value_native_decoded_window_render_state_changed_event_metadata_window,
+                                    timestamp_ns: value_native_decoded_window_render_state_changed_event_metadata_timestamp_ns,
+                                    sequence: value_native_decoded_window_render_state_changed_event_metadata_sequence,
+                                    dropped_count: value_native_decoded_window_render_state_changed_event_metadata_dropped_count,
                                 };
-                                let value_native_decoded_window_refresh_requested_event = WindowRefreshRequestedEvent {
-                                    kind: value_native_decoded_window_refresh_requested_event_kind,
-                                    metadata: value_native_decoded_window_refresh_requested_event_metadata,
+                                let value_native_decoded_window_render_state_changed_event_payload_previous_render_state = value.payload.previous_render_state;
+                                let value_native_decoded_window_render_state_changed_event_payload_current_render_state = value.payload.current_render_state;
+                                let value_native_decoded_window_render_state_changed_event_payload = WindowRenderStatePayload {
+                                    previous_render_state: value_native_decoded_window_render_state_changed_event_payload_previous_render_state,
+                                    current_render_state: value_native_decoded_window_render_state_changed_event_payload_current_render_state,
                                 };
-                                WindowEvent::WindowRefreshRequestedEvent(value_native_decoded_window_refresh_requested_event)
+                                let value_native_decoded_window_render_state_changed_event = WindowRenderStateChangedEvent {
+                                    kind: value_native_decoded_window_render_state_changed_event_kind,
+                                    metadata: value_native_decoded_window_render_state_changed_event_metadata,
+                                    payload: value_native_decoded_window_render_state_changed_event_payload,
+                                };
+                                WindowEvent::WindowRenderStateChangedEvent(value_native_decoded_window_render_state_changed_event)
                             }
                             WindoweventReplayRecord::WindowSafeAreaChangedEvent(value) => {
                                 let value_native_decoded_window_safe_area_changed_event_kind = binding.store_string(value.kind.as_str());
@@ -23167,6 +26468,120 @@ fn destack_display_window_focus_replay(
 }
 
 #[inline]
+fn destack_display_window_framebuffer_size_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut WindowPhysicalSize,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    let _ = &window;
+
+    binding.trace().run_binding_without_context(
+        DISPLAY_WINDOW_FRAMEBUFFER_SIZE,
+        binding.replay_payload_for(DISPLAY_WINDOW_FRAMEBUFFER_SIZE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_display_window_framebuffer_size(binding, out, window)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_display_window_framebuffer_size(
+                    binding, out, window,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: WindowPhysicalSize = unsafe { out.read() };
+                let result_recorded_width = result_value.width;
+                let result_recorded_height = result_value.height;
+                let result_recorded = WindowPhysicalSize {
+                    width: result_recorded_width,
+                    height: result_recorded_height,
+                };
+                let payload = DisplayWindowFramebufferSizeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DisplayWindowFramebufferSizeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_width = value.width;
+                    let value_native_height = value.height;
+                    let value_native = WindowPhysicalSize {
+                        width: value_native_width,
+                        height: value_native_height,
+                    };
+                    unsafe { out.write(value_native) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_display_window_invalidate_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    let _ = &window;
+
+    binding.trace().run_binding_without_context(
+        DISPLAY_WINDOW_INVALIDATE,
+        binding.replay_payload_for(DISPLAY_WINDOW_INVALIDATE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_display_window_invalidate(binding, window)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_display_window_invalidate(binding, window)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DisplayWindowInvalidateReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DisplayWindowInvalidateReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_display_window_maximize_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
@@ -23417,6 +26832,61 @@ fn destack_display_window_raise_replay(
 }
 
 #[inline]
+fn destack_display_window_render_state_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut WindowRenderState,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    let _ = &window;
+
+    binding.trace().run_binding_without_context(
+        DISPLAY_WINDOW_RENDER_STATE,
+        binding.replay_payload_for(DISPLAY_WINDOW_RENDER_STATE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_display_window_render_state(binding, out, window)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_display_window_render_state(
+                    binding, out, window,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: WindowRenderState = unsafe { out.read() };
+                let result_recorded = result_value;
+                let payload = DisplayWindowRenderStateReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DisplayWindowRenderStateReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    unsafe { out.write(value) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_display_window_request_attention_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
@@ -23451,54 +26921,6 @@ fn destack_display_window_request_attention_replay(
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
                     DisplayWindowRequestAttentionReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(()) => Ok(()),
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_display_window_request_refresh_replay(
-    binding: &BindingCallContext,
-    world: RuntimeWorld,
-    window: resource::WindowHandle,
-) -> RuntimeResult<()> {
-    let _ = &window;
-
-    binding.trace().run_binding_without_context(
-        DISPLAY_WINDOW_REQUEST_REFRESH,
-        binding.replay_payload_for(DISPLAY_WINDOW_REQUEST_REFRESH)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_display_window_request_refresh(binding, window)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_display_window_request_refresh(binding, window)
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = DisplayWindowRequestRefreshReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    DisplayWindowRequestRefreshReplayRecord { result }
                 };
                 return Ok(Some(payload));
             }
@@ -24786,7 +28208,6 @@ fn destack_display_window_state_replay(
             if let Ok(()) = result {
                 let result_value: WindowState = unsafe { out.read() };
                 let result_recorded_backend = result_value.backend;
-                let result_recorded_role = result_value.role;
                 let result_recorded_position_x = result_value.position.x;
                 let result_recorded_position_y = result_value.position.y;
                 let result_recorded_position = WindowPosition {
@@ -24805,7 +28226,26 @@ fn destack_display_window_state_replay(
                     width: result_recorded_size_physical_width,
                     height: result_recorded_size_physical_height,
                 };
+                let result_recorded_content_rect_logical_x = result_value.content_rect_logical.x;
+                let result_recorded_content_rect_logical_y = result_value.content_rect_logical.y;
+                let result_recorded_content_rect_logical_width =
+                    result_value.content_rect_logical.width;
+                let result_recorded_content_rect_logical_height =
+                    result_value.content_rect_logical.height;
+                let result_recorded_content_rect_logical = WindowLogicalRect {
+                    x: result_recorded_content_rect_logical_x,
+                    y: result_recorded_content_rect_logical_y,
+                    width: result_recorded_content_rect_logical_width,
+                    height: result_recorded_content_rect_logical_height,
+                };
+                let result_recorded_framebuffer_size_width = result_value.framebuffer_size.width;
+                let result_recorded_framebuffer_size_height = result_value.framebuffer_size.height;
+                let result_recorded_framebuffer_size = WindowPhysicalSize {
+                    width: result_recorded_framebuffer_size_width,
+                    height: result_recorded_framebuffer_size_height,
+                };
                 let result_recorded_scale_factor_milli = result_value.scale_factor_milli;
+                let result_recorded_role = result_value.role;
                 let result_recorded_visibility = result_value.visibility;
                 let result_recorded_display = if let Some(value) = result_value.display {
                     let result_recorded_display_inner = value;
@@ -24815,6 +28255,7 @@ fn destack_display_window_state_replay(
                 };
                 let result_recorded_focused = result_value.focused;
                 let result_recorded_occlusion = result_value.occlusion;
+                let result_recorded_render_state = result_value.render_state;
                 let result_recorded_safe_area_insets =
                     if let Some(value) = result_value.safe_area_insets {
                         let result_recorded_safe_area_insets_inner_left_px = value.left_px;
@@ -24864,15 +28305,18 @@ fn destack_display_window_state_replay(
                 };
                 let result_recorded = WindowState {
                     backend: result_recorded_backend,
-                    role: result_recorded_role,
                     position: result_recorded_position,
                     size_logical: result_recorded_size_logical,
                     size_physical: result_recorded_size_physical,
+                    content_rect_logical: result_recorded_content_rect_logical,
+                    framebuffer_size: result_recorded_framebuffer_size,
                     scale_factor_milli: result_recorded_scale_factor_milli,
+                    role: result_recorded_role,
                     visibility: result_recorded_visibility,
                     display: result_recorded_display,
                     focused: result_recorded_focused,
                     occlusion: result_recorded_occlusion,
+                    render_state: result_recorded_render_state,
                     safe_area_insets: result_recorded_safe_area_insets,
                     theme: result_recorded_theme,
                     chrome: result_recorded_chrome,
@@ -24906,7 +28350,6 @@ fn destack_display_window_state_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_backend = value.backend;
-                    let value_native_role = value.role;
                     let value_native_position_x = value.position.x;
                     let value_native_position_y = value.position.y;
                     let value_native_position = WindowPosition {
@@ -24925,7 +28368,25 @@ fn destack_display_window_state_replay(
                         width: value_native_size_physical_width,
                         height: value_native_size_physical_height,
                     };
+                    let value_native_content_rect_logical_x = value.content_rect_logical.x;
+                    let value_native_content_rect_logical_y = value.content_rect_logical.y;
+                    let value_native_content_rect_logical_width = value.content_rect_logical.width;
+                    let value_native_content_rect_logical_height =
+                        value.content_rect_logical.height;
+                    let value_native_content_rect_logical = WindowLogicalRect {
+                        x: value_native_content_rect_logical_x,
+                        y: value_native_content_rect_logical_y,
+                        width: value_native_content_rect_logical_width,
+                        height: value_native_content_rect_logical_height,
+                    };
+                    let value_native_framebuffer_size_width = value.framebuffer_size.width;
+                    let value_native_framebuffer_size_height = value.framebuffer_size.height;
+                    let value_native_framebuffer_size = WindowPhysicalSize {
+                        width: value_native_framebuffer_size_width,
+                        height: value_native_framebuffer_size_height,
+                    };
                     let value_native_scale_factor_milli = value.scale_factor_milli;
+                    let value_native_role = value.role;
                     let value_native_visibility = value.visibility;
                     let value_native_display = if let Some(value) = value.display {
                         let value_native_display_inner = value;
@@ -24935,6 +28396,7 @@ fn destack_display_window_state_replay(
                     };
                     let value_native_focused = value.focused;
                     let value_native_occlusion = value.occlusion;
+                    let value_native_render_state = value.render_state;
                     let value_native_safe_area_insets = if let Some(value) = value.safe_area_insets
                     {
                         let value_native_safe_area_insets_inner_left_px = value.left_px;
@@ -24983,15 +28445,18 @@ fn destack_display_window_state_replay(
                     };
                     let value_native = WindowState {
                         backend: value_native_backend,
-                        role: value_native_role,
                         position: value_native_position,
                         size_logical: value_native_size_logical,
                         size_physical: value_native_size_physical,
+                        content_rect_logical: value_native_content_rect_logical,
+                        framebuffer_size: value_native_framebuffer_size,
                         scale_factor_milli: value_native_scale_factor_milli,
+                        role: value_native_role,
                         visibility: value_native_visibility,
                         display: value_native_display,
                         focused: value_native_focused,
                         occlusion: value_native_occlusion,
+                        render_state: value_native_render_state,
                         safe_area_insets: value_native_safe_area_insets,
                         theme: value_native_theme,
                         chrome: value_native_chrome,
@@ -25027,6 +28492,110 @@ pub(crate) unsafe extern "C" fn destack_display_backend_list(
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(DISPLAY_BACKEND_LIST)?;
         destack_display_backend_list_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.display.frame.beginClose")]
+pub(crate) unsafe extern "C" fn destack_display_frame_begin_close(
+    handle: resource::DisplayBeginFrameHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DISPLAY_FRAME_BEGIN_CLOSE)?;
+        destack_display_frame_begin_close_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.display.frame.beginOpen")]
+pub(crate) unsafe extern "C" fn destack_display_frame_begin_open(
+    out: *mut resource::DisplayBeginFrameHandle,
+    options: DisplayBeginFrameOpenOptions,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &options);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DISPLAY_FRAME_BEGIN_OPEN)?;
+        destack_display_frame_begin_open_replay(context, world, out, options)
+    })
+}
+
+#[unsafe(export_name = "destack.display.frame.beginRead")]
+pub(crate) unsafe extern "C" fn destack_display_frame_begin_read(
+    out: *mut DisplayBeginFrameEvent,
+    handle: resource::DisplayBeginFrameHandle,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &timeoutns);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DISPLAY_FRAME_BEGIN_READ)?;
+        destack_display_frame_begin_read_replay(context, world, out, handle, timeoutns)
+    })
+}
+
+#[unsafe(export_name = "destack.display.frame.beginReadBatch")]
+pub(crate) unsafe extern "C" fn destack_display_frame_begin_read_batch(
+    out: *mut NativeArray<DisplayBeginFrameEvent>,
+    handle: resource::DisplayBeginFrameHandle,
+    maxevents: u32,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &maxevents, &timeoutns);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DISPLAY_FRAME_BEGIN_READ_BATCH)?;
+        destack_display_frame_begin_read_batch_replay(
+            context, world, out, handle, maxevents, timeoutns,
+        )
+    })
+}
+
+#[unsafe(export_name = "destack.display.frame.beginTryRead")]
+pub(crate) unsafe extern "C" fn destack_display_frame_begin_try_read(
+    out: *mut DisplayBeginFrameEvent,
+    handle: resource::DisplayBeginFrameHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DISPLAY_FRAME_BEGIN_TRY_READ)?;
+        destack_display_frame_begin_try_read_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.display.frame.beginTryReadBatch")]
+pub(crate) unsafe extern "C" fn destack_display_frame_begin_try_read_batch(
+    out: *mut NativeArray<DisplayBeginFrameEvent>,
+    handle: resource::DisplayBeginFrameHandle,
+    maxevents: u32,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &maxevents);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DISPLAY_FRAME_BEGIN_TRY_READ_BATCH)?;
+        destack_display_frame_begin_try_read_batch_replay(context, world, out, handle, maxevents)
     })
 }
 
@@ -25468,6 +29037,23 @@ pub(crate) unsafe extern "C" fn destack_display_window_close(
     })
 }
 
+#[unsafe(export_name = "destack.display.window.contentRect")]
+pub(crate) unsafe extern "C" fn destack_display_window_content_rect(
+    out: *mut WindowLogicalRect,
+    window: resource::WindowHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &window);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DISPLAY_WINDOW_CONTENT_RECT)?;
+        destack_display_window_content_rect_replay(context, world, out, window)
+    })
+}
+
 #[unsafe(export_name = "destack.display.window.descriptor")]
 pub(crate) unsafe extern "C" fn destack_display_window_descriptor(
     out: *mut WindowDescriptor,
@@ -25602,6 +29188,36 @@ pub(crate) unsafe extern "C" fn destack_display_window_focus(
     })
 }
 
+#[unsafe(export_name = "destack.display.window.framebufferSize")]
+pub(crate) unsafe extern "C" fn destack_display_window_framebuffer_size(
+    out: *mut WindowPhysicalSize,
+    window: resource::WindowHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &window);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DISPLAY_WINDOW_FRAMEBUFFER_SIZE)?;
+        destack_display_window_framebuffer_size_replay(context, world, out, window)
+    })
+}
+
+#[unsafe(export_name = "destack.display.window.invalidate")]
+pub(crate) unsafe extern "C" fn destack_display_window_invalidate(
+    window: resource::WindowHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &window;
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DISPLAY_WINDOW_INVALIDATE)?;
+        destack_display_window_invalidate_replay(context, world, window)
+    })
+}
+
 #[unsafe(export_name = "destack.display.window.maximize")]
 pub(crate) unsafe extern "C" fn destack_display_window_maximize(
     window: resource::WindowHandle,
@@ -25675,6 +29291,23 @@ pub(crate) unsafe extern "C" fn destack_display_window_raise(
     })
 }
 
+#[unsafe(export_name = "destack.display.window.renderState")]
+pub(crate) unsafe extern "C" fn destack_display_window_render_state(
+    out: *mut WindowRenderState,
+    window: resource::WindowHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &window);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DISPLAY_WINDOW_RENDER_STATE)?;
+        destack_display_window_render_state_replay(context, world, out, window)
+    })
+}
+
 #[unsafe(export_name = "destack.display.window.requestAttention")]
 pub(crate) unsafe extern "C" fn destack_display_window_request_attention(
     window: resource::WindowHandle,
@@ -25686,19 +29319,6 @@ pub(crate) unsafe extern "C" fn destack_display_window_request_attention(
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(DISPLAY_WINDOW_REQUEST_ATTENTION)?;
         destack_display_window_request_attention_replay(context, world, window, level)
-    })
-}
-
-#[unsafe(export_name = "destack.display.window.requestRefresh")]
-pub(crate) unsafe extern "C" fn destack_display_window_request_refresh(
-    window: resource::WindowHandle,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = &window;
-
-        let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(DISPLAY_WINDOW_REQUEST_REFRESH)?;
-        destack_display_window_request_refresh_replay(context, world, window)
     })
 }
 
@@ -26225,6 +29845,824 @@ fn destack_display_backend_list_vm_replay(
 }
 
 #[inline]
+fn destack_display_frame_begin_close_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::DisplayBeginFrameHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DISPLAY_FRAME_BEGIN_CLOSE,
+        binding.replay_payload_for(DISPLAY_FRAME_BEGIN_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_begin_frame_close(binding, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_display_begin_frame_close(binding, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DisplayFrameBeginCloseReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DisplayFrameBeginCloseReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_display_frame_begin_close_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_display_frame_begin_open_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    options: DisplayBeginFrameOpenOptionsVm,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DISPLAY_FRAME_BEGIN_OPEN,
+        binding.replay_payload_for(DISPLAY_FRAME_BEGIN_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_begin_frame_open(binding, context, options)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_display_begin_frame_open(binding, context, options)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::DisplayBeginFrameHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = DisplayFrameBeginOpenReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DisplayFrameBeginOpenReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_display_frame_begin_open_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_display_frame_begin_read_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::DisplayBeginFrameHandle,
+    timeoutns: u64,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DISPLAY_FRAME_BEGIN_READ,
+        binding.replay_payload_for(DISPLAY_FRAME_BEGIN_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_begin_frame_read(binding, context, handle, timeoutns)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_display_begin_frame_read(
+                binding, context, handle, timeoutns,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: DisplayBeginFrameEventVm = value.clone();
+                let result_recorded_backend = result_value.backend;
+                let result_recorded_window = result_value.window;
+                let result_recorded_begin_frame_id = result_value.begin_frame_id;
+                let result_recorded_scheduled_at_ns = result_value.scheduled_at_ns;
+                let result_recorded_target_wakeup_timestamp_ns =
+                    if let Some(value) = result_value.target_wakeup_timestamp_ns {
+                        let result_recorded_target_wakeup_timestamp_ns_inner = value;
+                        Some(result_recorded_target_wakeup_timestamp_ns_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_predicted_presentation_timestamp_ns =
+                    if let Some(value) = result_value.predicted_presentation_timestamp_ns {
+                        let result_recorded_predicted_presentation_timestamp_ns_inner = value;
+                        Some(result_recorded_predicted_presentation_timestamp_ns_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_deadline_ns = if let Some(value) = result_value.deadline_ns {
+                    let result_recorded_deadline_ns_inner = value;
+                    Some(result_recorded_deadline_ns_inner)
+                } else {
+                    None
+                };
+                let result_recorded_interval_ns = if let Some(value) = result_value.interval_ns {
+                    let result_recorded_interval_ns_inner = value;
+                    Some(result_recorded_interval_ns_inner)
+                } else {
+                    None
+                };
+                let result_recorded_delivered_at_ns = result_value.delivered_at_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_dropped_count = result_value.dropped_count;
+                let result_recorded = DisplayBeginFrameEvent {
+                    backend: result_recorded_backend,
+                    window: result_recorded_window,
+                    begin_frame_id: result_recorded_begin_frame_id,
+                    scheduled_at_ns: result_recorded_scheduled_at_ns,
+                    target_wakeup_timestamp_ns: result_recorded_target_wakeup_timestamp_ns,
+                    predicted_presentation_timestamp_ns:
+                        result_recorded_predicted_presentation_timestamp_ns,
+                    deadline_ns: result_recorded_deadline_ns,
+                    interval_ns: result_recorded_interval_ns,
+                    delivered_at_ns: result_recorded_delivered_at_ns,
+                    sequence: result_recorded_sequence,
+                    dropped_count: result_recorded_dropped_count,
+                };
+                let payload = DisplayFrameBeginReadReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DisplayFrameBeginReadReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_backend = value.backend;
+                    let vm_result_window = value.window;
+                    let vm_result_begin_frame_id = value.begin_frame_id;
+                    let vm_result_scheduled_at_ns = value.scheduled_at_ns;
+                    let vm_result_target_wakeup_timestamp_ns =
+                        if let Some(value) = value.target_wakeup_timestamp_ns {
+                            let vm_result_target_wakeup_timestamp_ns_inner = value;
+                            Some(vm_result_target_wakeup_timestamp_ns_inner)
+                        } else {
+                            None
+                        };
+                    let vm_result_predicted_presentation_timestamp_ns =
+                        if let Some(value) = value.predicted_presentation_timestamp_ns {
+                            let vm_result_predicted_presentation_timestamp_ns_inner = value;
+                            Some(vm_result_predicted_presentation_timestamp_ns_inner)
+                        } else {
+                            None
+                        };
+                    let vm_result_deadline_ns = if let Some(value) = value.deadline_ns {
+                        let vm_result_deadline_ns_inner = value;
+                        Some(vm_result_deadline_ns_inner)
+                    } else {
+                        None
+                    };
+                    let vm_result_interval_ns = if let Some(value) = value.interval_ns {
+                        let vm_result_interval_ns_inner = value;
+                        Some(vm_result_interval_ns_inner)
+                    } else {
+                        None
+                    };
+                    let vm_result_delivered_at_ns = value.delivered_at_ns;
+                    let vm_result_sequence = value.sequence;
+                    let vm_result_dropped_count = value.dropped_count;
+                    let vm_result = DisplayBeginFrameEvent {
+                        backend: vm_result_backend,
+                        window: vm_result_window,
+                        begin_frame_id: vm_result_begin_frame_id,
+                        scheduled_at_ns: vm_result_scheduled_at_ns,
+                        target_wakeup_timestamp_ns: vm_result_target_wakeup_timestamp_ns,
+                        predicted_presentation_timestamp_ns:
+                            vm_result_predicted_presentation_timestamp_ns,
+                        deadline_ns: vm_result_deadline_ns,
+                        interval_ns: vm_result_interval_ns,
+                        delivered_at_ns: vm_result_delivered_at_ns,
+                        sequence: vm_result_sequence,
+                        dropped_count: vm_result_dropped_count,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_display_frame_begin_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_display_frame_begin_read_batch_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::DisplayBeginFrameHandle,
+    maxevents: u32,
+    timeoutns: u64,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DISPLAY_FRAME_BEGIN_READ_BATCH,
+        binding.replay_payload_for(DISPLAY_FRAME_BEGIN_READ_BATCH)?,
+        context,
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_display_begin_frame_read_batch(binding, context, handle, maxevents, timeoutns),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_display_begin_frame_read_batch(binding, context, handle, maxevents, timeoutns),
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<DisplayBeginFrameEventVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item", "item")).boxed()); }
+                        let slots = context.aggregate_slots(result_recorded_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 11 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 11 fields")).boxed()); }
+                        let result_recorded_item_backend_raw = decode_int32(slots[0], "result_recorded_item_backend_raw", "backend")?;
+                        let result_recorded_item_backend = match result_recorded_item_backend_raw { 0i32 => DisplayBackend::Auto, 1i32 => DisplayBackend::Wayland, 2i32 => DisplayBackend::X11, 3i32 => DisplayBackend::Win32, 4i32 => DisplayBackend::AppKit, 5i32 => DisplayBackend::UIKit, 6i32 => DisplayBackend::Android, 255i32 => DisplayBackend::Null , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_backend", "unknown DisplayBackend value")).boxed()), };
+                        let result_recorded_item_window_inner_inner = decode_uint64(slots[1], "result_recorded_item_window_inner_inner", "window")?;
+                        let result_recorded_item_window_inner = resource::ResourceId(result_recorded_item_window_inner_inner);
+                        let result_recorded_item_window = resource::WindowHandle(result_recorded_item_window_inner);
+                        let result_recorded_item_begin_frame_id = decode_uint64(slots[2], "result_recorded_item_begin_frame_id", "beginFrameId")?;
+                        let result_recorded_item_scheduled_at_ns = decode_uint64(slots[3], "result_recorded_item_scheduled_at_ns", "scheduledAtNs")?;
+                        let result_recorded_item_target_wakeup_timestamp_ns = if slots[4].tag() == vm::ValueTag::Void {
+                            None
+                        } else {
+                            let result_recorded_item_target_wakeup_timestamp_ns_inner = decode_uint64(slots[4], "result_recorded_item_target_wakeup_timestamp_ns_inner", "targetWakeupTimestampNs")?;
+                            Some(result_recorded_item_target_wakeup_timestamp_ns_inner)
+                        };
+                        let result_recorded_item_predicted_presentation_timestamp_ns = if slots[5].tag() == vm::ValueTag::Void {
+                            None
+                        } else {
+                            let result_recorded_item_predicted_presentation_timestamp_ns_inner = decode_uint64(slots[5], "result_recorded_item_predicted_presentation_timestamp_ns_inner", "predictedPresentationTimestampNs")?;
+                            Some(result_recorded_item_predicted_presentation_timestamp_ns_inner)
+                        };
+                        let result_recorded_item_deadline_ns = if slots[6].tag() == vm::ValueTag::Void {
+                            None
+                        } else {
+                            let result_recorded_item_deadline_ns_inner = decode_uint64(slots[6], "result_recorded_item_deadline_ns_inner", "deadlineNs")?;
+                            Some(result_recorded_item_deadline_ns_inner)
+                        };
+                        let result_recorded_item_interval_ns = if slots[7].tag() == vm::ValueTag::Void {
+                            None
+                        } else {
+                            let result_recorded_item_interval_ns_inner = decode_uint64(slots[7], "result_recorded_item_interval_ns_inner", "intervalNs")?;
+                            Some(result_recorded_item_interval_ns_inner)
+                        };
+                        let result_recorded_item_delivered_at_ns = decode_uint64(slots[8], "result_recorded_item_delivered_at_ns", "deliveredAtNs")?;
+                        let result_recorded_item_sequence = decode_uint64(slots[9], "result_recorded_item_sequence", "sequence")?;
+                        let result_recorded_item_dropped_count = decode_uint64(slots[10], "result_recorded_item_dropped_count", "droppedCount")?;
+                        DisplayBeginFrameEventVm {
+                            backend: result_recorded_item_backend,
+                            window: result_recorded_item_window,
+                            begin_frame_id: result_recorded_item_begin_frame_id,
+                            scheduled_at_ns: result_recorded_item_scheduled_at_ns,
+                            target_wakeup_timestamp_ns: result_recorded_item_target_wakeup_timestamp_ns,
+                            predicted_presentation_timestamp_ns: result_recorded_item_predicted_presentation_timestamp_ns,
+                            deadline_ns: result_recorded_item_deadline_ns,
+                            interval_ns: result_recorded_item_interval_ns,
+                            delivered_at_ns: result_recorded_item_delivered_at_ns,
+                            sequence: result_recorded_item_sequence,
+                            dropped_count: result_recorded_item_dropped_count,
+                        }
+                    };
+                    let result_recorded_item_recorded_backend = result_recorded_item.backend;
+                    let result_recorded_item_recorded_window = result_recorded_item.window;
+                    let result_recorded_item_recorded_begin_frame_id = result_recorded_item.begin_frame_id;
+                    let result_recorded_item_recorded_scheduled_at_ns = result_recorded_item.scheduled_at_ns;
+                    let result_recorded_item_recorded_target_wakeup_timestamp_ns = if let Some(value) = result_recorded_item.target_wakeup_timestamp_ns {
+                        let result_recorded_item_recorded_target_wakeup_timestamp_ns_inner = value;
+                        Some(result_recorded_item_recorded_target_wakeup_timestamp_ns_inner)
+                    } else {
+                        None
+                    };
+                    let result_recorded_item_recorded_predicted_presentation_timestamp_ns = if let Some(value) = result_recorded_item.predicted_presentation_timestamp_ns {
+                        let result_recorded_item_recorded_predicted_presentation_timestamp_ns_inner = value;
+                        Some(result_recorded_item_recorded_predicted_presentation_timestamp_ns_inner)
+                    } else {
+                        None
+                    };
+                    let result_recorded_item_recorded_deadline_ns = if let Some(value) = result_recorded_item.deadline_ns {
+                        let result_recorded_item_recorded_deadline_ns_inner = value;
+                        Some(result_recorded_item_recorded_deadline_ns_inner)
+                    } else {
+                        None
+                    };
+                    let result_recorded_item_recorded_interval_ns = if let Some(value) = result_recorded_item.interval_ns {
+                        let result_recorded_item_recorded_interval_ns_inner = value;
+                        Some(result_recorded_item_recorded_interval_ns_inner)
+                    } else {
+                        None
+                    };
+                    let result_recorded_item_recorded_delivered_at_ns = result_recorded_item.delivered_at_ns;
+                    let result_recorded_item_recorded_sequence = result_recorded_item.sequence;
+                    let result_recorded_item_recorded_dropped_count = result_recorded_item.dropped_count;
+                    let result_recorded_item_recorded = DisplayBeginFrameEvent {
+                        backend: result_recorded_item_recorded_backend,
+                        window: result_recorded_item_recorded_window,
+                        begin_frame_id: result_recorded_item_recorded_begin_frame_id,
+                        scheduled_at_ns: result_recorded_item_recorded_scheduled_at_ns,
+                        target_wakeup_timestamp_ns: result_recorded_item_recorded_target_wakeup_timestamp_ns,
+                        predicted_presentation_timestamp_ns: result_recorded_item_recorded_predicted_presentation_timestamp_ns,
+                        deadline_ns: result_recorded_item_recorded_deadline_ns,
+                        interval_ns: result_recorded_item_recorded_interval_ns,
+                        delivered_at_ns: result_recorded_item_recorded_delivered_at_ns,
+                        sequence: result_recorded_item_recorded_sequence,
+                        dropped_count: result_recorded_item_recorded_dropped_count,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = DisplayFrameBeginReadBatchReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DisplayFrameBeginReadBatchReplayRecord {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter().cloned() {
+                        let vm_result_item_value_backend = vm_result_item.backend;
+                        let vm_result_item_value_window = vm_result_item.window;
+                        let vm_result_item_value_begin_frame_id = vm_result_item.begin_frame_id;
+                        let vm_result_item_value_scheduled_at_ns = vm_result_item.scheduled_at_ns;
+                        let vm_result_item_value_target_wakeup_timestamp_ns = if let Some(value) = vm_result_item.target_wakeup_timestamp_ns {
+                            let vm_result_item_value_target_wakeup_timestamp_ns_inner = value;
+                            Some(vm_result_item_value_target_wakeup_timestamp_ns_inner)
+                        } else {
+                            None
+                        };
+                        let vm_result_item_value_predicted_presentation_timestamp_ns = if let Some(value) = vm_result_item.predicted_presentation_timestamp_ns {
+                            let vm_result_item_value_predicted_presentation_timestamp_ns_inner = value;
+                            Some(vm_result_item_value_predicted_presentation_timestamp_ns_inner)
+                        } else {
+                            None
+                        };
+                        let vm_result_item_value_deadline_ns = if let Some(value) = vm_result_item.deadline_ns {
+                            let vm_result_item_value_deadline_ns_inner = value;
+                            Some(vm_result_item_value_deadline_ns_inner)
+                        } else {
+                            None
+                        };
+                        let vm_result_item_value_interval_ns = if let Some(value) = vm_result_item.interval_ns {
+                            let vm_result_item_value_interval_ns_inner = value;
+                            Some(vm_result_item_value_interval_ns_inner)
+                        } else {
+                            None
+                        };
+                        let vm_result_item_value_delivered_at_ns = vm_result_item.delivered_at_ns;
+                        let vm_result_item_value_sequence = vm_result_item.sequence;
+                        let vm_result_item_value_dropped_count = vm_result_item.dropped_count;
+                        let vm_result_item_value = DisplayBeginFrameEvent {
+                            backend: vm_result_item_value_backend,
+                            window: vm_result_item_value_window,
+                            begin_frame_id: vm_result_item_value_begin_frame_id,
+                            scheduled_at_ns: vm_result_item_value_scheduled_at_ns,
+                            target_wakeup_timestamp_ns: vm_result_item_value_target_wakeup_timestamp_ns,
+                            predicted_presentation_timestamp_ns: vm_result_item_value_predicted_presentation_timestamp_ns,
+                            deadline_ns: vm_result_item_value_deadline_ns,
+                            interval_ns: vm_result_item_value_interval_ns,
+                            delivered_at_ns: vm_result_item_value_delivered_at_ns,
+                            sequence: vm_result_item_value_sequence,
+                            dropped_count: vm_result_item_value_dropped_count,
+                        };
+                        vm_result_values.push(vm_result_item_value);
+                    }
+                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_display_frame_begin_read_batch_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_display_frame_begin_try_read_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::DisplayBeginFrameHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DISPLAY_FRAME_BEGIN_TRY_READ,
+        binding.replay_payload_for(DISPLAY_FRAME_BEGIN_TRY_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_begin_frame_try_read(binding, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_display_begin_frame_try_read(
+                    binding, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: DisplayBeginFrameEventVm = value.clone();
+                let result_recorded_backend = result_value.backend;
+                let result_recorded_window = result_value.window;
+                let result_recorded_begin_frame_id = result_value.begin_frame_id;
+                let result_recorded_scheduled_at_ns = result_value.scheduled_at_ns;
+                let result_recorded_target_wakeup_timestamp_ns =
+                    if let Some(value) = result_value.target_wakeup_timestamp_ns {
+                        let result_recorded_target_wakeup_timestamp_ns_inner = value;
+                        Some(result_recorded_target_wakeup_timestamp_ns_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_predicted_presentation_timestamp_ns =
+                    if let Some(value) = result_value.predicted_presentation_timestamp_ns {
+                        let result_recorded_predicted_presentation_timestamp_ns_inner = value;
+                        Some(result_recorded_predicted_presentation_timestamp_ns_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_deadline_ns = if let Some(value) = result_value.deadline_ns {
+                    let result_recorded_deadline_ns_inner = value;
+                    Some(result_recorded_deadline_ns_inner)
+                } else {
+                    None
+                };
+                let result_recorded_interval_ns = if let Some(value) = result_value.interval_ns {
+                    let result_recorded_interval_ns_inner = value;
+                    Some(result_recorded_interval_ns_inner)
+                } else {
+                    None
+                };
+                let result_recorded_delivered_at_ns = result_value.delivered_at_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_dropped_count = result_value.dropped_count;
+                let result_recorded = DisplayBeginFrameEvent {
+                    backend: result_recorded_backend,
+                    window: result_recorded_window,
+                    begin_frame_id: result_recorded_begin_frame_id,
+                    scheduled_at_ns: result_recorded_scheduled_at_ns,
+                    target_wakeup_timestamp_ns: result_recorded_target_wakeup_timestamp_ns,
+                    predicted_presentation_timestamp_ns:
+                        result_recorded_predicted_presentation_timestamp_ns,
+                    deadline_ns: result_recorded_deadline_ns,
+                    interval_ns: result_recorded_interval_ns,
+                    delivered_at_ns: result_recorded_delivered_at_ns,
+                    sequence: result_recorded_sequence,
+                    dropped_count: result_recorded_dropped_count,
+                };
+                let payload = DisplayFrameBeginTryReadReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DisplayFrameBeginTryReadReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_backend = value.backend;
+                    let vm_result_window = value.window;
+                    let vm_result_begin_frame_id = value.begin_frame_id;
+                    let vm_result_scheduled_at_ns = value.scheduled_at_ns;
+                    let vm_result_target_wakeup_timestamp_ns =
+                        if let Some(value) = value.target_wakeup_timestamp_ns {
+                            let vm_result_target_wakeup_timestamp_ns_inner = value;
+                            Some(vm_result_target_wakeup_timestamp_ns_inner)
+                        } else {
+                            None
+                        };
+                    let vm_result_predicted_presentation_timestamp_ns =
+                        if let Some(value) = value.predicted_presentation_timestamp_ns {
+                            let vm_result_predicted_presentation_timestamp_ns_inner = value;
+                            Some(vm_result_predicted_presentation_timestamp_ns_inner)
+                        } else {
+                            None
+                        };
+                    let vm_result_deadline_ns = if let Some(value) = value.deadline_ns {
+                        let vm_result_deadline_ns_inner = value;
+                        Some(vm_result_deadline_ns_inner)
+                    } else {
+                        None
+                    };
+                    let vm_result_interval_ns = if let Some(value) = value.interval_ns {
+                        let vm_result_interval_ns_inner = value;
+                        Some(vm_result_interval_ns_inner)
+                    } else {
+                        None
+                    };
+                    let vm_result_delivered_at_ns = value.delivered_at_ns;
+                    let vm_result_sequence = value.sequence;
+                    let vm_result_dropped_count = value.dropped_count;
+                    let vm_result = DisplayBeginFrameEvent {
+                        backend: vm_result_backend,
+                        window: vm_result_window,
+                        begin_frame_id: vm_result_begin_frame_id,
+                        scheduled_at_ns: vm_result_scheduled_at_ns,
+                        target_wakeup_timestamp_ns: vm_result_target_wakeup_timestamp_ns,
+                        predicted_presentation_timestamp_ns:
+                            vm_result_predicted_presentation_timestamp_ns,
+                        deadline_ns: vm_result_deadline_ns,
+                        interval_ns: vm_result_interval_ns,
+                        delivered_at_ns: vm_result_delivered_at_ns,
+                        sequence: vm_result_sequence,
+                        dropped_count: vm_result_dropped_count,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_display_frame_begin_try_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_display_frame_begin_try_read_batch_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::DisplayBeginFrameHandle,
+    maxevents: u32,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DISPLAY_FRAME_BEGIN_TRY_READ_BATCH,
+        binding.replay_payload_for(DISPLAY_FRAME_BEGIN_TRY_READ_BATCH)?,
+        context,
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_display_begin_frame_try_read_batch(binding, context, handle, maxevents),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_display_begin_frame_try_read_batch(binding, context, handle, maxevents),
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<DisplayBeginFrameEventVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item", "item")).boxed()); }
+                        let slots = context.aggregate_slots(result_recorded_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 11 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 11 fields")).boxed()); }
+                        let result_recorded_item_backend_raw = decode_int32(slots[0], "result_recorded_item_backend_raw", "backend")?;
+                        let result_recorded_item_backend = match result_recorded_item_backend_raw { 0i32 => DisplayBackend::Auto, 1i32 => DisplayBackend::Wayland, 2i32 => DisplayBackend::X11, 3i32 => DisplayBackend::Win32, 4i32 => DisplayBackend::AppKit, 5i32 => DisplayBackend::UIKit, 6i32 => DisplayBackend::Android, 255i32 => DisplayBackend::Null , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_backend", "unknown DisplayBackend value")).boxed()), };
+                        let result_recorded_item_window_inner_inner = decode_uint64(slots[1], "result_recorded_item_window_inner_inner", "window")?;
+                        let result_recorded_item_window_inner = resource::ResourceId(result_recorded_item_window_inner_inner);
+                        let result_recorded_item_window = resource::WindowHandle(result_recorded_item_window_inner);
+                        let result_recorded_item_begin_frame_id = decode_uint64(slots[2], "result_recorded_item_begin_frame_id", "beginFrameId")?;
+                        let result_recorded_item_scheduled_at_ns = decode_uint64(slots[3], "result_recorded_item_scheduled_at_ns", "scheduledAtNs")?;
+                        let result_recorded_item_target_wakeup_timestamp_ns = if slots[4].tag() == vm::ValueTag::Void {
+                            None
+                        } else {
+                            let result_recorded_item_target_wakeup_timestamp_ns_inner = decode_uint64(slots[4], "result_recorded_item_target_wakeup_timestamp_ns_inner", "targetWakeupTimestampNs")?;
+                            Some(result_recorded_item_target_wakeup_timestamp_ns_inner)
+                        };
+                        let result_recorded_item_predicted_presentation_timestamp_ns = if slots[5].tag() == vm::ValueTag::Void {
+                            None
+                        } else {
+                            let result_recorded_item_predicted_presentation_timestamp_ns_inner = decode_uint64(slots[5], "result_recorded_item_predicted_presentation_timestamp_ns_inner", "predictedPresentationTimestampNs")?;
+                            Some(result_recorded_item_predicted_presentation_timestamp_ns_inner)
+                        };
+                        let result_recorded_item_deadline_ns = if slots[6].tag() == vm::ValueTag::Void {
+                            None
+                        } else {
+                            let result_recorded_item_deadline_ns_inner = decode_uint64(slots[6], "result_recorded_item_deadline_ns_inner", "deadlineNs")?;
+                            Some(result_recorded_item_deadline_ns_inner)
+                        };
+                        let result_recorded_item_interval_ns = if slots[7].tag() == vm::ValueTag::Void {
+                            None
+                        } else {
+                            let result_recorded_item_interval_ns_inner = decode_uint64(slots[7], "result_recorded_item_interval_ns_inner", "intervalNs")?;
+                            Some(result_recorded_item_interval_ns_inner)
+                        };
+                        let result_recorded_item_delivered_at_ns = decode_uint64(slots[8], "result_recorded_item_delivered_at_ns", "deliveredAtNs")?;
+                        let result_recorded_item_sequence = decode_uint64(slots[9], "result_recorded_item_sequence", "sequence")?;
+                        let result_recorded_item_dropped_count = decode_uint64(slots[10], "result_recorded_item_dropped_count", "droppedCount")?;
+                        DisplayBeginFrameEventVm {
+                            backend: result_recorded_item_backend,
+                            window: result_recorded_item_window,
+                            begin_frame_id: result_recorded_item_begin_frame_id,
+                            scheduled_at_ns: result_recorded_item_scheduled_at_ns,
+                            target_wakeup_timestamp_ns: result_recorded_item_target_wakeup_timestamp_ns,
+                            predicted_presentation_timestamp_ns: result_recorded_item_predicted_presentation_timestamp_ns,
+                            deadline_ns: result_recorded_item_deadline_ns,
+                            interval_ns: result_recorded_item_interval_ns,
+                            delivered_at_ns: result_recorded_item_delivered_at_ns,
+                            sequence: result_recorded_item_sequence,
+                            dropped_count: result_recorded_item_dropped_count,
+                        }
+                    };
+                    let result_recorded_item_recorded_backend = result_recorded_item.backend;
+                    let result_recorded_item_recorded_window = result_recorded_item.window;
+                    let result_recorded_item_recorded_begin_frame_id = result_recorded_item.begin_frame_id;
+                    let result_recorded_item_recorded_scheduled_at_ns = result_recorded_item.scheduled_at_ns;
+                    let result_recorded_item_recorded_target_wakeup_timestamp_ns = if let Some(value) = result_recorded_item.target_wakeup_timestamp_ns {
+                        let result_recorded_item_recorded_target_wakeup_timestamp_ns_inner = value;
+                        Some(result_recorded_item_recorded_target_wakeup_timestamp_ns_inner)
+                    } else {
+                        None
+                    };
+                    let result_recorded_item_recorded_predicted_presentation_timestamp_ns = if let Some(value) = result_recorded_item.predicted_presentation_timestamp_ns {
+                        let result_recorded_item_recorded_predicted_presentation_timestamp_ns_inner = value;
+                        Some(result_recorded_item_recorded_predicted_presentation_timestamp_ns_inner)
+                    } else {
+                        None
+                    };
+                    let result_recorded_item_recorded_deadline_ns = if let Some(value) = result_recorded_item.deadline_ns {
+                        let result_recorded_item_recorded_deadline_ns_inner = value;
+                        Some(result_recorded_item_recorded_deadline_ns_inner)
+                    } else {
+                        None
+                    };
+                    let result_recorded_item_recorded_interval_ns = if let Some(value) = result_recorded_item.interval_ns {
+                        let result_recorded_item_recorded_interval_ns_inner = value;
+                        Some(result_recorded_item_recorded_interval_ns_inner)
+                    } else {
+                        None
+                    };
+                    let result_recorded_item_recorded_delivered_at_ns = result_recorded_item.delivered_at_ns;
+                    let result_recorded_item_recorded_sequence = result_recorded_item.sequence;
+                    let result_recorded_item_recorded_dropped_count = result_recorded_item.dropped_count;
+                    let result_recorded_item_recorded = DisplayBeginFrameEvent {
+                        backend: result_recorded_item_recorded_backend,
+                        window: result_recorded_item_recorded_window,
+                        begin_frame_id: result_recorded_item_recorded_begin_frame_id,
+                        scheduled_at_ns: result_recorded_item_recorded_scheduled_at_ns,
+                        target_wakeup_timestamp_ns: result_recorded_item_recorded_target_wakeup_timestamp_ns,
+                        predicted_presentation_timestamp_ns: result_recorded_item_recorded_predicted_presentation_timestamp_ns,
+                        deadline_ns: result_recorded_item_recorded_deadline_ns,
+                        interval_ns: result_recorded_item_recorded_interval_ns,
+                        delivered_at_ns: result_recorded_item_recorded_delivered_at_ns,
+                        sequence: result_recorded_item_recorded_sequence,
+                        dropped_count: result_recorded_item_recorded_dropped_count,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = DisplayFrameBeginTryReadBatchReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DisplayFrameBeginTryReadBatchReplayRecord {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter().cloned() {
+                        let vm_result_item_value_backend = vm_result_item.backend;
+                        let vm_result_item_value_window = vm_result_item.window;
+                        let vm_result_item_value_begin_frame_id = vm_result_item.begin_frame_id;
+                        let vm_result_item_value_scheduled_at_ns = vm_result_item.scheduled_at_ns;
+                        let vm_result_item_value_target_wakeup_timestamp_ns = if let Some(value) = vm_result_item.target_wakeup_timestamp_ns {
+                            let vm_result_item_value_target_wakeup_timestamp_ns_inner = value;
+                            Some(vm_result_item_value_target_wakeup_timestamp_ns_inner)
+                        } else {
+                            None
+                        };
+                        let vm_result_item_value_predicted_presentation_timestamp_ns = if let Some(value) = vm_result_item.predicted_presentation_timestamp_ns {
+                            let vm_result_item_value_predicted_presentation_timestamp_ns_inner = value;
+                            Some(vm_result_item_value_predicted_presentation_timestamp_ns_inner)
+                        } else {
+                            None
+                        };
+                        let vm_result_item_value_deadline_ns = if let Some(value) = vm_result_item.deadline_ns {
+                            let vm_result_item_value_deadline_ns_inner = value;
+                            Some(vm_result_item_value_deadline_ns_inner)
+                        } else {
+                            None
+                        };
+                        let vm_result_item_value_interval_ns = if let Some(value) = vm_result_item.interval_ns {
+                            let vm_result_item_value_interval_ns_inner = value;
+                            Some(vm_result_item_value_interval_ns_inner)
+                        } else {
+                            None
+                        };
+                        let vm_result_item_value_delivered_at_ns = vm_result_item.delivered_at_ns;
+                        let vm_result_item_value_sequence = vm_result_item.sequence;
+                        let vm_result_item_value_dropped_count = vm_result_item.dropped_count;
+                        let vm_result_item_value = DisplayBeginFrameEvent {
+                            backend: vm_result_item_value_backend,
+                            window: vm_result_item_value_window,
+                            begin_frame_id: vm_result_item_value_begin_frame_id,
+                            scheduled_at_ns: vm_result_item_value_scheduled_at_ns,
+                            target_wakeup_timestamp_ns: vm_result_item_value_target_wakeup_timestamp_ns,
+                            predicted_presentation_timestamp_ns: vm_result_item_value_predicted_presentation_timestamp_ns,
+                            deadline_ns: vm_result_item_value_deadline_ns,
+                            interval_ns: vm_result_item_value_interval_ns,
+                            delivered_at_ns: vm_result_item_value_delivered_at_ns,
+                            sequence: vm_result_item_value_sequence,
+                            dropped_count: vm_result_item_value_dropped_count,
+                        };
+                        vm_result_values.push(vm_result_item_value);
+                    }
+                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_display_frame_begin_try_read_batch_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_display_monitor_close_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -26573,6 +31011,25 @@ fn destack_display_monitor_descriptor_vm_replay(
                 let result_recorded_variable_refresh_support =
                     result_value.variable_refresh_support;
                 let result_recorded_hdr_support = result_value.hdr_support;
+                let result_recorded_color_state = if let Some(value) = result_value.color_state {
+                    let result_recorded_color_state_inner_hdr_mode = value.hdr_mode;
+                    let result_recorded_color_state_inner_color_space = value.color_space;
+                    let result_recorded_color_state_inner_bits_per_channel =
+                        if let Some(value) = value.bits_per_channel {
+                            let result_recorded_color_state_inner_bits_per_channel_inner = value;
+                            Some(result_recorded_color_state_inner_bits_per_channel_inner)
+                        } else {
+                            None
+                        };
+                    let result_recorded_color_state_inner = DisplayColorState {
+                        hdr_mode: result_recorded_color_state_inner_hdr_mode,
+                        color_space: result_recorded_color_state_inner_color_space,
+                        bits_per_channel: result_recorded_color_state_inner_bits_per_channel,
+                    };
+                    Some(result_recorded_color_state_inner)
+                } else {
+                    None
+                };
                 let result_recorded = DisplaydescriptorReplayRecord {
                     backend: result_recorded_backend,
                     id: result_recorded_id,
@@ -26593,6 +31050,7 @@ fn destack_display_monitor_descriptor_vm_replay(
                     builtin_panel: result_recorded_builtin_panel,
                     variable_refresh_support: result_recorded_variable_refresh_support,
                     hdr_support: result_recorded_hdr_support,
+                    color_state: result_recorded_color_state,
                 };
                 let payload = DisplayMonitorDescriptorReplayRecord {
                     result: Ok(result_recorded),
@@ -26638,6 +31096,25 @@ fn destack_display_monitor_descriptor_vm_replay(
                     let vm_result_builtin_panel = value.builtin_panel;
                     let vm_result_variable_refresh_support = value.variable_refresh_support;
                     let vm_result_hdr_support = value.hdr_support;
+                    let vm_result_color_state = if let Some(value) = value.color_state {
+                        let vm_result_color_state_inner_hdr_mode = value.hdr_mode;
+                        let vm_result_color_state_inner_color_space = value.color_space;
+                        let vm_result_color_state_inner_bits_per_channel =
+                            if let Some(value) = value.bits_per_channel {
+                                let vm_result_color_state_inner_bits_per_channel_inner = value;
+                                Some(vm_result_color_state_inner_bits_per_channel_inner)
+                            } else {
+                                None
+                            };
+                        let vm_result_color_state_inner = DisplayColorState {
+                            hdr_mode: vm_result_color_state_inner_hdr_mode,
+                            color_space: vm_result_color_state_inner_color_space,
+                            bits_per_channel: vm_result_color_state_inner_bits_per_channel,
+                        };
+                        Some(vm_result_color_state_inner)
+                    } else {
+                        None
+                    };
                     let vm_result = DisplayDescriptorVm {
                         backend: vm_result_backend,
                         id: vm_result_id,
@@ -26658,6 +31135,7 @@ fn destack_display_monitor_descriptor_vm_replay(
                         builtin_panel: vm_result_builtin_panel,
                         variable_refresh_support: vm_result_variable_refresh_support,
                         hdr_support: vm_result_hdr_support,
+                        color_state: vm_result_color_state,
                     };
                     Ok(vm_result)
                 }
@@ -26932,6 +31410,24 @@ fn destack_display_monitor_event_read_vm_replay(
                         let result_recorded_display_added_event_payload_descriptor_builtin_panel = value.payload.descriptor.builtin_panel;
                         let result_recorded_display_added_event_payload_descriptor_variable_refresh_support = value.payload.descriptor.variable_refresh_support;
                         let result_recorded_display_added_event_payload_descriptor_hdr_support = value.payload.descriptor.hdr_support;
+                        let result_recorded_display_added_event_payload_descriptor_color_state = if let Some(value) = value.payload.descriptor.color_state {
+                            let result_recorded_display_added_event_payload_descriptor_color_state_inner_hdr_mode = value.hdr_mode;
+                            let result_recorded_display_added_event_payload_descriptor_color_state_inner_color_space = value.color_space;
+                            let result_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                let result_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner = value;
+                                Some(result_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_display_added_event_payload_descriptor_color_state_inner = DisplayColorState {
+                                hdr_mode: result_recorded_display_added_event_payload_descriptor_color_state_inner_hdr_mode,
+                                color_space: result_recorded_display_added_event_payload_descriptor_color_state_inner_color_space,
+                                bits_per_channel: result_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel,
+                            };
+                            Some(result_recorded_display_added_event_payload_descriptor_color_state_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_display_added_event_payload_descriptor = DisplaydescriptorReplayRecord {
                             backend: result_recorded_display_added_event_payload_descriptor_backend,
                             id: result_recorded_display_added_event_payload_descriptor_id,
@@ -26952,6 +31448,7 @@ fn destack_display_monitor_event_read_vm_replay(
                             builtin_panel: result_recorded_display_added_event_payload_descriptor_builtin_panel,
                             variable_refresh_support: result_recorded_display_added_event_payload_descriptor_variable_refresh_support,
                             hdr_support: result_recorded_display_added_event_payload_descriptor_hdr_support,
+                            color_state: result_recorded_display_added_event_payload_descriptor_color_state,
                         };
                         let result_recorded_display_added_event_payload = DisplayaddedpayloadReplayRecord {
                             descriptor: result_recorded_display_added_event_payload_descriptor,
@@ -27014,6 +31511,24 @@ fn destack_display_monitor_event_read_vm_replay(
                             let result_recorded_display_descriptor_changed_event_payload_previous_inner_builtin_panel = value.builtin_panel;
                             let result_recorded_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support = value.variable_refresh_support;
                             let result_recorded_display_descriptor_changed_event_payload_previous_inner_hdr_support = value.hdr_support;
+                            let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state = if let Some(value) = value.color_state {
+                                let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space = value.color_space;
+                                let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner = value;
+                                    Some(result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner = DisplayColorState {
+                                    hdr_mode: result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode,
+                                    color_space: result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space,
+                                    bits_per_channel: result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel,
+                                };
+                                Some(result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner)
+                            } else {
+                                None
+                            };
                             let result_recorded_display_descriptor_changed_event_payload_previous_inner = DisplaydescriptorReplayRecord {
                                 backend: result_recorded_display_descriptor_changed_event_payload_previous_inner_backend,
                                 id: result_recorded_display_descriptor_changed_event_payload_previous_inner_id,
@@ -27034,6 +31549,7 @@ fn destack_display_monitor_event_read_vm_replay(
                                 builtin_panel: result_recorded_display_descriptor_changed_event_payload_previous_inner_builtin_panel,
                                 variable_refresh_support: result_recorded_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support,
                                 hdr_support: result_recorded_display_descriptor_changed_event_payload_previous_inner_hdr_support,
+                                color_state: result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state,
                             };
                             Some(result_recorded_display_descriptor_changed_event_payload_previous_inner)
                         } else {
@@ -27064,6 +31580,24 @@ fn destack_display_monitor_event_read_vm_replay(
                         let result_recorded_display_descriptor_changed_event_payload_current_builtin_panel = value.payload.current.builtin_panel;
                         let result_recorded_display_descriptor_changed_event_payload_current_variable_refresh_support = value.payload.current.variable_refresh_support;
                         let result_recorded_display_descriptor_changed_event_payload_current_hdr_support = value.payload.current.hdr_support;
+                        let result_recorded_display_descriptor_changed_event_payload_current_color_state = if let Some(value) = value.payload.current.color_state {
+                            let result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode = value.hdr_mode;
+                            let result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_color_space = value.color_space;
+                            let result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                let result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner = value;
+                                Some(result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_display_descriptor_changed_event_payload_current_color_state_inner = DisplayColorState {
+                                hdr_mode: result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode,
+                                color_space: result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_color_space,
+                                bits_per_channel: result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel,
+                            };
+                            Some(result_recorded_display_descriptor_changed_event_payload_current_color_state_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_display_descriptor_changed_event_payload_current = DisplaydescriptorReplayRecord {
                             backend: result_recorded_display_descriptor_changed_event_payload_current_backend,
                             id: result_recorded_display_descriptor_changed_event_payload_current_id,
@@ -27084,6 +31618,7 @@ fn destack_display_monitor_event_read_vm_replay(
                             builtin_panel: result_recorded_display_descriptor_changed_event_payload_current_builtin_panel,
                             variable_refresh_support: result_recorded_display_descriptor_changed_event_payload_current_variable_refresh_support,
                             hdr_support: result_recorded_display_descriptor_changed_event_payload_current_hdr_support,
+                            color_state: result_recorded_display_descriptor_changed_event_payload_current_color_state,
                         };
                         let result_recorded_display_descriptor_changed_event_payload_changed_mask = value.payload.changed_mask;
                         let result_recorded_display_descriptor_changed_event_payload = DisplaydescriptorchangedpayloadReplayRecord {
@@ -27272,6 +31807,24 @@ fn destack_display_monitor_event_read_vm_replay(
                             let result_recorded_display_removed_event_payload_descriptor_inner_builtin_panel = value.builtin_panel;
                             let result_recorded_display_removed_event_payload_descriptor_inner_variable_refresh_support = value.variable_refresh_support;
                             let result_recorded_display_removed_event_payload_descriptor_inner_hdr_support = value.hdr_support;
+                            let result_recorded_display_removed_event_payload_descriptor_inner_color_state = if let Some(value) = value.color_state {
+                                let result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                let result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_color_space = value.color_space;
+                                let result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner = value;
+                                    Some(result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner = DisplayColorState {
+                                    hdr_mode: result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode,
+                                    color_space: result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_color_space,
+                                    bits_per_channel: result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel,
+                                };
+                                Some(result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner)
+                            } else {
+                                None
+                            };
                             let result_recorded_display_removed_event_payload_descriptor_inner = DisplaydescriptorReplayRecord {
                                 backend: result_recorded_display_removed_event_payload_descriptor_inner_backend,
                                 id: result_recorded_display_removed_event_payload_descriptor_inner_id,
@@ -27292,6 +31845,7 @@ fn destack_display_monitor_event_read_vm_replay(
                                 builtin_panel: result_recorded_display_removed_event_payload_descriptor_inner_builtin_panel,
                                 variable_refresh_support: result_recorded_display_removed_event_payload_descriptor_inner_variable_refresh_support,
                                 hdr_support: result_recorded_display_removed_event_payload_descriptor_inner_hdr_support,
+                                color_state: result_recorded_display_removed_event_payload_descriptor_inner_color_state,
                             };
                             Some(result_recorded_display_removed_event_payload_descriptor_inner)
                         } else {
@@ -27371,6 +31925,24 @@ fn destack_display_monitor_event_read_vm_replay(
                             let vm_result_display_added_event_payload_descriptor_builtin_panel = value.payload.descriptor.builtin_panel;
                             let vm_result_display_added_event_payload_descriptor_variable_refresh_support = value.payload.descriptor.variable_refresh_support;
                             let vm_result_display_added_event_payload_descriptor_hdr_support = value.payload.descriptor.hdr_support;
+                            let vm_result_display_added_event_payload_descriptor_color_state = if let Some(value) = value.payload.descriptor.color_state {
+                                let vm_result_display_added_event_payload_descriptor_color_state_inner_hdr_mode = value.hdr_mode;
+                                let vm_result_display_added_event_payload_descriptor_color_state_inner_color_space = value.color_space;
+                                let vm_result_display_added_event_payload_descriptor_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let vm_result_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner = value;
+                                    Some(vm_result_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_display_added_event_payload_descriptor_color_state_inner = DisplayColorState {
+                                    hdr_mode: vm_result_display_added_event_payload_descriptor_color_state_inner_hdr_mode,
+                                    color_space: vm_result_display_added_event_payload_descriptor_color_state_inner_color_space,
+                                    bits_per_channel: vm_result_display_added_event_payload_descriptor_color_state_inner_bits_per_channel,
+                                };
+                                Some(vm_result_display_added_event_payload_descriptor_color_state_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_display_added_event_payload_descriptor = DisplayDescriptorVm {
                                 backend: vm_result_display_added_event_payload_descriptor_backend,
                                 id: vm_result_display_added_event_payload_descriptor_id,
@@ -27391,6 +31963,7 @@ fn destack_display_monitor_event_read_vm_replay(
                                 builtin_panel: vm_result_display_added_event_payload_descriptor_builtin_panel,
                                 variable_refresh_support: vm_result_display_added_event_payload_descriptor_variable_refresh_support,
                                 hdr_support: vm_result_display_added_event_payload_descriptor_hdr_support,
+                                color_state: vm_result_display_added_event_payload_descriptor_color_state,
                             };
                             let vm_result_display_added_event_payload = DisplayAddedPayloadVm {
                                 descriptor: vm_result_display_added_event_payload_descriptor,
@@ -27441,6 +32014,24 @@ fn destack_display_monitor_event_read_vm_replay(
                                 let vm_result_display_descriptor_changed_event_payload_previous_inner_builtin_panel = value.builtin_panel;
                                 let vm_result_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support = value.variable_refresh_support;
                                 let vm_result_display_descriptor_changed_event_payload_previous_inner_hdr_support = value.hdr_support;
+                                let vm_result_display_descriptor_changed_event_payload_previous_inner_color_state = if let Some(value) = value.color_state {
+                                    let vm_result_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let vm_result_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space = value.color_space;
+                                    let vm_result_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let vm_result_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner = value;
+                                        Some(vm_result_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let vm_result_display_descriptor_changed_event_payload_previous_inner_color_state_inner = DisplayColorState {
+                                        hdr_mode: vm_result_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode,
+                                        color_space: vm_result_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space,
+                                        bits_per_channel: vm_result_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(vm_result_display_descriptor_changed_event_payload_previous_inner_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let vm_result_display_descriptor_changed_event_payload_previous_inner = DisplayDescriptorVm {
                                     backend: vm_result_display_descriptor_changed_event_payload_previous_inner_backend,
                                     id: vm_result_display_descriptor_changed_event_payload_previous_inner_id,
@@ -27461,6 +32052,7 @@ fn destack_display_monitor_event_read_vm_replay(
                                     builtin_panel: vm_result_display_descriptor_changed_event_payload_previous_inner_builtin_panel,
                                     variable_refresh_support: vm_result_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support,
                                     hdr_support: vm_result_display_descriptor_changed_event_payload_previous_inner_hdr_support,
+                                    color_state: vm_result_display_descriptor_changed_event_payload_previous_inner_color_state,
                                 };
                                 Some(vm_result_display_descriptor_changed_event_payload_previous_inner)
                             } else {
@@ -27485,6 +32077,24 @@ fn destack_display_monitor_event_read_vm_replay(
                             let vm_result_display_descriptor_changed_event_payload_current_builtin_panel = value.payload.current.builtin_panel;
                             let vm_result_display_descriptor_changed_event_payload_current_variable_refresh_support = value.payload.current.variable_refresh_support;
                             let vm_result_display_descriptor_changed_event_payload_current_hdr_support = value.payload.current.hdr_support;
+                            let vm_result_display_descriptor_changed_event_payload_current_color_state = if let Some(value) = value.payload.current.color_state {
+                                let vm_result_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode = value.hdr_mode;
+                                let vm_result_display_descriptor_changed_event_payload_current_color_state_inner_color_space = value.color_space;
+                                let vm_result_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let vm_result_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner = value;
+                                    Some(vm_result_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_display_descriptor_changed_event_payload_current_color_state_inner = DisplayColorState {
+                                    hdr_mode: vm_result_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode,
+                                    color_space: vm_result_display_descriptor_changed_event_payload_current_color_state_inner_color_space,
+                                    bits_per_channel: vm_result_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel,
+                                };
+                                Some(vm_result_display_descriptor_changed_event_payload_current_color_state_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_display_descriptor_changed_event_payload_current = DisplayDescriptorVm {
                                 backend: vm_result_display_descriptor_changed_event_payload_current_backend,
                                 id: vm_result_display_descriptor_changed_event_payload_current_id,
@@ -27505,6 +32115,7 @@ fn destack_display_monitor_event_read_vm_replay(
                                 builtin_panel: vm_result_display_descriptor_changed_event_payload_current_builtin_panel,
                                 variable_refresh_support: vm_result_display_descriptor_changed_event_payload_current_variable_refresh_support,
                                 hdr_support: vm_result_display_descriptor_changed_event_payload_current_hdr_support,
+                                color_state: vm_result_display_descriptor_changed_event_payload_current_color_state,
                             };
                             let vm_result_display_descriptor_changed_event_payload_changed_mask = value.payload.changed_mask;
                             let vm_result_display_descriptor_changed_event_payload = DisplayDescriptorChangedPayloadVm {
@@ -27660,6 +32271,24 @@ fn destack_display_monitor_event_read_vm_replay(
                                 let vm_result_display_removed_event_payload_descriptor_inner_builtin_panel = value.builtin_panel;
                                 let vm_result_display_removed_event_payload_descriptor_inner_variable_refresh_support = value.variable_refresh_support;
                                 let vm_result_display_removed_event_payload_descriptor_inner_hdr_support = value.hdr_support;
+                                let vm_result_display_removed_event_payload_descriptor_inner_color_state = if let Some(value) = value.color_state {
+                                    let vm_result_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let vm_result_display_removed_event_payload_descriptor_inner_color_state_inner_color_space = value.color_space;
+                                    let vm_result_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let vm_result_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner = value;
+                                        Some(vm_result_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let vm_result_display_removed_event_payload_descriptor_inner_color_state_inner = DisplayColorState {
+                                        hdr_mode: vm_result_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode,
+                                        color_space: vm_result_display_removed_event_payload_descriptor_inner_color_state_inner_color_space,
+                                        bits_per_channel: vm_result_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(vm_result_display_removed_event_payload_descriptor_inner_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let vm_result_display_removed_event_payload_descriptor_inner = DisplayDescriptorVm {
                                     backend: vm_result_display_removed_event_payload_descriptor_inner_backend,
                                     id: vm_result_display_removed_event_payload_descriptor_inner_id,
@@ -27680,6 +32309,7 @@ fn destack_display_monitor_event_read_vm_replay(
                                     builtin_panel: vm_result_display_removed_event_payload_descriptor_inner_builtin_panel,
                                     variable_refresh_support: vm_result_display_removed_event_payload_descriptor_inner_variable_refresh_support,
                                     hdr_support: vm_result_display_removed_event_payload_descriptor_inner_hdr_support,
+                                    color_state: vm_result_display_removed_event_payload_descriptor_inner_color_state,
                                 };
                                 Some(vm_result_display_removed_event_payload_descriptor_inner)
                             } else {
@@ -27785,6 +32415,24 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_builtin_panel = value.payload.descriptor.builtin_panel;
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_variable_refresh_support = value.payload.descriptor.variable_refresh_support;
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_hdr_support = value.payload.descriptor.hdr_support;
+                            let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state = if let Some(value) = value.payload.descriptor.color_state {
+                                let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_hdr_mode = value.hdr_mode;
+                                let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_color_space = value.color_space;
+                                let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner = value;
+                                    Some(result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner = DisplayColorState {
+                                    hdr_mode: result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_hdr_mode,
+                                    color_space: result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_color_space,
+                                    bits_per_channel: result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel,
+                                };
+                                Some(result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner)
+                            } else {
+                                None
+                            };
                             let result_recorded_item_recorded_display_added_event_payload_descriptor = DisplaydescriptorReplayRecord {
                                 backend: result_recorded_item_recorded_display_added_event_payload_descriptor_backend,
                                 id: result_recorded_item_recorded_display_added_event_payload_descriptor_id,
@@ -27805,6 +32453,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                 builtin_panel: result_recorded_item_recorded_display_added_event_payload_descriptor_builtin_panel,
                                 variable_refresh_support: result_recorded_item_recorded_display_added_event_payload_descriptor_variable_refresh_support,
                                 hdr_support: result_recorded_item_recorded_display_added_event_payload_descriptor_hdr_support,
+                                color_state: result_recorded_item_recorded_display_added_event_payload_descriptor_color_state,
                             };
                             let result_recorded_item_recorded_display_added_event_payload = DisplayaddedpayloadReplayRecord {
                                 descriptor: result_recorded_item_recorded_display_added_event_payload_descriptor,
@@ -27867,6 +32516,24 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                 let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_builtin_panel = value.builtin_panel;
                                 let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support = value.variable_refresh_support;
                                 let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_hdr_support = value.hdr_support;
+                                let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state = if let Some(value) = value.color_state {
+                                    let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space = value.color_space;
+                                    let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner = value;
+                                        Some(result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner = DisplayColorState {
+                                        hdr_mode: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode,
+                                        color_space: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space,
+                                        bits_per_channel: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner = DisplaydescriptorReplayRecord {
                                     backend: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_backend,
                                     id: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_id,
@@ -27887,6 +32554,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                     builtin_panel: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_builtin_panel,
                                     variable_refresh_support: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support,
                                     hdr_support: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_hdr_support,
+                                    color_state: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state,
                                 };
                                 Some(result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner)
                             } else {
@@ -27917,6 +32585,24 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_builtin_panel = value.payload.current.builtin_panel;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_variable_refresh_support = value.payload.current.variable_refresh_support;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_hdr_support = value.payload.current.hdr_support;
+                            let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state = if let Some(value) = value.payload.current.color_state {
+                                let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode = value.hdr_mode;
+                                let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_color_space = value.color_space;
+                                let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner = value;
+                                    Some(result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner = DisplayColorState {
+                                    hdr_mode: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode,
+                                    color_space: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_color_space,
+                                    bits_per_channel: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel,
+                                };
+                                Some(result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner)
+                            } else {
+                                None
+                            };
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_current = DisplaydescriptorReplayRecord {
                                 backend: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_backend,
                                 id: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_id,
@@ -27937,6 +32623,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                 builtin_panel: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_builtin_panel,
                                 variable_refresh_support: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_variable_refresh_support,
                                 hdr_support: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_hdr_support,
+                                color_state: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state,
                             };
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_changed_mask = value.payload.changed_mask;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload = DisplaydescriptorchangedpayloadReplayRecord {
@@ -28125,6 +32812,24 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                 let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_builtin_panel = value.builtin_panel;
                                 let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_variable_refresh_support = value.variable_refresh_support;
                                 let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_hdr_support = value.hdr_support;
+                                let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state = if let Some(value) = value.color_state {
+                                    let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_color_space = value.color_space;
+                                    let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner = value;
+                                        Some(result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner = DisplayColorState {
+                                        hdr_mode: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode,
+                                        color_space: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_color_space,
+                                        bits_per_channel: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner = DisplaydescriptorReplayRecord {
                                     backend: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_backend,
                                     id: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_id,
@@ -28145,6 +32850,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                     builtin_panel: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_builtin_panel,
                                     variable_refresh_support: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_variable_refresh_support,
                                     hdr_support: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_hdr_support,
+                                    color_state: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state,
                                 };
                                 Some(result_recorded_item_recorded_display_removed_event_payload_descriptor_inner)
                             } else {
@@ -28228,6 +32934,24 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                 let vm_result_item_value_display_added_event_payload_descriptor_builtin_panel = value.payload.descriptor.builtin_panel;
                                 let vm_result_item_value_display_added_event_payload_descriptor_variable_refresh_support = value.payload.descriptor.variable_refresh_support;
                                 let vm_result_item_value_display_added_event_payload_descriptor_hdr_support = value.payload.descriptor.hdr_support;
+                                let vm_result_item_value_display_added_event_payload_descriptor_color_state = if let Some(value) = value.payload.descriptor.color_state {
+                                    let vm_result_item_value_display_added_event_payload_descriptor_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let vm_result_item_value_display_added_event_payload_descriptor_color_state_inner_color_space = value.color_space;
+                                    let vm_result_item_value_display_added_event_payload_descriptor_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let vm_result_item_value_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner = value;
+                                        Some(vm_result_item_value_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let vm_result_item_value_display_added_event_payload_descriptor_color_state_inner = DisplayColorState {
+                                        hdr_mode: vm_result_item_value_display_added_event_payload_descriptor_color_state_inner_hdr_mode,
+                                        color_space: vm_result_item_value_display_added_event_payload_descriptor_color_state_inner_color_space,
+                                        bits_per_channel: vm_result_item_value_display_added_event_payload_descriptor_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(vm_result_item_value_display_added_event_payload_descriptor_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let vm_result_item_value_display_added_event_payload_descriptor = DisplayDescriptorVm {
                                     backend: vm_result_item_value_display_added_event_payload_descriptor_backend,
                                     id: vm_result_item_value_display_added_event_payload_descriptor_id,
@@ -28248,6 +32972,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                     builtin_panel: vm_result_item_value_display_added_event_payload_descriptor_builtin_panel,
                                     variable_refresh_support: vm_result_item_value_display_added_event_payload_descriptor_variable_refresh_support,
                                     hdr_support: vm_result_item_value_display_added_event_payload_descriptor_hdr_support,
+                                    color_state: vm_result_item_value_display_added_event_payload_descriptor_color_state,
                                 };
                                 let vm_result_item_value_display_added_event_payload = DisplayAddedPayloadVm {
                                     descriptor: vm_result_item_value_display_added_event_payload_descriptor,
@@ -28298,6 +33023,24 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                     let vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_builtin_panel = value.builtin_panel;
                                     let vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support = value.variable_refresh_support;
                                     let vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_hdr_support = value.hdr_support;
+                                    let vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state = if let Some(value) = value.color_state {
+                                        let vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                        let vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space = value.color_space;
+                                        let vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                            let vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner = value;
+                                            Some(vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state_inner = DisplayColorState {
+                                            hdr_mode: vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode,
+                                            color_space: vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space,
+                                            bits_per_channel: vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel,
+                                        };
+                                        Some(vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state_inner)
+                                    } else {
+                                        None
+                                    };
                                     let vm_result_item_value_display_descriptor_changed_event_payload_previous_inner = DisplayDescriptorVm {
                                         backend: vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_backend,
                                         id: vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_id,
@@ -28318,6 +33061,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                         builtin_panel: vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_builtin_panel,
                                         variable_refresh_support: vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support,
                                         hdr_support: vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_hdr_support,
+                                        color_state: vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state,
                                     };
                                     Some(vm_result_item_value_display_descriptor_changed_event_payload_previous_inner)
                                 } else {
@@ -28342,6 +33086,24 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                 let vm_result_item_value_display_descriptor_changed_event_payload_current_builtin_panel = value.payload.current.builtin_panel;
                                 let vm_result_item_value_display_descriptor_changed_event_payload_current_variable_refresh_support = value.payload.current.variable_refresh_support;
                                 let vm_result_item_value_display_descriptor_changed_event_payload_current_hdr_support = value.payload.current.hdr_support;
+                                let vm_result_item_value_display_descriptor_changed_event_payload_current_color_state = if let Some(value) = value.payload.current.color_state {
+                                    let vm_result_item_value_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let vm_result_item_value_display_descriptor_changed_event_payload_current_color_state_inner_color_space = value.color_space;
+                                    let vm_result_item_value_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let vm_result_item_value_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner = value;
+                                        Some(vm_result_item_value_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let vm_result_item_value_display_descriptor_changed_event_payload_current_color_state_inner = DisplayColorState {
+                                        hdr_mode: vm_result_item_value_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode,
+                                        color_space: vm_result_item_value_display_descriptor_changed_event_payload_current_color_state_inner_color_space,
+                                        bits_per_channel: vm_result_item_value_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(vm_result_item_value_display_descriptor_changed_event_payload_current_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let vm_result_item_value_display_descriptor_changed_event_payload_current = DisplayDescriptorVm {
                                     backend: vm_result_item_value_display_descriptor_changed_event_payload_current_backend,
                                     id: vm_result_item_value_display_descriptor_changed_event_payload_current_id,
@@ -28362,6 +33124,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                     builtin_panel: vm_result_item_value_display_descriptor_changed_event_payload_current_builtin_panel,
                                     variable_refresh_support: vm_result_item_value_display_descriptor_changed_event_payload_current_variable_refresh_support,
                                     hdr_support: vm_result_item_value_display_descriptor_changed_event_payload_current_hdr_support,
+                                    color_state: vm_result_item_value_display_descriptor_changed_event_payload_current_color_state,
                                 };
                                 let vm_result_item_value_display_descriptor_changed_event_payload_changed_mask = value.payload.changed_mask;
                                 let vm_result_item_value_display_descriptor_changed_event_payload = DisplayDescriptorChangedPayloadVm {
@@ -28517,6 +33280,24 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                     let vm_result_item_value_display_removed_event_payload_descriptor_inner_builtin_panel = value.builtin_panel;
                                     let vm_result_item_value_display_removed_event_payload_descriptor_inner_variable_refresh_support = value.variable_refresh_support;
                                     let vm_result_item_value_display_removed_event_payload_descriptor_inner_hdr_support = value.hdr_support;
+                                    let vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state = if let Some(value) = value.color_state {
+                                        let vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                        let vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state_inner_color_space = value.color_space;
+                                        let vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                            let vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner = value;
+                                            Some(vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state_inner = DisplayColorState {
+                                            hdr_mode: vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode,
+                                            color_space: vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state_inner_color_space,
+                                            bits_per_channel: vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel,
+                                        };
+                                        Some(vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state_inner)
+                                    } else {
+                                        None
+                                    };
                                     let vm_result_item_value_display_removed_event_payload_descriptor_inner = DisplayDescriptorVm {
                                         backend: vm_result_item_value_display_removed_event_payload_descriptor_inner_backend,
                                         id: vm_result_item_value_display_removed_event_payload_descriptor_inner_id,
@@ -28537,6 +33318,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                         builtin_panel: vm_result_item_value_display_removed_event_payload_descriptor_inner_builtin_panel,
                                         variable_refresh_support: vm_result_item_value_display_removed_event_payload_descriptor_inner_variable_refresh_support,
                                         hdr_support: vm_result_item_value_display_removed_event_payload_descriptor_inner_hdr_support,
+                                        color_state: vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state,
                                     };
                                     Some(vm_result_item_value_display_removed_event_payload_descriptor_inner)
                                 } else {
@@ -28639,6 +33421,24 @@ fn destack_display_monitor_event_try_read_vm_replay(
                         let result_recorded_display_added_event_payload_descriptor_builtin_panel = value.payload.descriptor.builtin_panel;
                         let result_recorded_display_added_event_payload_descriptor_variable_refresh_support = value.payload.descriptor.variable_refresh_support;
                         let result_recorded_display_added_event_payload_descriptor_hdr_support = value.payload.descriptor.hdr_support;
+                        let result_recorded_display_added_event_payload_descriptor_color_state = if let Some(value) = value.payload.descriptor.color_state {
+                            let result_recorded_display_added_event_payload_descriptor_color_state_inner_hdr_mode = value.hdr_mode;
+                            let result_recorded_display_added_event_payload_descriptor_color_state_inner_color_space = value.color_space;
+                            let result_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                let result_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner = value;
+                                Some(result_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_display_added_event_payload_descriptor_color_state_inner = DisplayColorState {
+                                hdr_mode: result_recorded_display_added_event_payload_descriptor_color_state_inner_hdr_mode,
+                                color_space: result_recorded_display_added_event_payload_descriptor_color_state_inner_color_space,
+                                bits_per_channel: result_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel,
+                            };
+                            Some(result_recorded_display_added_event_payload_descriptor_color_state_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_display_added_event_payload_descriptor = DisplaydescriptorReplayRecord {
                             backend: result_recorded_display_added_event_payload_descriptor_backend,
                             id: result_recorded_display_added_event_payload_descriptor_id,
@@ -28659,6 +33459,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                             builtin_panel: result_recorded_display_added_event_payload_descriptor_builtin_panel,
                             variable_refresh_support: result_recorded_display_added_event_payload_descriptor_variable_refresh_support,
                             hdr_support: result_recorded_display_added_event_payload_descriptor_hdr_support,
+                            color_state: result_recorded_display_added_event_payload_descriptor_color_state,
                         };
                         let result_recorded_display_added_event_payload = DisplayaddedpayloadReplayRecord {
                             descriptor: result_recorded_display_added_event_payload_descriptor,
@@ -28721,6 +33522,24 @@ fn destack_display_monitor_event_try_read_vm_replay(
                             let result_recorded_display_descriptor_changed_event_payload_previous_inner_builtin_panel = value.builtin_panel;
                             let result_recorded_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support = value.variable_refresh_support;
                             let result_recorded_display_descriptor_changed_event_payload_previous_inner_hdr_support = value.hdr_support;
+                            let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state = if let Some(value) = value.color_state {
+                                let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space = value.color_space;
+                                let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner = value;
+                                    Some(result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner = DisplayColorState {
+                                    hdr_mode: result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode,
+                                    color_space: result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space,
+                                    bits_per_channel: result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel,
+                                };
+                                Some(result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner)
+                            } else {
+                                None
+                            };
                             let result_recorded_display_descriptor_changed_event_payload_previous_inner = DisplaydescriptorReplayRecord {
                                 backend: result_recorded_display_descriptor_changed_event_payload_previous_inner_backend,
                                 id: result_recorded_display_descriptor_changed_event_payload_previous_inner_id,
@@ -28741,6 +33560,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                                 builtin_panel: result_recorded_display_descriptor_changed_event_payload_previous_inner_builtin_panel,
                                 variable_refresh_support: result_recorded_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support,
                                 hdr_support: result_recorded_display_descriptor_changed_event_payload_previous_inner_hdr_support,
+                                color_state: result_recorded_display_descriptor_changed_event_payload_previous_inner_color_state,
                             };
                             Some(result_recorded_display_descriptor_changed_event_payload_previous_inner)
                         } else {
@@ -28771,6 +33591,24 @@ fn destack_display_monitor_event_try_read_vm_replay(
                         let result_recorded_display_descriptor_changed_event_payload_current_builtin_panel = value.payload.current.builtin_panel;
                         let result_recorded_display_descriptor_changed_event_payload_current_variable_refresh_support = value.payload.current.variable_refresh_support;
                         let result_recorded_display_descriptor_changed_event_payload_current_hdr_support = value.payload.current.hdr_support;
+                        let result_recorded_display_descriptor_changed_event_payload_current_color_state = if let Some(value) = value.payload.current.color_state {
+                            let result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode = value.hdr_mode;
+                            let result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_color_space = value.color_space;
+                            let result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                let result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner = value;
+                                Some(result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_display_descriptor_changed_event_payload_current_color_state_inner = DisplayColorState {
+                                hdr_mode: result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode,
+                                color_space: result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_color_space,
+                                bits_per_channel: result_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel,
+                            };
+                            Some(result_recorded_display_descriptor_changed_event_payload_current_color_state_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_display_descriptor_changed_event_payload_current = DisplaydescriptorReplayRecord {
                             backend: result_recorded_display_descriptor_changed_event_payload_current_backend,
                             id: result_recorded_display_descriptor_changed_event_payload_current_id,
@@ -28791,6 +33629,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                             builtin_panel: result_recorded_display_descriptor_changed_event_payload_current_builtin_panel,
                             variable_refresh_support: result_recorded_display_descriptor_changed_event_payload_current_variable_refresh_support,
                             hdr_support: result_recorded_display_descriptor_changed_event_payload_current_hdr_support,
+                            color_state: result_recorded_display_descriptor_changed_event_payload_current_color_state,
                         };
                         let result_recorded_display_descriptor_changed_event_payload_changed_mask = value.payload.changed_mask;
                         let result_recorded_display_descriptor_changed_event_payload = DisplaydescriptorchangedpayloadReplayRecord {
@@ -28979,6 +33818,24 @@ fn destack_display_monitor_event_try_read_vm_replay(
                             let result_recorded_display_removed_event_payload_descriptor_inner_builtin_panel = value.builtin_panel;
                             let result_recorded_display_removed_event_payload_descriptor_inner_variable_refresh_support = value.variable_refresh_support;
                             let result_recorded_display_removed_event_payload_descriptor_inner_hdr_support = value.hdr_support;
+                            let result_recorded_display_removed_event_payload_descriptor_inner_color_state = if let Some(value) = value.color_state {
+                                let result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                let result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_color_space = value.color_space;
+                                let result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner = value;
+                                    Some(result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner = DisplayColorState {
+                                    hdr_mode: result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode,
+                                    color_space: result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_color_space,
+                                    bits_per_channel: result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel,
+                                };
+                                Some(result_recorded_display_removed_event_payload_descriptor_inner_color_state_inner)
+                            } else {
+                                None
+                            };
                             let result_recorded_display_removed_event_payload_descriptor_inner = DisplaydescriptorReplayRecord {
                                 backend: result_recorded_display_removed_event_payload_descriptor_inner_backend,
                                 id: result_recorded_display_removed_event_payload_descriptor_inner_id,
@@ -28999,6 +33856,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                                 builtin_panel: result_recorded_display_removed_event_payload_descriptor_inner_builtin_panel,
                                 variable_refresh_support: result_recorded_display_removed_event_payload_descriptor_inner_variable_refresh_support,
                                 hdr_support: result_recorded_display_removed_event_payload_descriptor_inner_hdr_support,
+                                color_state: result_recorded_display_removed_event_payload_descriptor_inner_color_state,
                             };
                             Some(result_recorded_display_removed_event_payload_descriptor_inner)
                         } else {
@@ -29078,6 +33936,24 @@ fn destack_display_monitor_event_try_read_vm_replay(
                             let vm_result_display_added_event_payload_descriptor_builtin_panel = value.payload.descriptor.builtin_panel;
                             let vm_result_display_added_event_payload_descriptor_variable_refresh_support = value.payload.descriptor.variable_refresh_support;
                             let vm_result_display_added_event_payload_descriptor_hdr_support = value.payload.descriptor.hdr_support;
+                            let vm_result_display_added_event_payload_descriptor_color_state = if let Some(value) = value.payload.descriptor.color_state {
+                                let vm_result_display_added_event_payload_descriptor_color_state_inner_hdr_mode = value.hdr_mode;
+                                let vm_result_display_added_event_payload_descriptor_color_state_inner_color_space = value.color_space;
+                                let vm_result_display_added_event_payload_descriptor_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let vm_result_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner = value;
+                                    Some(vm_result_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_display_added_event_payload_descriptor_color_state_inner = DisplayColorState {
+                                    hdr_mode: vm_result_display_added_event_payload_descriptor_color_state_inner_hdr_mode,
+                                    color_space: vm_result_display_added_event_payload_descriptor_color_state_inner_color_space,
+                                    bits_per_channel: vm_result_display_added_event_payload_descriptor_color_state_inner_bits_per_channel,
+                                };
+                                Some(vm_result_display_added_event_payload_descriptor_color_state_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_display_added_event_payload_descriptor = DisplayDescriptorVm {
                                 backend: vm_result_display_added_event_payload_descriptor_backend,
                                 id: vm_result_display_added_event_payload_descriptor_id,
@@ -29098,6 +33974,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                                 builtin_panel: vm_result_display_added_event_payload_descriptor_builtin_panel,
                                 variable_refresh_support: vm_result_display_added_event_payload_descriptor_variable_refresh_support,
                                 hdr_support: vm_result_display_added_event_payload_descriptor_hdr_support,
+                                color_state: vm_result_display_added_event_payload_descriptor_color_state,
                             };
                             let vm_result_display_added_event_payload = DisplayAddedPayloadVm {
                                 descriptor: vm_result_display_added_event_payload_descriptor,
@@ -29148,6 +34025,24 @@ fn destack_display_monitor_event_try_read_vm_replay(
                                 let vm_result_display_descriptor_changed_event_payload_previous_inner_builtin_panel = value.builtin_panel;
                                 let vm_result_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support = value.variable_refresh_support;
                                 let vm_result_display_descriptor_changed_event_payload_previous_inner_hdr_support = value.hdr_support;
+                                let vm_result_display_descriptor_changed_event_payload_previous_inner_color_state = if let Some(value) = value.color_state {
+                                    let vm_result_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let vm_result_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space = value.color_space;
+                                    let vm_result_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let vm_result_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner = value;
+                                        Some(vm_result_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let vm_result_display_descriptor_changed_event_payload_previous_inner_color_state_inner = DisplayColorState {
+                                        hdr_mode: vm_result_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode,
+                                        color_space: vm_result_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space,
+                                        bits_per_channel: vm_result_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(vm_result_display_descriptor_changed_event_payload_previous_inner_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let vm_result_display_descriptor_changed_event_payload_previous_inner = DisplayDescriptorVm {
                                     backend: vm_result_display_descriptor_changed_event_payload_previous_inner_backend,
                                     id: vm_result_display_descriptor_changed_event_payload_previous_inner_id,
@@ -29168,6 +34063,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                                     builtin_panel: vm_result_display_descriptor_changed_event_payload_previous_inner_builtin_panel,
                                     variable_refresh_support: vm_result_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support,
                                     hdr_support: vm_result_display_descriptor_changed_event_payload_previous_inner_hdr_support,
+                                    color_state: vm_result_display_descriptor_changed_event_payload_previous_inner_color_state,
                                 };
                                 Some(vm_result_display_descriptor_changed_event_payload_previous_inner)
                             } else {
@@ -29192,6 +34088,24 @@ fn destack_display_monitor_event_try_read_vm_replay(
                             let vm_result_display_descriptor_changed_event_payload_current_builtin_panel = value.payload.current.builtin_panel;
                             let vm_result_display_descriptor_changed_event_payload_current_variable_refresh_support = value.payload.current.variable_refresh_support;
                             let vm_result_display_descriptor_changed_event_payload_current_hdr_support = value.payload.current.hdr_support;
+                            let vm_result_display_descriptor_changed_event_payload_current_color_state = if let Some(value) = value.payload.current.color_state {
+                                let vm_result_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode = value.hdr_mode;
+                                let vm_result_display_descriptor_changed_event_payload_current_color_state_inner_color_space = value.color_space;
+                                let vm_result_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let vm_result_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner = value;
+                                    Some(vm_result_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_display_descriptor_changed_event_payload_current_color_state_inner = DisplayColorState {
+                                    hdr_mode: vm_result_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode,
+                                    color_space: vm_result_display_descriptor_changed_event_payload_current_color_state_inner_color_space,
+                                    bits_per_channel: vm_result_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel,
+                                };
+                                Some(vm_result_display_descriptor_changed_event_payload_current_color_state_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_display_descriptor_changed_event_payload_current = DisplayDescriptorVm {
                                 backend: vm_result_display_descriptor_changed_event_payload_current_backend,
                                 id: vm_result_display_descriptor_changed_event_payload_current_id,
@@ -29212,6 +34126,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                                 builtin_panel: vm_result_display_descriptor_changed_event_payload_current_builtin_panel,
                                 variable_refresh_support: vm_result_display_descriptor_changed_event_payload_current_variable_refresh_support,
                                 hdr_support: vm_result_display_descriptor_changed_event_payload_current_hdr_support,
+                                color_state: vm_result_display_descriptor_changed_event_payload_current_color_state,
                             };
                             let vm_result_display_descriptor_changed_event_payload_changed_mask = value.payload.changed_mask;
                             let vm_result_display_descriptor_changed_event_payload = DisplayDescriptorChangedPayloadVm {
@@ -29367,6 +34282,24 @@ fn destack_display_monitor_event_try_read_vm_replay(
                                 let vm_result_display_removed_event_payload_descriptor_inner_builtin_panel = value.builtin_panel;
                                 let vm_result_display_removed_event_payload_descriptor_inner_variable_refresh_support = value.variable_refresh_support;
                                 let vm_result_display_removed_event_payload_descriptor_inner_hdr_support = value.hdr_support;
+                                let vm_result_display_removed_event_payload_descriptor_inner_color_state = if let Some(value) = value.color_state {
+                                    let vm_result_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let vm_result_display_removed_event_payload_descriptor_inner_color_state_inner_color_space = value.color_space;
+                                    let vm_result_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let vm_result_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner = value;
+                                        Some(vm_result_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let vm_result_display_removed_event_payload_descriptor_inner_color_state_inner = DisplayColorState {
+                                        hdr_mode: vm_result_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode,
+                                        color_space: vm_result_display_removed_event_payload_descriptor_inner_color_state_inner_color_space,
+                                        bits_per_channel: vm_result_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(vm_result_display_removed_event_payload_descriptor_inner_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let vm_result_display_removed_event_payload_descriptor_inner = DisplayDescriptorVm {
                                     backend: vm_result_display_removed_event_payload_descriptor_inner_backend,
                                     id: vm_result_display_removed_event_payload_descriptor_inner_id,
@@ -29387,6 +34320,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                                     builtin_panel: vm_result_display_removed_event_payload_descriptor_inner_builtin_panel,
                                     variable_refresh_support: vm_result_display_removed_event_payload_descriptor_inner_variable_refresh_support,
                                     hdr_support: vm_result_display_removed_event_payload_descriptor_inner_hdr_support,
+                                    color_state: vm_result_display_removed_event_payload_descriptor_inner_color_state,
                                 };
                                 Some(vm_result_display_removed_event_payload_descriptor_inner)
                             } else {
@@ -29491,6 +34425,24 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_builtin_panel = value.payload.descriptor.builtin_panel;
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_variable_refresh_support = value.payload.descriptor.variable_refresh_support;
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_hdr_support = value.payload.descriptor.hdr_support;
+                            let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state = if let Some(value) = value.payload.descriptor.color_state {
+                                let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_hdr_mode = value.hdr_mode;
+                                let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_color_space = value.color_space;
+                                let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner = value;
+                                    Some(result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner = DisplayColorState {
+                                    hdr_mode: result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_hdr_mode,
+                                    color_space: result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_color_space,
+                                    bits_per_channel: result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner_bits_per_channel,
+                                };
+                                Some(result_recorded_item_recorded_display_added_event_payload_descriptor_color_state_inner)
+                            } else {
+                                None
+                            };
                             let result_recorded_item_recorded_display_added_event_payload_descriptor = DisplaydescriptorReplayRecord {
                                 backend: result_recorded_item_recorded_display_added_event_payload_descriptor_backend,
                                 id: result_recorded_item_recorded_display_added_event_payload_descriptor_id,
@@ -29511,6 +34463,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                 builtin_panel: result_recorded_item_recorded_display_added_event_payload_descriptor_builtin_panel,
                                 variable_refresh_support: result_recorded_item_recorded_display_added_event_payload_descriptor_variable_refresh_support,
                                 hdr_support: result_recorded_item_recorded_display_added_event_payload_descriptor_hdr_support,
+                                color_state: result_recorded_item_recorded_display_added_event_payload_descriptor_color_state,
                             };
                             let result_recorded_item_recorded_display_added_event_payload = DisplayaddedpayloadReplayRecord {
                                 descriptor: result_recorded_item_recorded_display_added_event_payload_descriptor,
@@ -29573,6 +34526,24 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                 let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_builtin_panel = value.builtin_panel;
                                 let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support = value.variable_refresh_support;
                                 let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_hdr_support = value.hdr_support;
+                                let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state = if let Some(value) = value.color_state {
+                                    let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space = value.color_space;
+                                    let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner = value;
+                                        Some(result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner = DisplayColorState {
+                                        hdr_mode: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode,
+                                        color_space: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space,
+                                        bits_per_channel: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner = DisplaydescriptorReplayRecord {
                                     backend: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_backend,
                                     id: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_id,
@@ -29593,6 +34564,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                     builtin_panel: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_builtin_panel,
                                     variable_refresh_support: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support,
                                     hdr_support: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_hdr_support,
+                                    color_state: result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner_color_state,
                                 };
                                 Some(result_recorded_item_recorded_display_descriptor_changed_event_payload_previous_inner)
                             } else {
@@ -29623,6 +34595,24 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_builtin_panel = value.payload.current.builtin_panel;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_variable_refresh_support = value.payload.current.variable_refresh_support;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_hdr_support = value.payload.current.hdr_support;
+                            let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state = if let Some(value) = value.payload.current.color_state {
+                                let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode = value.hdr_mode;
+                                let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_color_space = value.color_space;
+                                let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                    let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner = value;
+                                    Some(result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner)
+                                } else {
+                                    None
+                                };
+                                let result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner = DisplayColorState {
+                                    hdr_mode: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode,
+                                    color_space: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_color_space,
+                                    bits_per_channel: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel,
+                                };
+                                Some(result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state_inner)
+                            } else {
+                                None
+                            };
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_current = DisplaydescriptorReplayRecord {
                                 backend: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_backend,
                                 id: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_id,
@@ -29643,6 +34633,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                 builtin_panel: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_builtin_panel,
                                 variable_refresh_support: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_variable_refresh_support,
                                 hdr_support: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_hdr_support,
+                                color_state: result_recorded_item_recorded_display_descriptor_changed_event_payload_current_color_state,
                             };
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_changed_mask = value.payload.changed_mask;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload = DisplaydescriptorchangedpayloadReplayRecord {
@@ -29831,6 +34822,24 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                 let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_builtin_panel = value.builtin_panel;
                                 let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_variable_refresh_support = value.variable_refresh_support;
                                 let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_hdr_support = value.hdr_support;
+                                let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state = if let Some(value) = value.color_state {
+                                    let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_color_space = value.color_space;
+                                    let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner = value;
+                                        Some(result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner = DisplayColorState {
+                                        hdr_mode: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode,
+                                        color_space: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_color_space,
+                                        bits_per_channel: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let result_recorded_item_recorded_display_removed_event_payload_descriptor_inner = DisplaydescriptorReplayRecord {
                                     backend: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_backend,
                                     id: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_id,
@@ -29851,6 +34860,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                     builtin_panel: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_builtin_panel,
                                     variable_refresh_support: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_variable_refresh_support,
                                     hdr_support: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_hdr_support,
+                                    color_state: result_recorded_item_recorded_display_removed_event_payload_descriptor_inner_color_state,
                                 };
                                 Some(result_recorded_item_recorded_display_removed_event_payload_descriptor_inner)
                             } else {
@@ -29934,6 +34944,24 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                 let vm_result_item_value_display_added_event_payload_descriptor_builtin_panel = value.payload.descriptor.builtin_panel;
                                 let vm_result_item_value_display_added_event_payload_descriptor_variable_refresh_support = value.payload.descriptor.variable_refresh_support;
                                 let vm_result_item_value_display_added_event_payload_descriptor_hdr_support = value.payload.descriptor.hdr_support;
+                                let vm_result_item_value_display_added_event_payload_descriptor_color_state = if let Some(value) = value.payload.descriptor.color_state {
+                                    let vm_result_item_value_display_added_event_payload_descriptor_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let vm_result_item_value_display_added_event_payload_descriptor_color_state_inner_color_space = value.color_space;
+                                    let vm_result_item_value_display_added_event_payload_descriptor_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let vm_result_item_value_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner = value;
+                                        Some(vm_result_item_value_display_added_event_payload_descriptor_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let vm_result_item_value_display_added_event_payload_descriptor_color_state_inner = DisplayColorState {
+                                        hdr_mode: vm_result_item_value_display_added_event_payload_descriptor_color_state_inner_hdr_mode,
+                                        color_space: vm_result_item_value_display_added_event_payload_descriptor_color_state_inner_color_space,
+                                        bits_per_channel: vm_result_item_value_display_added_event_payload_descriptor_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(vm_result_item_value_display_added_event_payload_descriptor_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let vm_result_item_value_display_added_event_payload_descriptor = DisplayDescriptorVm {
                                     backend: vm_result_item_value_display_added_event_payload_descriptor_backend,
                                     id: vm_result_item_value_display_added_event_payload_descriptor_id,
@@ -29954,6 +34982,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                     builtin_panel: vm_result_item_value_display_added_event_payload_descriptor_builtin_panel,
                                     variable_refresh_support: vm_result_item_value_display_added_event_payload_descriptor_variable_refresh_support,
                                     hdr_support: vm_result_item_value_display_added_event_payload_descriptor_hdr_support,
+                                    color_state: vm_result_item_value_display_added_event_payload_descriptor_color_state,
                                 };
                                 let vm_result_item_value_display_added_event_payload = DisplayAddedPayloadVm {
                                     descriptor: vm_result_item_value_display_added_event_payload_descriptor,
@@ -30004,6 +35033,24 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                     let vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_builtin_panel = value.builtin_panel;
                                     let vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support = value.variable_refresh_support;
                                     let vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_hdr_support = value.hdr_support;
+                                    let vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state = if let Some(value) = value.color_state {
+                                        let vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                        let vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space = value.color_space;
+                                        let vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                            let vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner = value;
+                                            Some(vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state_inner = DisplayColorState {
+                                            hdr_mode: vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state_inner_hdr_mode,
+                                            color_space: vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state_inner_color_space,
+                                            bits_per_channel: vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state_inner_bits_per_channel,
+                                        };
+                                        Some(vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state_inner)
+                                    } else {
+                                        None
+                                    };
                                     let vm_result_item_value_display_descriptor_changed_event_payload_previous_inner = DisplayDescriptorVm {
                                         backend: vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_backend,
                                         id: vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_id,
@@ -30024,6 +35071,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                         builtin_panel: vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_builtin_panel,
                                         variable_refresh_support: vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_variable_refresh_support,
                                         hdr_support: vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_hdr_support,
+                                        color_state: vm_result_item_value_display_descriptor_changed_event_payload_previous_inner_color_state,
                                     };
                                     Some(vm_result_item_value_display_descriptor_changed_event_payload_previous_inner)
                                 } else {
@@ -30048,6 +35096,24 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                 let vm_result_item_value_display_descriptor_changed_event_payload_current_builtin_panel = value.payload.current.builtin_panel;
                                 let vm_result_item_value_display_descriptor_changed_event_payload_current_variable_refresh_support = value.payload.current.variable_refresh_support;
                                 let vm_result_item_value_display_descriptor_changed_event_payload_current_hdr_support = value.payload.current.hdr_support;
+                                let vm_result_item_value_display_descriptor_changed_event_payload_current_color_state = if let Some(value) = value.payload.current.color_state {
+                                    let vm_result_item_value_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode = value.hdr_mode;
+                                    let vm_result_item_value_display_descriptor_changed_event_payload_current_color_state_inner_color_space = value.color_space;
+                                    let vm_result_item_value_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                        let vm_result_item_value_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner = value;
+                                        Some(vm_result_item_value_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let vm_result_item_value_display_descriptor_changed_event_payload_current_color_state_inner = DisplayColorState {
+                                        hdr_mode: vm_result_item_value_display_descriptor_changed_event_payload_current_color_state_inner_hdr_mode,
+                                        color_space: vm_result_item_value_display_descriptor_changed_event_payload_current_color_state_inner_color_space,
+                                        bits_per_channel: vm_result_item_value_display_descriptor_changed_event_payload_current_color_state_inner_bits_per_channel,
+                                    };
+                                    Some(vm_result_item_value_display_descriptor_changed_event_payload_current_color_state_inner)
+                                } else {
+                                    None
+                                };
                                 let vm_result_item_value_display_descriptor_changed_event_payload_current = DisplayDescriptorVm {
                                     backend: vm_result_item_value_display_descriptor_changed_event_payload_current_backend,
                                     id: vm_result_item_value_display_descriptor_changed_event_payload_current_id,
@@ -30068,6 +35134,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                     builtin_panel: vm_result_item_value_display_descriptor_changed_event_payload_current_builtin_panel,
                                     variable_refresh_support: vm_result_item_value_display_descriptor_changed_event_payload_current_variable_refresh_support,
                                     hdr_support: vm_result_item_value_display_descriptor_changed_event_payload_current_hdr_support,
+                                    color_state: vm_result_item_value_display_descriptor_changed_event_payload_current_color_state,
                                 };
                                 let vm_result_item_value_display_descriptor_changed_event_payload_changed_mask = value.payload.changed_mask;
                                 let vm_result_item_value_display_descriptor_changed_event_payload = DisplayDescriptorChangedPayloadVm {
@@ -30223,6 +35290,24 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                     let vm_result_item_value_display_removed_event_payload_descriptor_inner_builtin_panel = value.builtin_panel;
                                     let vm_result_item_value_display_removed_event_payload_descriptor_inner_variable_refresh_support = value.variable_refresh_support;
                                     let vm_result_item_value_display_removed_event_payload_descriptor_inner_hdr_support = value.hdr_support;
+                                    let vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state = if let Some(value) = value.color_state {
+                                        let vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode = value.hdr_mode;
+                                        let vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state_inner_color_space = value.color_space;
+                                        let vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                            let vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner = value;
+                                            Some(vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel_inner)
+                                        } else {
+                                            None
+                                        };
+                                        let vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state_inner = DisplayColorState {
+                                            hdr_mode: vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state_inner_hdr_mode,
+                                            color_space: vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state_inner_color_space,
+                                            bits_per_channel: vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state_inner_bits_per_channel,
+                                        };
+                                        Some(vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state_inner)
+                                    } else {
+                                        None
+                                    };
                                     let vm_result_item_value_display_removed_event_payload_descriptor_inner = DisplayDescriptorVm {
                                         backend: vm_result_item_value_display_removed_event_payload_descriptor_inner_backend,
                                         id: vm_result_item_value_display_removed_event_payload_descriptor_inner_id,
@@ -30243,6 +35328,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                         builtin_panel: vm_result_item_value_display_removed_event_payload_descriptor_inner_builtin_panel,
                                         variable_refresh_support: vm_result_item_value_display_removed_event_payload_descriptor_inner_variable_refresh_support,
                                         hdr_support: vm_result_item_value_display_removed_event_payload_descriptor_inner_hdr_support,
+                                        color_state: vm_result_item_value_display_removed_event_payload_descriptor_inner_color_state,
                                     };
                                     Some(vm_result_item_value_display_removed_event_payload_descriptor_inner)
                                 } else {
@@ -30455,12 +35541,10 @@ fn destack_display_monitor_list_vm_replay(
         DISPLAY_MONITOR_LIST,
         binding.replay_payload_for(DISPLAY_MONITOR_LIST)?,
         context,
-        |context| match world {
-            RuntimeWorld::Host => {
-                platform_vm::destack_display_monitor_list(binding, context, request)
-            }
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_display_monitor_list(binding, context, request)
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_display_monitor_list(binding, context, request),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_display_monitor_list(binding, context, request),
             }
         },
         |context, result| {
@@ -30471,169 +35555,58 @@ fn destack_display_monitor_list_vm_replay(
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_recorded_item",
-                                "item",
-                            ))
-                            .boxed());
-                        }
-                        let slots = context
-                            .aggregate_slots(result_recorded_item_value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 19 {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_recorded_item",
-                                "expected 19 fields",
-                            ))
-                            .boxed());
-                        }
-                        let result_recorded_item_backend_raw =
-                            decode_int32(slots[0], "result_recorded_item_backend_raw", "backend")?;
-                        let result_recorded_item_backend = match result_recorded_item_backend_raw {
-                            0i32 => DisplayBackend::Auto,
-                            1i32 => DisplayBackend::Wayland,
-                            2i32 => DisplayBackend::X11,
-                            3i32 => DisplayBackend::Win32,
-                            4i32 => DisplayBackend::AppKit,
-                            5i32 => DisplayBackend::UIKit,
-                            6i32 => DisplayBackend::Android,
-                            255i32 => DisplayBackend::Null,
-                            _ => {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item_backend",
-                                        "unknown DisplayBackend value",
-                                    ),
-                                )
-                                .boxed());
-                            }
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item", "item")).boxed()); }
+                        let slots = context.aggregate_slots(result_recorded_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 20 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 20 fields")).boxed()); }
+                        let result_recorded_item_backend_raw = decode_int32(slots[0], "result_recorded_item_backend_raw", "backend")?;
+                        let result_recorded_item_backend = match result_recorded_item_backend_raw { 0i32 => DisplayBackend::Auto, 1i32 => DisplayBackend::Wayland, 2i32 => DisplayBackend::X11, 3i32 => DisplayBackend::Win32, 4i32 => DisplayBackend::AppKit, 5i32 => DisplayBackend::UIKit, 6i32 => DisplayBackend::Android, 255i32 => DisplayBackend::Null , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_backend", "unknown DisplayBackend value")).boxed()), };
+                        let result_recorded_item_id = decode_string(slots[1], "result_recorded_item_id", "id")?;
+                        let result_recorded_item_name = decode_string(slots[2], "result_recorded_item_name", "name")?;
+                        let result_recorded_item_primary = decode_bool(slots[3], "result_recorded_item_primary", "primary")?;
+                        let result_recorded_item_x = decode_int32(slots[4], "result_recorded_item_x", "x")?;
+                        let result_recorded_item_y = decode_int32(slots[5], "result_recorded_item_y", "y")?;
+                        let result_recorded_item_width_px = decode_uint32(slots[6], "result_recorded_item_width_px", "widthPx")?;
+                        let result_recorded_item_height_px = decode_uint32(slots[7], "result_recorded_item_height_px", "heightPx")?;
+                        let result_recorded_item_work_area_x = decode_int32(slots[8], "result_recorded_item_work_area_x", "workAreaX")?;
+                        let result_recorded_item_work_area_y = decode_int32(slots[9], "result_recorded_item_work_area_y", "workAreaY")?;
+                        let result_recorded_item_work_area_width_px = decode_uint32(slots[10], "result_recorded_item_work_area_width_px", "workAreaWidthPx")?;
+                        let result_recorded_item_work_area_height_px = decode_uint32(slots[11], "result_recorded_item_work_area_height_px", "workAreaHeightPx")?;
+                        let result_recorded_item_width_mm = decode_uint32(slots[12], "result_recorded_item_width_mm", "widthMm")?;
+                        let result_recorded_item_height_mm = decode_uint32(slots[13], "result_recorded_item_height_mm", "heightMm")?;
+                        let result_recorded_item_scale_factor_milli = decode_uint32(slots[14], "result_recorded_item_scale_factor_milli", "scaleFactorMilli")?;
+                        let result_recorded_item_orientation_raw = decode_int32(slots[15], "result_recorded_item_orientation_raw", "orientation")?;
+                        let result_recorded_item_orientation = match result_recorded_item_orientation_raw { 0i32 => DisplayOrientation::Unknown, 1i32 => DisplayOrientation::Landscape, 2i32 => DisplayOrientation::Portrait, 3i32 => DisplayOrientation::LandscapeFlipped, 4i32 => DisplayOrientation::PortraitFlipped , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_orientation", "unknown DisplayOrientation value")).boxed()), };
+                        let result_recorded_item_builtin_panel_raw = decode_int32(slots[16], "result_recorded_item_builtin_panel_raw", "builtinPanel")?;
+                        let result_recorded_item_builtin_panel = match result_recorded_item_builtin_panel_raw { 0i32 => DisplaySupportStatus::Unknown, 1i32 => DisplaySupportStatus::Unsupported, 2i32 => DisplaySupportStatus::Supported , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_builtin_panel", "unknown DisplaySupportStatus value")).boxed()), };
+                        let result_recorded_item_variable_refresh_support_raw = decode_int32(slots[17], "result_recorded_item_variable_refresh_support_raw", "variableRefreshSupport")?;
+                        let result_recorded_item_variable_refresh_support = match result_recorded_item_variable_refresh_support_raw { 0i32 => DisplaySupportStatus::Unknown, 1i32 => DisplaySupportStatus::Unsupported, 2i32 => DisplaySupportStatus::Supported , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_variable_refresh_support", "unknown DisplaySupportStatus value")).boxed()), };
+                        let result_recorded_item_hdr_support_raw = decode_int32(slots[18], "result_recorded_item_hdr_support_raw", "hdrSupport")?;
+                        let result_recorded_item_hdr_support = match result_recorded_item_hdr_support_raw { 0i32 => DisplaySupportStatus::Unknown, 1i32 => DisplaySupportStatus::Unsupported, 2i32 => DisplaySupportStatus::Supported , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_hdr_support", "unknown DisplaySupportStatus value")).boxed()), };
+                        let result_recorded_item_color_state = if slots[19].tag() == vm::ValueTag::Void {
+                            None
+                        } else {
+                            let result_recorded_item_color_state_inner = {
+                                if slots[19].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_color_state_inner", "colorState")).boxed()); }
+                                let slots = context.aggregate_slots(slots[19]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 3 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_color_state_inner", "expected 3 fields")).boxed()); }
+                                let result_recorded_item_color_state_inner_hdr_mode_raw = decode_int32(slots[0], "result_recorded_item_color_state_inner_hdr_mode_raw", "hdrMode")?;
+                                let result_recorded_item_color_state_inner_hdr_mode = match result_recorded_item_color_state_inner_hdr_mode_raw { 0i32 => DisplayHdrMode::Unknown, 1i32 => DisplayHdrMode::System, 2i32 => DisplayHdrMode::Sdr, 3i32 => DisplayHdrMode::Hdr , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_color_state_inner_hdr_mode", "unknown DisplayHdrMode value")).boxed()), };
+                                let result_recorded_item_color_state_inner_color_space_raw = decode_int32(slots[1], "result_recorded_item_color_state_inner_color_space_raw", "colorSpace")?;
+                                let result_recorded_item_color_state_inner_color_space = match result_recorded_item_color_state_inner_color_space_raw { 0i32 => DisplayColorSpace::Unknown, 1i32 => DisplayColorSpace::Srgb, 2i32 => DisplayColorSpace::DisplayP3, 3i32 => DisplayColorSpace::Bt2020, 4i32 => DisplayColorSpace::ScRgb, 5i32 => DisplayColorSpace::Hdr10 , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_color_state_inner_color_space", "unknown DisplayColorSpace value")).boxed()), };
+                                let result_recorded_item_color_state_inner_bits_per_channel = if slots[2].tag() == vm::ValueTag::Void {
+                                    None
+                                } else {
+                                    let result_recorded_item_color_state_inner_bits_per_channel_inner = decode_uint16(slots[2], "result_recorded_item_color_state_inner_bits_per_channel_inner", "bitsPerChannel")?;
+                                    Some(result_recorded_item_color_state_inner_bits_per_channel_inner)
+                                };
+                                DisplayColorStateVm {
+                                    hdr_mode: result_recorded_item_color_state_inner_hdr_mode,
+                                    color_space: result_recorded_item_color_state_inner_color_space,
+                                    bits_per_channel: result_recorded_item_color_state_inner_bits_per_channel,
+                                }
+                            };
+                            Some(result_recorded_item_color_state_inner)
                         };
-                        let result_recorded_item_id =
-                            decode_string(slots[1], "result_recorded_item_id", "id")?;
-                        let result_recorded_item_name =
-                            decode_string(slots[2], "result_recorded_item_name", "name")?;
-                        let result_recorded_item_primary =
-                            decode_bool(slots[3], "result_recorded_item_primary", "primary")?;
-                        let result_recorded_item_x =
-                            decode_int32(slots[4], "result_recorded_item_x", "x")?;
-                        let result_recorded_item_y =
-                            decode_int32(slots[5], "result_recorded_item_y", "y")?;
-                        let result_recorded_item_width_px =
-                            decode_uint32(slots[6], "result_recorded_item_width_px", "widthPx")?;
-                        let result_recorded_item_height_px =
-                            decode_uint32(slots[7], "result_recorded_item_height_px", "heightPx")?;
-                        let result_recorded_item_work_area_x = decode_int32(
-                            slots[8],
-                            "result_recorded_item_work_area_x",
-                            "workAreaX",
-                        )?;
-                        let result_recorded_item_work_area_y = decode_int32(
-                            slots[9],
-                            "result_recorded_item_work_area_y",
-                            "workAreaY",
-                        )?;
-                        let result_recorded_item_work_area_width_px = decode_uint32(
-                            slots[10],
-                            "result_recorded_item_work_area_width_px",
-                            "workAreaWidthPx",
-                        )?;
-                        let result_recorded_item_work_area_height_px = decode_uint32(
-                            slots[11],
-                            "result_recorded_item_work_area_height_px",
-                            "workAreaHeightPx",
-                        )?;
-                        let result_recorded_item_width_mm =
-                            decode_uint32(slots[12], "result_recorded_item_width_mm", "widthMm")?;
-                        let result_recorded_item_height_mm =
-                            decode_uint32(slots[13], "result_recorded_item_height_mm", "heightMm")?;
-                        let result_recorded_item_scale_factor_milli = decode_uint32(
-                            slots[14],
-                            "result_recorded_item_scale_factor_milli",
-                            "scaleFactorMilli",
-                        )?;
-                        let result_recorded_item_orientation_raw = decode_int32(
-                            slots[15],
-                            "result_recorded_item_orientation_raw",
-                            "orientation",
-                        )?;
-                        let result_recorded_item_orientation =
-                            match result_recorded_item_orientation_raw {
-                                0i32 => DisplayOrientation::Unknown,
-                                1i32 => DisplayOrientation::Landscape,
-                                2i32 => DisplayOrientation::Portrait,
-                                3i32 => DisplayOrientation::LandscapeFlipped,
-                                4i32 => DisplayOrientation::PortraitFlipped,
-                                _ => {
-                                    return Err(RuntimeError::from(
-                                        PlatformError::invalid_argument_value(
-                                            "result_recorded_item_orientation",
-                                            "unknown DisplayOrientation value",
-                                        ),
-                                    )
-                                    .boxed());
-                                }
-                            };
-                        let result_recorded_item_builtin_panel_raw = decode_int32(
-                            slots[16],
-                            "result_recorded_item_builtin_panel_raw",
-                            "builtinPanel",
-                        )?;
-                        let result_recorded_item_builtin_panel =
-                            match result_recorded_item_builtin_panel_raw {
-                                0i32 => DisplaySupportStatus::Unknown,
-                                1i32 => DisplaySupportStatus::Unsupported,
-                                2i32 => DisplaySupportStatus::Supported,
-                                _ => {
-                                    return Err(RuntimeError::from(
-                                        PlatformError::invalid_argument_value(
-                                            "result_recorded_item_builtin_panel",
-                                            "unknown DisplaySupportStatus value",
-                                        ),
-                                    )
-                                    .boxed());
-                                }
-                            };
-                        let result_recorded_item_variable_refresh_support_raw = decode_int32(
-                            slots[17],
-                            "result_recorded_item_variable_refresh_support_raw",
-                            "variableRefreshSupport",
-                        )?;
-                        let result_recorded_item_variable_refresh_support =
-                            match result_recorded_item_variable_refresh_support_raw {
-                                0i32 => DisplaySupportStatus::Unknown,
-                                1i32 => DisplaySupportStatus::Unsupported,
-                                2i32 => DisplaySupportStatus::Supported,
-                                _ => {
-                                    return Err(RuntimeError::from(
-                                        PlatformError::invalid_argument_value(
-                                            "result_recorded_item_variable_refresh_support",
-                                            "unknown DisplaySupportStatus value",
-                                        ),
-                                    )
-                                    .boxed());
-                                }
-                            };
-                        let result_recorded_item_hdr_support_raw = decode_int32(
-                            slots[18],
-                            "result_recorded_item_hdr_support_raw",
-                            "hdrSupport",
-                        )?;
-                        let result_recorded_item_hdr_support =
-                            match result_recorded_item_hdr_support_raw {
-                                0i32 => DisplaySupportStatus::Unknown,
-                                1i32 => DisplaySupportStatus::Unsupported,
-                                2i32 => DisplaySupportStatus::Supported,
-                                _ => {
-                                    return Err(RuntimeError::from(
-                                        PlatformError::invalid_argument_value(
-                                            "result_recorded_item_hdr_support",
-                                            "unknown DisplaySupportStatus value",
-                                        ),
-                                    )
-                                    .boxed());
-                                }
-                            };
                         DisplayDescriptorVm {
                             backend: result_recorded_item_backend,
                             id: result_recorded_item_id,
@@ -30654,19 +35627,16 @@ fn destack_display_monitor_list_vm_replay(
                             builtin_panel: result_recorded_item_builtin_panel,
                             variable_refresh_support: result_recorded_item_variable_refresh_support,
                             hdr_support: result_recorded_item_hdr_support,
+                            color_state: result_recorded_item_color_state,
                         }
                     };
                     let result_recorded_item_recorded_backend = result_recorded_item.backend;
                     let result_recorded_item_recorded_id = {
-                        let result_recorded_item_recorded_id_ref = context
-                            .string_ref(result_recorded_item.id)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        let result_recorded_item_recorded_id_ref = context.string_ref(result_recorded_item.id).map_err(|error| RuntimeError::from(error).boxed())?;
                         result_recorded_item_recorded_id_ref.as_str().to_string()
                     };
                     let result_recorded_item_recorded_name = {
-                        let result_recorded_item_recorded_name_ref = context
-                            .string_ref(result_recorded_item.name)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        let result_recorded_item_recorded_name_ref = context.string_ref(result_recorded_item.name).map_err(|error| RuntimeError::from(error).boxed())?;
                         result_recorded_item_recorded_name_ref.as_str().to_string()
                     };
                     let result_recorded_item_recorded_primary = result_recorded_item.primary;
@@ -30674,26 +35644,35 @@ fn destack_display_monitor_list_vm_replay(
                     let result_recorded_item_recorded_y = result_recorded_item.y;
                     let result_recorded_item_recorded_width_px = result_recorded_item.width_px;
                     let result_recorded_item_recorded_height_px = result_recorded_item.height_px;
-                    let result_recorded_item_recorded_work_area_x =
-                        result_recorded_item.work_area_x;
-                    let result_recorded_item_recorded_work_area_y =
-                        result_recorded_item.work_area_y;
-                    let result_recorded_item_recorded_work_area_width_px =
-                        result_recorded_item.work_area_width_px;
-                    let result_recorded_item_recorded_work_area_height_px =
-                        result_recorded_item.work_area_height_px;
+                    let result_recorded_item_recorded_work_area_x = result_recorded_item.work_area_x;
+                    let result_recorded_item_recorded_work_area_y = result_recorded_item.work_area_y;
+                    let result_recorded_item_recorded_work_area_width_px = result_recorded_item.work_area_width_px;
+                    let result_recorded_item_recorded_work_area_height_px = result_recorded_item.work_area_height_px;
                     let result_recorded_item_recorded_width_mm = result_recorded_item.width_mm;
                     let result_recorded_item_recorded_height_mm = result_recorded_item.height_mm;
-                    let result_recorded_item_recorded_scale_factor_milli =
-                        result_recorded_item.scale_factor_milli;
-                    let result_recorded_item_recorded_orientation =
-                        result_recorded_item.orientation;
-                    let result_recorded_item_recorded_builtin_panel =
-                        result_recorded_item.builtin_panel;
-                    let result_recorded_item_recorded_variable_refresh_support =
-                        result_recorded_item.variable_refresh_support;
-                    let result_recorded_item_recorded_hdr_support =
-                        result_recorded_item.hdr_support;
+                    let result_recorded_item_recorded_scale_factor_milli = result_recorded_item.scale_factor_milli;
+                    let result_recorded_item_recorded_orientation = result_recorded_item.orientation;
+                    let result_recorded_item_recorded_builtin_panel = result_recorded_item.builtin_panel;
+                    let result_recorded_item_recorded_variable_refresh_support = result_recorded_item.variable_refresh_support;
+                    let result_recorded_item_recorded_hdr_support = result_recorded_item.hdr_support;
+                    let result_recorded_item_recorded_color_state = if let Some(value) = result_recorded_item.color_state {
+                        let result_recorded_item_recorded_color_state_inner_hdr_mode = value.hdr_mode;
+                        let result_recorded_item_recorded_color_state_inner_color_space = value.color_space;
+                        let result_recorded_item_recorded_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                            let result_recorded_item_recorded_color_state_inner_bits_per_channel_inner = value;
+                            Some(result_recorded_item_recorded_color_state_inner_bits_per_channel_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_item_recorded_color_state_inner = DisplayColorState {
+                            hdr_mode: result_recorded_item_recorded_color_state_inner_hdr_mode,
+                            color_space: result_recorded_item_recorded_color_state_inner_color_space,
+                            bits_per_channel: result_recorded_item_recorded_color_state_inner_bits_per_channel,
+                        };
+                        Some(result_recorded_item_recorded_color_state_inner)
+                    } else {
+                        None
+                    };
                     let result_recorded_item_recorded = DisplaydescriptorReplayRecord {
                         backend: result_recorded_item_recorded_backend,
                         id: result_recorded_item_recorded_id,
@@ -30712,9 +35691,9 @@ fn destack_display_monitor_list_vm_replay(
                         scale_factor_milli: result_recorded_item_recorded_scale_factor_milli,
                         orientation: result_recorded_item_recorded_orientation,
                         builtin_panel: result_recorded_item_recorded_builtin_panel,
-                        variable_refresh_support:
-                            result_recorded_item_recorded_variable_refresh_support,
+                        variable_refresh_support: result_recorded_item_recorded_variable_refresh_support,
                         hdr_support: result_recorded_item_recorded_hdr_support,
+                        color_state: result_recorded_item_recorded_color_state,
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -30727,7 +35706,9 @@ fn destack_display_monitor_list_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
-                    DisplayMonitorListReplayRecord { result }
+                    DisplayMonitorListReplayRecord {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -30742,12 +35723,8 @@ fn destack_display_monitor_list_vm_replay(
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
                         let vm_result_item_value_backend = vm_result_item.backend;
-                        let vm_result_item_value_id = context
-                            .string_handle(vm_result_item.id.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_item_value_name = context
-                            .string_handle(vm_result_item.name.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_id = context.string_handle(vm_result_item.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_name = context.string_handle(vm_result_item.name.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_primary = vm_result_item.primary;
                         let vm_result_item_value_x = vm_result_item.x;
                         let vm_result_item_value_y = vm_result_item.y;
@@ -30755,19 +35732,33 @@ fn destack_display_monitor_list_vm_replay(
                         let vm_result_item_value_height_px = vm_result_item.height_px;
                         let vm_result_item_value_work_area_x = vm_result_item.work_area_x;
                         let vm_result_item_value_work_area_y = vm_result_item.work_area_y;
-                        let vm_result_item_value_work_area_width_px =
-                            vm_result_item.work_area_width_px;
-                        let vm_result_item_value_work_area_height_px =
-                            vm_result_item.work_area_height_px;
+                        let vm_result_item_value_work_area_width_px = vm_result_item.work_area_width_px;
+                        let vm_result_item_value_work_area_height_px = vm_result_item.work_area_height_px;
                         let vm_result_item_value_width_mm = vm_result_item.width_mm;
                         let vm_result_item_value_height_mm = vm_result_item.height_mm;
-                        let vm_result_item_value_scale_factor_milli =
-                            vm_result_item.scale_factor_milli;
+                        let vm_result_item_value_scale_factor_milli = vm_result_item.scale_factor_milli;
                         let vm_result_item_value_orientation = vm_result_item.orientation;
                         let vm_result_item_value_builtin_panel = vm_result_item.builtin_panel;
-                        let vm_result_item_value_variable_refresh_support =
-                            vm_result_item.variable_refresh_support;
+                        let vm_result_item_value_variable_refresh_support = vm_result_item.variable_refresh_support;
                         let vm_result_item_value_hdr_support = vm_result_item.hdr_support;
+                        let vm_result_item_value_color_state = if let Some(value) = vm_result_item.color_state {
+                            let vm_result_item_value_color_state_inner_hdr_mode = value.hdr_mode;
+                            let vm_result_item_value_color_state_inner_color_space = value.color_space;
+                            let vm_result_item_value_color_state_inner_bits_per_channel = if let Some(value) = value.bits_per_channel {
+                                let vm_result_item_value_color_state_inner_bits_per_channel_inner = value;
+                                Some(vm_result_item_value_color_state_inner_bits_per_channel_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_item_value_color_state_inner = DisplayColorState {
+                                hdr_mode: vm_result_item_value_color_state_inner_hdr_mode,
+                                color_space: vm_result_item_value_color_state_inner_color_space,
+                                bits_per_channel: vm_result_item_value_color_state_inner_bits_per_channel,
+                            };
+                            Some(vm_result_item_value_color_state_inner)
+                        } else {
+                            None
+                        };
                         let vm_result_item_value = DisplayDescriptorVm {
                             backend: vm_result_item_value_backend,
                             id: vm_result_item_value_id,
@@ -30788,6 +35779,7 @@ fn destack_display_monitor_list_vm_replay(
                             builtin_panel: vm_result_item_value_builtin_panel,
                             variable_refresh_support: vm_result_item_value_variable_refresh_support,
                             hdr_support: vm_result_item_value_hdr_support,
+                            color_state: vm_result_item_value_color_state,
                         };
                         vm_result_values.push(vm_result_item_value);
                     }
@@ -30855,8 +35847,10 @@ fn destack_display_monitor_modes_vm_replay(
                             "result_recorded_item_refresh_milli_hz",
                             "refreshMilliHz",
                         )?;
+                        let result_recorded_item_format_inner =
+                            decode_uint32(slots[3], "result_recorded_item_format_inner", "format")?;
                         let result_recorded_item_format =
-                            decode_uint32(slots[3], "result_recorded_item_format", "format")?;
+                            DisplayPixelFormat(result_recorded_item_format_inner);
                         let result_recorded_item_bit_depth =
                             decode_uint16(slots[4], "result_recorded_item_bit_depth", "bitDepth")?;
                         DisplayModeVm {
@@ -31273,6 +36267,82 @@ fn destack_display_window_close_vm_replay(
 }
 
 #[inline]
+fn destack_display_window_content_rect_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DISPLAY_WINDOW_CONTENT_RECT,
+        binding.replay_payload_for(DISPLAY_WINDOW_CONTENT_RECT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_window_content_rect(binding, context, window)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_display_window_content_rect(
+                    binding, context, window,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: WindowLogicalRectVm = value.clone();
+                let result_recorded_x = result_value.x;
+                let result_recorded_y = result_value.y;
+                let result_recorded_width = result_value.width;
+                let result_recorded_height = result_value.height;
+                let result_recorded = WindowLogicalRect {
+                    x: result_recorded_x,
+                    y: result_recorded_y,
+                    width: result_recorded_width,
+                    height: result_recorded_height,
+                };
+                let payload = DisplayWindowContentRectReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DisplayWindowContentRectReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_x = value.x;
+                    let vm_result_y = value.y;
+                    let vm_result_width = value.width;
+                    let vm_result_height = value.height;
+                    let vm_result = WindowLogicalRect {
+                        x: vm_result_x,
+                        y: vm_result_y,
+                        width: vm_result_width,
+                        height: vm_result_height,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_display_window_content_rect_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_display_window_descriptor_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -31362,12 +36432,6 @@ fn destack_display_window_descriptor_vm_replay(
                         WindowmodeoptionsReplayRecord::WindowWindowedModeOptions(result_recorded_mode_window_windowed_mode_options)
                     }
                 };
-                let result_recorded_display = if let Some(value) = result_value.display {
-                    let result_recorded_display_inner = value;
-                    Some(result_recorded_display_inner)
-                } else {
-                    None
-                };
                 let result_recorded_resizable = result_value.resizable;
                 let result_recorded_decorated = result_value.decorated;
                 let result_recorded_chrome = result_value.chrome;
@@ -31406,7 +36470,6 @@ fn destack_display_window_descriptor_vm_replay(
                     title: result_recorded_title,
                     role: result_recorded_role,
                     mode: result_recorded_mode,
-                    display: result_recorded_display,
                     resizable: result_recorded_resizable,
                     decorated: result_recorded_decorated,
                     chrome: result_recorded_chrome,
@@ -31497,12 +36560,6 @@ fn destack_display_window_descriptor_vm_replay(
                             WindowModeOptionsVm::WindowWindowedModeOptions(vm_result_mode_window_windowed_mode_options)
                         }
                     };
-                    let vm_result_display = if let Some(value) = value.display {
-                        let vm_result_display_inner = value;
-                        Some(vm_result_display_inner)
-                    } else {
-                        None
-                    };
                     let vm_result_resizable = value.resizable;
                     let vm_result_decorated = value.decorated;
                     let vm_result_chrome = value.chrome;
@@ -31541,7 +36598,6 @@ fn destack_display_window_descriptor_vm_replay(
                         title: vm_result_title,
                         role: vm_result_role,
                         mode: vm_result_mode,
-                        display: vm_result_display,
                         resizable: vm_result_resizable,
                         decorated: vm_result_decorated,
                         chrome: vm_result_chrome,
@@ -31798,6 +36854,54 @@ fn destack_display_window_event_read_vm_replay(
                             metadata: result_recorded_window_close_requested_event_metadata,
                         };
                         WindoweventReplayRecord::WindowCloseRequestedEvent(result_recorded_window_close_requested_event)
+                    }
+                    WindowEventVm::WindowContentRectChangedEvent(value) => {
+                        let result_recorded_window_content_rect_changed_event_kind = {
+                            let result_recorded_window_content_rect_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_window_content_rect_changed_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_window_content_rect_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_window_content_rect_changed_event_metadata_window = value.metadata.window;
+                        let result_recorded_window_content_rect_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_window_content_rect_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_window_content_rect_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_window_content_rect_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_content_rect_changed_event_metadata_backend,
+                            window: result_recorded_window_content_rect_changed_event_metadata_window,
+                            timestamp_ns: result_recorded_window_content_rect_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_window_content_rect_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_window_content_rect_changed_event_metadata_dropped_count,
+                        };
+                        let result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_x = value.payload.previous_content_rect_logical.x;
+                        let result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_y = value.payload.previous_content_rect_logical.y;
+                        let result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_width = value.payload.previous_content_rect_logical.width;
+                        let result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_height = value.payload.previous_content_rect_logical.height;
+                        let result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical = WindowLogicalRect {
+                            x: result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_x,
+                            y: result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_y,
+                            width: result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_width,
+                            height: result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_height,
+                        };
+                        let result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_x = value.payload.current_content_rect_logical.x;
+                        let result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_y = value.payload.current_content_rect_logical.y;
+                        let result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_width = value.payload.current_content_rect_logical.width;
+                        let result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_height = value.payload.current_content_rect_logical.height;
+                        let result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical = WindowLogicalRect {
+                            x: result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_x,
+                            y: result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_y,
+                            width: result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_width,
+                            height: result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_height,
+                        };
+                        let result_recorded_window_content_rect_changed_event_payload = WindowContentRectPayload {
+                            previous_content_rect_logical: result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical,
+                            current_content_rect_logical: result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical,
+                        };
+                        let result_recorded_window_content_rect_changed_event = WindowcontentrectchangedeventReplayRecord {
+                            kind: result_recorded_window_content_rect_changed_event_kind,
+                            metadata: result_recorded_window_content_rect_changed_event_metadata,
+                            payload: result_recorded_window_content_rect_changed_event_payload,
+                        };
+                        WindoweventReplayRecord::WindowContentRectChangedEvent(result_recorded_window_content_rect_changed_event)
                     }
                     WindowEventVm::WindowCreatedEvent(value) => {
                         let result_recorded_window_created_event_kind = {
@@ -32218,6 +37322,46 @@ fn destack_display_window_event_read_vm_replay(
                         };
                         WindoweventReplayRecord::WindowFocusChangedEvent(result_recorded_window_focus_changed_event)
                     }
+                    WindowEventVm::WindowFramebufferSizeChangedEvent(value) => {
+                        let result_recorded_window_framebuffer_size_changed_event_kind = {
+                            let result_recorded_window_framebuffer_size_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_window_framebuffer_size_changed_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_window_framebuffer_size_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_window_framebuffer_size_changed_event_metadata_window = value.metadata.window;
+                        let result_recorded_window_framebuffer_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_window_framebuffer_size_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_window_framebuffer_size_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_window_framebuffer_size_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_framebuffer_size_changed_event_metadata_backend,
+                            window: result_recorded_window_framebuffer_size_changed_event_metadata_window,
+                            timestamp_ns: result_recorded_window_framebuffer_size_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_window_framebuffer_size_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_window_framebuffer_size_changed_event_metadata_dropped_count,
+                        };
+                        let result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width = value.payload.previous_framebuffer_size.width;
+                        let result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height = value.payload.previous_framebuffer_size.height;
+                        let result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size = WindowPhysicalSize {
+                            width: result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width,
+                            height: result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height,
+                        };
+                        let result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width = value.payload.current_framebuffer_size.width;
+                        let result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height = value.payload.current_framebuffer_size.height;
+                        let result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size = WindowPhysicalSize {
+                            width: result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width,
+                            height: result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height,
+                        };
+                        let result_recorded_window_framebuffer_size_changed_event_payload = WindowFramebufferSizePayload {
+                            previous_framebuffer_size: result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size,
+                            current_framebuffer_size: result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size,
+                        };
+                        let result_recorded_window_framebuffer_size_changed_event = WindowframebuffersizechangedeventReplayRecord {
+                            kind: result_recorded_window_framebuffer_size_changed_event_kind,
+                            metadata: result_recorded_window_framebuffer_size_changed_event_metadata,
+                            payload: result_recorded_window_framebuffer_size_changed_event_payload,
+                        };
+                        WindoweventReplayRecord::WindowFramebufferSizeChangedEvent(result_recorded_window_framebuffer_size_changed_event)
+                    }
                     WindowEventVm::WindowModalChangedEvent(value) => {
                         let result_recorded_window_modal_changed_event_kind = {
                             let result_recorded_window_modal_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -32564,28 +37708,35 @@ fn destack_display_window_event_read_vm_replay(
                         };
                         WindoweventReplayRecord::WindowPositionChangedEvent(result_recorded_window_position_changed_event)
                     }
-                    WindowEventVm::WindowRefreshRequestedEvent(value) => {
-                        let result_recorded_window_refresh_requested_event_kind = {
-                            let result_recorded_window_refresh_requested_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_window_refresh_requested_event_kind_ref.as_str().to_string()
+                    WindowEventVm::WindowRenderStateChangedEvent(value) => {
+                        let result_recorded_window_render_state_changed_event_kind = {
+                            let result_recorded_window_render_state_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_window_render_state_changed_event_kind_ref.as_str().to_string()
                         };
-                        let result_recorded_window_refresh_requested_event_metadata_backend = value.metadata.backend;
-                        let result_recorded_window_refresh_requested_event_metadata_window = value.metadata.window;
-                        let result_recorded_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_window_refresh_requested_event_metadata_dropped_count = value.metadata.dropped_count;
-                        let result_recorded_window_refresh_requested_event_metadata = WindowEventMetadata {
-                            backend: result_recorded_window_refresh_requested_event_metadata_backend,
-                            window: result_recorded_window_refresh_requested_event_metadata_window,
-                            timestamp_ns: result_recorded_window_refresh_requested_event_metadata_timestamp_ns,
-                            sequence: result_recorded_window_refresh_requested_event_metadata_sequence,
-                            dropped_count: result_recorded_window_refresh_requested_event_metadata_dropped_count,
+                        let result_recorded_window_render_state_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_window_render_state_changed_event_metadata_window = value.metadata.window;
+                        let result_recorded_window_render_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_window_render_state_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_window_render_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_window_render_state_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_render_state_changed_event_metadata_backend,
+                            window: result_recorded_window_render_state_changed_event_metadata_window,
+                            timestamp_ns: result_recorded_window_render_state_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_window_render_state_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_window_render_state_changed_event_metadata_dropped_count,
                         };
-                        let result_recorded_window_refresh_requested_event = WindowrefreshrequestedeventReplayRecord {
-                            kind: result_recorded_window_refresh_requested_event_kind,
-                            metadata: result_recorded_window_refresh_requested_event_metadata,
+                        let result_recorded_window_render_state_changed_event_payload_previous_render_state = value.payload.previous_render_state;
+                        let result_recorded_window_render_state_changed_event_payload_current_render_state = value.payload.current_render_state;
+                        let result_recorded_window_render_state_changed_event_payload = WindowRenderStatePayload {
+                            previous_render_state: result_recorded_window_render_state_changed_event_payload_previous_render_state,
+                            current_render_state: result_recorded_window_render_state_changed_event_payload_current_render_state,
                         };
-                        WindoweventReplayRecord::WindowRefreshRequestedEvent(result_recorded_window_refresh_requested_event)
+                        let result_recorded_window_render_state_changed_event = WindowrenderstatechangedeventReplayRecord {
+                            kind: result_recorded_window_render_state_changed_event_kind,
+                            metadata: result_recorded_window_render_state_changed_event_metadata,
+                            payload: result_recorded_window_render_state_changed_event_payload,
+                        };
+                        WindoweventReplayRecord::WindowRenderStateChangedEvent(result_recorded_window_render_state_changed_event)
                     }
                     WindowEventVm::WindowSafeAreaChangedEvent(value) => {
                         let result_recorded_window_safe_area_changed_event_kind = {
@@ -33021,6 +38172,51 @@ fn destack_display_window_event_read_vm_replay(
                             };
                             WindowEventVm::WindowCloseRequestedEvent(vm_result_window_close_requested_event)
                         }
+                        WindoweventReplayRecord::WindowContentRectChangedEvent(value) => {
+                            let vm_result_window_content_rect_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_window_content_rect_changed_event_metadata_backend = value.metadata.backend;
+                            let vm_result_window_content_rect_changed_event_metadata_window = value.metadata.window;
+                            let vm_result_window_content_rect_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_window_content_rect_changed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_window_content_rect_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_window_content_rect_changed_event_metadata = WindowEventMetadata {
+                                backend: vm_result_window_content_rect_changed_event_metadata_backend,
+                                window: vm_result_window_content_rect_changed_event_metadata_window,
+                                timestamp_ns: vm_result_window_content_rect_changed_event_metadata_timestamp_ns,
+                                sequence: vm_result_window_content_rect_changed_event_metadata_sequence,
+                                dropped_count: vm_result_window_content_rect_changed_event_metadata_dropped_count,
+                            };
+                            let vm_result_window_content_rect_changed_event_payload_previous_content_rect_logical_x = value.payload.previous_content_rect_logical.x;
+                            let vm_result_window_content_rect_changed_event_payload_previous_content_rect_logical_y = value.payload.previous_content_rect_logical.y;
+                            let vm_result_window_content_rect_changed_event_payload_previous_content_rect_logical_width = value.payload.previous_content_rect_logical.width;
+                            let vm_result_window_content_rect_changed_event_payload_previous_content_rect_logical_height = value.payload.previous_content_rect_logical.height;
+                            let vm_result_window_content_rect_changed_event_payload_previous_content_rect_logical = WindowLogicalRect {
+                                x: vm_result_window_content_rect_changed_event_payload_previous_content_rect_logical_x,
+                                y: vm_result_window_content_rect_changed_event_payload_previous_content_rect_logical_y,
+                                width: vm_result_window_content_rect_changed_event_payload_previous_content_rect_logical_width,
+                                height: vm_result_window_content_rect_changed_event_payload_previous_content_rect_logical_height,
+                            };
+                            let vm_result_window_content_rect_changed_event_payload_current_content_rect_logical_x = value.payload.current_content_rect_logical.x;
+                            let vm_result_window_content_rect_changed_event_payload_current_content_rect_logical_y = value.payload.current_content_rect_logical.y;
+                            let vm_result_window_content_rect_changed_event_payload_current_content_rect_logical_width = value.payload.current_content_rect_logical.width;
+                            let vm_result_window_content_rect_changed_event_payload_current_content_rect_logical_height = value.payload.current_content_rect_logical.height;
+                            let vm_result_window_content_rect_changed_event_payload_current_content_rect_logical = WindowLogicalRect {
+                                x: vm_result_window_content_rect_changed_event_payload_current_content_rect_logical_x,
+                                y: vm_result_window_content_rect_changed_event_payload_current_content_rect_logical_y,
+                                width: vm_result_window_content_rect_changed_event_payload_current_content_rect_logical_width,
+                                height: vm_result_window_content_rect_changed_event_payload_current_content_rect_logical_height,
+                            };
+                            let vm_result_window_content_rect_changed_event_payload = WindowContentRectPayload {
+                                previous_content_rect_logical: vm_result_window_content_rect_changed_event_payload_previous_content_rect_logical,
+                                current_content_rect_logical: vm_result_window_content_rect_changed_event_payload_current_content_rect_logical,
+                            };
+                            let vm_result_window_content_rect_changed_event = WindowContentRectChangedEventVm {
+                                kind: vm_result_window_content_rect_changed_event_kind,
+                                metadata: vm_result_window_content_rect_changed_event_metadata,
+                                payload: vm_result_window_content_rect_changed_event_payload,
+                            };
+                            WindowEventVm::WindowContentRectChangedEvent(vm_result_window_content_rect_changed_event)
+                        }
                         WindoweventReplayRecord::WindowCreatedEvent(value) => {
                             let vm_result_window_created_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_window_created_event_metadata_backend = value.metadata.backend;
@@ -33389,6 +38585,43 @@ fn destack_display_window_event_read_vm_replay(
                             };
                             WindowEventVm::WindowFocusChangedEvent(vm_result_window_focus_changed_event)
                         }
+                        WindoweventReplayRecord::WindowFramebufferSizeChangedEvent(value) => {
+                            let vm_result_window_framebuffer_size_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_window_framebuffer_size_changed_event_metadata_backend = value.metadata.backend;
+                            let vm_result_window_framebuffer_size_changed_event_metadata_window = value.metadata.window;
+                            let vm_result_window_framebuffer_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_window_framebuffer_size_changed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_window_framebuffer_size_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_window_framebuffer_size_changed_event_metadata = WindowEventMetadata {
+                                backend: vm_result_window_framebuffer_size_changed_event_metadata_backend,
+                                window: vm_result_window_framebuffer_size_changed_event_metadata_window,
+                                timestamp_ns: vm_result_window_framebuffer_size_changed_event_metadata_timestamp_ns,
+                                sequence: vm_result_window_framebuffer_size_changed_event_metadata_sequence,
+                                dropped_count: vm_result_window_framebuffer_size_changed_event_metadata_dropped_count,
+                            };
+                            let vm_result_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width = value.payload.previous_framebuffer_size.width;
+                            let vm_result_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height = value.payload.previous_framebuffer_size.height;
+                            let vm_result_window_framebuffer_size_changed_event_payload_previous_framebuffer_size = WindowPhysicalSize {
+                                width: vm_result_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width,
+                                height: vm_result_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height,
+                            };
+                            let vm_result_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width = value.payload.current_framebuffer_size.width;
+                            let vm_result_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height = value.payload.current_framebuffer_size.height;
+                            let vm_result_window_framebuffer_size_changed_event_payload_current_framebuffer_size = WindowPhysicalSize {
+                                width: vm_result_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width,
+                                height: vm_result_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height,
+                            };
+                            let vm_result_window_framebuffer_size_changed_event_payload = WindowFramebufferSizePayload {
+                                previous_framebuffer_size: vm_result_window_framebuffer_size_changed_event_payload_previous_framebuffer_size,
+                                current_framebuffer_size: vm_result_window_framebuffer_size_changed_event_payload_current_framebuffer_size,
+                            };
+                            let vm_result_window_framebuffer_size_changed_event = WindowFramebufferSizeChangedEventVm {
+                                kind: vm_result_window_framebuffer_size_changed_event_kind,
+                                metadata: vm_result_window_framebuffer_size_changed_event_metadata,
+                                payload: vm_result_window_framebuffer_size_changed_event_payload,
+                            };
+                            WindowEventVm::WindowFramebufferSizeChangedEvent(vm_result_window_framebuffer_size_changed_event)
+                        }
                         WindoweventReplayRecord::WindowModalChangedEvent(value) => {
                             let vm_result_window_modal_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_window_modal_changed_event_metadata_backend = value.metadata.backend;
@@ -33696,25 +38929,32 @@ fn destack_display_window_event_read_vm_replay(
                             };
                             WindowEventVm::WindowPositionChangedEvent(vm_result_window_position_changed_event)
                         }
-                        WindoweventReplayRecord::WindowRefreshRequestedEvent(value) => {
-                            let vm_result_window_refresh_requested_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_window_refresh_requested_event_metadata_backend = value.metadata.backend;
-                            let vm_result_window_refresh_requested_event_metadata_window = value.metadata.window;
-                            let vm_result_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let vm_result_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_window_refresh_requested_event_metadata_dropped_count = value.metadata.dropped_count;
-                            let vm_result_window_refresh_requested_event_metadata = WindowEventMetadata {
-                                backend: vm_result_window_refresh_requested_event_metadata_backend,
-                                window: vm_result_window_refresh_requested_event_metadata_window,
-                                timestamp_ns: vm_result_window_refresh_requested_event_metadata_timestamp_ns,
-                                sequence: vm_result_window_refresh_requested_event_metadata_sequence,
-                                dropped_count: vm_result_window_refresh_requested_event_metadata_dropped_count,
+                        WindoweventReplayRecord::WindowRenderStateChangedEvent(value) => {
+                            let vm_result_window_render_state_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_window_render_state_changed_event_metadata_backend = value.metadata.backend;
+                            let vm_result_window_render_state_changed_event_metadata_window = value.metadata.window;
+                            let vm_result_window_render_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_window_render_state_changed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_window_render_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_window_render_state_changed_event_metadata = WindowEventMetadata {
+                                backend: vm_result_window_render_state_changed_event_metadata_backend,
+                                window: vm_result_window_render_state_changed_event_metadata_window,
+                                timestamp_ns: vm_result_window_render_state_changed_event_metadata_timestamp_ns,
+                                sequence: vm_result_window_render_state_changed_event_metadata_sequence,
+                                dropped_count: vm_result_window_render_state_changed_event_metadata_dropped_count,
                             };
-                            let vm_result_window_refresh_requested_event = WindowRefreshRequestedEventVm {
-                                kind: vm_result_window_refresh_requested_event_kind,
-                                metadata: vm_result_window_refresh_requested_event_metadata,
+                            let vm_result_window_render_state_changed_event_payload_previous_render_state = value.payload.previous_render_state;
+                            let vm_result_window_render_state_changed_event_payload_current_render_state = value.payload.current_render_state;
+                            let vm_result_window_render_state_changed_event_payload = WindowRenderStatePayload {
+                                previous_render_state: vm_result_window_render_state_changed_event_payload_previous_render_state,
+                                current_render_state: vm_result_window_render_state_changed_event_payload_current_render_state,
                             };
-                            WindowEventVm::WindowRefreshRequestedEvent(vm_result_window_refresh_requested_event)
+                            let vm_result_window_render_state_changed_event = WindowRenderStateChangedEventVm {
+                                kind: vm_result_window_render_state_changed_event_kind,
+                                metadata: vm_result_window_render_state_changed_event_metadata,
+                                payload: vm_result_window_render_state_changed_event_payload,
+                            };
+                            WindowEventVm::WindowRenderStateChangedEvent(vm_result_window_render_state_changed_event)
                         }
                         WindoweventReplayRecord::WindowSafeAreaChangedEvent(value) => {
                             let vm_result_window_safe_area_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -34146,6 +39386,54 @@ fn destack_display_window_event_read_batch_vm_replay(
                             };
                             WindoweventReplayRecord::WindowCloseRequestedEvent(result_recorded_item_recorded_window_close_requested_event)
                         }
+                        WindowEventVm::WindowContentRectChangedEvent(value) => {
+                            let result_recorded_item_recorded_window_content_rect_changed_event_kind = {
+                                let result_recorded_item_recorded_window_content_rect_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_window_content_rect_changed_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata_window = value.metadata.window;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_content_rect_changed_event_metadata_backend,
+                                window: result_recorded_item_recorded_window_content_rect_changed_event_metadata_window,
+                                timestamp_ns: result_recorded_item_recorded_window_content_rect_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_window_content_rect_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_window_content_rect_changed_event_metadata_dropped_count,
+                            };
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_x = value.payload.previous_content_rect_logical.x;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_y = value.payload.previous_content_rect_logical.y;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_width = value.payload.previous_content_rect_logical.width;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_height = value.payload.previous_content_rect_logical.height;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical = WindowLogicalRect {
+                                x: result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_x,
+                                y: result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_y,
+                                width: result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_width,
+                                height: result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_height,
+                            };
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_x = value.payload.current_content_rect_logical.x;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_y = value.payload.current_content_rect_logical.y;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_width = value.payload.current_content_rect_logical.width;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_height = value.payload.current_content_rect_logical.height;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical = WindowLogicalRect {
+                                x: result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_x,
+                                y: result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_y,
+                                width: result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_width,
+                                height: result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_height,
+                            };
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload = WindowContentRectPayload {
+                                previous_content_rect_logical: result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical,
+                                current_content_rect_logical: result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical,
+                            };
+                            let result_recorded_item_recorded_window_content_rect_changed_event = WindowcontentrectchangedeventReplayRecord {
+                                kind: result_recorded_item_recorded_window_content_rect_changed_event_kind,
+                                metadata: result_recorded_item_recorded_window_content_rect_changed_event_metadata,
+                                payload: result_recorded_item_recorded_window_content_rect_changed_event_payload,
+                            };
+                            WindoweventReplayRecord::WindowContentRectChangedEvent(result_recorded_item_recorded_window_content_rect_changed_event)
+                        }
                         WindowEventVm::WindowCreatedEvent(value) => {
                             let result_recorded_item_recorded_window_created_event_kind = {
                                 let result_recorded_item_recorded_window_created_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -34565,6 +39853,46 @@ fn destack_display_window_event_read_batch_vm_replay(
                             };
                             WindoweventReplayRecord::WindowFocusChangedEvent(result_recorded_item_recorded_window_focus_changed_event)
                         }
+                        WindowEventVm::WindowFramebufferSizeChangedEvent(value) => {
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_kind = {
+                                let result_recorded_item_recorded_window_framebuffer_size_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_window_framebuffer_size_changed_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_window = value.metadata.window;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_backend,
+                                window: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_window,
+                                timestamp_ns: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_dropped_count,
+                            };
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width = value.payload.previous_framebuffer_size.width;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height = value.payload.previous_framebuffer_size.height;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size = WindowPhysicalSize {
+                                width: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width,
+                                height: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height,
+                            };
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width = value.payload.current_framebuffer_size.width;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height = value.payload.current_framebuffer_size.height;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size = WindowPhysicalSize {
+                                width: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width,
+                                height: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height,
+                            };
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload = WindowFramebufferSizePayload {
+                                previous_framebuffer_size: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size,
+                                current_framebuffer_size: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size,
+                            };
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event = WindowframebuffersizechangedeventReplayRecord {
+                                kind: result_recorded_item_recorded_window_framebuffer_size_changed_event_kind,
+                                metadata: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata,
+                                payload: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload,
+                            };
+                            WindoweventReplayRecord::WindowFramebufferSizeChangedEvent(result_recorded_item_recorded_window_framebuffer_size_changed_event)
+                        }
                         WindowEventVm::WindowModalChangedEvent(value) => {
                             let result_recorded_item_recorded_window_modal_changed_event_kind = {
                                 let result_recorded_item_recorded_window_modal_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -34911,28 +40239,35 @@ fn destack_display_window_event_read_batch_vm_replay(
                             };
                             WindoweventReplayRecord::WindowPositionChangedEvent(result_recorded_item_recorded_window_position_changed_event)
                         }
-                        WindowEventVm::WindowRefreshRequestedEvent(value) => {
-                            let result_recorded_item_recorded_window_refresh_requested_event_kind = {
-                                let result_recorded_item_recorded_window_refresh_requested_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_item_recorded_window_refresh_requested_event_kind_ref.as_str().to_string()
+                        WindowEventVm::WindowRenderStateChangedEvent(value) => {
+                            let result_recorded_item_recorded_window_render_state_changed_event_kind = {
+                                let result_recorded_item_recorded_window_render_state_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_window_render_state_changed_event_kind_ref.as_str().to_string()
                             };
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_backend = value.metadata.backend;
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_window = value.metadata.window;
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_dropped_count = value.metadata.dropped_count;
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata = WindowEventMetadata {
-                                backend: result_recorded_item_recorded_window_refresh_requested_event_metadata_backend,
-                                window: result_recorded_item_recorded_window_refresh_requested_event_metadata_window,
-                                timestamp_ns: result_recorded_item_recorded_window_refresh_requested_event_metadata_timestamp_ns,
-                                sequence: result_recorded_item_recorded_window_refresh_requested_event_metadata_sequence,
-                                dropped_count: result_recorded_item_recorded_window_refresh_requested_event_metadata_dropped_count,
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata_window = value.metadata.window;
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_render_state_changed_event_metadata_backend,
+                                window: result_recorded_item_recorded_window_render_state_changed_event_metadata_window,
+                                timestamp_ns: result_recorded_item_recorded_window_render_state_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_window_render_state_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_window_render_state_changed_event_metadata_dropped_count,
                             };
-                            let result_recorded_item_recorded_window_refresh_requested_event = WindowrefreshrequestedeventReplayRecord {
-                                kind: result_recorded_item_recorded_window_refresh_requested_event_kind,
-                                metadata: result_recorded_item_recorded_window_refresh_requested_event_metadata,
+                            let result_recorded_item_recorded_window_render_state_changed_event_payload_previous_render_state = value.payload.previous_render_state;
+                            let result_recorded_item_recorded_window_render_state_changed_event_payload_current_render_state = value.payload.current_render_state;
+                            let result_recorded_item_recorded_window_render_state_changed_event_payload = WindowRenderStatePayload {
+                                previous_render_state: result_recorded_item_recorded_window_render_state_changed_event_payload_previous_render_state,
+                                current_render_state: result_recorded_item_recorded_window_render_state_changed_event_payload_current_render_state,
                             };
-                            WindoweventReplayRecord::WindowRefreshRequestedEvent(result_recorded_item_recorded_window_refresh_requested_event)
+                            let result_recorded_item_recorded_window_render_state_changed_event = WindowrenderstatechangedeventReplayRecord {
+                                kind: result_recorded_item_recorded_window_render_state_changed_event_kind,
+                                metadata: result_recorded_item_recorded_window_render_state_changed_event_metadata,
+                                payload: result_recorded_item_recorded_window_render_state_changed_event_payload,
+                            };
+                            WindoweventReplayRecord::WindowRenderStateChangedEvent(result_recorded_item_recorded_window_render_state_changed_event)
                         }
                         WindowEventVm::WindowSafeAreaChangedEvent(value) => {
                             let result_recorded_item_recorded_window_safe_area_changed_event_kind = {
@@ -35372,6 +40707,51 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 };
                                 WindowEventVm::WindowCloseRequestedEvent(vm_result_item_value_window_close_requested_event)
                             }
+                            WindoweventReplayRecord::WindowContentRectChangedEvent(value) => {
+                                let vm_result_item_value_window_content_rect_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_window_content_rect_changed_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_window_content_rect_changed_event_metadata_window = value.metadata.window;
+                                let vm_result_item_value_window_content_rect_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_window_content_rect_changed_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_window_content_rect_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_window_content_rect_changed_event_metadata = WindowEventMetadata {
+                                    backend: vm_result_item_value_window_content_rect_changed_event_metadata_backend,
+                                    window: vm_result_item_value_window_content_rect_changed_event_metadata_window,
+                                    timestamp_ns: vm_result_item_value_window_content_rect_changed_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_window_content_rect_changed_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_window_content_rect_changed_event_metadata_dropped_count,
+                                };
+                                let vm_result_item_value_window_content_rect_changed_event_payload_previous_content_rect_logical_x = value.payload.previous_content_rect_logical.x;
+                                let vm_result_item_value_window_content_rect_changed_event_payload_previous_content_rect_logical_y = value.payload.previous_content_rect_logical.y;
+                                let vm_result_item_value_window_content_rect_changed_event_payload_previous_content_rect_logical_width = value.payload.previous_content_rect_logical.width;
+                                let vm_result_item_value_window_content_rect_changed_event_payload_previous_content_rect_logical_height = value.payload.previous_content_rect_logical.height;
+                                let vm_result_item_value_window_content_rect_changed_event_payload_previous_content_rect_logical = WindowLogicalRect {
+                                    x: vm_result_item_value_window_content_rect_changed_event_payload_previous_content_rect_logical_x,
+                                    y: vm_result_item_value_window_content_rect_changed_event_payload_previous_content_rect_logical_y,
+                                    width: vm_result_item_value_window_content_rect_changed_event_payload_previous_content_rect_logical_width,
+                                    height: vm_result_item_value_window_content_rect_changed_event_payload_previous_content_rect_logical_height,
+                                };
+                                let vm_result_item_value_window_content_rect_changed_event_payload_current_content_rect_logical_x = value.payload.current_content_rect_logical.x;
+                                let vm_result_item_value_window_content_rect_changed_event_payload_current_content_rect_logical_y = value.payload.current_content_rect_logical.y;
+                                let vm_result_item_value_window_content_rect_changed_event_payload_current_content_rect_logical_width = value.payload.current_content_rect_logical.width;
+                                let vm_result_item_value_window_content_rect_changed_event_payload_current_content_rect_logical_height = value.payload.current_content_rect_logical.height;
+                                let vm_result_item_value_window_content_rect_changed_event_payload_current_content_rect_logical = WindowLogicalRect {
+                                    x: vm_result_item_value_window_content_rect_changed_event_payload_current_content_rect_logical_x,
+                                    y: vm_result_item_value_window_content_rect_changed_event_payload_current_content_rect_logical_y,
+                                    width: vm_result_item_value_window_content_rect_changed_event_payload_current_content_rect_logical_width,
+                                    height: vm_result_item_value_window_content_rect_changed_event_payload_current_content_rect_logical_height,
+                                };
+                                let vm_result_item_value_window_content_rect_changed_event_payload = WindowContentRectPayload {
+                                    previous_content_rect_logical: vm_result_item_value_window_content_rect_changed_event_payload_previous_content_rect_logical,
+                                    current_content_rect_logical: vm_result_item_value_window_content_rect_changed_event_payload_current_content_rect_logical,
+                                };
+                                let vm_result_item_value_window_content_rect_changed_event = WindowContentRectChangedEventVm {
+                                    kind: vm_result_item_value_window_content_rect_changed_event_kind,
+                                    metadata: vm_result_item_value_window_content_rect_changed_event_metadata,
+                                    payload: vm_result_item_value_window_content_rect_changed_event_payload,
+                                };
+                                WindowEventVm::WindowContentRectChangedEvent(vm_result_item_value_window_content_rect_changed_event)
+                            }
                             WindoweventReplayRecord::WindowCreatedEvent(value) => {
                                 let vm_result_item_value_window_created_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_window_created_event_metadata_backend = value.metadata.backend;
@@ -35740,6 +41120,43 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 };
                                 WindowEventVm::WindowFocusChangedEvent(vm_result_item_value_window_focus_changed_event)
                             }
+                            WindoweventReplayRecord::WindowFramebufferSizeChangedEvent(value) => {
+                                let vm_result_item_value_window_framebuffer_size_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_window_framebuffer_size_changed_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_window_framebuffer_size_changed_event_metadata_window = value.metadata.window;
+                                let vm_result_item_value_window_framebuffer_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_window_framebuffer_size_changed_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_window_framebuffer_size_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_window_framebuffer_size_changed_event_metadata = WindowEventMetadata {
+                                    backend: vm_result_item_value_window_framebuffer_size_changed_event_metadata_backend,
+                                    window: vm_result_item_value_window_framebuffer_size_changed_event_metadata_window,
+                                    timestamp_ns: vm_result_item_value_window_framebuffer_size_changed_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_window_framebuffer_size_changed_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_window_framebuffer_size_changed_event_metadata_dropped_count,
+                                };
+                                let vm_result_item_value_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width = value.payload.previous_framebuffer_size.width;
+                                let vm_result_item_value_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height = value.payload.previous_framebuffer_size.height;
+                                let vm_result_item_value_window_framebuffer_size_changed_event_payload_previous_framebuffer_size = WindowPhysicalSize {
+                                    width: vm_result_item_value_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width,
+                                    height: vm_result_item_value_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height,
+                                };
+                                let vm_result_item_value_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width = value.payload.current_framebuffer_size.width;
+                                let vm_result_item_value_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height = value.payload.current_framebuffer_size.height;
+                                let vm_result_item_value_window_framebuffer_size_changed_event_payload_current_framebuffer_size = WindowPhysicalSize {
+                                    width: vm_result_item_value_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width,
+                                    height: vm_result_item_value_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height,
+                                };
+                                let vm_result_item_value_window_framebuffer_size_changed_event_payload = WindowFramebufferSizePayload {
+                                    previous_framebuffer_size: vm_result_item_value_window_framebuffer_size_changed_event_payload_previous_framebuffer_size,
+                                    current_framebuffer_size: vm_result_item_value_window_framebuffer_size_changed_event_payload_current_framebuffer_size,
+                                };
+                                let vm_result_item_value_window_framebuffer_size_changed_event = WindowFramebufferSizeChangedEventVm {
+                                    kind: vm_result_item_value_window_framebuffer_size_changed_event_kind,
+                                    metadata: vm_result_item_value_window_framebuffer_size_changed_event_metadata,
+                                    payload: vm_result_item_value_window_framebuffer_size_changed_event_payload,
+                                };
+                                WindowEventVm::WindowFramebufferSizeChangedEvent(vm_result_item_value_window_framebuffer_size_changed_event)
+                            }
                             WindoweventReplayRecord::WindowModalChangedEvent(value) => {
                                 let vm_result_item_value_window_modal_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_window_modal_changed_event_metadata_backend = value.metadata.backend;
@@ -36047,25 +41464,32 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 };
                                 WindowEventVm::WindowPositionChangedEvent(vm_result_item_value_window_position_changed_event)
                             }
-                            WindoweventReplayRecord::WindowRefreshRequestedEvent(value) => {
-                                let vm_result_item_value_window_refresh_requested_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                let vm_result_item_value_window_refresh_requested_event_metadata_backend = value.metadata.backend;
-                                let vm_result_item_value_window_refresh_requested_event_metadata_window = value.metadata.window;
-                                let vm_result_item_value_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let vm_result_item_value_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
-                                let vm_result_item_value_window_refresh_requested_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let vm_result_item_value_window_refresh_requested_event_metadata = WindowEventMetadata {
-                                    backend: vm_result_item_value_window_refresh_requested_event_metadata_backend,
-                                    window: vm_result_item_value_window_refresh_requested_event_metadata_window,
-                                    timestamp_ns: vm_result_item_value_window_refresh_requested_event_metadata_timestamp_ns,
-                                    sequence: vm_result_item_value_window_refresh_requested_event_metadata_sequence,
-                                    dropped_count: vm_result_item_value_window_refresh_requested_event_metadata_dropped_count,
+                            WindoweventReplayRecord::WindowRenderStateChangedEvent(value) => {
+                                let vm_result_item_value_window_render_state_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_window_render_state_changed_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_window_render_state_changed_event_metadata_window = value.metadata.window;
+                                let vm_result_item_value_window_render_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_window_render_state_changed_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_window_render_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_window_render_state_changed_event_metadata = WindowEventMetadata {
+                                    backend: vm_result_item_value_window_render_state_changed_event_metadata_backend,
+                                    window: vm_result_item_value_window_render_state_changed_event_metadata_window,
+                                    timestamp_ns: vm_result_item_value_window_render_state_changed_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_window_render_state_changed_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_window_render_state_changed_event_metadata_dropped_count,
                                 };
-                                let vm_result_item_value_window_refresh_requested_event = WindowRefreshRequestedEventVm {
-                                    kind: vm_result_item_value_window_refresh_requested_event_kind,
-                                    metadata: vm_result_item_value_window_refresh_requested_event_metadata,
+                                let vm_result_item_value_window_render_state_changed_event_payload_previous_render_state = value.payload.previous_render_state;
+                                let vm_result_item_value_window_render_state_changed_event_payload_current_render_state = value.payload.current_render_state;
+                                let vm_result_item_value_window_render_state_changed_event_payload = WindowRenderStatePayload {
+                                    previous_render_state: vm_result_item_value_window_render_state_changed_event_payload_previous_render_state,
+                                    current_render_state: vm_result_item_value_window_render_state_changed_event_payload_current_render_state,
                                 };
-                                WindowEventVm::WindowRefreshRequestedEvent(vm_result_item_value_window_refresh_requested_event)
+                                let vm_result_item_value_window_render_state_changed_event = WindowRenderStateChangedEventVm {
+                                    kind: vm_result_item_value_window_render_state_changed_event_kind,
+                                    metadata: vm_result_item_value_window_render_state_changed_event_metadata,
+                                    payload: vm_result_item_value_window_render_state_changed_event_payload,
+                                };
+                                WindowEventVm::WindowRenderStateChangedEvent(vm_result_item_value_window_render_state_changed_event)
                             }
                             WindoweventReplayRecord::WindowSafeAreaChangedEvent(value) => {
                                 let vm_result_item_value_window_safe_area_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -36494,6 +41918,54 @@ fn destack_display_window_event_try_read_vm_replay(
                         };
                         WindoweventReplayRecord::WindowCloseRequestedEvent(result_recorded_window_close_requested_event)
                     }
+                    WindowEventVm::WindowContentRectChangedEvent(value) => {
+                        let result_recorded_window_content_rect_changed_event_kind = {
+                            let result_recorded_window_content_rect_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_window_content_rect_changed_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_window_content_rect_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_window_content_rect_changed_event_metadata_window = value.metadata.window;
+                        let result_recorded_window_content_rect_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_window_content_rect_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_window_content_rect_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_window_content_rect_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_content_rect_changed_event_metadata_backend,
+                            window: result_recorded_window_content_rect_changed_event_metadata_window,
+                            timestamp_ns: result_recorded_window_content_rect_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_window_content_rect_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_window_content_rect_changed_event_metadata_dropped_count,
+                        };
+                        let result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_x = value.payload.previous_content_rect_logical.x;
+                        let result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_y = value.payload.previous_content_rect_logical.y;
+                        let result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_width = value.payload.previous_content_rect_logical.width;
+                        let result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_height = value.payload.previous_content_rect_logical.height;
+                        let result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical = WindowLogicalRect {
+                            x: result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_x,
+                            y: result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_y,
+                            width: result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_width,
+                            height: result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_height,
+                        };
+                        let result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_x = value.payload.current_content_rect_logical.x;
+                        let result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_y = value.payload.current_content_rect_logical.y;
+                        let result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_width = value.payload.current_content_rect_logical.width;
+                        let result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_height = value.payload.current_content_rect_logical.height;
+                        let result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical = WindowLogicalRect {
+                            x: result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_x,
+                            y: result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_y,
+                            width: result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_width,
+                            height: result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_height,
+                        };
+                        let result_recorded_window_content_rect_changed_event_payload = WindowContentRectPayload {
+                            previous_content_rect_logical: result_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical,
+                            current_content_rect_logical: result_recorded_window_content_rect_changed_event_payload_current_content_rect_logical,
+                        };
+                        let result_recorded_window_content_rect_changed_event = WindowcontentrectchangedeventReplayRecord {
+                            kind: result_recorded_window_content_rect_changed_event_kind,
+                            metadata: result_recorded_window_content_rect_changed_event_metadata,
+                            payload: result_recorded_window_content_rect_changed_event_payload,
+                        };
+                        WindoweventReplayRecord::WindowContentRectChangedEvent(result_recorded_window_content_rect_changed_event)
+                    }
                     WindowEventVm::WindowCreatedEvent(value) => {
                         let result_recorded_window_created_event_kind = {
                             let result_recorded_window_created_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -36913,6 +42385,46 @@ fn destack_display_window_event_try_read_vm_replay(
                         };
                         WindoweventReplayRecord::WindowFocusChangedEvent(result_recorded_window_focus_changed_event)
                     }
+                    WindowEventVm::WindowFramebufferSizeChangedEvent(value) => {
+                        let result_recorded_window_framebuffer_size_changed_event_kind = {
+                            let result_recorded_window_framebuffer_size_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_window_framebuffer_size_changed_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_window_framebuffer_size_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_window_framebuffer_size_changed_event_metadata_window = value.metadata.window;
+                        let result_recorded_window_framebuffer_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_window_framebuffer_size_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_window_framebuffer_size_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_window_framebuffer_size_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_framebuffer_size_changed_event_metadata_backend,
+                            window: result_recorded_window_framebuffer_size_changed_event_metadata_window,
+                            timestamp_ns: result_recorded_window_framebuffer_size_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_window_framebuffer_size_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_window_framebuffer_size_changed_event_metadata_dropped_count,
+                        };
+                        let result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width = value.payload.previous_framebuffer_size.width;
+                        let result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height = value.payload.previous_framebuffer_size.height;
+                        let result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size = WindowPhysicalSize {
+                            width: result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width,
+                            height: result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height,
+                        };
+                        let result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width = value.payload.current_framebuffer_size.width;
+                        let result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height = value.payload.current_framebuffer_size.height;
+                        let result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size = WindowPhysicalSize {
+                            width: result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width,
+                            height: result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height,
+                        };
+                        let result_recorded_window_framebuffer_size_changed_event_payload = WindowFramebufferSizePayload {
+                            previous_framebuffer_size: result_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size,
+                            current_framebuffer_size: result_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size,
+                        };
+                        let result_recorded_window_framebuffer_size_changed_event = WindowframebuffersizechangedeventReplayRecord {
+                            kind: result_recorded_window_framebuffer_size_changed_event_kind,
+                            metadata: result_recorded_window_framebuffer_size_changed_event_metadata,
+                            payload: result_recorded_window_framebuffer_size_changed_event_payload,
+                        };
+                        WindoweventReplayRecord::WindowFramebufferSizeChangedEvent(result_recorded_window_framebuffer_size_changed_event)
+                    }
                     WindowEventVm::WindowModalChangedEvent(value) => {
                         let result_recorded_window_modal_changed_event_kind = {
                             let result_recorded_window_modal_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -37259,28 +42771,35 @@ fn destack_display_window_event_try_read_vm_replay(
                         };
                         WindoweventReplayRecord::WindowPositionChangedEvent(result_recorded_window_position_changed_event)
                     }
-                    WindowEventVm::WindowRefreshRequestedEvent(value) => {
-                        let result_recorded_window_refresh_requested_event_kind = {
-                            let result_recorded_window_refresh_requested_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_window_refresh_requested_event_kind_ref.as_str().to_string()
+                    WindowEventVm::WindowRenderStateChangedEvent(value) => {
+                        let result_recorded_window_render_state_changed_event_kind = {
+                            let result_recorded_window_render_state_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_window_render_state_changed_event_kind_ref.as_str().to_string()
                         };
-                        let result_recorded_window_refresh_requested_event_metadata_backend = value.metadata.backend;
-                        let result_recorded_window_refresh_requested_event_metadata_window = value.metadata.window;
-                        let result_recorded_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_window_refresh_requested_event_metadata_dropped_count = value.metadata.dropped_count;
-                        let result_recorded_window_refresh_requested_event_metadata = WindowEventMetadata {
-                            backend: result_recorded_window_refresh_requested_event_metadata_backend,
-                            window: result_recorded_window_refresh_requested_event_metadata_window,
-                            timestamp_ns: result_recorded_window_refresh_requested_event_metadata_timestamp_ns,
-                            sequence: result_recorded_window_refresh_requested_event_metadata_sequence,
-                            dropped_count: result_recorded_window_refresh_requested_event_metadata_dropped_count,
+                        let result_recorded_window_render_state_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_window_render_state_changed_event_metadata_window = value.metadata.window;
+                        let result_recorded_window_render_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_window_render_state_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_window_render_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_window_render_state_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_render_state_changed_event_metadata_backend,
+                            window: result_recorded_window_render_state_changed_event_metadata_window,
+                            timestamp_ns: result_recorded_window_render_state_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_window_render_state_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_window_render_state_changed_event_metadata_dropped_count,
                         };
-                        let result_recorded_window_refresh_requested_event = WindowrefreshrequestedeventReplayRecord {
-                            kind: result_recorded_window_refresh_requested_event_kind,
-                            metadata: result_recorded_window_refresh_requested_event_metadata,
+                        let result_recorded_window_render_state_changed_event_payload_previous_render_state = value.payload.previous_render_state;
+                        let result_recorded_window_render_state_changed_event_payload_current_render_state = value.payload.current_render_state;
+                        let result_recorded_window_render_state_changed_event_payload = WindowRenderStatePayload {
+                            previous_render_state: result_recorded_window_render_state_changed_event_payload_previous_render_state,
+                            current_render_state: result_recorded_window_render_state_changed_event_payload_current_render_state,
                         };
-                        WindoweventReplayRecord::WindowRefreshRequestedEvent(result_recorded_window_refresh_requested_event)
+                        let result_recorded_window_render_state_changed_event = WindowrenderstatechangedeventReplayRecord {
+                            kind: result_recorded_window_render_state_changed_event_kind,
+                            metadata: result_recorded_window_render_state_changed_event_metadata,
+                            payload: result_recorded_window_render_state_changed_event_payload,
+                        };
+                        WindoweventReplayRecord::WindowRenderStateChangedEvent(result_recorded_window_render_state_changed_event)
                     }
                     WindowEventVm::WindowSafeAreaChangedEvent(value) => {
                         let result_recorded_window_safe_area_changed_event_kind = {
@@ -37716,6 +43235,51 @@ fn destack_display_window_event_try_read_vm_replay(
                             };
                             WindowEventVm::WindowCloseRequestedEvent(vm_result_window_close_requested_event)
                         }
+                        WindoweventReplayRecord::WindowContentRectChangedEvent(value) => {
+                            let vm_result_window_content_rect_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_window_content_rect_changed_event_metadata_backend = value.metadata.backend;
+                            let vm_result_window_content_rect_changed_event_metadata_window = value.metadata.window;
+                            let vm_result_window_content_rect_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_window_content_rect_changed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_window_content_rect_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_window_content_rect_changed_event_metadata = WindowEventMetadata {
+                                backend: vm_result_window_content_rect_changed_event_metadata_backend,
+                                window: vm_result_window_content_rect_changed_event_metadata_window,
+                                timestamp_ns: vm_result_window_content_rect_changed_event_metadata_timestamp_ns,
+                                sequence: vm_result_window_content_rect_changed_event_metadata_sequence,
+                                dropped_count: vm_result_window_content_rect_changed_event_metadata_dropped_count,
+                            };
+                            let vm_result_window_content_rect_changed_event_payload_previous_content_rect_logical_x = value.payload.previous_content_rect_logical.x;
+                            let vm_result_window_content_rect_changed_event_payload_previous_content_rect_logical_y = value.payload.previous_content_rect_logical.y;
+                            let vm_result_window_content_rect_changed_event_payload_previous_content_rect_logical_width = value.payload.previous_content_rect_logical.width;
+                            let vm_result_window_content_rect_changed_event_payload_previous_content_rect_logical_height = value.payload.previous_content_rect_logical.height;
+                            let vm_result_window_content_rect_changed_event_payload_previous_content_rect_logical = WindowLogicalRect {
+                                x: vm_result_window_content_rect_changed_event_payload_previous_content_rect_logical_x,
+                                y: vm_result_window_content_rect_changed_event_payload_previous_content_rect_logical_y,
+                                width: vm_result_window_content_rect_changed_event_payload_previous_content_rect_logical_width,
+                                height: vm_result_window_content_rect_changed_event_payload_previous_content_rect_logical_height,
+                            };
+                            let vm_result_window_content_rect_changed_event_payload_current_content_rect_logical_x = value.payload.current_content_rect_logical.x;
+                            let vm_result_window_content_rect_changed_event_payload_current_content_rect_logical_y = value.payload.current_content_rect_logical.y;
+                            let vm_result_window_content_rect_changed_event_payload_current_content_rect_logical_width = value.payload.current_content_rect_logical.width;
+                            let vm_result_window_content_rect_changed_event_payload_current_content_rect_logical_height = value.payload.current_content_rect_logical.height;
+                            let vm_result_window_content_rect_changed_event_payload_current_content_rect_logical = WindowLogicalRect {
+                                x: vm_result_window_content_rect_changed_event_payload_current_content_rect_logical_x,
+                                y: vm_result_window_content_rect_changed_event_payload_current_content_rect_logical_y,
+                                width: vm_result_window_content_rect_changed_event_payload_current_content_rect_logical_width,
+                                height: vm_result_window_content_rect_changed_event_payload_current_content_rect_logical_height,
+                            };
+                            let vm_result_window_content_rect_changed_event_payload = WindowContentRectPayload {
+                                previous_content_rect_logical: vm_result_window_content_rect_changed_event_payload_previous_content_rect_logical,
+                                current_content_rect_logical: vm_result_window_content_rect_changed_event_payload_current_content_rect_logical,
+                            };
+                            let vm_result_window_content_rect_changed_event = WindowContentRectChangedEventVm {
+                                kind: vm_result_window_content_rect_changed_event_kind,
+                                metadata: vm_result_window_content_rect_changed_event_metadata,
+                                payload: vm_result_window_content_rect_changed_event_payload,
+                            };
+                            WindowEventVm::WindowContentRectChangedEvent(vm_result_window_content_rect_changed_event)
+                        }
                         WindoweventReplayRecord::WindowCreatedEvent(value) => {
                             let vm_result_window_created_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_window_created_event_metadata_backend = value.metadata.backend;
@@ -38084,6 +43648,43 @@ fn destack_display_window_event_try_read_vm_replay(
                             };
                             WindowEventVm::WindowFocusChangedEvent(vm_result_window_focus_changed_event)
                         }
+                        WindoweventReplayRecord::WindowFramebufferSizeChangedEvent(value) => {
+                            let vm_result_window_framebuffer_size_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_window_framebuffer_size_changed_event_metadata_backend = value.metadata.backend;
+                            let vm_result_window_framebuffer_size_changed_event_metadata_window = value.metadata.window;
+                            let vm_result_window_framebuffer_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_window_framebuffer_size_changed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_window_framebuffer_size_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_window_framebuffer_size_changed_event_metadata = WindowEventMetadata {
+                                backend: vm_result_window_framebuffer_size_changed_event_metadata_backend,
+                                window: vm_result_window_framebuffer_size_changed_event_metadata_window,
+                                timestamp_ns: vm_result_window_framebuffer_size_changed_event_metadata_timestamp_ns,
+                                sequence: vm_result_window_framebuffer_size_changed_event_metadata_sequence,
+                                dropped_count: vm_result_window_framebuffer_size_changed_event_metadata_dropped_count,
+                            };
+                            let vm_result_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width = value.payload.previous_framebuffer_size.width;
+                            let vm_result_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height = value.payload.previous_framebuffer_size.height;
+                            let vm_result_window_framebuffer_size_changed_event_payload_previous_framebuffer_size = WindowPhysicalSize {
+                                width: vm_result_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width,
+                                height: vm_result_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height,
+                            };
+                            let vm_result_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width = value.payload.current_framebuffer_size.width;
+                            let vm_result_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height = value.payload.current_framebuffer_size.height;
+                            let vm_result_window_framebuffer_size_changed_event_payload_current_framebuffer_size = WindowPhysicalSize {
+                                width: vm_result_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width,
+                                height: vm_result_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height,
+                            };
+                            let vm_result_window_framebuffer_size_changed_event_payload = WindowFramebufferSizePayload {
+                                previous_framebuffer_size: vm_result_window_framebuffer_size_changed_event_payload_previous_framebuffer_size,
+                                current_framebuffer_size: vm_result_window_framebuffer_size_changed_event_payload_current_framebuffer_size,
+                            };
+                            let vm_result_window_framebuffer_size_changed_event = WindowFramebufferSizeChangedEventVm {
+                                kind: vm_result_window_framebuffer_size_changed_event_kind,
+                                metadata: vm_result_window_framebuffer_size_changed_event_metadata,
+                                payload: vm_result_window_framebuffer_size_changed_event_payload,
+                            };
+                            WindowEventVm::WindowFramebufferSizeChangedEvent(vm_result_window_framebuffer_size_changed_event)
+                        }
                         WindoweventReplayRecord::WindowModalChangedEvent(value) => {
                             let vm_result_window_modal_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_window_modal_changed_event_metadata_backend = value.metadata.backend;
@@ -38391,25 +43992,32 @@ fn destack_display_window_event_try_read_vm_replay(
                             };
                             WindowEventVm::WindowPositionChangedEvent(vm_result_window_position_changed_event)
                         }
-                        WindoweventReplayRecord::WindowRefreshRequestedEvent(value) => {
-                            let vm_result_window_refresh_requested_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_window_refresh_requested_event_metadata_backend = value.metadata.backend;
-                            let vm_result_window_refresh_requested_event_metadata_window = value.metadata.window;
-                            let vm_result_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let vm_result_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_window_refresh_requested_event_metadata_dropped_count = value.metadata.dropped_count;
-                            let vm_result_window_refresh_requested_event_metadata = WindowEventMetadata {
-                                backend: vm_result_window_refresh_requested_event_metadata_backend,
-                                window: vm_result_window_refresh_requested_event_metadata_window,
-                                timestamp_ns: vm_result_window_refresh_requested_event_metadata_timestamp_ns,
-                                sequence: vm_result_window_refresh_requested_event_metadata_sequence,
-                                dropped_count: vm_result_window_refresh_requested_event_metadata_dropped_count,
+                        WindoweventReplayRecord::WindowRenderStateChangedEvent(value) => {
+                            let vm_result_window_render_state_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_window_render_state_changed_event_metadata_backend = value.metadata.backend;
+                            let vm_result_window_render_state_changed_event_metadata_window = value.metadata.window;
+                            let vm_result_window_render_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_window_render_state_changed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_window_render_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_window_render_state_changed_event_metadata = WindowEventMetadata {
+                                backend: vm_result_window_render_state_changed_event_metadata_backend,
+                                window: vm_result_window_render_state_changed_event_metadata_window,
+                                timestamp_ns: vm_result_window_render_state_changed_event_metadata_timestamp_ns,
+                                sequence: vm_result_window_render_state_changed_event_metadata_sequence,
+                                dropped_count: vm_result_window_render_state_changed_event_metadata_dropped_count,
                             };
-                            let vm_result_window_refresh_requested_event = WindowRefreshRequestedEventVm {
-                                kind: vm_result_window_refresh_requested_event_kind,
-                                metadata: vm_result_window_refresh_requested_event_metadata,
+                            let vm_result_window_render_state_changed_event_payload_previous_render_state = value.payload.previous_render_state;
+                            let vm_result_window_render_state_changed_event_payload_current_render_state = value.payload.current_render_state;
+                            let vm_result_window_render_state_changed_event_payload = WindowRenderStatePayload {
+                                previous_render_state: vm_result_window_render_state_changed_event_payload_previous_render_state,
+                                current_render_state: vm_result_window_render_state_changed_event_payload_current_render_state,
                             };
-                            WindowEventVm::WindowRefreshRequestedEvent(vm_result_window_refresh_requested_event)
+                            let vm_result_window_render_state_changed_event = WindowRenderStateChangedEventVm {
+                                kind: vm_result_window_render_state_changed_event_kind,
+                                metadata: vm_result_window_render_state_changed_event_metadata,
+                                payload: vm_result_window_render_state_changed_event_payload,
+                            };
+                            WindowEventVm::WindowRenderStateChangedEvent(vm_result_window_render_state_changed_event)
                         }
                         WindoweventReplayRecord::WindowSafeAreaChangedEvent(value) => {
                             let vm_result_window_safe_area_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -38840,6 +44448,54 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                             };
                             WindoweventReplayRecord::WindowCloseRequestedEvent(result_recorded_item_recorded_window_close_requested_event)
                         }
+                        WindowEventVm::WindowContentRectChangedEvent(value) => {
+                            let result_recorded_item_recorded_window_content_rect_changed_event_kind = {
+                                let result_recorded_item_recorded_window_content_rect_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_window_content_rect_changed_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata_window = value.metadata.window;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_content_rect_changed_event_metadata_backend,
+                                window: result_recorded_item_recorded_window_content_rect_changed_event_metadata_window,
+                                timestamp_ns: result_recorded_item_recorded_window_content_rect_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_window_content_rect_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_window_content_rect_changed_event_metadata_dropped_count,
+                            };
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_x = value.payload.previous_content_rect_logical.x;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_y = value.payload.previous_content_rect_logical.y;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_width = value.payload.previous_content_rect_logical.width;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_height = value.payload.previous_content_rect_logical.height;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical = WindowLogicalRect {
+                                x: result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_x,
+                                y: result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_y,
+                                width: result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_width,
+                                height: result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical_height,
+                            };
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_x = value.payload.current_content_rect_logical.x;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_y = value.payload.current_content_rect_logical.y;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_width = value.payload.current_content_rect_logical.width;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_height = value.payload.current_content_rect_logical.height;
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical = WindowLogicalRect {
+                                x: result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_x,
+                                y: result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_y,
+                                width: result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_width,
+                                height: result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical_height,
+                            };
+                            let result_recorded_item_recorded_window_content_rect_changed_event_payload = WindowContentRectPayload {
+                                previous_content_rect_logical: result_recorded_item_recorded_window_content_rect_changed_event_payload_previous_content_rect_logical,
+                                current_content_rect_logical: result_recorded_item_recorded_window_content_rect_changed_event_payload_current_content_rect_logical,
+                            };
+                            let result_recorded_item_recorded_window_content_rect_changed_event = WindowcontentrectchangedeventReplayRecord {
+                                kind: result_recorded_item_recorded_window_content_rect_changed_event_kind,
+                                metadata: result_recorded_item_recorded_window_content_rect_changed_event_metadata,
+                                payload: result_recorded_item_recorded_window_content_rect_changed_event_payload,
+                            };
+                            WindoweventReplayRecord::WindowContentRectChangedEvent(result_recorded_item_recorded_window_content_rect_changed_event)
+                        }
                         WindowEventVm::WindowCreatedEvent(value) => {
                             let result_recorded_item_recorded_window_created_event_kind = {
                                 let result_recorded_item_recorded_window_created_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -39259,6 +44915,46 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                             };
                             WindoweventReplayRecord::WindowFocusChangedEvent(result_recorded_item_recorded_window_focus_changed_event)
                         }
+                        WindowEventVm::WindowFramebufferSizeChangedEvent(value) => {
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_kind = {
+                                let result_recorded_item_recorded_window_framebuffer_size_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_window_framebuffer_size_changed_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_window = value.metadata.window;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_backend,
+                                window: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_window,
+                                timestamp_ns: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata_dropped_count,
+                            };
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width = value.payload.previous_framebuffer_size.width;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height = value.payload.previous_framebuffer_size.height;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size = WindowPhysicalSize {
+                                width: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width,
+                                height: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height,
+                            };
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width = value.payload.current_framebuffer_size.width;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height = value.payload.current_framebuffer_size.height;
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size = WindowPhysicalSize {
+                                width: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width,
+                                height: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height,
+                            };
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event_payload = WindowFramebufferSizePayload {
+                                previous_framebuffer_size: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_previous_framebuffer_size,
+                                current_framebuffer_size: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload_current_framebuffer_size,
+                            };
+                            let result_recorded_item_recorded_window_framebuffer_size_changed_event = WindowframebuffersizechangedeventReplayRecord {
+                                kind: result_recorded_item_recorded_window_framebuffer_size_changed_event_kind,
+                                metadata: result_recorded_item_recorded_window_framebuffer_size_changed_event_metadata,
+                                payload: result_recorded_item_recorded_window_framebuffer_size_changed_event_payload,
+                            };
+                            WindoweventReplayRecord::WindowFramebufferSizeChangedEvent(result_recorded_item_recorded_window_framebuffer_size_changed_event)
+                        }
                         WindowEventVm::WindowModalChangedEvent(value) => {
                             let result_recorded_item_recorded_window_modal_changed_event_kind = {
                                 let result_recorded_item_recorded_window_modal_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -39605,28 +45301,35 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                             };
                             WindoweventReplayRecord::WindowPositionChangedEvent(result_recorded_item_recorded_window_position_changed_event)
                         }
-                        WindowEventVm::WindowRefreshRequestedEvent(value) => {
-                            let result_recorded_item_recorded_window_refresh_requested_event_kind = {
-                                let result_recorded_item_recorded_window_refresh_requested_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_item_recorded_window_refresh_requested_event_kind_ref.as_str().to_string()
+                        WindowEventVm::WindowRenderStateChangedEvent(value) => {
+                            let result_recorded_item_recorded_window_render_state_changed_event_kind = {
+                                let result_recorded_item_recorded_window_render_state_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_window_render_state_changed_event_kind_ref.as_str().to_string()
                             };
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_backend = value.metadata.backend;
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_window = value.metadata.window;
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_dropped_count = value.metadata.dropped_count;
-                            let result_recorded_item_recorded_window_refresh_requested_event_metadata = WindowEventMetadata {
-                                backend: result_recorded_item_recorded_window_refresh_requested_event_metadata_backend,
-                                window: result_recorded_item_recorded_window_refresh_requested_event_metadata_window,
-                                timestamp_ns: result_recorded_item_recorded_window_refresh_requested_event_metadata_timestamp_ns,
-                                sequence: result_recorded_item_recorded_window_refresh_requested_event_metadata_sequence,
-                                dropped_count: result_recorded_item_recorded_window_refresh_requested_event_metadata_dropped_count,
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata_window = value.metadata.window;
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_window_render_state_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_render_state_changed_event_metadata_backend,
+                                window: result_recorded_item_recorded_window_render_state_changed_event_metadata_window,
+                                timestamp_ns: result_recorded_item_recorded_window_render_state_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_window_render_state_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_window_render_state_changed_event_metadata_dropped_count,
                             };
-                            let result_recorded_item_recorded_window_refresh_requested_event = WindowrefreshrequestedeventReplayRecord {
-                                kind: result_recorded_item_recorded_window_refresh_requested_event_kind,
-                                metadata: result_recorded_item_recorded_window_refresh_requested_event_metadata,
+                            let result_recorded_item_recorded_window_render_state_changed_event_payload_previous_render_state = value.payload.previous_render_state;
+                            let result_recorded_item_recorded_window_render_state_changed_event_payload_current_render_state = value.payload.current_render_state;
+                            let result_recorded_item_recorded_window_render_state_changed_event_payload = WindowRenderStatePayload {
+                                previous_render_state: result_recorded_item_recorded_window_render_state_changed_event_payload_previous_render_state,
+                                current_render_state: result_recorded_item_recorded_window_render_state_changed_event_payload_current_render_state,
                             };
-                            WindoweventReplayRecord::WindowRefreshRequestedEvent(result_recorded_item_recorded_window_refresh_requested_event)
+                            let result_recorded_item_recorded_window_render_state_changed_event = WindowrenderstatechangedeventReplayRecord {
+                                kind: result_recorded_item_recorded_window_render_state_changed_event_kind,
+                                metadata: result_recorded_item_recorded_window_render_state_changed_event_metadata,
+                                payload: result_recorded_item_recorded_window_render_state_changed_event_payload,
+                            };
+                            WindoweventReplayRecord::WindowRenderStateChangedEvent(result_recorded_item_recorded_window_render_state_changed_event)
                         }
                         WindowEventVm::WindowSafeAreaChangedEvent(value) => {
                             let result_recorded_item_recorded_window_safe_area_changed_event_kind = {
@@ -40066,6 +45769,51 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 };
                                 WindowEventVm::WindowCloseRequestedEvent(vm_result_item_value_window_close_requested_event)
                             }
+                            WindoweventReplayRecord::WindowContentRectChangedEvent(value) => {
+                                let vm_result_item_value_window_content_rect_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_window_content_rect_changed_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_window_content_rect_changed_event_metadata_window = value.metadata.window;
+                                let vm_result_item_value_window_content_rect_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_window_content_rect_changed_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_window_content_rect_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_window_content_rect_changed_event_metadata = WindowEventMetadata {
+                                    backend: vm_result_item_value_window_content_rect_changed_event_metadata_backend,
+                                    window: vm_result_item_value_window_content_rect_changed_event_metadata_window,
+                                    timestamp_ns: vm_result_item_value_window_content_rect_changed_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_window_content_rect_changed_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_window_content_rect_changed_event_metadata_dropped_count,
+                                };
+                                let vm_result_item_value_window_content_rect_changed_event_payload_previous_content_rect_logical_x = value.payload.previous_content_rect_logical.x;
+                                let vm_result_item_value_window_content_rect_changed_event_payload_previous_content_rect_logical_y = value.payload.previous_content_rect_logical.y;
+                                let vm_result_item_value_window_content_rect_changed_event_payload_previous_content_rect_logical_width = value.payload.previous_content_rect_logical.width;
+                                let vm_result_item_value_window_content_rect_changed_event_payload_previous_content_rect_logical_height = value.payload.previous_content_rect_logical.height;
+                                let vm_result_item_value_window_content_rect_changed_event_payload_previous_content_rect_logical = WindowLogicalRect {
+                                    x: vm_result_item_value_window_content_rect_changed_event_payload_previous_content_rect_logical_x,
+                                    y: vm_result_item_value_window_content_rect_changed_event_payload_previous_content_rect_logical_y,
+                                    width: vm_result_item_value_window_content_rect_changed_event_payload_previous_content_rect_logical_width,
+                                    height: vm_result_item_value_window_content_rect_changed_event_payload_previous_content_rect_logical_height,
+                                };
+                                let vm_result_item_value_window_content_rect_changed_event_payload_current_content_rect_logical_x = value.payload.current_content_rect_logical.x;
+                                let vm_result_item_value_window_content_rect_changed_event_payload_current_content_rect_logical_y = value.payload.current_content_rect_logical.y;
+                                let vm_result_item_value_window_content_rect_changed_event_payload_current_content_rect_logical_width = value.payload.current_content_rect_logical.width;
+                                let vm_result_item_value_window_content_rect_changed_event_payload_current_content_rect_logical_height = value.payload.current_content_rect_logical.height;
+                                let vm_result_item_value_window_content_rect_changed_event_payload_current_content_rect_logical = WindowLogicalRect {
+                                    x: vm_result_item_value_window_content_rect_changed_event_payload_current_content_rect_logical_x,
+                                    y: vm_result_item_value_window_content_rect_changed_event_payload_current_content_rect_logical_y,
+                                    width: vm_result_item_value_window_content_rect_changed_event_payload_current_content_rect_logical_width,
+                                    height: vm_result_item_value_window_content_rect_changed_event_payload_current_content_rect_logical_height,
+                                };
+                                let vm_result_item_value_window_content_rect_changed_event_payload = WindowContentRectPayload {
+                                    previous_content_rect_logical: vm_result_item_value_window_content_rect_changed_event_payload_previous_content_rect_logical,
+                                    current_content_rect_logical: vm_result_item_value_window_content_rect_changed_event_payload_current_content_rect_logical,
+                                };
+                                let vm_result_item_value_window_content_rect_changed_event = WindowContentRectChangedEventVm {
+                                    kind: vm_result_item_value_window_content_rect_changed_event_kind,
+                                    metadata: vm_result_item_value_window_content_rect_changed_event_metadata,
+                                    payload: vm_result_item_value_window_content_rect_changed_event_payload,
+                                };
+                                WindowEventVm::WindowContentRectChangedEvent(vm_result_item_value_window_content_rect_changed_event)
+                            }
                             WindoweventReplayRecord::WindowCreatedEvent(value) => {
                                 let vm_result_item_value_window_created_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_window_created_event_metadata_backend = value.metadata.backend;
@@ -40434,6 +46182,43 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 };
                                 WindowEventVm::WindowFocusChangedEvent(vm_result_item_value_window_focus_changed_event)
                             }
+                            WindoweventReplayRecord::WindowFramebufferSizeChangedEvent(value) => {
+                                let vm_result_item_value_window_framebuffer_size_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_window_framebuffer_size_changed_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_window_framebuffer_size_changed_event_metadata_window = value.metadata.window;
+                                let vm_result_item_value_window_framebuffer_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_window_framebuffer_size_changed_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_window_framebuffer_size_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_window_framebuffer_size_changed_event_metadata = WindowEventMetadata {
+                                    backend: vm_result_item_value_window_framebuffer_size_changed_event_metadata_backend,
+                                    window: vm_result_item_value_window_framebuffer_size_changed_event_metadata_window,
+                                    timestamp_ns: vm_result_item_value_window_framebuffer_size_changed_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_window_framebuffer_size_changed_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_window_framebuffer_size_changed_event_metadata_dropped_count,
+                                };
+                                let vm_result_item_value_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width = value.payload.previous_framebuffer_size.width;
+                                let vm_result_item_value_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height = value.payload.previous_framebuffer_size.height;
+                                let vm_result_item_value_window_framebuffer_size_changed_event_payload_previous_framebuffer_size = WindowPhysicalSize {
+                                    width: vm_result_item_value_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_width,
+                                    height: vm_result_item_value_window_framebuffer_size_changed_event_payload_previous_framebuffer_size_height,
+                                };
+                                let vm_result_item_value_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width = value.payload.current_framebuffer_size.width;
+                                let vm_result_item_value_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height = value.payload.current_framebuffer_size.height;
+                                let vm_result_item_value_window_framebuffer_size_changed_event_payload_current_framebuffer_size = WindowPhysicalSize {
+                                    width: vm_result_item_value_window_framebuffer_size_changed_event_payload_current_framebuffer_size_width,
+                                    height: vm_result_item_value_window_framebuffer_size_changed_event_payload_current_framebuffer_size_height,
+                                };
+                                let vm_result_item_value_window_framebuffer_size_changed_event_payload = WindowFramebufferSizePayload {
+                                    previous_framebuffer_size: vm_result_item_value_window_framebuffer_size_changed_event_payload_previous_framebuffer_size,
+                                    current_framebuffer_size: vm_result_item_value_window_framebuffer_size_changed_event_payload_current_framebuffer_size,
+                                };
+                                let vm_result_item_value_window_framebuffer_size_changed_event = WindowFramebufferSizeChangedEventVm {
+                                    kind: vm_result_item_value_window_framebuffer_size_changed_event_kind,
+                                    metadata: vm_result_item_value_window_framebuffer_size_changed_event_metadata,
+                                    payload: vm_result_item_value_window_framebuffer_size_changed_event_payload,
+                                };
+                                WindowEventVm::WindowFramebufferSizeChangedEvent(vm_result_item_value_window_framebuffer_size_changed_event)
+                            }
                             WindoweventReplayRecord::WindowModalChangedEvent(value) => {
                                 let vm_result_item_value_window_modal_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let vm_result_item_value_window_modal_changed_event_metadata_backend = value.metadata.backend;
@@ -40741,25 +46526,32 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 };
                                 WindowEventVm::WindowPositionChangedEvent(vm_result_item_value_window_position_changed_event)
                             }
-                            WindoweventReplayRecord::WindowRefreshRequestedEvent(value) => {
-                                let vm_result_item_value_window_refresh_requested_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                let vm_result_item_value_window_refresh_requested_event_metadata_backend = value.metadata.backend;
-                                let vm_result_item_value_window_refresh_requested_event_metadata_window = value.metadata.window;
-                                let vm_result_item_value_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                                let vm_result_item_value_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
-                                let vm_result_item_value_window_refresh_requested_event_metadata_dropped_count = value.metadata.dropped_count;
-                                let vm_result_item_value_window_refresh_requested_event_metadata = WindowEventMetadata {
-                                    backend: vm_result_item_value_window_refresh_requested_event_metadata_backend,
-                                    window: vm_result_item_value_window_refresh_requested_event_metadata_window,
-                                    timestamp_ns: vm_result_item_value_window_refresh_requested_event_metadata_timestamp_ns,
-                                    sequence: vm_result_item_value_window_refresh_requested_event_metadata_sequence,
-                                    dropped_count: vm_result_item_value_window_refresh_requested_event_metadata_dropped_count,
+                            WindoweventReplayRecord::WindowRenderStateChangedEvent(value) => {
+                                let vm_result_item_value_window_render_state_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_window_render_state_changed_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_window_render_state_changed_event_metadata_window = value.metadata.window;
+                                let vm_result_item_value_window_render_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_window_render_state_changed_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_window_render_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_window_render_state_changed_event_metadata = WindowEventMetadata {
+                                    backend: vm_result_item_value_window_render_state_changed_event_metadata_backend,
+                                    window: vm_result_item_value_window_render_state_changed_event_metadata_window,
+                                    timestamp_ns: vm_result_item_value_window_render_state_changed_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_window_render_state_changed_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_window_render_state_changed_event_metadata_dropped_count,
                                 };
-                                let vm_result_item_value_window_refresh_requested_event = WindowRefreshRequestedEventVm {
-                                    kind: vm_result_item_value_window_refresh_requested_event_kind,
-                                    metadata: vm_result_item_value_window_refresh_requested_event_metadata,
+                                let vm_result_item_value_window_render_state_changed_event_payload_previous_render_state = value.payload.previous_render_state;
+                                let vm_result_item_value_window_render_state_changed_event_payload_current_render_state = value.payload.current_render_state;
+                                let vm_result_item_value_window_render_state_changed_event_payload = WindowRenderStatePayload {
+                                    previous_render_state: vm_result_item_value_window_render_state_changed_event_payload_previous_render_state,
+                                    current_render_state: vm_result_item_value_window_render_state_changed_event_payload_current_render_state,
                                 };
-                                WindowEventVm::WindowRefreshRequestedEvent(vm_result_item_value_window_refresh_requested_event)
+                                let vm_result_item_value_window_render_state_changed_event = WindowRenderStateChangedEventVm {
+                                    kind: vm_result_item_value_window_render_state_changed_event_kind,
+                                    metadata: vm_result_item_value_window_render_state_changed_event_metadata,
+                                    payload: vm_result_item_value_window_render_state_changed_event_payload,
+                                };
+                                WindowEventVm::WindowRenderStateChangedEvent(vm_result_item_value_window_render_state_changed_event)
                             }
                             WindoweventReplayRecord::WindowSafeAreaChangedEvent(value) => {
                                 let vm_result_item_value_window_safe_area_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -41116,6 +46908,126 @@ fn destack_display_window_focus_vm_replay(
 }
 
 #[inline]
+fn destack_display_window_framebuffer_size_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DISPLAY_WINDOW_FRAMEBUFFER_SIZE,
+        binding.replay_payload_for(DISPLAY_WINDOW_FRAMEBUFFER_SIZE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_window_framebuffer_size(binding, context, window)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_display_window_framebuffer_size(
+                    binding, context, window,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: WindowPhysicalSizeVm = value.clone();
+                let result_recorded_width = result_value.width;
+                let result_recorded_height = result_value.height;
+                let result_recorded = WindowPhysicalSize {
+                    width: result_recorded_width,
+                    height: result_recorded_height,
+                };
+                let payload = DisplayWindowFramebufferSizeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DisplayWindowFramebufferSizeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_width = value.width;
+                    let vm_result_height = value.height;
+                    let vm_result = WindowPhysicalSize {
+                        width: vm_result_width,
+                        height: vm_result_height,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_display_window_framebuffer_size_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_display_window_invalidate_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DISPLAY_WINDOW_INVALIDATE,
+        binding.replay_payload_for(DISPLAY_WINDOW_INVALIDATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_window_invalidate(binding, context, window)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_display_window_invalidate(binding, context, window)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DisplayWindowInvalidateReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DisplayWindowInvalidateReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_display_window_invalidate_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_display_window_maximize_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -41384,6 +47296,64 @@ fn destack_display_window_raise_vm_replay(
 }
 
 #[inline]
+fn destack_display_window_render_state_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DISPLAY_WINDOW_RENDER_STATE,
+        binding.replay_payload_for(DISPLAY_WINDOW_RENDER_STATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_window_render_state(binding, context, window)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_display_window_render_state(
+                    binding, context, window,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: WindowRenderState = value.clone();
+                let result_recorded = result_value;
+                let payload = DisplayWindowRenderStateReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DisplayWindowRenderStateReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_display_window_render_state_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_display_window_request_attention_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -41435,60 +47405,6 @@ fn destack_display_window_request_attention_vm_replay(
         },
     );
     let result = encode_destack_display_window_request_attention_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_display_window_request_refresh_vm_replay(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    window: resource::WindowHandle,
-) -> RuntimeResult<vm::Value> {
-    let result = binding.trace().run_binding(
-        DISPLAY_WINDOW_REQUEST_REFRESH,
-        binding.replay_payload_for(DISPLAY_WINDOW_REQUEST_REFRESH)?,
-        context,
-        |context| match world {
-            RuntimeWorld::Host => {
-                platform_vm::destack_display_window_request_refresh(binding, context, window)
-            }
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_display_window_request_refresh(
-                    binding, context, window,
-                )
-            }
-        },
-        |context, result| {
-            let _ = &context;
-            if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = DisplayWindowRequestRefreshReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    DisplayWindowRequestRefreshReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(()) => Ok(()),
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    );
-    let result = encode_destack_display_window_request_refresh_result(context, result)?;
     Ok(result)
 }
 
@@ -42849,7 +48765,6 @@ fn destack_display_window_state_vm_replay(
             if let Ok(value) = result {
                 let result_value: WindowStateVm = value.clone();
                 let result_recorded_backend = result_value.backend;
-                let result_recorded_role = result_value.role;
                 let result_recorded_position_x = result_value.position.x;
                 let result_recorded_position_y = result_value.position.y;
                 let result_recorded_position = WindowPosition {
@@ -42868,7 +48783,26 @@ fn destack_display_window_state_vm_replay(
                     width: result_recorded_size_physical_width,
                     height: result_recorded_size_physical_height,
                 };
+                let result_recorded_content_rect_logical_x = result_value.content_rect_logical.x;
+                let result_recorded_content_rect_logical_y = result_value.content_rect_logical.y;
+                let result_recorded_content_rect_logical_width =
+                    result_value.content_rect_logical.width;
+                let result_recorded_content_rect_logical_height =
+                    result_value.content_rect_logical.height;
+                let result_recorded_content_rect_logical = WindowLogicalRect {
+                    x: result_recorded_content_rect_logical_x,
+                    y: result_recorded_content_rect_logical_y,
+                    width: result_recorded_content_rect_logical_width,
+                    height: result_recorded_content_rect_logical_height,
+                };
+                let result_recorded_framebuffer_size_width = result_value.framebuffer_size.width;
+                let result_recorded_framebuffer_size_height = result_value.framebuffer_size.height;
+                let result_recorded_framebuffer_size = WindowPhysicalSize {
+                    width: result_recorded_framebuffer_size_width,
+                    height: result_recorded_framebuffer_size_height,
+                };
                 let result_recorded_scale_factor_milli = result_value.scale_factor_milli;
+                let result_recorded_role = result_value.role;
                 let result_recorded_visibility = result_value.visibility;
                 let result_recorded_display = if let Some(value) = result_value.display {
                     let result_recorded_display_inner = value;
@@ -42878,6 +48812,7 @@ fn destack_display_window_state_vm_replay(
                 };
                 let result_recorded_focused = result_value.focused;
                 let result_recorded_occlusion = result_value.occlusion;
+                let result_recorded_render_state = result_value.render_state;
                 let result_recorded_safe_area_insets =
                     if let Some(value) = result_value.safe_area_insets {
                         let result_recorded_safe_area_insets_inner_left_px = value.left_px;
@@ -42927,15 +48862,18 @@ fn destack_display_window_state_vm_replay(
                 };
                 let result_recorded = WindowState {
                     backend: result_recorded_backend,
-                    role: result_recorded_role,
                     position: result_recorded_position,
                     size_logical: result_recorded_size_logical,
                     size_physical: result_recorded_size_physical,
+                    content_rect_logical: result_recorded_content_rect_logical,
+                    framebuffer_size: result_recorded_framebuffer_size,
                     scale_factor_milli: result_recorded_scale_factor_milli,
+                    role: result_recorded_role,
                     visibility: result_recorded_visibility,
                     display: result_recorded_display,
                     focused: result_recorded_focused,
                     occlusion: result_recorded_occlusion,
+                    render_state: result_recorded_render_state,
                     safe_area_insets: result_recorded_safe_area_insets,
                     theme: result_recorded_theme,
                     chrome: result_recorded_chrome,
@@ -42970,7 +48908,6 @@ fn destack_display_window_state_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_backend = value.backend;
-                    let vm_result_role = value.role;
                     let vm_result_position_x = value.position.x;
                     let vm_result_position_y = value.position.y;
                     let vm_result_position = WindowPosition {
@@ -42989,7 +48926,24 @@ fn destack_display_window_state_vm_replay(
                         width: vm_result_size_physical_width,
                         height: vm_result_size_physical_height,
                     };
+                    let vm_result_content_rect_logical_x = value.content_rect_logical.x;
+                    let vm_result_content_rect_logical_y = value.content_rect_logical.y;
+                    let vm_result_content_rect_logical_width = value.content_rect_logical.width;
+                    let vm_result_content_rect_logical_height = value.content_rect_logical.height;
+                    let vm_result_content_rect_logical = WindowLogicalRect {
+                        x: vm_result_content_rect_logical_x,
+                        y: vm_result_content_rect_logical_y,
+                        width: vm_result_content_rect_logical_width,
+                        height: vm_result_content_rect_logical_height,
+                    };
+                    let vm_result_framebuffer_size_width = value.framebuffer_size.width;
+                    let vm_result_framebuffer_size_height = value.framebuffer_size.height;
+                    let vm_result_framebuffer_size = WindowPhysicalSize {
+                        width: vm_result_framebuffer_size_width,
+                        height: vm_result_framebuffer_size_height,
+                    };
                     let vm_result_scale_factor_milli = value.scale_factor_milli;
+                    let vm_result_role = value.role;
                     let vm_result_visibility = value.visibility;
                     let vm_result_display = if let Some(value) = value.display {
                         let vm_result_display_inner = value;
@@ -42999,6 +48953,7 @@ fn destack_display_window_state_vm_replay(
                     };
                     let vm_result_focused = value.focused;
                     let vm_result_occlusion = value.occlusion;
+                    let vm_result_render_state = value.render_state;
                     let vm_result_safe_area_insets = if let Some(value) = value.safe_area_insets {
                         let vm_result_safe_area_insets_inner_left_px = value.left_px;
                         let vm_result_safe_area_insets_inner_top_px = value.top_px;
@@ -43046,15 +49001,18 @@ fn destack_display_window_state_vm_replay(
                     };
                     let vm_result = WindowState {
                         backend: vm_result_backend,
-                        role: vm_result_role,
                         position: vm_result_position,
                         size_logical: vm_result_size_logical,
                         size_physical: vm_result_size_physical,
+                        content_rect_logical: vm_result_content_rect_logical,
+                        framebuffer_size: vm_result_framebuffer_size,
                         scale_factor_milli: vm_result_scale_factor_milli,
+                        role: vm_result_role,
                         visibility: vm_result_visibility,
                         display: vm_result_display,
                         focused: vm_result_focused,
                         occlusion: vm_result_occlusion,
+                        render_state: vm_result_render_state,
                         safe_area_insets: vm_result_safe_area_insets,
                         theme: vm_result_theme,
                         chrome: vm_result_chrome,
@@ -43090,6 +49048,130 @@ pub(crate) fn register_display_vm_bindings(registry: &mut BindingRegistry, isola
                     let (world, _binding_hook_guard) =
                         binding.on_before_binding_resolve_world(DISPLAY_BACKEND_LIST)?;
                     destack_display_backend_list_vm_replay(binding, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DISPLAY_FRAME_BEGIN_CLOSE,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) = decode_destack_display_frame_begin_close_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(DISPLAY_FRAME_BEGIN_CLOSE)?;
+                    destack_display_frame_begin_close_vm_replay(binding, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DISPLAY_FRAME_BEGIN_OPEN,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (options,) = decode_destack_display_frame_begin_open_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(DISPLAY_FRAME_BEGIN_OPEN)?;
+                    destack_display_frame_begin_open_vm_replay(binding, context, world, options)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DISPLAY_FRAME_BEGIN_READ,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle, timeoutns) =
+                        decode_destack_display_frame_begin_read_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(DISPLAY_FRAME_BEGIN_READ)?;
+                    destack_display_frame_begin_read_vm_replay(
+                        binding, context, world, handle, timeoutns,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DISPLAY_FRAME_BEGIN_READ_BATCH,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle, maxevents, timeoutns) =
+                        decode_destack_display_frame_begin_read_batch_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(DISPLAY_FRAME_BEGIN_READ_BATCH)?;
+                    destack_display_frame_begin_read_batch_vm_replay(
+                        binding, context, world, handle, maxevents, timeoutns,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DISPLAY_FRAME_BEGIN_TRY_READ,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_display_frame_begin_try_read_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(DISPLAY_FRAME_BEGIN_TRY_READ)?;
+                    destack_display_frame_begin_try_read_vm_replay(binding, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DISPLAY_FRAME_BEGIN_TRY_READ_BATCH,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle, maxevents) =
+                        decode_destack_display_frame_begin_try_read_batch_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) = binding
+                        .on_before_binding_resolve_world(DISPLAY_FRAME_BEGIN_TRY_READ_BATCH)?;
+                    destack_display_frame_begin_try_read_batch_vm_replay(
+                        binding, context, world, handle, maxevents,
+                    )
                 })
                 .map_err(Into::into)
             }
@@ -43640,6 +49722,25 @@ pub(crate) fn register_display_vm_bindings(registry: &mut BindingRegistry, isola
         binding!(
             registry,
             isolate,
+            DISPLAY_WINDOW_CONTENT_RECT,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (window,) = decode_destack_display_window_content_rect_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(DISPLAY_WINDOW_CONTENT_RECT)?;
+                    destack_display_window_content_rect_vm_replay(binding, context, world, window)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
             DISPLAY_WINDOW_DESCRIPTOR,
             move |context, args| {
                 with_binding_call_context(|binding| {
@@ -43802,6 +49903,47 @@ pub(crate) fn register_display_vm_bindings(registry: &mut BindingRegistry, isola
         binding!(
             registry,
             isolate,
+            DISPLAY_WINDOW_FRAMEBUFFER_SIZE,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (window,) =
+                        decode_destack_display_window_framebuffer_size_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(DISPLAY_WINDOW_FRAMEBUFFER_SIZE)?;
+                    destack_display_window_framebuffer_size_vm_replay(
+                        binding, context, world, window,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DISPLAY_WINDOW_INVALIDATE,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (window,) = decode_destack_display_window_invalidate_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(DISPLAY_WINDOW_INVALIDATE)?;
+                    destack_display_window_invalidate_vm_replay(binding, context, world, window)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
             DISPLAY_WINDOW_MAXIMIZE,
             move |context, args| {
                 with_binding_call_context(|binding| {
@@ -43897,6 +50039,25 @@ pub(crate) fn register_display_vm_bindings(registry: &mut BindingRegistry, isola
         binding!(
             registry,
             isolate,
+            DISPLAY_WINDOW_RENDER_STATE,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (window,) = decode_destack_display_window_render_state_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(DISPLAY_WINDOW_RENDER_STATE)?;
+                    destack_display_window_render_state_vm_replay(binding, context, world, window)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
             DISPLAY_WINDOW_REQUEST_ATTENTION,
             move |context, args| {
                 with_binding_call_context(|binding| {
@@ -43909,28 +50070,6 @@ pub(crate) fn register_display_vm_bindings(registry: &mut BindingRegistry, isola
                         .on_before_binding_resolve_world(DISPLAY_WINDOW_REQUEST_ATTENTION)?;
                     destack_display_window_request_attention_vm_replay(
                         binding, context, world, window, level,
-                    )
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            DISPLAY_WINDOW_REQUEST_REFRESH,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (window,) =
-                        decode_destack_display_window_request_refresh_args(context, args)?;
-
-                    // execute binding
-                    let (world, _binding_hook_guard) =
-                        binding.on_before_binding_resolve_world(DISPLAY_WINDOW_REQUEST_REFRESH)?;
-                    destack_display_window_request_refresh_vm_replay(
-                        binding, context, world, window,
                     )
                 })
                 .map_err(Into::into)

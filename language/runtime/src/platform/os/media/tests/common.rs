@@ -11,13 +11,11 @@ use crate::host::app::media::{MediaTestRoots, set_media_test_roots};
 use crate::platform::abi::VmAbi;
 use crate::platform::fs::core as core_fs;
 use crate::platform::os::abi_generated::{
-    MediaAssetDescriptorValue, MediaEventValue, MediaPageValue, MediaQueryValue,
-    MediaWatchOptionsValue,
+    MediaAssetDescriptorValue, MediaPageValue, MediaQueryValue,
 };
 use crate::platform::os::tests::{HarnessContext, HarnessValue, with_configured_harness_context};
 use crate::platform::os::{
-    MediaAssetDescriptor, MediaAssetDescriptorVm, MediaEvent, MediaEventVm, MediaPage, MediaPageVm,
-    MediaQuery, MediaQueryVm, MediaWatchOptions, MediaWatchOptionsVm,
+    MediaAssetDescriptor, MediaAssetDescriptorVm, MediaPage, MediaPageVm, MediaQuery, MediaQueryVm,
 };
 use crate::platform::{NativeAbiCodec, NativeArray, NativeStringRef, VmAbiCodec, VmArray, fs};
 /// Shared lock for the process-global desktop media test roots.
@@ -78,23 +76,6 @@ pub(super) fn media_query_harness_value(
             HarnessValue::Vm(query)
         }
         None => HarnessValue::Native(MediaQuery::from_value(context.call_context, query)),
-    }
-}
-
-/// Build one media watch options payload for the active harness.
-pub(super) fn media_watch_options_harness_value(
-    context: &mut HarnessContext<'_>,
-    options: MediaWatchOptionsValue,
-) -> HarnessValue<MediaWatchOptions, MediaWatchOptionsVm> {
-    match context.vm_context {
-        Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
-            let options = MediaWatchOptionsVm::from_value(vm_context, options)
-                .expect("media watch options should encode");
-
-            HarnessValue::Vm(options)
-        }
-        None => HarnessValue::Native(MediaWatchOptions::from_value(context.call_context, options)),
     }
 }
 
@@ -215,26 +196,6 @@ pub(super) fn decode_media_descriptor(
     }
 }
 
-/// Decode one media event payload into owned values.
-pub(super) fn decode_media_event(
-    context: &mut HarnessContext<'_>,
-    event: HarnessValue<MediaEvent, MediaEventVm>,
-) -> RuntimeResult<MediaEventValue> {
-    match event {
-        HarnessValue::Native(event) => unsafe { MediaEvent::into_value(event) },
-        HarnessValue::Vm(event) => {
-            let vm_context = unsafe {
-                &mut *(context
-                    .vm_context
-                    .expect("vm media event decode requires one vm context")
-                    as *mut vm::ExternalCallContext<'_>)
-            };
-
-            MediaEventVm::into_value(event, vm_context)
-        }
-    }
-}
-
 /// Decode one harness string result into one owned string.
 pub(super) fn decode_string(
     context: &mut HarnessContext<'_>,
@@ -295,18 +256,13 @@ pub(super) fn install_desktop_media_test_roots(label: &str) -> DesktopMediaTestR
         music: music.clone(),
     }));
 
-    DesktopMediaTestRootGuard {
-        base_directory,
-        pictures_directory: pictures,
-    }
+    DesktopMediaTestRootGuard { base_directory }
 }
 
 /// One scoped desktop media test-root installation.
 pub(super) struct DesktopMediaTestRootGuard {
     /// The temporary root directory for this test case.
     pub(super) base_directory: PathBuf,
-    /// The temporary pictures root for this test case.
-    pub(super) pictures_directory: PathBuf,
 }
 
 impl Drop for DesktopMediaTestRootGuard {
@@ -325,34 +281,6 @@ pub(super) fn native_array<T>(values: Vec<T>) -> NativeArray<T> {
         data: values.as_mut_ptr(),
         len: values.len() as u32,
         capacity: values.capacity() as u32,
-    }
-}
-
-/// Assert one media watch event kind and asset identifier.
-pub(super) fn assert_media_event(event: &MediaEventValue, expected_kind: &str, expected_id: &str) {
-    match expected_kind {
-        "added" => match event {
-            MediaEventValue::MediaAddedEvent(value) => {
-                assert_eq!(value.kind, expected_kind);
-                assert_eq!(value.asset.id, expected_id);
-            }
-            other => panic!("expected one {expected_kind} media event, got {other:?}"),
-        },
-        "updated" => match event {
-            MediaEventValue::MediaUpdatedEvent(value) => {
-                assert_eq!(value.kind, expected_kind);
-                assert_eq!(value.asset.id, expected_id);
-            }
-            other => panic!("expected one {expected_kind} media event, got {other:?}"),
-        },
-        "removed" => match event {
-            MediaEventValue::MediaRemovedEvent(value) => {
-                assert_eq!(value.kind, expected_kind);
-                assert_eq!(value.asset.id, expected_id);
-            }
-            other => panic!("expected one {expected_kind} media event, got {other:?}"),
-        },
-        _ => panic!("unknown expected media event kind `{expected_kind}`"),
     }
 }
 

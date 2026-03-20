@@ -5037,7 +5037,7 @@ pub(crate) const FS_DIR_OPENDIR: BindingDescriptor =
 pub(crate) const FS_DIR_READDIR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.dir.readdir",
-        "export function readdir(handle: DirectoryHandle): Result<Array<Dirent>, PlatformError>",
+        "export function readdir(handle: DirectoryHandle): Result<Dirent[], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["fs.read"],

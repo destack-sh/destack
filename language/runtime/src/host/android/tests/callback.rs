@@ -1,16 +1,15 @@
 use crate::host::android::tests::register_android_runtime;
 use crate::host::android::{
     android_notify_background_event, android_notify_intent_open_url,
-    android_notify_location_sample, android_notify_media_event, android_notify_notification_event,
+    android_notify_location_sample, android_notify_notification_event,
 };
 use crate::host::{
     HostBackgroundEvent, HostEvent, HostIntentEvent, HostIntentPayload, HostLocationEvent,
-    HostMediaEvent, HostMediaEventKind, HostNotificationEvent,
+    HostNotificationEvent,
 };
 use crate::platform::os::{
     BackgroundEventMetadataValue, BackgroundEventValue, BackgroundTaskReadyEventValue,
-    LocationSampleValue, MediaAddedEventValue, MediaAssetSummaryValue, MediaEventMetadata,
-    MediaEventValue, NotificationDeliveredEventValue, NotificationEventMetadataValue,
+    LocationSampleValue, NotificationDeliveredEventValue, NotificationEventMetadataValue,
     NotificationEventValue, NotificationImmediateTriggerValue, NotificationPriority,
     NotificationRequestValue, NotificationTriggerValue,
 };
@@ -91,42 +90,6 @@ fn test_notify_location_sample_enqueues_location_event_for_runtime_bridge() {
     );
 }
 
-/// Enqueue one Android media event for the registered runtime.
-#[test]
-fn test_notify_media_event_enqueues_media_event_for_runtime_bridge() {
-    let (queue, _registration, runtime_id) = register_android_runtime();
-    let asset = MediaAssetSummaryValue {
-        id: "asset-1".to_string(),
-        uri: "content://media/asset-1".to_string(),
-        filename: "photo.jpg".to_string(),
-        kind: crate::platform::os::MediaAssetKind::Image,
-        content_type: Some("image/jpeg".to_string()),
-        size_bytes: Some(1024),
-        created_unix_ns: Some(42),
-        modified_unix_ns: Some(43),
-    };
-    let event = MediaEventValue::MediaAddedEvent(MediaAddedEventValue {
-        kind: "added".to_string(),
-        metadata: MediaEventMetadata {
-            timestamp_ns: 42,
-            sequence: 7,
-        },
-        asset: asset.clone(),
-    });
-
-    android_notify_media_event(runtime_id, "watch-1", event).unwrap();
-
-    let events = queue.poll_events(Some(0)).unwrap();
-    assert_eq!(
-        events.as_slice(),
-        [HostEvent::Media(Box::new(HostMediaEvent {
-            watch_id: "watch-1".to_string(),
-            kind: HostMediaEventKind::Added,
-            asset,
-        }))],
-    );
-}
-
 /// Build one representative notification event payload.
 fn test_notification_event() -> NotificationEventValue {
     NotificationEventValue::NotificationDeliveredEvent(NotificationDeliveredEventValue {
@@ -177,11 +140,11 @@ fn test_location_sample() -> LocationSampleValue {
     LocationSampleValue {
         latitude_degrees: 47.3769,
         longitude_degrees: 8.5417,
-        altitude_meters: Some(408.0),
-        horizontal_accuracy_meters: Some(5.0),
-        vertical_accuracy_meters: Some(8.0),
-        speed_meters_per_second: Some(0.0),
-        heading_degrees: Some(0.0),
+        altitude_meters: 408.0,
+        horizontal_accuracy_meters: 5.0,
+        vertical_accuracy_meters: 8.0,
+        speed_meters_per_second: 0.0,
+        heading_degrees: 0.0,
         timestamp_unix_ns: 42,
     }
 }

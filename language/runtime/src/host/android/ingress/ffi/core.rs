@@ -4,17 +4,15 @@ use crate::host::android::{
     android_notify_intent_custom_action, android_notify_intent_open_file,
     android_notify_intent_open_url, android_notify_intent_share_files,
     android_notify_intent_share_text, android_notify_interruption_changed,
-    android_notify_location_sample, android_notify_media_event,
-    android_notify_memory_pressure_changed, android_notify_notification_event,
-    android_notify_permission_result, android_notify_power_mode_changed,
-    android_notify_thermal_state_changed, android_notify_wake, android_notify_wall_clock_changed,
+    android_notify_location_sample, android_notify_memory_pressure_changed,
+    android_notify_notification_event, android_notify_permission_result,
+    android_notify_power_mode_changed, android_notify_thermal_state_changed, android_notify_wake,
+    android_notify_wall_clock_changed,
 };
 use crate::host::callback::decode_callback_host_json;
 use crate::host::core::error::invalid_argument_value;
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
-use crate::platform::os::{
-    BackgroundEventValue, LocationSampleValue, MediaEventValue, NotificationEventValue,
-};
+use crate::platform::os::{BackgroundEventValue, LocationSampleValue, NotificationEventValue};
 use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
 
 pub(super) const ANDROID_LIFECYCLE_CREATED: u32 = 0;
@@ -243,20 +241,6 @@ pub(crate) unsafe extern "C" fn destack_host_android_notify_location_sample(
 }
 
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn destack_host_android_notify_media_event(
-    runtime_id: u64,
-    watch_id: NativeStringRef,
-    payload: NativeSlice<u8>,
-) -> RuntimeStatus {
-    let result = decode_string(watch_id, "watch_id").and_then(|watch_id| {
-        decode_media_event_payload(payload, "destack.host.android.notifyMediaEvent")
-            .and_then(|event| android_notify_media_event(runtime_id, &watch_id, event))
-    });
-
-    runtime_status(result)
-}
-
-#[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn destack_host_android_notify_memory_pressure_changed(
     runtime_id: u64,
     level_code: u32,
@@ -427,16 +411,6 @@ fn decode_background_event_payload(
         .map_err(|_| invalid_argument_value("payload", "invalid payload slice"))?;
 
     decode_callback_host_json(payload, operation, "background event")
-}
-
-fn decode_media_event_payload(
-    payload: NativeSlice<u8>,
-    operation: &'static str,
-) -> RuntimeResult<MediaEventValue> {
-    let payload = unsafe { payload.as_slice() }
-        .map_err(|_| invalid_argument_value("payload", "invalid payload slice"))?;
-
-    decode_callback_host_json(payload, operation, "media event")
 }
 
 fn runtime_status(result: RuntimeResult<()>) -> RuntimeStatus {

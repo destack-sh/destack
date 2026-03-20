@@ -77,7 +77,7 @@ fn assert_usb_watch_events(events: &[UsbHotplugEventValue]) {
     // validate every event in delivery order
     for event in events {
         match event {
-            UsbHotplugEventValue::UsbHotplugInstanceEvent(value) => {
+            UsbHotplugEventValue::UsbHotplugAttachedEvent(value) => {
                 assert_eq!(value.kind, "attached");
                 assert_watch_sequence(value.metadata.sequence, &mut last_sequence);
                 assert_usb_descriptor_shape(&value.metadata.device);
@@ -118,7 +118,7 @@ fn assert_seeded_watch_delivery(
 
     let attached_count = events
         .iter()
-        .filter(|event| matches!(event, UsbHotplugEventValue::UsbHotplugInstanceEvent(_)))
+        .filter(|event| matches!(event, UsbHotplugEventValue::UsbHotplugAttachedEvent(_)))
         .count();
 
     assert!(

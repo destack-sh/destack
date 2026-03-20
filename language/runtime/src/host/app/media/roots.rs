@@ -100,11 +100,18 @@ pub(super) fn desktop_media_roots(platform: Platform) -> RuntimeResult<DesktopMe
 }
 
 /// Return the imported target root for one media class.
-pub(super) fn import_root_for_kind(roots: &DesktopMediaRoots, kind: MediaAssetKind) -> PathBuf {
+pub(super) fn import_root_for_kind(
+    roots: &DesktopMediaRoots,
+    kind: MediaAssetKind,
+) -> RuntimeResult<PathBuf> {
     match kind {
-        MediaAssetKind::Image => roots.pictures.clone(),
-        MediaAssetKind::Video => roots.videos.clone(),
-        MediaAssetKind::Audio => roots.music.clone(),
+        MediaAssetKind::Image => Ok(roots.pictures.clone()),
+        MediaAssetKind::Video => Ok(roots.videos.clone()),
+        MediaAssetKind::Audio => Ok(roots.music.clone()),
+        MediaAssetKind::Other => Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.os.media.importPath",
+        ))
+        .boxed()),
     }
 }
 

@@ -141,7 +141,7 @@ pub(crate) fn backend_descriptor_state(
         | platform::display::DISPLAY_BACKEND_CAP_TRANSPARENCY.0
         | platform::display::DISPLAY_BACKEND_CAP_ALWAYS_ON_TOP.0
         | platform::display::DISPLAY_BACKEND_CAP_ATTENTION_REQUEST.0
-        | platform::display::DISPLAY_BACKEND_CAP_REFRESH_REQUEST.0
+        | platform::display::DISPLAY_BACKEND_CAP_BEGIN_FRAME_STREAM.0
         | platform::display::DISPLAY_BACKEND_CAP_SAFE_AREA.0
         | platform::display::DISPLAY_BACKEND_CAP_THEME.0
         | platform::display::DISPLAY_BACKEND_CAP_OCCLUSION.0

@@ -30,17 +30,6 @@ pub(crate) type AndroidHostMediaImportPathCallback = unsafe extern "C" fn(
 pub(crate) type AndroidHostMediaDeleteCallback =
     unsafe extern "C" fn(runtime_id: u64, ids: NativeSlice<u8>, deleted_count: *mut u32) -> u32;
 
-/// Host callback for opening one Android media watch.
-pub(crate) type AndroidHostMediaWatchOpenCallback = unsafe extern "C" fn(
-    runtime_id: u64,
-    watch_id: NativeStringRef,
-    options: NativeSlice<u8>,
-) -> u32;
-
-/// Host callback for closing one Android media watch.
-pub(crate) type AndroidHostMediaWatchCloseCallback =
-    unsafe extern "C" fn(runtime_id: u64, watch_id: NativeStringRef) -> u32;
-
 /// Callback table for Android host media request interop.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
@@ -53,10 +42,6 @@ pub(crate) struct AndroidHostMediaCallbacks {
     pub import_path: Option<AndroidHostMediaImportPathCallback>,
     /// Callback for `mediaDelete`.
     pub delete: Option<AndroidHostMediaDeleteCallback>,
-    /// Callback for `mediaWatchOpen`.
-    pub watch_open: Option<AndroidHostMediaWatchOpenCallback>,
-    /// Callback for `mediaWatchClose`.
-    pub watch_close: Option<AndroidHostMediaWatchCloseCallback>,
 }
 
 /// Resolve and invoke one Android host media callback.

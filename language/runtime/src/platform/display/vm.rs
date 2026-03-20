@@ -9,6 +9,7 @@ use crate::platform::core::{
 };
 use crate::platform::display::{
     DisplayBackendCapabilityFlags, DisplayBackendDescriptor, DisplayBackendDescriptorVm,
+    DisplayBeginFrameEvent, DisplayBeginFrameEventVm, DisplayBeginFrameOpenOptionsVm,
     DisplayDescriptor, DisplayDescriptorVm, DisplayGammaRamp, DisplayGammaRampVm, DisplayModeVm,
     DisplayMonitorEvent, DisplayMonitorEventFilter, DisplayMonitorEventFilterVm,
     DisplayMonitorEventOpenOptions, DisplayMonitorEventOpenOptionsVm, DisplayMonitorEventVm,
@@ -17,10 +18,11 @@ use crate::platform::display::{
     WindowDropHoverLeavePayloadVm, WindowDropHoverPayload, WindowDropHoverPayloadVm,
     WindowDropTextPayload, WindowDropTextPayloadVm, WindowEvent, WindowEventOpenOptionsVm,
     WindowEventVm, WindowIconImage, WindowIconImageVm, WindowIconSet, WindowIconSetVm,
-    WindowModeOptions, WindowModeOptionsVm, WindowModePayload, WindowModePayloadVm, WindowOptions,
-    WindowOptionsVm, native as host_display,
+    WindowLogicalRectVm, WindowModeOptions, WindowModeOptionsVm, WindowModePayload,
+    WindowModePayloadVm, WindowOptions, WindowOptionsVm, WindowPhysicalSizeVm, WindowRenderState,
+    native as host_display,
 };
-use crate::platform::{NativeArray, VmArray, VmSlice, resource};
+use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice, resource};
 use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// Convert one native window-mode payload to VM.
@@ -126,6 +128,7 @@ fn display_descriptor_to_vm(
         builtin_panel: value.builtin_panel,
         variable_refresh_support: value.variable_refresh_support,
         hdr_support: value.hdr_support,
+        color_state: value.color_state,
     })
 }
 
@@ -287,7 +290,6 @@ fn window_descriptor_to_vm(
             .map_err(Box::<RuntimeError>::from)?,
         role: value.role,
         mode: window_mode_options_to_vm(context, value.mode)?,
-        display: value.display,
         resizable: value.resizable,
         decorated: value.decorated,
         chrome: value.chrome,
@@ -557,6 +559,18 @@ fn window_event_to_vm(
                 },
             ))
         }
+        WindowEvent::WindowContentRectChangedEvent(event) => {
+            let kind = unsafe { event.kind.as_str()? };
+            Ok(WindowEventVm::WindowContentRectChangedEvent(
+                platform::display::WindowContentRectChangedEventVm {
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
+                    metadata: event.metadata,
+                    payload: event.payload,
+                },
+            ))
+        }
         WindowEvent::WindowDropCancelledEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowDropCancelledEvent(
@@ -630,6 +644,18 @@ fn window_event_to_vm(
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowFocusChangedEvent(
                 platform::display::WindowFocusChangedEventVm {
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
+                    metadata: event.metadata,
+                    payload: event.payload,
+                },
+            ))
+        }
+        WindowEvent::WindowFramebufferSizeChangedEvent(event) => {
+            let kind = unsafe { event.kind.as_str()? };
+            Ok(WindowEventVm::WindowFramebufferSizeChangedEvent(
+                platform::display::WindowFramebufferSizeChangedEventVm {
                     kind: context
                         .string_handle(kind)
                         .map_err(Box::<RuntimeError>::from)?,
@@ -722,21 +748,22 @@ fn window_event_to_vm(
                 },
             ))
         }
-        WindowEvent::WindowRefreshRequestedEvent(event) => {
-            let kind = unsafe { event.kind.as_str()? };
-            Ok(WindowEventVm::WindowRefreshRequestedEvent(
-                platform::display::WindowRefreshRequestedEventVm {
-                    kind: context
-                        .string_handle(kind)
-                        .map_err(Box::<RuntimeError>::from)?,
-                    metadata: event.metadata,
-                },
-            ))
-        }
         WindowEvent::WindowSafeAreaChangedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
             Ok(WindowEventVm::WindowSafeAreaChangedEvent(
                 platform::display::WindowSafeAreaChangedEventVm {
+                    kind: context
+                        .string_handle(kind)
+                        .map_err(Box::<RuntimeError>::from)?,
+                    metadata: event.metadata,
+                    payload: event.payload,
+                },
+            ))
+        }
+        WindowEvent::WindowRenderStateChangedEvent(event) => {
+            let kind = unsafe { event.kind.as_str()? };
+            Ok(WindowEventVm::WindowRenderStateChangedEvent(
+                platform::display::WindowRenderStateChangedEventVm {
                     kind: context
                         .string_handle(kind)
                         .map_err(Box::<RuntimeError>::from)?,
@@ -870,6 +897,14 @@ fn window_options_from_vm(
         mouse_passthrough: options.mouse_passthrough,
         aspect_ratio: options.aspect_ratio,
     })
+}
+
+/// Convert one native begin-frame event to VM.
+fn begin_frame_event_to_vm(
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    value: DisplayBeginFrameEvent,
+) -> RuntimeResult<DisplayBeginFrameEventVm> {
+    Ok(value)
 }
 
 /// Close one display endpoint.
@@ -1007,6 +1042,100 @@ pub(crate) fn destack_display_monitor_event_try_read_batch(
     display_event_array_to_vm(context, events)
 }
 
+/// Open one begin-frame stream.
+pub(crate) fn destack_display_begin_frame_open(
+    _binding: &BindingCallContext,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    options: DisplayBeginFrameOpenOptionsVm,
+) -> RuntimeResult<resource::DisplayBeginFrameHandle> {
+    let _ = options;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.frame.beginOpen",
+    ))
+    .boxed())
+}
+
+/// Close one begin-frame stream.
+pub(crate) fn destack_display_begin_frame_close(
+    _binding: &BindingCallContext,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    handle: resource::DisplayBeginFrameHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.frame.beginClose",
+    ))
+    .boxed())
+}
+
+/// Wait for one begin-frame event.
+pub(crate) fn destack_display_begin_frame_read(
+    _binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    handle: resource::DisplayBeginFrameHandle,
+    timeoutns: u64,
+) -> RuntimeResult<DisplayBeginFrameEventVm> {
+    let _ = (handle, timeoutns);
+
+    begin_frame_event_to_vm(
+        context,
+        Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.display.frame.beginRead",
+        ))
+        .boxed())?,
+    )
+}
+
+/// Wait for one batch of begin-frame events.
+pub(crate) fn destack_display_begin_frame_read_batch(
+    _binding: &BindingCallContext,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    handle: resource::DisplayBeginFrameHandle,
+    maxevents: u32,
+    timeoutns: u64,
+) -> RuntimeResult<VmArray<DisplayBeginFrameEventVm>> {
+    let _ = (handle, maxevents, timeoutns);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.frame.beginReadBatch",
+    ))
+    .boxed())
+}
+
+/// Poll one begin-frame event without blocking.
+pub(crate) fn destack_display_begin_frame_try_read(
+    _binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    handle: resource::DisplayBeginFrameHandle,
+) -> RuntimeResult<DisplayBeginFrameEventVm> {
+    let _ = handle;
+
+    begin_frame_event_to_vm(
+        context,
+        Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.display.frame.beginTryRead",
+        ))
+        .boxed())?,
+    )
+}
+
+/// Poll one batch of begin-frame events without blocking.
+pub(crate) fn destack_display_begin_frame_try_read_batch(
+    _binding: &BindingCallContext,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    handle: resource::DisplayBeginFrameHandle,
+    maxevents: u32,
+) -> RuntimeResult<VmArray<DisplayBeginFrameEventVm>> {
+    let _ = (handle, maxevents);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.frame.beginTryReadBatch",
+    ))
+    .boxed())
+}
+
 /// List available displays.
 pub(crate) fn destack_display_monitor_list(
     binding: &BindingCallContext,
@@ -1083,6 +1212,34 @@ pub(crate) fn destack_display_window_descriptor(
     })?;
 
     window_descriptor_to_vm(context, descriptor)
+}
+
+/// Read one logical content rectangle.
+pub(crate) fn destack_display_window_content_rect(
+    _binding: &BindingCallContext,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+) -> RuntimeResult<WindowLogicalRectVm> {
+    let _ = window;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.contentRect",
+    ))
+    .boxed())
+}
+
+/// Read one drawable framebuffer size.
+pub(crate) fn destack_display_window_framebuffer_size(
+    _binding: &BindingCallContext,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+) -> RuntimeResult<WindowPhysicalSizeVm> {
+    let _ = window;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.framebufferSize",
+    ))
+    .boxed())
 }
 
 /// Read one capability mask for one opened window backend.
@@ -1201,6 +1358,15 @@ pub(crate) fn destack_display_window_request_refresh(
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     unsafe { host_display::destack_display_window_request_refresh(binding, window) }
+}
+
+/// Invalidate one window and schedule another frame.
+pub(crate) fn destack_display_window_invalidate(
+    binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    destack_display_window_request_refresh(binding, context, window)
 }
 
 /// Set always-on-top state.
@@ -1354,6 +1520,20 @@ pub(crate) fn destack_display_window_state(
     window: resource::WindowHandle,
 ) -> RuntimeResult<platform::display::WindowStateVm> {
     call_out(|out| unsafe { host_display::destack_display_window_state(binding, out, window) })
+}
+
+/// Read one current render state.
+pub(crate) fn destack_display_window_render_state(
+    _binding: &BindingCallContext,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+) -> RuntimeResult<WindowRenderState> {
+    let _ = window;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.renderState",
+    ))
+    .boxed())
 }
 
 /// Read display color state.

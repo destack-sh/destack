@@ -343,8 +343,8 @@ where
             binding
                 .agent()
                 .platform_state
-                .midi
-                .retain_runtime_activity(binding),
+                .device
+                .retain_runtime_activity(),
         )
         .with_payload(payload);
     let resource_id =
@@ -602,7 +602,7 @@ mod tests {
         runtime
             .agent
             .platform_state
-            .midi
+            .device
             .capture_image(CaptureMode::Suspend, ())
             .expect("midi-free platform midi capture should succeed");
 
@@ -615,7 +615,7 @@ mod tests {
         let error = runtime
             .agent
             .platform_state
-            .midi
+            .device
             .capture_image(CaptureMode::Suspend, ())
             .expect_err("live midi resource should block platform midi capture");
         let RuntimeError::CaptureBarrier {
@@ -624,7 +624,7 @@ mod tests {
         else {
             panic!("expected midi capture barrier, got {error:?}");
         };
-        assert_eq!(component, "platform.midi");
+        assert_eq!(component, "platform.device.midi");
         assert_eq!(detail, "runtime state is active");
 
         // closing the resource should release midi runtime activity
@@ -642,7 +642,7 @@ mod tests {
         runtime
             .agent
             .platform_state
-            .midi
+            .device
             .capture_image(CaptureMode::Suspend, ())
             .expect("closing the last midi resource should clear the midi capture barrier");
     }

@@ -7,16 +7,16 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::tests::InputHarnessContext;
 use crate::platform::input::{
-    InputAxisMetadata, InputAxisMetadataVm, InputButtonMetadata, InputButtonMetadataVm,
-    InputCapabilityMetadataFidelity, InputCapabilityMetadataOrigin, InputCompositionEvent,
-    InputCompositionEventPayload, InputCompositionEventPayloadVm, InputCompositionEventVm,
-    InputDeviceCapabilities, InputDeviceCapabilitiesVm, InputDeviceCapabilityKind,
-    InputDeviceDescriptor, InputDeviceDescriptorVm, InputDeviceEvent, InputDeviceEventPayload,
-    InputDeviceEventPayloadVm, InputDeviceEventVm, InputDeviceKind, InputEvent, InputEventAction,
-    InputEventMetadata, InputEventMetadataVm, InputEventVm, InputGamepadBatteryState,
-    InputGamepadBatteryStatus, InputGamepadBatteryStatusVm, InputGamepadButtonState,
-    InputGamepadButtonStateVm, InputGamepadConnectionType, InputGamepadEvent,
-    InputGamepadEventPayload, InputGamepadEventPayloadVm, InputGamepadEventVm,
+    ClipboardBinaryFormat, InputAxisMetadata, InputAxisMetadataVm, InputButtonMetadata,
+    InputButtonMetadataVm, InputCapabilityMetadataFidelity, InputCapabilityMetadataOrigin,
+    InputCompositionEvent, InputCompositionEventPayload, InputCompositionEventPayloadVm,
+    InputCompositionEventVm, InputDeviceCapabilities, InputDeviceCapabilitiesVm,
+    InputDeviceCapabilityKind, InputDeviceDescriptor, InputDeviceDescriptorVm, InputDeviceEvent,
+    InputDeviceEventPayload, InputDeviceEventPayloadVm, InputDeviceEventVm, InputDeviceKind,
+    InputEvent, InputEventAction, InputEventMetadata, InputEventMetadataVm, InputEventVm,
+    InputGamepadBatteryState, InputGamepadBatteryStatus, InputGamepadBatteryStatusVm,
+    InputGamepadButtonState, InputGamepadButtonStateVm, InputGamepadConnectionType,
+    InputGamepadEvent, InputGamepadEventPayload, InputGamepadEventPayloadVm, InputGamepadEventVm,
     InputGamepadMappingType, InputGamepadState, InputGamepadStateVm, InputGamepadTouchState,
     InputGamepadTouchStateVm, InputHapticEffectParameters, InputHapticEffectParametersVm,
     InputHapticEffectType, InputHapticsResult, InputKeyEvent, InputKeyEventPayload,
@@ -106,6 +106,250 @@ impl<'call> InputHarnessContext<'call> {
                 })?;
                 value.into_value(context)
             }
+        }
+    }
+
+    /// Clear clipboard payload.
+    ///
+    /// Clear current host clipboard ownership or payload contents.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.clipboard.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_input_clipboard_clear(&mut self) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => input_vm::destack_input_clipboard_clear(self.call_context, context),
+            None => unsafe { input_native::destack_input_clipboard_clear(self.call_context) },
+        }
+    }
+
+    /// Query whether text clipboard payload exists.
+    ///
+    /// Return whether one text payload is currently available on the host clipboard.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.clipboard.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_clipboard_has_text(&mut self) -> RuntimeResult<bool> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_clipboard_has_text(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<bool>::uninit();
+                unsafe {
+                    input_native::destack_input_clipboard_has_text(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Read binary clipboard payload.
+    ///
+    /// Read one binary payload in one selected clipboard format.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.clipboard.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_clipboard_read_bytes(
+        &mut self,
+        format: ClipboardBinaryFormat,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_clipboard_read_bytes(
+                    self.call_context,
+                    context,
+                    format,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    input_native::destack_input_clipboard_read_bytes(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        format,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read text clipboard payload.
+    ///
+    /// Read one text payload from the host clipboard.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.clipboard.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_clipboard_read_text(
+        &mut self,
+    ) -> RuntimeResult<HarnessValue<NativeStringRef, vm::StringHandle>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_clipboard_read_text(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeStringRef>::uninit();
+                unsafe {
+                    input_native::destack_input_clipboard_read_text(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read clipboard sequence number.
+    ///
+    /// Read one monotonic sequence marker for host clipboard contents.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.clipboard.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_clipboard_sequence(&mut self) -> RuntimeResult<u64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_clipboard_sequence(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<u64>::uninit();
+                unsafe {
+                    input_native::destack_input_clipboard_sequence(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Write binary clipboard payload.
+    ///
+    /// Write one binary payload in one selected clipboard format.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.clipboard.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_input_clipboard_write_bytes(
+        &mut self,
+        format: ClipboardBinaryFormat,
+        argument_bytes: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let argument_bytes = argument_bytes.into_vm("argument_bytes")?;
+                input_vm::destack_input_clipboard_write_bytes(
+                    self.call_context,
+                    context,
+                    format,
+                    argument_bytes,
+                )
+            }
+            None => unsafe {
+                let argument_bytes = argument_bytes.into_native("argument_bytes")?;
+                input_native::destack_input_clipboard_write_bytes(
+                    self.call_context,
+                    format,
+                    argument_bytes,
+                )
+            },
+        }
+    }
+
+    /// Write text clipboard payload.
+    ///
+    /// Write one text payload into the host clipboard.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.clipboard.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_input_clipboard_write_text(
+        &mut self,
+        text: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let text = text.into_vm("text")?;
+                input_vm::destack_input_clipboard_write_text(self.call_context, context, text)
+            }
+            None => unsafe {
+                let text = text.into_native("text")?;
+                input_native::destack_input_clipboard_write_text(self.call_context, text)
+            },
         }
     }
 

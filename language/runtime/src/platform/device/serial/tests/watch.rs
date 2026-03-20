@@ -64,7 +64,7 @@ fn assert_serial_watch_events(events: &[SerialWatchEventValue]) {
     // validate every event in delivery order
     for event in events {
         match event {
-            SerialWatchEventValue::SerialInstanceEvent(value) => {
+            SerialWatchEventValue::SerialAttachedEvent(value) => {
                 assert_eq!(value.kind, "attached");
                 assert_watch_sequence(value.metadata.sequence, &mut last_sequence);
                 assert_serial_descriptor_shape(&value.metadata.port);

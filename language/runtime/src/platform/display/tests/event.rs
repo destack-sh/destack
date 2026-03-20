@@ -56,8 +56,6 @@ struct BackendDescriptorSummary {
 /// One window-event marker used for close-path ordering assertions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WindowEventMarker {
-    /// Refresh event for one target window.
-    RefreshRequested,
     /// Destroyed event for one target window.
     Destroyed,
 }
@@ -179,25 +177,6 @@ fn marker_for_window_event(
     event: &HarnessValue<display_platform::WindowEvent, display_platform::WindowEventVm>,
     window: resource::WindowHandle,
 ) -> Option<WindowEventMarker> {
-    // classify refresh lanes
-    if matches!(
-        event,
-        HarnessValue::Native(
-            display_platform::WindowEvent::WindowRefreshRequestedEvent(
-                display_platform::WindowRefreshRequestedEvent { metadata, .. }
-            )
-        ) if metadata.window == window
-    ) || matches!(
-        event,
-        HarnessValue::Vm(
-            display_platform::WindowEventVm::WindowRefreshRequestedEvent(
-                display_platform::WindowRefreshRequestedEventVm { metadata, .. }
-            )
-        ) if metadata.window == window
-    ) {
-        return Some(WindowEventMarker::RefreshRequested);
-    }
-
     // classify destroyed lanes
     if matches!(
         event,
@@ -575,193 +554,6 @@ pub(crate) fn test_window_event_stream_reports_would_block_after_drain() {
     });
 }
 
-#[cfg(windows)]
-#[cfg_attr(test, test)]
-pub(crate) fn test_window_event_filter_restricts_window_and_kind() {
-    if run_execution_case_or_return(display_case_name!(
-        test_window_event_filter_restricts_window_and_kind
-    )) {
-        return;
-    }
-
-    with_harness_context(|mut context| {
-        let first_options = default_window_options(&mut context, "window-filter-target")?;
-        let Some(first_window) = open_window_or_skip_not_supported(&mut context, first_options)?
-        else {
-            return Ok(());
-        };
-        let second_options = default_window_options(&mut context, "window-filter-other")?;
-        let second_window = context.destack_display_window_open(second_options)?;
-
-        let stream =
-            context.destack_display_window_event_open(window_event_open_options_with_filter(
-                &context,
-                64,
-                DisplayEventOverflowPolicy::DropOldest,
-                Some(first_window),
-                Some(0x200),
-            ))?;
-
-        context.destack_display_window_request_refresh(second_window)?;
-        context.destack_display_window_request_refresh(first_window)?;
-
-        let event = context.destack_display_window_event_read(stream, 100_000_000)?;
-        let is_matching_refresh = matches!(
-            event,
-            HarnessValue::Native(
-                display_platform::WindowEvent::WindowRefreshRequestedEvent(
-                    display_platform::WindowRefreshRequestedEvent { metadata, .. }
-                )
-            ) if metadata.window == first_window
-        ) || matches!(
-            event,
-            HarnessValue::Vm(
-                display_platform::WindowEventVm::WindowRefreshRequestedEvent(
-                    display_platform::WindowRefreshRequestedEventVm { metadata, .. }
-                )
-            ) if metadata.window == first_window
-        );
-        assert!(is_matching_refresh);
-
-        let empty = context.destack_display_window_event_try_read(stream);
-        let empty_error = match empty {
-            Ok(_) => panic!("filtered stream should not include unrelated refresh events"),
-            Err(error) => error,
-        };
-        assert_eq!(
-            error_code(&empty_error),
-            Some(PlatformErrorCode::IoWouldBlock)
-        );
-
-        context.destack_display_window_event_close(stream)?;
-        context.destack_display_window_close(second_window)?;
-        context.destack_display_window_close(first_window)?;
-        Ok(())
-    });
-}
-
-#[cfg(any(unix, windows))]
-#[cfg_attr(test, test)]
-pub(crate) fn test_window_event_overflow_error_policy_reports_busy() {
-    if run_execution_case_or_return(display_case_name!(
-        test_window_event_overflow_error_policy_reports_busy
-    )) {
-        return;
-    }
-
-    with_harness_context(|mut context| {
-        let options = default_window_options(&mut context, "window-overflow")?;
-        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
-            return Ok(());
-        };
-
-        let stream = context.destack_display_window_event_open(window_event_open_options(
-            &context,
-            1,
-            DisplayEventOverflowPolicy::Error,
-        ))?;
-
-        for _ in 0..8 {
-            let result = context.destack_display_window_event_try_read(stream);
-            if let Err(error) = result {
-                if error_code(&error) == Some(PlatformErrorCode::IoWouldBlock) {
-                    break;
-                }
-
-                context.destack_display_window_event_close(stream)?;
-                context.destack_display_window_close(window)?;
-                return Err(error);
-            }
-        }
-
-        context.destack_display_window_request_refresh(window)?;
-        context.destack_display_window_request_refresh(window)?;
-        context.destack_display_window_request_refresh(window)?;
-
-        let overflow = context.destack_display_window_event_try_read(stream);
-        let overflow_error = match overflow {
-            Ok(_) => panic!("overflow policy error should report busy"),
-            Err(error) => error,
-        };
-        assert_eq!(error_code(&overflow_error), Some(PlatformErrorCode::IoBusy));
-
-        context.destack_display_window_event_close(stream)?;
-        context.destack_display_window_close(window)?;
-        Ok(())
-    });
-}
-
-#[cfg(any(unix, windows))]
-#[cfg_attr(test, test)]
-pub(crate) fn test_window_event_drop_oldest_reports_dropped_count_metadata() {
-    if run_execution_case_or_return(display_case_name!(
-        test_window_event_drop_oldest_reports_dropped_count_metadata
-    )) {
-        return;
-    }
-
-    with_harness_context(|mut context| {
-        let options = default_window_options(&mut context, "window-overflow-drop-oldest")?;
-        let Some(window) = open_window_or_skip_not_supported(&mut context, options)? else {
-            return Ok(());
-        };
-
-        let stream = context.destack_display_window_event_open(window_event_open_options(
-            &context,
-            1,
-            DisplayEventOverflowPolicy::DropOldest,
-        ))?;
-
-        // drain seeded records so overflow accounting is isolated to this test sequence
-        loop {
-            let event = context.destack_display_window_event_try_read(stream);
-            let Err(error) = event else {
-                continue;
-            };
-
-            if error_code(&error) == Some(PlatformErrorCode::IoWouldBlock) {
-                break;
-            }
-
-            context.destack_display_window_event_close(stream)?;
-            context.destack_display_window_close(window)?;
-            return Err(error);
-        }
-
-        // publish more refresh events than capacity so dropped-count must increase
-        context.destack_display_window_request_refresh(window)?;
-        context.destack_display_window_request_refresh(window)?;
-        context.destack_display_window_request_refresh(window)?;
-
-        // read until one refresh event appears and assert one positive dropped-count
-        let mut refresh_metadata = None;
-        for _ in 0..16 {
-            let event = context.destack_display_window_event_read(stream, 100_000_000)?;
-            let metadata = match event {
-                HarnessValue::Native(
-                    display_platform::WindowEvent::WindowRefreshRequestedEvent(value),
-                ) if value.metadata.window == window => Some(value.metadata),
-                HarnessValue::Vm(display_platform::WindowEventVm::WindowRefreshRequestedEvent(
-                    value,
-                )) if value.metadata.window == window => Some(value.metadata),
-                _ => None,
-            };
-
-            if metadata.is_some() {
-                refresh_metadata = metadata;
-                break;
-            }
-        }
-
-        let metadata = refresh_metadata.expect("refresh event should be present after request");
-        assert!(metadata.dropped_count > 0);
-
-        context.destack_display_window_event_close(stream)?;
-        context.destack_display_window_close(window)?;
-        Ok(())
-    });
-}
-
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
 pub(crate) fn test_monitor_event_overflow_error_policy_reports_busy() {
@@ -1013,108 +805,6 @@ pub(crate) fn test_window_event_occlusion_changes_follow_visibility_transitions(
                 }
             }
             assert!(saw_unknown);
-
-            context.destack_display_window_event_close(stream)?;
-            context.destack_display_window_close(window)?;
-        }
-
-        Ok(())
-    });
-}
-
-#[cfg(any(unix, windows))]
-#[cfg_attr(test, test)]
-pub(crate) fn test_window_event_refresh_metadata_sequence_is_monotonic() {
-    if run_execution_case_or_return(display_case_name!(
-        test_window_event_refresh_metadata_sequence_is_monotonic
-    )) {
-        return;
-    }
-
-    with_harness_context(|mut context| {
-        let backends = backend_descriptors_for_host_execution(&mut context)?;
-        if backends.is_empty() {
-            return Ok(());
-        }
-
-        for descriptor in backends {
-            // open one strict-backend window and stream for metadata ordering checks
-            let mut options = default_window_options(&mut context, "window-refresh-sequence")?;
-            force_window_backend(&mut options, descriptor.backend);
-            let Some(window) =
-                result_or_skip_not_supported(context.destack_display_window_open(options))?
-            else {
-                continue;
-            };
-
-            let mut event_options = default_window_event_open_options(&context);
-            force_window_event_backend(&mut event_options, descriptor.backend);
-            let Some(stream) = result_or_skip_not_supported(
-                context.destack_display_window_event_open(event_options),
-            )?
-            else {
-                context.destack_display_window_close(window)?;
-                continue;
-            };
-
-            drain_window_event_stream(&mut context, stream)?;
-
-            context.destack_display_window_request_refresh(window)?;
-            context.destack_display_window_request_refresh(window)?;
-            context.destack_display_window_request_refresh(window)?;
-
-            // gather refresh metadata and verify sequence and timestamp monotonicity
-            let mut refresh_sequences = Vec::new();
-            let mut refresh_timestamps = Vec::new();
-            let mut refresh_backends = Vec::new();
-            let mut refresh_dropped_counts = Vec::new();
-            for _ in 0..64 {
-                let event = context.destack_display_window_event_read(stream, 100_000_000)?;
-                let refresh_metadata = match event {
-                    HarnessValue::Native(
-                        display_platform::WindowEvent::WindowRefreshRequestedEvent(value),
-                    ) if value.metadata.window == window => Some((
-                        value.metadata.sequence,
-                        value.metadata.timestamp_ns,
-                        value.metadata.backend,
-                        value.metadata.dropped_count,
-                    )),
-                    HarnessValue::Vm(
-                        display_platform::WindowEventVm::WindowRefreshRequestedEvent(value),
-                    ) if value.metadata.window == window => Some((
-                        value.metadata.sequence,
-                        value.metadata.timestamp_ns,
-                        value.metadata.backend,
-                        value.metadata.dropped_count,
-                    )),
-                    _ => None,
-                };
-
-                if let Some((sequence, timestamp_ns, backend, dropped_count)) = refresh_metadata {
-                    refresh_sequences.push(sequence);
-                    refresh_timestamps.push(timestamp_ns);
-                    refresh_backends.push(backend);
-                    refresh_dropped_counts.push(dropped_count);
-                    if refresh_sequences.len() == 3 {
-                        break;
-                    }
-                }
-            }
-
-            assert_eq!(refresh_sequences.len(), 3);
-            assert!(refresh_sequences[0] < refresh_sequences[1]);
-            assert!(refresh_sequences[1] < refresh_sequences[2]);
-            assert!(refresh_timestamps[0] > 0);
-            assert!(refresh_timestamps[1] > 0);
-            assert!(refresh_timestamps[2] > 0);
-            assert!(refresh_timestamps[0] <= refresh_timestamps[1]);
-            assert!(refresh_timestamps[1] <= refresh_timestamps[2]);
-            assert_eq!(refresh_backends[0], descriptor.backend);
-            assert_eq!(refresh_backends[1], descriptor.backend);
-            assert_eq!(refresh_backends[2], descriptor.backend);
-            assert_eq!(refresh_dropped_counts[0], 0);
-            assert_eq!(refresh_dropped_counts[1], 0);
-            assert_eq!(refresh_dropped_counts[2], 0);
 
             context.destack_display_window_event_close(stream)?;
             context.destack_display_window_close(window)?;
@@ -1436,11 +1126,9 @@ pub(crate) fn test_window_destroyed_is_terminal_for_window_event_stream() {
             // isolate this sequence from seeded records
             drain_window_event_stream(&mut context, stream)?;
 
-            // enqueue one refresh then close to exercise late-callback windows
-            context.destack_display_window_request_refresh(window)?;
             context.destack_display_window_close(window)?;
 
-            // once destroyed is observed, the same window must not emit refresh again
+            // once destroyed is observed, the same window must not emit more classified events
             let mut saw_destroyed = false;
             loop {
                 let event = context.destack_display_window_event_try_read(stream);
@@ -1458,10 +1146,6 @@ pub(crate) fn test_window_destroyed_is_terminal_for_window_event_stream() {
 
                 let marker = marker_for_window_event(&event, window);
                 if let Some(marker) = marker {
-                    if saw_destroyed {
-                        assert_ne!(marker, WindowEventMarker::RefreshRequested);
-                    }
-
                     if marker == WindowEventMarker::Destroyed {
                         saw_destroyed = true;
                     }

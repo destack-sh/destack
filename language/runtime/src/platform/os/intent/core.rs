@@ -214,7 +214,10 @@ fn encode_intent_event_value(
                 IntentOpenFileEventValue {
                     kind: "openFile".to_string(),
                     metadata,
-                    payload: IntentOpenFilePayloadValue { path, content_type },
+                    payload: IntentOpenFilePayloadValue {
+                        path,
+                        mime_type: content_type,
+                    },
                 },
             ))
         }
@@ -222,7 +225,10 @@ fn encode_intent_event_value(
             IntentEventValue::IntentShareTextEvent(IntentShareTextEventValue {
                 kind: "shareText".to_string(),
                 metadata,
-                payload: IntentShareTextPayloadValue { text, content_type },
+                payload: IntentShareTextPayloadValue {
+                    text,
+                    mime_type: content_type,
+                },
             }),
         ),
         IntentQueuedPayload::ShareFiles {
@@ -242,7 +248,7 @@ fn encode_intent_event_value(
                     metadata,
                     payload: IntentShareFilesPayloadValue {
                         paths: encoded_paths,
-                        content_type,
+                        mime_type: content_type,
                     },
                 },
             ))
@@ -270,7 +276,7 @@ fn encode_intent_event_value(
                         url,
                         paths: encoded_paths,
                         text,
-                        content_type,
+                        mime_type: content_type,
                     },
                 },
             ))

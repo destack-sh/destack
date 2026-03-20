@@ -65,9 +65,13 @@ macro_rules! for_each_resource_handle_kind {
             (AudioStreamHandle, AudioStream, "resource.audio.stream", "audio_stream", "The handle for one audio stream."),
             (AudioEventHandle, AudioEvent, "resource.audio.event", "audio_event", "The handle for one audio event subscription endpoint."),
             (DisplayHandle, Display, "resource.display", "display", "The handle for one display device."),
+            (DisplayBeginFrameHandle, DisplayBeginFrame, "resource.display.begin.frame", "display_begin_frame", "The handle for one display begin-frame stream."),
             (WindowHandle, Window, "resource.window", "window", "The handle for one window object."),
+            (AccessibilityActionHandle, AccessibilityAction, "resource.accessibility.action", "accessibility_action", "The handle for one accessibility action stream."),
+            (AccessibilityDocumentHandle, AccessibilityDocument, "resource.accessibility.document", "accessibility_document", "The handle for one accessibility document query stream."),
             (InputDeviceHandle, InputDevice, "resource.input.device", "input_device", "The handle for one input device."),
             (InputMonitorHandle, InputMonitor, "resource.input.monitor", "input_monitor", "The handle for one global input monitor stream."),
+            (InputDragSessionHandle, InputDragSession, "resource.input.drag.session", "input_drag_session", "The handle for one input drag-transfer session."),
             (GpuAdapterHandle, GpuAdapter, "resource.gpu.adapter", "gpu_adapter", "The handle for one gpu adapter."),
             (GpuDeviceHandle, GpuDevice, "resource.gpu.device", "gpu_device", "The handle for one gpu device."),
             (GpuQueueHandle, GpuQueue, "resource.gpu.queue", "gpu_queue", "The handle for one gpu queue."),
@@ -178,8 +182,11 @@ macro_rules! define_resource_kind {
                     | Self::SignalFd
                     | Self::MessageQueue
                     | Self::AudioEvent
+                    | Self::AccessibilityAction
+                    | Self::AccessibilityDocument
                     | Self::MidiEvent
                     | Self::InputMonitor
+                    | Self::DisplayBeginFrame
                     | Self::BackgroundEvent
                     | Self::BluetoothAdapterWatch
                     | Self::BluetoothSubscription
@@ -223,6 +230,7 @@ macro_rules! define_resource_kind {
                     | Self::Display
                     | Self::Window
                     | Self::InputDevice
+                    | Self::InputDragSession
                     | Self::GpuAdapter
                     | Self::GpuDevice
                     | Self::GpuQueue

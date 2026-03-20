@@ -25,7 +25,7 @@ fn android_backend_support(binding: &BindingCallContext) -> BackendSupport {
     let description = binding
         .agent()
         .platform_state
-        .midi
+        .device
         .describe_android_backend(binding, "destack.device.midi.backend.support");
 
     backend_support_from_check("android-midi", description)
@@ -36,7 +36,7 @@ fn backend_description(binding: &BindingCallContext) -> Option<AndroidBackendDes
     binding
         .agent()
         .platform_state
-        .midi
+        .device
         .describe_android_backend(binding, "destack.device.midi.backend.list")
         .ok()
 }

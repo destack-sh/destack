@@ -1,9 +1,5 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::app::background::submit_background_request;
-use crate::host::app::document::access::{
-    list_document_access_grants, persist_document_access_grants, revoke_document_access_grants,
-};
-use crate::host::app::document::storage::import_document_descriptors_to_app_storage;
 use crate::host::app::media::submit_media_request;
 use crate::host::app::notification::submit_notification_request;
 use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
@@ -80,22 +76,6 @@ pub(crate) fn submit_request(
             HostRequestResult::DocumentDescriptors(super::document::pick_documents(
                 context, &options,
             )?),
-        )),
-        HostRequest::OsDocumentImport { documents } => Ok(HostRequestOutcome::immediate(
-            HostRequestResult::DocumentDescriptors(import_document_descriptors_to_app_storage(
-                context, documents,
-            )?),
-        )),
-        HostRequest::OsDocumentAccessPersist { documents, access } => Ok(
-            HostRequestOutcome::immediate(HostRequestResult::DocumentAccessGrants(
-                persist_document_access_grants(context, documents, access)?,
-            )),
-        ),
-        HostRequest::OsDocumentAccessList => Ok(HostRequestOutcome::immediate(
-            HostRequestResult::DocumentAccessGrants(list_document_access_grants(context)?),
-        )),
-        HostRequest::OsDocumentAccessRevoke { ids } => Ok(HostRequestOutcome::immediate(
-            HostRequestResult::U32(revoke_document_access_grants(context, &ids)?),
         )),
         HostRequest::OsPermissionRequest { permission } => {
             let Some(state) = request_permission_state(context, permission)? else {

@@ -11,8 +11,9 @@ use objc2_core_graphics::{CGDisplayBounds, CGMainDisplayID};
 use objc2_foundation::{NSNumber, ns_string};
 
 use crate::platform::display::{
-    WindowDescriptor, WindowLogicalSize, WindowOcclusionState, WindowPhysicalSize, WindowPosition,
-    WindowSafeAreaInsets, WindowState, WindowTheme, WindowVisibility,
+    WindowDescriptor, WindowLogicalRect, WindowLogicalSize, WindowOcclusionState,
+    WindowPhysicalSize, WindowPosition, WindowRenderState, WindowSafeAreaInsets, WindowState,
+    WindowTheme, WindowVisibility,
 };
 use crate::runtime::BindingCallContext;
 
@@ -42,7 +43,6 @@ pub(crate) fn descriptor_from_host_state(
         title: context.store_string(&host_state.title),
         role: host_state.role,
         mode: host_state.mode,
-        display: host_state.display,
         resizable: host_state.resizable,
         decorated: host_state.decorated,
         chrome: host_state.chrome,
@@ -60,17 +60,39 @@ pub(crate) fn descriptor_from_host_state(
 
 /// Build one window state payload from one host-state snapshot.
 pub(crate) fn state_from_host_state(host_state: &AppKitWindowHostState) -> WindowState {
+    let content_rect_logical = WindowLogicalRect {
+        x: 0.0,
+        y: 0.0,
+        width: host_state.size_logical.width,
+        height: host_state.size_logical.height,
+    };
+    let framebuffer_size = host_state.size_physical;
+    let render_state = if framebuffer_size.width == 0 || framebuffer_size.height == 0 {
+        WindowRenderState::ZeroSized
+    } else if host_state.visibility == WindowVisibility::Hidden
+        || host_state.visibility == WindowVisibility::Minimized
+    {
+        WindowRenderState::Hidden
+    } else if host_state.occlusion == WindowOcclusionState::Occluded {
+        WindowRenderState::Occluded
+    } else {
+        WindowRenderState::Renderable
+    };
+
     WindowState {
         backend: appkit_core::selected_backend(),
         position: host_state.position,
         size_logical: host_state.size_logical,
         size_physical: host_state.size_physical,
+        content_rect_logical,
+        framebuffer_size,
         scale_factor_milli: host_state.scale_factor_milli,
         visibility: host_state.visibility,
         role: host_state.role,
         display: host_state.display,
         focused: host_state.focused,
         occlusion: host_state.occlusion,
+        render_state,
         safe_area_insets: host_state.safe_area_insets,
         theme: host_state.theme,
         chrome: host_state.chrome,

@@ -13,9 +13,8 @@ pub(crate) use destack_workspace::Platform;
 pub use event::{
     HostBackgroundEvent, HostEvent, HostEventKind, HostIntentEvent, HostIntentPayload,
     HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState, HostLocationEvent,
-    HostMediaEvent, HostMediaEventKind, HostMemoryPressureEvent, HostMemoryPressureLevel,
-    HostNotificationEvent, HostPermissionEvent, HostPowerMode, HostPowerModeEvent,
-    HostThermalEvent, HostThermalState, HostWallClockEvent,
+    HostMemoryPressureEvent, HostMemoryPressureLevel, HostNotificationEvent, HostPermissionEvent,
+    HostPowerMode, HostPowerModeEvent, HostThermalEvent, HostThermalState, HostWallClockEvent,
 };
 pub(crate) use queue::HostQueue;
 pub(crate) use registry::{
