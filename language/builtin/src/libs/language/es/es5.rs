@@ -3,10 +3,11 @@
 
 use crate::builtin_lib_sources;
 use crate::libs::language::symbols::ES5_DECLARED_SYMBOLS;
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([(LIB_ES_ES5_INDEX_D_TS, "language", "es/es5", "index.d.ts"),]);
 
-pub const LIB_ES5: BuiltinLib = BuiltinLib::language("es5", &[LIB_ES_ES5_INDEX_D_TS], &[])
+pub const LIB_ES5: BuiltinLibrary = BuiltinLibrary::language("es5", &[LIB_ES_ES5_INDEX_D_TS], &[])
     .ambient()
+    .with_reference_libs(&["decorators", "decorators.legacy"])
     .with_declared_symbols(ES5_DECLARED_SYMBOLS);

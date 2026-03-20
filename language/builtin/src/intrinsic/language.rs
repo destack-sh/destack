@@ -1,5 +1,7 @@
+use serde::{Deserialize, Serialize};
+
 /// The kind of symbol a lang item expects.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum LanguageSymbolKind {
     /// A `newtype interface` declaration.
     Interface,
@@ -33,7 +35,7 @@ macro_rules! define_language_symbols {
         /// - Operator desugaring (`a + b` => `a.add(b)`)
         /// - Type descriptor generation
         /// - Special syntax handling (`?`, `??`, etc.)
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
         #[allow(clippy::upper_case_acronyms)]
         pub enum LanguageSymbol {
             $($(

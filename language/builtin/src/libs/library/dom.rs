@@ -3,7 +3,7 @@
 
 use crate::builtin_lib_sources;
 use crate::libs::library::symbols::DOM_DECLARED_SYMBOLS;
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([
     (LIB_DOM_INDEX_D_TS, "library", "dom", "index.d.ts"),
@@ -16,12 +16,13 @@ builtin_lib_sources!([
     (LIB_DOM_ITERABLE_D_TS, "library", "dom", "iterable.d.ts"),
 ]);
 
-pub const LIB_DOM: BuiltinLib = BuiltinLib::library("dom", &[LIB_DOM_INDEX_D_TS], &[])
+pub const LIB_DOM: BuiltinLibrary = BuiltinLibrary::library("dom", &[LIB_DOM_INDEX_D_TS], &[])
     .ambient()
+    .with_reference_libs(&["es2015", "es2018.asynciterable", "es2020"])
     .with_declared_symbols(DOM_DECLARED_SYMBOLS);
 
-pub const LIB_DOM_ASYNCITERABLE: BuiltinLib =
-    BuiltinLib::library("dom.asynciterable", &[LIB_DOM_ASYNCITERABLE_D_TS], &[]).ambient();
+pub const LIB_DOM_ASYNCITERABLE: BuiltinLibrary =
+    BuiltinLibrary::library("dom.asynciterable", &[LIB_DOM_ASYNCITERABLE_D_TS], &[]).ambient();
 
-pub const LIB_DOM_ITERABLE: BuiltinLib =
-    BuiltinLib::library("dom.iterable", &[LIB_DOM_ITERABLE_D_TS], &[]).ambient();
+pub const LIB_DOM_ITERABLE: BuiltinLibrary =
+    BuiltinLibrary::library("dom.iterable", &[LIB_DOM_ITERABLE_D_TS], &[]).ambient();

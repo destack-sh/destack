@@ -2,7 +2,7 @@
 // run `just generate-builtin-libs` to regenerate
 
 use crate::builtin_lib_sources_targeted;
-use crate::libs::source::{BuiltinLib, BuiltinOutputFormat, BuiltinPlatform, BuiltinRuntime};
+use crate::libs::source::{BuiltinLibrary, BuiltinOutputFormat, BuiltinPlatform, BuiltinRuntime};
 
 const PLATFORM_RUNTIMES: &[BuiltinRuntime] = &[
     BuiltinRuntime::NativeHosted,
@@ -1159,7 +1159,7 @@ builtin_lib_sources_targeted!(
     ]
 );
 
-pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::library(
+pub const LIB_PLATFORM: BuiltinLibrary = BuiltinLibrary::library(
     "platform",
     &[
         LIB_PLATFORM_ACCESSIBILITY_ACTION_DS,

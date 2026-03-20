@@ -3,7 +3,7 @@
 
 use crate::builtin_lib_sources;
 use crate::libs::language::symbols::NATIVE_DECLARED_SYMBOLS;
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([
     (LIB_NATIVE_INDEX_DS, "language", "native", "index.ds"),
@@ -105,7 +105,7 @@ builtin_lib_sources!([
     ),
 ]);
 
-pub const LIB_NATIVE: BuiltinLib = BuiltinLib::language(
+pub const LIB_NATIVE: BuiltinLibrary = BuiltinLibrary::language(
     "native",
     &[
         LIB_NATIVE_INDEX_DS,

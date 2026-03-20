@@ -11,7 +11,7 @@ mod js;
 mod native;
 mod symbols;
 
-use super::source::BuiltinLib;
+use super::source::BuiltinLibrary;
 
 #[cfg(feature = "lib-es")]
 pub use es::*;
@@ -22,7 +22,7 @@ pub use js::*;
 #[cfg(feature = "lib-native")]
 pub use native::*;
 
-pub const LANGUAGE_LIBS: &[BuiltinLib] = &[
+pub const LANGUAGE_LIBS: &[BuiltinLibrary] = &[
     #[cfg(feature = "lib-es")]
     LIB_DECORATORS,
     #[cfg(feature = "lib-es")]

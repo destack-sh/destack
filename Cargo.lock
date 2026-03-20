@@ -1245,6 +1245,9 @@ version = "0.55.4"
 [[package]]
 name = "destack_builtin"
 version = "0.55.4"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "destack_capi"

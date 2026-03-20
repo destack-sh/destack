@@ -2,7 +2,7 @@
 // run `just generate-builtin-libs` to regenerate
 
 use crate::builtin_lib_sources;
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([
     (
@@ -685,7 +685,7 @@ builtin_lib_sources!([
     ),
 ]);
 
-pub const LIB_UNDICI_TYPES_V5: BuiltinLib = BuiltinLib::library(
+pub const LIB_UNDICI_TYPES_V5: BuiltinLibrary = BuiltinLibrary::library(
     "undici-types.v5",
     &[
         LIB_UNDICI_TYPES_V5_INDEX_D_TS,
@@ -726,7 +726,7 @@ pub const LIB_UNDICI_TYPES_V5: BuiltinLib = BuiltinLib::library(
 )
 .explicit();
 
-pub const LIB_UNDICI_TYPES_V6: BuiltinLib = BuiltinLib::library(
+pub const LIB_UNDICI_TYPES_V6: BuiltinLibrary = BuiltinLibrary::library(
     "undici-types.v6",
     &[
         LIB_UNDICI_TYPES_V6_INDEX_D_TS,
@@ -772,7 +772,7 @@ pub const LIB_UNDICI_TYPES_V6: BuiltinLib = BuiltinLib::library(
 )
 .explicit();
 
-pub const LIB_UNDICI_TYPES_V7: BuiltinLib = BuiltinLib::library(
+pub const LIB_UNDICI_TYPES_V7: BuiltinLibrary = BuiltinLibrary::library(
     "undici-types.v7",
     &[
         LIB_UNDICI_TYPES_V7_INDEX_D_TS,
@@ -822,7 +822,7 @@ pub const LIB_UNDICI_TYPES_V7: BuiltinLib = BuiltinLib::library(
 )
 .explicit();
 
-pub const LIB_UNDICI_TYPES: BuiltinLib = BuiltinLib::library(
+pub const LIB_UNDICI_TYPES: BuiltinLibrary = BuiltinLibrary::library(
     "undici-types",
     &[
         LIB_UNDICI_TYPES_V6_INDEX_D_TS,

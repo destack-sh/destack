@@ -2,9 +2,9 @@
 // run `just generate-builtin-libs` to regenerate
 
 use crate::builtin_lib_sources;
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([(LIB_GLOBALS_INDEX_D_TS, "language", "globals", "index.d.ts"),]);
 
-pub const LIB_GLOBALS: BuiltinLib =
-    BuiltinLib::language("globals", &[LIB_GLOBALS_INDEX_D_TS], &[]).ambient();
+pub const LIB_GLOBALS: BuiltinLibrary =
+    BuiltinLibrary::language("globals", &[LIB_GLOBALS_INDEX_D_TS], &[]).ambient();

@@ -3,7 +3,7 @@
 
 use crate::builtin_lib_sources;
 use crate::libs::language::symbols::JS_DECLARED_SYMBOLS;
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([
     (LIB_JS_INDEX_DS, "language", "js", "index.ds"),
@@ -21,7 +21,7 @@ builtin_lib_sources!([
     ),
 ]);
 
-pub const LIB_JS: BuiltinLib = BuiltinLib::language(
+pub const LIB_JS: BuiltinLibrary = BuiltinLibrary::language(
     "js",
     &[
         LIB_JS_INDEX_DS,

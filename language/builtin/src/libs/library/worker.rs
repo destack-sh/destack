@@ -3,7 +3,7 @@
 
 use crate::builtin_lib_sources;
 use crate::libs::library::symbols::WORKER_DECLARED_SYMBOLS;
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([
     (LIB_WORKER_INDEX_D_TS, "library", "worker", "index.d.ts"),
@@ -27,43 +27,47 @@ builtin_lib_sources!([
     ),
 ]);
 
-pub const LIB_WORKER: BuiltinLib = BuiltinLib::library("worker", &[LIB_WORKER_INDEX_D_TS], &[])
-    .ambient()
-    .with_declared_symbols(WORKER_DECLARED_SYMBOLS);
+pub const LIB_WORKER: BuiltinLibrary =
+    BuiltinLibrary::library("worker", &[LIB_WORKER_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["es2015", "es2018.asynciterable", "es2020"])
+        .with_declared_symbols(WORKER_DECLARED_SYMBOLS);
 
-pub const LIB_WEBWORKER: BuiltinLib =
-    BuiltinLib::library("webworker", &[LIB_WORKER_INDEX_D_TS], &[]).ambient();
+pub const LIB_WEBWORKER: BuiltinLibrary =
+    BuiltinLibrary::library("webworker", &[LIB_WORKER_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["es2015", "es2018.asynciterable", "es2020"]);
 
-pub const LIB_WORKER_ASYNCITERABLE: BuiltinLib = BuiltinLib::library(
+pub const LIB_WORKER_ASYNCITERABLE: BuiltinLibrary = BuiltinLibrary::library(
     "worker.asynciterable",
     &[LIB_WORKER_ASYNCITERABLE_D_TS],
     &[],
 )
 .ambient();
 
-pub const LIB_WEBWORKER_ASYNCITERABLE: BuiltinLib = BuiltinLib::library(
+pub const LIB_WEBWORKER_ASYNCITERABLE: BuiltinLibrary = BuiltinLibrary::library(
     "webworker.asynciterable",
     &[LIB_WORKER_ASYNCITERABLE_D_TS],
     &[],
 )
 .ambient();
 
-pub const LIB_WORKER_IMPORTSCRIPTS: BuiltinLib = BuiltinLib::library(
+pub const LIB_WORKER_IMPORTSCRIPTS: BuiltinLibrary = BuiltinLibrary::library(
     "worker.importscripts",
     &[LIB_WORKER_IMPORTSCRIPTS_D_TS],
     &[],
 )
 .ambient();
 
-pub const LIB_WEBWORKER_IMPORTSCRIPTS: BuiltinLib = BuiltinLib::library(
+pub const LIB_WEBWORKER_IMPORTSCRIPTS: BuiltinLibrary = BuiltinLibrary::library(
     "webworker.importscripts",
     &[LIB_WORKER_IMPORTSCRIPTS_D_TS],
     &[],
 )
 .ambient();
 
-pub const LIB_WORKER_ITERABLE: BuiltinLib =
-    BuiltinLib::library("worker.iterable", &[LIB_WORKER_ITERABLE_D_TS], &[]).ambient();
+pub const LIB_WORKER_ITERABLE: BuiltinLibrary =
+    BuiltinLibrary::library("worker.iterable", &[LIB_WORKER_ITERABLE_D_TS], &[]).ambient();
 
-pub const LIB_WEBWORKER_ITERABLE: BuiltinLib =
-    BuiltinLib::library("webworker.iterable", &[LIB_WORKER_ITERABLE_D_TS], &[]).ambient();
+pub const LIB_WEBWORKER_ITERABLE: BuiltinLibrary =
+    BuiltinLibrary::library("webworker.iterable", &[LIB_WORKER_ITERABLE_D_TS], &[]).ambient();

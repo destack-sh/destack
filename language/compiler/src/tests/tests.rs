@@ -1,8 +1,9 @@
 #![allow(dead_code)]
 
 use std::env::current_dir;
+use std::fmt::Write;
 use std::path::PathBuf;
-use std::sync::{Arc, mpsc};
+use std::sync::{Arc, LazyLock, Mutex, mpsc};
 use std::thread;
 use std::time::Duration;
 
@@ -28,23 +29,37 @@ use destack_vm::{Heap, Isolate, IsolateOptions, MemoryContext, SharedSpace, Valu
 use destack_workspace::{
     ArtifactKey, CacheMode, CacheStore, Destack, DestackJson, DestackOptions, DirAnalyzed, DirBase,
     DirDeclared, DirElaborated, DirInterface, DirPatched, DirPrepared, DirResolved, DiskCacheStore,
-    DiskCacheStore, ExportedSymbolTable, MemoryCacheStore, Module, OutputFormat, ProfileId,
-    Program, Session, Target, TargetId,
+    ExportedSymbolTable, MemoryCacheStore, Module, OutputFormat, ProfileId, Program, Session,
+    Target, TargetId,
 };
 use serde_json::json;
 
-use crate::{AnalyzeOptions, BuildKey, Compiler, CompilerOptions, TaskPhase, default_workers};
+use crate::{
+    AnalyzeOptions, ArtifactTaskKeyExt, Compiler, CompilerOptions, TaskPhase, default_workers,
+};
 
 use super::tracing::init_tracing;
 
 const DEFAULT_TEST_TIMEOUT_SECONDS: u64 = 10;
+static TEST_COMPILE_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
 /// Get the test timeout from environment variable or use default.
 fn test_timeout_seconds() -> u64 {
-    std::env::var("TEST_TIMEOUT_SECONDS")
+    let base_timeout = std::env::var("TEST_TIMEOUT_SECONDS")
         .ok()
         .and_then(|value| value.parse::<u64>().ok())
-        .unwrap_or(DEFAULT_TEST_TIMEOUT_SECONDS)
+        .unwrap_or(DEFAULT_TEST_TIMEOUT_SECONDS);
+
+    let test_threads = std::env::var("RUST_TEST_THREADS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(1)
+        .max(1);
+
+    // scale timeout under heavily parallel cargo test runs
+    let timeout_scale = (((test_threads - 1) / 2) + 1).min(6);
+
+    base_timeout * timeout_scale
 }
 
 /// Choose a worker count for parallel tests without oversubscribing the host.
@@ -848,7 +863,7 @@ impl TestProgram {
     }
 
     /// Create a new TestProgram with the given options.
-    fn new(fs: TestFileSystem, workers: u16, inject_prelude: bool, load_libs: bool) -> Self {
+    fn new(fs: TestFileSystem, workers: u16, inject_prelude: bool, load_libraries: bool) -> Self {
         init_tracing();
         let root_directory = match &fs {
             TestFileSystem::Memory { .. } => current_dir().unwrap(),
@@ -874,7 +889,7 @@ impl TestProgram {
         let compiler_options = CompilerOptions {
             workers,
             inject_prelude,
-            load_libs,
+            load_libraries,
             elaborate_parenthesize_casts: true,
             ..CompilerOptions::default()
         };
@@ -971,7 +986,7 @@ impl TestProgram {
         let profile_id = self.default_profile_id_for_root();
         let profile_key = self.program.profile(profile_id).key.clone();
         self.session
-            .load_lib(name, &profile_key)
+            .load_library(name, &profile_key)
             .unwrap_or_else(|| panic!("missing builtin lib '{name}'"));
         self
     }
@@ -1123,20 +1138,18 @@ impl TestProgram {
 
     /// Enqueue Import task for a module.
     pub fn import_module(&self, module: ModuleId) {
-        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_base(module)));
+        self.enqueue(ArtifactKey::dir_base(module));
     }
 
     /// Enqueue Bind task for a module.
     pub fn bind_module(&self, module: ModuleId) {
-        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_base(module)));
+        self.enqueue(ArtifactKey::dir_base(module));
     }
 
     /// Enqueue Resolve task for a module.
     pub fn resolve_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_resolved(
-            module, profile,
-        )));
+        self.enqueue(ArtifactKey::dir_resolved(module, profile));
     }
 
     /// Resolve the language environment for the default root profile.
@@ -1151,16 +1164,14 @@ impl TestProgram {
     pub fn resolve_libs(&self) {
         let profile = self.default_profile_id_for_root();
         self.compiler
-            .drive(|compiler| compiler.require_lib_environment(profile))
+            .drive(|compiler| compiler.require_library_environment(profile))
             .unwrap_or_else(|error| panic!("failed to resolve libs: {error:?}"));
     }
 
     /// Enqueue Analyze task for a module.
     pub fn analyze_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_analyzed(
-            module, profile,
-        )));
+        self.enqueue(ArtifactKey::dir_analyzed(module, profile));
     }
 
     /// Drive declaration analysis for one module to completion.
@@ -1183,9 +1194,7 @@ impl TestProgram {
     /// Lint a module through the linter crate.
     pub fn lint_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_analyzed(
-            module, profile,
-        )));
+        self.enqueue(ArtifactKey::dir_analyzed(module, profile));
         self.compile();
 
         let linter = Linter::new(self.program.clone());
@@ -1197,17 +1206,13 @@ impl TestProgram {
     /// Enqueue Elaborate task for a module.
     pub fn elaborate_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_elaborated(
-            module, profile,
-        )));
+        self.enqueue(ArtifactKey::dir_elaborated(module, profile));
     }
 
     /// Enqueue Execute task for a module.
     pub fn execute_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_patched(
-            module, profile,
-        )));
+        self.enqueue(ArtifactKey::dir_patched(module, profile));
     }
 
     /// Add a build target to the package containing the given module.
@@ -1256,22 +1261,42 @@ impl TestProgram {
 
     /// Apply a destack.json blob to the package containing the given module.
     pub fn apply_destack_config(&self, module: ModuleId, content: &str) {
-        let config_json: DestackJson = serde_json::from_str(content)
-            .unwrap_or_else(|error| panic!("invalid destack.json: {error}"));
-        let options = DestackOptions::from(&config_json);
-        let directory = self.program.cwd.clone();
-        let path = directory.join("destack.json");
-        let file_id = self.program.files.next_id();
-        let config = Destack {
-            file_id,
-            path,
-            directory,
-            options,
-            content: config_json,
-        };
-
         let module_ref = self.program.modules.get(module);
         let package_id = module_ref.package_id;
+        let package = self.program.packages.get(package_id);
+        let package = package.read();
+        let directory = package
+            .path
+            .clone()
+            .or_else(|| {
+                module_ref
+                    .path
+                    .as_ref()
+                    .and_then(|path| path.parent().map(|parent| parent.to_path_buf()))
+            })
+            .unwrap_or_else(|| self.program.cwd.clone());
+        drop(package);
+
+        let path = directory.join("destack.json");
+        self.add_file(path.to_string_lossy().as_ref(), content);
+
+        let config_json: DestackJson = serde_json::from_str(content)
+            .unwrap_or_else(|error| panic!("invalid destack.json: {error}"));
+        let config = self
+            .session
+            .load_destack_for_path(&path)
+            .unwrap_or_else(|| {
+                let options = DestackOptions::from(&config_json);
+                let file_id = self.program.files.next_id();
+                Destack {
+                    file_id,
+                    path: path.clone(),
+                    directory: directory.clone(),
+                    options,
+                    content: config_json,
+                }
+            });
+
         let package = self.program.packages.get(package_id);
         let mut package = package.write();
         package.config = Some(config);
@@ -1302,9 +1327,7 @@ impl TestProgram {
             .program
             .profile_id_for_target(module, &target_id)
             .unwrap_or_else(|| panic!("missing profile for target '{target}'"));
-        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::mir_base(
-            module, profile, target_id,
-        )));
+        self.enqueue(ArtifactKey::mir_base(module, profile, target_id));
     }
 
     /// Enqueue Optimize task for a module.
@@ -1316,24 +1339,22 @@ impl TestProgram {
             .program
             .profile_id_for_target(module, &target_id)
             .unwrap_or_else(|| panic!("missing profile for target '{target}'"));
-        self.enqueue_build_key(BuildKey::artifact(ArtifactKey::mir_optimized(
-            module, profile, target_id,
-        )));
+        self.enqueue(ArtifactKey::mir_optimized(module, profile, target_id));
     }
 
-    /// Enqueue the producer task for one build key.
-    pub fn enqueue_build_key(&self, build_key: BuildKey) {
-        self.compiler.enqueue_build_key(build_key);
+    /// Enqueue one artifact key.
+    pub fn enqueue(&self, artifact_key: ArtifactKey) {
+        self.compiler.enqueue(artifact_key);
     }
 
-    /// Enqueue one build key (does not run it).
-    pub fn enqueue<T: Into<BuildKey>>(&self, build_key: T) {
-        self.compiler.enqueue(build_key);
+    /// Enqueue one artifact key (does not run it).
+    pub fn enqueue_artifact<T: Into<ArtifactKey>>(&self, artifact_key: T) {
+        self.compiler.enqueue(artifact_key);
     }
 
-    /// Enqueue one build key and run to completion.
-    pub fn run<T: Into<BuildKey>>(&self, build_key: T) {
-        self.enqueue(build_key);
+    /// Enqueue one artifact key and run to completion.
+    pub fn run<T: Into<ArtifactKey>>(&self, artifact_key: T) {
+        self.enqueue_artifact(artifact_key);
         self.compile();
     }
 
@@ -1345,6 +1366,11 @@ impl TestProgram {
 
     /// Run all queued tasks to completion with a custom timeout.
     pub fn compile_with_timeout(&self, timeout: Duration) {
+        // serialize compiler test runs so cargo test does not oversubscribe the compiler itself
+        let compile_guard = TEST_COMPILE_LOCK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+
         // spawn the compile thread
         let compiler = self.compiler.clone();
         let (tx, rx) = mpsc::channel();
@@ -1356,12 +1382,37 @@ impl TestProgram {
         match rx.recv_timeout(timeout) {
             Ok(()) => {}
             Err(mpsc::RecvTimeoutError::Timeout) => {
-                panic!("compile timed out after {timeout:?}");
+                let snapshot = self
+                    .compiler
+                    .stats
+                    .snapshot_with_program(self.program.modules.len(), Some(&self.program));
+                let summary = format_stats_snapshot(&snapshot);
+                let tasks = self
+                    .compiler
+                    .task_handles()
+                    .into_iter()
+                    .map(|handle| {
+                        let description = handle.artifact_key.trace_args(&self.program);
+                        format!(
+                            "  {:?} {:?} {} yields={} final_requirements={:?} last_outcome={:?}",
+                            handle.id,
+                            handle.status,
+                            description,
+                            handle.yield_count,
+                            handle.final_requirements,
+                            handle.last_outcome,
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                panic!("compile timed out after {timeout:?}\n{summary}\ntasks:\n{tasks}");
             }
             Err(mpsc::RecvTimeoutError::Disconnected) => {
                 panic!("compile thread panicked");
             }
         }
+
+        drop(compile_guard);
     }
 
     /// Check no errors.
@@ -2196,4 +2247,68 @@ impl TestProgram {
             first_argument_is_string_literal,
         }
     }
+}
+
+/// Format one compact compiler stats snapshot for timeout diagnostics.
+fn format_stats_snapshot(snapshot: &crate::StatsSnapshot) -> String {
+    let mut output = String::new();
+
+    let _ = writeln!(
+        output,
+        "stats: elapsed={:?} enqueued={} completed={} yielded={} failed={} skipped={}",
+        snapshot.elapsed,
+        snapshot.tasks.enqueued,
+        snapshot.tasks.completed,
+        snapshot.tasks.yielded,
+        snapshot.tasks.failed,
+        snapshot.tasks.skipped
+    );
+    let _ = writeln!(
+        output,
+        "modules: parsed={} bound={} resolved={} analyzed={} elaborated={} executed={} lowered={} optimized={} generated={}",
+        snapshot.modules.parsed,
+        snapshot.modules.bound,
+        snapshot.modules.resolved,
+        snapshot.modules.analyzed,
+        snapshot.modules.elaborated,
+        snapshot.modules.executed,
+        snapshot.modules.lowered,
+        snapshot.modules.optimized,
+        snapshot.modules.generated
+    );
+    let _ = writeln!(
+        output,
+        "cache: ast_hits(memory={}) dir_hits(memory={}) mir_hits(memory={}) misses(ast={},dir={},mir={}) writes(ast_memory={},dir_memory={},mir_memory={})",
+        snapshot.cache.ast_hits_memory,
+        snapshot.cache.dir_hits_memory,
+        snapshot.cache.mir_hits_memory,
+        snapshot.cache.ast_misses,
+        snapshot.cache.dir_misses,
+        snapshot.cache.mir_misses,
+        snapshot.cache.ast_writes_memory,
+        snapshot.cache.dir_writes_memory,
+        snapshot.cache.mir_writes_memory
+    );
+
+    let _ = writeln!(output, "phases:");
+    for phase in &snapshot.phases {
+        let _ = writeln!(
+            output,
+            "  {} {:?} x{}",
+            phase.phase.name(),
+            phase.duration,
+            phase.task_count
+        );
+    }
+
+    let _ = writeln!(output, "top tasks:");
+    for task in snapshot.task_names.iter().take(10) {
+        let _ = writeln!(
+            output,
+            "  {} {:?} x{}",
+            task.name, task.duration, task.task_count
+        );
+    }
+
+    output
 }

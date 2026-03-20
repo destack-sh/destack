@@ -3,7 +3,7 @@
 
 use crate::builtin_lib_sources;
 use crate::libs::library::symbols::UNDICI_TYPES_V7_SPECIFIER_ALIASES;
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([
     (LIB_BUN_V1_3_INDEX_D_TS, "library", "bun/v1.3", "index.d.ts"),
@@ -39,7 +39,7 @@ builtin_lib_sources!([
     ),
 ]);
 
-pub const LIB_BUN: BuiltinLib = BuiltinLib::library(
+pub const LIB_BUN: BuiltinLibrary = BuiltinLibrary::library(
     "bun",
     &[
         LIB_BUN_V1_3_INDEX_D_TS,
@@ -55,7 +55,7 @@ pub const LIB_BUN: BuiltinLib = BuiltinLib::library(
 .with_specifier_aliases(UNDICI_TYPES_V7_SPECIFIER_ALIASES)
 .with_types_package_names(&["bun-types"]);
 
-pub const LIB_BUN_V1_3: BuiltinLib = BuiltinLib::library(
+pub const LIB_BUN_V1_3: BuiltinLibrary = BuiltinLibrary::library(
     "bun.v1.3",
     &[
         LIB_BUN_V1_3_INDEX_D_TS,

@@ -8,7 +8,7 @@ use crate::libs::language::symbols::{
     ES2015_PROMISE_DECLARED_SYMBOLS, ES2015_PROXY_DECLARED_SYMBOLS,
     ES2015_REFLECT_DECLARED_SYMBOLS, ES2015_SYMBOL_DECLARED_SYMBOLS,
 };
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([
     (
@@ -73,7 +73,7 @@ builtin_lib_sources!([
     ),
 ]);
 
-pub const LIB_ES2015: BuiltinLib = BuiltinLib::language(
+pub const LIB_ES2015: BuiltinLibrary = BuiltinLibrary::language(
     "es2015",
     &[
         LIB_ES_ES2015_COLLECTION_D_TS,
@@ -90,52 +90,67 @@ pub const LIB_ES2015: BuiltinLib = BuiltinLib::language(
     &[],
 )
 .ambient()
+.with_reference_libs(&[
+    "es2015.iterable",
+    "es5",
+    "es2015.core",
+    "es2015.collection",
+    "es2015.generator",
+    "es2015.promise",
+    "es2015.proxy",
+    "es2015.reflect",
+    "es2015.symbol",
+    "es2015.symbol.wellknown",
+])
 .with_declared_symbols(ES2015_DECLARED_SYMBOLS);
 
-pub const LIB_ES2015_COLLECTION: BuiltinLib =
-    BuiltinLib::language("es2015.collection", &[LIB_ES_ES2015_COLLECTION_D_TS], &[])
+pub const LIB_ES2015_COLLECTION: BuiltinLibrary =
+    BuiltinLibrary::language("es2015.collection", &[LIB_ES_ES2015_COLLECTION_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2015_COLLECTION_DECLARED_SYMBOLS);
 
-pub const LIB_ES2015_CORE: BuiltinLib =
-    BuiltinLib::language("es2015.core", &[LIB_ES_ES2015_CORE_D_TS], &[])
+pub const LIB_ES2015_CORE: BuiltinLibrary =
+    BuiltinLibrary::language("es2015.core", &[LIB_ES_ES2015_CORE_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2015_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2015_GENERATOR: BuiltinLib =
-    BuiltinLib::language("es2015.generator", &[LIB_ES_ES2015_GENERATOR_D_TS], &[])
+pub const LIB_ES2015_GENERATOR: BuiltinLibrary =
+    BuiltinLibrary::language("es2015.generator", &[LIB_ES_ES2015_GENERATOR_D_TS], &[])
         .ambient()
+        .with_reference_libs(&["es2015.iterable"])
         .with_declared_symbols(ES2015_GENERATOR_DECLARED_SYMBOLS);
 
-pub const LIB_ES2015_ITERABLE: BuiltinLib =
-    BuiltinLib::language("es2015.iterable", &[LIB_ES_ES2015_ITERABLE_D_TS], &[])
+pub const LIB_ES2015_ITERABLE: BuiltinLibrary =
+    BuiltinLibrary::language("es2015.iterable", &[LIB_ES_ES2015_ITERABLE_D_TS], &[])
         .ambient()
+        .with_reference_libs(&["es2015.symbol"])
         .with_declared_symbols(ES2015_ITERABLE_DECLARED_SYMBOLS);
 
-pub const LIB_ES2015_PROMISE: BuiltinLib =
-    BuiltinLib::language("es2015.promise", &[LIB_ES_ES2015_PROMISE_D_TS], &[])
+pub const LIB_ES2015_PROMISE: BuiltinLibrary =
+    BuiltinLibrary::language("es2015.promise", &[LIB_ES_ES2015_PROMISE_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2015_PROMISE_DECLARED_SYMBOLS);
 
-pub const LIB_ES2015_PROXY: BuiltinLib =
-    BuiltinLib::language("es2015.proxy", &[LIB_ES_ES2015_PROXY_D_TS], &[])
+pub const LIB_ES2015_PROXY: BuiltinLibrary =
+    BuiltinLibrary::language("es2015.proxy", &[LIB_ES_ES2015_PROXY_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2015_PROXY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2015_REFLECT: BuiltinLib =
-    BuiltinLib::language("es2015.reflect", &[LIB_ES_ES2015_REFLECT_D_TS], &[])
+pub const LIB_ES2015_REFLECT: BuiltinLibrary =
+    BuiltinLibrary::language("es2015.reflect", &[LIB_ES_ES2015_REFLECT_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2015_REFLECT_DECLARED_SYMBOLS);
 
-pub const LIB_ES2015_SYMBOL: BuiltinLib =
-    BuiltinLib::language("es2015.symbol", &[LIB_ES_ES2015_SYMBOL_D_TS], &[])
+pub const LIB_ES2015_SYMBOL: BuiltinLibrary =
+    BuiltinLibrary::language("es2015.symbol", &[LIB_ES_ES2015_SYMBOL_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2015_SYMBOL_DECLARED_SYMBOLS);
 
-pub const LIB_ES2015_SYMBOL_WELLKNOWN: BuiltinLib = BuiltinLib::language(
+pub const LIB_ES2015_SYMBOL_WELLKNOWN: BuiltinLibrary = BuiltinLibrary::language(
     "es2015.symbol.wellknown",
     &[LIB_ES_ES2015_SYMBOL_WELLKNOWN_D_TS],
     &[],
 )
 .ambient()
+.with_reference_libs(&["es2015.symbol"])
 .with_declared_symbols(ES2015_EMPTY_DECLARED_SYMBOLS);

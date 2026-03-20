@@ -2,7 +2,7 @@
 // run `just generate-builtin-libs` to regenerate
 
 use crate::builtin_lib_sources;
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([(
     LIB_SCRIPTHOST_INDEX_D_TS,
@@ -11,5 +11,5 @@ builtin_lib_sources!([(
     "index.d.ts"
 ),]);
 
-pub const LIB_SCRIPTHOST: BuiltinLib =
-    BuiltinLib::library("scripthost", &[LIB_SCRIPTHOST_INDEX_D_TS], &[]).ambient();
+pub const LIB_SCRIPTHOST: BuiltinLibrary =
+    BuiltinLibrary::library("scripthost", &[LIB_SCRIPTHOST_INDEX_D_TS], &[]).ambient();

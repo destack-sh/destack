@@ -2,7 +2,7 @@
 // run `just generate-builtin-libs` to regenerate
 
 use crate::builtin_lib_sources;
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([
     (
@@ -79,7 +79,7 @@ builtin_lib_sources!([
     ),
 ]);
 
-pub const LIB_ESNEXT: BuiltinLib = BuiltinLib::language(
+pub const LIB_ESNEXT: BuiltinLibrary = BuiltinLibrary::language(
     "esnext",
     &[
         LIB_ES_ESNEXT_ARRAY_D_TS,
@@ -96,27 +96,53 @@ pub const LIB_ESNEXT: BuiltinLib = BuiltinLib::language(
     ],
     &[],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&[
+    "es2024.collection",
+    "es2015.symbol",
+    "decorators",
+    "es2015.iterable",
+    "es2018.asynciterable",
+    "es2024",
+    "esnext.intl",
+    "esnext.decorators",
+    "esnext.disposable",
+    "esnext.collection",
+    "esnext.array",
+    "esnext.iterator",
+    "esnext.promise",
+    "esnext.float16",
+    "esnext.error",
+    "esnext.sharedmemory",
+]);
 
-pub const LIB_ESNEXT_ARRAY: BuiltinLib =
-    BuiltinLib::language("esnext.array", &[LIB_ES_ESNEXT_ARRAY_D_TS], &[]).ambient();
+pub const LIB_ESNEXT_ARRAY: BuiltinLibrary =
+    BuiltinLibrary::language("esnext.array", &[LIB_ES_ESNEXT_ARRAY_D_TS], &[]).ambient();
 
-pub const LIB_ESNEXT_COLLECTION: BuiltinLib =
-    BuiltinLib::language("esnext.collection", &[LIB_ES_ESNEXT_COLLECTION_D_TS], &[]).ambient();
+pub const LIB_ESNEXT_COLLECTION: BuiltinLibrary =
+    BuiltinLibrary::language("esnext.collection", &[LIB_ES_ESNEXT_COLLECTION_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["es2024.collection"]);
 
-pub const LIB_ESNEXT_DECORATORS: BuiltinLib =
-    BuiltinLib::language("esnext.decorators", &[LIB_ES_ESNEXT_DECORATORS_D_TS], &[]).ambient();
+pub const LIB_ESNEXT_DECORATORS: BuiltinLibrary =
+    BuiltinLibrary::language("esnext.decorators", &[LIB_ES_ESNEXT_DECORATORS_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["es2015.symbol", "decorators"]);
 
-pub const LIB_ESNEXT_DISPOSABLE: BuiltinLib =
-    BuiltinLib::language("esnext.disposable", &[LIB_ES_ESNEXT_DISPOSABLE_D_TS], &[]).ambient();
+pub const LIB_ESNEXT_DISPOSABLE: BuiltinLibrary =
+    BuiltinLibrary::language("esnext.disposable", &[LIB_ES_ESNEXT_DISPOSABLE_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["es2015.symbol", "es2015.iterable", "es2018.asynciterable"]);
 
-pub const LIB_ESNEXT_ERROR: BuiltinLib =
-    BuiltinLib::language("esnext.error", &[LIB_ES_ESNEXT_ERROR_D_TS], &[]).ambient();
+pub const LIB_ESNEXT_ERROR: BuiltinLibrary =
+    BuiltinLibrary::language("esnext.error", &[LIB_ES_ESNEXT_ERROR_D_TS], &[]).ambient();
 
-pub const LIB_ESNEXT_FLOAT16: BuiltinLib =
-    BuiltinLib::language("esnext.float16", &[LIB_ES_ESNEXT_FLOAT16_D_TS], &[]).ambient();
+pub const LIB_ESNEXT_FLOAT16: BuiltinLibrary =
+    BuiltinLibrary::language("esnext.float16", &[LIB_ES_ESNEXT_FLOAT16_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["es2015.symbol", "es2015.iterable"]);
 
-pub const LIB_ESNEXT_FULL: BuiltinLib = BuiltinLib::language(
+pub const LIB_ESNEXT_FULL: BuiltinLibrary = BuiltinLibrary::language(
     "esnext.full",
     &[LIB_ES_ESNEXT_FULL_D_TS],
     &[
@@ -128,18 +154,28 @@ pub const LIB_ESNEXT_FULL: BuiltinLib = BuiltinLib::language(
         "dom.asynciterable",
     ],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&[
+    "esnext",
+    "dom",
+    "webworker.importscripts",
+    "scripthost",
+    "dom.iterable",
+    "dom.asynciterable",
+]);
 
-pub const LIB_ESNEXT_INTL: BuiltinLib =
-    BuiltinLib::language("esnext.intl", &[LIB_ES_ESNEXT_INTL_D_TS], &[]).ambient();
+pub const LIB_ESNEXT_INTL: BuiltinLibrary =
+    BuiltinLibrary::language("esnext.intl", &[LIB_ES_ESNEXT_INTL_D_TS], &[]).ambient();
 
-pub const LIB_ESNEXT_ITERATOR: BuiltinLib =
-    BuiltinLib::language("esnext.iterator", &[LIB_ES_ESNEXT_ITERATOR_D_TS], &[]).ambient();
+pub const LIB_ESNEXT_ITERATOR: BuiltinLibrary =
+    BuiltinLibrary::language("esnext.iterator", &[LIB_ES_ESNEXT_ITERATOR_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["es2015.iterable"]);
 
-pub const LIB_ESNEXT_PROMISE: BuiltinLib =
-    BuiltinLib::language("esnext.promise", &[LIB_ES_ESNEXT_PROMISE_D_TS], &[]).ambient();
+pub const LIB_ESNEXT_PROMISE: BuiltinLibrary =
+    BuiltinLibrary::language("esnext.promise", &[LIB_ES_ESNEXT_PROMISE_D_TS], &[]).ambient();
 
-pub const LIB_ESNEXT_SHAREDMEMORY: BuiltinLib = BuiltinLib::language(
+pub const LIB_ESNEXT_SHAREDMEMORY: BuiltinLibrary = BuiltinLibrary::language(
     "esnext.sharedmemory",
     &[LIB_ES_ESNEXT_SHAREDMEMORY_D_TS],
     &[],

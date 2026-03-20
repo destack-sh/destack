@@ -3,7 +3,7 @@
 
 use crate::builtin_lib_sources;
 use crate::libs::language::symbols::{ES2023_DECLARED_SYMBOLS, ES2023_EMPTY_DECLARED_SYMBOLS};
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([
     (
@@ -38,7 +38,7 @@ builtin_lib_sources!([
     ),
 ]);
 
-pub const LIB_ES2023: BuiltinLib = BuiltinLib::language(
+pub const LIB_ES2023: BuiltinLibrary = BuiltinLibrary::language(
     "es2023",
     &[
         LIB_ES_ES2023_ARRAY_D_TS,
@@ -49,24 +49,33 @@ pub const LIB_ES2023: BuiltinLib = BuiltinLib::language(
     &[],
 )
 .ambient()
+.with_reference_libs(&["es2022", "es2023.array", "es2023.collection", "es2023.intl"])
 .with_declared_symbols(ES2023_DECLARED_SYMBOLS);
 
-pub const LIB_ES2023_ARRAY: BuiltinLib =
-    BuiltinLib::language("es2023.array", &[LIB_ES_ES2023_ARRAY_D_TS], &[])
+pub const LIB_ES2023_ARRAY: BuiltinLibrary =
+    BuiltinLibrary::language("es2023.array", &[LIB_ES_ES2023_ARRAY_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2023_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2023_COLLECTION: BuiltinLib =
-    BuiltinLib::language("es2023.collection", &[LIB_ES_ES2023_COLLECTION_D_TS], &[])
+pub const LIB_ES2023_COLLECTION: BuiltinLibrary =
+    BuiltinLibrary::language("es2023.collection", &[LIB_ES_ES2023_COLLECTION_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2023_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2023_FULL: BuiltinLib =
-    BuiltinLib::language("es2023.full", &[LIB_ES_ES2023_FULL_D_TS], &[])
+pub const LIB_ES2023_FULL: BuiltinLibrary =
+    BuiltinLibrary::language("es2023.full", &[LIB_ES_ES2023_FULL_D_TS], &[])
         .ambient()
+        .with_reference_libs(&[
+            "es2023",
+            "dom",
+            "webworker.importscripts",
+            "scripthost",
+            "dom.iterable",
+            "dom.asynciterable",
+        ])
         .with_declared_symbols(ES2023_DECLARED_SYMBOLS);
 
-pub const LIB_ES2023_INTL: BuiltinLib =
-    BuiltinLib::language("es2023.intl", &[LIB_ES_ES2023_INTL_D_TS], &[])
+pub const LIB_ES2023_INTL: BuiltinLibrary =
+    BuiltinLibrary::language("es2023.intl", &[LIB_ES_ES2023_INTL_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2023_EMPTY_DECLARED_SYMBOLS);

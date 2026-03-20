@@ -1,5 +1,6 @@
 use crate::{
-    BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition, TaskError,
+    ArtifactRequirementError, ArtifactRequirementSet, DiagnosticAnchor, DiagnosticDefinition,
+    TaskError,
 };
 use destack_builtin::LanguageSymbol;
 use destack_compiler_macros::DefineError;
@@ -14,13 +15,13 @@ pub enum ResolveError {
     // -------------------------------------------------------------------------
     // 0xx: Yield / requirement
     // -------------------------------------------------------------------------
-    /// Wait for build requirement.
+    /// Wait for an artifact requirement.
     #[error(code = "ER000", r#yield)]
-    Yield { requirement: BuildRequirementSet },
+    Yield { requirement: ArtifactRequirementSet },
 
     /// Yield requirement has failed.
     #[error(code = "ER001", yield_failed)]
-    UnsatisfiedRequirement { requirement: BuildRequirementSet },
+    UnsatisfiedRequirement { requirement: ArtifactRequirementSet },
 
     /// Task was skipped due to stale versions.
     #[error(code = "ER002", message = "task skipped")]
@@ -165,14 +166,14 @@ pub enum ResolveError {
 
     /// Missing builtin library.
     #[error(code = "ER401", message = "missing builtin lib '{name}'")]
-    MissingBuiltinLib { name: String },
+    MissingBuiltinLibrary { name: String },
 
     /// Conflicting builtin lib versions.
     #[error(
         code = "ER402",
         message = "conflicting builtin lib versions for '{base}': {libs}"
     )]
-    ConflictingBuiltinLibVersions { base: String, libs: String },
+    ConflictingBuiltinLibraryVersions { base: String, libs: String },
 
     /// Invalid target configuration.
     #[error(code = "ER403", message = "invalid target config: {target}: {message}")]
