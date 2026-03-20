@@ -51,8 +51,6 @@ This table is the operational testing view: which workflows run, which commands 
 Native Linux, macOS, and Windows lanes run on matching GitHub Actions runners.
 iOS and Android lanes use SDK-backed cross compilation.
 See [`TARGETS.md`](TARGETS.md) for the canonical support policy.
-Mainline CI keeps only the Linux runtime lane and the Windows resolver lane.
-Nightly and release both run the full platform coverage.
 
 | Target triple | Tier | Primary workflow | Command | Backing implementation |
 |---------------|------|------------------|---------|------------------------|

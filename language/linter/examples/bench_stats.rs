@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use clap::{Parser, ValueEnum};
 
-use destack_compiler::{BuildKey, Compiler, CompilerOptions};
+use destack_compiler::{Compiler, CompilerOptions};
 use destack_source::{MemoryFileSystem, ModuleId};
 use destack_workspace::{
     ArtifactKey, CacheStore, LintPreset, LinterOptions, MemoryCacheStore, Program, Session,
@@ -179,7 +179,7 @@ fn create_program(workers: u16) -> (Arc<Session>, Arc<Program>, Arc<Compiler>) {
         CompilerOptions {
             workers,
             inject_prelude: true,
-            load_libs: true,
+            load_libraries: true,
             ..CompilerOptions::default()
         },
     ));
@@ -208,7 +208,7 @@ fn load_modules_for_libs(
     let mut modules = Vec::new();
     for lib in libs {
         let loaded = session
-            .load_lib(lib, &profile.key)
+            .load_library(lib, &profile.key)
             .unwrap_or_else(|| panic!("unknown builtin lib '{lib}'"));
         modules.extend(loaded);
     }
@@ -252,9 +252,7 @@ fn compute_line_stats(program: &Program, modules: &[ModuleId]) -> LineStats {
 /// Run import tasks for modules and return the duration.
 fn run_import_phase(compiler: &Compiler, modules: &[ModuleId]) -> Duration {
     for module_id in modules {
-        compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirBase {
-            module: *module_id,
-        }));
+        compiler.enqueue(ArtifactKey::DirBase { module: *module_id });
     }
 
     let start = Instant::now();
@@ -264,9 +262,9 @@ fn run_import_phase(compiler: &Compiler, modules: &[ModuleId]) -> Duration {
 
 /// Run builtin and lib resolve tasks and return the duration.
 fn run_resolve_phase(compiler: &Compiler, profile_id: destack_workspace::ProfileId) -> Duration {
-    compiler.enqueue(BuildKey::Artifact(ArtifactKey::LibEnvironment {
+    compiler.enqueue(ArtifactKey::LibEnvironment {
         profile: profile_id,
-    }));
+    });
 
     let start = Instant::now();
     compiler.compile();
@@ -280,10 +278,10 @@ fn run_analyze_phase(
     profile_id: destack_workspace::ProfileId,
 ) -> Duration {
     for module_id in modules {
-        compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+        compiler.enqueue(ArtifactKey::DirAnalyzed {
             module: *module_id,
             profile: profile_id,
-        }));
+        });
     }
 
     let start = Instant::now();

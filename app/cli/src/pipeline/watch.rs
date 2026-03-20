@@ -131,7 +131,7 @@ pub fn build_daemon_options(
     CompilerOptions {
         diagnostic: diagnostic_options,
         workers: program.workers,
-        load_libs: !program.no_libs,
+        load_libraries: !program.no_libs,
         inject_prelude: !program.no_prelude,
         follow_imports: !program.no_follow_imports,
         timings: program.timings,

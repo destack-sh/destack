@@ -8,7 +8,7 @@ use destack_core::StringPool;
 use destack_mir as mir;
 use destack_source::{FileType, ModuleId};
 use destack_workspace::{
-    ArtifactContent, ArtifactFile, ModuleEmit, OutputFormat, Program, Target, TargetId,
+    ModuleOutput, OutputContent, OutputEntry, OutputFormat, Program, Target, TargetId,
 };
 use target_lexicon::Triple;
 
@@ -18,8 +18,8 @@ use crate::{CodegenCraneliftError, CodegenCraneliftResult, CodegenCraneliftWarni
 /// Output from Cranelift code generation.
 #[derive(Debug)]
 pub struct CodegenCraneliftOutput {
-    /// Generated module emit payload.
-    pub emit: ModuleEmit,
+    /// Generated module output payload.
+    pub emit: ModuleOutput,
     /// Warnings encountered during generation.
     pub warnings: Vec<CodegenCraneliftWarning>,
     /// Non-fatal errors encountered during generation.
@@ -232,10 +232,10 @@ pub fn generate_module(
 
     // determine file type and create output
     let (file_type, content) = match target.output {
-        OutputFormat::Wasm => (FileType::Wasm, ArtifactContent::wasm(compile_output.bytes)),
+        OutputFormat::Wasm => (FileType::Wasm, OutputContent::wasm(compile_output.bytes)),
         OutputFormat::Native => (
             FileType::Object,
-            ArtifactContent::object(compile_output.bytes),
+            OutputContent::object(compile_output.bytes),
         ),
         _ => {
             return Err(CodegenCraneliftError::UnsupportedTarget {
@@ -248,14 +248,14 @@ pub fn generate_module(
     let extension = file_type.extension().unwrap_or("o");
     let uri = module.uri.without_extension().with_extension(extension);
 
-    let output = ArtifactFile {
+    let output = OutputEntry {
         uri,
         content,
         source: None,
     };
 
     Ok(CodegenCraneliftOutput {
-        emit: ModuleEmit::new(vec![output]),
+        emit: ModuleOutput::for_target(target, vec![output]),
         warnings: compile_output.warnings,
         errors: compile_output.errors,
     })

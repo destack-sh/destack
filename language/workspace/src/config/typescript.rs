@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use destack_builtin::{builtin_lib, builtin_lib_name_for_types_package};
+use destack_builtin::{builtin_library, builtin_library_name_for_types_package};
 use destack_source::{FileSystem, PathExt};
 
 use crate::TsConfigOptions;
@@ -79,10 +79,10 @@ pub fn builtin_libs_for_type_entries(type_entries: &[String]) -> Vec<String> {
             continue;
         }
 
-        let builtin_name = if builtin_lib(&normalized_type_name).is_some() {
+        let builtin_name = if builtin_library(&normalized_type_name).is_some() {
             Some(normalized_type_name.clone())
         } else {
-            builtin_lib_name_for_types_package(&normalized_type_name)
+            builtin_library_name_for_types_package(&normalized_type_name)
         };
 
         let Some(builtin_name) = builtin_name else {

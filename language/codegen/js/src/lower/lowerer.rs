@@ -10,7 +10,7 @@ use destack_fir::format as fir_format;
 use destack_fir::prelude::format_with;
 use destack_source::{File, FileType, Uri};
 use destack_workspace::{
-    ArtifactContent, ArtifactFile, Ast, Module, ModuleEmit, OutputFormat, Target,
+    Ast, Module, ModuleOutput, OutputContent, OutputEntry, OutputFormat, Target,
 };
 
 use crate::tree::NodeTree as JsTree;
@@ -22,8 +22,8 @@ use crate::{
 /// Output from JS code generation.
 #[derive(Debug)]
 pub struct CodegenJsOutput {
-    /// Generated module emit payload.
-    pub emit: ModuleEmit,
+    /// Generated module output payload.
+    pub emit: ModuleOutput,
     /// Warnings encountered during generation.
     pub warnings: Vec<CodegenJsWarning>,
     /// Non-fatal errors encountered during generation.
@@ -133,7 +133,7 @@ impl<'a> ModuleLowerer<'a> {
             OutputFormat::Ts => vec![FileType::TypeScript],
             _ => {
                 return Ok(CodegenJsOutput {
-                    emit: ModuleEmit::new(files),
+                    emit: ModuleOutput::for_target(self.target, files),
                     warnings: self.warnings,
                     errors: self.errors,
                 });
@@ -197,9 +197,9 @@ impl<'a> ModuleLowerer<'a> {
 
             // create output
             let content = match file_type {
-                FileType::JavaScript => ArtifactContent::javascript(code),
-                FileType::TypeScript => ArtifactContent::typescript(code),
-                FileType::TypeScriptDeclaration => ArtifactContent::declaration(code),
+                FileType::JavaScript => OutputContent::javascript(code),
+                FileType::TypeScript => OutputContent::typescript(code),
+                FileType::TypeScriptDeclaration => OutputContent::declaration(code),
                 _ => {
                     return Err(CodegenJsError::Internal {
                         message: format!("unsupported file type: {file_type:?}"),
@@ -207,7 +207,7 @@ impl<'a> ModuleLowerer<'a> {
                 }
             };
 
-            let output = ArtifactFile {
+            let output = OutputEntry {
                 uri,
                 content,
                 source: None,
@@ -216,7 +216,7 @@ impl<'a> ModuleLowerer<'a> {
         }
 
         Ok(CodegenJsOutput {
-            emit: ModuleEmit::new(files),
+            emit: ModuleOutput::for_target(self.target, files),
             warnings: self.warnings,
             errors: self.errors,
         })

@@ -1,6 +1,6 @@
 use super::core::*;
 use super::descriptor::*;
-use super::ffi::{LibusbApi, ffi, libusb_library_candidates, load_libusb_api};
+use super::ffi::{LibusbApi, ffi, libusb_library_candidates, load_libraryusb_api};
 use super::transfer::usb_hotplug_callback;
 use crate::runtime::process::service::GlobalService;
 use crate::runtime::process::{ExecutionMode, ExecutionPolicy, WorkerLoop};
@@ -321,10 +321,10 @@ impl UsbService {
     /// Create one process-global usb service.
     fn new() -> RuntimeResult<Self> {
         // load one usable libusb implementation
-        let (library, api) = load_library_with_api(libusb_library_candidates(), load_libusb_api)
-            .map_err(|error| {
-                core_platform::not_supported(format!("destack.device.usb: {error}"))
-            })?;
+        let (library, api) =
+            load_library_with_api(libusb_library_candidates(), load_libraryusb_api).map_err(
+                |error| core_platform::not_supported(format!("destack.device.usb: {error}")),
+            )?;
 
         // initialize the shared libusb context
         let mut context = ptr::null_mut();
