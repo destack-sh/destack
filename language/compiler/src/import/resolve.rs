@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use destack_builtin::builtin_lib;
+use destack_builtin::{builtin_library, resolve_profile_builtin_library_name};
 use destack_core::StringId;
 use destack_dir::{DependencyKind, ModuleResolution, ModuleTarget};
-use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
+use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri};
 use destack_workspace::{
     ImportEdgeKind, Loader, Module, ModuleSource, NodeLinker, Package, PackageKind, ProfileId,
@@ -173,8 +173,9 @@ impl Compiler {
             source_language_type,
             edge_kind,
         )?;
+        let module_id = self.resolve_specifier_registration(&path, loader_override, &resolver)?;
 
-        self.resolve_specifier_registration(&path, loader_override, &resolver)
+        Ok(module_id)
     }
 
     /// Resolve one triple slash `reference lib` target to a builtin module.
@@ -201,7 +202,7 @@ impl Compiler {
             });
         };
         let profile_key = self.program.profile(profile_id).key.clone();
-        let Some(module_ids) = builtins.load_lib(
+        let Some(module_ids) = builtins.load_library(
             &lib_name,
             self.program.files.clone(),
             self.program.modules.clone(),
@@ -297,10 +298,12 @@ impl Compiler {
             });
         }
 
-        Ok(ModuleResolution {
+        let resolution = ModuleResolution {
             value: value_target,
             ty: type_target,
-        })
+        };
+
+        Ok(resolution)
     }
 
     /// Register or reuse a module for a resolved path.
@@ -346,19 +349,22 @@ impl Compiler {
             // map specifier to builtin lib name
             let lib_name =
                 // prefer source lib aliases when available
-                if let Some(source_lib_name) = builtins.lib_name_for_module(source_module) {
-                    let source_lib = builtin_lib(source_lib_name)?;
+                if let Some(source_lib_name) = builtins.library_name_for_module(source_module) {
+                    let source_lib = builtin_library(source_lib_name)?;
+
                     // alias mapping for bare specifiers
                     if let Some((_, target)) = source_lib
                         .specifier_aliases
                         .iter()
                         .find(|(alias, _)| *alias == specifier)
                     {
-                        *target
+                        (*target).to_string()
                     }
                     // fallback to builtin lib name when no alias matches
-                    else if let Some(lib) = builtin_lib(specifier) {
-                        lib.name
+                    else if let Some(lib_name) =
+                        resolve_profile_builtin_library_name(specifier, &profile_key.lib)
+                    {
+                        lib_name
                     }
                     // no alias mapping exists
                     else {
@@ -366,8 +372,10 @@ impl Compiler {
                     }
                 }
                 // direct builtin lib lookup without source context
-                else if let Some(lib) = builtin_lib(specifier) {
-                    lib.name
+                else if let Some(lib_name) =
+                    resolve_profile_builtin_library_name(specifier, &profile_key.lib)
+                {
+                    lib_name
                 }
                 // specifier is not a builtin lib
                 else {
@@ -375,8 +383,8 @@ impl Compiler {
                 };
 
             // resolve entry module and ensure lib is loaded
-            let module_ids = builtins.load_lib(
-                lib_name,
+            let module_ids = builtins.load_library(
+                &lib_name,
                 self.program.files.clone(),
                 self.program.modules.clone(),
                 profile_key,
@@ -439,7 +447,7 @@ impl Compiler {
         // load the namespace builtin lib first
         let builtins = self.program.builtins.as_ref()?;
         let lib_name = protocol;
-        builtins.load_lib(
+        builtins.load_library(
             lib_name,
             self.program.files.clone(),
             self.program.modules.clone(),
@@ -909,7 +917,7 @@ impl Compiler {
         }
 
         // keep direct builtin lib names first
-        if let Some(lib) = builtin_lib(target) {
+        if let Some(lib) = builtin_library(target) {
             return Some(lib.name.to_string());
         }
 
@@ -922,7 +930,7 @@ impl Compiler {
             normalized = stripped.to_string();
         }
 
-        builtin_lib(&normalized).map(|lib| lib.name.to_string())
+        builtin_library(&normalized).map(|lib| lib.name.to_string())
     }
 
     /// Return true when a specifier is a relative path import.

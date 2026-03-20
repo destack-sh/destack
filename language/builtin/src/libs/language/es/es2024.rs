@@ -3,7 +3,7 @@
 
 use crate::builtin_lib_sources;
 use crate::libs::language::symbols::{ES2024_DECLARED_SYMBOLS, ES2024_EMPTY_DECLARED_SYMBOLS};
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([
     (
@@ -62,7 +62,7 @@ builtin_lib_sources!([
     ),
 ]);
 
-pub const LIB_ES2024: BuiltinLib = BuiltinLib::language(
+pub const LIB_ES2024: BuiltinLibrary = BuiltinLibrary::language(
     "es2024",
     &[
         LIB_ES_ES2024_ARRAYBUFFER_D_TS,
@@ -77,47 +77,67 @@ pub const LIB_ES2024: BuiltinLib = BuiltinLib::language(
     &[],
 )
 .ambient()
+.with_reference_libs(&[
+    "es2023",
+    "es2024.arraybuffer",
+    "es2024.collection",
+    "es2024.object",
+    "es2024.promise",
+    "es2024.regexp",
+    "es2024.sharedmemory",
+    "es2024.string",
+    "es2020.bigint",
+])
 .with_declared_symbols(ES2024_DECLARED_SYMBOLS);
 
-pub const LIB_ES2024_ARRAYBUFFER: BuiltinLib =
-    BuiltinLib::language("es2024.arraybuffer", &[LIB_ES_ES2024_ARRAYBUFFER_D_TS], &[])
+pub const LIB_ES2024_ARRAYBUFFER: BuiltinLibrary =
+    BuiltinLibrary::language("es2024.arraybuffer", &[LIB_ES_ES2024_ARRAYBUFFER_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2024_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2024_COLLECTION: BuiltinLib =
-    BuiltinLib::language("es2024.collection", &[LIB_ES_ES2024_COLLECTION_D_TS], &[])
+pub const LIB_ES2024_COLLECTION: BuiltinLibrary =
+    BuiltinLibrary::language("es2024.collection", &[LIB_ES_ES2024_COLLECTION_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2024_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2024_FULL: BuiltinLib =
-    BuiltinLib::language("es2024.full", &[LIB_ES_ES2024_FULL_D_TS], &[])
+pub const LIB_ES2024_FULL: BuiltinLibrary =
+    BuiltinLibrary::language("es2024.full", &[LIB_ES_ES2024_FULL_D_TS], &[])
         .ambient()
+        .with_reference_libs(&[
+            "es2024",
+            "dom",
+            "webworker.importscripts",
+            "scripthost",
+            "dom.iterable",
+            "dom.asynciterable",
+        ])
         .with_declared_symbols(ES2024_DECLARED_SYMBOLS);
 
-pub const LIB_ES2024_OBJECT: BuiltinLib =
-    BuiltinLib::language("es2024.object", &[LIB_ES_ES2024_OBJECT_D_TS], &[])
+pub const LIB_ES2024_OBJECT: BuiltinLibrary =
+    BuiltinLibrary::language("es2024.object", &[LIB_ES_ES2024_OBJECT_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2024_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2024_PROMISE: BuiltinLib =
-    BuiltinLib::language("es2024.promise", &[LIB_ES_ES2024_PROMISE_D_TS], &[])
+pub const LIB_ES2024_PROMISE: BuiltinLibrary =
+    BuiltinLibrary::language("es2024.promise", &[LIB_ES_ES2024_PROMISE_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2024_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2024_REGEXP: BuiltinLib =
-    BuiltinLib::language("es2024.regexp", &[LIB_ES_ES2024_REGEXP_D_TS], &[])
+pub const LIB_ES2024_REGEXP: BuiltinLibrary =
+    BuiltinLibrary::language("es2024.regexp", &[LIB_ES_ES2024_REGEXP_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2024_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2024_SHAREDMEMORY: BuiltinLib = BuiltinLib::language(
+pub const LIB_ES2024_SHAREDMEMORY: BuiltinLibrary = BuiltinLibrary::language(
     "es2024.sharedmemory",
     &[LIB_ES_ES2024_SHAREDMEMORY_D_TS],
     &[],
 )
 .ambient()
+.with_reference_libs(&["es2020.bigint"])
 .with_declared_symbols(ES2024_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2024_STRING: BuiltinLib =
-    BuiltinLib::language("es2024.string", &[LIB_ES_ES2024_STRING_D_TS], &[])
+pub const LIB_ES2024_STRING: BuiltinLibrary =
+    BuiltinLibrary::language("es2024.string", &[LIB_ES_ES2024_STRING_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2024_EMPTY_DECLARED_SYMBOLS);

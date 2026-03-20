@@ -407,6 +407,75 @@ def read_sources(root: Path, source_set: SourceSet) -> list[str]:
     return sorted(sources)
 
 
+def reference_libs_for_sources(root: Path, sources: list[str]) -> list[str]:
+    """Collect reference lib directives for a set of builtin source files."""
+    references: list[str] = []
+    seen: set[str] = set()
+
+    for source in sources:
+        if not source.endswith(".d.ts"):
+            continue
+
+        source_path = root / source.removeprefix(f"{root.name}/")
+        content = source_path.read_text(encoding="utf-8")
+        for reference in reference_libs_from_content(content):
+            if reference not in seen:
+                seen.add(reference)
+                references.append(reference)
+
+    return references
+
+
+def reference_libs_from_content(content: str) -> list[str]:
+    """Collect reference lib directives from one source file."""
+    references: list[str] = []
+
+    for line in content.splitlines():
+        stripped = line.lstrip()
+        if not stripped.startswith("///"):
+            continue
+
+        directive = stripped.removeprefix("///").lstrip()
+        if not directive.startswith("<reference"):
+            continue
+
+        reference = parse_reference_lib(directive)
+        if reference is not None:
+            references.append(reference)
+
+    return references
+
+
+def parse_reference_lib(directive: str) -> str | None:
+    """Parse one `lib=` attribute from a reference directive."""
+    parts = directive.split()
+    head = next(iter(parts), None)
+    if head is None or not head.startswith("<reference"):
+        return None
+
+    for part in parts:
+        if not part.startswith("lib="):
+            continue
+
+        value = part[len("lib=") :].lstrip()
+        if value.startswith('"'):
+            quote = '"'
+            value = value[1:]
+        elif value.startswith("'"):
+            quote = "'"
+            value = value[1:]
+        else:
+            continue
+
+        end = value.find(quote)
+        if end == -1:
+            return None
+
+        return value[:end]
+
+    return None
+
+
 def group_by_parent(files: list[FileEntry]) -> dict[str, list[FileEntry]]:
     """Group file entries by their top level directory."""
     # group by parent directory
@@ -740,7 +809,7 @@ def render_mod(
 
     # write exports
     if group == "":
-        lines.append("use super::source::BuiltinLib;")
+        lines.append("use super::source::BuiltinLibrary;")
         lines.append("")
 
     for file, module in modules:
@@ -784,7 +853,7 @@ def render_mod(
         lib_files = all_lib_files if all_lib_files is not None else files
 
         lines.append("")
-        lines.append(f"pub const {libs_const_name}: &[BuiltinLib] = &[")
+        lines.append(f"pub const {libs_const_name}: &[BuiltinLibrary] = &[")
         for file in lib_files:
             family = family_name_for_path(file.path)
             feature_name = feature_name_for_family(family)
@@ -937,7 +1006,7 @@ def render_file(
         source_blocks.append((label, runtimes, outputs, platforms, entries))
 
     # imports
-    import_lines = ["use crate::libs::source::BuiltinLib;"]
+    import_lines = ["use crate::libs::source::BuiltinLibrary;"]
     if uses_targeted:
         import_lines.append(
             "use crate::libs::source::{BuiltinOutputFormat, BuiltinPlatform, BuiltinRuntime};"
@@ -1018,8 +1087,9 @@ def render_file(
             sources_list = lib.sources
 
         source_consts = [source_const_map[source] for source in sources_list]
+        reference_libs = reference_libs_for_sources(root, sources_list)
 
-        lines.append(f"pub const {const_name}: BuiltinLib = BuiltinLib::{constructor}(")
+        lines.append(f"pub const {const_name}: BuiltinLibrary = BuiltinLibrary::{constructor}(")
         lines.append(f'    "{lib.name}",')
         lines.append("    &[")
         for source in source_consts:
@@ -1035,6 +1105,9 @@ def render_file(
         if lib.specifier_aliases:
             alias_const = const_name_for_alias_set(lib.specifier_aliases)
             lines.append(f".with_specifier_aliases({alias_const})")
+        if reference_libs:
+            names = ", ".join(f'"{name}"' for name in reference_libs)
+            lines.append(f".with_reference_libs(&[{names}])")
         if lib.types_package_names:
             names = ", ".join(f'"{name}"' for name in lib.types_package_names)
             lines.append(f".with_types_package_names(&[{names}])")
@@ -1042,7 +1115,12 @@ def render_file(
             symbol_const = const_name_for_symbol_set(lib.declared_symbols)
             lines.append(f".with_declared_symbols({symbol_const})")
 
-        if lib.specifier_aliases or lib.types_package_names or lib.declared_symbols:
+        if (
+            lib.specifier_aliases
+            or reference_libs
+            or lib.types_package_names
+            or lib.declared_symbols
+        ):
             lines.append(";")
         else:
             lines[-1] = lines[-1] + ";"

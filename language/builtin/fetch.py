@@ -282,7 +282,7 @@ def _write_lib_sources(
         version_id = library_version.replace(".", "_")
         const_name = f"{const_prefix}_V{version_id}_SOURCES"
         base_path = path_template.format(version=library_version)
-        lines.append(f"pub const {const_name}: &[BuiltinLibSource] = &[")
+        lines.append(f"pub const {const_name}: &[BuiltinLibrarySource] = &[")
 
         # record source entries for the version
         for relative_path in sources.get(library_version, []):
@@ -295,7 +295,7 @@ def _write_lib_sources(
                 lib_path = base_path
 
             # emit the source entry
-            lines.append("    BuiltinLibSource::new(")
+            lines.append("    BuiltinLibrarySource::new(")
             lines.append('        "library",')
             lines.append(f'        "{lib_path}",')
             lines.append(f'        "{name}",')

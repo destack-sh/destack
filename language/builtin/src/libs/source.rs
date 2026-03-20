@@ -1,9 +1,8 @@
-use std::collections::HashSet;
 use std::fmt;
 
 /// The kind of builtin library, corresponding to the three layers:
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum BuiltinLibKind {
+pub enum BuiltinLibraryKind {
     /// Runtime and compiler intrinsics.
     Intrinsic,
     /// Language-level builtin libraries.
@@ -129,7 +128,7 @@ impl BuiltinPlatform {
 
 /// A builtin library source file.
 #[derive(Clone, Copy)]
-pub struct BuiltinLibSource {
+pub struct BuiltinLibrarySource {
     /// Root directory under builtin.
     pub root: &'static str,
     /// Module path under the root.
@@ -146,9 +145,9 @@ pub struct BuiltinLibSource {
     pub platforms: &'static [BuiltinPlatform],
 }
 
-impl fmt::Debug for BuiltinLibSource {
+impl fmt::Debug for BuiltinLibrarySource {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("BuiltinLibSource")
+        f.debug_struct("BuiltinLibrarySource")
             .field("root", &self.root)
             .field("path", &self.path)
             .field("name", &self.name)
@@ -156,7 +155,7 @@ impl fmt::Debug for BuiltinLibSource {
     }
 }
 
-impl BuiltinLibSource {
+impl BuiltinLibrarySource {
     pub(crate) const fn new(
         root: &'static str,
         path: &'static str,
@@ -235,8 +234,8 @@ impl BuiltinLibSource {
 #[macro_export]
 macro_rules! builtin_lib_source {
     ($vis:vis $name:ident, $root:literal, $path:literal, $file:literal) => {
-        $vis const $name: $crate::libs::source::BuiltinLibSource =
-            $crate::libs::source::BuiltinLibSource::new(
+        $vis const $name: $crate::libs::source::BuiltinLibrarySource =
+            $crate::libs::source::BuiltinLibrarySource::new(
                 $root,
                 $path,
                 $file,
@@ -252,8 +251,8 @@ macro_rules! builtin_lib_source {
             );
     };
     ($name:ident, $root:literal, $path:literal, $file:literal) => {
-        const $name: $crate::libs::source::BuiltinLibSource =
-            $crate::libs::source::BuiltinLibSource::new(
+        const $name: $crate::libs::source::BuiltinLibrarySource =
+            $crate::libs::source::BuiltinLibrarySource::new(
                 $root,
                 $path,
                 $file,
@@ -269,8 +268,8 @@ macro_rules! builtin_lib_source {
             );
     };
     ($vis:vis $name:ident, $root:literal, $file:literal) => {
-        $vis const $name: $crate::libs::source::BuiltinLibSource =
-            $crate::libs::source::BuiltinLibSource::new(
+        $vis const $name: $crate::libs::source::BuiltinLibrarySource =
+            $crate::libs::source::BuiltinLibrarySource::new(
                 $root,
                 "",
                 $file,
@@ -284,8 +283,8 @@ macro_rules! builtin_lib_source {
             );
     };
     ($name:ident, $root:literal, $file:literal) => {
-        const $name: $crate::libs::source::BuiltinLibSource =
-            $crate::libs::source::BuiltinLibSource::new(
+        const $name: $crate::libs::source::BuiltinLibrarySource =
+            $crate::libs::source::BuiltinLibrarySource::new(
                 $root,
                 "",
                 $file,
@@ -313,8 +312,8 @@ macro_rules! builtin_lib_sources {
 #[macro_export]
 macro_rules! builtin_lib_source_targeted {
     ($vis:vis $name:ident, $root:literal, $path:literal, $file:literal, $runtimes:expr, $outputs:expr, $platforms:expr) => {
-        $vis const $name: $crate::libs::source::BuiltinLibSource =
-            $crate::libs::source::BuiltinLibSource::new_with_targets(
+        $vis const $name: $crate::libs::source::BuiltinLibrarySource =
+            $crate::libs::source::BuiltinLibrarySource::new_with_targets(
                 $root,
                 $path,
                 $file,
@@ -333,8 +332,8 @@ macro_rules! builtin_lib_source_targeted {
             );
     };
     ($vis:vis $name:ident, $root:literal, $file:literal, $runtimes:expr, $outputs:expr, $platforms:expr) => {
-        $vis const $name: $crate::libs::source::BuiltinLibSource =
-            $crate::libs::source::BuiltinLibSource::new_with_targets(
+        $vis const $name: $crate::libs::source::BuiltinLibrarySource =
+            $crate::libs::source::BuiltinLibrarySource::new_with_targets(
                 $root,
                 "",
                 $file,
@@ -372,15 +371,17 @@ macro_rules! builtin_lib_sources_targeted {
 
 /// Definition for a builtin library.
 #[derive(Clone, Copy, Debug)]
-pub struct BuiltinLib {
+pub struct BuiltinLibrary {
     /// The kind of builtin library.
-    pub kind: BuiltinLibKind,
+    pub kind: BuiltinLibraryKind,
     /// Library name (e.g., "es2024", "dom").
     pub name: &'static str,
     /// Source files for this library.
-    pub sources: &'static [BuiltinLibSource],
+    pub sources: &'static [BuiltinLibrarySource],
     /// Library dependencies by name.
     pub dependencies: &'static [&'static str],
+    /// Library dependencies declared through reference directives.
+    pub reference_libs: &'static [&'static str],
     /// Import specifier aliases for this library.
     pub specifier_aliases: &'static [(&'static str, &'static str)],
     /// Types package names that should map to this library.
@@ -392,12 +393,12 @@ pub struct BuiltinLib {
 }
 
 #[allow(dead_code)]
-impl BuiltinLib {
+impl BuiltinLibrary {
     /// Create a new builtin library definition.
     pub(crate) const fn new(
-        kind: BuiltinLibKind,
+        kind: BuiltinLibraryKind,
         name: &'static str,
-        sources: &'static [BuiltinLibSource],
+        sources: &'static [BuiltinLibrarySource],
         dependencies: &'static [&'static str],
     ) -> Self {
         Self {
@@ -405,6 +406,7 @@ impl BuiltinLib {
             name,
             sources,
             dependencies,
+            reference_libs: &[],
             is_ambient: false,
             specifier_aliases: &[],
             types_package_names: &[],
@@ -415,28 +417,28 @@ impl BuiltinLib {
     /// Create a new intrinsic builtin library definition.
     pub(crate) const fn intrinsic(
         name: &'static str,
-        sources: &'static [BuiltinLibSource],
+        sources: &'static [BuiltinLibrarySource],
         dependencies: &'static [&'static str],
     ) -> Self {
-        Self::new(BuiltinLibKind::Intrinsic, name, sources, dependencies)
+        Self::new(BuiltinLibraryKind::Intrinsic, name, sources, dependencies)
     }
 
     /// Create a new language builtin library definition.
     pub(crate) const fn language(
         name: &'static str,
-        sources: &'static [BuiltinLibSource],
+        sources: &'static [BuiltinLibrarySource],
         dependencies: &'static [&'static str],
     ) -> Self {
-        Self::new(BuiltinLibKind::Language, name, sources, dependencies)
+        Self::new(BuiltinLibraryKind::Language, name, sources, dependencies)
     }
 
     /// Create a new library builtin definition.
     pub(crate) const fn library(
         name: &'static str,
-        sources: &'static [BuiltinLibSource],
+        sources: &'static [BuiltinLibrarySource],
         dependencies: &'static [&'static str],
     ) -> Self {
-        Self::new(BuiltinLibKind::Library, name, sources, dependencies)
+        Self::new(BuiltinLibraryKind::Library, name, sources, dependencies)
     }
 
     /// Mark the builtin library as ambient.
@@ -460,6 +462,15 @@ impl BuiltinLib {
         self
     }
 
+    /// Attach reference lib dependencies to the builtin library definition.
+    pub(crate) const fn with_reference_libs(
+        mut self,
+        reference_libs: &'static [&'static str],
+    ) -> Self {
+        self.reference_libs = reference_libs;
+        self
+    }
+
     /// Attach import specifier aliases to the builtin library definition.
     pub(crate) const fn with_specifier_aliases(
         mut self,
@@ -477,79 +488,4 @@ impl BuiltinLib {
         self.types_package_names = types_package_names;
         self
     }
-
-    /// Return reference lib dependencies declared in the builtin sources.
-    pub fn reference_libs(&self) -> Vec<&'static str> {
-        // track reference libs in source order
-        let mut references = Vec::new();
-        let mut seen = HashSet::new();
-
-        // collect references from each source file
-        for source in self.sources {
-            for reference in reference_libs_from_source(source.content) {
-                if seen.insert(reference) {
-                    references.push(reference);
-                }
-            }
-        }
-
-        references
-    }
-}
-
-fn reference_libs_from_source(content: &str) -> Vec<&str> {
-    // collect reference directives
-    let mut references = Vec::new();
-
-    // scan directive lines for reference lib declarations
-    for line in content.lines() {
-        // skip non directive lines
-        let line = line.trim_start();
-        if !line.starts_with("///") {
-            continue;
-        }
-
-        // skip non reference directives
-        let line = line.trim_start_matches("///").trim_start();
-        if !line.starts_with("<reference") {
-            continue;
-        }
-
-        // parse the lib name and record it
-        if let Some(name) = parse_reference_lib(line) {
-            references.push(name);
-        }
-    }
-
-    references
-}
-
-fn parse_reference_lib(line: &str) -> Option<&str> {
-    // locate the lib attribute
-    let mut parts = line.split_whitespace();
-    let head = parts.next()?;
-    if !head.starts_with("<reference") {
-        return None;
-    }
-
-    // scan attributes for a lib entry
-    for part in parts {
-        let Some(rest) = part.strip_prefix("lib=") else {
-            continue;
-        };
-
-        // slice out the lib name between quotes
-        let rest = rest.trim_start();
-        let (value, quote) = if let Some(value) = rest.strip_prefix('"') {
-            (value, '"')
-        } else if let Some(value) = rest.strip_prefix('\'') {
-            (value, '\'')
-        } else {
-            continue;
-        };
-        let end = value.find(quote)?;
-        return Some(&value[..end]);
-    }
-
-    None
 }

@@ -6,7 +6,7 @@ use crate::libs::language::symbols::{
     ES2018_ASYNCGENERATOR_DECLARED_SYMBOLS, ES2018_ASYNCITERABLE_DECLARED_SYMBOLS,
     ES2018_DECLARED_SYMBOLS, ES2018_EMPTY_DECLARED_SYMBOLS,
 };
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([
     (
@@ -53,7 +53,7 @@ builtin_lib_sources!([
     ),
 ]);
 
-pub const LIB_ES2018: BuiltinLib = BuiltinLib::language(
+pub const LIB_ES2018: BuiltinLibrary = BuiltinLibrary::language(
     "es2018",
     &[
         LIB_ES_ES2018_ASYNCGENERATOR_D_TS,
@@ -66,40 +66,60 @@ pub const LIB_ES2018: BuiltinLib = BuiltinLib::language(
     &[],
 )
 .ambient()
+.with_reference_libs(&[
+    "es2018.asynciterable",
+    "es2015.symbol",
+    "es2015.iterable",
+    "es2017",
+    "es2018.asyncgenerator",
+    "es2018.promise",
+    "es2018.regexp",
+    "es2018.intl",
+])
 .with_declared_symbols(ES2018_DECLARED_SYMBOLS);
 
-pub const LIB_ES2018_ASYNCGENERATOR: BuiltinLib = BuiltinLib::language(
+pub const LIB_ES2018_ASYNCGENERATOR: BuiltinLibrary = BuiltinLibrary::language(
     "es2018.asyncgenerator",
     &[LIB_ES_ES2018_ASYNCGENERATOR_D_TS],
     &[],
 )
 .ambient()
+.with_reference_libs(&["es2018.asynciterable"])
 .with_declared_symbols(ES2018_ASYNCGENERATOR_DECLARED_SYMBOLS);
 
-pub const LIB_ES2018_ASYNCITERABLE: BuiltinLib = BuiltinLib::language(
+pub const LIB_ES2018_ASYNCITERABLE: BuiltinLibrary = BuiltinLibrary::language(
     "es2018.asynciterable",
     &[LIB_ES_ES2018_ASYNCITERABLE_D_TS],
     &[],
 )
 .ambient()
+.with_reference_libs(&["es2015.symbol", "es2015.iterable"])
 .with_declared_symbols(ES2018_ASYNCITERABLE_DECLARED_SYMBOLS);
 
-pub const LIB_ES2018_FULL: BuiltinLib =
-    BuiltinLib::language("es2018.full", &[LIB_ES_ES2018_FULL_D_TS], &[])
+pub const LIB_ES2018_FULL: BuiltinLibrary =
+    BuiltinLibrary::language("es2018.full", &[LIB_ES_ES2018_FULL_D_TS], &[])
         .ambient()
+        .with_reference_libs(&[
+            "es2018",
+            "dom",
+            "webworker.importscripts",
+            "scripthost",
+            "dom.iterable",
+            "dom.asynciterable",
+        ])
         .with_declared_symbols(ES2018_DECLARED_SYMBOLS);
 
-pub const LIB_ES2018_INTL: BuiltinLib =
-    BuiltinLib::language("es2018.intl", &[LIB_ES_ES2018_INTL_D_TS], &[])
+pub const LIB_ES2018_INTL: BuiltinLibrary =
+    BuiltinLibrary::language("es2018.intl", &[LIB_ES_ES2018_INTL_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2018_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2018_PROMISE: BuiltinLib =
-    BuiltinLib::language("es2018.promise", &[LIB_ES_ES2018_PROMISE_D_TS], &[])
+pub const LIB_ES2018_PROMISE: BuiltinLibrary =
+    BuiltinLibrary::language("es2018.promise", &[LIB_ES_ES2018_PROMISE_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2018_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2018_REGEXP: BuiltinLib =
-    BuiltinLib::language("es2018.regexp", &[LIB_ES_ES2018_REGEXP_D_TS], &[])
+pub const LIB_ES2018_REGEXP: BuiltinLibrary =
+    BuiltinLibrary::language("es2018.regexp", &[LIB_ES_ES2018_REGEXP_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2018_EMPTY_DECLARED_SYMBOLS);

@@ -2,7 +2,7 @@
 // run `just generate-builtin-libs` to regenerate
 
 use crate::builtin_lib_sources_targeted;
-use crate::libs::source::{BuiltinLib, BuiltinOutputFormat, BuiltinPlatform, BuiltinRuntime};
+use crate::libs::source::{BuiltinLibrary, BuiltinOutputFormat, BuiltinPlatform, BuiltinRuntime};
 
 const DESTACK_RUNTIMES: &[BuiltinRuntime] = &[
     BuiltinRuntime::NativeHosted,
@@ -431,7 +431,7 @@ builtin_lib_sources_targeted!(
     ]
 );
 
-pub const LIB_DESTACK: BuiltinLib = BuiltinLib::library(
+pub const LIB_DESTACK: BuiltinLibrary = BuiltinLibrary::library(
     "destack",
     &[
         LIB_DESTACK_INDEX_DS,

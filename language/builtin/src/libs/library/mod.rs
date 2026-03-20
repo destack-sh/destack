@@ -69,7 +69,7 @@ mod undici_types_latest;
 #[cfg(feature = "lib-worker")]
 mod worker;
 
-use super::source::BuiltinLib;
+use super::source::BuiltinLibrary;
 
 #[cfg(all(
     feature = "lib-bun",
@@ -138,7 +138,7 @@ pub use undici_types_latest::*;
 #[cfg(feature = "lib-worker")]
 pub use worker::*;
 
-pub const LIBRARY_LIBS: &[BuiltinLib] = &[
+pub const LIBRARY_LIBS: &[BuiltinLibrary] = &[
     #[cfg(all(
         feature = "lib-bun",
         any(

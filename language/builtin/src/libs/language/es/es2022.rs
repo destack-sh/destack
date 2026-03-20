@@ -3,7 +3,7 @@
 
 use crate::builtin_lib_sources;
 use crate::libs::language::symbols::{ES2022_DECLARED_SYMBOLS, ES2022_EMPTY_DECLARED_SYMBOLS};
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([
     (
@@ -56,7 +56,7 @@ builtin_lib_sources!([
     ),
 ]);
 
-pub const LIB_ES2022: BuiltinLib = BuiltinLib::language(
+pub const LIB_ES2022: BuiltinLibrary = BuiltinLibrary::language(
     "es2022",
     &[
         LIB_ES_ES2022_ARRAY_D_TS,
@@ -70,39 +70,58 @@ pub const LIB_ES2022: BuiltinLib = BuiltinLib::language(
     &[],
 )
 .ambient()
+.with_reference_libs(&[
+    "es2021.promise",
+    "es2021",
+    "es2022.array",
+    "es2022.error",
+    "es2022.intl",
+    "es2022.object",
+    "es2022.regexp",
+    "es2022.string",
+])
 .with_declared_symbols(ES2022_DECLARED_SYMBOLS);
 
-pub const LIB_ES2022_ARRAY: BuiltinLib =
-    BuiltinLib::language("es2022.array", &[LIB_ES_ES2022_ARRAY_D_TS], &[])
+pub const LIB_ES2022_ARRAY: BuiltinLibrary =
+    BuiltinLibrary::language("es2022.array", &[LIB_ES_ES2022_ARRAY_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2022_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2022_ERROR: BuiltinLib =
-    BuiltinLib::language("es2022.error", &[LIB_ES_ES2022_ERROR_D_TS], &[])
+pub const LIB_ES2022_ERROR: BuiltinLibrary =
+    BuiltinLibrary::language("es2022.error", &[LIB_ES_ES2022_ERROR_D_TS], &[])
         .ambient()
+        .with_reference_libs(&["es2021.promise"])
         .with_declared_symbols(ES2022_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2022_FULL: BuiltinLib =
-    BuiltinLib::language("es2022.full", &[LIB_ES_ES2022_FULL_D_TS], &[])
+pub const LIB_ES2022_FULL: BuiltinLibrary =
+    BuiltinLibrary::language("es2022.full", &[LIB_ES_ES2022_FULL_D_TS], &[])
         .ambient()
+        .with_reference_libs(&[
+            "es2022",
+            "dom",
+            "webworker.importscripts",
+            "scripthost",
+            "dom.iterable",
+            "dom.asynciterable",
+        ])
         .with_declared_symbols(ES2022_DECLARED_SYMBOLS);
 
-pub const LIB_ES2022_INTL: BuiltinLib =
-    BuiltinLib::language("es2022.intl", &[LIB_ES_ES2022_INTL_D_TS], &[])
+pub const LIB_ES2022_INTL: BuiltinLibrary =
+    BuiltinLibrary::language("es2022.intl", &[LIB_ES_ES2022_INTL_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2022_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2022_OBJECT: BuiltinLib =
-    BuiltinLib::language("es2022.object", &[LIB_ES_ES2022_OBJECT_D_TS], &[])
+pub const LIB_ES2022_OBJECT: BuiltinLibrary =
+    BuiltinLibrary::language("es2022.object", &[LIB_ES_ES2022_OBJECT_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2022_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2022_REGEXP: BuiltinLib =
-    BuiltinLib::language("es2022.regexp", &[LIB_ES_ES2022_REGEXP_D_TS], &[])
+pub const LIB_ES2022_REGEXP: BuiltinLibrary =
+    BuiltinLibrary::language("es2022.regexp", &[LIB_ES_ES2022_REGEXP_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2022_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2022_STRING: BuiltinLib =
-    BuiltinLib::language("es2022.string", &[LIB_ES_ES2022_STRING_D_TS], &[])
+pub const LIB_ES2022_STRING: BuiltinLibrary =
+    BuiltinLibrary::language("es2022.string", &[LIB_ES_ES2022_STRING_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2022_EMPTY_DECLARED_SYMBOLS);

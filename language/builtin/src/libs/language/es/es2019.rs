@@ -3,7 +3,7 @@
 
 use crate::builtin_lib_sources;
 use crate::libs::language::symbols::{ES2019_DECLARED_SYMBOLS, ES2019_EMPTY_DECLARED_SYMBOLS};
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([
     (
@@ -50,7 +50,7 @@ builtin_lib_sources!([
     ),
 ]);
 
-pub const LIB_ES2019: BuiltinLib = BuiltinLib::language(
+pub const LIB_ES2019: BuiltinLibrary = BuiltinLibrary::language(
     "es2019",
     &[
         LIB_ES_ES2019_ARRAY_D_TS,
@@ -63,34 +63,52 @@ pub const LIB_ES2019: BuiltinLib = BuiltinLib::language(
     &[],
 )
 .ambient()
+.with_reference_libs(&[
+    "es2018",
+    "es2019.array",
+    "es2019.object",
+    "es2019.string",
+    "es2019.symbol",
+    "es2019.intl",
+    "es2015.iterable",
+])
 .with_declared_symbols(ES2019_DECLARED_SYMBOLS);
 
-pub const LIB_ES2019_ARRAY: BuiltinLib =
-    BuiltinLib::language("es2019.array", &[LIB_ES_ES2019_ARRAY_D_TS], &[])
+pub const LIB_ES2019_ARRAY: BuiltinLibrary =
+    BuiltinLibrary::language("es2019.array", &[LIB_ES_ES2019_ARRAY_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2019_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2019_FULL: BuiltinLib =
-    BuiltinLib::language("es2019.full", &[LIB_ES_ES2019_FULL_D_TS], &[])
+pub const LIB_ES2019_FULL: BuiltinLibrary =
+    BuiltinLibrary::language("es2019.full", &[LIB_ES_ES2019_FULL_D_TS], &[])
         .ambient()
+        .with_reference_libs(&[
+            "es2019",
+            "dom",
+            "webworker.importscripts",
+            "scripthost",
+            "dom.iterable",
+            "dom.asynciterable",
+        ])
         .with_declared_symbols(ES2019_DECLARED_SYMBOLS);
 
-pub const LIB_ES2019_INTL: BuiltinLib =
-    BuiltinLib::language("es2019.intl", &[LIB_ES_ES2019_INTL_D_TS], &[])
+pub const LIB_ES2019_INTL: BuiltinLibrary =
+    BuiltinLibrary::language("es2019.intl", &[LIB_ES_ES2019_INTL_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2019_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2019_OBJECT: BuiltinLib =
-    BuiltinLib::language("es2019.object", &[LIB_ES_ES2019_OBJECT_D_TS], &[])
+pub const LIB_ES2019_OBJECT: BuiltinLibrary =
+    BuiltinLibrary::language("es2019.object", &[LIB_ES_ES2019_OBJECT_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["es2015.iterable"])
+        .with_declared_symbols(ES2019_EMPTY_DECLARED_SYMBOLS);
+
+pub const LIB_ES2019_STRING: BuiltinLibrary =
+    BuiltinLibrary::language("es2019.string", &[LIB_ES_ES2019_STRING_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2019_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2019_STRING: BuiltinLib =
-    BuiltinLib::language("es2019.string", &[LIB_ES_ES2019_STRING_D_TS], &[])
-        .ambient()
-        .with_declared_symbols(ES2019_EMPTY_DECLARED_SYMBOLS);
-
-pub const LIB_ES2019_SYMBOL: BuiltinLib =
-    BuiltinLib::language("es2019.symbol", &[LIB_ES_ES2019_SYMBOL_D_TS], &[])
+pub const LIB_ES2019_SYMBOL: BuiltinLibrary =
+    BuiltinLibrary::language("es2019.symbol", &[LIB_ES_ES2019_SYMBOL_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2019_EMPTY_DECLARED_SYMBOLS);

@@ -5,7 +5,7 @@ use crate::builtin_lib_sources;
 use crate::libs::language::symbols::{
     ES2017_DECLARED_SYMBOLS, ES2017_EMPTY_DECLARED_SYMBOLS, ES2017_SHAREDMEMORY_DECLARED_SYMBOLS,
 };
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([
     (
@@ -64,7 +64,7 @@ builtin_lib_sources!([
     ),
 ]);
 
-pub const LIB_ES2017: BuiltinLib = BuiltinLib::language(
+pub const LIB_ES2017: BuiltinLibrary = BuiltinLibrary::language(
     "es2017",
     &[
         LIB_ES_ES2017_ARRAYBUFFER_D_TS,
@@ -79,47 +79,67 @@ pub const LIB_ES2017: BuiltinLib = BuiltinLib::language(
     &[],
 )
 .ambient()
+.with_reference_libs(&[
+    "es2016",
+    "es2017.arraybuffer",
+    "es2017.date",
+    "es2017.intl",
+    "es2017.object",
+    "es2017.sharedmemory",
+    "es2017.string",
+    "es2017.typedarrays",
+    "es2015.symbol",
+    "es2015.symbol.wellknown",
+])
 .with_declared_symbols(ES2017_DECLARED_SYMBOLS);
 
-pub const LIB_ES2017_DATE: BuiltinLib =
-    BuiltinLib::language("es2017.date", &[LIB_ES_ES2017_DATE_D_TS], &[])
+pub const LIB_ES2017_DATE: BuiltinLibrary =
+    BuiltinLibrary::language("es2017.date", &[LIB_ES_ES2017_DATE_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2017_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2017_ARRAYBUFFER: BuiltinLib =
-    BuiltinLib::language("es2017.arraybuffer", &[LIB_ES_ES2017_ARRAYBUFFER_D_TS], &[])
+pub const LIB_ES2017_ARRAYBUFFER: BuiltinLibrary =
+    BuiltinLibrary::language("es2017.arraybuffer", &[LIB_ES_ES2017_ARRAYBUFFER_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2017_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2017_FULL: BuiltinLib =
-    BuiltinLib::language("es2017.full", &[LIB_ES_ES2017_FULL_D_TS], &[])
+pub const LIB_ES2017_FULL: BuiltinLibrary =
+    BuiltinLibrary::language("es2017.full", &[LIB_ES_ES2017_FULL_D_TS], &[])
         .ambient()
+        .with_reference_libs(&[
+            "es2017",
+            "dom",
+            "webworker.importscripts",
+            "scripthost",
+            "dom.iterable",
+        ])
         .with_declared_symbols(ES2017_DECLARED_SYMBOLS);
 
-pub const LIB_ES2017_INTL: BuiltinLib =
-    BuiltinLib::language("es2017.intl", &[LIB_ES_ES2017_INTL_D_TS], &[])
+pub const LIB_ES2017_INTL: BuiltinLibrary =
+    BuiltinLibrary::language("es2017.intl", &[LIB_ES_ES2017_INTL_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2017_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2017_OBJECT: BuiltinLib =
-    BuiltinLib::language("es2017.object", &[LIB_ES_ES2017_OBJECT_D_TS], &[])
+pub const LIB_ES2017_OBJECT: BuiltinLibrary =
+    BuiltinLibrary::language("es2017.object", &[LIB_ES_ES2017_OBJECT_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2017_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2017_SHAREDMEMORY: BuiltinLib = BuiltinLib::language(
+pub const LIB_ES2017_SHAREDMEMORY: BuiltinLibrary = BuiltinLibrary::language(
     "es2017.sharedmemory",
     &[LIB_ES_ES2017_SHAREDMEMORY_D_TS],
     &[],
 )
 .ambient()
+.with_reference_libs(&["es2015.symbol", "es2015.symbol.wellknown"])
 .with_declared_symbols(ES2017_SHAREDMEMORY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2017_STRING: BuiltinLib =
-    BuiltinLib::language("es2017.string", &[LIB_ES_ES2017_STRING_D_TS], &[])
+pub const LIB_ES2017_STRING: BuiltinLibrary =
+    BuiltinLibrary::language("es2017.string", &[LIB_ES_ES2017_STRING_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2017_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2017_TYPEDARRAYS: BuiltinLib =
-    BuiltinLib::language("es2017.typedarrays", &[LIB_ES_ES2017_TYPEDARRAYS_D_TS], &[])
+pub const LIB_ES2017_TYPEDARRAYS: BuiltinLibrary =
+    BuiltinLibrary::language("es2017.typedarrays", &[LIB_ES_ES2017_TYPEDARRAYS_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2017_EMPTY_DECLARED_SYMBOLS);

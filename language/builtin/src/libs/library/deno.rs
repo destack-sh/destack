@@ -2,7 +2,7 @@
 // run `just generate-builtin-libs` to regenerate
 
 use crate::builtin_lib_sources;
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([
     (
@@ -211,256 +211,396 @@ builtin_lib_sources!([
     ),
 ]);
 
-pub const LIB_DENO: BuiltinLib = BuiltinLib::library(
+pub const LIB_DENO: BuiltinLibrary = BuiltinLibrary::library(
     "deno",
     &[LIB_DENO_NS_V2_6_INDEX_D_TS],
     &["D", "E", "N", "O", "_", "N", "S", "_", "D", "E", "P", "S"],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&["esnext", "deno.net"]);
 
-pub const LIB_DENO_V2_6: BuiltinLib = BuiltinLib::library(
+pub const LIB_DENO_V2_6: BuiltinLibrary = BuiltinLibrary::library(
     "deno.v2.6",
     &[LIB_DENO_NS_V2_6_INDEX_D_TS],
     &[
         "D", "E", "N", "O", "_", "N", "S", "_", "V", "2", "_", "6", "_", "D", "E", "P", "S",
     ],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&["esnext", "deno.net"]);
 
-pub const LIB_DENO_V2_5: BuiltinLib = BuiltinLib::library(
+pub const LIB_DENO_V2_5: BuiltinLibrary = BuiltinLibrary::library(
     "deno.v2.5",
     &[LIB_DENO_NS_V2_5_INDEX_D_TS],
     &[
         "D", "E", "N", "O", "_", "N", "S", "_", "V", "2", "_", "5", "_", "D", "E", "P", "S",
     ],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&["esnext", "deno.net"]);
 
-pub const LIB_DENO_NS: BuiltinLib = BuiltinLib::library(
+pub const LIB_DENO_NS: BuiltinLibrary = BuiltinLibrary::library(
     "deno.ns",
     &[LIB_DENO_NS_V2_6_INDEX_D_TS],
     &["D", "E", "N", "O", "_", "N", "S", "_", "D", "E", "P", "S"],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&["esnext", "deno.net"]);
 
-pub const LIB_DENO_NS_V2_6: BuiltinLib = BuiltinLib::library(
+pub const LIB_DENO_NS_V2_6: BuiltinLibrary = BuiltinLibrary::library(
     "deno.ns.v2.6",
     &[LIB_DENO_NS_V2_6_INDEX_D_TS],
     &[
         "D", "E", "N", "O", "_", "N", "S", "_", "V", "2", "_", "6", "_", "D", "E", "P", "S",
     ],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&["esnext", "deno.net"]);
 
-pub const LIB_DENO_NS_V2_5: BuiltinLib = BuiltinLib::library(
+pub const LIB_DENO_NS_V2_5: BuiltinLibrary = BuiltinLibrary::library(
     "deno.ns.v2.5",
     &[LIB_DENO_NS_V2_5_INDEX_D_TS],
     &[
         "D", "E", "N", "O", "_", "N", "S", "_", "V", "2", "_", "5", "_", "D", "E", "P", "S",
     ],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&["esnext", "deno.net"]);
 
-pub const LIB_DENO_NET: BuiltinLib =
-    BuiltinLib::library("deno.net", &[LIB_DENO_NET_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_NET: BuiltinLibrary =
+    BuiltinLibrary::library("deno.net", &[LIB_DENO_NET_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext", "esnext.disposable"]);
 
-pub const LIB_DENO_NET_V2_6: BuiltinLib =
-    BuiltinLib::library("deno.net.v2.6", &[LIB_DENO_NET_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_NET_V2_6: BuiltinLibrary =
+    BuiltinLibrary::library("deno.net.v2.6", &[LIB_DENO_NET_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext", "esnext.disposable"]);
 
-pub const LIB_DENO_NET_V2_5: BuiltinLib =
-    BuiltinLib::library("deno.net.v2.5", &[LIB_DENO_NET_V2_5_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_NET_V2_5: BuiltinLibrary =
+    BuiltinLibrary::library("deno.net.v2.5", &[LIB_DENO_NET_V2_5_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext", "esnext.disposable"]);
 
-pub const LIB_DENO_SHARED_GLOBALS: BuiltinLib = BuiltinLib::library(
+pub const LIB_DENO_SHARED_GLOBALS: BuiltinLibrary = BuiltinLibrary::library(
     "deno.shared_globals",
     &[LIB_DENO_SHARED_GLOBALS_V2_6_INDEX_D_TS],
     &[],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&[
+    "esnext",
+    "deno.console",
+    "deno.url",
+    "deno.web",
+    "deno.webgpu",
+    "deno.canvas",
+    "deno.fetch",
+    "deno.websocket",
+    "deno.crypto",
+    "deno.ns",
+    "deno.broadcast_channel",
+]);
 
-pub const LIB_DENO_SHARED_GLOBALS_V2_6: BuiltinLib = BuiltinLib::library(
+pub const LIB_DENO_SHARED_GLOBALS_V2_6: BuiltinLibrary = BuiltinLibrary::library(
     "deno.shared_globals.v2.6",
     &[LIB_DENO_SHARED_GLOBALS_V2_6_INDEX_D_TS],
     &[],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&[
+    "esnext",
+    "deno.console",
+    "deno.url",
+    "deno.web",
+    "deno.webgpu",
+    "deno.canvas",
+    "deno.fetch",
+    "deno.websocket",
+    "deno.crypto",
+    "deno.ns",
+    "deno.broadcast_channel",
+]);
 
-pub const LIB_DENO_SHARED_GLOBALS_V2_5: BuiltinLib = BuiltinLib::library(
+pub const LIB_DENO_SHARED_GLOBALS_V2_5: BuiltinLibrary = BuiltinLibrary::library(
     "deno.shared_globals.v2.5",
     &[LIB_DENO_SHARED_GLOBALS_V2_5_INDEX_D_TS],
     &[],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&[
+    "esnext",
+    "deno.console",
+    "deno.url",
+    "deno.web",
+    "deno.webgpu",
+    "deno.canvas",
+    "deno.fetch",
+    "deno.websocket",
+    "deno.crypto",
+    "deno.ns",
+]);
 
-pub const LIB_DENO_UNSTABLE: BuiltinLib =
-    BuiltinLib::library("deno.unstable", &[LIB_DENO_UNSTABLE_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_UNSTABLE: BuiltinLibrary =
+    BuiltinLibrary::library("deno.unstable", &[LIB_DENO_UNSTABLE_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["deno.ns", "esnext", "es2022.intl"]);
 
-pub const LIB_DENO_UNSTABLE_V2_6: BuiltinLib = BuiltinLib::library(
+pub const LIB_DENO_UNSTABLE_V2_6: BuiltinLibrary = BuiltinLibrary::library(
     "deno.unstable.v2.6",
     &[LIB_DENO_UNSTABLE_V2_6_INDEX_D_TS],
     &[],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&["deno.ns", "esnext", "es2022.intl"]);
 
-pub const LIB_DENO_UNSTABLE_V2_5: BuiltinLib = BuiltinLib::library(
+pub const LIB_DENO_UNSTABLE_V2_5: BuiltinLibrary = BuiltinLibrary::library(
     "deno.unstable.v2.5",
     &[LIB_DENO_UNSTABLE_V2_5_INDEX_D_TS],
     &[],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&["deno.ns", "deno.broadcast_channel", "esnext", "es2022.intl"]);
 
-pub const LIB_DENO_WINDOW: BuiltinLib =
-    BuiltinLib::library("deno.window", &[LIB_DENO_WINDOW_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_WINDOW: BuiltinLibrary =
+    BuiltinLibrary::library("deno.window", &[LIB_DENO_WINDOW_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&[
+            "deno.ns",
+            "deno.shared_globals",
+            "deno.webstorage",
+            "esnext",
+            "deno.cache",
+        ]);
 
-pub const LIB_DENO_WINDOW_V2_6: BuiltinLib =
-    BuiltinLib::library("deno.window.v2.6", &[LIB_DENO_WINDOW_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_WINDOW_V2_6: BuiltinLibrary =
+    BuiltinLibrary::library("deno.window.v2.6", &[LIB_DENO_WINDOW_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&[
+            "deno.ns",
+            "deno.shared_globals",
+            "deno.webstorage",
+            "esnext",
+            "deno.cache",
+        ]);
 
-pub const LIB_DENO_WINDOW_V2_5: BuiltinLib =
-    BuiltinLib::library("deno.window.v2.5", &[LIB_DENO_WINDOW_V2_5_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_WINDOW_V2_5: BuiltinLibrary =
+    BuiltinLibrary::library("deno.window.v2.5", &[LIB_DENO_WINDOW_V2_5_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&[
+            "deno.ns",
+            "deno.shared_globals",
+            "deno.webstorage",
+            "esnext",
+            "deno.cache",
+        ]);
 
-pub const LIB_DENO_WORKER: BuiltinLib =
-    BuiltinLib::library("deno.worker", &[LIB_DENO_WORKER_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_WORKER: BuiltinLibrary =
+    BuiltinLibrary::library("deno.worker", &[LIB_DENO_WORKER_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["deno.ns", "deno.shared_globals", "esnext", "deno.cache"]);
 
-pub const LIB_DENO_WORKER_V2_6: BuiltinLib =
-    BuiltinLib::library("deno.worker.v2.6", &[LIB_DENO_WORKER_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_WORKER_V2_6: BuiltinLibrary =
+    BuiltinLibrary::library("deno.worker.v2.6", &[LIB_DENO_WORKER_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["deno.ns", "deno.shared_globals", "esnext", "deno.cache"]);
 
-pub const LIB_DENO_WORKER_V2_5: BuiltinLib =
-    BuiltinLib::library("deno.worker.v2.5", &[LIB_DENO_WORKER_V2_5_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_WORKER_V2_5: BuiltinLibrary =
+    BuiltinLibrary::library("deno.worker.v2.5", &[LIB_DENO_WORKER_V2_5_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["deno.ns", "deno.shared_globals", "esnext", "deno.cache"]);
 
-pub const LIB_DENO_BROADCAST_CHANNEL: BuiltinLib = BuiltinLib::library(
+pub const LIB_DENO_BROADCAST_CHANNEL: BuiltinLibrary = BuiltinLibrary::library(
     "deno.broadcast_channel",
     &[LIB_DENO_BROADCAST_CHANNEL_V2_6_INDEX_D_TS],
     &[],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_BROADCAST_CHANNEL_V2_6: BuiltinLib = BuiltinLib::library(
+pub const LIB_DENO_BROADCAST_CHANNEL_V2_6: BuiltinLibrary = BuiltinLibrary::library(
     "deno.broadcast_channel.v2.6",
     &[LIB_DENO_BROADCAST_CHANNEL_V2_6_INDEX_D_TS],
     &[],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_BROADCAST_CHANNEL_V2_5: BuiltinLib = BuiltinLib::library(
+pub const LIB_DENO_BROADCAST_CHANNEL_V2_5: BuiltinLibrary = BuiltinLibrary::library(
     "deno.broadcast_channel.v2.5",
     &[LIB_DENO_BROADCAST_CHANNEL_V2_5_INDEX_D_TS],
     &[],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_CACHE: BuiltinLib =
-    BuiltinLib::library("deno.cache", &[LIB_DENO_CACHE_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_CACHE: BuiltinLibrary =
+    BuiltinLibrary::library("deno.cache", &[LIB_DENO_CACHE_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_CACHE_V2_6: BuiltinLib =
-    BuiltinLib::library("deno.cache.v2.6", &[LIB_DENO_CACHE_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_CACHE_V2_6: BuiltinLibrary =
+    BuiltinLibrary::library("deno.cache.v2.6", &[LIB_DENO_CACHE_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_CACHE_V2_5: BuiltinLib =
-    BuiltinLib::library("deno.cache.v2.5", &[LIB_DENO_CACHE_V2_5_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_CACHE_V2_5: BuiltinLibrary =
+    BuiltinLibrary::library("deno.cache.v2.5", &[LIB_DENO_CACHE_V2_5_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_CANVAS: BuiltinLib =
-    BuiltinLib::library("deno.canvas", &[LIB_DENO_CANVAS_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_CANVAS: BuiltinLibrary =
+    BuiltinLibrary::library("deno.canvas", &[LIB_DENO_CANVAS_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_CANVAS_V2_6: BuiltinLib =
-    BuiltinLib::library("deno.canvas.v2.6", &[LIB_DENO_CANVAS_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_CANVAS_V2_6: BuiltinLibrary =
+    BuiltinLibrary::library("deno.canvas.v2.6", &[LIB_DENO_CANVAS_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_CANVAS_V2_5: BuiltinLib =
-    BuiltinLib::library("deno.canvas.v2.5", &[LIB_DENO_CANVAS_V2_5_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_CANVAS_V2_5: BuiltinLibrary =
+    BuiltinLibrary::library("deno.canvas.v2.5", &[LIB_DENO_CANVAS_V2_5_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_CONSOLE: BuiltinLib =
-    BuiltinLib::library("deno.console", &[LIB_DENO_CONSOLE_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_CONSOLE: BuiltinLibrary =
+    BuiltinLibrary::library("deno.console", &[LIB_DENO_CONSOLE_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_CONSOLE_V2_6: BuiltinLib = BuiltinLib::library(
+pub const LIB_DENO_CONSOLE_V2_6: BuiltinLibrary = BuiltinLibrary::library(
     "deno.console.v2.6",
     &[LIB_DENO_CONSOLE_V2_6_INDEX_D_TS],
     &[],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_CONSOLE_V2_5: BuiltinLib = BuiltinLib::library(
+pub const LIB_DENO_CONSOLE_V2_5: BuiltinLibrary = BuiltinLibrary::library(
     "deno.console.v2.5",
     &[LIB_DENO_CONSOLE_V2_5_INDEX_D_TS],
     &[],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_CRYPTO: BuiltinLib =
-    BuiltinLib::library("deno.crypto", &[LIB_DENO_CRYPTO_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_CRYPTO: BuiltinLibrary =
+    BuiltinLibrary::library("deno.crypto", &[LIB_DENO_CRYPTO_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_CRYPTO_V2_6: BuiltinLib =
-    BuiltinLib::library("deno.crypto.v2.6", &[LIB_DENO_CRYPTO_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_CRYPTO_V2_6: BuiltinLibrary =
+    BuiltinLibrary::library("deno.crypto.v2.6", &[LIB_DENO_CRYPTO_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_CRYPTO_V2_5: BuiltinLib =
-    BuiltinLib::library("deno.crypto.v2.5", &[LIB_DENO_CRYPTO_V2_5_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_CRYPTO_V2_5: BuiltinLibrary =
+    BuiltinLibrary::library("deno.crypto.v2.5", &[LIB_DENO_CRYPTO_V2_5_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_FETCH: BuiltinLib =
-    BuiltinLib::library("deno.fetch", &[LIB_DENO_FETCH_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_FETCH: BuiltinLibrary =
+    BuiltinLibrary::library("deno.fetch", &[LIB_DENO_FETCH_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_FETCH_V2_6: BuiltinLib =
-    BuiltinLib::library("deno.fetch.v2.6", &[LIB_DENO_FETCH_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_FETCH_V2_6: BuiltinLibrary =
+    BuiltinLibrary::library("deno.fetch.v2.6", &[LIB_DENO_FETCH_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_FETCH_V2_5: BuiltinLib =
-    BuiltinLib::library("deno.fetch.v2.5", &[LIB_DENO_FETCH_V2_5_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_FETCH_V2_5: BuiltinLibrary =
+    BuiltinLibrary::library("deno.fetch.v2.5", &[LIB_DENO_FETCH_V2_5_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_URL: BuiltinLib =
-    BuiltinLib::library("deno.url", &[LIB_DENO_URL_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_URL: BuiltinLibrary =
+    BuiltinLibrary::library("deno.url", &[LIB_DENO_URL_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_URL_V2_6: BuiltinLib =
-    BuiltinLib::library("deno.url.v2.6", &[LIB_DENO_URL_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_URL_V2_6: BuiltinLibrary =
+    BuiltinLibrary::library("deno.url.v2.6", &[LIB_DENO_URL_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_URL_V2_5: BuiltinLib =
-    BuiltinLib::library("deno.url.v2.5", &[LIB_DENO_URL_V2_5_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_URL_V2_5: BuiltinLibrary =
+    BuiltinLibrary::library("deno.url.v2.5", &[LIB_DENO_URL_V2_5_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_WEB: BuiltinLib =
-    BuiltinLib::library("deno.web", &[LIB_DENO_WEB_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_WEB: BuiltinLibrary =
+    BuiltinLibrary::library("deno.web", &[LIB_DENO_WEB_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_WEB_V2_6: BuiltinLib =
-    BuiltinLib::library("deno.web.v2.6", &[LIB_DENO_WEB_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_WEB_V2_6: BuiltinLibrary =
+    BuiltinLibrary::library("deno.web.v2.6", &[LIB_DENO_WEB_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_WEB_V2_5: BuiltinLib =
-    BuiltinLib::library("deno.web.v2.5", &[LIB_DENO_WEB_V2_5_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_WEB_V2_5: BuiltinLibrary =
+    BuiltinLibrary::library("deno.web.v2.5", &[LIB_DENO_WEB_V2_5_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_WEBGPU: BuiltinLib =
-    BuiltinLib::library("deno.webgpu", &[LIB_DENO_WEBGPU_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_WEBGPU: BuiltinLibrary =
+    BuiltinLibrary::library("deno.webgpu", &[LIB_DENO_WEBGPU_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_WEBGPU_V2_6: BuiltinLib =
-    BuiltinLib::library("deno.webgpu.v2.6", &[LIB_DENO_WEBGPU_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_WEBGPU_V2_6: BuiltinLibrary =
+    BuiltinLibrary::library("deno.webgpu.v2.6", &[LIB_DENO_WEBGPU_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_WEBGPU_V2_5: BuiltinLib =
-    BuiltinLib::library("deno.webgpu.v2.5", &[LIB_DENO_WEBGPU_V2_5_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_WEBGPU_V2_5: BuiltinLibrary =
+    BuiltinLibrary::library("deno.webgpu.v2.5", &[LIB_DENO_WEBGPU_V2_5_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_WEBSOCKET: BuiltinLib =
-    BuiltinLib::library("deno.websocket", &[LIB_DENO_WEBSOCKET_V2_6_INDEX_D_TS], &[]).ambient();
+pub const LIB_DENO_WEBSOCKET: BuiltinLibrary =
+    BuiltinLibrary::library("deno.websocket", &[LIB_DENO_WEBSOCKET_V2_6_INDEX_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_WEBSOCKET_V2_6: BuiltinLib = BuiltinLib::library(
+pub const LIB_DENO_WEBSOCKET_V2_6: BuiltinLibrary = BuiltinLibrary::library(
     "deno.websocket.v2.6",
     &[LIB_DENO_WEBSOCKET_V2_6_INDEX_D_TS],
     &[],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_WEBSOCKET_V2_5: BuiltinLib = BuiltinLib::library(
+pub const LIB_DENO_WEBSOCKET_V2_5: BuiltinLibrary = BuiltinLibrary::library(
     "deno.websocket.v2.5",
     &[LIB_DENO_WEBSOCKET_V2_5_INDEX_D_TS],
     &[],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_WEBSTORAGE: BuiltinLib = BuiltinLib::library(
+pub const LIB_DENO_WEBSTORAGE: BuiltinLibrary = BuiltinLibrary::library(
     "deno.webstorage",
     &[LIB_DENO_WEBSTORAGE_V2_6_INDEX_D_TS],
     &[],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_WEBSTORAGE_V2_6: BuiltinLib = BuiltinLib::library(
+pub const LIB_DENO_WEBSTORAGE_V2_6: BuiltinLibrary = BuiltinLibrary::library(
     "deno.webstorage.v2.6",
     &[LIB_DENO_WEBSTORAGE_V2_6_INDEX_D_TS],
     &[],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&["esnext"]);
 
-pub const LIB_DENO_WEBSTORAGE_V2_5: BuiltinLib = BuiltinLib::library(
+pub const LIB_DENO_WEBSTORAGE_V2_5: BuiltinLibrary = BuiltinLibrary::library(
     "deno.webstorage.v2.5",
     &[LIB_DENO_WEBSTORAGE_V2_5_INDEX_D_TS],
     &[],
 )
-.ambient();
+.ambient()
+.with_reference_libs(&["esnext"]);

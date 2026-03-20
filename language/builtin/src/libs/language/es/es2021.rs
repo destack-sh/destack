@@ -6,7 +6,7 @@ use crate::libs::language::symbols::{
     ES2021_DECLARED_SYMBOLS, ES2021_EMPTY_DECLARED_SYMBOLS, ES2021_PROMISE_DECLARED_SYMBOLS,
     ES2021_WEAKREF_DECLARED_SYMBOLS,
 };
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([
     (
@@ -47,7 +47,7 @@ builtin_lib_sources!([
     ),
 ]);
 
-pub const LIB_ES2021: BuiltinLib = BuiltinLib::language(
+pub const LIB_ES2021: BuiltinLibrary = BuiltinLibrary::language(
     "es2021",
     &[
         LIB_ES_ES2021_INDEX_D_TS,
@@ -59,29 +59,46 @@ pub const LIB_ES2021: BuiltinLib = BuiltinLib::language(
     &[],
 )
 .ambient()
+.with_reference_libs(&[
+    "es2020",
+    "es2021.promise",
+    "es2021.string",
+    "es2021.weakref",
+    "es2021.intl",
+    "es2015.symbol.wellknown",
+])
 .with_declared_symbols(ES2021_DECLARED_SYMBOLS);
 
-pub const LIB_ES2021_INTL: BuiltinLib =
-    BuiltinLib::language("es2021.intl", &[LIB_ES_ES2021_INTL_D_TS], &[])
+pub const LIB_ES2021_INTL: BuiltinLibrary =
+    BuiltinLibrary::language("es2021.intl", &[LIB_ES_ES2021_INTL_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2021_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2021_FULL: BuiltinLib =
-    BuiltinLib::language("es2021.full", &[LIB_ES_ES2021_FULL_D_TS], &[])
+pub const LIB_ES2021_FULL: BuiltinLibrary =
+    BuiltinLibrary::language("es2021.full", &[LIB_ES_ES2021_FULL_D_TS], &[])
         .ambient()
+        .with_reference_libs(&[
+            "es2021",
+            "dom",
+            "webworker.importscripts",
+            "scripthost",
+            "dom.iterable",
+            "dom.asynciterable",
+        ])
         .with_declared_symbols(ES2021_DECLARED_SYMBOLS);
 
-pub const LIB_ES2021_PROMISE: BuiltinLib =
-    BuiltinLib::language("es2021.promise", &[LIB_ES_ES2021_PROMISE_D_TS], &[])
+pub const LIB_ES2021_PROMISE: BuiltinLibrary =
+    BuiltinLibrary::language("es2021.promise", &[LIB_ES_ES2021_PROMISE_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2021_PROMISE_DECLARED_SYMBOLS);
 
-pub const LIB_ES2021_STRING: BuiltinLib =
-    BuiltinLib::language("es2021.string", &[LIB_ES_ES2021_STRING_D_TS], &[])
+pub const LIB_ES2021_STRING: BuiltinLibrary =
+    BuiltinLibrary::language("es2021.string", &[LIB_ES_ES2021_STRING_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2021_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2021_WEAKREF: BuiltinLib =
-    BuiltinLib::language("es2021.weakref", &[LIB_ES_ES2021_WEAKREF_D_TS], &[])
+pub const LIB_ES2021_WEAKREF: BuiltinLibrary =
+    BuiltinLibrary::language("es2021.weakref", &[LIB_ES_ES2021_WEAKREF_D_TS], &[])
         .ambient()
+        .with_reference_libs(&["es2015.symbol.wellknown"])
         .with_declared_symbols(ES2021_WEAKREF_DECLARED_SYMBOLS);

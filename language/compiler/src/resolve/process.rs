@@ -1,11 +1,8 @@
 use crate::{
-    BuildKey, BuildRequirementCollector, BuildRequirementError, Compiler, ResolveError,
-    ResolveResult,
+    ArtifactRequirementCollector, ArtifactRequirementError, Compiler, ResolveError, ResolveResult,
 };
-
-use destack_builtin::BuiltinLibKind;
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactKey, DirResolved, ModuleSource, ProfileId};
+use destack_workspace::{ArtifactKey, DirResolved, ProfileId};
 
 use crate::timing::tags;
 
@@ -13,19 +10,27 @@ impl Compiler {
     /// Build the language environment for one profile.
     pub fn process_language_environment(&self, profile: ProfileId) -> ResolveResult<()> {
         let environment = self.resolve_language_environment(profile)?;
+        let artifact_key = ArtifactKey::language_environment(profile);
         self.program
             .artifacts
-            .publish(ArtifactKey::language_environment(profile), environment);
+            .publish(artifact_key.clone(), environment.clone());
+        self.store_artifact(&artifact_key, &environment, |compiler, environment| {
+            compiler.store_language_environment_image(profile, environment.clone())
+        });
 
         Ok(())
     }
 
-    /// Build the lib environment for one profile.
-    pub fn process_lib_environment(&self, profile: ProfileId) -> ResolveResult<()> {
-        let environment = self.resolve_lib_environment(profile)?;
+    /// Build the library environment for one profile.
+    pub fn process_library_environment(&self, profile: ProfileId) -> ResolveResult<()> {
+        let environment = self.resolve_library_environment(profile)?;
+        let artifact_key = ArtifactKey::library_environment(profile);
         self.program
             .artifacts
-            .publish(ArtifactKey::lib_environment(profile), environment);
+            .publish(artifact_key.clone(), environment.clone());
+        self.store_artifact(&artifact_key, &environment, |compiler, environment| {
+            compiler.store_library_environment_image(profile, environment.clone())
+        });
 
         Ok(())
     }
@@ -58,6 +63,17 @@ impl Compiler {
         self.require_dir_prepared(module_id, profile)
             .map_err(ResolveError::from)?;
 
+        // reuse one persisted resolved dir image when available
+        let artifact_key = ArtifactKey::dir_resolved(module_id, profile);
+        if let Some(dir) = self.load_published_artifact(artifact_key.clone(), |compiler| {
+            compiler.load_dir_resolved_image(module_id, module_version, profile)
+        }) {
+            self.update_module_graph_from_dir(module_id, profile, module_version, &dir)?;
+
+            tracing::trace!(?module_id, ?profile, "resolve.module.cache_hit");
+            return Ok(());
+        }
+
         let module = {
             let module = self.program.modules.get(module_id);
             module
@@ -72,26 +88,15 @@ impl Compiler {
         let mut exported_symbols = prepared.exported_symbols.as_ref().clone();
         let is_code_module = self.is_code_module(module_id);
 
-        // prepare the consuming package binding table before dependency resolution
-        if is_code_module && !module.is_builtin() {
-            self.require_module_binding_sources(module.package_id, profile)?;
-            let _ = self.module_binding_table_for_module(module_id, profile)?;
-        }
-
-        // builtin language and lib modules bootstrap the shared environments themselves
-        if !matches!(
-            module.source,
-            ModuleSource::Builtin(
-                BuiltinLibKind::Intrinsic | BuiltinLibKind::Language | BuiltinLibKind::Library
-            )
-        ) {
-            self.require_lib_environment(profile)
+        // non-builtin code modules consume the shared library environment
+        if !module.is_builtin() {
+            self.require_library_environment(profile)
                 .map_err(ResolveError::from)?;
         }
-        // bootstrap selected lib lookups from prepared module surfaces once per resolve task
+        // builtin language and library modules bootstrap selected libs directly
         else {
-            let mut collector = BuildRequirementCollector::new();
-            for selected_module_id in self.selected_lib_modules(profile) {
+            let mut collector = ArtifactRequirementCollector::new();
+            for selected_module_id in self.selected_library_modules(profile) {
                 if selected_module_id == module_id {
                     continue;
                 }
@@ -108,7 +113,6 @@ impl Compiler {
                 return Err(ResolveError::Yield { requirement });
             }
         }
-
         // direct resolve
         if is_code_module {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_DIRECT);
@@ -146,7 +150,10 @@ impl Compiler {
 
         self.program
             .artifacts
-            .publish(ArtifactKey::dir_resolved(module_id, profile), dir);
+            .publish(artifact_key.clone(), dir.clone());
+        self.store_artifact(&artifact_key, &dir, |compiler, dir| {
+            compiler.store_dir_resolved_image(module_id, profile, dir)
+        });
 
         Ok(())
     }
@@ -156,14 +163,14 @@ impl Compiler {
         &self,
         module: ModuleId,
         profile: ProfileId,
-    ) -> Result<(), BuildRequirementError> {
-        let build_key = BuildKey::artifact(ArtifactKey::dir_prepared(module, profile));
+    ) -> Result<(), ArtifactRequirementError> {
+        let build_key = ArtifactKey::dir_prepared(module, profile);
 
-        if self.current_build_key() == Some(build_key.clone()) {
+        if self.current_artifact_key() == Some(build_key.clone()) {
             return Ok(());
         }
 
-        self.require_build_key(build_key)
+        self.require_artifact(build_key)
     }
 
     /// Ensure another module's prepared DIR exists.
@@ -172,7 +179,7 @@ impl Compiler {
         module: ModuleId,
         other: ModuleId,
         profile: ProfileId,
-    ) -> Result<(), BuildRequirementError> {
+    ) -> Result<(), ArtifactRequirementError> {
         if module == other {
             return Ok(());
         }
@@ -185,15 +192,15 @@ impl Compiler {
         &self,
         module: ModuleId,
         profile: ProfileId,
-    ) -> Result<(), BuildRequirementError> {
-        let build_key = BuildKey::artifact(ArtifactKey::dir_resolved(module, profile));
+    ) -> Result<(), ArtifactRequirementError> {
+        let build_key = ArtifactKey::dir_resolved(module, profile);
 
         // avoid self dependency while resolving one module
-        if self.current_build_key() == Some(build_key.clone()) {
+        if self.current_artifact_key() == Some(build_key.clone()) {
             return Ok(());
         }
 
-        self.require_build_key(build_key)
+        self.require_artifact(build_key)
     }
 
     /// Ensure another module's resolved DIR exists.
@@ -202,7 +209,7 @@ impl Compiler {
         module: ModuleId,
         other: ModuleId,
         profile: ProfileId,
-    ) -> Result<(), BuildRequirementError> {
+    ) -> Result<(), ArtifactRequirementError> {
         if module == other {
             return Ok(());
         }

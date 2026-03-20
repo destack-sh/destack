@@ -3,7 +3,7 @@
 
 use crate::builtin_lib_sources;
 use crate::libs::language::symbols::{ES2016_DECLARED_SYMBOLS, ES2016_EMPTY_DECLARED_SYMBOLS};
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([
     (
@@ -32,7 +32,7 @@ builtin_lib_sources!([
     ),
 ]);
 
-pub const LIB_ES2016: BuiltinLib = BuiltinLib::language(
+pub const LIB_ES2016: BuiltinLibrary = BuiltinLibrary::language(
     "es2016",
     &[
         LIB_ES_ES2016_ARRAY_INCLUDE_D_TS,
@@ -42,9 +42,10 @@ pub const LIB_ES2016: BuiltinLib = BuiltinLib::language(
     &[],
 )
 .ambient()
+.with_reference_libs(&["es2015", "es2016.array.include", "es2016.intl"])
 .with_declared_symbols(ES2016_DECLARED_SYMBOLS);
 
-pub const LIB_ES2016_ARRAY_INCLUDE: BuiltinLib = BuiltinLib::language(
+pub const LIB_ES2016_ARRAY_INCLUDE: BuiltinLibrary = BuiltinLibrary::language(
     "es2016.array.include",
     &[LIB_ES_ES2016_ARRAY_INCLUDE_D_TS],
     &[],
@@ -52,12 +53,19 @@ pub const LIB_ES2016_ARRAY_INCLUDE: BuiltinLib = BuiltinLib::language(
 .ambient()
 .with_declared_symbols(ES2016_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2016_FULL: BuiltinLib =
-    BuiltinLib::language("es2016.full", &[LIB_ES_ES2016_FULL_D_TS], &[])
+pub const LIB_ES2016_FULL: BuiltinLibrary =
+    BuiltinLibrary::language("es2016.full", &[LIB_ES_ES2016_FULL_D_TS], &[])
         .ambient()
+        .with_reference_libs(&[
+            "es2016",
+            "dom",
+            "webworker.importscripts",
+            "scripthost",
+            "dom.iterable",
+        ])
         .with_declared_symbols(ES2016_DECLARED_SYMBOLS);
 
-pub const LIB_ES2016_INTL: BuiltinLib =
-    BuiltinLib::language("es2016.intl", &[LIB_ES_ES2016_INTL_D_TS], &[])
+pub const LIB_ES2016_INTL: BuiltinLibrary =
+    BuiltinLibrary::language("es2016.intl", &[LIB_ES_ES2016_INTL_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2016_EMPTY_DECLARED_SYMBOLS);

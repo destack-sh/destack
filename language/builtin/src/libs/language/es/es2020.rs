@@ -5,7 +5,7 @@ use crate::builtin_lib_sources;
 use crate::libs::language::symbols::{
     ES2020_BIGINT_DECLARED_SYMBOLS, ES2020_DECLARED_SYMBOLS, ES2020_EMPTY_DECLARED_SYMBOLS,
 };
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([
     (
@@ -70,7 +70,7 @@ builtin_lib_sources!([
     ),
 ]);
 
-pub const LIB_ES2020: BuiltinLib = BuiltinLib::language(
+pub const LIB_ES2020: BuiltinLibrary = BuiltinLibrary::language(
     "es2020",
     &[
         LIB_ES_ES2020_INTL_D_TS,
@@ -86,55 +86,84 @@ pub const LIB_ES2020: BuiltinLib = BuiltinLib::language(
     &[],
 )
 .ambient()
+.with_reference_libs(&[
+    "es2018.intl",
+    "es2020.intl",
+    "es2019",
+    "es2020.bigint",
+    "es2020.date",
+    "es2020.number",
+    "es2020.promise",
+    "es2020.sharedmemory",
+    "es2020.string",
+    "es2020.symbol.wellknown",
+    "es2015.iterable",
+    "es2015.symbol",
+])
 .with_declared_symbols(ES2020_DECLARED_SYMBOLS);
 
-pub const LIB_ES2020_BIGINT: BuiltinLib =
-    BuiltinLib::language("es2020.bigint", &[LIB_ES_ES2020_BIGINT_D_TS], &[])
+pub const LIB_ES2020_BIGINT: BuiltinLibrary =
+    BuiltinLibrary::language("es2020.bigint", &[LIB_ES_ES2020_BIGINT_D_TS], &[])
         .ambient()
+        .with_reference_libs(&["es2020.intl"])
         .with_declared_symbols(ES2020_BIGINT_DECLARED_SYMBOLS);
 
-pub const LIB_ES2020_DATE: BuiltinLib =
-    BuiltinLib::language("es2020.date", &[LIB_ES_ES2020_DATE_D_TS], &[])
+pub const LIB_ES2020_DATE: BuiltinLibrary =
+    BuiltinLibrary::language("es2020.date", &[LIB_ES_ES2020_DATE_D_TS], &[])
         .ambient()
+        .with_reference_libs(&["es2020.intl"])
         .with_declared_symbols(ES2020_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2020_FULL: BuiltinLib =
-    BuiltinLib::language("es2020.full", &[LIB_ES_ES2020_FULL_D_TS], &[])
+pub const LIB_ES2020_FULL: BuiltinLibrary =
+    BuiltinLibrary::language("es2020.full", &[LIB_ES_ES2020_FULL_D_TS], &[])
         .ambient()
+        .with_reference_libs(&[
+            "es2020",
+            "dom",
+            "webworker.importscripts",
+            "scripthost",
+            "dom.iterable",
+            "dom.asynciterable",
+        ])
         .with_declared_symbols(ES2020_DECLARED_SYMBOLS);
 
-pub const LIB_ES2020_INTL: BuiltinLib =
-    BuiltinLib::language("es2020.intl", &[LIB_ES_ES2020_INTL_D_TS], &[])
+pub const LIB_ES2020_INTL: BuiltinLibrary =
+    BuiltinLibrary::language("es2020.intl", &[LIB_ES_ES2020_INTL_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["es2018.intl"])
+        .with_declared_symbols(ES2020_EMPTY_DECLARED_SYMBOLS);
+
+pub const LIB_ES2020_NUMBER: BuiltinLibrary =
+    BuiltinLibrary::language("es2020.number", &[LIB_ES_ES2020_NUMBER_D_TS], &[])
+        .ambient()
+        .with_reference_libs(&["es2020.intl"])
+        .with_declared_symbols(ES2020_EMPTY_DECLARED_SYMBOLS);
+
+pub const LIB_ES2020_PROMISE: BuiltinLibrary =
+    BuiltinLibrary::language("es2020.promise", &[LIB_ES_ES2020_PROMISE_D_TS], &[])
         .ambient()
         .with_declared_symbols(ES2020_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2020_NUMBER: BuiltinLib =
-    BuiltinLib::language("es2020.number", &[LIB_ES_ES2020_NUMBER_D_TS], &[])
-        .ambient()
-        .with_declared_symbols(ES2020_EMPTY_DECLARED_SYMBOLS);
-
-pub const LIB_ES2020_PROMISE: BuiltinLib =
-    BuiltinLib::language("es2020.promise", &[LIB_ES_ES2020_PROMISE_D_TS], &[])
-        .ambient()
-        .with_declared_symbols(ES2020_EMPTY_DECLARED_SYMBOLS);
-
-pub const LIB_ES2020_SHAREDMEMORY: BuiltinLib = BuiltinLib::language(
+pub const LIB_ES2020_SHAREDMEMORY: BuiltinLibrary = BuiltinLibrary::language(
     "es2020.sharedmemory",
     &[LIB_ES_ES2020_SHAREDMEMORY_D_TS],
     &[],
 )
 .ambient()
+.with_reference_libs(&["es2020.bigint"])
 .with_declared_symbols(ES2020_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2020_STRING: BuiltinLib =
-    BuiltinLib::language("es2020.string", &[LIB_ES_ES2020_STRING_D_TS], &[])
+pub const LIB_ES2020_STRING: BuiltinLibrary =
+    BuiltinLibrary::language("es2020.string", &[LIB_ES_ES2020_STRING_D_TS], &[])
         .ambient()
+        .with_reference_libs(&["es2015.iterable", "es2020.intl", "es2020.symbol.wellknown"])
         .with_declared_symbols(ES2020_EMPTY_DECLARED_SYMBOLS);
 
-pub const LIB_ES2020_SYMBOL_WELLKNOWN: BuiltinLib = BuiltinLib::language(
+pub const LIB_ES2020_SYMBOL_WELLKNOWN: BuiltinLibrary = BuiltinLibrary::language(
     "es2020.symbol.wellknown",
     &[LIB_ES_ES2020_SYMBOL_WELLKNOWN_D_TS],
     &[],
 )
 .ambient()
+.with_reference_libs(&["es2015.iterable", "es2015.symbol"])
 .with_declared_symbols(ES2020_EMPTY_DECLARED_SYMBOLS);

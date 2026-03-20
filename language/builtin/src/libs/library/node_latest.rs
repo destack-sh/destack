@@ -3,17 +3,19 @@
 
 use crate::builtin_lib_sources;
 use crate::libs::library::symbols::{NODE_DECLARED_SYMBOLS, UNDICI_TYPES_V7_SPECIFIER_ALIASES};
-use crate::libs::source::BuiltinLib;
+use crate::libs::source::BuiltinLibrary;
 
 builtin_lib_sources!([(LIB_NODE_V24_INDEX_D_TS, "library", "node/v24", "index.d.ts"),]);
 
-pub const LIB_NODE: BuiltinLib =
-    BuiltinLib::library("node", &[LIB_NODE_V24_INDEX_D_TS], &["undici-types"])
+pub const LIB_NODE: BuiltinLibrary =
+    BuiltinLibrary::library("node", &[LIB_NODE_V24_INDEX_D_TS], &["undici-types"])
         .ambient()
+        .with_reference_libs(&["es2020", "esnext.disposable", "esnext.float16"])
         .with_declared_symbols(NODE_DECLARED_SYMBOLS);
 
-pub const LIB_NODE_V24: BuiltinLib =
-    BuiltinLib::library("node.v24", &[LIB_NODE_V24_INDEX_D_TS], &["undici-types.v7"])
+pub const LIB_NODE_V24: BuiltinLibrary =
+    BuiltinLibrary::library("node.v24", &[LIB_NODE_V24_INDEX_D_TS], &["undici-types.v7"])
         .ambient()
         .with_specifier_aliases(UNDICI_TYPES_V7_SPECIFIER_ALIASES)
+        .with_reference_libs(&["es2020", "esnext.disposable", "esnext.float16"])
         .with_declared_symbols(NODE_DECLARED_SYMBOLS);
