@@ -153,6 +153,9 @@ export newtype DisplayBeginFrameHandle = ResourceId;
 /// Handle for one inbound accessibility-action stream.
 export newtype AccessibilityActionHandle = ResourceId;
 
+/// Handle for one accessibility document-query stream.
+export newtype AccessibilityDocumentHandle = ResourceId;
+
 /// Handle for one inbound intent event stream.
 export newtype IntentHandle = ResourceId;
 

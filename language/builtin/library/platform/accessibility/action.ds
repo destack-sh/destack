@@ -1,6 +1,33 @@
+import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { AccessibilityActionHandle, WindowHandle } from "../resource/index.ds";
-import { AccessibilityNodeId } from "./tree.ds";
+import { AccessibilityTextUnit } from "./document.ds";
+import { AccessibilityNodeId } from "./role.ds";
+import { AccessibilityTextRange, AccessibilityTextSelection } from "./text.ds";
+
+/// Scroll direction for one accessibility scroll action.
+export enum AccessibilityScrollDirection {
+    /// Scroll forward in the node's primary reading direction.
+    Forward = 1,
+    /// Scroll backward in the node's primary reading direction.
+    Backward = 2,
+    /// Scroll upward.
+    Up = 3,
+    /// Scroll downward.
+    Down = 4,
+    /// Scroll leftward.
+    Left = 5,
+    /// Scroll rightward.
+    Right = 6,
+    /// Scroll one page upward.
+    PageUp = 7,
+    /// Scroll one page downward.
+    PageDown = 8,
+    /// Scroll one page leftward.
+    PageLeft = 9,
+    /// Scroll one page rightward.
+    PageRight = 10,
+}
 
 /// Shared metadata for all accessibility actions.
 export struct AccessibilityActionMetadata {
@@ -12,6 +39,8 @@ export struct AccessibilityActionMetadata {
     timestampNs: uint64;
     /// Monotonic sequence number for this action stream.
     sequence: uint64;
+    /// Number of actions dropped by this stream before this action.
+    droppedCount: uint64;
 }
 
 /// Accessibility action stream options.
@@ -44,10 +73,52 @@ export struct AccessibilitySelectAction {
     metadata: AccessibilityActionMetadata;
 }
 
+/// Add-to-selection action.
+export struct AccessibilityAddToSelectionAction {
+    /// Discriminator for this action variant.
+    kind: "addToSelection";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+}
+
+/// Remove-from-selection action.
+export struct AccessibilityRemoveFromSelectionAction {
+    /// Discriminator for this action variant.
+    kind: "removeFromSelection";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+}
+
+/// Toggle action.
+export struct AccessibilityToggleAction {
+    /// Discriminator for this action variant.
+    kind: "toggle";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+}
+
 /// Scroll-into-view action.
 export struct AccessibilityScrollIntoViewAction {
     /// Discriminator for this action variant.
     kind: "scrollIntoView";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+}
+
+/// Scroll action.
+export struct AccessibilityScrollAction {
+    /// Discriminator for this action variant.
+    kind: "scroll";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+    /// Requested scroll direction.
+    direction: AccessibilityScrollDirection;
+}
+
+/// Clear-selection action.
+export struct AccessibilityClearSelectionAction {
+    /// Discriminator for this action variant.
+    kind: "clearSelection";
     /// Shared action metadata.
     metadata: AccessibilityActionMetadata;
 }
@@ -60,10 +131,10 @@ export struct AccessibilityDismissAction {
     metadata: AccessibilityActionMetadata;
 }
 
-/// Show-context-menu action.
-export struct AccessibilityShowContextMenuAction {
+/// Show-menu action.
+export struct AccessibilityShowMenuAction {
     /// Discriminator for this action variant.
-    kind: "showContextMenu";
+    kind: "showMenu";
     /// Shared action metadata.
     metadata: AccessibilityActionMetadata;
 }
@@ -132,21 +203,87 @@ export struct AccessibilitySetSelectedTextRangeAction {
     focusOffset: uint32;
 }
 
+/// Set-selected-text-ranges action.
+export struct AccessibilitySetSelectedTextRangesAction {
+    /// Discriminator for this action variant.
+    kind: "setSelectedTextRanges";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+    /// Requested selections in source order.
+    selections: Slice<AccessibilityTextSelection>;
+}
+
+/// Replace-selected-text action.
+export struct AccessibilityReplaceSelectedTextAction {
+    /// Discriminator for this action variant.
+    kind: "replaceSelectedText";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+    /// Replacement text payload.
+    text: string;
+}
+
+/// Scroll-text-range-into-view action.
+export struct AccessibilityScrollTextRangeIntoViewAction {
+    /// Discriminator for this action variant.
+    kind: "scrollTextRangeIntoView";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+    /// Requested text range.
+    range: AccessibilityTextRange;
+    /// Whether the range should align to the leading edge when possible.
+    alignToStart: boolean;
+}
+
+/// Move-text-selection action.
+export struct AccessibilityMoveTextSelectionAction {
+    /// Discriminator for this action variant.
+    kind: "moveTextSelection";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+    /// Navigation unit to move by.
+    unit: AccessibilityTextUnit;
+    /// Signed movement count in unit steps.
+    count: int32;
+    /// Whether the move should extend the current selection.
+    extend: boolean;
+}
+
+/// Custom accessibility action.
+export struct AccessibilityCustomActionInvocation {
+    /// Discriminator for this action variant.
+    kind: "custom";
+    /// Shared action metadata.
+    metadata: AccessibilityActionMetadata;
+    /// Requested custom action identifier.
+    actionId: string;
+}
+
 /// One inbound accessibility action.
 export newtype AccessibilityAction =
     | AccessibilityActivateAction
     | AccessibilityFocusAction
     | AccessibilitySelectAction
+    | AccessibilityAddToSelectionAction
+    | AccessibilityRemoveFromSelectionAction
+    | AccessibilityToggleAction
     | AccessibilityScrollIntoViewAction
+    | AccessibilityScrollAction
+    | AccessibilityClearSelectionAction
     | AccessibilityDismissAction
-    | AccessibilityShowContextMenuAction
+    | AccessibilityShowMenuAction
     | AccessibilityIncrementAction
     | AccessibilityDecrementAction
     | AccessibilityCollapseAction
     | AccessibilityExpandAction
     | AccessibilitySetNumericValueAction
     | AccessibilitySetTextValueAction
-    | AccessibilitySetSelectedTextRangeAction;
+    | AccessibilitySetSelectedTextRangeAction
+    | AccessibilitySetSelectedTextRangesAction
+    | AccessibilityReplaceSelectedTextAction
+    | AccessibilityScrollTextRangeIntoViewAction
+    | AccessibilityMoveTextSelectionAction
+    | AccessibilityCustomActionInvocation;
 
 /// Accessibility action bindings.
 declare namespace accessibility {
