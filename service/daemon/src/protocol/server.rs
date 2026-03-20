@@ -1192,20 +1192,11 @@ impl ProtocolServer {
             .snapshot_with_program(compiler.program.modules.len(), Some(&compiler.program));
         Ok(CacheStatsPayload {
             hits: (snapshot.cache.ast_hits_memory
-                + snapshot.cache.ast_hits_disk
                 + snapshot.cache.dir_hits_memory
-                + snapshot.cache.dir_hits_disk
-                + snapshot.cache.mir_hits_memory
-                + snapshot.cache.mir_hits_disk) as u64,
+                + snapshot.cache.mir_hits_memory) as u64,
             misses: (snapshot.cache.ast_misses
                 + snapshot.cache.dir_misses
                 + snapshot.cache.mir_misses) as u64,
-            disk_reads: (snapshot.cache.ast_hits_disk
-                + snapshot.cache.dir_hits_disk
-                + snapshot.cache.mir_hits_disk) as u64,
-            disk_writes: (snapshot.cache.ast_writes_disk
-                + snapshot.cache.dir_writes_disk
-                + snapshot.cache.mir_writes_disk) as u64,
         })
     }
 

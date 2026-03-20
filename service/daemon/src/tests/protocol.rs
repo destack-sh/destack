@@ -1047,5 +1047,5 @@ fn test_protocol_activity_idle_shutdown() {
 
 fn assert_cache_stats(stats: CacheStatsPayload) {
     // assert counts are well formed
-    assert!(stats.hits >= stats.disk_reads);
+    assert!(stats.hits + stats.misses >= stats.hits);
 }

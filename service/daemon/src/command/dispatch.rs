@@ -185,10 +185,8 @@ fn command_stats_from_snapshot(snapshot: &StatsSnapshot, elapsed: Duration) -> C
     let cache_totals = snapshot.cache_totals();
     let cache = CommandCacheStats {
         hits_memory: cache_totals.hits_memory as u64,
-        hits_disk: cache_totals.hits_disk as u64,
         misses: cache_totals.misses as u64,
         writes_memory: cache_totals.writes_memory as u64,
-        writes_disk: cache_totals.writes_disk as u64,
         errors: cache_totals.errors as u64,
         hit_rate: snapshot.cache_hit_rate(),
     };

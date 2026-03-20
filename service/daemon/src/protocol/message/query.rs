@@ -213,10 +213,6 @@ pub struct CacheStatsPayload {
     pub hits: u64,
     /// Cache misses observed.
     pub misses: u64,
-    /// Cache entries loaded from disk.
-    pub disk_reads: u64,
-    /// Cache entries written to disk.
-    pub disk_writes: u64,
 }
 
 #[cfg(test)]

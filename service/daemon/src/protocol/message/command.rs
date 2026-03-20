@@ -104,14 +104,10 @@ pub struct OutputInfo {
 pub struct CommandCacheStats {
     /// Cache hits from memory.
     pub hits_memory: u64,
-    /// Cache hits from disk.
-    pub hits_disk: u64,
     /// Cache misses.
     pub misses: u64,
     /// Cache writes to memory.
     pub writes_memory: u64,
-    /// Cache writes to disk.
-    pub writes_disk: u64,
     /// Cache errors.
     pub errors: u64,
     /// Cache hit rate across all cache kinds.
