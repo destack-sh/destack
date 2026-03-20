@@ -1,0 +1,61 @@
+import { OsPath } from "../fs/path.ds";
+
+/// Web-style drag operation selector.
+export enum InputDragDropOperation {
+    /// No accepted operation.
+    None = 1,
+    /// Copy the dragged payload.
+    Copy = 2,
+    /// Move the dragged payload.
+    Move = 3,
+    /// Link to the dragged payload.
+    Link = 4,
+}
+
+/// Drag or drop position in window-local logical coordinates.
+export struct InputDragDropPosition {
+    /// Window-local logical x coordinate.
+    x: int32;
+    /// Window-local logical y coordinate.
+    y: int32;
+}
+
+/// File payload for one drag or drop transition.
+export struct InputDragDropFilePayload {
+    /// Dragged path payload.
+    path: OsPath | void;
+    /// Drop position in window-local logical coordinates when provided by the backend.
+    position: InputDragDropPosition | void;
+    /// Effective operation when the backend reports it.
+    operation: InputDragDropOperation | void;
+}
+
+/// Text payload for one drag or drop transition.
+export struct InputDragDropTextPayload {
+    /// Dragged text payload.
+    text: string;
+    /// Drop position in window-local logical coordinates when provided by the backend.
+    position: InputDragDropPosition | void;
+    /// Effective operation when the backend reports it.
+    operation: InputDragDropOperation | void;
+}
+
+/// Hover payload for one drag-over transition.
+export struct InputDragDropHoverPayload {
+    /// Hovered path payload when available.
+    path: OsPath | void;
+    /// Hover position in window-local logical coordinates when provided by the backend.
+    position: InputDragDropPosition | void;
+    /// Effective operation when the backend reports it.
+    operation: InputDragDropOperation | void;
+}
+
+/// Hover-leave payload for one drag-leave transition.
+export struct InputDragDropHoverLeavePayload {
+    /// Last hovered path payload when available.
+    previousPath: OsPath | void;
+    /// Last hover position in window-local logical coordinates when provided by the backend.
+    position: InputDragDropPosition | void;
+    /// Last effective operation when the backend reports it.
+    operation: InputDragDropOperation | void;
+}

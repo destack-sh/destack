@@ -1,6 +1,8 @@
 export declare namespace input {}
 
 export * from "./device.ds";
+export * from "./clipboard.ds";
+export * from "./drag.ds";
 export * from "./event.ds";
 export * from "./gamepad.ds";
 export * from "./haptics.ds";
