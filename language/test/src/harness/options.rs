@@ -110,7 +110,23 @@ impl TestOptions {
 
     /// Get the mdtest timeout as a Duration.
     pub fn mdtest_timeout(&self) -> std::time::Duration {
-        std::time::Duration::from_millis(self.mdtest_timeout_ms.max(1))
+        self.mdtest_timeout_with_multiplier(1)
+    }
+
+    /// Get the mdtest timeout as a Duration with one extra suite multiplier.
+    pub fn mdtest_timeout_with_multiplier(&self, multiplier: u64) -> std::time::Duration {
+        // scale mdtest suites with parallel fanout just like the conformance runners
+        let parallel_scale = if self.parallel() {
+            self.jobs.max(1) as u64
+        } else {
+            1
+        };
+        let timeout_ms = self
+            .mdtest_timeout_ms
+            .saturating_mul(multiplier.max(1))
+            .saturating_mul(parallel_scale);
+
+        std::time::Duration::from_millis(timeout_ms.max(1))
     }
 }
 

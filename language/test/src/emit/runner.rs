@@ -2,9 +2,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_compiler::{BuildKey, Compiler, CompilerOptions};
+use destack_compiler::{Compiler, CompilerOptions};
 use destack_source::{File, FileSystem, FileType, PhysicalFileSystem, Uri};
-use destack_workspace::{Destack, OutputKey, Session, Target, TargetId};
+use destack_workspace::{ArtifactKey, Destack, Session, Target, TargetId};
 
 use crate::harness::{
     RunContext, Runner, Suite, TestCase, TestOptions, TestResult, check_diagnostics,
@@ -148,7 +148,7 @@ fn run_emit_case(test: &TestCase) -> TestResult {
     // link
     for (target_name, _) in &targets {
         let target_id = TargetId::new(package_id, target_name);
-        compiler.enqueue(BuildKey::Output(OutputKey::package(package_id, target_id)));
+        compiler.enqueue(ArtifactKey::package_output(package_id, target_id));
     }
     compiler.compile();
 

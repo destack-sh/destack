@@ -1,16 +1,15 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
-use destack_compiler::{BuildKey, Compiler, CompilerOptions};
+use destack_compiler::{Compiler, CompilerOptions};
 use destack_parser::source_colorizer;
 use destack_source::{File, FileType, MemoryFileSystem, ModuleId, PrintOptions, Uri};
 use destack_workspace::{
-    ArtifactKey, Destack, DestackOptions, MemoryCacheStore, OutputFormat, Session, TargetId,
-    TargetOptions,
+    ArtifactKey, Destack, MemoryCacheStore, OutputFormat, Session, TargetId, TargetOptions,
 };
+use serde_json::json;
 
 use crate::harness::print::color;
 use crate::harness::{
@@ -19,7 +18,7 @@ use crate::harness::{
 };
 use crate::mdtest::{
     MdTestCase, discover_md_files, load_mdtest_expected_failures, parse_mdtest_file,
-    run_with_timeout, select_profile_for_mdtest, setup_test_environment_with_session, slug,
+    run_with_timeout, select_profile_for_mdtest, slug,
 };
 
 /// Test suite for type checking specification tests.
@@ -149,55 +148,20 @@ impl Suite for SpecificationSuite {
     }
 }
 
-#[derive(Debug)]
-struct SharedSpecEnvironment {
-    /// The shared test session.
-    session: Arc<Session>,
-    /// The shared in memory file system.
-    fs: Arc<MemoryFileSystem>,
-    /// The next unique test id.
-    next_id: AtomicUsize,
-}
-
-impl SharedSpecEnvironment {
-    /// Create a new shared environment for spec tests.
-    fn new() -> Self {
-        // initialize shared filesystem and session
-        let fs = Arc::new(MemoryFileSystem::new());
+/// Run a single spec test: compile the code and compare errors against expectations.
+fn run_specification_test(test: &MdTestCase) -> TestResult {
+    // build one isolated in-memory environment per test
+    let (session, program, root, main_path) = {
+        let root = specification_root_for(test);
         let cwd = PathBuf::from("/test/spec");
+        let fs = Arc::new(MemoryFileSystem::new());
         let session = Arc::new(
-            destack_workspace::Session::new(cwd.clone())
+            Session::new(cwd)
                 .with_fs(fs.clone())
                 .with_cache_store(Arc::new(MemoryCacheStore::new())),
         );
-        Self {
-            session,
-            fs,
-            next_id: AtomicUsize::new(0),
-        }
-    }
-
-    /// Allocate a unique root directory for a test case.
-    fn root_for(&self, test: &MdTestCase) -> PathBuf {
-        // allocate a unique directory per test
-        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
-        let section = slug(&test.section);
-        let name = slug(&test.name);
-        PathBuf::from("/test/spec").join(format!("{section}-{name}-{id}"))
-    }
-}
-
-thread_local! {
-    static SHARED_SPEC_ENV: SharedSpecEnvironment = SharedSpecEnvironment::new();
-}
-
-/// Run a single spec test: compile the code and compare errors against expectations.
-fn run_specification_test(test: &MdTestCase) -> TestResult {
-    // setup the test environment
-    let (session, program, root, main_path) = SHARED_SPEC_ENV.with(|env| {
-        let root = env.root_for(test);
-        setup_test_environment_with_session(test, env.session.clone(), env.fs.clone(), root)
-    });
+        crate::mdtest::setup_test_environment_with_session(test, session, fs, root)
+    };
     let prefer_native = test_option_bool(test, "native").unwrap_or(false);
     let verify_mir = !prefer_native;
 
@@ -206,15 +170,14 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
         session.clone(),
         program.clone(),
         CompilerOptions {
-            load_libs: false,
+            load_libraries: false,
             workers: 1,
             verify_mir,
             ..Default::default()
         },
     );
 
-    // resolve the main module to compile
-    // run the spec body, then always remove the shared session root
+    // run the spec body, then always remove the isolated session root
     let result = (|| {
         // resolve the main module to compile
         let module_id = match compiler.resolve_path_to_module(&main_path) {
@@ -234,20 +197,25 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
         }
 
         // select profile and lib loading
-        let (profile, mut load_libs) =
+        let (profile, mut load_libraries) =
             select_profile_for_mdtest(&program, module_id, test, prefer_native);
 
+        // native spec cases need builtin libraries for lowering
+        if prefer_native {
+            load_libraries = true;
+        }
+
         // load libs only when explicitly requested
-        if !load_libs && has_explicit_libs(&program, module_id) {
-            load_libs = true;
+        if !load_libraries && has_explicit_libs(&program, module_id) {
+            load_libraries = true;
         }
 
         // enqueue analysis task
-        compiler.options.load_libs = load_libs;
-        compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+        compiler.options.load_libraries = load_libraries;
+        compiler.enqueue(ArtifactKey::DirAnalyzed {
             module: module_id,
             profile,
-        }));
+        });
 
         // run optimize passes only for native spec tests
         let run_optimize = prefer_native;
@@ -256,14 +224,13 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
             let diagnostic_target = program.ensure_target_for_module(module_id);
             let diagnostic_profile =
                 program.profile_id_for_target_or_default(module_id, &diagnostic_target);
-            compiler.enqueue(BuildKey::Artifact(ArtifactKey::MirOptimized {
+            compiler.enqueue(ArtifactKey::MirOptimized {
                 module: module_id,
                 profile: diagnostic_profile,
                 target: diagnostic_target,
-            }));
+            });
         }
 
-        // compile and drop the compiler
         compiler.compile();
         drop(compiler);
 
@@ -314,6 +281,13 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
     let _ = session.remove_root(&root);
 
     result
+}
+
+/// Build the isolated root directory for one specification case.
+fn specification_root_for(test: &MdTestCase) -> PathBuf {
+    let section = slug(&test.section);
+    let name = slug(&test.name);
+    PathBuf::from("/test/spec").join(format!("{section}-{name}"))
 }
 
 fn test_option_bool(test: &MdTestCase, key: &str) -> Option<bool> {
@@ -373,50 +347,16 @@ fn apply_destack_config_for_spec(
             return Ok(());
         }
 
-        // build a default config for js output
-        let file_id = program.files.next_id();
-        let mut options = DestackOptions::default();
-        options.compiler.check_ts = true;
-        options.compiler.check_js = true;
-        let target = TargetOptions {
-            output: OutputFormat::Js,
-            ..Default::default()
-        };
-        options.targets.insert("default".to_string(), target);
-        options.default_target = Some("default".to_string());
-
-        let config = Destack {
-            file_id,
-            path: destack_config_path.clone(),
-            directory: root.to_path_buf(),
-            options,
-            content: Default::default(),
-        };
-
-        // attach the default config to the package
-        let package_id = {
-            let module = program.modules.get(module_id);
-            let module = module.as_ref();
-            module.package_id
-        };
-        let package = program.packages.get(package_id);
-        let mut package = package.write();
-        package.config = Some(config.clone());
-        package.targets.clear();
-        for (name, options) in config.options.targets.iter() {
-            let target = options.to_target(name);
-            let target_id = TargetId::new(package_id, name);
-            package.targets.insert(target_id, target);
-        }
-
-        return Ok(());
+        // materialize a real default config so later path based lookups stay honest
+        materialize_default_spec_destack_config(program, &destack_config_path)
+            .map_err(|error| format!("failed to write default destack.json: {error}"))?;
     }
 
-    // read and parse destack.json
+    // read and parse destack.json through the real JSONC-aware loader
     let content = program
         .fs
         .read_to_string(&destack_config_path)
-        .map_err(|e| format!("failed to read destack.json: {e}"))?;
+        .map_err(|error| format!("failed to read destack.json: {error}"))?;
     let name = destack_config_path
         .file_name()
         .unwrap_or_default()
@@ -432,9 +372,9 @@ fn apply_destack_config_for_spec(
         FileType::Json,
         content,
     )
-    .map_err(|e| format!("failed to parse destack.json: {e}"))?;
+    .map_err(|error| format!("failed to parse destack.json: {error}"))?;
     let file = Arc::new(file);
-    let mut config = Destack::parse(&file).map_err(|e| e.to_string())?;
+    let mut config = Destack::parse(&file).map_err(|error| error.to_string())?;
 
     // prefer js defaults for spec tests unless a native target is required
     if !prefer_native && config.options.targets.is_empty() {
@@ -461,8 +401,32 @@ fn apply_destack_config_for_spec(
         let target_id = TargetId::new(package_id, name);
         package.targets.insert(target_id, target);
     }
-
     Ok(())
+}
+
+/// Materialize the default spec `destack.json` for TypeScript checking.
+fn materialize_default_spec_destack_config(
+    program: &destack_workspace::Program,
+    destack_config_path: &Path,
+) -> std::io::Result<()> {
+    // build the default spec config payload
+    let content = json!({
+        "compiler": {
+            "checkTs": true,
+            "checkJs": true
+        },
+        "targets": {
+            "default": {
+                "output": "js"
+            }
+        },
+        "defaultTarget": "default"
+    });
+    let content = serde_json::to_string_pretty(&content)
+        .expect("default spec config serialization should succeed");
+
+    // write the config file through the shared filesystem
+    program.fs.write_string(destack_config_path, &content)
 }
 
 /// Split expected diagnostics into error and warning buckets.

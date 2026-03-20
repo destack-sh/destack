@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 
-use destack_compiler::{BuildKey, Compiler, CompilerOptions, StatsSnapshot};
+use destack_compiler::{Compiler, CompilerOptions, StatsSnapshot};
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
     Diagnostic, DiagnosticCollection, DiagnosticSeverity, File, FileId, FileRegistry, FileSystem,
@@ -942,26 +942,26 @@ fn enqueue_phase_task(
         EcosystemPhase::Parse => {}
         EcosystemPhase::Resolve => {
             let profile_id = program.default_profile_id_for_module(module_id);
-            compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirResolved {
+            compiler.enqueue(ArtifactKey::DirResolved {
                 module: module_id,
                 profile: profile_id,
-            }));
+            });
         }
         EcosystemPhase::Analyze => {
             let profile_id = program.default_profile_id_for_module(module_id);
-            compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+            compiler.enqueue(ArtifactKey::DirAnalyzed {
                 module: module_id,
                 profile: profile_id,
-            }));
+            });
         }
         EcosystemPhase::Lower => {
             let target = program.ensure_target_for_module(module_id);
             let profile_id = program.profile_id_for_target_or_default(module_id, &target);
-            compiler.enqueue(BuildKey::Artifact(ArtifactKey::MirOptimized {
+            compiler.enqueue(ArtifactKey::MirOptimized {
                 module: module_id,
                 profile: profile_id,
                 target,
-            }));
+            });
         }
     }
 }

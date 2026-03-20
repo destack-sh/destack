@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use destack_compiler::{BuildKey, Compiler, CompilerOptions, ImportError, ResolveMode};
+use destack_compiler::{Compiler, CompilerOptions, ImportError, ResolveMode};
 use destack_parser::{Parser, ParserSettings};
 use destack_source::{
     DiagnosticSeverity, File, FileId, FileType, LanguageType, MemoryFileSystem, ModuleId, Uri,
@@ -330,7 +330,7 @@ fn parse_file_with_compiler(
             resolve_mode: ResolveMode::Lenient,
             disallow_ambiguous_tree_literal: options.disallow_ambiguous_tree_literal,
             inject_prelude: false,
-            load_libs: false,
+            load_libraries: false,
             source_map: false,
             elaborate_with_ternary: false,
             elaborate_split_declarators: false,
@@ -344,10 +344,10 @@ fn parse_file_with_compiler(
 
     // run up to analyze
     let profile = program.default_profile_id_for_module(module_id);
-    compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+    compiler.enqueue(ArtifactKey::DirAnalyzed {
         module: module_id,
         profile,
-    }));
+    });
     let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
         compiler.compile();
     }));
