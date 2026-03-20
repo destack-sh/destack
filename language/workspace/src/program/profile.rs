@@ -14,7 +14,7 @@ use crate::{
 pub use destack_source::{ProfileId, ProfileVersion};
 
 /// Comptime environment snapshot used for profile identity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EnvSnapshot {
     /// Represents a full environment snapshot with keys and hashed values.
     All { keys: Vec<String>, hash: u64 },
@@ -23,7 +23,7 @@ pub enum EnvSnapshot {
 }
 
 /// Flags that affect profile identity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct ProfileFlags {
     /// Forbid use of `any`.
     pub no_any: bool,
@@ -82,7 +82,7 @@ pub struct ProfileFlags {
 }
 
 /// Canonical profile key for semantic identity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ProfileKey {
     /// Output format for the profile.
     pub output: OutputFormat,

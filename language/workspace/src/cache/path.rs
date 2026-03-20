@@ -10,8 +10,12 @@ pub const DEFAULT_HOME_CACHE_DIR: &str = ".cache";
 pub const DEFAULT_GLOBAL_CACHE_DIR: &str = "destack";
 /// Namespace for compiler cache entries.
 pub const DEFAULT_COMPILER_CACHE_NAMESPACE: &str = "compiler";
+/// Directory name for persisted artifact entries.
+pub const ARTIFACT_STORE_DIR_NAME: &str = "artifacts";
 /// Workspace index file name.
 pub const WORKSPACE_INDEX_FILE_NAME: &str = "workspace.bin";
+/// Workspace index lock file name.
+pub const WORKSPACE_INDEX_LOCK_FILE_NAME: &str = "workspace-index.lock";
 
 /// Resolve a cache root for the provided scope and cache dir.
 pub fn resolve_cache_root_for_scope(

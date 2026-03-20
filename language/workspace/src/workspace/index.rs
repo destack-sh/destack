@@ -8,15 +8,22 @@ use postcard::Error as PostcardError;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 
+use destack_core::StringPool;
 use destack_source::{
-    CACHE_FORMAT_VERSION, CACHE_MAGIC, FileContent, FileId, FileMetadata, FileRegistry, FileSystem,
-    FileVersion, ModuleId, ModuleVersion, strip_json,
+    FileContent, FileId, FileMetadata, FileRegistry, FileSystem, FileVersion, ModuleId,
+    ModuleVersion, strip_json,
 };
 
 use crate::{
-    CacheScope, CacheStoreError, CacheValidate, Destack, Program, Workspace, hash_bytes,
-    hash_json_value, resolve_cache_dir, resolve_cache_root_for_scope,
+    CacheScope, CacheValidate, Destack, Program, Workspace, hash_bytes, hash_json_value,
+    resolve_cache_dir, resolve_cache_root_for_scope,
 };
+
+/// Magic prefix for workspace index snapshots.
+const WORKSPACE_INDEX_MAGIC: [u8; 4] = *b"DSWI";
+
+/// Workspace index snapshot format version.
+const WORKSPACE_INDEX_FORMAT_VERSION: u32 = 2;
 
 /// Compute a hash for the file contents at a path.
 pub(crate) fn file_content_hash_for_path(
@@ -78,8 +85,8 @@ impl WorkspaceIndexHeader {
         cache_validate: CacheValidate,
     ) -> Self {
         Self {
-            magic: CACHE_MAGIC,
-            format_version: CACHE_FORMAT_VERSION,
+            magic: WORKSPACE_INDEX_MAGIC,
+            format_version: WORKSPACE_INDEX_FORMAT_VERSION,
             compiler_version,
             workspace_root,
             config_hash,
@@ -214,6 +221,8 @@ impl WorkspaceModuleEntry {
 pub struct WorkspaceIndexSnapshot {
     /// Header metadata for the snapshot.
     pub header: WorkspaceIndexHeader,
+    /// The shared workspace string pool image.
+    pub strings: StringPool,
     /// File entries keyed by path.
     pub files: IndexMap<PathBuf, WorkspaceFileEntry>,
     /// Module entries keyed by module id.
@@ -272,6 +281,7 @@ impl WorkspaceIndexSnapshot {
 
         Ok(Self {
             header,
+            strings: program.strings.as_ref().clone(),
             files,
             modules,
         })
@@ -396,14 +406,6 @@ impl std::error::Error for WorkspaceIndexError {}
 impl From<WorkspaceConfigError> for WorkspaceIndexError {
     fn from(error: WorkspaceConfigError) -> Self {
         WorkspaceIndexError::Config(error)
-    }
-}
-
-impl From<CacheStoreError> for WorkspaceIndexError {
-    fn from(error: CacheStoreError) -> Self {
-        match error {
-            CacheStoreError::Io(error) => WorkspaceIndexError::Io(error),
-        }
     }
 }
 
@@ -641,7 +643,7 @@ mod tests {
     use crate::{
         CacheValidate, DiskCacheStore, FormatterOptions, LinterOptions, ModuleRegistry,
         PackageRegistry, Program, Session, TsConfigRegistry, Workspace, WorkspaceConfigError,
-        WorkspaceIndexStore, payload_hash_from_bytes,
+        WorkspaceStore, hash_bytes,
     };
 
     use super::{
@@ -656,7 +658,7 @@ mod tests {
         let root = TemporaryPhysicalFileSystem::new_with_prefix("workspace_index");
         let cache_root = root.path_for(".destack");
         let store = DiskCacheStore::new();
-        let index_store = WorkspaceIndexStore::new(&store, &cache_root);
+        let index_store = WorkspaceStore::new(&store, &cache_root);
 
         // build a minimal snapshot
         let header = WorkspaceIndexHeader::new(
@@ -685,6 +687,7 @@ mod tests {
         );
         let snapshot = WorkspaceIndexSnapshot {
             header: header.clone(),
+            strings: StringPool::new(),
             files,
             modules,
         };
@@ -709,7 +712,7 @@ mod tests {
         let root = TemporaryPhysicalFileSystem::new_with_prefix("workspace_index_mismatch");
         let cache_root = root.path_for(".destack");
         let store = DiskCacheStore::new();
-        let index_store = WorkspaceIndexStore::new(&store, &cache_root);
+        let index_store = WorkspaceStore::new(&store, &cache_root);
 
         // write a minimal snapshot
         let header = WorkspaceIndexHeader::new(
@@ -722,6 +725,7 @@ mod tests {
         );
         let snapshot = WorkspaceIndexSnapshot {
             header: header.clone(),
+            strings: StringPool::new(),
             files: IndexMap::new(),
             modules: IndexMap::new(),
         };
@@ -880,7 +884,7 @@ mod tests {
         let root = TemporaryPhysicalFileSystem::new_with_prefix("workspace_index_disk");
         let cache_root = root.path_for(".destack");
         let store = DiskCacheStore::new();
-        let index_store = WorkspaceIndexStore::new(&store, &cache_root);
+        let index_store = WorkspaceStore::new(&store, &cache_root);
 
         let files = FileRegistry::new();
         let program = Program::new(
@@ -933,7 +937,7 @@ mod tests {
         let entry = WorkspaceFileEntry::from_metadata(
             FileVersion::new(1),
             &metadata,
-            Some(payload_hash_from_bytes(b"abc")),
+            Some(hash_bytes(b"abc")),
         );
 
         // build a snapshot with strict content hashes
@@ -949,13 +953,14 @@ mod tests {
         files.insert(file_path.clone(), entry);
         let snapshot = WorkspaceIndexSnapshot {
             header,
+            strings: StringPool::new(),
             files,
             modules: IndexMap::new(),
         };
 
         // write and reload
         let store = DiskCacheStore::new();
-        let index_store = WorkspaceIndexStore::new(&store, &root.path_for(".destack"));
+        let index_store = WorkspaceStore::new(&store, &root.path_for(".destack"));
         index_store
             .save(&snapshot)
             .unwrap_or_else(|error| panic!("failed to write snapshot: {error}"));
@@ -968,7 +973,7 @@ mod tests {
         let session = Session::new(root.root().to_path_buf())
             .with_fs(Arc::new(PhysicalFileSystem))
             .with_cache_store(Arc::new(DiskCacheStore::new()));
-        session.apply_workspace_index_snapshot(&loaded);
+        session.apply_workspace_index(&loaded);
 
         // ensure version stays the same when hash matches
         assert_eq!(

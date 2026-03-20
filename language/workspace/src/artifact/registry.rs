@@ -2,15 +2,15 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, PackageId};
 
 use crate::{
     ArtifactDependency, ArtifactKey, Ast, DirAnalyzed, DirBase, DirDeclared, DirElaborated,
     DirInterface, DirPatched, DirPrepared, DirResolved, MirBase, MirOptimized, ModuleGraph,
-    ProfileId, TargetId,
+    ModuleOutput, PackageOutput, ProfileId, TargetId,
 };
 
-use super::{IntrinsicEnvironment, LanguageEnvironment, LibEnvironment};
+use super::{IntrinsicEnvironment, LanguageEnvironment, LibraryEnvironment};
 
 /// One published artifact payload.
 #[derive(Debug, Clone)]
@@ -21,8 +21,8 @@ pub enum ArtifactPayload {
     LanguageEnvironment(Arc<LanguageEnvironment>),
     /// One intrinsic environment payload.
     IntrinsicEnvironment(Arc<IntrinsicEnvironment>),
-    /// One lib environment payload.
-    LibEnvironment(Arc<LibEnvironment>),
+    /// One library environment payload.
+    LibraryEnvironment(Arc<LibraryEnvironment>),
     /// One AST payload.
     Ast(Arc<Ast>),
     /// One base DIR payload.
@@ -45,6 +45,10 @@ pub enum ArtifactPayload {
     MirBase(Arc<MirBase>),
     /// One optimized MIR payload.
     MirOptimized(Arc<MirOptimized>),
+    /// One module output payload.
+    ModuleOutput(Arc<ModuleOutput>),
+    /// One package output payload.
+    PackageOutput(Arc<PackageOutput>),
 }
 
 impl From<LanguageEnvironment> for ArtifactPayload {
@@ -83,15 +87,15 @@ impl From<Arc<IntrinsicEnvironment>> for ArtifactPayload {
     }
 }
 
-impl From<LibEnvironment> for ArtifactPayload {
-    fn from(value: LibEnvironment) -> Self {
-        Self::LibEnvironment(Arc::new(value))
+impl From<LibraryEnvironment> for ArtifactPayload {
+    fn from(value: LibraryEnvironment) -> Self {
+        Self::LibraryEnvironment(Arc::new(value))
     }
 }
 
-impl From<Arc<LibEnvironment>> for ArtifactPayload {
-    fn from(value: Arc<LibEnvironment>) -> Self {
-        Self::LibEnvironment(value)
+impl From<Arc<LibraryEnvironment>> for ArtifactPayload {
+    fn from(value: Arc<LibraryEnvironment>) -> Self {
+        Self::LibraryEnvironment(value)
     }
 }
 
@@ -227,6 +231,30 @@ impl From<Arc<MirOptimized>> for ArtifactPayload {
     }
 }
 
+impl From<ModuleOutput> for ArtifactPayload {
+    fn from(value: ModuleOutput) -> Self {
+        Self::ModuleOutput(Arc::new(value))
+    }
+}
+
+impl From<Arc<ModuleOutput>> for ArtifactPayload {
+    fn from(value: Arc<ModuleOutput>) -> Self {
+        Self::ModuleOutput(value)
+    }
+}
+
+impl From<PackageOutput> for ArtifactPayload {
+    fn from(value: PackageOutput) -> Self {
+        Self::PackageOutput(Arc::new(value))
+    }
+}
+
+impl From<Arc<PackageOutput>> for ArtifactPayload {
+    fn from(value: Arc<PackageOutput>) -> Self {
+        Self::PackageOutput(value)
+    }
+}
+
 /// Registry of published semantic artifacts.
 #[derive(Debug, Default)]
 pub struct ArtifactRegistry {
@@ -238,8 +266,8 @@ pub struct ArtifactRegistry {
     language_environments: DashMap<ProfileId, Arc<LanguageEnvironment>>,
     /// Intrinsic environments by profile.
     intrinsic_environments: DashMap<ProfileId, Arc<IntrinsicEnvironment>>,
-    /// Lib environments by profile.
-    lib_environments: DashMap<ProfileId, Arc<LibEnvironment>>,
+    /// Library environments by profile.
+    lib_environments: DashMap<ProfileId, Arc<LibraryEnvironment>>,
     /// AST artifacts by module.
     asts: DashMap<ModuleId, Arc<Ast>>,
     /// Base DIR artifacts by module.
@@ -262,6 +290,10 @@ pub struct ArtifactRegistry {
     mir_bases: DashMap<(ModuleId, ProfileId, TargetId), Arc<MirBase>>,
     /// Optimized MIR artifacts by module, profile, and target.
     mir_optimized: DashMap<(ModuleId, ProfileId, TargetId), Arc<MirOptimized>>,
+    /// Output entries by module and target.
+    module_output: DashMap<(ModuleId, TargetId), Arc<ModuleOutput>>,
+    /// Output entries by package and target.
+    package_output: DashMap<(PackageId, TargetId), Arc<PackageOutput>>,
 }
 
 impl ArtifactRegistry {
@@ -314,6 +346,8 @@ impl ArtifactRegistry {
             dir_patched: DashMap::new(),
             mir_bases: DashMap::new(),
             mir_optimized: DashMap::new(),
+            module_output: DashMap::new(),
+            package_output: DashMap::new(),
         }
     }
 
@@ -341,7 +375,7 @@ impl ArtifactRegistry {
             ArtifactKey::IntrinsicEnvironment { profile } => {
                 self.intrinsic_environments.remove(profile);
             }
-            ArtifactKey::LibEnvironment { profile } => {
+            ArtifactKey::LibraryEnvironment { profile } => {
                 self.lib_environments.remove(profile);
             }
             ArtifactKey::Ast { module } => {
@@ -386,6 +420,12 @@ impl ArtifactRegistry {
                 self.mir_optimized
                     .remove(&(*module, *profile, target.clone()));
             }
+            ArtifactKey::ModuleOutput { module, target } => {
+                self.module_output.remove(&(*module, target.clone()));
+            }
+            ArtifactKey::PackageOutput { package, target } => {
+                self.package_output.remove(&(*package, target.clone()));
+            }
         }
 
         self.dependencies.remove(key);
@@ -412,8 +452,8 @@ impl ArtifactRegistry {
                 self.intrinsic_environments.insert(profile, environment);
             }
             (
-                ArtifactKey::LibEnvironment { profile },
-                ArtifactPayload::LibEnvironment(environment),
+                ArtifactKey::LibraryEnvironment { profile },
+                ArtifactPayload::LibraryEnvironment(environment),
             ) => {
                 self.lib_environments.insert(profile, environment);
             }
@@ -467,6 +507,15 @@ impl ArtifactRegistry {
             ) => {
                 self.mir_optimized.insert((module, profile, target), mir);
             }
+            (ArtifactKey::ModuleOutput { module, target }, ArtifactPayload::ModuleOutput(emit)) => {
+                self.module_output.insert((module, target), emit);
+            }
+            (
+                ArtifactKey::PackageOutput { package, target },
+                ArtifactPayload::PackageOutput(emit),
+            ) => {
+                self.package_output.insert((package, target), emit);
+            }
             (key, artifact) => {
                 panic!("artifact payload did not match key: key={key:?} artifact={artifact:?}");
             }
@@ -494,8 +543,8 @@ impl ArtifactRegistry {
             .map(|entry| entry.value().clone())
     }
 
-    /// Get one lib environment.
-    pub fn lib_environment(&self, profile: ProfileId) -> Option<Arc<LibEnvironment>> {
+    /// Get one library environment.
+    pub fn library_environment(&self, profile: ProfileId) -> Option<Arc<LibraryEnvironment>> {
         self.lib_environments
             .get(&profile)
             .map(|entry| entry.value().clone())
@@ -587,6 +636,24 @@ impl ArtifactRegistry {
     ) -> Option<Arc<MirOptimized>> {
         self.mir_optimized
             .get(&(module, profile, target.clone()))
+            .map(|entry| entry.value().clone())
+    }
+
+    /// Get one module output artifact.
+    pub fn module_output(&self, module: ModuleId, target: &TargetId) -> Option<Arc<ModuleOutput>> {
+        self.module_output
+            .get(&(module, target.clone()))
+            .map(|entry| entry.value().clone())
+    }
+
+    /// Get one package output artifact.
+    pub fn package_output(
+        &self,
+        package: PackageId,
+        target: &TargetId,
+    ) -> Option<Arc<PackageOutput>> {
+        self.package_output
+            .get(&(package, target.clone()))
             .map(|entry| entry.value().clone())
     }
 

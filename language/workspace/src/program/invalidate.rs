@@ -1,8 +1,6 @@
 use std::collections::HashSet;
 
-use destack_source::{
-    File, FileContent, FileId, FileType, FileVersion, ModuleId, PackageId, ProfileId,
-};
+use destack_source::{File, FileId, FileType, FileVersion, ModuleId, PackageId, ProfileId};
 
 use crate::{ArtifactKey, PackageManifest, Program, TsConfigId};
 
@@ -278,18 +276,8 @@ impl Program {
                         })?
                         .with_version(next_version)
                 } else if file_ty.is_binary() {
-                    let len = content.len() as u32;
-                    File {
-                        id: file_id,
-                        version: next_version,
-                        name: file_name,
-                        uri: file_uri,
-                        path: file_path,
-                        ty: file_ty,
-                        len,
-                        content: FileContent::Binary { content },
-                        line_start_offsets: None,
-                    }
+                    File::from_binary(file_id, file_name, file_uri, file_path, file_ty, content)
+                        .with_version(next_version)
                 } else {
                     let text = String::from_utf8(content).map_err(|error| {
                         InvalidationError::InvalidText {
@@ -356,7 +344,7 @@ impl Program {
                 .invalidate(&ArtifactKey::IntrinsicEnvironment {
                     profile: *profile_id,
                 });
-            self.artifacts.invalidate(&ArtifactKey::LibEnvironment {
+            self.artifacts.invalidate(&ArtifactKey::LibraryEnvironment {
                 profile: *profile_id,
             });
         }

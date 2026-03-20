@@ -69,8 +69,6 @@ impl Loader {
             | FileType::Node
             | FileType::Object
             | FileType::DestackBinary
-            | FileType::DestackAst
-            | FileType::DestackDir
             | FileType::Image
             | FileType::Font
             | FileType::Audio

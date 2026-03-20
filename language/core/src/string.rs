@@ -363,6 +363,24 @@ impl StringPool {
         }
     }
 
+    /// Replace the entire pool contents from another pool.
+    ///
+    /// This preserves the other pool's StringId mapping exactly.
+    pub fn replace_from(&self, other: &StringPool) {
+        let next_state = other.inner.read().clone();
+        let mut state = self.inner.write();
+        *state = next_state;
+    }
+
+    /// Return one stable hash for the current pool contents.
+    pub fn stable_hash(&self) -> u64 {
+        let state = self.inner.read();
+        let mut hasher = FxHasher::default();
+        state.buffer.hash(&mut hasher);
+        state.spans.hash(&mut hasher);
+        hasher.finish()
+    }
+
     /// Get the number of unique strings stored in this pool.
     #[inline]
     pub fn len(&self) -> usize {
