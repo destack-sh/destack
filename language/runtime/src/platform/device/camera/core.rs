@@ -741,14 +741,19 @@ pub(super) fn frame_plane_layouts(
 }
 
 /// Build one default control-mode set for one stream capability.
-#[cfg(target_os = "windows")]
-pub(super) fn default_camera_control_modes() -> CameraControlModes {
+#[cfg(any(
+    target_os = "android",
+    target_os = "linux",
+    target_os = "macos",
+    windows
+))]
+pub(super) fn empty_camera_control_modes() -> CameraControlModes {
     CameraControlModes {
-        exposure_modes: vec![CameraExposureMode::Auto],
-        white_balance_modes: vec![CameraWhiteBalanceMode::Auto],
-        focus_modes: vec![CameraFocusMode::Auto],
-        stabilization_modes: vec![CameraStabilizationMode::Off],
-        torch_modes: vec![CameraTorchMode::Off],
+        exposure_modes: Vec::new(),
+        white_balance_modes: Vec::new(),
+        focus_modes: Vec::new(),
+        stabilization_modes: Vec::new(),
+        torch_modes: Vec::new(),
     }
 }
 
@@ -759,15 +764,35 @@ pub(super) fn basic_camera_stream_capability(
     control_modes: &CameraControlModes,
 ) -> CameraStreamCapabilityValue {
     let controls = camera_control_capabilities(control_modes);
+    let color_space = config.color_space.unwrap_or(CameraColorSpace::Unknown);
+    let dynamic_range = config.dynamic_range.unwrap_or(CameraDynamicRange::Standard);
 
     CameraStreamCapabilityValue {
         config: *config,
         minimum_frame_rate_milli_hz: config.frame_rate_milli_hz,
         maximum_frame_rate_milli_hz: config.frame_rate_milli_hz,
-        color_spaces: vec![CameraColorSpace::Unknown],
-        dynamic_ranges: vec![CameraDynamicRange::Standard],
+        color_spaces: vec![color_space],
+        dynamic_ranges: vec![dynamic_range],
         controls,
     }
+}
+
+/// Build one optional supported-mode list from one backend mode vector.
+#[cfg(any(
+    target_os = "android",
+    target_os = "linux",
+    target_os = "macos",
+    windows
+))]
+fn optional_supported_modes<T>(modes: &[T]) -> Option<Vec<T>>
+where
+    T: Clone,
+{
+    if modes.is_empty() {
+        return None;
+    }
+
+    Some(modes.to_vec())
 }
 
 /// Build one grouped control-capability snapshot from supported control modes.
@@ -781,11 +806,11 @@ pub(super) fn camera_control_capabilities(
     control_modes: &CameraControlModes,
 ) -> CameraControlCapabilitiesValue {
     CameraControlCapabilitiesValue {
-        exposure_modes: Some(control_modes.exposure_modes.clone()),
-        white_balance_modes: Some(control_modes.white_balance_modes.clone()),
-        focus_modes: Some(control_modes.focus_modes.clone()),
-        stabilization_modes: Some(control_modes.stabilization_modes.clone()),
-        torch_modes: Some(control_modes.torch_modes.clone()),
+        exposure_modes: optional_supported_modes(&control_modes.exposure_modes),
+        white_balance_modes: optional_supported_modes(&control_modes.white_balance_modes),
+        focus_modes: optional_supported_modes(&control_modes.focus_modes),
+        stabilization_modes: optional_supported_modes(&control_modes.stabilization_modes),
+        torch_modes: optional_supported_modes(&control_modes.torch_modes),
         exposure_compensation_range: None,
         exposure_time_range: None,
         sensor_iso_range: None,

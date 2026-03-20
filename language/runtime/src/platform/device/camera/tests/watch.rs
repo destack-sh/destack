@@ -3,7 +3,7 @@ use super::core::{
     camera_device_descriptor_list_value, camera_watch_event_value, with_camera_harness_context,
 };
 use crate::diagnostic::RuntimeResult;
-use crate::platform::device::tests::assert_ok_or_expected_error;
+use crate::platform::device::tests::{DeviceHarnessContext, assert_ok_or_expected_error};
 use crate::platform::device::{CameraDeviceDescriptorValue, CameraWatchEventValue};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::CameraWatchHandle;
@@ -51,7 +51,7 @@ fn test_device_camera_watch_try_read_returns_valid_seeded_topology_events() {
 
 /// Drain all currently queued camera watch events without blocking.
 fn drain_watch_events(
-    context: &mut crate::platform::device::tests::DeviceHarnessContext<'_>,
+    context: &mut DeviceHarnessContext<'_>,
     handle: CameraWatchHandle,
 ) -> RuntimeResult<Vec<CameraWatchEventValue>> {
     let mut events = Vec::new();

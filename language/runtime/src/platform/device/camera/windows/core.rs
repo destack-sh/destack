@@ -62,7 +62,7 @@ pub(super) use crate::platform::device::camera::core::{
     camera_recording_capabilities_from_value, camera_recording_from_path,
     camera_recording_output_path, camera_recording_state_from_runtime, camera_stream_resource,
     camera_watch_payload, close_camera_device_resource, close_camera_stream_resource,
-    close_camera_watch_resource, default_camera_control_modes, detached_watch_event,
+    close_camera_watch_resource, detached_watch_event, empty_camera_control_modes,
     empty_camera_metadata, frame_plane_layouts, next_camera_sequence, read_camera_frame_queue,
     store_camera_capabilities, try_read_camera_frame_queue, validate_camera_photo_settings,
 };

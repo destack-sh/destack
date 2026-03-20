@@ -454,10 +454,6 @@ pub(crate) fn query_camera_control_modes(descriptor: RawFd) -> RuntimeResult<Cam
     {
         exposure_modes.push(CameraExposureMode::Manual);
     }
-    if exposure_modes.is_empty() {
-        exposure_modes.push(CameraExposureMode::Auto);
-    }
-
     // white balance modes
     if query_control_info(
         descriptor,
@@ -477,10 +473,6 @@ pub(crate) fn query_camera_control_modes(descriptor: RawFd) -> RuntimeResult<Cam
     {
         white_balance_modes.push(CameraWhiteBalanceMode::Manual);
     }
-    if white_balance_modes.is_empty() {
-        white_balance_modes.push(CameraWhiteBalanceMode::Auto);
-    }
-
     // focus modes
     if query_control_info(
         descriptor,
@@ -500,10 +492,6 @@ pub(crate) fn query_camera_control_modes(descriptor: RawFd) -> RuntimeResult<Cam
     {
         focus_modes.push(CameraFocusMode::Manual);
     }
-    if focus_modes.is_empty() {
-        focus_modes.push(CameraFocusMode::Auto);
-    }
-
     // stabilization modes
     if query_control_info(
         descriptor,
@@ -527,8 +515,6 @@ pub(crate) fn query_camera_control_modes(descriptor: RawFd) -> RuntimeResult<Cam
         torch_modes.push(CameraTorchMode::Off);
         torch_modes.push(CameraTorchMode::On);
         torch_modes.push(CameraTorchMode::Auto);
-    } else {
-        torch_modes.push(CameraTorchMode::Off);
     }
 
     Ok(CameraControlModes {

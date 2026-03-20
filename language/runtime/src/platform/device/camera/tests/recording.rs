@@ -23,10 +23,10 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::core::monotonic_now_ns;
 #[cfg(target_os = "linux")]
 use crate::platform::core::monotonic_now_ns;
-#[cfg(any(target_os = "macos", windows))]
-use crate::platform::device::{CameraRecordingOptions, CameraRecordingOptionsValue};
-#[cfg(target_os = "linux")]
-use crate::platform::device::{CameraRecordingOptions, CameraRecordingOptionsValue};
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
+use crate::platform::device::{
+    CameraRecordingContainer, CameraRecordingOptions, CameraRecordingOptionsValue, CameraVideoCodec,
+};
 use crate::platform::device::{native as device_native, vm as device_vm};
 #[cfg(any(target_os = "macos", windows))]
 use crate::platform::fs::abi_generated::OsPathValue;
@@ -64,6 +64,18 @@ fn recording_extension() -> &'static str {
 #[cfg(windows)]
 fn recording_extension() -> &'static str {
     "mp4"
+}
+
+/// Return the expected recording container for the current platform.
+#[cfg(target_os = "macos")]
+fn expected_recording_container() -> CameraRecordingContainer {
+    CameraRecordingContainer::Mov
+}
+
+/// Return the expected recording container for the current platform.
+#[cfg(any(target_os = "linux", windows))]
+fn expected_recording_container() -> CameraRecordingContainer {
+    CameraRecordingContainer::Mp4
 }
 
 /// Return the expected recording-file extension for the current platform.
@@ -257,6 +269,9 @@ fn test_device_camera_recording_start_and_stop_return_one_output_descriptor_when
                 let recorded_path = path_buf_from_value(recording.path);
                 assert_eq!(recorded_path, output_path);
                 assert!(recorded_path.exists());
+                assert_eq!(recording.container, expected_recording_container());
+                assert_eq!(recording.video_codec, Some(CameraVideoCodec::H264));
+                assert!(recording.audio_codec.is_none());
 
                 // verify the inactive recording state
                 let mut recording_state_out = std::mem::MaybeUninit::uninit();
@@ -273,6 +288,59 @@ fn test_device_camera_recording_start_and_stop_return_one_output_descriptor_when
                 assert!(!recording_state.paused);
                 assert!(recording_state.options.is_none());
                 assert!(recording_state.started_timestamp_ns.is_none());
+
+                // cleanup
+                let _ = std::fs::remove_file(recorded_path);
+
+                Ok(())
+            },
+        )
+    });
+}
+
+/// Start and stop one recording through the VM camera path when the backend supports it.
+#[cfg(any(target_os = "macos", windows))]
+#[test]
+fn test_device_camera_vm_recording_start_and_stop_return_one_output_descriptor_when_present() {
+    with_camera_harness_context(|context| {
+        with_first_openable_local_camera_stream_vm(
+            &context,
+            |vm_context, _device_handle, stream_handle, _capability| {
+                // start the stream first
+                device_vm::destack_device_camera_stream_start(
+                    context.call_context,
+                    vm_context,
+                    stream_handle,
+                )?;
+
+                // start one recording
+                let output_path = unique_recording_path();
+                let options = recording_options_value(context.call_context, &output_path)?;
+                let options = VmAbiCodec::from_value(vm_context, options)?;
+                device_vm::destack_device_camera_stream_start_recording(
+                    context.call_context,
+                    vm_context,
+                    stream_handle,
+                    options,
+                )?;
+
+                // let the backend write at least one frame
+                std::thread::sleep(std::time::Duration::from_millis(100));
+
+                // stop the recording and verify the output path
+                let recording = device_vm::destack_device_camera_stream_stop_recording(
+                    context.call_context,
+                    vm_context,
+                    stream_handle,
+                    2_000_000_000,
+                )?;
+                let recording = VmAbiCodec::into_value(recording, vm_context)?;
+                let recorded_path = path_buf_from_value(recording.path);
+                assert_eq!(recorded_path, output_path);
+                assert!(recorded_path.exists());
+                assert_eq!(recording.container, expected_recording_container());
+                assert_eq!(recording.video_codec, Some(CameraVideoCodec::H264));
+                assert!(recording.audio_codec.is_none());
 
                 // cleanup
                 let _ = std::fs::remove_file(recorded_path);
@@ -340,6 +408,74 @@ fn test_device_camera_linux_recording_start_and_stop_return_one_output_descripto
                 let recorded_path = path_buf_from_value(recording.path);
                 assert_eq!(recorded_path, output_path);
                 assert!(recorded_path.exists());
+                assert_eq!(recording.container, expected_recording_container());
+                assert_eq!(recording.video_codec, Some(CameraVideoCodec::H264));
+                assert!(recording.audio_codec.is_none());
+
+                // cleanup
+                let _ = std::fs::remove_file(recorded_path);
+
+                Ok(())
+            },
+        )
+    });
+}
+
+/// Start and stop one Linux recording through the VM path when the ffmpeg pipeline is available.
+#[cfg(target_os = "linux")]
+#[test]
+fn test_device_camera_vm_linux_recording_start_and_stop_return_one_output_descriptor_when_present()
+{
+    with_camera_harness_context(|context| {
+        with_first_openable_local_camera_stream_vm(
+            &context,
+            |vm_context, _device_handle, stream_handle, _capability| {
+                // query recording capabilities first
+                let capabilities = device_vm::destack_device_camera_stream_recording_capabilities(
+                    context.call_context,
+                    vm_context,
+                    stream_handle,
+                )?;
+                let capabilities = VmAbiCodec::into_value(capabilities, vm_context)?;
+                if capabilities.containers.is_empty() {
+                    return Ok(());
+                }
+
+                // start the stream first
+                device_vm::destack_device_camera_stream_start(
+                    context.call_context,
+                    vm_context,
+                    stream_handle,
+                )?;
+
+                // start one recording
+                let output_path = unique_recording_path();
+                let options = recording_options_value(context.call_context, &output_path)?;
+                let options = VmAbiCodec::from_value(vm_context, options)?;
+                device_vm::destack_device_camera_stream_start_recording(
+                    context.call_context,
+                    vm_context,
+                    stream_handle,
+                    options,
+                )?;
+
+                // let the backend write at least one frame
+                std::thread::sleep(std::time::Duration::from_millis(250));
+
+                // stop the recording and verify the output path
+                let recording = device_vm::destack_device_camera_stream_stop_recording(
+                    context.call_context,
+                    vm_context,
+                    stream_handle,
+                    5_000_000_000,
+                )?;
+                let recording = VmAbiCodec::into_value(recording, vm_context)?;
+                let recorded_path = path_buf_from_value(recording.path);
+                assert_eq!(recorded_path, output_path);
+                assert!(recorded_path.exists());
+                assert_eq!(recording.container, expected_recording_container());
+                assert_eq!(recording.video_codec, Some(CameraVideoCodec::H264));
+                assert!(recording.audio_codec.is_none());
 
                 // cleanup
                 let _ = std::fs::remove_file(recorded_path);
@@ -351,12 +487,12 @@ fn test_device_camera_linux_recording_start_and_stop_return_one_output_descripto
 }
 
 /// Build one recording options payload for one output path.
-#[cfg(any(target_os = "macos", windows))]
-fn recording_options(
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
+fn recording_options_value(
     call_context: &BindingCallContext,
     path: &Path,
-) -> RuntimeResult<CameraRecordingOptions> {
-    let options = CameraRecordingOptionsValue {
+) -> RuntimeResult<CameraRecordingOptionsValue> {
+    Ok(CameraRecordingOptionsValue {
         output_path: Some(unsafe { os_path_from_path(call_context, path).into_value()? }),
         container: None,
         video_codec: None,
@@ -367,7 +503,27 @@ fn recording_options(
         key_frame_interval_frames: None,
         maximum_duration_ns: None,
         maximum_bytes: None,
-    };
+    })
+}
+
+/// Build one recording options payload for one output path.
+#[cfg(any(target_os = "macos", windows))]
+fn recording_options(
+    call_context: &BindingCallContext,
+    path: &Path,
+) -> RuntimeResult<CameraRecordingOptions> {
+    let options = recording_options_value(call_context, path)?;
+
+    Ok(CameraRecordingOptions::from_value(call_context, options))
+}
+
+/// Build one recording options payload for one output path.
+#[cfg(target_os = "linux")]
+fn recording_options(
+    call_context: &BindingCallContext,
+    path: &Path,
+) -> RuntimeResult<CameraRecordingOptions> {
+    let options = recording_options_value(call_context, path)?;
 
     Ok(CameraRecordingOptions::from_value(call_context, options))
 }

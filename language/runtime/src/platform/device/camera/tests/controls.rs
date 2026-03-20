@@ -4,9 +4,39 @@ use super::core::{
 };
 use crate::platform::device::tests::assert_ok_or_expected_error;
 use crate::platform::device::{
-    CameraStabilizationMode, CameraTorchMode, native as device_native, vm as device_vm,
+    CameraExposureMode, CameraFocusMode, CameraStabilizationMode, CameraTorchMode,
+    CameraWhiteBalanceMode, native as device_native, vm as device_vm,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
+
+/// Assert one optional camera control query matches one advertised mode list.
+fn assert_mode_query_matches_capability<T>(value: Option<T>, modes: Option<&[T]>)
+where
+    T: Copy + PartialEq + std::fmt::Debug,
+{
+    let Some(modes) = modes else {
+        assert!(value.is_none());
+        return;
+    };
+
+    if modes.is_empty() {
+        assert!(value.is_none());
+        return;
+    }
+
+    let value = value.expect("camera control query should succeed when capability is advertised");
+    assert!(modes.contains(&value));
+}
+
+/// Decode one native control query result from one out pointer.
+fn native_optional_control_value<T>(
+    result: Option<()>,
+    out: std::mem::MaybeUninit<T>,
+) -> Option<T> {
+    result?;
+
+    Some(unsafe { out.assume_init() })
+}
 
 /// Query one capability-backed camera control on the first opened stream when present.
 #[cfg(any(unix, windows))]
@@ -28,14 +58,12 @@ fn test_device_camera_controls_query_capability_backed_modes_for_one_open_stream
                     },
                     &[PlatformErrorCode::NotSupported],
                 )?;
-                let exposure_modes = capability
-                    .controls
-                    .exposure_modes
-                    .expect("camera exposure modes should be present");
-                let exposure_modes = exposure_modes.as_slice();
-                if !exposure_modes.is_empty() {
-                    assert!(exposure_mode.is_some());
-                }
+                let exposure_mode = native_optional_control_value(exposure_mode, exposure_mode_out);
+                let exposure_modes = capability.controls.exposure_modes.as_deref();
+                assert_mode_query_matches_capability::<CameraExposureMode>(
+                    exposure_mode,
+                    exposure_modes,
+                );
 
                 // advertised white-balance modes should be queryable
                 let mut white_balance_mode_out = std::mem::MaybeUninit::uninit();
@@ -49,14 +77,13 @@ fn test_device_camera_controls_query_capability_backed_modes_for_one_open_stream
                     },
                     &[PlatformErrorCode::NotSupported],
                 )?;
-                let white_balance_modes = capability
-                    .controls
-                    .white_balance_modes
-                    .expect("camera white balance modes should be present");
-                let white_balance_modes = white_balance_modes.as_slice();
-                if !white_balance_modes.is_empty() {
-                    assert!(white_balance_mode.is_some());
-                }
+                let white_balance_mode =
+                    native_optional_control_value(white_balance_mode, white_balance_mode_out);
+                let white_balance_modes = capability.controls.white_balance_modes.as_deref();
+                assert_mode_query_matches_capability::<CameraWhiteBalanceMode>(
+                    white_balance_mode,
+                    white_balance_modes,
+                );
 
                 // advertised focus modes should be queryable
                 let mut focus_mode_out = std::mem::MaybeUninit::uninit();
@@ -70,14 +97,9 @@ fn test_device_camera_controls_query_capability_backed_modes_for_one_open_stream
                     },
                     &[PlatformErrorCode::NotSupported],
                 )?;
-                let focus_modes = capability
-                    .controls
-                    .focus_modes
-                    .expect("camera focus modes should be present");
-                let focus_modes = focus_modes.as_slice();
-                if !focus_modes.is_empty() {
-                    assert!(focus_mode.is_some());
-                }
+                let focus_mode = native_optional_control_value(focus_mode, focus_mode_out);
+                let focus_modes = capability.controls.focus_modes.as_deref();
+                assert_mode_query_matches_capability::<CameraFocusMode>(focus_mode, focus_modes);
 
                 // advertised torch modes should be queryable
                 let mut torch_mode_out = std::mem::MaybeUninit::uninit();
@@ -91,14 +113,9 @@ fn test_device_camera_controls_query_capability_backed_modes_for_one_open_stream
                     },
                     &[PlatformErrorCode::NotSupported],
                 )?;
-                let torch_modes = capability
-                    .controls
-                    .torch_modes
-                    .expect("camera torch modes should be present");
-                let torch_modes = torch_modes.as_slice();
-                if torch_modes.iter().any(|mode| *mode != CameraTorchMode::Off) {
-                    assert!(torch_mode.is_some());
-                }
+                let torch_mode = native_optional_control_value(torch_mode, torch_mode_out);
+                let torch_modes = capability.controls.torch_modes.as_deref();
+                assert_mode_query_matches_capability::<CameraTorchMode>(torch_mode, torch_modes);
 
                 // advertised stabilization modes should be queryable
                 let mut stabilization_mode_out = std::mem::MaybeUninit::uninit();
@@ -112,17 +129,13 @@ fn test_device_camera_controls_query_capability_backed_modes_for_one_open_stream
                     },
                     &[PlatformErrorCode::NotSupported],
                 )?;
-                let stabilization_modes = capability
-                    .controls
-                    .stabilization_modes
-                    .expect("camera stabilization modes should be present");
-                let stabilization_modes = stabilization_modes.as_slice();
-                if stabilization_modes
-                    .iter()
-                    .any(|mode| *mode != CameraStabilizationMode::Off)
-                {
-                    assert!(stabilization_mode.is_some());
-                }
+                let stabilization_mode =
+                    native_optional_control_value(stabilization_mode, stabilization_mode_out);
+                let stabilization_modes = capability.controls.stabilization_modes.as_deref();
+                assert_mode_query_matches_capability::<CameraStabilizationMode>(
+                    stabilization_mode,
+                    stabilization_modes,
+                );
 
                 Ok(())
             },
@@ -147,13 +160,11 @@ fn test_device_camera_vm_controls_query_capability_backed_modes_for_one_open_str
                     ),
                     &[PlatformErrorCode::NotSupported],
                 )?;
-                let exposure_modes = capability
-                    .controls
-                    .exposure_modes
-                    .expect("camera exposure modes should be present");
-                if !exposure_modes.is_empty() {
-                    assert!(exposure_mode.is_some());
-                }
+                let exposure_modes = capability.controls.exposure_modes.as_deref();
+                assert_mode_query_matches_capability::<CameraExposureMode>(
+                    exposure_mode,
+                    exposure_modes,
+                );
 
                 // advertised white-balance modes should be queryable
                 let white_balance_mode = assert_ok_or_expected_error(
@@ -164,13 +175,11 @@ fn test_device_camera_vm_controls_query_capability_backed_modes_for_one_open_str
                     ),
                     &[PlatformErrorCode::NotSupported],
                 )?;
-                let white_balance_modes = capability
-                    .controls
-                    .white_balance_modes
-                    .expect("camera white balance modes should be present");
-                if !white_balance_modes.is_empty() {
-                    assert!(white_balance_mode.is_some());
-                }
+                let white_balance_modes = capability.controls.white_balance_modes.as_deref();
+                assert_mode_query_matches_capability::<CameraWhiteBalanceMode>(
+                    white_balance_mode,
+                    white_balance_modes,
+                );
 
                 // advertised focus modes should be queryable
                 let focus_mode = assert_ok_or_expected_error(
@@ -181,13 +190,8 @@ fn test_device_camera_vm_controls_query_capability_backed_modes_for_one_open_str
                     ),
                     &[PlatformErrorCode::NotSupported],
                 )?;
-                let focus_modes = capability
-                    .controls
-                    .focus_modes
-                    .expect("camera focus modes should be present");
-                if !focus_modes.is_empty() {
-                    assert!(focus_mode.is_some());
-                }
+                let focus_modes = capability.controls.focus_modes.as_deref();
+                assert_mode_query_matches_capability::<CameraFocusMode>(focus_mode, focus_modes);
 
                 // advertised torch modes should be queryable
                 let torch_mode = assert_ok_or_expected_error(
@@ -198,13 +202,8 @@ fn test_device_camera_vm_controls_query_capability_backed_modes_for_one_open_str
                     ),
                     &[PlatformErrorCode::NotSupported],
                 )?;
-                let torch_modes = capability
-                    .controls
-                    .torch_modes
-                    .expect("camera torch modes should be present");
-                if torch_modes.iter().any(|mode| *mode != CameraTorchMode::Off) {
-                    assert!(torch_mode.is_some());
-                }
+                let torch_modes = capability.controls.torch_modes.as_deref();
+                assert_mode_query_matches_capability::<CameraTorchMode>(torch_mode, torch_modes);
 
                 // advertised stabilization modes should be queryable
                 let stabilization_mode = assert_ok_or_expected_error(
@@ -215,16 +214,11 @@ fn test_device_camera_vm_controls_query_capability_backed_modes_for_one_open_str
                     ),
                     &[PlatformErrorCode::NotSupported],
                 )?;
-                let stabilization_modes = capability
-                    .controls
-                    .stabilization_modes
-                    .expect("camera stabilization modes should be present");
-                if stabilization_modes
-                    .iter()
-                    .any(|mode| *mode != CameraStabilizationMode::Off)
-                {
-                    assert!(stabilization_mode.is_some());
-                }
+                let stabilization_modes = capability.controls.stabilization_modes.as_deref();
+                assert_mode_query_matches_capability::<CameraStabilizationMode>(
+                    stabilization_mode,
+                    stabilization_modes,
+                );
 
                 Ok(())
             },
