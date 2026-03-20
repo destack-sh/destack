@@ -917,16 +917,16 @@ pub struct DestackJson {
     /// Glob patterns for files to exclude.
     pub exclude: Option<Vec<String>>,
     /// Compiler options.
-    #[serde(default)]
+    #[serde(default, alias = "compilerOptions")]
     pub compiler: CompilerOptionsJson,
     /// Runtime options.
     #[serde(default)]
     pub runtime: RuntimeOptionsJson,
     /// Formatter options.
-    #[serde(default)]
+    #[serde(default, alias = "formatterOptions")]
     pub formatter: FormatterJson,
     /// Linter options.
-    #[serde(default)]
+    #[serde(default, alias = "linterOptions")]
     pub linter: LinterJson,
     /// Cache options.
     #[serde(default)]
