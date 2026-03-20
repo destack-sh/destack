@@ -2,7 +2,7 @@ use super::core::*;
 use super::descriptor::open_usb_sys_device;
 use super::service::{
     UsbDeviceFinalizer, UsbHotplugEventRecord, UsbWatchEventKind, UsbWatchResource,
-    ensure_usb_service_runtime,
+    ensure_usb_service_runtime, invalid_usb_handle,
 };
 use super::transfer::hotplug_event_from_record;
 use crate::host::abi::HostStatus;
@@ -315,7 +315,7 @@ fn usb_watch_resource(
 
     resource
         .flatten()
-        .ok_or_else(|| core_platform::io_not_found(operation, "unknown usb watch handle"))
+        .ok_or_else(|| invalid_usb_handle(operation, "unknown usb watch handle"))
 }
 
 /// Decode one host USB hotplug event into one queued record.
@@ -508,10 +508,10 @@ pub(crate) unsafe fn destack_device_usb_watch_close(
         .resources
         .with_entry(handle.0, |entry| entry.kind)
         .ok_or_else(|| {
-            core_platform::io_not_found("destack.device.usb.watchClose", "unknown usb watch handle")
+            invalid_usb_handle("destack.device.usb.watchClose", "unknown usb watch handle")
         })?;
     if kind != ResourceKind::UsbWatch {
-        return Err(core_platform::io_not_found(
+        return Err(invalid_usb_handle(
             "destack.device.usb.watchClose",
             "unknown usb watch handle",
         ));
@@ -522,7 +522,7 @@ pub(crate) unsafe fn destack_device_usb_watch_close(
         handle.0,
         Some(binding.engine()),
     ) {
-        return Err(core_platform::io_not_found(
+        return Err(invalid_usb_handle(
             "destack.device.usb.watchClose",
             "unknown usb watch handle",
         ));

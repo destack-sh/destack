@@ -23,7 +23,7 @@ pub(crate) fn execute_in_transfer(
         ))
         .boxed()
     })?;
-    let endpoint_address = u8::try_from(endpoint_address(endpoint)).unwrap_or(0);
+    let endpoint_address = endpoint_address(endpoint) as u8;
     let (status, bytes_written, bytes) = execute_async_endpoint_transfer(
         resource,
         endpoint_address,
@@ -48,7 +48,7 @@ pub(crate) fn execute_out_transfer(
     operation: &'static str,
     kind: UsbAsyncTransferKind,
 ) -> RuntimeResult<UsbOutTransferResultValue> {
-    let endpoint_address = u8::try_from(endpoint_address(endpoint)).unwrap_or(0);
+    let endpoint_address = endpoint_address(endpoint) as u8;
     let (status, bytes_written, _) = execute_async_endpoint_transfer(
         resource,
         endpoint_address,
@@ -195,6 +195,8 @@ pub(crate) fn execute_control_read(
     timeout_ns: u64,
     operation: &'static str,
 ) -> RuntimeResult<UsbInTransferResultValue> {
+    validate_control_setup(setup)?;
+
     let mut buffer = vec![0u8; usize::from(setup.length)];
     let request_type = request_type_bits(setup, UsbEndpointDirection::In);
     let request_index = request_index(setup);
@@ -234,6 +236,8 @@ pub(crate) fn execute_control_write(
     timeout_ns: u64,
     operation: &'static str,
 ) -> RuntimeResult<UsbOutTransferResultValue> {
+    validate_control_setup(setup)?;
+
     if usize::from(setup.length) != bytes.len() {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "bytes",
@@ -317,7 +321,7 @@ pub(crate) fn execute_isochronous_transfer(
     let waiter = UsbTransferWaiter::new();
     let waiter_pointer = Box::into_raw(Box::new(waiter.clone()));
     let timeout_ms = timeout_ns_to_millis(timeout_ns);
-    let endpoint_address = u8::try_from(endpoint_address(endpoint)).unwrap_or(0);
+    let endpoint_address = endpoint_address(endpoint) as u8;
     let mut buffer = bytes.to_vec();
 
     // initialize one explicit transfer object because the helper is inline in libusb
