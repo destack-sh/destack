@@ -1,7 +1,11 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
 import { OsPath } from "../fs/path.ds";
+import { InputDragSessionHandle } from "../resource/index.ds";
+import { InputWindowTarget } from "./target.ds";
 
-/// Web-style drag operation selector.
-export enum InputDragDropOperation {
+/// Drag operation selector.
+export enum InputDragOperation {
     /// No accepted operation.
     None = 1,
     /// Copy the dragged payload.
@@ -12,50 +16,292 @@ export enum InputDragDropOperation {
     Link = 4,
 }
 
-/// Drag or drop position in window-local logical coordinates.
-export struct InputDragDropPosition {
+/// Drag operation mask.
+export newtype InputDragOperationMask = uint32;
+
+/// No allowed operations.
+export const INPUT_DRAG_OPERATION_NONE: InputDragOperationMask = InputDragOperationMask(0x0);
+
+/// Copy operation.
+export const INPUT_DRAG_OPERATION_COPY: InputDragOperationMask = InputDragOperationMask(0x1);
+
+/// Move operation.
+export const INPUT_DRAG_OPERATION_MOVE: InputDragOperationMask = InputDragOperationMask(0x2);
+
+/// Link operation.
+export const INPUT_DRAG_OPERATION_LINK: InputDragOperationMask = InputDragOperationMask(0x4);
+
+/// Item kind for one drag-transfer entry.
+export enum InputDragItemKind {
+    /// One textual payload.
+    String = 1,
+    /// One filesystem payload.
+    File = 2,
+    /// One arbitrary binary payload.
+    Binary = 3,
+}
+
+/// Drag position in window-local logical coordinates.
+export struct InputDragPosition {
     /// Window-local logical x coordinate.
     x: int32;
     /// Window-local logical y coordinate.
     y: int32;
 }
 
-/// File payload for one drag or drop transition.
-export struct InputDragDropFilePayload {
-    /// Dragged path payload.
+/// One lazily readable drag-transfer item descriptor.
+export struct InputDragItemDescriptor {
+    /// Item kind.
+    kind: InputDragItemKind;
+    /// MIME type or platform-native type identifier when available.
+    itemType: string | void;
+    /// Suggested display name for file or binary payloads.
+    name: string | void;
+    /// Whether one file payload refers to one directory.
+    isDirectory: boolean;
+    /// Payload length in bytes when available.
+    byteLength: uint64 | void;
+}
+
+/// Shared drag-transfer metadata.
+export struct InputDragTransfer {
+    /// Stable drag session handle.
+    session: InputDragSessionHandle;
+    /// Whether the transfer originated outside the current runtime.
+    isExternal: boolean;
+    /// Operations offered by the drag source.
+    allowedOperations: InputDragOperationMask;
+    /// Host-proposed operation from source state and gesture modifiers when known.
+    proposedOperation: InputDragOperation | void;
+    /// Transfer position in window-local logical coordinates when available.
+    position: InputDragPosition | void;
+    /// Offered transfer items in source order.
+    items: Slice<InputDragItemDescriptor>;
+}
+
+/// One source-side drag item.
+export struct InputDragSourceItem {
+    /// Item kind.
+    kind: InputDragItemKind;
+    /// MIME type for this payload.
+    itemType: string | void;
+    /// Suggested display name for file or binary payloads.
+    name: string | void;
+    /// Text payload for string items.
+    text: string | void;
+    /// Filesystem payload for file items.
     path: OsPath | void;
-    /// Drop position in window-local logical coordinates when provided by the backend.
-    position: InputDragDropPosition | void;
-    /// Effective operation when the backend reports it.
-    operation: InputDragDropOperation | void;
+    /// Binary payload for binary items.
+    bytes: Slice<uint8> | void;
 }
 
-/// Text payload for one drag or drop transition.
-export struct InputDragDropTextPayload {
-    /// Dragged text payload.
-    text: string;
-    /// Drop position in window-local logical coordinates when provided by the backend.
-    position: InputDragDropPosition | void;
-    /// Effective operation when the backend reports it.
-    operation: InputDragDropOperation | void;
+/// One source-side drag preview image.
+export struct InputDragPreview {
+    /// Preview pixel format identifier.
+    pixelFormat: uint32;
+    /// Preview width in pixels.
+    width: uint32;
+    /// Preview height in pixels.
+    height: uint32;
+    /// Pixel data in row-major order.
+    pixels: Slice<uint8>;
+    /// Cursor hotspot x coordinate in pixels.
+    hotspotX: int32;
+    /// Cursor hotspot y coordinate in pixels.
+    hotspotY: int32;
 }
 
-/// Hover payload for one drag-over transition.
-export struct InputDragDropHoverPayload {
-    /// Hovered path payload when available.
-    path: OsPath | void;
-    /// Hover position in window-local logical coordinates when provided by the backend.
-    position: InputDragDropPosition | void;
-    /// Effective operation when the backend reports it.
-    operation: InputDragDropOperation | void;
+/// Source-side drag options.
+export struct InputDragBeginOptions {
+    /// Source window target.
+    target: InputWindowTarget | void;
+    /// Operations offered to the drop destination.
+    allowedOperations: InputDragOperationMask;
+    /// Drag items in source order.
+    items: Slice<InputDragSourceItem>;
+    /// Suggested starting position in window-local logical coordinates.
+    position: InputDragPosition | void;
+    /// Optional preview image.
+    preview: InputDragPreview | void;
 }
 
-/// Hover-leave payload for one drag-leave transition.
-export struct InputDragDropHoverLeavePayload {
-    /// Last hovered path payload when available.
-    previousPath: OsPath | void;
-    /// Last hover position in window-local logical coordinates when provided by the backend.
-    position: InputDragDropPosition | void;
-    /// Last effective operation when the backend reports it.
-    operation: InputDragDropOperation | void;
+/// Drag bindings.
+declare namespace input {
+    /// Read one text item from one drag session.
+    ///
+    /// Read one text payload for the selected drag item.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.input.drag.sessionReadText", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["input.read"],
+        platforms: ["android", "windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "eventLoop",
+    })
+    export function dragSessionReadText(
+        session: InputDragSessionHandle,
+        itemIndex: uint32,
+    ): Result<string, PlatformError>;
+
+    /// Read one binary item from one drag session.
+    ///
+    /// Read one binary payload for the selected drag item.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.input.drag.sessionReadBytes", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["input.read"],
+        platforms: ["android", "windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "eventLoop",
+    })
+    export function dragSessionReadBytes(
+        session: InputDragSessionHandle,
+        itemIndex: uint32,
+    ): Result<Slice<uint8>, PlatformError>;
+
+    /// Read one filesystem item from one drag session.
+    ///
+    /// Read one filesystem payload for the selected drag item when the backend exposes one local path.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.input.drag.sessionReadPath", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["input.read"],
+        platforms: ["android", "windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "eventLoop",
+    })
+    export function dragSessionReadPath(
+        session: InputDragSessionHandle,
+        itemIndex: uint32,
+    ): Result<OsPath, PlatformError>;
+
+    /// Select one accepted operation for one drag session.
+    ///
+    /// Update the destination-selected operation for the current drag session.
+    /// `None` rejects the current drop target.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.input.drag.sessionSetOperation", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["input.write"],
+        platforms: ["android", "windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "never",
+        affinity: "eventLoop",
+    })
+    export function dragSessionSetOperation(
+        session: InputDragSessionHandle,
+        operation: InputDragOperation,
+    ): Result<void, PlatformError>;
+
+    /// Close one drag session handle.
+    ///
+    /// Release one drag session and any cached transfer payloads that were materialized for it.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.input.drag.sessionClose", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["input.read"],
+        platforms: ["android", "windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "never",
+        affinity: "eventLoop",
+    })
+    export function dragSessionClose(session: InputDragSessionHandle): Result<void, PlatformError>;
+
+    /// Begin one source-side drag session.
+    ///
+    /// Start one host drag session from the selected window target.
+    /// The call returns the operation chosen by the destination, or `None` when the session is cancelled or rejected.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.input.drag.begin", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["input.write"],
+        platforms: ["android", "windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "eventLoop",
+    })
+    export function dragBegin(
+        options: InputDragBeginOptions,
+    ): Result<InputDragOperation, PlatformError>;
 }
