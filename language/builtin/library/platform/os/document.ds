@@ -1,7 +1,7 @@
 import { Array, Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { OsPath } from "../fs/path.ds";
-import { DocumentHandle } from "../resource/index.ds";
+import { DocumentHandle, DocumentPickHandle } from "../resource/index.ds";
 
 /// Document-provider access mode.
 export enum DocumentAccess {
@@ -48,9 +48,9 @@ export struct DocumentDescriptor {
 
 /// Document bindings.
 declare namespace os {
-    /// Pick documents from host picker UI.
+    /// Open one document-picker transaction.
     ///
-    /// Open host picker UI and return selected document descriptors.
+    /// Start one host document-picker interaction and return one transaction handle.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -64,7 +64,7 @@ declare namespace os {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding("destack.os.document.pick", {
+    @binding("destack.os.document.pickOpen", {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.document.pick"],
@@ -74,7 +74,94 @@ declare namespace os {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function documentPick(options: DocumentPickOptions): Result<Array<DocumentDescriptor>, PlatformError>;
+    export function documentPickOpen(options: DocumentPickOptions): Result<DocumentPickHandle, PlatformError>;
+
+    /// Close one document-picker transaction.
+    ///
+    /// Close one document-picker transaction handle and release host routing state.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host picker callback unregistration and runtime resource cleanup.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.pick`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.document.pickClose", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.document.pick"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function documentPickClose(handle: DocumentPickHandle): Result<void, PlatformError>;
+
+    /// Wait for one document-picker result.
+    ///
+    /// Wait for the completion of one earlier document-picker transaction.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host picker completion queues and runtime transaction state.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.pick`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.document.pickRead", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.document.pick"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function documentPickRead(
+        handle: DocumentPickHandle,
+        timeoutNs: uint64,
+    ): Result<Array<DocumentDescriptor>, PlatformError>;
+
+    /// Poll one document-picker result without blocking.
+    ///
+    /// Poll the completion of one earlier document-picker transaction without waiting.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses nonblocking host picker completion queue reads.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.pick`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.document.pickTryRead", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.document.pick"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
+    export function documentPickTryRead(handle: DocumentPickHandle): Result<Array<DocumentDescriptor>, PlatformError>;
 
     /// Open one document URI.
     ///

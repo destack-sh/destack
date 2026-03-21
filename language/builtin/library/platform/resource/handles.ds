@@ -174,8 +174,17 @@ export newtype BackgroundEventHandle = ResourceId;
 /// Handle for one notification event stream.
 export newtype NotificationEventHandle = ResourceId;
 
+/// Handle for one notification-permission request transaction.
+export newtype NotificationPermissionRequestHandle = ResourceId;
+
+/// Handle for one document-picker transaction.
+export newtype DocumentPickHandle = ResourceId;
+
 /// Handle for one opened document-provider endpoint.
 export newtype DocumentHandle = ResourceId;
+
+/// Handle for one permission-request transaction.
+export newtype PermissionRequestHandle = ResourceId;
 
 /// Handle for one input device endpoint.
 export newtype InputDeviceHandle = ResourceId;
