@@ -94,8 +94,16 @@ lint-toolchain:
     bash ../dev/toolchain/runtime-toolchain.sh lint
 
 # check runtime for android target using one configured ndk toolchain
+check-runtime-android-rust:
+    bash ../dev/toolchain/check-runtime-android-rust.sh
+
+# check runtime for android target and android host shell together
 check-runtime-android:
     bash ../dev/toolchain/check-runtime-android.sh
+
+# check the android host shell project
+check-runtime-android-host:
+    bash ../dev/toolchain/check-runtime-android-host.sh
 
 # ensure android host dependencies needed by sdkmanager setup
 install-runtime-android-host-deps:
@@ -106,8 +114,16 @@ install-runtime-android-ndk:
     bash ../.github/scripts/install-runtime-android-ndk.sh
 
 # check runtime for ios target using active xcode sdk
+check-runtime-ios-rust:
+    bash ../dev/toolchain/check-runtime-ios-rust.sh
+
+# check runtime for ios target and ios host shell together
 check-runtime-ios:
     bash ../dev/toolchain/check-runtime-ios.sh
+
+# check the ios host shell package build
+check-runtime-ios-host:
+    bash ../dev/toolchain/check-runtime-ios-host.sh
 
 # check runtime on linux host
 check-runtime-linux:
@@ -126,10 +142,19 @@ check-runtime-linux-wayland:
     bash ../dev/toolchain/check-runtime-linux-wayland.sh
 
 # check runtime on macos host
-check-runtime-macos:
+check-runtime-macos-rust:
     LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo check -p destack_runtime
     LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo clippy -p destack_runtime --all-targets -- -D warnings
     LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 just _run-rust-test -p destack_runtime -- --nocapture
+
+# check runtime on macos host and shared apple host shell together
+check-runtime-macos:
+    just check-runtime-macos-rust
+    just check-runtime-apple-host
+
+# check the shared apple host package tests
+check-runtime-apple-host:
+    bash ../dev/toolchain/check-runtime-apple-host.sh
 
 # check runtime on windows host
 check-runtime-windows-msvc:
