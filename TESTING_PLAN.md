@@ -33,6 +33,7 @@ The plan should allow the scaffolding, metadata, and reporting to land before ev
 - [ ] Land runnable Web feature suites on the new architecture.
 - [ ] Land runnable `web/webgpu` coverage if WebGPU is part of the compatibility claim.
 - [ ] Land runnable Node feature suites on the new architecture.
+- [ ] Audit scaffold-only `web/*` and `node/*` suite shells, then either populate them with real `tests/` and `status.json` coverage or remove them until they are ready.
 - [ ] Land targeted `ecma/v8` imports.
 - [ ] Land targeted `ecma/jsc` imports.
 - [ ] Add builtin API surface and contract testing.

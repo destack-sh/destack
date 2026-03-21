@@ -1,0 +1,11 @@
+{
+  "id": "web.webgpu",
+  "domain": "web",
+  "suite": "webgpu",
+  "title": "WebGPU",
+  "origin": {
+    "repo": "https://github.com/gpuweb/cts",
+    "ref": "9726cfe2893834c4bb42b435638c4e7362f4c258",
+    "kind": "git"
+  }
+}
