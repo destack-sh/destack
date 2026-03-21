@@ -64,7 +64,7 @@ However, it is still rather early, it is definitely quite radical, and there are
 
 1. **Maybe the existing stack is already good enough**: The existing "stack", its layers, and its components exist for a good reason and have withstood significant evolutionary pressure; therefore, trying to combine or even rearrange them in a substantially different way may very well turn out net negative.
 
-2. **Maybe Destack is hard to adopt properly**: Destack is compatible with JS/TS, yes, and runs modern TS/Node/Web*, yes, but many of the most interesting features only work with "modern" TS, and especially when integrating with Destacks-specific features, which require a larger shift of development processes.
+2. **Maybe Destack is hard to adopt properly**: Destack is compatible with JS/TS, yes, and runs modern TS/Node/Web*, yes, but many of the most interesting features only work with "modern" TS, and especially when integrating with Destacks-specific features, which require a larger shift of production processes.
 
 3. **Maybe any ecosystem split is too expensive now**: The web ecosystem fork implied by any new language and paradigm is costly, and while transforming code is now significantly cheaper than it used to be, transforming understanding and habits and the "hard" ecosystem bits still has high friction.
 
@@ -94,10 +94,10 @@ However, it is still rather early, it is definitely quite radical, and there are
 
 ## Some Questions You Should be Asking
 
-Destack is pretty weird and quite unlike how software development has traditionally worked, with its own new _experimental_ way of thinking about the processes of programming. 
+Destack is pretty weird and quite unlike how software production has traditionally worked, with its own new _experimental_ way of thinking about the processes of programming. 
 If you have gotten this far through reading the README, you probably have some, all of, or - maybe most curiously - none of the following questions:
 
-1. **What even _is_ Destack? Is it a TypeScript dialect (like TSX), a JS family language (like Rescript), a JavaScript runtime (like V8), a Node runtime (like Deno), an NPM library (like vitest), a service (like Antithesis), an app (like Notion), ...?** 
+1. **What even _is_ Destack? Is it a TypeScript dialect (like TSX), a JS family language (like Rescript), a JavaScript runtime (like V8), a Node runtime (like Deno), an NPM library (like vitest), a service (like Antithesis), ...?** 
 All of it, none of it.
 Mechanically, Destack _is_ a TSX-family language and toolchain with a VM, AOT compiler, Node-like runtime, formatter, linter, rich standard libraries, and a set of common services and apps. 
 Conceptually, Destack is a new kind of thing: a fully integrated computing stack, a software toolkit, the building blocks you need to build your own stack.
