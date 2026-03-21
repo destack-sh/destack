@@ -2,7 +2,7 @@ use crate::diagnostic::Error;
 use crate::tests::{
     create_aggregate, create_isolate, run_mir, run_mir_expect, run_mir_ok, run_mir_with_ok,
 };
-use destack_heap::{RawPointer, STRING_TYPE_ALIAS, Value, ValueTag};
+use destack_heap::{RawPointer, ReferenceMap, STRING_TYPE_ALIAS, Value, ValueTag};
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_source::FileId;
 
@@ -237,12 +237,88 @@ function @heap_field() -> i32 {
 block0:
     v0: ref<managed readonly (i32, i32)> = managed.alloc (i32, i32)
     v1: i32 = iconst 42i32
-    store v0, v1
-    v2: ref<borrowed readonly i32> = field.addr v0, 0
+    v2: ref<managed readonly i32> = field.addr v0, 0
+    store v2, v1
     v3: i32 = load v2
     return v3
 }"#;
     run_mir_expect(mir, "heap_field", &[], Value::int32(42));
+}
+
+/// Single field aggregates expose the stored field value.
+#[test]
+fn test_single_field_aggregate_roundtrips_field() {
+    let mir = r#"
+type @Box = { value: i32 }
+
+function @read_box(v0: i32) -> i32 {
+block0(v0: i32):
+    v1: @Box = struct @Box (v0)
+    v2: i32 = field.get v1, 0
+    return v2
+}"#;
+
+    run_mir_expect(mir, "read_box", &[Value::int32(9)], Value::int32(9));
+}
+
+/// Managed nominal allocations use layout bytes rather than packed value storage.
+#[test]
+fn test_managed_nominal_allocation_uses_layout_storage() {
+    let mir = r#"
+type @Box = { value: i32 }
+
+function @alloc_box() -> ref<managed readonly @Box> {
+block0:
+    v0: ref<managed readonly @Box> = managed.alloc @Box
+    return v0
+}"#;
+
+    let mut isolate = create_isolate(mir);
+    let output = isolate
+        .run_function_by_name("alloc_box", &[])
+        .expect("execution failed");
+    let handle = output
+        .value
+        .as_managed_reference()
+        .expect("managed allocation should return a managed reference");
+
+    // layout backed objects should keep byte storage and ref offsets
+    assert_eq!(
+        isolate.heap.reference_map(handle).cloned(),
+        Some(ReferenceMap::empty())
+    );
+    assert_eq!(isolate.heap.packed_value_count(handle), None);
+}
+
+/// Managed nominal stores roundtrip full aggregate payloads.
+#[test]
+fn test_managed_nominal_store_roundtrips_payload() {
+    let mir = r#"
+type @Box = { value: i32 }
+
+function @make_box(v0: i32) -> ref<managed readonly @Box> {
+block0(v0: i32):
+    v1: @Box = struct @Box (v0)
+    v2: ref<managed readonly @Box> = managed.alloc @Box
+    store v2, v1
+    return v2
+}"#;
+
+    let mut isolate = create_isolate(mir);
+    let output = isolate
+        .run_function_by_name("make_box", &[Value::int32(9)])
+        .expect("execution failed");
+    let handle = output
+        .value
+        .as_managed_reference()
+        .expect("managed allocation should return a managed reference");
+    let bytes = isolate
+        .heap
+        .managed_bytes_to_vec(handle)
+        .expect("managed object bytes should be readable");
+
+    // the payload should be stored as raw layout bytes, not a boxed aggregate handle
+    assert_eq!(u32::from_le_bytes(bytes[0..4].try_into().unwrap()), 9);
 }
 
 /// Out-of-bounds field access produces an error.

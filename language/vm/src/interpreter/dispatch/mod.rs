@@ -14,7 +14,7 @@ use destack_heap::{
 use super::decode::{
     ArgumentRange, ConstValue, ControlFlow, CopyRange, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID,
     ThreadedFunction, ThreadedInstruction, ThreadedInstructionData, ThreadedState,
-    UNKNOWN_SLOT_COUNT, is_invalid_value, operator,
+    UNKNOWN_FIELD_COUNT, UNKNOWN_SLOT_COUNT, is_invalid_value, operator,
 };
 use super::execute::call::copy_values_with_plan;
 use super::execute::instruction;
@@ -403,7 +403,7 @@ fn offset_pointer(value: Value, offset: usize, length: usize) -> Result<Value, E
                     actual: format!("{value:?}"),
                 });
             };
-            let base = handle.byte_offset() / Value::BYTE_LEN;
+            let base = instruction::managed_packed_slot_base(handle)?;
             let value_index = base.saturating_add(offset);
             let byte_offset = value_index
                 .checked_mul(Value::BYTE_LEN)

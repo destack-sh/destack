@@ -517,7 +517,7 @@ pub(crate) fn handle_load_managed(
     };
     let value = match instruction::load_from_managed_reference_typed(state, ptr, managed_pointee) {
         Ok(v) => v,
-        Err(e) => return ControlFlow::Error(e),
+        Err(error) => return ControlFlow::Error(error),
     };
 
     // store loaded value

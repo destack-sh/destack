@@ -194,3 +194,128 @@ block0(v0: i32):
 
     assert_eq!(output.value, Value::int32(10));
 }
+
+/// Direct calls preserve managed receiver storage for callee loads.
+#[test]
+fn test_execute_direct_call_with_managed_receiver_field_load() {
+    let mir_text = r#"
+type @Box = { value: i32 }
+
+function @readValueClass(v0: i32) -> i32 {
+block0(v0: i32):
+    v1: @Box = struct @Box (v0)
+    v2: ref<managed readonly @Box> = managed.alloc @Box
+    store v2, v1
+    v3: i32 = call @Box.get(v2) -> fn(ref<managed readonly @Box>) -> i32
+    return v3
+}
+
+function @Box.get(v0: ref<managed readonly @Box>) -> i32 {
+block0(v0: ref<managed readonly @Box>):
+    v1: @Box = load v0
+    v2: i32 = field.get v1, 0
+    return v2
+}
+"#;
+
+    let output = run_mir_ok(mir_text, "readValueClass", &[Value::int32(9)]);
+
+    assert_eq!(output.value, Value::int32(9));
+}
+
+/// Stored function values preserve their function pointer payload through nominal storage.
+#[test]
+fn test_execute_stored_function_value_roundtrip() {
+    let mir_text = r#"
+type @Fn = fnvalue<fn() -> i32, ref?<managed void>>
+type @Holder = { action: @Fn }
+
+function @target() -> i32 {
+block0:
+    v0: i32 = iconst 7i32
+    return v0
+}
+
+function @run() -> i32 {
+block0:
+    v0: fn() -> i32 = function.addr @target
+    v1: u64 = iconst 0u64
+    v2: ref?<managed void> = int_to_ptr v1 -> ref?<managed void>
+    v3: @Fn = struct @Fn (v0, v2)
+    v4: ref<managed readonly @Holder> = managed.alloc @Holder
+    v5: @Holder = struct @Holder (v3)
+    store v4, v5
+    v6: @Holder = load v4
+    v7: @Fn = field.get v6, 0
+    v8: fn() -> i32 = field.get v7, 0
+    v9: ref?<managed void> = field.get v7, 1
+    v10: i32 = call.indirect v8(env=v9) -> fn() -> i32
+    return v10
+}
+"#;
+
+    let output = run_mir_ok(mir_text, "run", &[]);
+
+    assert_eq!(output.value, Value::int32(7));
+}
+
+/// Interface dispatch forwards the concrete object receiver to the selected method.
+#[ignore = "raw MIR fixtures cannot declare interface itab metadata"]
+#[test]
+fn test_execute_interface_call_with_concrete_object_receiver() {
+    let mir_text = r#"
+type @Greeter = { @object: ref<managed readonly void>, @itab: usize }
+type @GreeterImpl = { @vtable: ref<raw addrspace(global) readonly void>, value: i32 }
+type @Greeter#object = { greet: fnvalue<fn() -> i32, ref?<managed void>> }
+
+global @GreeterImpl#vtable: [ref?<raw addrspace(global) readonly void>; 3] = zeroinit ; readonly
+
+extern function @Greeter.greet(@Greeter#object) -> i32
+
+function @callInterface(v0: @Greeter) -> i32 {
+block0(v0: @Greeter):
+    v1: ref<managed readonly void> = field.get v0, 0
+    v2: i32 = call.interface v0, @Greeter#object, 1(v1) -> fn(@Greeter#object) -> i32
+    return v2
+}
+
+function @runInterface() -> i32 {
+block0:
+    v0: i32 = iconst 41i32
+    v1: ref<managed readonly @GreeterImpl> = call @GreeterImpl.constructor(v0) -> fn(i32) -> ref<managed readonly @GreeterImpl>
+    v2: ref<managed readonly void> = bitcast v1 -> ref<managed readonly void>
+    v3: u64 = iconst 0u64
+    v4: usize = bitcast v3 -> usize
+    v5: @Greeter = struct @Greeter (v2, v4)
+    v6: i32 = call @callInterface(v5) -> fn(@Greeter) -> i32
+    return v6
+}
+
+function @GreeterImpl.constructor(v0: i32) -> ref<managed readonly @GreeterImpl> {
+block0(v0: i32):
+    v1: ref<managed readonly @GreeterImpl> = managed.alloc @GreeterImpl
+    v2: ref<raw addrspace(global) readonly [ref?<raw addrspace(global) readonly void>; 3]> = global.addr @GreeterImpl#vtable
+    v3: ref<raw addrspace(global) readonly void> = bitcast v2 -> ref<raw addrspace(global) readonly void>
+    v4: i32 = iconst 0i32
+    v5: @GreeterImpl = struct @GreeterImpl (v3, v4)
+    store v1, v5
+    v6: @GreeterImpl = load v1
+    v7: @GreeterImpl = field.set v6, 1, v0
+    store v1, v7
+    return v1
+}
+
+function @GreeterImpl.greet(v0: ref<managed readonly @GreeterImpl>) -> i32 {
+block0(v0: ref<managed readonly @GreeterImpl>):
+    v1: @GreeterImpl = load v0
+    v2: i32 = field.get v1, 1
+    v3: i32 = iconst 1i32
+    v4: i32 = iadd v2, v3
+    return v4
+}
+"#;
+
+    let output = run_mir_ok(mir_text, "runInterface", &[]);
+
+    assert_eq!(output.value, Value::int32(42));
+}

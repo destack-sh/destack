@@ -962,7 +962,6 @@ impl<'a> InterpreterContext<'a> {
                             arguments,
                         );
                     }
-
                     // push callee frame
                     self.engine.call_stack.push(new_frame);
                     if collect_stats {

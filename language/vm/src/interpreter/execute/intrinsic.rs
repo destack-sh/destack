@@ -1241,14 +1241,8 @@ impl<'a> InterpreterContext<'a> {
                 if handle.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
                 }
-                let slot_index = (handle.byte_offset() / Value::BYTE_LEN)
-                    .checked_add(offset)
-                    .ok_or_else(|| {
-                        self.make_error(Error::InvalidFieldAccess {
-                            index: offset as u32,
-                            field_count: 0,
-                        })
-                    })?;
+                let slot_index = instruction::managed_packed_slot_index(handle, offset)
+                    .map_err(|error| self.make_error(error))?;
                 self.heap_ref()
                     .packed_value_at(handle, slot_index)
                     .ok_or_else(|| self.make_error(Error::InvalidManagedReference))
@@ -1344,14 +1338,8 @@ impl<'a> InterpreterContext<'a> {
                 if handle.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
                 }
-                let slot_index = (handle.byte_offset() / Value::BYTE_LEN)
-                    .checked_add(offset)
-                    .ok_or_else(|| {
-                        self.make_error(Error::InvalidFieldAccess {
-                            index: offset as u32,
-                            field_count: 0,
-                        })
-                    })?;
+                let slot_index = instruction::managed_packed_slot_index(handle, offset)
+                    .map_err(|error| self.make_error(error))?;
                 // resolve the managed cell
                 let error = match self.heap_ref().packed_value_count(handle) {
                     Some(cell_len) => {
