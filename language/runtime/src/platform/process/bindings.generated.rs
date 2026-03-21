@@ -1503,8 +1503,8 @@ fn decode_destack_process_isolation_install_syscall_filter_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmArray<u8>, SyscallFilterFlags)> {
-    let program_value = arg_value(args, 0, "program", "Array<uint8>")?;
-    let program = decode_array::<u8>(context, program_value, "program", "Array<uint8>")?;
+    let program_value = arg_value(args, 0, "program", "uint8[]")?;
+    let program = decode_array::<u8>(context, program_value, "program", "uint8[]")?;
     let flags_value = arg_value(args, 1, "flags", "SyscallFilterFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "SyscallFilterFlags")?;
     let flags = SyscallFilterFlags(flags_inner);
@@ -4296,7 +4296,7 @@ pub(crate) const PROCESS_ISOLATION_CHROOT: BindingDescriptor =
 /// Binding descriptor for destack.process.isolation.installSyscallFilter.
 pub(crate) const PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.isolation.installSyscallFilter",
-    "export function installSyscallFilter(program: Array<uint8>, flags: SyscallFilterFlags): Result<void, PlatformError>",
+    "export function installSyscallFilter(program: uint8[], flags: SyscallFilterFlags): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["security.filter"],

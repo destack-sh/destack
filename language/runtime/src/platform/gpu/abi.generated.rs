@@ -12,7 +12,8 @@ use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
     PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
-    VmSlice, VmValueCodec, gpu as platform_gpu, resource, resource as platform_resource,
+    VmSlice, VmValueCodec, display, display as platform_display, gpu as platform_gpu, resource,
+    resource as platform_resource,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -128,6 +129,116 @@ impl VmAbiCodec for GpuBufferHandle {
     }
 }
 
+/// ABI newtype for GpuBufferUsageMask.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuBufferUsageMask(
+    /// Inner value.
+    pub u32,
+);
+
+pub type GpuBufferUsageMaskVm = GpuBufferUsageMask;
+
+impl VmValueCodec for GpuBufferUsageMask {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl VmCollectionElement for GpuBufferUsageMask {}
+
+/// Value type for GpuBufferUsageMask.
+pub type GpuBufferUsageMaskValue = GpuBufferUsageMask;
+
+impl NativeAbiCodec for GpuBufferUsageMask {
+    type Value = GpuBufferUsageMaskValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuBufferUsageMask {
+    type Value = GpuBufferUsageMaskValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuBufferUseMask.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuBufferUseMask(
+    /// Inner value.
+    pub u32,
+);
+
+pub type GpuBufferUseMaskVm = GpuBufferUseMask;
+
+impl VmValueCodec for GpuBufferUseMask {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl VmCollectionElement for GpuBufferUseMask {}
+
+/// Value type for GpuBufferUseMask.
+pub type GpuBufferUseMaskValue = GpuBufferUseMask;
+
+impl NativeAbiCodec for GpuBufferUseMask {
+    type Value = GpuBufferUseMaskValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuBufferUseMask {
+    type Value = GpuBufferUseMaskValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI newtype for GpuColorWriteMask.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -183,33 +294,33 @@ impl VmAbiCodec for GpuColorWriteMask {
     }
 }
 
-/// ABI newtype for GpuFeatureId.
+/// ABI newtype for GpuExternalTextureHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct GpuFeatureId(
+pub struct GpuExternalTextureHandle(
     /// Inner value.
-    pub u32,
+    pub resource::ResourceId,
 );
 
-pub type GpuFeatureIdVm = GpuFeatureId;
+pub type GpuExternalTextureHandleVm = GpuExternalTextureHandle;
 
-impl VmValueCodec for GpuFeatureId {
+impl VmValueCodec for GpuExternalTextureHandle {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+        Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
     }
 
     fn encode(self) -> vm::Value {
-        <u32 as VmValueCodec>::encode(self.0)
+        <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
 
-impl VmCollectionElement for GpuFeatureId {}
+impl VmCollectionElement for GpuExternalTextureHandle {}
 
-/// Value type for GpuFeatureId.
-pub type GpuFeatureIdValue = GpuFeatureId;
+/// Value type for GpuExternalTextureHandle.
+pub type GpuExternalTextureHandleValue = GpuExternalTextureHandle;
 
-impl NativeAbiCodec for GpuFeatureId {
-    type Value = GpuFeatureIdValue;
+impl NativeAbiCodec for GpuExternalTextureHandle {
+    type Value = GpuExternalTextureHandleValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(self)
@@ -220,8 +331,8 @@ impl NativeAbiCodec for GpuFeatureId {
     }
 }
 
-impl VmAbiCodec for GpuFeatureId {
-    type Value = GpuFeatureIdValue;
+impl VmAbiCodec for GpuExternalTextureHandle {
+    type Value = GpuExternalTextureHandleValue;
 
     fn into_value(
         self,
@@ -623,6 +734,171 @@ impl VmAbiCodec for GpuSurfaceHandle {
     }
 }
 
+/// ABI newtype for GpuSurfaceTimingCapabilityFlags.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuSurfaceTimingCapabilityFlags(
+    /// Inner value.
+    pub u32,
+);
+
+pub type GpuSurfaceTimingCapabilityFlagsVm = GpuSurfaceTimingCapabilityFlags;
+
+impl VmValueCodec for GpuSurfaceTimingCapabilityFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl VmCollectionElement for GpuSurfaceTimingCapabilityFlags {}
+
+/// Value type for GpuSurfaceTimingCapabilityFlags.
+pub type GpuSurfaceTimingCapabilityFlagsValue = GpuSurfaceTimingCapabilityFlags;
+
+impl NativeAbiCodec for GpuSurfaceTimingCapabilityFlags {
+    type Value = GpuSurfaceTimingCapabilityFlagsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuSurfaceTimingCapabilityFlags {
+    type Value = GpuSurfaceTimingCapabilityFlagsValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuTextureFormat.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuTextureFormat(
+    /// Inner value.
+    pub u32,
+);
+
+pub type GpuTextureFormatVm = GpuTextureFormat;
+
+impl VmValueCodec for GpuTextureFormat {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl VmCollectionElement for GpuTextureFormat {}
+
+/// Value type for GpuTextureFormat.
+pub type GpuTextureFormatValue = GpuTextureFormat;
+
+impl NativeAbiCodec for GpuTextureFormat {
+    type Value = GpuTextureFormatValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuTextureFormat {
+    type Value = GpuTextureFormatValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuTextureFormatFeatureFlags.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuTextureFormatFeatureFlags(
+    /// Inner value.
+    pub u32,
+);
+
+pub type GpuTextureFormatFeatureFlagsVm = GpuTextureFormatFeatureFlags;
+
+impl VmValueCodec for GpuTextureFormatFeatureFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl VmCollectionElement for GpuTextureFormatFeatureFlags {}
+
+/// Value type for GpuTextureFormatFeatureFlags.
+pub type GpuTextureFormatFeatureFlagsValue = GpuTextureFormatFeatureFlags;
+
+impl NativeAbiCodec for GpuTextureFormatFeatureFlags {
+    type Value = GpuTextureFormatFeatureFlagsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuTextureFormatFeatureFlags {
+    type Value = GpuTextureFormatFeatureFlagsValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI newtype for GpuTextureHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -662,6 +938,116 @@ impl NativeAbiCodec for GpuTextureHandle {
 
 impl VmAbiCodec for GpuTextureHandle {
     type Value = GpuTextureHandleValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuTextureUsageMask.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuTextureUsageMask(
+    /// Inner value.
+    pub u32,
+);
+
+pub type GpuTextureUsageMaskVm = GpuTextureUsageMask;
+
+impl VmValueCodec for GpuTextureUsageMask {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl VmCollectionElement for GpuTextureUsageMask {}
+
+/// Value type for GpuTextureUsageMask.
+pub type GpuTextureUsageMaskValue = GpuTextureUsageMask;
+
+impl NativeAbiCodec for GpuTextureUsageMask {
+    type Value = GpuTextureUsageMaskValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuTextureUsageMask {
+    type Value = GpuTextureUsageMaskValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for GpuTextureUseMask.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuTextureUseMask(
+    /// Inner value.
+    pub u32,
+);
+
+pub type GpuTextureUseMaskVm = GpuTextureUseMask;
+
+impl VmValueCodec for GpuTextureUseMask {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl VmCollectionElement for GpuTextureUseMask {}
+
+/// Value type for GpuTextureUseMask.
+pub type GpuTextureUseMaskValue = GpuTextureUseMask;
+
+impl NativeAbiCodec for GpuTextureUseMask {
+    type Value = GpuTextureUseMaskValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuTextureUseMask {
+    type Value = GpuTextureUseMaskValue;
 
     fn into_value(
         self,
@@ -733,6 +1119,61 @@ impl VmAbiCodec for GpuTextureViewHandle {
     }
 }
 
+/// ABI newtype for GpuVertexFormat.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuVertexFormat(
+    /// Inner value.
+    pub u32,
+);
+
+pub type GpuVertexFormatVm = GpuVertexFormat;
+
+impl VmValueCodec for GpuVertexFormat {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl VmCollectionElement for GpuVertexFormat {}
+
+/// Value type for GpuVertexFormat.
+pub type GpuVertexFormatValue = GpuVertexFormat;
+
+impl NativeAbiCodec for GpuVertexFormat {
+    type Value = GpuVertexFormatValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuVertexFormat {
+    type Value = GpuVertexFormatValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI newtype for ResourceId.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -772,6 +1213,158 @@ impl NativeAbiCodec for ResourceId {
 
 impl VmAbiCodec for ResourceId {
     type Value = ResourceIdValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for DisplayColorSpace.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DisplayColorSpace {
+    /// Unknown.
+    Unknown = 0,
+    /// Srgb.
+    Srgb = 1,
+    /// DisplayP3.
+    DisplayP3 = 2,
+    /// Bt2020.
+    Bt2020 = 3,
+    /// ScRgb.
+    ScRgb = 4,
+    /// Hdr10.
+    Hdr10 = 5,
+}
+
+impl VmValueCodec for DisplayColorSpace {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            0i32 => Self::Unknown,
+            1i32 => Self::Srgb,
+            2i32 => Self::DisplayP3,
+            3i32 => Self::Bt2020,
+            4i32 => Self::ScRgb,
+            5i32 => Self::Hdr10,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown DisplayColorSpace value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for DisplayColorSpace {}
+
+/// Value type for DisplayColorSpace.
+pub type DisplayColorSpaceValue = DisplayColorSpace;
+
+impl NativeAbiCodec for DisplayColorSpace {
+    type Value = DisplayColorSpaceValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for DisplayColorSpace {
+    type Value = DisplayColorSpaceValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for DisplayHdrMode.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DisplayHdrMode {
+    /// Unknown.
+    Unknown = 0,
+    /// System.
+    System = 1,
+    /// Sdr.
+    Sdr = 2,
+    /// Hdr.
+    Hdr = 3,
+}
+
+impl VmValueCodec for DisplayHdrMode {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            0i32 => Self::Unknown,
+            1i32 => Self::System,
+            2i32 => Self::Sdr,
+            3i32 => Self::Hdr,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown DisplayHdrMode value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for DisplayHdrMode {}
+
+/// Value type for DisplayHdrMode.
+pub type DisplayHdrModeValue = DisplayHdrMode;
+
+impl NativeAbiCodec for DisplayHdrMode {
+    type Value = DisplayHdrModeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for DisplayHdrMode {
+    type Value = DisplayHdrModeValue;
 
     fn into_value(
         self,
@@ -864,6 +1457,79 @@ impl VmAbiCodec for GpuAdapterType {
     }
 }
 
+/// ABI enum for GpuAddressMode.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GpuAddressMode {
+    /// ClampToEdge.
+    ClampToEdge = 1,
+    /// Repeat.
+    Repeat = 2,
+    /// MirrorRepeat.
+    MirrorRepeat = 3,
+    /// ClampToBorder.
+    ClampToBorder = 4,
+}
+
+impl VmValueCodec for GpuAddressMode {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::ClampToEdge,
+            2i32 => Self::Repeat,
+            3i32 => Self::MirrorRepeat,
+            4i32 => Self::ClampToBorder,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown GpuAddressMode value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for GpuAddressMode {}
+
+/// Value type for GpuAddressMode.
+pub type GpuAddressModeValue = GpuAddressMode;
+
+impl NativeAbiCodec for GpuAddressMode {
+    type Value = GpuAddressModeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuAddressMode {
+    type Value = GpuAddressModeValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI enum for GpuBackend.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -874,16 +1540,14 @@ pub enum GpuBackend {
     Vulkan = 1,
     /// Metal.
     Metal = 2,
-    /// D3D12.
-    D3D12 = 3,
-    /// OpenGL.
-    OpenGL = 4,
-    /// OpenGles.
-    OpenGles = 5,
-    /// WebGpu.
-    WebGpu = 6,
-    /// Null.
-    Null = 255,
+    /// Dx12.
+    Dx12 = 3,
+    /// Gl.
+    Gl = 4,
+    /// BrowserWebGpu.
+    BrowserWebGpu = 5,
+    /// Noop.
+    Noop = 255,
 }
 
 impl VmValueCodec for GpuBackend {
@@ -893,11 +1557,10 @@ impl VmValueCodec for GpuBackend {
             0i32 => Self::Auto,
             1i32 => Self::Vulkan,
             2i32 => Self::Metal,
-            3i32 => Self::D3D12,
-            4i32 => Self::OpenGL,
-            5i32 => Self::OpenGles,
-            6i32 => Self::WebGpu,
-            255i32 => Self::Null,
+            3i32 => Self::Dx12,
+            4i32 => Self::Gl,
+            5i32 => Self::BrowserWebGpu,
+            255i32 => Self::Noop,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -953,66 +1616,63 @@ impl VmAbiCodec for GpuBackend {
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuBlendFactor {
-    /// Undefined.
-    Undefined = 0,
     /// Zero.
-    Zero = 1,
+    Zero = 0,
     /// One.
-    One = 2,
+    One = 1,
     /// Src.
-    Src = 3,
+    Src = 2,
     /// OneMinusSrc.
-    OneMinusSrc = 4,
+    OneMinusSrc = 3,
     /// SrcAlpha.
-    SrcAlpha = 5,
+    SrcAlpha = 4,
     /// OneMinusSrcAlpha.
-    OneMinusSrcAlpha = 6,
+    OneMinusSrcAlpha = 5,
     /// Dst.
-    Dst = 7,
+    Dst = 6,
     /// OneMinusDst.
-    OneMinusDst = 8,
+    OneMinusDst = 7,
     /// DstAlpha.
-    DstAlpha = 9,
+    DstAlpha = 8,
     /// OneMinusDstAlpha.
-    OneMinusDstAlpha = 10,
+    OneMinusDstAlpha = 9,
     /// SrcAlphaSaturated.
-    SrcAlphaSaturated = 11,
+    SrcAlphaSaturated = 10,
     /// Constant.
-    Constant = 12,
+    Constant = 11,
     /// OneMinusConstant.
-    OneMinusConstant = 13,
+    OneMinusConstant = 12,
     /// Src1.
-    Src1 = 14,
+    Src1 = 13,
     /// OneMinusSrc1.
-    OneMinusSrc1 = 15,
+    OneMinusSrc1 = 14,
     /// Src1Alpha.
-    Src1Alpha = 16,
+    Src1Alpha = 15,
     /// OneMinusSrc1Alpha.
-    OneMinusSrc1Alpha = 17,
+    OneMinusSrc1Alpha = 16,
 }
 
 impl VmValueCodec for GpuBlendFactor {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0i32 => Self::Undefined,
-            1i32 => Self::Zero,
-            2i32 => Self::One,
-            3i32 => Self::Src,
-            4i32 => Self::OneMinusSrc,
-            5i32 => Self::SrcAlpha,
-            6i32 => Self::OneMinusSrcAlpha,
-            7i32 => Self::Dst,
-            8i32 => Self::OneMinusDst,
-            9i32 => Self::DstAlpha,
-            10i32 => Self::OneMinusDstAlpha,
-            11i32 => Self::SrcAlphaSaturated,
-            12i32 => Self::Constant,
-            13i32 => Self::OneMinusConstant,
-            14i32 => Self::Src1,
-            15i32 => Self::OneMinusSrc1,
-            16i32 => Self::Src1Alpha,
-            17i32 => Self::OneMinusSrc1Alpha,
+            0i32 => Self::Zero,
+            1i32 => Self::One,
+            2i32 => Self::Src,
+            3i32 => Self::OneMinusSrc,
+            4i32 => Self::SrcAlpha,
+            5i32 => Self::OneMinusSrcAlpha,
+            6i32 => Self::Dst,
+            7i32 => Self::OneMinusDst,
+            8i32 => Self::DstAlpha,
+            9i32 => Self::OneMinusDstAlpha,
+            10i32 => Self::SrcAlphaSaturated,
+            11i32 => Self::Constant,
+            12i32 => Self::OneMinusConstant,
+            13i32 => Self::Src1,
+            14i32 => Self::OneMinusSrc1,
+            15i32 => Self::Src1Alpha,
+            16i32 => Self::OneMinusSrc1Alpha,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1068,30 +1728,27 @@ impl VmAbiCodec for GpuBlendFactor {
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuBlendOperation {
-    /// Undefined.
-    Undefined = 0,
     /// Add.
-    Add = 1,
+    Add = 0,
     /// Subtract.
-    Subtract = 2,
+    Subtract = 1,
     /// ReverseSubtract.
-    ReverseSubtract = 3,
+    ReverseSubtract = 2,
     /// Min.
-    Min = 4,
+    Min = 3,
     /// Max.
-    Max = 5,
+    Max = 4,
 }
 
 impl VmValueCodec for GpuBlendOperation {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0i32 => Self::Undefined,
-            1i32 => Self::Add,
-            2i32 => Self::Subtract,
-            3i32 => Self::ReverseSubtract,
-            4i32 => Self::Min,
-            5i32 => Self::Max,
+            0i32 => Self::Add,
+            1i32 => Self::Subtract,
+            2i32 => Self::ReverseSubtract,
+            3i32 => Self::Min,
+            4i32 => Self::Max,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1147,27 +1804,21 @@ impl VmAbiCodec for GpuBlendOperation {
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuBufferBindingType {
-    /// BindingNotUsed.
-    BindingNotUsed = 0,
-    /// Undefined.
-    Undefined = 1,
     /// Uniform.
-    Uniform = 2,
+    Uniform = 1,
     /// Storage.
-    Storage = 3,
+    Storage = 2,
     /// ReadOnlyStorage.
-    ReadOnlyStorage = 4,
+    ReadOnlyStorage = 3,
 }
 
 impl VmValueCodec for GpuBufferBindingType {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0i32 => Self::BindingNotUsed,
-            1i32 => Self::Undefined,
-            2i32 => Self::Uniform,
-            3i32 => Self::Storage,
-            4i32 => Self::ReadOnlyStorage,
+            1i32 => Self::Uniform,
+            2i32 => Self::Storage,
+            3i32 => Self::ReadOnlyStorage,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1293,8 +1944,6 @@ impl VmAbiCodec for GpuBufferMapState {
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuCompareFunction {
-    /// Undefined.
-    Undefined = 0,
     /// Never.
     Never = 1,
     /// Less.
@@ -1317,7 +1966,6 @@ impl VmValueCodec for GpuCompareFunction {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0i32 => Self::Undefined,
             1i32 => Self::Never,
             2i32 => Self::Less,
             3i32 => Self::Equal,
@@ -1447,28 +2095,101 @@ impl VmAbiCodec for GpuCompilationMessageKind {
     }
 }
 
+/// ABI enum for GpuCompositeAlphaMode.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GpuCompositeAlphaMode {
+    /// Auto.
+    Auto = 0,
+    /// Opaque.
+    Opaque = 1,
+    /// PreMultiplied.
+    PreMultiplied = 2,
+    /// PostMultiplied.
+    PostMultiplied = 3,
+    /// Inherit.
+    Inherit = 4,
+}
+
+impl VmValueCodec for GpuCompositeAlphaMode {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            0i32 => Self::Auto,
+            1i32 => Self::Opaque,
+            2i32 => Self::PreMultiplied,
+            3i32 => Self::PostMultiplied,
+            4i32 => Self::Inherit,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown GpuCompositeAlphaMode value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for GpuCompositeAlphaMode {}
+
+/// Value type for GpuCompositeAlphaMode.
+pub type GpuCompositeAlphaModeValue = GpuCompositeAlphaMode;
+
+impl NativeAbiCodec for GpuCompositeAlphaMode {
+    type Value = GpuCompositeAlphaModeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuCompositeAlphaMode {
+    type Value = GpuCompositeAlphaModeValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI enum for GpuCullMode.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuCullMode {
-    /// Undefined.
-    Undefined = 0,
     /// None.
-    None = 1,
+    None = 0,
     /// Front.
-    Front = 2,
+    Front = 1,
     /// Back.
-    Back = 3,
+    Back = 2,
 }
 
 impl VmValueCodec for GpuCullMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0i32 => Self::Undefined,
-            1i32 => Self::None,
-            2i32 => Self::Front,
-            3i32 => Self::Back,
+            0i32 => Self::None,
+            1i32 => Self::Front,
+            2i32 => Self::Back,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1524,33 +2245,30 @@ impl VmAbiCodec for GpuCullMode {
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuDeviceLossReason {
-    /// None.
-    None = 0,
-    /// DriverReset.
-    DriverReset = 1,
-    /// DeviceRemoved.
-    DeviceRemoved = 2,
-    /// OutOfMemory.
-    OutOfMemory = 3,
-    /// InternalError.
-    InternalError = 4,
-    /// Destroyed.
-    Destroyed = 5,
     /// Unknown.
-    Unknown = 255,
+    Unknown = 0,
+    /// Destroyed.
+    Destroyed = 1,
+    /// DriverReset.
+    DriverReset = 2,
+    /// DeviceRemoved.
+    DeviceRemoved = 3,
+    /// OutOfMemory.
+    OutOfMemory = 4,
+    /// InternalError.
+    InternalError = 5,
 }
 
 impl VmValueCodec for GpuDeviceLossReason {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0i32 => Self::None,
-            1i32 => Self::DriverReset,
-            2i32 => Self::DeviceRemoved,
-            3i32 => Self::OutOfMemory,
-            4i32 => Self::InternalError,
-            5i32 => Self::Destroyed,
-            255i32 => Self::Unknown,
+            0i32 => Self::Unknown,
+            1i32 => Self::Destroyed,
+            2i32 => Self::DriverReset,
+            3i32 => Self::DeviceRemoved,
+            4i32 => Self::OutOfMemory,
+            5i32 => Self::InternalError,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1672,6 +2390,356 @@ impl VmAbiCodec for GpuErrorFilter {
     }
 }
 
+/// ABI enum for GpuExternalTextureFormat.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GpuExternalTextureFormat {
+    /// Rgba.
+    Rgba = 1,
+    /// Nv12.
+    Nv12 = 2,
+    /// Yu12.
+    Yu12 = 3,
+}
+
+impl VmValueCodec for GpuExternalTextureFormat {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::Rgba,
+            2i32 => Self::Nv12,
+            3i32 => Self::Yu12,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown GpuExternalTextureFormat value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for GpuExternalTextureFormat {}
+
+/// Value type for GpuExternalTextureFormat.
+pub type GpuExternalTextureFormatValue = GpuExternalTextureFormat;
+
+impl NativeAbiCodec for GpuExternalTextureFormat {
+    type Value = GpuExternalTextureFormatValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuExternalTextureFormat {
+    type Value = GpuExternalTextureFormatValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for GpuFeatureId.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GpuFeatureId {
+    /// DepthClipControl.
+    DepthClipControl = 65536,
+    /// Depth32FloatStencil8.
+    Depth32FloatStencil8 = 65537,
+    /// TextureCompressionBc.
+    TextureCompressionBc = 65538,
+    /// TextureCompressionBcSliced3D.
+    TextureCompressionBcSliced3D = 65539,
+    /// TextureCompressionEtc2.
+    TextureCompressionEtc2 = 65540,
+    /// TextureCompressionAstc.
+    TextureCompressionAstc = 65541,
+    /// TextureCompressionAstcSliced3D.
+    TextureCompressionAstcSliced3D = 65542,
+    /// TimestampQuery.
+    TimestampQuery = 65543,
+    /// IndirectFirstInstance.
+    IndirectFirstInstance = 65544,
+    /// ShaderF16.
+    ShaderF16 = 65545,
+    /// Rg11B10UfloatRenderable.
+    Rg11B10UfloatRenderable = 65546,
+    /// Bgra8UnormStorage.
+    Bgra8UnormStorage = 65547,
+    /// Float32Filterable.
+    Float32Filterable = 65548,
+    /// Float32Blendable.
+    Float32Blendable = 65549,
+    /// DualSourceBlending.
+    DualSourceBlending = 65550,
+    /// ClipDistances.
+    ClipDistances = 65551,
+    /// Immediates.
+    Immediates = 65552,
+    /// ShaderFloat32Atomic.
+    ShaderFloat32Atomic = 131072,
+    /// TextureFormat16BitNorm.
+    TextureFormat16BitNorm = 131073,
+    /// TextureCompressionAstcHdr.
+    TextureCompressionAstcHdr = 131074,
+    /// TextureAdapterSpecificFormatFeatures.
+    TextureAdapterSpecificFormatFeatures = 131075,
+    /// PipelineStatisticsQuery.
+    PipelineStatisticsQuery = 131076,
+    /// TimestampQueryInsideEncoders.
+    TimestampQueryInsideEncoders = 131077,
+    /// TimestampQueryInsidePasses.
+    TimestampQueryInsidePasses = 131078,
+    /// MappablePrimaryBuffers.
+    MappablePrimaryBuffers = 131079,
+    /// TextureBindingArray.
+    TextureBindingArray = 131080,
+    /// BufferBindingArray.
+    BufferBindingArray = 131081,
+    /// StorageResourceBindingArray.
+    StorageResourceBindingArray = 131082,
+    /// SampledTextureAndStorageBufferArrayNonUniformIndexing.
+    SampledTextureAndStorageBufferArrayNonUniformIndexing = 131083,
+    /// StorageTextureArrayNonUniformIndexing.
+    StorageTextureArrayNonUniformIndexing = 131084,
+    /// PartiallyBoundBindingArray.
+    PartiallyBoundBindingArray = 131085,
+    /// MultiDrawIndirectCount.
+    MultiDrawIndirectCount = 131087,
+    /// AddressModeClampToZero.
+    AddressModeClampToZero = 131089,
+    /// AddressModeClampToBorder.
+    AddressModeClampToBorder = 131090,
+    /// PolygonModeLine.
+    PolygonModeLine = 131091,
+    /// PolygonModePoint.
+    PolygonModePoint = 131092,
+    /// ConservativeRasterization.
+    ConservativeRasterization = 131093,
+    /// VertexWritableStorage.
+    VertexWritableStorage = 131094,
+    /// ClearTexture.
+    ClearTexture = 131095,
+    /// Multiview.
+    Multiview = 131098,
+    /// VertexAttribute64Bit.
+    VertexAttribute64Bit = 131099,
+    /// TextureAtomic.
+    TextureAtomic = 131100,
+    /// TextureFormatNv12.
+    TextureFormatNv12 = 131101,
+    /// TextureFormatP010.
+    TextureFormatP010 = 131102,
+    /// ExternalTexture.
+    ExternalTexture = 131103,
+    /// ExperimentalRayQuery.
+    ExperimentalRayQuery = 131104,
+    /// ShaderF64.
+    ShaderF64 = 131105,
+    /// ShaderI16.
+    ShaderI16 = 131106,
+    /// ShaderPrimitiveIndex.
+    ShaderPrimitiveIndex = 131107,
+    /// ShaderEarlyDepthTest.
+    ShaderEarlyDepthTest = 131108,
+    /// ShaderInt64.
+    ShaderInt64 = 131109,
+    /// Subgroup.
+    Subgroup = 131110,
+    /// SubgroupVertex.
+    SubgroupVertex = 131111,
+    /// SubgroupBarrier.
+    SubgroupBarrier = 131112,
+    /// PipelineCache.
+    PipelineCache = 131113,
+    /// ShaderInt64AtomicMinMax.
+    ShaderInt64AtomicMinMax = 131114,
+    /// ShaderInt64AtomicAllOps.
+    ShaderInt64AtomicAllOps = 131115,
+    /// VulkanGoogleDisplayTiming.
+    VulkanGoogleDisplayTiming = 131116,
+    /// VulkanExternalMemoryWin32.
+    VulkanExternalMemoryWin32 = 131117,
+    /// TextureInt64Atomic.
+    TextureInt64Atomic = 131118,
+    /// UniformBufferBindingArrays.
+    UniformBufferBindingArrays = 131119,
+    /// ExperimentalMeshShader.
+    ExperimentalMeshShader = 131120,
+    /// ExperimentalRayHitVertexReturn.
+    ExperimentalRayHitVertexReturn = 131121,
+    /// ExperimentalMeshShaderMultiview.
+    ExperimentalMeshShaderMultiview = 131122,
+    /// ExtendedAccelerationStructureVertexFormats.
+    ExtendedAccelerationStructureVertexFormats = 131123,
+    /// ExperimentalPassthroughShaders.
+    ExperimentalPassthroughShaders = 131124,
+    /// ShaderBarycentrics.
+    ShaderBarycentrics = 131125,
+    /// SelectiveMultiview.
+    SelectiveMultiview = 131126,
+    /// ExperimentalMeshShaderPoints.
+    ExperimentalMeshShaderPoints = 131127,
+    /// MultisampleArray.
+    MultisampleArray = 131128,
+    /// ExperimentalCooperativeMatrix.
+    ExperimentalCooperativeMatrix = 131129,
+    /// ShaderPerVertex.
+    ShaderPerVertex = 131130,
+    /// ShaderDrawIndex.
+    ShaderDrawIndex = 131131,
+}
+
+impl VmValueCodec for GpuFeatureId {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            65536i32 => Self::DepthClipControl,
+            65537i32 => Self::Depth32FloatStencil8,
+            65538i32 => Self::TextureCompressionBc,
+            65539i32 => Self::TextureCompressionBcSliced3D,
+            65540i32 => Self::TextureCompressionEtc2,
+            65541i32 => Self::TextureCompressionAstc,
+            65542i32 => Self::TextureCompressionAstcSliced3D,
+            65543i32 => Self::TimestampQuery,
+            65544i32 => Self::IndirectFirstInstance,
+            65545i32 => Self::ShaderF16,
+            65546i32 => Self::Rg11B10UfloatRenderable,
+            65547i32 => Self::Bgra8UnormStorage,
+            65548i32 => Self::Float32Filterable,
+            65549i32 => Self::Float32Blendable,
+            65550i32 => Self::DualSourceBlending,
+            65551i32 => Self::ClipDistances,
+            65552i32 => Self::Immediates,
+            131072i32 => Self::ShaderFloat32Atomic,
+            131073i32 => Self::TextureFormat16BitNorm,
+            131074i32 => Self::TextureCompressionAstcHdr,
+            131075i32 => Self::TextureAdapterSpecificFormatFeatures,
+            131076i32 => Self::PipelineStatisticsQuery,
+            131077i32 => Self::TimestampQueryInsideEncoders,
+            131078i32 => Self::TimestampQueryInsidePasses,
+            131079i32 => Self::MappablePrimaryBuffers,
+            131080i32 => Self::TextureBindingArray,
+            131081i32 => Self::BufferBindingArray,
+            131082i32 => Self::StorageResourceBindingArray,
+            131083i32 => Self::SampledTextureAndStorageBufferArrayNonUniformIndexing,
+            131084i32 => Self::StorageTextureArrayNonUniformIndexing,
+            131085i32 => Self::PartiallyBoundBindingArray,
+            131087i32 => Self::MultiDrawIndirectCount,
+            131089i32 => Self::AddressModeClampToZero,
+            131090i32 => Self::AddressModeClampToBorder,
+            131091i32 => Self::PolygonModeLine,
+            131092i32 => Self::PolygonModePoint,
+            131093i32 => Self::ConservativeRasterization,
+            131094i32 => Self::VertexWritableStorage,
+            131095i32 => Self::ClearTexture,
+            131098i32 => Self::Multiview,
+            131099i32 => Self::VertexAttribute64Bit,
+            131100i32 => Self::TextureAtomic,
+            131101i32 => Self::TextureFormatNv12,
+            131102i32 => Self::TextureFormatP010,
+            131103i32 => Self::ExternalTexture,
+            131104i32 => Self::ExperimentalRayQuery,
+            131105i32 => Self::ShaderF64,
+            131106i32 => Self::ShaderI16,
+            131107i32 => Self::ShaderPrimitiveIndex,
+            131108i32 => Self::ShaderEarlyDepthTest,
+            131109i32 => Self::ShaderInt64,
+            131110i32 => Self::Subgroup,
+            131111i32 => Self::SubgroupVertex,
+            131112i32 => Self::SubgroupBarrier,
+            131113i32 => Self::PipelineCache,
+            131114i32 => Self::ShaderInt64AtomicMinMax,
+            131115i32 => Self::ShaderInt64AtomicAllOps,
+            131116i32 => Self::VulkanGoogleDisplayTiming,
+            131117i32 => Self::VulkanExternalMemoryWin32,
+            131118i32 => Self::TextureInt64Atomic,
+            131119i32 => Self::UniformBufferBindingArrays,
+            131120i32 => Self::ExperimentalMeshShader,
+            131121i32 => Self::ExperimentalRayHitVertexReturn,
+            131122i32 => Self::ExperimentalMeshShaderMultiview,
+            131123i32 => Self::ExtendedAccelerationStructureVertexFormats,
+            131124i32 => Self::ExperimentalPassthroughShaders,
+            131125i32 => Self::ShaderBarycentrics,
+            131126i32 => Self::SelectiveMultiview,
+            131127i32 => Self::ExperimentalMeshShaderPoints,
+            131128i32 => Self::MultisampleArray,
+            131129i32 => Self::ExperimentalCooperativeMatrix,
+            131130i32 => Self::ShaderPerVertex,
+            131131i32 => Self::ShaderDrawIndex,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown GpuFeatureId value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for GpuFeatureId {}
+
+/// Value type for GpuFeatureId.
+pub type GpuFeatureIdValue = GpuFeatureId;
+
+impl NativeAbiCodec for GpuFeatureId {
+    type Value = GpuFeatureIdValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuFeatureId {
+    type Value = GpuFeatureIdValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI enum for GpuFenceMode.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1739,25 +2807,89 @@ impl VmAbiCodec for GpuFenceMode {
     }
 }
 
+/// ABI enum for GpuFilterMode.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GpuFilterMode {
+    /// Nearest.
+    Nearest = 1,
+    /// Linear.
+    Linear = 2,
+}
+
+impl VmValueCodec for GpuFilterMode {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::Nearest,
+            2i32 => Self::Linear,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown GpuFilterMode value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for GpuFilterMode {}
+
+/// Value type for GpuFilterMode.
+pub type GpuFilterModeValue = GpuFilterMode;
+
+impl NativeAbiCodec for GpuFilterMode {
+    type Value = GpuFilterModeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuFilterMode {
+    type Value = GpuFilterModeValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI enum for GpuFrontFace.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuFrontFace {
-    /// Undefined.
-    Undefined = 0,
     /// Ccw.
-    Ccw = 1,
+    Ccw = 0,
     /// Cw.
-    Cw = 2,
+    Cw = 1,
 }
 
 impl VmValueCodec for GpuFrontFace {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0i32 => Self::Undefined,
-            1i32 => Self::Ccw,
-            2i32 => Self::Cw,
+            0i32 => Self::Ccw,
+            1i32 => Self::Cw,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1813,21 +2945,18 @@ impl VmAbiCodec for GpuFrontFace {
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuIndexFormat {
-    /// Undefined.
-    Undefined = 0,
     /// Uint16.
-    Uint16 = 1,
+    Uint16 = 0,
     /// Uint32.
-    Uint32 = 2,
+    Uint32 = 1,
 }
 
 impl VmValueCodec for GpuIndexFormat {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0i32 => Self::Undefined,
-            1i32 => Self::Uint16,
-            2i32 => Self::Uint32,
+            0i32 => Self::Uint16,
+            1i32 => Self::Uint32,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1883,21 +3012,21 @@ impl VmAbiCodec for GpuIndexFormat {
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuLoadOp {
-    /// Undefined.
-    Undefined = 0,
     /// Load.
     Load = 1,
     /// Clear.
     Clear = 2,
+    /// DontCare.
+    DontCare = 3,
 }
 
 impl VmValueCodec for GpuLoadOp {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0i32 => Self::Undefined,
             1i32 => Self::Load,
             2i32 => Self::Clear,
+            3i32 => Self::DontCare,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -2016,6 +3145,143 @@ impl VmAbiCodec for GpuMapMode {
     }
 }
 
+/// ABI enum for GpuMemoryHint.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GpuMemoryHint {
+    /// Performance.
+    Performance = 1,
+    /// MemoryUsage.
+    MemoryUsage = 2,
+    /// Manual.
+    Manual = 3,
+}
+
+impl VmValueCodec for GpuMemoryHint {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::Performance,
+            2i32 => Self::MemoryUsage,
+            3i32 => Self::Manual,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown GpuMemoryHint value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for GpuMemoryHint {}
+
+/// Value type for GpuMemoryHint.
+pub type GpuMemoryHintValue = GpuMemoryHint;
+
+impl NativeAbiCodec for GpuMemoryHint {
+    type Value = GpuMemoryHintValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuMemoryHint {
+    type Value = GpuMemoryHintValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for GpuMipmapFilterMode.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GpuMipmapFilterMode {
+    /// Nearest.
+    Nearest = 1,
+    /// Linear.
+    Linear = 2,
+}
+
+impl VmValueCodec for GpuMipmapFilterMode {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::Nearest,
+            2i32 => Self::Linear,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown GpuMipmapFilterMode value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for GpuMipmapFilterMode {}
+
+/// Value type for GpuMipmapFilterMode.
+pub type GpuMipmapFilterModeValue = GpuMipmapFilterMode;
+
+impl NativeAbiCodec for GpuMipmapFilterMode {
+    type Value = GpuMipmapFilterModeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuMipmapFilterMode {
+    type Value = GpuMipmapFilterModeValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI enum for GpuPipelineStatisticsFlag.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -2076,6 +3342,76 @@ impl NativeAbiCodec for GpuPipelineStatisticsFlag {
 
 impl VmAbiCodec for GpuPipelineStatisticsFlag {
     type Value = GpuPipelineStatisticsFlagValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for GpuPolygonMode.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GpuPolygonMode {
+    /// Fill.
+    Fill = 0,
+    /// Line.
+    Line = 1,
+    /// Point.
+    Point = 2,
+}
+
+impl VmValueCodec for GpuPolygonMode {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            0i32 => Self::Fill,
+            1i32 => Self::Line,
+            2i32 => Self::Point,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown GpuPolygonMode value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for GpuPolygonMode {}
+
+/// Value type for GpuPolygonMode.
+pub type GpuPolygonModeValue = GpuPolygonMode;
+
+impl NativeAbiCodec for GpuPolygonMode {
+    type Value = GpuPolygonModeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuPolygonMode {
+    type Value = GpuPolygonModeValue;
 
     fn into_value(
         self,
@@ -2241,34 +3577,174 @@ impl VmAbiCodec for GpuPresentMode {
     }
 }
 
+/// ABI enum for GpuPresentationOverflowPolicy.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GpuPresentationOverflowPolicy {
+    /// DropOldest.
+    DropOldest = 1,
+    /// DropNewest.
+    DropNewest = 2,
+    /// Error.
+    Error = 3,
+}
+
+impl VmValueCodec for GpuPresentationOverflowPolicy {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::DropOldest,
+            2i32 => Self::DropNewest,
+            3i32 => Self::Error,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown GpuPresentationOverflowPolicy value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for GpuPresentationOverflowPolicy {}
+
+/// Value type for GpuPresentationOverflowPolicy.
+pub type GpuPresentationOverflowPolicyValue = GpuPresentationOverflowPolicy;
+
+impl NativeAbiCodec for GpuPresentationOverflowPolicy {
+    type Value = GpuPresentationOverflowPolicyValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuPresentationOverflowPolicy {
+    type Value = GpuPresentationOverflowPolicyValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for GpuPresentationResult.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GpuPresentationResult {
+    /// Presented.
+    Presented = 1,
+    /// Superseded.
+    Superseded = 2,
+    /// Dropped.
+    Dropped = 3,
+    /// Unknown.
+    Unknown = 4,
+}
+
+impl VmValueCodec for GpuPresentationResult {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::Presented,
+            2i32 => Self::Superseded,
+            3i32 => Self::Dropped,
+            4i32 => Self::Unknown,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown GpuPresentationResult value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for GpuPresentationResult {}
+
+/// Value type for GpuPresentationResult.
+pub type GpuPresentationResultValue = GpuPresentationResult;
+
+impl NativeAbiCodec for GpuPresentationResult {
+    type Value = GpuPresentationResultValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuPresentationResult {
+    type Value = GpuPresentationResultValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI enum for GpuPrimitiveTopology.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuPrimitiveTopology {
-    /// Undefined.
-    Undefined = 0,
     /// PointList.
-    PointList = 1,
+    PointList = 0,
     /// LineList.
-    LineList = 2,
+    LineList = 1,
     /// LineStrip.
-    LineStrip = 3,
+    LineStrip = 2,
     /// TriangleList.
-    TriangleList = 4,
+    TriangleList = 3,
     /// TriangleStrip.
-    TriangleStrip = 5,
+    TriangleStrip = 4,
 }
 
 impl VmValueCodec for GpuPrimitiveTopology {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0i32 => Self::Undefined,
-            1i32 => Self::PointList,
-            2i32 => Self::LineList,
-            3i32 => Self::LineStrip,
-            4i32 => Self::TriangleList,
-            5i32 => Self::TriangleStrip,
+            0i32 => Self::PointList,
+            1i32 => Self::LineList,
+            2i32 => Self::LineStrip,
+            3i32 => Self::TriangleList,
+            4i32 => Self::TriangleStrip,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -2320,104 +3796,25 @@ impl VmAbiCodec for GpuPrimitiveTopology {
     }
 }
 
-/// ABI enum for GpuQueryType.
-#[repr(i32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum GpuQueryType {
-    /// Undefined.
-    Undefined = 0,
-    /// Timestamp.
-    Timestamp = 1,
-    /// Occlusion.
-    Occlusion = 2,
-    /// PipelineStatistics.
-    PipelineStatistics = 3,
-}
-
-impl VmValueCodec for GpuQueryType {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <i32 as VmValueCodec>::decode(value)?;
-        let decoded = match raw {
-            0i32 => Self::Undefined,
-            1i32 => Self::Timestamp,
-            2i32 => Self::Occlusion,
-            3i32 => Self::PipelineStatistics,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown GpuQueryType value",
-                ))
-                .boxed());
-            }
-        };
-        Ok(decoded)
-    }
-
-    fn encode(self) -> vm::Value {
-        <i32 as VmValueCodec>::encode(self as i32)
-    }
-}
-
-impl VmCollectionElement for GpuQueryType {}
-
-/// Value type for GpuQueryType.
-pub type GpuQueryTypeValue = GpuQueryType;
-
-impl NativeAbiCodec for GpuQueryType {
-    type Value = GpuQueryTypeValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
-    }
-}
-
-impl VmAbiCodec for GpuQueryType {
-    type Value = GpuQueryTypeValue;
-
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(value)
-    }
-}
-
 /// ABI enum for GpuSamplerBindingType.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuSamplerBindingType {
-    /// BindingNotUsed.
-    BindingNotUsed = 0,
-    /// Undefined.
-    Undefined = 1,
     /// Filtering.
-    Filtering = 2,
+    Filtering = 1,
     /// NonFiltering.
-    NonFiltering = 3,
+    NonFiltering = 2,
     /// Comparison.
-    Comparison = 4,
+    Comparison = 3,
 }
 
 impl VmValueCodec for GpuSamplerBindingType {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0i32 => Self::BindingNotUsed,
-            1i32 => Self::Undefined,
-            2i32 => Self::Filtering,
-            3i32 => Self::NonFiltering,
-            4i32 => Self::Comparison,
+            1i32 => Self::Filtering,
+            2i32 => Self::NonFiltering,
+            3i32 => Self::Comparison,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -2453,6 +3850,79 @@ impl NativeAbiCodec for GpuSamplerBindingType {
 
 impl VmAbiCodec for GpuSamplerBindingType {
     type Value = GpuSamplerBindingTypeValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for GpuSamplerBorderColor.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GpuSamplerBorderColor {
+    /// TransparentBlack.
+    TransparentBlack = 1,
+    /// OpaqueBlack.
+    OpaqueBlack = 2,
+    /// OpaqueWhite.
+    OpaqueWhite = 3,
+    /// Zero.
+    Zero = 4,
+}
+
+impl VmValueCodec for GpuSamplerBorderColor {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::TransparentBlack,
+            2i32 => Self::OpaqueBlack,
+            3i32 => Self::OpaqueWhite,
+            4i32 => Self::Zero,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown GpuSamplerBorderColor value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for GpuSamplerBorderColor {}
+
+/// Value type for GpuSamplerBorderColor.
+pub type GpuSamplerBorderColorValue = GpuSamplerBorderColor;
+
+impl NativeAbiCodec for GpuSamplerBorderColor {
+    type Value = GpuSamplerBorderColorValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuSamplerBorderColor {
+    type Value = GpuSamplerBorderColorValue;
 
     fn into_value(
         self,
@@ -2622,39 +4092,36 @@ impl VmAbiCodec for GpuShaderVisibilityFlag {
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuStencilOperation {
-    /// Undefined.
-    Undefined = 0,
     /// Keep.
-    Keep = 1,
+    Keep = 0,
     /// Zero.
-    Zero = 2,
+    Zero = 1,
     /// Replace.
-    Replace = 3,
+    Replace = 2,
     /// Invert.
-    Invert = 4,
+    Invert = 3,
     /// IncrementClamp.
-    IncrementClamp = 5,
+    IncrementClamp = 4,
     /// DecrementClamp.
-    DecrementClamp = 6,
+    DecrementClamp = 5,
     /// IncrementWrap.
-    IncrementWrap = 7,
+    IncrementWrap = 6,
     /// DecrementWrap.
-    DecrementWrap = 8,
+    DecrementWrap = 7,
 }
 
 impl VmValueCodec for GpuStencilOperation {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0i32 => Self::Undefined,
-            1i32 => Self::Keep,
-            2i32 => Self::Zero,
-            3i32 => Self::Replace,
-            4i32 => Self::Invert,
-            5i32 => Self::IncrementClamp,
-            6i32 => Self::DecrementClamp,
-            7i32 => Self::IncrementWrap,
-            8i32 => Self::DecrementWrap,
+            0i32 => Self::Keep,
+            1i32 => Self::Zero,
+            2i32 => Self::Replace,
+            3i32 => Self::Invert,
+            4i32 => Self::IncrementClamp,
+            5i32 => Self::DecrementClamp,
+            6i32 => Self::IncrementWrap,
+            7i32 => Self::DecrementWrap,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -2710,27 +4177,24 @@ impl VmAbiCodec for GpuStencilOperation {
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuStorageTextureAccess {
-    /// BindingNotUsed.
-    BindingNotUsed = 0,
-    /// Undefined.
-    Undefined = 1,
     /// WriteOnly.
-    WriteOnly = 2,
+    WriteOnly = 1,
     /// ReadOnly.
-    ReadOnly = 3,
+    ReadOnly = 2,
     /// ReadWrite.
-    ReadWrite = 4,
+    ReadWrite = 3,
+    /// Atomic.
+    Atomic = 4,
 }
 
 impl VmValueCodec for GpuStorageTextureAccess {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0i32 => Self::BindingNotUsed,
-            1i32 => Self::Undefined,
-            2i32 => Self::WriteOnly,
-            3i32 => Self::ReadOnly,
-            4i32 => Self::ReadWrite,
+            1i32 => Self::WriteOnly,
+            2i32 => Self::ReadOnly,
+            3i32 => Self::ReadWrite,
+            4i32 => Self::Atomic,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -2786,21 +4250,18 @@ impl VmAbiCodec for GpuStorageTextureAccess {
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuStoreOp {
-    /// Undefined.
-    Undefined = 0,
     /// Store.
-    Store = 1,
+    Store = 0,
     /// Discard.
-    Discard = 2,
+    Discard = 1,
 }
 
 impl VmValueCodec for GpuStoreOp {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0i32 => Self::Undefined,
-            1i32 => Self::Store,
-            2i32 => Self::Discard,
+            0i32 => Self::Store,
+            1i32 => Self::Discard,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -2931,35 +4392,38 @@ impl VmAbiCodec for GpuSurfaceAcquireStatus {
     }
 }
 
-/// ABI enum for GpuSurfaceAlphaMode.
+/// ABI enum for GpuSurfaceStatus.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum GpuSurfaceAlphaMode {
-    /// Auto.
-    Auto = 0,
-    /// Opaque.
-    Opaque = 1,
-    /// Premultiplied.
-    Premultiplied = 2,
-    /// Unpremultiplied.
-    Unpremultiplied = 3,
-    /// Inherit.
-    Inherit = 4,
+pub enum GpuSurfaceStatus {
+    /// Unknown.
+    Unknown = 0,
+    /// Unconfigured.
+    Unconfigured = 1,
+    /// Good.
+    Good = 2,
+    /// Suboptimal.
+    Suboptimal = 3,
+    /// Outdated.
+    Outdated = 4,
+    /// Lost.
+    Lost = 5,
 }
 
-impl VmValueCodec for GpuSurfaceAlphaMode {
+impl VmValueCodec for GpuSurfaceStatus {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0i32 => Self::Auto,
-            1i32 => Self::Opaque,
-            2i32 => Self::Premultiplied,
-            3i32 => Self::Unpremultiplied,
-            4i32 => Self::Inherit,
+            0i32 => Self::Unknown,
+            1i32 => Self::Unconfigured,
+            2i32 => Self::Good,
+            3i32 => Self::Suboptimal,
+            4i32 => Self::Outdated,
+            5i32 => Self::Lost,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
-                    "unknown GpuSurfaceAlphaMode value",
+                    "unknown GpuSurfaceStatus value",
                 ))
                 .boxed());
             }
@@ -2972,13 +4436,13 @@ impl VmValueCodec for GpuSurfaceAlphaMode {
     }
 }
 
-impl VmCollectionElement for GpuSurfaceAlphaMode {}
+impl VmCollectionElement for GpuSurfaceStatus {}
 
-/// Value type for GpuSurfaceAlphaMode.
-pub type GpuSurfaceAlphaModeValue = GpuSurfaceAlphaMode;
+/// Value type for GpuSurfaceStatus.
+pub type GpuSurfaceStatusValue = GpuSurfaceStatus;
 
-impl NativeAbiCodec for GpuSurfaceAlphaMode {
-    type Value = GpuSurfaceAlphaModeValue;
+impl NativeAbiCodec for GpuSurfaceStatus {
+    type Value = GpuSurfaceStatusValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(self)
@@ -2989,8 +4453,87 @@ impl NativeAbiCodec for GpuSurfaceAlphaMode {
     }
 }
 
-impl VmAbiCodec for GpuSurfaceAlphaMode {
-    type Value = GpuSurfaceAlphaModeValue;
+impl VmAbiCodec for GpuSurfaceStatus {
+    type Value = GpuSurfaceStatusValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for GpuTextureAspect.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GpuTextureAspect {
+    /// All.
+    All = 1,
+    /// StencilOnly.
+    StencilOnly = 2,
+    /// DepthOnly.
+    DepthOnly = 3,
+    /// Plane0.
+    Plane0 = 4,
+    /// Plane1.
+    Plane1 = 5,
+    /// Plane2.
+    Plane2 = 6,
+}
+
+impl VmValueCodec for GpuTextureAspect {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::All,
+            2i32 => Self::StencilOnly,
+            3i32 => Self::DepthOnly,
+            4i32 => Self::Plane0,
+            5i32 => Self::Plane1,
+            6i32 => Self::Plane2,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown GpuTextureAspect value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for GpuTextureAspect {}
+
+/// Value type for GpuTextureAspect.
+pub type GpuTextureAspectValue = GpuTextureAspect;
+
+impl NativeAbiCodec for GpuTextureAspect {
+    type Value = GpuTextureAspectValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuTextureAspect {
+    type Value = GpuTextureAspectValue;
 
     fn into_value(
         self,
@@ -3081,33 +4624,27 @@ impl VmAbiCodec for GpuTextureDimension {
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuTextureSampleType {
-    /// BindingNotUsed.
-    BindingNotUsed = 0,
-    /// Undefined.
-    Undefined = 1,
     /// Float.
-    Float = 2,
+    Float = 1,
     /// UnfilterableFloat.
-    UnfilterableFloat = 3,
+    UnfilterableFloat = 2,
     /// Depth.
-    Depth = 4,
+    Depth = 3,
     /// Sint.
-    Sint = 5,
+    Sint = 4,
     /// Uint.
-    Uint = 6,
+    Uint = 5,
 }
 
 impl VmValueCodec for GpuTextureSampleType {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0i32 => Self::BindingNotUsed,
-            1i32 => Self::Undefined,
-            2i32 => Self::Float,
-            3i32 => Self::UnfilterableFloat,
-            4i32 => Self::Depth,
-            5i32 => Self::Sint,
-            6i32 => Self::Uint,
+            1i32 => Self::Float,
+            2i32 => Self::UnfilterableFloat,
+            3i32 => Self::Depth,
+            4i32 => Self::Sint,
+            5i32 => Self::Uint,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -3163,8 +4700,6 @@ impl VmAbiCodec for GpuTextureSampleType {
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuTextureViewDimension {
-    /// Undefined.
-    Undefined = 0,
     /// D1.
     D1 = 1,
     /// D2.
@@ -3183,7 +4718,6 @@ impl VmValueCodec for GpuTextureViewDimension {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0i32 => Self::Undefined,
             1i32 => Self::D1,
             2i32 => Self::D2,
             3i32 => Self::D2Array,
@@ -3225,6 +4759,76 @@ impl NativeAbiCodec for GpuTextureViewDimension {
 
 impl VmAbiCodec for GpuTextureViewDimension {
     type Value = GpuTextureViewDimensionValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for GpuTraceMode.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GpuTraceMode {
+    /// Off.
+    Off = 0,
+    /// Directory.
+    Directory = 1,
+    /// Memory.
+    Memory = 2,
+}
+
+impl VmValueCodec for GpuTraceMode {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            0i32 => Self::Off,
+            1i32 => Self::Directory,
+            2i32 => Self::Memory,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown GpuTraceMode value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for GpuTraceMode {}
+
+/// Value type for GpuTraceMode.
+pub type GpuTraceModeValue = GpuTraceMode;
+
+impl NativeAbiCodec for GpuTraceMode {
+    type Value = GpuTraceModeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuTraceMode {
+    type Value = GpuTraceModeValue;
 
     fn into_value(
         self,
@@ -3312,6 +4916,10 @@ impl VmAbiCodec for GpuVertexStepMode {
 pub enum GpuBindGroupLayoutResourceAbi<A: BindingAbi> {
     /// GpuBindGroupLayoutBufferResource variant.
     GpuBindGroupLayoutBufferResource(platform_gpu::GpuBindGroupLayoutBufferResourceAbi<A>),
+    /// GpuBindGroupLayoutExternalTextureResource variant.
+    GpuBindGroupLayoutExternalTextureResource(
+        platform_gpu::GpuBindGroupLayoutExternalTextureResourceAbi<A>,
+    ),
     /// GpuBindGroupLayoutSampledTextureResource variant.
     GpuBindGroupLayoutSampledTextureResource(
         platform_gpu::GpuBindGroupLayoutSampledTextureResourceAbi<A>,
@@ -3373,6 +4981,7 @@ impl VmAggregateCodec for GpuBindGroupLayoutResourceAbi<VmAbi> {
         let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let decoded = match tag {
             3882186069u32 => Self::GpuBindGroupLayoutBufferResource(<GpuBindGroupLayoutBufferResourceVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
+            1550882686u32 => Self::GpuBindGroupLayoutExternalTextureResource(<GpuBindGroupLayoutExternalTextureResourceVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
             2019827610u32 => Self::GpuBindGroupLayoutSampledTextureResource(<GpuBindGroupLayoutSampledTextureResourceVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
             2111813354u32 => Self::GpuBindGroupLayoutSamplerResource(<GpuBindGroupLayoutSamplerResourceVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
             3821007978u32 => Self::GpuBindGroupLayoutStorageTextureResource(<GpuBindGroupLayoutStorageTextureResourceVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
@@ -3393,6 +5002,12 @@ impl VmAggregateCodec for GpuBindGroupLayoutResourceAbi<VmAbi> {
                     <GpuBindGroupLayoutBufferResourceVm as VmAggregateCodec>::encode_with_context(
                         value, context,
                     )?;
+                vec![tag_value, payload_value]
+            }
+            Self::GpuBindGroupLayoutExternalTextureResource(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1550882686u32, context)?;
+                let payload_value = <GpuBindGroupLayoutExternalTextureResourceVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
             Self::GpuBindGroupLayoutSampledTextureResource(value) => {
@@ -3430,6 +5045,8 @@ impl VmCollectionElement for GpuBindGroupLayoutResourceAbi<VmAbi> {}
 pub enum GpuBindGroupLayoutResourceValue {
     /// GpuBindGroupLayoutBufferResource variant.
     GpuBindGroupLayoutBufferResource(GpuBindGroupLayoutBufferResourceValue),
+    /// GpuBindGroupLayoutExternalTextureResource variant.
+    GpuBindGroupLayoutExternalTextureResource(GpuBindGroupLayoutExternalTextureResourceValue),
     /// GpuBindGroupLayoutSampledTextureResource variant.
     GpuBindGroupLayoutSampledTextureResource(GpuBindGroupLayoutSampledTextureResourceValue),
     /// GpuBindGroupLayoutSamplerResource variant.
@@ -3446,6 +5063,13 @@ impl NativeAbiCodec for GpuBindGroupLayoutResourceAbi<NativeAbi> {
             Self::GpuBindGroupLayoutBufferResource(value) => {
                 GpuBindGroupLayoutResourceValue::GpuBindGroupLayoutBufferResource(unsafe {
                     <GpuBindGroupLayoutBufferResource as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::GpuBindGroupLayoutExternalTextureResource(value) => {
+                GpuBindGroupLayoutResourceValue::GpuBindGroupLayoutExternalTextureResource(unsafe {
+                    <GpuBindGroupLayoutExternalTextureResource as NativeAbiCodec>::into_value(
+                        value,
+                    )?
                 })
             }
             Self::GpuBindGroupLayoutSampledTextureResource(value) => {
@@ -3472,6 +5096,13 @@ impl NativeAbiCodec for GpuBindGroupLayoutResourceAbi<NativeAbi> {
             GpuBindGroupLayoutResourceValue::GpuBindGroupLayoutBufferResource(value) => {
                 Self::GpuBindGroupLayoutBufferResource(
                     <GpuBindGroupLayoutBufferResource as NativeAbiCodec>::from_value(
+                        binding, value,
+                    ),
+                )
+            }
+            GpuBindGroupLayoutResourceValue::GpuBindGroupLayoutExternalTextureResource(value) => {
+                Self::GpuBindGroupLayoutExternalTextureResource(
+                    <GpuBindGroupLayoutExternalTextureResource as NativeAbiCodec>::from_value(
                         binding, value,
                     ),
                 )
@@ -3514,6 +5145,13 @@ impl VmAbiCodec for GpuBindGroupLayoutResourceAbi<VmAbi> {
                     <GpuBindGroupLayoutBufferResourceVm as VmAbiCodec>::into_value(value, context)?,
                 )
             }
+            Self::GpuBindGroupLayoutExternalTextureResource(value) => {
+                GpuBindGroupLayoutResourceValue::GpuBindGroupLayoutExternalTextureResource(
+                    <GpuBindGroupLayoutExternalTextureResourceVm as VmAbiCodec>::into_value(
+                        value, context,
+                    )?,
+                )
+            }
             Self::GpuBindGroupLayoutSampledTextureResource(value) => {
                 GpuBindGroupLayoutResourceValue::GpuBindGroupLayoutSampledTextureResource(
                     <GpuBindGroupLayoutSampledTextureResourceVm as VmAbiCodec>::into_value(
@@ -3549,6 +5187,13 @@ impl VmAbiCodec for GpuBindGroupLayoutResourceAbi<VmAbi> {
                     <GpuBindGroupLayoutBufferResourceVm as VmAbiCodec>::from_value(context, value)?,
                 ))
             }
+            GpuBindGroupLayoutResourceValue::GpuBindGroupLayoutExternalTextureResource(value) => {
+                Ok(Self::GpuBindGroupLayoutExternalTextureResource(
+                    <GpuBindGroupLayoutExternalTextureResourceVm as VmAbiCodec>::from_value(
+                        context, value,
+                    )?,
+                ))
+            }
             GpuBindGroupLayoutResourceValue::GpuBindGroupLayoutSampledTextureResource(value) => {
                 Ok(Self::GpuBindGroupLayoutSampledTextureResource(
                     <GpuBindGroupLayoutSampledTextureResourceVm as VmAbiCodec>::from_value(
@@ -3578,6 +5223,8 @@ impl VmAbiCodec for GpuBindGroupLayoutResourceAbi<VmAbi> {
 pub enum GpuBindGroupResourceAbi<A: BindingAbi> {
     /// GpuBindGroupBufferResource variant.
     GpuBindGroupBufferResource(platform_gpu::GpuBindGroupBufferResourceAbi<A>),
+    /// GpuBindGroupExternalTextureResource variant.
+    GpuBindGroupExternalTextureResource(platform_gpu::GpuBindGroupExternalTextureResourceAbi<A>),
     /// GpuBindGroupSamplerResource variant.
     GpuBindGroupSamplerResource(platform_gpu::GpuBindGroupSamplerResourceAbi<A>),
     /// GpuBindGroupTextureResource variant.
@@ -3635,6 +5282,11 @@ impl VmAggregateCodec for GpuBindGroupResourceAbi<VmAbi> {
                     context, slots[1],
                 )?,
             ),
+            3639531745u32 => Self::GpuBindGroupExternalTextureResource(
+                <GpuBindGroupExternalTextureResourceVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
             228650387u32 => Self::GpuBindGroupSamplerResource(
                 <GpuBindGroupSamplerResourceVm as VmAggregateCodec>::decode_with_context(
                     context, slots[1],
@@ -3670,6 +5322,12 @@ impl VmAggregateCodec for GpuBindGroupResourceAbi<VmAbi> {
                     )?;
                 vec![tag_value, payload_value]
             }
+            Self::GpuBindGroupExternalTextureResource(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3639531745u32, context)?;
+                let payload_value = <GpuBindGroupExternalTextureResourceVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
             Self::GpuBindGroupSamplerResource(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(228650387u32, context)?;
@@ -3702,6 +5360,8 @@ impl VmCollectionElement for GpuBindGroupResourceAbi<VmAbi> {}
 pub enum GpuBindGroupResourceValue {
     /// GpuBindGroupBufferResource variant.
     GpuBindGroupBufferResource(GpuBindGroupBufferResourceValue),
+    /// GpuBindGroupExternalTextureResource variant.
+    GpuBindGroupExternalTextureResource(GpuBindGroupExternalTextureResourceValue),
     /// GpuBindGroupSamplerResource variant.
     GpuBindGroupSamplerResource(GpuBindGroupSamplerResourceValue),
     /// GpuBindGroupTextureResource variant.
@@ -3716,6 +5376,11 @@ impl NativeAbiCodec for GpuBindGroupResourceAbi<NativeAbi> {
             Self::GpuBindGroupBufferResource(value) => {
                 GpuBindGroupResourceValue::GpuBindGroupBufferResource(unsafe {
                     <GpuBindGroupBufferResource as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::GpuBindGroupExternalTextureResource(value) => {
+                GpuBindGroupResourceValue::GpuBindGroupExternalTextureResource(unsafe {
+                    <GpuBindGroupExternalTextureResource as NativeAbiCodec>::into_value(value)?
                 })
             }
             Self::GpuBindGroupSamplerResource(value) => {
@@ -3737,6 +5402,13 @@ impl NativeAbiCodec for GpuBindGroupResourceAbi<NativeAbi> {
             GpuBindGroupResourceValue::GpuBindGroupBufferResource(value) => {
                 Self::GpuBindGroupBufferResource(
                     <GpuBindGroupBufferResource as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            GpuBindGroupResourceValue::GpuBindGroupExternalTextureResource(value) => {
+                Self::GpuBindGroupExternalTextureResource(
+                    <GpuBindGroupExternalTextureResource as NativeAbiCodec>::from_value(
+                        binding, value,
+                    ),
                 )
             }
             GpuBindGroupResourceValue::GpuBindGroupSamplerResource(value) => {
@@ -3766,6 +5438,13 @@ impl VmAbiCodec for GpuBindGroupResourceAbi<VmAbi> {
                     <GpuBindGroupBufferResourceVm as VmAbiCodec>::into_value(value, context)?,
                 )
             }
+            Self::GpuBindGroupExternalTextureResource(value) => {
+                GpuBindGroupResourceValue::GpuBindGroupExternalTextureResource(
+                    <GpuBindGroupExternalTextureResourceVm as VmAbiCodec>::into_value(
+                        value, context,
+                    )?,
+                )
+            }
             Self::GpuBindGroupSamplerResource(value) => {
                 GpuBindGroupResourceValue::GpuBindGroupSamplerResource(
                     <GpuBindGroupSamplerResourceVm as VmAbiCodec>::into_value(value, context)?,
@@ -3790,6 +5469,13 @@ impl VmAbiCodec for GpuBindGroupResourceAbi<VmAbi> {
                     <GpuBindGroupBufferResourceVm as VmAbiCodec>::from_value(context, value)?,
                 ))
             }
+            GpuBindGroupResourceValue::GpuBindGroupExternalTextureResource(value) => {
+                Ok(Self::GpuBindGroupExternalTextureResource(
+                    <GpuBindGroupExternalTextureResourceVm as VmAbiCodec>::from_value(
+                        context, value,
+                    )?,
+                ))
+            }
             GpuBindGroupResourceValue::GpuBindGroupSamplerResource(value) => {
                 Ok(Self::GpuBindGroupSamplerResource(
                     <GpuBindGroupSamplerResourceVm as VmAbiCodec>::from_value(context, value)?,
@@ -3804,22 +5490,234 @@ impl VmAbiCodec for GpuBindGroupResourceAbi<VmAbi> {
     }
 }
 
+/// ABI tagged union for GpuQuerySetType.
+pub enum GpuQuerySetTypeAbi<A: BindingAbi> {
+    /// GpuOcclusionQueryType variant.
+    GpuOcclusionQueryType(platform_gpu::GpuOcclusionQueryTypeAbi<A>),
+    /// GpuPipelineStatisticsQueryType variant.
+    GpuPipelineStatisticsQueryType(platform_gpu::GpuPipelineStatisticsQueryTypeAbi<A>),
+    /// GpuTimestampQueryType variant.
+    GpuTimestampQueryType(platform_gpu::GpuTimestampQueryTypeAbi<A>),
+}
+
+pub type GpuQuerySetType = GpuQuerySetTypeAbi<NativeAbi>;
+pub type GpuQuerySetTypeVm = GpuQuerySetTypeAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for GpuQuerySetTypeAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("GpuQuerySetTypeAbi").finish()
+    }
+}
+
+impl Copy for GpuQuerySetTypeAbi<NativeAbi> {}
+impl Clone for GpuQuerySetTypeAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuQuerySetTypeAbi<VmAbi> {}
+impl Clone for GpuQuerySetTypeAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuQuerySetTypeAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuQuerySetType",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let decoded = match tag {
+            4165457230u32 => Self::GpuOcclusionQueryType(
+                <GpuOcclusionQueryTypeVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            2511694722u32 => Self::GpuPipelineStatisticsQueryType(
+                <GpuPipelineStatisticsQueryTypeVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1021655369u32 => Self::GpuTimestampQueryType(
+                <GpuTimestampQueryTypeVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown GpuQuerySetType tag",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = match self {
+            Self::GpuOcclusionQueryType(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(4165457230u32, context)?;
+                let payload_value =
+                    <GpuOcclusionQueryTypeVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::GpuPipelineStatisticsQueryType(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2511694722u32, context)?;
+                let payload_value =
+                    <GpuPipelineStatisticsQueryTypeVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::GpuTimestampQueryType(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1021655369u32, context)?;
+                let payload_value =
+                    <GpuTimestampQueryTypeVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+        };
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for GpuQuerySetTypeAbi<VmAbi> {}
+
+/// Value type for GpuQuerySetType.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum GpuQuerySetTypeValue {
+    /// GpuOcclusionQueryType variant.
+    GpuOcclusionQueryType(GpuOcclusionQueryTypeValue),
+    /// GpuPipelineStatisticsQueryType variant.
+    GpuPipelineStatisticsQueryType(GpuPipelineStatisticsQueryTypeValue),
+    /// GpuTimestampQueryType variant.
+    GpuTimestampQueryType(GpuTimestampQueryTypeValue),
+}
+
+impl NativeAbiCodec for GpuQuerySetTypeAbi<NativeAbi> {
+    type Value = GpuQuerySetTypeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        let owned = match self {
+            Self::GpuOcclusionQueryType(value) => {
+                GpuQuerySetTypeValue::GpuOcclusionQueryType(unsafe {
+                    <GpuOcclusionQueryType as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::GpuPipelineStatisticsQueryType(value) => {
+                GpuQuerySetTypeValue::GpuPipelineStatisticsQueryType(unsafe {
+                    <GpuPipelineStatisticsQueryType as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::GpuTimestampQueryType(value) => {
+                GpuQuerySetTypeValue::GpuTimestampQueryType(unsafe {
+                    <GpuTimestampQueryType as NativeAbiCodec>::into_value(value)?
+                })
+            }
+        };
+        Ok(owned)
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        match value {
+            GpuQuerySetTypeValue::GpuOcclusionQueryType(value) => Self::GpuOcclusionQueryType(
+                <GpuOcclusionQueryType as NativeAbiCodec>::from_value(binding, value),
+            ),
+            GpuQuerySetTypeValue::GpuPipelineStatisticsQueryType(value) => {
+                Self::GpuPipelineStatisticsQueryType(
+                    <GpuPipelineStatisticsQueryType as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            GpuQuerySetTypeValue::GpuTimestampQueryType(value) => Self::GpuTimestampQueryType(
+                <GpuTimestampQueryType as NativeAbiCodec>::from_value(binding, value),
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for GpuQuerySetTypeAbi<VmAbi> {
+    type Value = GpuQuerySetTypeValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        let owned = match self {
+            Self::GpuOcclusionQueryType(value) => GpuQuerySetTypeValue::GpuOcclusionQueryType(
+                <GpuOcclusionQueryTypeVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::GpuPipelineStatisticsQueryType(value) => {
+                GpuQuerySetTypeValue::GpuPipelineStatisticsQueryType(
+                    <GpuPipelineStatisticsQueryTypeVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::GpuTimestampQueryType(value) => GpuQuerySetTypeValue::GpuTimestampQueryType(
+                <GpuTimestampQueryTypeVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+        };
+        Ok(owned)
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        match value {
+            GpuQuerySetTypeValue::GpuOcclusionQueryType(value) => Ok(Self::GpuOcclusionQueryType(
+                <GpuOcclusionQueryTypeVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+            GpuQuerySetTypeValue::GpuPipelineStatisticsQueryType(value) => {
+                Ok(Self::GpuPipelineStatisticsQueryType(
+                    <GpuPipelineStatisticsQueryTypeVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            GpuQuerySetTypeValue::GpuTimestampQueryType(value) => Ok(Self::GpuTimestampQueryType(
+                <GpuTimestampQueryTypeVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+        }
+    }
+}
+
 /// ABI struct for GpuAdapterFormatCapabilities.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuAdapterFormatCapabilities {
     /// Texture format identifier.
-    pub format: u32,
-    /// Supported usage bitset for this format.
-    pub usage_mask: u64,
-    /// Whether this format can be used as render attachment.
-    pub renderable: bool,
-    /// Whether this format can be blended when used as render attachment.
-    pub blendable: bool,
-    /// Whether this format supports multisampling.
-    pub multisample: bool,
-    /// Supported sample-count bitset.
-    pub sample_count_mask: u32,
+    pub format: GpuTextureFormat,
+    /// Allowed usages for this format.
+    pub allowed_usages: GpuTextureUsageMask,
+    /// Additional texture-format feature flags.
+    pub flags: GpuTextureFormatFeatureFlags,
 }
 
 pub type GpuAdapterFormatCapabilitiesVm = GpuAdapterFormatCapabilities;
@@ -3839,27 +5737,24 @@ impl VmAggregateCodec for GpuAdapterFormatCapabilities {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
+        if slots.len() != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 6 fields",
+                "expected 3 fields",
             ))
             .boxed());
         }
-        let field_format = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_usage_mask = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_renderable = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_blendable = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_multisample = <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_sample_count_mask =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_format =
+            <GpuTextureFormat as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_allowed_usages =
+            <GpuTextureUsageMask as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_flags = <GpuTextureFormatFeatureFlags as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
         Ok(Self {
             format: field_format,
-            usage_mask: field_usage_mask,
-            renderable: field_renderable,
-            blendable: field_blendable,
-            multisample: field_multisample,
-            sample_count_mask: field_sample_count_mask,
+            allowed_usages: field_allowed_usages,
+            flags: field_flags,
         })
     }
 
@@ -3868,12 +5763,14 @@ impl VmAggregateCodec for GpuAdapterFormatCapabilities {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.format, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.usage_mask, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.renderable, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.blendable, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.multisample, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.sample_count_mask, context)?,
+            <GpuTextureFormat as VmAggregateCodec>::encode_with_context(self.format, context)?,
+            <GpuTextureUsageMask as VmAggregateCodec>::encode_with_context(
+                self.allowed_usages,
+                context,
+            )?,
+            <GpuTextureFormatFeatureFlags as VmAggregateCodec>::encode_with_context(
+                self.flags, context,
+            )?,
         ];
         context
             .allocate_aggregate(slots)
@@ -3929,6 +5826,8 @@ pub struct GpuAdapterInfoAbi<A: BindingAbi> {
     pub driver: A::String,
     /// Host driver version when available.
     pub driver_version: A::String,
+    /// Additional driver metadata when available.
+    pub driver_info: A::String,
     /// Backend API kind.
     pub backend: GpuBackend,
     /// Adapter category.
@@ -3937,10 +5836,14 @@ pub struct GpuAdapterInfoAbi<A: BindingAbi> {
     pub vendor_id: u32,
     /// Device identifier when available.
     pub device_id: u32,
+    /// Backend-specific PCI bus identifier when available.
+    pub pci_bus_id: A::String,
     /// Minimum subgroup size when available.
     pub subgroup_min_size: u32,
     /// Maximum subgroup size when available.
     pub subgroup_max_size: u32,
+    /// Whether transient attachments can reduce backing-memory usage on this adapter.
+    pub transient_saves_memory: bool,
     /// Whether this adapter is a fallback implementation.
     pub is_fallback: bool,
     /// Supported feature identifiers.
@@ -3988,10 +5891,10 @@ impl VmAggregateCodec for GpuAdapterInfoAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 14 {
+        if slots.len() != 17 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 14 fields",
+                "expected 17 fields",
             ))
             .boxed());
         }
@@ -4005,34 +5908,43 @@ impl VmAggregateCodec for GpuAdapterInfoAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_driver_version =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_driver_info =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_backend =
-            <GpuBackend as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <GpuBackend as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         let field_adapter_type =
-            <GpuAdapterType as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_vendor_id = <u32 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_device_id = <u32 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+            <GpuAdapterType as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_vendor_id = <u32 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_device_id = <u32 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_pci_bus_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[10])?;
         let field_subgroup_min_size =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
         let field_subgroup_max_size =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+        let field_transient_saves_memory =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[13])?;
         let field_is_fallback =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[14])?;
         let field_features =
-            <VmSlice<GpuFeatureId> as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+            <VmSlice<GpuFeatureId> as VmAggregateCodec>::decode_with_context(context, slots[15])?;
         let field_limits =
-            <GpuAdapterLimitsVm as VmAggregateCodec>::decode_with_context(context, slots[13])?;
+            <GpuAdapterLimitsVm as VmAggregateCodec>::decode_with_context(context, slots[16])?;
         Ok(Self {
             id: field_id,
             name: field_name,
             vendor: field_vendor,
             driver: field_driver,
             driver_version: field_driver_version,
+            driver_info: field_driver_info,
             backend: field_backend,
             adapter_type: field_adapter_type,
             vendor_id: field_vendor_id,
             device_id: field_device_id,
+            pci_bus_id: field_pci_bus_id,
             subgroup_min_size: field_subgroup_min_size,
             subgroup_max_size: field_subgroup_max_size,
+            transient_saves_memory: field_transient_saves_memory,
             is_fallback: field_is_fallback,
             features: field_features,
             limits: field_limits,
@@ -4052,12 +5964,15 @@ impl VmAggregateCodec for GpuAdapterInfoAbi<VmAbi> {
                 self.driver_version,
                 context,
             )?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.driver_info, context)?,
             <GpuBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
             <GpuAdapterType as VmAggregateCodec>::encode_with_context(self.adapter_type, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.vendor_id, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.device_id, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.pci_bus_id, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.subgroup_min_size, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.subgroup_max_size, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.transient_saves_memory, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.is_fallback, context)?,
             <VmSlice<GpuFeatureId> as VmAggregateCodec>::encode_with_context(
                 self.features,
@@ -4086,6 +6001,8 @@ pub struct GpuAdapterInfoValue {
     pub driver: String,
     /// Host driver version when available.
     pub driver_version: String,
+    /// Additional driver metadata when available.
+    pub driver_info: String,
     /// Backend API kind.
     pub backend: GpuBackend,
     /// Adapter category.
@@ -4094,10 +6011,14 @@ pub struct GpuAdapterInfoValue {
     pub vendor_id: u32,
     /// Device identifier when available.
     pub device_id: u32,
+    /// Backend-specific PCI bus identifier when available.
+    pub pci_bus_id: String,
     /// Minimum subgroup size when available.
     pub subgroup_min_size: u32,
     /// Maximum subgroup size when available.
     pub subgroup_max_size: u32,
+    /// Whether transient attachments can reduce backing-memory usage on this adapter.
+    pub transient_saves_memory: bool,
     /// Whether this adapter is a fallback implementation.
     pub is_fallback: bool,
     /// Supported feature identifiers.
@@ -4118,17 +6039,26 @@ impl NativeAbiCodec for GpuAdapterInfoAbi<NativeAbi> {
             driver_version: unsafe {
                 <NativeStringRef as NativeAbiCodec>::into_value(self.driver_version)?
             },
+            driver_info: unsafe {
+                <NativeStringRef as NativeAbiCodec>::into_value(self.driver_info)?
+            },
             backend: unsafe { <GpuBackend as NativeAbiCodec>::into_value(self.backend)? },
             adapter_type: unsafe {
                 <GpuAdapterType as NativeAbiCodec>::into_value(self.adapter_type)?
             },
             vendor_id: unsafe { <u32 as NativeAbiCodec>::into_value(self.vendor_id)? },
             device_id: unsafe { <u32 as NativeAbiCodec>::into_value(self.device_id)? },
+            pci_bus_id: unsafe {
+                <NativeStringRef as NativeAbiCodec>::into_value(self.pci_bus_id)?
+            },
             subgroup_min_size: unsafe {
                 <u32 as NativeAbiCodec>::into_value(self.subgroup_min_size)?
             },
             subgroup_max_size: unsafe {
                 <u32 as NativeAbiCodec>::into_value(self.subgroup_max_size)?
+            },
+            transient_saves_memory: unsafe {
+                <bool as NativeAbiCodec>::into_value(self.transient_saves_memory)?
             },
             is_fallback: unsafe { <bool as NativeAbiCodec>::into_value(self.is_fallback)? },
             features: unsafe {
@@ -4148,6 +6078,10 @@ impl NativeAbiCodec for GpuAdapterInfoAbi<NativeAbi> {
                 binding,
                 value.driver_version,
             ),
+            driver_info: <NativeStringRef as NativeAbiCodec>::from_value(
+                binding,
+                value.driver_info,
+            ),
             backend: <GpuBackend as NativeAbiCodec>::from_value(binding, value.backend),
             adapter_type: <GpuAdapterType as NativeAbiCodec>::from_value(
                 binding,
@@ -4155,6 +6089,7 @@ impl NativeAbiCodec for GpuAdapterInfoAbi<NativeAbi> {
             ),
             vendor_id: <u32 as NativeAbiCodec>::from_value(binding, value.vendor_id),
             device_id: <u32 as NativeAbiCodec>::from_value(binding, value.device_id),
+            pci_bus_id: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.pci_bus_id),
             subgroup_min_size: <u32 as NativeAbiCodec>::from_value(
                 binding,
                 value.subgroup_min_size,
@@ -4162,6 +6097,10 @@ impl NativeAbiCodec for GpuAdapterInfoAbi<NativeAbi> {
             subgroup_max_size: <u32 as NativeAbiCodec>::from_value(
                 binding,
                 value.subgroup_max_size,
+            ),
+            transient_saves_memory: <bool as NativeAbiCodec>::from_value(
+                binding,
+                value.transient_saves_memory,
             ),
             is_fallback: <bool as NativeAbiCodec>::from_value(binding, value.is_fallback),
             features: <NativeSlice<GpuFeatureId> as NativeAbiCodec>::from_value(
@@ -4189,12 +6128,18 @@ impl VmAbiCodec for GpuAdapterInfoAbi<VmAbi> {
                 self.driver_version,
                 context,
             )?,
+            driver_info: <vm::StringHandle as VmAbiCodec>::into_value(self.driver_info, context)?,
             backend: <GpuBackend as VmAbiCodec>::into_value(self.backend, context)?,
             adapter_type: <GpuAdapterType as VmAbiCodec>::into_value(self.adapter_type, context)?,
             vendor_id: <u32 as VmAbiCodec>::into_value(self.vendor_id, context)?,
             device_id: <u32 as VmAbiCodec>::into_value(self.device_id, context)?,
+            pci_bus_id: <vm::StringHandle as VmAbiCodec>::into_value(self.pci_bus_id, context)?,
             subgroup_min_size: <u32 as VmAbiCodec>::into_value(self.subgroup_min_size, context)?,
             subgroup_max_size: <u32 as VmAbiCodec>::into_value(self.subgroup_max_size, context)?,
+            transient_saves_memory: <bool as VmAbiCodec>::into_value(
+                self.transient_saves_memory,
+                context,
+            )?,
             is_fallback: <bool as VmAbiCodec>::into_value(self.is_fallback, context)?,
             features: <VmSlice<GpuFeatureId> as VmAbiCodec>::into_value(self.features, context)?,
             limits: <GpuAdapterLimitsVm as VmAbiCodec>::into_value(self.limits, context)?,
@@ -4214,12 +6159,18 @@ impl VmAbiCodec for GpuAdapterInfoAbi<VmAbi> {
                 context,
                 value.driver_version,
             )?,
+            driver_info: <vm::StringHandle as VmAbiCodec>::from_value(context, value.driver_info)?,
             backend: <GpuBackend as VmAbiCodec>::from_value(context, value.backend)?,
             adapter_type: <GpuAdapterType as VmAbiCodec>::from_value(context, value.adapter_type)?,
             vendor_id: <u32 as VmAbiCodec>::from_value(context, value.vendor_id)?,
             device_id: <u32 as VmAbiCodec>::from_value(context, value.device_id)?,
+            pci_bus_id: <vm::StringHandle as VmAbiCodec>::from_value(context, value.pci_bus_id)?,
             subgroup_min_size: <u32 as VmAbiCodec>::from_value(context, value.subgroup_min_size)?,
             subgroup_max_size: <u32 as VmAbiCodec>::from_value(context, value.subgroup_max_size)?,
+            transient_saves_memory: <bool as VmAbiCodec>::from_value(
+                context,
+                value.transient_saves_memory,
+            )?,
             is_fallback: <bool as VmAbiCodec>::from_value(context, value.is_fallback)?,
             features: <VmSlice<GpuFeatureId> as VmAbiCodec>::from_value(context, value.features)?,
             limits: <GpuAdapterLimitsVm as VmAbiCodec>::from_value(context, value.limits)?,
@@ -4250,15 +6201,19 @@ pub struct GpuAdapterLimits {
     /// Maximum color-attachment bytes written per sample.
     pub max_color_attachment_bytes_per_sample: u32,
     /// Maximum sampled textures per shader stage.
-    pub max_sampled_textures_per_stage: u32,
+    pub max_sampled_textures_per_shader_stage: u32,
     /// Maximum samplers per shader stage.
-    pub max_samplers_per_stage: u32,
+    pub max_samplers_per_shader_stage: u32,
     /// Maximum storage buffers per shader stage.
-    pub max_storage_buffers_per_stage: u32,
+    pub max_storage_buffers_per_shader_stage: u32,
     /// Maximum storage textures per shader stage.
-    pub max_storage_textures_per_stage: u32,
+    pub max_storage_textures_per_shader_stage: u32,
     /// Maximum uniform buffers per shader stage.
-    pub max_uniform_buffers_per_stage: u32,
+    pub max_uniform_buffers_per_shader_stage: u32,
+    /// Maximum non-sampler binding-array elements per shader stage.
+    pub max_binding_array_elements_per_shader_stage: u32,
+    /// Maximum sampler binding-array elements per shader stage.
+    pub max_binding_array_sampler_elements_per_shader_stage: u32,
     /// Maximum dynamic uniform buffers per pipeline layout.
     pub max_dynamic_uniform_buffers_per_pipeline_layout: u32,
     /// Maximum dynamic storage buffers per pipeline layout.
@@ -4295,6 +6250,42 @@ pub struct GpuAdapterLimits {
     pub max_compute_workgroup_size_z: u32,
     /// Maximum compute workgroups per dispatch dimension.
     pub max_compute_workgroups_per_dimension: u32,
+    /// Maximum immediate-data bytes.
+    pub max_immediate_size: u32,
+    /// Maximum live non-sampler bindings.
+    pub max_non_sampler_bindings: u32,
+    /// Maximum total mesh-task workgroup count.
+    pub max_task_mesh_workgroup_total_count: u32,
+    /// Maximum mesh-task workgroups per dimension.
+    pub max_task_mesh_workgroups_per_dimension: u32,
+    /// Maximum task-shader invocations per workgroup.
+    pub max_task_invocations_per_workgroup: u32,
+    /// Maximum task-shader invocations per dimension.
+    pub max_task_invocations_per_dimension: u32,
+    /// Maximum mesh-shader invocations per workgroup.
+    pub max_mesh_invocations_per_workgroup: u32,
+    /// Maximum mesh-shader invocations per dimension.
+    pub max_mesh_invocations_per_dimension: u32,
+    /// Maximum task-shader payload size in bytes.
+    pub max_task_payload_size: u32,
+    /// Maximum mesh-shader output vertices.
+    pub max_mesh_output_vertices: u32,
+    /// Maximum mesh-shader output primitives.
+    pub max_mesh_output_primitives: u32,
+    /// Maximum mesh-shader output layers.
+    pub max_mesh_output_layers: u32,
+    /// Maximum mesh-shader multiview view count.
+    pub max_mesh_multiview_view_count: u32,
+    /// Maximum bottom-level acceleration-structure primitive count.
+    pub max_blas_primitive_count: u32,
+    /// Maximum bottom-level acceleration-structure geometry count.
+    pub max_blas_geometry_count: u32,
+    /// Maximum top-level acceleration-structure instance count.
+    pub max_tlas_instance_count: u32,
+    /// Maximum acceleration structures per shader stage.
+    pub max_acceleration_structures_per_shader_stage: u32,
+    /// Maximum multiview view count.
+    pub max_multiview_view_count: u32,
 }
 
 pub type GpuAdapterLimitsVm = GpuAdapterLimits;
@@ -4314,10 +6305,10 @@ impl VmAggregateCodec for GpuAdapterLimits {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 32 {
+        if slots.len() != 52 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 32 fields",
+                "expected 52 fields",
             ))
             .boxed());
         }
@@ -4339,52 +6330,92 @@ impl VmAggregateCodec for GpuAdapterLimits {
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         let field_max_color_attachment_bytes_per_sample =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_max_sampled_textures_per_stage =
+        let field_max_sampled_textures_per_shader_stage =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_max_samplers_per_stage =
+        let field_max_samplers_per_shader_stage =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let field_max_storage_buffers_per_stage =
+        let field_max_storage_buffers_per_shader_stage =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
-        let field_max_storage_textures_per_stage =
+        let field_max_storage_textures_per_shader_stage =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[12])?;
-        let field_max_uniform_buffers_per_stage =
+        let field_max_uniform_buffers_per_shader_stage =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[13])?;
-        let field_max_dynamic_uniform_buffers_per_pipeline_layout =
+        let field_max_binding_array_elements_per_shader_stage =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[14])?;
-        let field_max_dynamic_storage_buffers_per_pipeline_layout =
+        let field_max_binding_array_sampler_elements_per_shader_stage =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[15])?;
+        let field_max_dynamic_uniform_buffers_per_pipeline_layout =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[16])?;
+        let field_max_dynamic_storage_buffers_per_pipeline_layout =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[17])?;
         let field_max_uniform_buffer_binding_size =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[16])?;
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[18])?;
         let field_max_storage_buffer_binding_size =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[17])?;
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[19])?;
         let field_min_storage_buffer_offset_alignment =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[18])?;
-        let field_min_uniform_buffer_offset_alignment =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[19])?;
-        let field_max_vertex_buffers =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[20])?;
-        let field_max_vertex_attributes =
+        let field_min_uniform_buffer_offset_alignment =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[21])?;
-        let field_max_vertex_buffer_array_stride =
+        let field_max_vertex_buffers =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[22])?;
-        let field_max_buffer_size =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[23])?;
-        let field_max_inter_stage_shader_components =
+        let field_max_vertex_attributes =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[23])?;
+        let field_max_vertex_buffer_array_stride =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[24])?;
-        let field_max_inter_stage_shader_variables =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[25])?;
-        let field_max_compute_workgroup_storage_size =
+        let field_max_buffer_size =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[25])?;
+        let field_max_inter_stage_shader_components =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[26])?;
-        let field_max_compute_invocations_per_workgroup =
+        let field_max_inter_stage_shader_variables =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[27])?;
-        let field_max_compute_workgroup_size_x =
+        let field_max_compute_workgroup_storage_size =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[28])?;
-        let field_max_compute_workgroup_size_y =
+        let field_max_compute_invocations_per_workgroup =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[29])?;
-        let field_max_compute_workgroup_size_z =
+        let field_max_compute_workgroup_size_x =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[30])?;
-        let field_max_compute_workgroups_per_dimension =
+        let field_max_compute_workgroup_size_y =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[31])?;
+        let field_max_compute_workgroup_size_z =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[32])?;
+        let field_max_compute_workgroups_per_dimension =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[33])?;
+        let field_max_immediate_size =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[34])?;
+        let field_max_non_sampler_bindings =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[35])?;
+        let field_max_task_mesh_workgroup_total_count =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[36])?;
+        let field_max_task_mesh_workgroups_per_dimension =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[37])?;
+        let field_max_task_invocations_per_workgroup =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[38])?;
+        let field_max_task_invocations_per_dimension =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[39])?;
+        let field_max_mesh_invocations_per_workgroup =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[40])?;
+        let field_max_mesh_invocations_per_dimension =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[41])?;
+        let field_max_task_payload_size =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[42])?;
+        let field_max_mesh_output_vertices =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[43])?;
+        let field_max_mesh_output_primitives =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[44])?;
+        let field_max_mesh_output_layers =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[45])?;
+        let field_max_mesh_multiview_view_count =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[46])?;
+        let field_max_blas_primitive_count =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[47])?;
+        let field_max_blas_geometry_count =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[48])?;
+        let field_max_tlas_instance_count =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[49])?;
+        let field_max_acceleration_structures_per_shader_stage =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[50])?;
+        let field_max_multiview_view_count =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[51])?;
         Ok(Self {
             max_bind_groups: field_max_bind_groups,
             max_bindings_per_bind_group: field_max_bindings_per_bind_group,
@@ -4395,11 +6426,15 @@ impl VmAggregateCodec for GpuAdapterLimits {
             max_texture_array_layers: field_max_texture_array_layers,
             max_color_attachments: field_max_color_attachments,
             max_color_attachment_bytes_per_sample: field_max_color_attachment_bytes_per_sample,
-            max_sampled_textures_per_stage: field_max_sampled_textures_per_stage,
-            max_samplers_per_stage: field_max_samplers_per_stage,
-            max_storage_buffers_per_stage: field_max_storage_buffers_per_stage,
-            max_storage_textures_per_stage: field_max_storage_textures_per_stage,
-            max_uniform_buffers_per_stage: field_max_uniform_buffers_per_stage,
+            max_sampled_textures_per_shader_stage: field_max_sampled_textures_per_shader_stage,
+            max_samplers_per_shader_stage: field_max_samplers_per_shader_stage,
+            max_storage_buffers_per_shader_stage: field_max_storage_buffers_per_shader_stage,
+            max_storage_textures_per_shader_stage: field_max_storage_textures_per_shader_stage,
+            max_uniform_buffers_per_shader_stage: field_max_uniform_buffers_per_shader_stage,
+            max_binding_array_elements_per_shader_stage:
+                field_max_binding_array_elements_per_shader_stage,
+            max_binding_array_sampler_elements_per_shader_stage:
+                field_max_binding_array_sampler_elements_per_shader_stage,
             max_dynamic_uniform_buffers_per_pipeline_layout:
                 field_max_dynamic_uniform_buffers_per_pipeline_layout,
             max_dynamic_storage_buffers_per_pipeline_layout:
@@ -4420,6 +6455,25 @@ impl VmAggregateCodec for GpuAdapterLimits {
             max_compute_workgroup_size_y: field_max_compute_workgroup_size_y,
             max_compute_workgroup_size_z: field_max_compute_workgroup_size_z,
             max_compute_workgroups_per_dimension: field_max_compute_workgroups_per_dimension,
+            max_immediate_size: field_max_immediate_size,
+            max_non_sampler_bindings: field_max_non_sampler_bindings,
+            max_task_mesh_workgroup_total_count: field_max_task_mesh_workgroup_total_count,
+            max_task_mesh_workgroups_per_dimension: field_max_task_mesh_workgroups_per_dimension,
+            max_task_invocations_per_workgroup: field_max_task_invocations_per_workgroup,
+            max_task_invocations_per_dimension: field_max_task_invocations_per_dimension,
+            max_mesh_invocations_per_workgroup: field_max_mesh_invocations_per_workgroup,
+            max_mesh_invocations_per_dimension: field_max_mesh_invocations_per_dimension,
+            max_task_payload_size: field_max_task_payload_size,
+            max_mesh_output_vertices: field_max_mesh_output_vertices,
+            max_mesh_output_primitives: field_max_mesh_output_primitives,
+            max_mesh_output_layers: field_max_mesh_output_layers,
+            max_mesh_multiview_view_count: field_max_mesh_multiview_view_count,
+            max_blas_primitive_count: field_max_blas_primitive_count,
+            max_blas_geometry_count: field_max_blas_geometry_count,
+            max_tlas_instance_count: field_max_tlas_instance_count,
+            max_acceleration_structures_per_shader_stage:
+                field_max_acceleration_structures_per_shader_stage,
+            max_multiview_view_count: field_max_multiview_view_count,
         })
     }
 
@@ -4444,20 +6498,31 @@ impl VmAggregateCodec for GpuAdapterLimits {
                 context,
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(
-                self.max_sampled_textures_per_stage,
-                context,
-            )?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.max_samplers_per_stage, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(
-                self.max_storage_buffers_per_stage,
+                self.max_sampled_textures_per_shader_stage,
                 context,
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(
-                self.max_storage_textures_per_stage,
+                self.max_samplers_per_shader_stage,
                 context,
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(
-                self.max_uniform_buffers_per_stage,
+                self.max_storage_buffers_per_shader_stage,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_storage_textures_per_shader_stage,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_uniform_buffers_per_shader_stage,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_binding_array_elements_per_shader_stage,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_binding_array_sampler_elements_per_shader_stage,
                 context,
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(
@@ -4523,6 +6588,51 @@ impl VmAggregateCodec for GpuAdapterLimits {
                 self.max_compute_workgroups_per_dimension,
                 context,
             )?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.max_immediate_size, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.max_non_sampler_bindings, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_task_mesh_workgroup_total_count,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_task_mesh_workgroups_per_dimension,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_task_invocations_per_workgroup,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_task_invocations_per_dimension,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_mesh_invocations_per_workgroup,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_mesh_invocations_per_dimension,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.max_task_payload_size, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.max_mesh_output_vertices, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_mesh_output_primitives,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.max_mesh_output_layers, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_mesh_multiview_view_count,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.max_blas_primitive_count, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.max_blas_geometry_count, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.max_tlas_instance_count, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.max_acceleration_structures_per_shader_stage,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.max_multiview_view_count, context)?,
         ];
         context
             .allocate_aggregate(slots)
@@ -4851,8 +6961,8 @@ impl VmAbiCodec for GpuBindGroupBufferResourceAbi<VmAbi> {
 pub struct GpuBindGroupEntryAbi<A: BindingAbi> {
     /// Binding index.
     pub binding: u32,
-    /// Binding array element index, zero when not array-indexed.
-    pub binding_array_element: u32,
+    /// Binding array element index when this entry targets one array element.
+    pub binding_array_element: Option<u32>,
     /// Typed resource payload.
     pub resource: platform_gpu::GpuBindGroupResourceAbi<A>,
 }
@@ -4905,7 +7015,7 @@ impl VmAggregateCodec for GpuBindGroupEntryAbi<VmAbi> {
         }
         let field_binding = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_binding_array_element =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_resource =
             <GpuBindGroupResourceVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
@@ -4921,7 +7031,10 @@ impl VmAggregateCodec for GpuBindGroupEntryAbi<VmAbi> {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u32 as VmAggregateCodec>::encode_with_context(self.binding, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.binding_array_element, context)?,
+            <Option<u32> as VmAggregateCodec>::encode_with_context(
+                self.binding_array_element,
+                context,
+            )?,
             <GpuBindGroupResourceVm as VmAggregateCodec>::encode_with_context(
                 self.resource,
                 context,
@@ -4940,8 +7053,8 @@ impl VmCollectionElement for GpuBindGroupEntryAbi<VmAbi> {}
 pub struct GpuBindGroupEntryValue {
     /// Binding index.
     pub binding: u32,
-    /// Binding array element index, zero when not array-indexed.
-    pub binding_array_element: u32,
+    /// Binding array element index when this entry targets one array element.
+    pub binding_array_element: Option<u32>,
     /// Typed resource payload.
     pub resource: GpuBindGroupResourceValue,
 }
@@ -4953,7 +7066,7 @@ impl NativeAbiCodec for GpuBindGroupEntryAbi<NativeAbi> {
         Ok(GpuBindGroupEntryValue {
             binding: unsafe { <u32 as NativeAbiCodec>::into_value(self.binding)? },
             binding_array_element: unsafe {
-                <u32 as NativeAbiCodec>::into_value(self.binding_array_element)?
+                <Option<u32> as NativeAbiCodec>::into_value(self.binding_array_element)?
             },
             resource: unsafe {
                 <GpuBindGroupResource as NativeAbiCodec>::into_value(self.resource)?
@@ -4964,7 +7077,7 @@ impl NativeAbiCodec for GpuBindGroupEntryAbi<NativeAbi> {
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             binding: <u32 as NativeAbiCodec>::from_value(binding, value.binding),
-            binding_array_element: <u32 as NativeAbiCodec>::from_value(
+            binding_array_element: <Option<u32> as NativeAbiCodec>::from_value(
                 binding,
                 value.binding_array_element,
             ),
@@ -4982,7 +7095,7 @@ impl VmAbiCodec for GpuBindGroupEntryAbi<VmAbi> {
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(GpuBindGroupEntryValue {
             binding: <u32 as VmAbiCodec>::into_value(self.binding, context)?,
-            binding_array_element: <u32 as VmAbiCodec>::into_value(
+            binding_array_element: <Option<u32> as VmAbiCodec>::into_value(
                 self.binding_array_element,
                 context,
             )?,
@@ -4996,11 +7109,161 @@ impl VmAbiCodec for GpuBindGroupEntryAbi<VmAbi> {
     ) -> RuntimeResult<Self> {
         Ok(Self {
             binding: <u32 as VmAbiCodec>::from_value(context, value.binding)?,
-            binding_array_element: <u32 as VmAbiCodec>::from_value(
+            binding_array_element: <Option<u32> as VmAbiCodec>::from_value(
                 context,
                 value.binding_array_element,
             )?,
             resource: <GpuBindGroupResourceVm as VmAbiCodec>::from_value(context, value.resource)?,
+        })
+    }
+}
+
+/// ABI struct for GpuBindGroupExternalTextureResource.
+#[repr(C)]
+pub struct GpuBindGroupExternalTextureResourceAbi<A: BindingAbi> {
+    /// Discriminator for this bind-group resource variant.
+    pub kind: A::String,
+    /// External-texture handle.
+    pub external_texture: resource::GpuExternalTextureHandle,
+}
+
+pub type GpuBindGroupExternalTextureResource = GpuBindGroupExternalTextureResourceAbi<NativeAbi>;
+pub type GpuBindGroupExternalTextureResourceVm = GpuBindGroupExternalTextureResourceAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for GpuBindGroupExternalTextureResourceAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuBindGroupExternalTextureResourceAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuBindGroupExternalTextureResourceAbi<NativeAbi> {}
+impl Clone for GpuBindGroupExternalTextureResourceAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuBindGroupExternalTextureResourceAbi<VmAbi> {}
+impl Clone for GpuBindGroupExternalTextureResourceAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuBindGroupExternalTextureResourceAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuBindGroupExternalTextureResource",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_external_texture =
+            <resource::GpuExternalTextureHandle as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        Ok(Self {
+            kind: field_kind,
+            external_texture: field_external_texture,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <resource::GpuExternalTextureHandle as VmAggregateCodec>::encode_with_context(
+                self.external_texture,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for GpuBindGroupExternalTextureResourceAbi<VmAbi> {}
+
+/// Value type for GpuBindGroupExternalTextureResource.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuBindGroupExternalTextureResourceValue {
+    /// Discriminator for this bind-group resource variant.
+    pub kind: String,
+    /// External-texture handle.
+    pub external_texture: resource::GpuExternalTextureHandle,
+}
+
+impl NativeAbiCodec for GpuBindGroupExternalTextureResourceAbi<NativeAbi> {
+    type Value = GpuBindGroupExternalTextureResourceValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(GpuBindGroupExternalTextureResourceValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            external_texture: unsafe {
+                <resource::GpuExternalTextureHandle as NativeAbiCodec>::into_value(
+                    self.external_texture,
+                )?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            external_texture: <resource::GpuExternalTextureHandle as NativeAbiCodec>::from_value(
+                binding,
+                value.external_texture,
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for GpuBindGroupExternalTextureResourceAbi<VmAbi> {
+    type Value = GpuBindGroupExternalTextureResourceValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(GpuBindGroupExternalTextureResourceValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            external_texture: <resource::GpuExternalTextureHandle as VmAbiCodec>::into_value(
+                self.external_texture,
+                context,
+            )?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            external_texture: <resource::GpuExternalTextureHandle as VmAbiCodec>::from_value(
+                context,
+                value.external_texture,
+            )?,
         })
     }
 }
@@ -5192,8 +7455,8 @@ pub struct GpuBindGroupLayoutEntryAbi<A: BindingAbi> {
     pub binding: u32,
     /// Shader stage visibility mask.
     pub visibility: GpuShaderVisibilityMask,
-    /// Binding array length, zero when not an array binding.
-    pub binding_array_count: u32,
+    /// Binding array length when this entry is array-backed.
+    pub binding_array_count: Option<u32>,
     /// Typed resource payload.
     pub resource: platform_gpu::GpuBindGroupLayoutResourceAbi<A>,
 }
@@ -5248,7 +7511,7 @@ impl VmAggregateCodec for GpuBindGroupLayoutEntryAbi<VmAbi> {
         let field_visibility =
             <GpuShaderVisibilityMask as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_binding_array_count =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_resource =
             <GpuBindGroupLayoutResourceVm as VmAggregateCodec>::decode_with_context(
                 context, slots[3],
@@ -5271,7 +7534,10 @@ impl VmAggregateCodec for GpuBindGroupLayoutEntryAbi<VmAbi> {
                 self.visibility,
                 context,
             )?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.binding_array_count, context)?,
+            <Option<u32> as VmAggregateCodec>::encode_with_context(
+                self.binding_array_count,
+                context,
+            )?,
             <GpuBindGroupLayoutResourceVm as VmAggregateCodec>::encode_with_context(
                 self.resource,
                 context,
@@ -5292,8 +7558,8 @@ pub struct GpuBindGroupLayoutEntryValue {
     pub binding: u32,
     /// Shader stage visibility mask.
     pub visibility: GpuShaderVisibilityMask,
-    /// Binding array length, zero when not an array binding.
-    pub binding_array_count: u32,
+    /// Binding array length when this entry is array-backed.
+    pub binding_array_count: Option<u32>,
     /// Typed resource payload.
     pub resource: GpuBindGroupLayoutResourceValue,
 }
@@ -5308,7 +7574,7 @@ impl NativeAbiCodec for GpuBindGroupLayoutEntryAbi<NativeAbi> {
                 <GpuShaderVisibilityMask as NativeAbiCodec>::into_value(self.visibility)?
             },
             binding_array_count: unsafe {
-                <u32 as NativeAbiCodec>::into_value(self.binding_array_count)?
+                <Option<u32> as NativeAbiCodec>::into_value(self.binding_array_count)?
             },
             resource: unsafe {
                 <GpuBindGroupLayoutResource as NativeAbiCodec>::into_value(self.resource)?
@@ -5323,7 +7589,7 @@ impl NativeAbiCodec for GpuBindGroupLayoutEntryAbi<NativeAbi> {
                 binding,
                 value.visibility,
             ),
-            binding_array_count: <u32 as NativeAbiCodec>::from_value(
+            binding_array_count: <Option<u32> as NativeAbiCodec>::from_value(
                 binding,
                 value.binding_array_count,
             ),
@@ -5348,7 +7614,7 @@ impl VmAbiCodec for GpuBindGroupLayoutEntryAbi<VmAbi> {
                 self.visibility,
                 context,
             )?,
-            binding_array_count: <u32 as VmAbiCodec>::into_value(
+            binding_array_count: <Option<u32> as VmAbiCodec>::into_value(
                 self.binding_array_count,
                 context,
             )?,
@@ -5369,7 +7635,7 @@ impl VmAbiCodec for GpuBindGroupLayoutEntryAbi<VmAbi> {
                 context,
                 value.visibility,
             )?,
-            binding_array_count: <u32 as VmAbiCodec>::from_value(
+            binding_array_count: <Option<u32> as VmAbiCodec>::from_value(
                 context,
                 value.binding_array_count,
             )?,
@@ -5377,6 +7643,257 @@ impl VmAbiCodec for GpuBindGroupLayoutEntryAbi<VmAbi> {
                 context,
                 value.resource,
             )?,
+        })
+    }
+}
+
+/// ABI struct for GpuBindGroupLayoutExternalTextureResource.
+#[repr(C)]
+pub struct GpuBindGroupLayoutExternalTextureResourceAbi<A: BindingAbi> {
+    /// Discriminator for this bind-group-layout resource variant.
+    pub kind: A::String,
+}
+
+pub type GpuBindGroupLayoutExternalTextureResource =
+    GpuBindGroupLayoutExternalTextureResourceAbi<NativeAbi>;
+pub type GpuBindGroupLayoutExternalTextureResourceVm =
+    GpuBindGroupLayoutExternalTextureResourceAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for GpuBindGroupLayoutExternalTextureResourceAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuBindGroupLayoutExternalTextureResourceAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuBindGroupLayoutExternalTextureResourceAbi<NativeAbi> {}
+impl Clone for GpuBindGroupLayoutExternalTextureResourceAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuBindGroupLayoutExternalTextureResourceAbi<VmAbi> {}
+impl Clone for GpuBindGroupLayoutExternalTextureResourceAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuBindGroupLayoutExternalTextureResourceAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuBindGroupLayoutExternalTextureResource",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self { kind: field_kind })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
+            self.kind, context,
+        )?];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for GpuBindGroupLayoutExternalTextureResourceAbi<VmAbi> {}
+
+/// Value type for GpuBindGroupLayoutExternalTextureResource.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuBindGroupLayoutExternalTextureResourceValue {
+    /// Discriminator for this bind-group-layout resource variant.
+    pub kind: String,
+}
+
+impl NativeAbiCodec for GpuBindGroupLayoutExternalTextureResourceAbi<NativeAbi> {
+    type Value = GpuBindGroupLayoutExternalTextureResourceValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(GpuBindGroupLayoutExternalTextureResourceValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+        }
+    }
+}
+
+impl VmAbiCodec for GpuBindGroupLayoutExternalTextureResourceAbi<VmAbi> {
+    type Value = GpuBindGroupLayoutExternalTextureResourceValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(GpuBindGroupLayoutExternalTextureResourceValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+        })
+    }
+}
+
+/// ABI struct for GpuBindGroupLayoutOptions.
+#[repr(C)]
+pub struct GpuBindGroupLayoutOptionsAbi<A: BindingAbi> {
+    /// Debug label.
+    pub label: A::String,
+    /// Bind-group-layout option flags.
+    pub flags: u32,
+}
+
+pub type GpuBindGroupLayoutOptions = GpuBindGroupLayoutOptionsAbi<NativeAbi>;
+pub type GpuBindGroupLayoutOptionsVm = GpuBindGroupLayoutOptionsAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for GpuBindGroupLayoutOptionsAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuBindGroupLayoutOptionsAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuBindGroupLayoutOptionsAbi<NativeAbi> {}
+impl Clone for GpuBindGroupLayoutOptionsAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuBindGroupLayoutOptionsAbi<VmAbi> {}
+impl Clone for GpuBindGroupLayoutOptionsAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuBindGroupLayoutOptionsAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuBindGroupLayoutOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_label =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            label: field_label,
+            flags: field_flags,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for GpuBindGroupLayoutOptionsAbi<VmAbi> {}
+
+/// Value type for GpuBindGroupLayoutOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuBindGroupLayoutOptionsValue {
+    /// Debug label.
+    pub label: String,
+    /// Bind-group-layout option flags.
+    pub flags: u32,
+}
+
+impl NativeAbiCodec for GpuBindGroupLayoutOptionsAbi<NativeAbi> {
+    type Value = GpuBindGroupLayoutOptionsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(GpuBindGroupLayoutOptionsValue {
+            label: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.label)? },
+            flags: unsafe { <u32 as NativeAbiCodec>::into_value(self.flags)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            label: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.label),
+            flags: <u32 as NativeAbiCodec>::from_value(binding, value.flags),
+        }
+    }
+}
+
+impl VmAbiCodec for GpuBindGroupLayoutOptionsAbi<VmAbi> {
+    type Value = GpuBindGroupLayoutOptionsValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(GpuBindGroupLayoutOptionsValue {
+            label: <vm::StringHandle as VmAbiCodec>::into_value(self.label, context)?,
+            flags: <u32 as VmAbiCodec>::into_value(self.flags, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            label: <vm::StringHandle as VmAbiCodec>::from_value(context, value.label)?,
+            flags: <u32 as VmAbiCodec>::from_value(context, value.flags)?,
         })
     }
 }
@@ -5723,7 +8240,7 @@ pub struct GpuBindGroupLayoutStorageTextureResourceAbi<A: BindingAbi> {
     /// Storage-texture access selector.
     pub storage_texture_access: GpuStorageTextureAccess,
     /// Storage-texture format identifier.
-    pub storage_texture_format: u32,
+    pub storage_texture_format: GpuTextureFormat,
     /// Texture view dimension selector.
     pub texture_view_dimension: GpuTextureViewDimension,
 }
@@ -5781,7 +8298,7 @@ impl VmAggregateCodec for GpuBindGroupLayoutStorageTextureResourceAbi<VmAbi> {
         let field_storage_texture_access =
             <GpuStorageTextureAccess as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_storage_texture_format =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <GpuTextureFormat as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_texture_view_dimension =
             <GpuTextureViewDimension as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
@@ -5802,7 +8319,10 @@ impl VmAggregateCodec for GpuBindGroupLayoutStorageTextureResourceAbi<VmAbi> {
                 self.storage_texture_access,
                 context,
             )?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.storage_texture_format, context)?,
+            <GpuTextureFormat as VmAggregateCodec>::encode_with_context(
+                self.storage_texture_format,
+                context,
+            )?,
             <GpuTextureViewDimension as VmAggregateCodec>::encode_with_context(
                 self.texture_view_dimension,
                 context,
@@ -5824,7 +8344,7 @@ pub struct GpuBindGroupLayoutStorageTextureResourceValue {
     /// Storage-texture access selector.
     pub storage_texture_access: GpuStorageTextureAccess,
     /// Storage-texture format identifier.
-    pub storage_texture_format: u32,
+    pub storage_texture_format: GpuTextureFormat,
     /// Texture view dimension selector.
     pub texture_view_dimension: GpuTextureViewDimension,
 }
@@ -5841,7 +8361,7 @@ impl NativeAbiCodec for GpuBindGroupLayoutStorageTextureResourceAbi<NativeAbi> {
                 )?
             },
             storage_texture_format: unsafe {
-                <u32 as NativeAbiCodec>::into_value(self.storage_texture_format)?
+                <GpuTextureFormat as NativeAbiCodec>::into_value(self.storage_texture_format)?
             },
             texture_view_dimension: unsafe {
                 <GpuTextureViewDimension as NativeAbiCodec>::into_value(
@@ -5858,7 +8378,7 @@ impl NativeAbiCodec for GpuBindGroupLayoutStorageTextureResourceAbi<NativeAbi> {
                 binding,
                 value.storage_texture_access,
             ),
-            storage_texture_format: <u32 as NativeAbiCodec>::from_value(
+            storage_texture_format: <GpuTextureFormat as NativeAbiCodec>::from_value(
                 binding,
                 value.storage_texture_format,
             ),
@@ -5883,7 +8403,7 @@ impl VmAbiCodec for GpuBindGroupLayoutStorageTextureResourceAbi<VmAbi> {
                 self.storage_texture_access,
                 context,
             )?,
-            storage_texture_format: <u32 as VmAbiCodec>::into_value(
+            storage_texture_format: <GpuTextureFormat as VmAbiCodec>::into_value(
                 self.storage_texture_format,
                 context,
             )?,
@@ -5904,7 +8424,7 @@ impl VmAbiCodec for GpuBindGroupLayoutStorageTextureResourceAbi<VmAbi> {
                 context,
                 value.storage_texture_access,
             )?,
-            storage_texture_format: <u32 as VmAbiCodec>::from_value(
+            storage_texture_format: <GpuTextureFormat as VmAbiCodec>::from_value(
                 context,
                 value.storage_texture_format,
             )?,
@@ -5912,6 +8432,137 @@ impl VmAbiCodec for GpuBindGroupLayoutStorageTextureResourceAbi<VmAbi> {
                 context,
                 value.texture_view_dimension,
             )?,
+        })
+    }
+}
+
+/// ABI struct for GpuBindGroupOptions.
+#[repr(C)]
+pub struct GpuBindGroupOptionsAbi<A: BindingAbi> {
+    /// Debug label.
+    pub label: A::String,
+    /// Bind-group option flags.
+    pub flags: u32,
+}
+
+pub type GpuBindGroupOptions = GpuBindGroupOptionsAbi<NativeAbi>;
+pub type GpuBindGroupOptionsVm = GpuBindGroupOptionsAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for GpuBindGroupOptionsAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuBindGroupOptionsAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuBindGroupOptionsAbi<NativeAbi> {}
+impl Clone for GpuBindGroupOptionsAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuBindGroupOptionsAbi<VmAbi> {}
+impl Clone for GpuBindGroupOptionsAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuBindGroupOptionsAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuBindGroupOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_label =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            label: field_label,
+            flags: field_flags,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for GpuBindGroupOptionsAbi<VmAbi> {}
+
+/// Value type for GpuBindGroupOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuBindGroupOptionsValue {
+    /// Debug label.
+    pub label: String,
+    /// Bind-group option flags.
+    pub flags: u32,
+}
+
+impl NativeAbiCodec for GpuBindGroupOptionsAbi<NativeAbi> {
+    type Value = GpuBindGroupOptionsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(GpuBindGroupOptionsValue {
+            label: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.label)? },
+            flags: unsafe { <u32 as NativeAbiCodec>::into_value(self.flags)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            label: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.label),
+            flags: <u32 as NativeAbiCodec>::from_value(binding, value.flags),
+        }
+    }
+}
+
+impl VmAbiCodec for GpuBindGroupOptionsAbi<VmAbi> {
+    type Value = GpuBindGroupOptionsValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(GpuBindGroupOptionsValue {
+            label: <vm::StringHandle as VmAbiCodec>::into_value(self.label, context)?,
+            flags: <u32 as VmAbiCodec>::into_value(self.flags, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            label: <vm::StringHandle as VmAbiCodec>::from_value(context, value.label)?,
+            flags: <u32 as VmAbiCodec>::from_value(context, value.flags)?,
         })
     }
 }
@@ -6602,7 +9253,7 @@ pub struct GpuBufferInfo {
     /// Buffer size in bytes.
     pub size: u64,
     /// Buffer usage bitset.
-    pub usage: u64,
+    pub usage: GpuBufferUsageMask,
     /// Current map-state selector.
     pub map_state: GpuBufferMapState,
 }
@@ -6632,7 +9283,8 @@ impl VmAggregateCodec for GpuBufferInfo {
             .boxed());
         }
         let field_size = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_usage = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_usage =
+            <GpuBufferUsageMask as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_map_state =
             <GpuBufferMapState as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
@@ -6648,7 +9300,7 @@ impl VmAggregateCodec for GpuBufferInfo {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.size, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.usage, context)?,
+            <GpuBufferUsageMask as VmAggregateCodec>::encode_with_context(self.usage, context)?,
             <GpuBufferMapState as VmAggregateCodec>::encode_with_context(self.map_state, context)?,
         ];
         context
@@ -6694,21 +9346,44 @@ impl VmCollectionElement for GpuBufferInfo {}
 
 /// ABI struct for GpuBufferOptions.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct GpuBufferOptions {
+pub struct GpuBufferOptionsAbi<A: BindingAbi> {
+    /// Debug label.
+    pub label: A::String,
     /// Buffer size in bytes.
     pub size: u64,
     /// Buffer usage bitset.
-    pub usage: u64,
+    pub usage: GpuBufferUsageMask,
     /// Whether the buffer starts mapped for host access.
     pub mapped_at_creation: bool,
     /// Buffer option flags.
     pub flags: u32,
 }
 
-pub type GpuBufferOptionsVm = GpuBufferOptions;
+pub type GpuBufferOptions = GpuBufferOptionsAbi<NativeAbi>;
+pub type GpuBufferOptionsVm = GpuBufferOptionsAbi<VmAbi>;
 
-impl VmAggregateCodec for GpuBufferOptions {
+impl<A: BindingAbi> std::fmt::Debug for GpuBufferOptionsAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuBufferOptionsAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuBufferOptionsAbi<NativeAbi> {}
+impl Clone for GpuBufferOptionsAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuBufferOptionsAbi<VmAbi> {}
+impl Clone for GpuBufferOptionsAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuBufferOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -6723,19 +9398,23 @@ impl VmAggregateCodec for GpuBufferOptions {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 5 fields",
             ))
             .boxed());
         }
-        let field_size = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_usage = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_label =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_size = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_usage =
+            <GpuBufferUsageMask as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_mapped_at_creation =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
+            label: field_label,
             size: field_size,
             usage: field_usage,
             mapped_at_creation: field_mapped_at_creation,
@@ -6748,8 +9427,9 @@ impl VmAggregateCodec for GpuBufferOptions {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.size, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.usage, context)?,
+            <GpuBufferUsageMask as VmAggregateCodec>::encode_with_context(self.usage, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.mapped_at_creation, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
@@ -6759,11 +9439,152 @@ impl VmAggregateCodec for GpuBufferOptions {
     }
 }
 
-/// Value type for GpuBufferOptions.
-pub type GpuBufferOptionsValue = GpuBufferOptions;
+impl VmCollectionElement for GpuBufferOptionsAbi<VmAbi> {}
 
-impl NativeAbiCodec for GpuBufferOptions {
+/// Value type for GpuBufferOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuBufferOptionsValue {
+    /// Debug label.
+    pub label: String,
+    /// Buffer size in bytes.
+    pub size: u64,
+    /// Buffer usage bitset.
+    pub usage: GpuBufferUsageMask,
+    /// Whether the buffer starts mapped for host access.
+    pub mapped_at_creation: bool,
+    /// Buffer option flags.
+    pub flags: u32,
+}
+
+impl NativeAbiCodec for GpuBufferOptionsAbi<NativeAbi> {
     type Value = GpuBufferOptionsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(GpuBufferOptionsValue {
+            label: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.label)? },
+            size: unsafe { <u64 as NativeAbiCodec>::into_value(self.size)? },
+            usage: unsafe { <GpuBufferUsageMask as NativeAbiCodec>::into_value(self.usage)? },
+            mapped_at_creation: unsafe {
+                <bool as NativeAbiCodec>::into_value(self.mapped_at_creation)?
+            },
+            flags: unsafe { <u32 as NativeAbiCodec>::into_value(self.flags)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            label: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.label),
+            size: <u64 as NativeAbiCodec>::from_value(binding, value.size),
+            usage: <GpuBufferUsageMask as NativeAbiCodec>::from_value(binding, value.usage),
+            mapped_at_creation: <bool as NativeAbiCodec>::from_value(
+                binding,
+                value.mapped_at_creation,
+            ),
+            flags: <u32 as NativeAbiCodec>::from_value(binding, value.flags),
+        }
+    }
+}
+
+impl VmAbiCodec for GpuBufferOptionsAbi<VmAbi> {
+    type Value = GpuBufferOptionsValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(GpuBufferOptionsValue {
+            label: <vm::StringHandle as VmAbiCodec>::into_value(self.label, context)?,
+            size: <u64 as VmAbiCodec>::into_value(self.size, context)?,
+            usage: <GpuBufferUsageMask as VmAbiCodec>::into_value(self.usage, context)?,
+            mapped_at_creation: <bool as VmAbiCodec>::into_value(self.mapped_at_creation, context)?,
+            flags: <u32 as VmAbiCodec>::into_value(self.flags, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            label: <vm::StringHandle as VmAbiCodec>::from_value(context, value.label)?,
+            size: <u64 as VmAbiCodec>::from_value(context, value.size)?,
+            usage: <GpuBufferUsageMask as VmAbiCodec>::from_value(context, value.usage)?,
+            mapped_at_creation: <bool as VmAbiCodec>::from_value(
+                context,
+                value.mapped_at_creation,
+            )?,
+            flags: <u32 as VmAbiCodec>::from_value(context, value.flags)?,
+        })
+    }
+}
+
+/// ABI struct for GpuBufferTransition.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct GpuBufferTransition {
+    /// Buffer handle.
+    pub buffer: resource::GpuBufferHandle,
+    /// Target buffer use state.
+    pub state: GpuBufferUseMask,
+}
+
+pub type GpuBufferTransitionVm = GpuBufferTransition;
+
+impl VmAggregateCodec for GpuBufferTransition {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuBufferTransition",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_buffer = <resource::GpuBufferHandle as VmAggregateCodec>::decode_with_context(
+            context, slots[0],
+        )?;
+        let field_state =
+            <GpuBufferUseMask as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            buffer: field_buffer,
+            state: field_state,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <resource::GpuBufferHandle as VmAggregateCodec>::encode_with_context(
+                self.buffer,
+                context,
+            )?,
+            <GpuBufferUseMask as VmAggregateCodec>::encode_with_context(self.state, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for GpuBufferTransition.
+pub type GpuBufferTransitionValue = GpuBufferTransition;
+
+impl NativeAbiCodec for GpuBufferTransition {
+    type Value = GpuBufferTransitionValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(self)
@@ -6774,8 +9595,8 @@ impl NativeAbiCodec for GpuBufferOptions {
     }
 }
 
-impl VmAbiCodec for GpuBufferOptions {
-    type Value = GpuBufferOptionsValue;
+impl VmAbiCodec for GpuBufferTransition {
+    type Value = GpuBufferTransitionValue;
 
     fn into_value(
         self,
@@ -6792,7 +9613,7 @@ impl VmAbiCodec for GpuBufferOptions {
     }
 }
 
-impl VmCollectionElement for GpuBufferOptions {}
+impl VmCollectionElement for GpuBufferTransition {}
 
 /// ABI struct for GpuCapturedError.
 #[repr(C)]
@@ -6936,12 +9757,112 @@ impl VmAbiCodec for GpuCapturedErrorAbi<VmAbi> {
     }
 }
 
+/// ABI struct for GpuColor.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct GpuColor {
+    /// Red component.
+    pub r: f64,
+    /// Green component.
+    pub g: f64,
+    /// Blue component.
+    pub b: f64,
+    /// Alpha component.
+    pub a: f64,
+}
+
+pub type GpuColorVm = GpuColor;
+
+impl VmAggregateCodec for GpuColor {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value", "GpuColor",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_r = <f64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_g = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_b = <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_a = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            r: field_r,
+            g: field_g,
+            b: field_b,
+            a: field_a,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <f64 as VmAggregateCodec>::encode_with_context(self.r, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.g, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.b, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.a, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for GpuColor.
+pub type GpuColorValue = GpuColor;
+
+impl NativeAbiCodec for GpuColor {
+    type Value = GpuColorValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuColor {
+    type Value = GpuColorValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for GpuColor {}
+
 /// ABI struct for GpuColorTargetState.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuColorTargetState {
     /// Render-target texture format identifier.
-    pub format: u32,
+    pub format: GpuTextureFormat,
     /// Blend-state descriptor when provided.
     pub blend: Option<GpuBlendState>,
     /// Color-write channel mask.
@@ -6972,7 +9893,8 @@ impl VmAggregateCodec for GpuColorTargetState {
             ))
             .boxed());
         }
-        let field_format = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_format =
+            <GpuTextureFormat as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_blend =
             <Option<GpuBlendStateVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_write_mask =
@@ -6989,7 +9911,7 @@ impl VmAggregateCodec for GpuColorTargetState {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.format, context)?,
+            <GpuTextureFormat as VmAggregateCodec>::encode_with_context(self.format, context)?,
             <Option<GpuBlendStateVm> as VmAggregateCodec>::encode_with_context(
                 self.blend, context,
             )?,
@@ -7036,17 +9958,158 @@ impl VmAbiCodec for GpuColorTargetState {
 
 impl VmCollectionElement for GpuColorTargetState {}
 
+/// ABI struct for GpuCommandBufferOptions.
+#[repr(C)]
+pub struct GpuCommandBufferOptionsAbi<A: BindingAbi> {
+    /// Debug label.
+    pub label: A::String,
+}
+
+pub type GpuCommandBufferOptions = GpuCommandBufferOptionsAbi<NativeAbi>;
+pub type GpuCommandBufferOptionsVm = GpuCommandBufferOptionsAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for GpuCommandBufferOptionsAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuCommandBufferOptionsAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuCommandBufferOptionsAbi<NativeAbi> {}
+impl Clone for GpuCommandBufferOptionsAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuCommandBufferOptionsAbi<VmAbi> {}
+impl Clone for GpuCommandBufferOptionsAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuCommandBufferOptionsAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuCommandBufferOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let field_label =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self { label: field_label })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
+            self.label, context,
+        )?];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for GpuCommandBufferOptionsAbi<VmAbi> {}
+
+/// Value type for GpuCommandBufferOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuCommandBufferOptionsValue {
+    /// Debug label.
+    pub label: String,
+}
+
+impl NativeAbiCodec for GpuCommandBufferOptionsAbi<NativeAbi> {
+    type Value = GpuCommandBufferOptionsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(GpuCommandBufferOptionsValue {
+            label: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.label)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            label: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.label),
+        }
+    }
+}
+
+impl VmAbiCodec for GpuCommandBufferOptionsAbi<VmAbi> {
+    type Value = GpuCommandBufferOptionsValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(GpuCommandBufferOptionsValue {
+            label: <vm::StringHandle as VmAbiCodec>::into_value(self.label, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            label: <vm::StringHandle as VmAbiCodec>::from_value(context, value.label)?,
+        })
+    }
+}
+
 /// ABI struct for GpuCommandEncoderOptions.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct GpuCommandEncoderOptions {
+pub struct GpuCommandEncoderOptionsAbi<A: BindingAbi> {
+    /// Debug label.
+    pub label: A::String,
     /// Encoder option flags.
     pub flags: u32,
 }
 
-pub type GpuCommandEncoderOptionsVm = GpuCommandEncoderOptions;
+pub type GpuCommandEncoderOptions = GpuCommandEncoderOptionsAbi<NativeAbi>;
+pub type GpuCommandEncoderOptionsVm = GpuCommandEncoderOptionsAbi<VmAbi>;
 
-impl VmAggregateCodec for GpuCommandEncoderOptions {
+impl<A: BindingAbi> std::fmt::Debug for GpuCommandEncoderOptionsAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuCommandEncoderOptionsAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuCommandEncoderOptionsAbi<NativeAbi> {}
+impl Clone for GpuCommandEncoderOptionsAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuCommandEncoderOptionsAbi<VmAbi> {}
+impl Clone for GpuCommandEncoderOptionsAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuCommandEncoderOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -7061,64 +10124,88 @@ impl VmAggregateCodec for GpuCommandEncoderOptions {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 1 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        Ok(Self { flags: field_flags })
+        let field_label =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            label: field_label,
+            flags: field_flags,
+        })
     }
 
     fn encode_with_context(
         self,
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![<u32 as VmAggregateCodec>::encode_with_context(
-            self.flags, context,
-        )?];
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
+        ];
         context
             .allocate_aggregate(slots)
             .map_err(Box::<RuntimeError>::from)
     }
 }
 
-/// Value type for GpuCommandEncoderOptions.
-pub type GpuCommandEncoderOptionsValue = GpuCommandEncoderOptions;
+impl VmCollectionElement for GpuCommandEncoderOptionsAbi<VmAbi> {}
 
-impl NativeAbiCodec for GpuCommandEncoderOptions {
+/// Value type for GpuCommandEncoderOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuCommandEncoderOptionsValue {
+    /// Debug label.
+    pub label: String,
+    /// Encoder option flags.
+    pub flags: u32,
+}
+
+impl NativeAbiCodec for GpuCommandEncoderOptionsAbi<NativeAbi> {
     type Value = GpuCommandEncoderOptionsValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
+        Ok(GpuCommandEncoderOptionsValue {
+            label: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.label)? },
+            flags: unsafe { <u32 as NativeAbiCodec>::into_value(self.flags)? },
+        })
     }
 
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            label: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.label),
+            flags: <u32 as NativeAbiCodec>::from_value(binding, value.flags),
+        }
     }
 }
 
-impl VmAbiCodec for GpuCommandEncoderOptions {
+impl VmAbiCodec for GpuCommandEncoderOptionsAbi<VmAbi> {
     type Value = GpuCommandEncoderOptionsValue;
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
+        Ok(GpuCommandEncoderOptionsValue {
+            label: <vm::StringHandle as VmAbiCodec>::into_value(self.label, context)?,
+            flags: <u32 as VmAbiCodec>::into_value(self.flags, context)?,
+        })
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalCallContext<'_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
-        Ok(value)
+        Ok(Self {
+            label: <vm::StringHandle as VmAbiCodec>::from_value(context, value.label)?,
+            flags: <u32 as VmAbiCodec>::from_value(context, value.flags)?,
+        })
     }
 }
-
-impl VmCollectionElement for GpuCommandEncoderOptions {}
 
 /// ABI struct for GpuCompilationInfo.
 #[repr(C)]
@@ -7437,17 +10524,40 @@ impl VmAbiCodec for GpuCompilationMessageAbi<VmAbi> {
 
 /// ABI struct for GpuComputePassOptions.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct GpuComputePassOptions {
+pub struct GpuComputePassOptionsAbi<A: BindingAbi> {
+    /// Debug label.
+    pub label: A::String,
     /// Timestamp-write descriptor when enabled.
     pub timestamp_writes: Option<GpuPassTimestampWrites>,
     /// Compute-pass option flags.
     pub flags: u32,
 }
 
-pub type GpuComputePassOptionsVm = GpuComputePassOptions;
+pub type GpuComputePassOptions = GpuComputePassOptionsAbi<NativeAbi>;
+pub type GpuComputePassOptionsVm = GpuComputePassOptionsAbi<VmAbi>;
 
-impl VmAggregateCodec for GpuComputePassOptions {
+impl<A: BindingAbi> std::fmt::Debug for GpuComputePassOptionsAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuComputePassOptionsAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuComputePassOptionsAbi<NativeAbi> {}
+impl Clone for GpuComputePassOptionsAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuComputePassOptionsAbi<VmAbi> {}
+impl Clone for GpuComputePassOptionsAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuComputePassOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -7462,19 +10572,22 @@ impl VmAggregateCodec for GpuComputePassOptions {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        if slots.len() != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 2 fields",
+                "expected 3 fields",
             ))
             .boxed());
         }
+        let field_label =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_timestamp_writes =
             <Option<GpuPassTimestampWritesVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[0],
+                context, slots[1],
             )?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
+            label: field_label,
             timestamp_writes: field_timestamp_writes,
             flags: field_flags,
         })
@@ -7485,6 +10598,7 @@ impl VmAggregateCodec for GpuComputePassOptions {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
             <Option<GpuPassTimestampWritesVm> as VmAggregateCodec>::encode_with_context(
                 self.timestamp_writes,
                 context,
@@ -7497,50 +10611,87 @@ impl VmAggregateCodec for GpuComputePassOptions {
     }
 }
 
-/// Value type for GpuComputePassOptions.
-pub type GpuComputePassOptionsValue = GpuComputePassOptions;
+impl VmCollectionElement for GpuComputePassOptionsAbi<VmAbi> {}
 
-impl NativeAbiCodec for GpuComputePassOptions {
+/// Value type for GpuComputePassOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuComputePassOptionsValue {
+    /// Debug label.
+    pub label: String,
+    /// Timestamp-write descriptor when enabled.
+    pub timestamp_writes: Option<GpuPassTimestampWrites>,
+    /// Compute-pass option flags.
+    pub flags: u32,
+}
+
+impl NativeAbiCodec for GpuComputePassOptionsAbi<NativeAbi> {
     type Value = GpuComputePassOptionsValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
+        Ok(GpuComputePassOptionsValue {
+            label: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.label)? },
+            timestamp_writes: unsafe {
+                <Option<GpuPassTimestampWrites> as NativeAbiCodec>::into_value(
+                    self.timestamp_writes,
+                )?
+            },
+            flags: unsafe { <u32 as NativeAbiCodec>::into_value(self.flags)? },
+        })
     }
 
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            label: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.label),
+            timestamp_writes: <Option<GpuPassTimestampWrites> as NativeAbiCodec>::from_value(
+                binding,
+                value.timestamp_writes,
+            ),
+            flags: <u32 as NativeAbiCodec>::from_value(binding, value.flags),
+        }
     }
 }
 
-impl VmAbiCodec for GpuComputePassOptions {
+impl VmAbiCodec for GpuComputePassOptionsAbi<VmAbi> {
     type Value = GpuComputePassOptionsValue;
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
+        Ok(GpuComputePassOptionsValue {
+            label: <vm::StringHandle as VmAbiCodec>::into_value(self.label, context)?,
+            timestamp_writes: <Option<GpuPassTimestampWritesVm> as VmAbiCodec>::into_value(
+                self.timestamp_writes,
+                context,
+            )?,
+            flags: <u32 as VmAbiCodec>::into_value(self.flags, context)?,
+        })
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalCallContext<'_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
-        Ok(value)
+        Ok(Self {
+            label: <vm::StringHandle as VmAbiCodec>::from_value(context, value.label)?,
+            timestamp_writes: <Option<GpuPassTimestampWritesVm> as VmAbiCodec>::from_value(
+                context,
+                value.timestamp_writes,
+            )?,
+            flags: <u32 as VmAbiCodec>::from_value(context, value.flags)?,
+        })
     }
 }
-
-impl VmCollectionElement for GpuComputePassOptions {}
 
 /// ABI struct for GpuComputePipelineOptions.
 #[repr(C)]
 pub struct GpuComputePipelineOptionsAbi<A: BindingAbi> {
+    /// Debug label.
+    pub label: A::String,
     /// Explicit pipeline layout handle when provided.
     pub layout: Option<resource::GpuPipelineLayoutHandle>,
     /// Compute stage descriptor.
     pub compute: platform_gpu::GpuComputeStateAbi<A>,
-    /// Pipeline creation metadata.
-    pub metadata: platform_gpu::GpuPipelineMetadataAbi<A>,
     /// Pipeline option flags.
     pub flags: u32,
 }
@@ -7591,19 +10742,19 @@ impl VmAggregateCodec for GpuComputePipelineOptionsAbi<VmAbi> {
             ))
             .boxed());
         }
+        let field_label =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_layout =
             <Option<resource::GpuPipelineLayoutHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[0],
+                context, slots[1],
             )?;
         let field_compute =
-            <GpuComputeStateVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_metadata =
-            <GpuPipelineMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <GpuComputeStateVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
+            label: field_label,
             layout: field_layout,
             compute: field_compute,
-            metadata: field_metadata,
             flags: field_flags,
         })
     }
@@ -7613,15 +10764,12 @@ impl VmAggregateCodec for GpuComputePipelineOptionsAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
             <Option<resource::GpuPipelineLayoutHandle> as VmAggregateCodec>::encode_with_context(
                 self.layout,
                 context,
             )?,
             <GpuComputeStateVm as VmAggregateCodec>::encode_with_context(self.compute, context)?,
-            <GpuPipelineMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
         context
@@ -7635,12 +10783,12 @@ impl VmCollectionElement for GpuComputePipelineOptionsAbi<VmAbi> {}
 /// Value type for GpuComputePipelineOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuComputePipelineOptionsValue {
+    /// Debug label.
+    pub label: String,
     /// Explicit pipeline layout handle when provided.
     pub layout: Option<resource::GpuPipelineLayoutHandle>,
     /// Compute stage descriptor.
     pub compute: GpuComputeStateValue,
-    /// Pipeline creation metadata.
-    pub metadata: GpuPipelineMetadataValue,
     /// Pipeline option flags.
     pub flags: u32,
 }
@@ -7650,27 +10798,25 @@ impl NativeAbiCodec for GpuComputePipelineOptionsAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(GpuComputePipelineOptionsValue {
+            label: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.label)? },
             layout: unsafe {
                 <Option<resource::GpuPipelineLayoutHandle> as NativeAbiCodec>::into_value(
                     self.layout,
                 )?
             },
             compute: unsafe { <GpuComputeState as NativeAbiCodec>::into_value(self.compute)? },
-            metadata: unsafe {
-                <GpuPipelineMetadata as NativeAbiCodec>::into_value(self.metadata)?
-            },
             flags: unsafe { <u32 as NativeAbiCodec>::into_value(self.flags)? },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
+            label: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.label),
             layout: <Option<resource::GpuPipelineLayoutHandle> as NativeAbiCodec>::from_value(
                 binding,
                 value.layout,
             ),
             compute: <GpuComputeState as NativeAbiCodec>::from_value(binding, value.compute),
-            metadata: <GpuPipelineMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
             flags: <u32 as NativeAbiCodec>::from_value(binding, value.flags),
         }
     }
@@ -7684,12 +10830,12 @@ impl VmAbiCodec for GpuComputePipelineOptionsAbi<VmAbi> {
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(GpuComputePipelineOptionsValue {
+            label: <vm::StringHandle as VmAbiCodec>::into_value(self.label, context)?,
             layout: <Option<resource::GpuPipelineLayoutHandle> as VmAbiCodec>::into_value(
                 self.layout,
                 context,
             )?,
             compute: <GpuComputeStateVm as VmAbiCodec>::into_value(self.compute, context)?,
-            metadata: <GpuPipelineMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
             flags: <u32 as VmAbiCodec>::into_value(self.flags, context)?,
         })
     }
@@ -7699,12 +10845,12 @@ impl VmAbiCodec for GpuComputePipelineOptionsAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
+            label: <vm::StringHandle as VmAbiCodec>::from_value(context, value.label)?,
             layout: <Option<resource::GpuPipelineLayoutHandle> as VmAbiCodec>::from_value(
                 context,
                 value.layout,
             )?,
             compute: <GpuComputeStateVm as VmAbiCodec>::from_value(context, value.compute)?,
-            metadata: <GpuPipelineMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
             flags: <u32 as VmAbiCodec>::from_value(context, value.flags)?,
         })
     }
@@ -7886,7 +11032,7 @@ impl VmAbiCodec for GpuComputeStateAbi<VmAbi> {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuDepthStencilState {
     /// Depth-stencil texture format identifier.
-    pub format: u32,
+    pub format: GpuTextureFormat,
     /// Whether depth writes are enabled.
     pub depth_write_enabled: bool,
     /// Depth compare selector.
@@ -7931,7 +11077,8 @@ impl VmAggregateCodec for GpuDepthStencilState {
             ))
             .boxed());
         }
-        let field_format = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_format =
+            <GpuTextureFormat as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_depth_write_enabled =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_depth_compare =
@@ -7968,7 +11115,7 @@ impl VmAggregateCodec for GpuDepthStencilState {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.format, context)?,
+            <GpuTextureFormat as VmAggregateCodec>::encode_with_context(self.format, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.depth_write_enabled, context)?,
             <GpuCompareFunction as VmAggregateCodec>::encode_with_context(
                 self.depth_compare,
@@ -8275,10 +11422,22 @@ impl VmAbiCodec for GpuDeviceInfoAbi<VmAbi> {
 /// ABI struct for GpuDeviceOptions.
 #[repr(C)]
 pub struct GpuDeviceOptionsAbi<A: BindingAbi> {
+    /// Debug label.
+    pub label: A::String,
     /// Required feature identifiers.
     pub required_features: A::Slice<GpuFeatureId>,
     /// Required minimum limits.
     pub required_limits: GpuAdapterLimits,
+    /// Memory allocation hint.
+    pub memory_hint: GpuMemoryHint,
+    /// Manual memory-allocation guidance when `memoryHint` is `Manual`.
+    pub manual_memory_hint: Option<GpuManualMemoryHint>,
+    /// Whether experimental feature identifiers are allowed.
+    pub allow_experimental_features: bool,
+    /// Trace mode selector.
+    pub trace_mode: GpuTraceMode,
+    /// Trace output directory when `traceMode` is `Directory`.
+    pub trace_directory: Option<A::String>,
     /// Preferred backend override.
     pub backend: GpuBackend,
     /// Device option flags.
@@ -8324,23 +11483,43 @@ impl VmAggregateCodec for GpuDeviceOptionsAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 10 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 10 fields",
             ))
             .boxed());
         }
+        let field_label =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_required_features =
-            <VmSlice<GpuFeatureId> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+            <VmSlice<GpuFeatureId> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_required_limits =
-            <GpuAdapterLimitsVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <GpuAdapterLimitsVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_memory_hint =
+            <GpuMemoryHint as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_manual_memory_hint =
+            <Option<GpuManualMemoryHintVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[4],
+            )?;
+        let field_allow_experimental_features =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_trace_mode =
+            <GpuTraceMode as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_trace_directory =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         let field_backend =
-            <GpuBackend as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <GpuBackend as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
         Ok(Self {
+            label: field_label,
             required_features: field_required_features,
             required_limits: field_required_limits,
+            memory_hint: field_memory_hint,
+            manual_memory_hint: field_manual_memory_hint,
+            allow_experimental_features: field_allow_experimental_features,
+            trace_mode: field_trace_mode,
+            trace_directory: field_trace_directory,
             backend: field_backend,
             flags: field_flags,
         })
@@ -8351,12 +11530,27 @@ impl VmAggregateCodec for GpuDeviceOptionsAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
             <VmSlice<GpuFeatureId> as VmAggregateCodec>::encode_with_context(
                 self.required_features,
                 context,
             )?,
             <GpuAdapterLimitsVm as VmAggregateCodec>::encode_with_context(
                 self.required_limits,
+                context,
+            )?,
+            <GpuMemoryHint as VmAggregateCodec>::encode_with_context(self.memory_hint, context)?,
+            <Option<GpuManualMemoryHintVm> as VmAggregateCodec>::encode_with_context(
+                self.manual_memory_hint,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.allow_experimental_features,
+                context,
+            )?,
+            <GpuTraceMode as VmAggregateCodec>::encode_with_context(self.trace_mode, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.trace_directory,
                 context,
             )?,
             <GpuBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
@@ -8373,10 +11567,22 @@ impl VmCollectionElement for GpuDeviceOptionsAbi<VmAbi> {}
 /// Value type for GpuDeviceOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuDeviceOptionsValue {
+    /// Debug label.
+    pub label: String,
     /// Required feature identifiers.
     pub required_features: Vec<GpuFeatureId>,
     /// Required minimum limits.
     pub required_limits: GpuAdapterLimits,
+    /// Memory allocation hint.
+    pub memory_hint: GpuMemoryHint,
+    /// Manual memory-allocation guidance when `memoryHint` is `Manual`.
+    pub manual_memory_hint: Option<GpuManualMemoryHint>,
+    /// Whether experimental feature identifiers are allowed.
+    pub allow_experimental_features: bool,
+    /// Trace mode selector.
+    pub trace_mode: GpuTraceMode,
+    /// Trace output directory when `traceMode` is `Directory`.
+    pub trace_directory: Option<String>,
     /// Preferred backend override.
     pub backend: GpuBackend,
     /// Device option flags.
@@ -8388,11 +11594,27 @@ impl NativeAbiCodec for GpuDeviceOptionsAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(GpuDeviceOptionsValue {
+            label: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.label)? },
             required_features: unsafe {
                 <NativeSlice<GpuFeatureId> as NativeAbiCodec>::into_value(self.required_features)?
             },
             required_limits: unsafe {
                 <GpuAdapterLimits as NativeAbiCodec>::into_value(self.required_limits)?
+            },
+            memory_hint: unsafe {
+                <GpuMemoryHint as NativeAbiCodec>::into_value(self.memory_hint)?
+            },
+            manual_memory_hint: unsafe {
+                <Option<GpuManualMemoryHint> as NativeAbiCodec>::into_value(
+                    self.manual_memory_hint,
+                )?
+            },
+            allow_experimental_features: unsafe {
+                <bool as NativeAbiCodec>::into_value(self.allow_experimental_features)?
+            },
+            trace_mode: unsafe { <GpuTraceMode as NativeAbiCodec>::into_value(self.trace_mode)? },
+            trace_directory: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.trace_directory)?
             },
             backend: unsafe { <GpuBackend as NativeAbiCodec>::into_value(self.backend)? },
             flags: unsafe { <u32 as NativeAbiCodec>::into_value(self.flags)? },
@@ -8401,6 +11623,7 @@ impl NativeAbiCodec for GpuDeviceOptionsAbi<NativeAbi> {
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
+            label: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.label),
             required_features: <NativeSlice<GpuFeatureId> as NativeAbiCodec>::from_value(
                 binding,
                 value.required_features,
@@ -8408,6 +11631,20 @@ impl NativeAbiCodec for GpuDeviceOptionsAbi<NativeAbi> {
             required_limits: <GpuAdapterLimits as NativeAbiCodec>::from_value(
                 binding,
                 value.required_limits,
+            ),
+            memory_hint: <GpuMemoryHint as NativeAbiCodec>::from_value(binding, value.memory_hint),
+            manual_memory_hint: <Option<GpuManualMemoryHint> as NativeAbiCodec>::from_value(
+                binding,
+                value.manual_memory_hint,
+            ),
+            allow_experimental_features: <bool as NativeAbiCodec>::from_value(
+                binding,
+                value.allow_experimental_features,
+            ),
+            trace_mode: <GpuTraceMode as NativeAbiCodec>::from_value(binding, value.trace_mode),
+            trace_directory: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.trace_directory,
             ),
             backend: <GpuBackend as NativeAbiCodec>::from_value(binding, value.backend),
             flags: <u32 as NativeAbiCodec>::from_value(binding, value.flags),
@@ -8423,12 +11660,27 @@ impl VmAbiCodec for GpuDeviceOptionsAbi<VmAbi> {
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(GpuDeviceOptionsValue {
+            label: <vm::StringHandle as VmAbiCodec>::into_value(self.label, context)?,
             required_features: <VmSlice<GpuFeatureId> as VmAbiCodec>::into_value(
                 self.required_features,
                 context,
             )?,
             required_limits: <GpuAdapterLimitsVm as VmAbiCodec>::into_value(
                 self.required_limits,
+                context,
+            )?,
+            memory_hint: <GpuMemoryHint as VmAbiCodec>::into_value(self.memory_hint, context)?,
+            manual_memory_hint: <Option<GpuManualMemoryHintVm> as VmAbiCodec>::into_value(
+                self.manual_memory_hint,
+                context,
+            )?,
+            allow_experimental_features: <bool as VmAbiCodec>::into_value(
+                self.allow_experimental_features,
+                context,
+            )?,
+            trace_mode: <GpuTraceMode as VmAbiCodec>::into_value(self.trace_mode, context)?,
+            trace_directory: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.trace_directory,
                 context,
             )?,
             backend: <GpuBackend as VmAbiCodec>::into_value(self.backend, context)?,
@@ -8441,6 +11693,7 @@ impl VmAbiCodec for GpuDeviceOptionsAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
+            label: <vm::StringHandle as VmAbiCodec>::from_value(context, value.label)?,
             required_features: <VmSlice<GpuFeatureId> as VmAbiCodec>::from_value(
                 context,
                 value.required_features,
@@ -8448,6 +11701,20 @@ impl VmAbiCodec for GpuDeviceOptionsAbi<VmAbi> {
             required_limits: <GpuAdapterLimitsVm as VmAbiCodec>::from_value(
                 context,
                 value.required_limits,
+            )?,
+            memory_hint: <GpuMemoryHint as VmAbiCodec>::from_value(context, value.memory_hint)?,
+            manual_memory_hint: <Option<GpuManualMemoryHintVm> as VmAbiCodec>::from_value(
+                context,
+                value.manual_memory_hint,
+            )?,
+            allow_experimental_features: <bool as VmAbiCodec>::from_value(
+                context,
+                value.allow_experimental_features,
+            )?,
+            trace_mode: <GpuTraceMode as VmAbiCodec>::from_value(context, value.trace_mode)?,
+            trace_directory: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.trace_directory,
             )?,
             backend: <GpuBackend as VmAbiCodec>::from_value(context, value.backend)?,
             flags: <u32 as VmAbiCodec>::from_value(context, value.flags)?,
@@ -8460,12 +11727,13 @@ impl VmAbiCodec for GpuDeviceOptionsAbi<VmAbi> {
 pub struct GpuDeviceStatusAbi<A: BindingAbi> {
     /// Whether the device is currently operational.
     pub healthy: bool,
-    /// Device-loss reason category.
-    pub loss_reason: GpuDeviceLossReason,
-    /// Backend-specific status code.
-    pub backend_code: i32,
-    /// Human-readable status message.
-    pub message: A::String,
+    /// Device-loss reason category when the device is not healthy.
+    /// `Unknown` and `Destroyed` match WebGPU and `wgpu` reasons.
+    pub loss_reason: Option<GpuDeviceLossReason>,
+    /// Backend-specific status code when the backend exposes one.
+    pub backend_code: Option<i32>,
+    /// Human-readable status message when the backend exposes one.
+    pub message: Option<A::String>,
 }
 
 pub type GpuDeviceStatus = GpuDeviceStatusAbi<NativeAbi>;
@@ -8516,10 +11784,13 @@ impl VmAggregateCodec for GpuDeviceStatusAbi<VmAbi> {
         }
         let field_healthy = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_loss_reason =
-            <GpuDeviceLossReason as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_backend_code = <i32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <Option<GpuDeviceLossReason> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_backend_code =
+            <Option<i32> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_message =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
             healthy: field_healthy,
             loss_reason: field_loss_reason,
@@ -8534,12 +11805,15 @@ impl VmAggregateCodec for GpuDeviceStatusAbi<VmAbi> {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <bool as VmAggregateCodec>::encode_with_context(self.healthy, context)?,
-            <GpuDeviceLossReason as VmAggregateCodec>::encode_with_context(
+            <Option<GpuDeviceLossReason> as VmAggregateCodec>::encode_with_context(
                 self.loss_reason,
                 context,
             )?,
-            <i32 as VmAggregateCodec>::encode_with_context(self.backend_code, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.message, context)?,
+            <Option<i32> as VmAggregateCodec>::encode_with_context(self.backend_code, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.message,
+                context,
+            )?,
         ];
         context
             .allocate_aggregate(slots)
@@ -8554,12 +11828,13 @@ impl VmCollectionElement for GpuDeviceStatusAbi<VmAbi> {}
 pub struct GpuDeviceStatusValue {
     /// Whether the device is currently operational.
     pub healthy: bool,
-    /// Device-loss reason category.
-    pub loss_reason: GpuDeviceLossReason,
-    /// Backend-specific status code.
-    pub backend_code: i32,
-    /// Human-readable status message.
-    pub message: String,
+    /// Device-loss reason category when the device is not healthy.
+    /// `Unknown` and `Destroyed` match WebGPU and `wgpu` reasons.
+    pub loss_reason: Option<GpuDeviceLossReason>,
+    /// Backend-specific status code when the backend exposes one.
+    pub backend_code: Option<i32>,
+    /// Human-readable status message when the backend exposes one.
+    pub message: Option<String>,
 }
 
 impl NativeAbiCodec for GpuDeviceStatusAbi<NativeAbi> {
@@ -8569,22 +11844,29 @@ impl NativeAbiCodec for GpuDeviceStatusAbi<NativeAbi> {
         Ok(GpuDeviceStatusValue {
             healthy: unsafe { <bool as NativeAbiCodec>::into_value(self.healthy)? },
             loss_reason: unsafe {
-                <GpuDeviceLossReason as NativeAbiCodec>::into_value(self.loss_reason)?
+                <Option<GpuDeviceLossReason> as NativeAbiCodec>::into_value(self.loss_reason)?
             },
-            backend_code: unsafe { <i32 as NativeAbiCodec>::into_value(self.backend_code)? },
-            message: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.message)? },
+            backend_code: unsafe {
+                <Option<i32> as NativeAbiCodec>::into_value(self.backend_code)?
+            },
+            message: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.message)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             healthy: <bool as NativeAbiCodec>::from_value(binding, value.healthy),
-            loss_reason: <GpuDeviceLossReason as NativeAbiCodec>::from_value(
+            loss_reason: <Option<GpuDeviceLossReason> as NativeAbiCodec>::from_value(
                 binding,
                 value.loss_reason,
             ),
-            backend_code: <i32 as NativeAbiCodec>::from_value(binding, value.backend_code),
-            message: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.message),
+            backend_code: <Option<i32> as NativeAbiCodec>::from_value(binding, value.backend_code),
+            message: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.message,
+            ),
         }
     }
 }
@@ -8598,12 +11880,12 @@ impl VmAbiCodec for GpuDeviceStatusAbi<VmAbi> {
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(GpuDeviceStatusValue {
             healthy: <bool as VmAbiCodec>::into_value(self.healthy, context)?,
-            loss_reason: <GpuDeviceLossReason as VmAbiCodec>::into_value(
+            loss_reason: <Option<GpuDeviceLossReason> as VmAbiCodec>::into_value(
                 self.loss_reason,
                 context,
             )?,
-            backend_code: <i32 as VmAbiCodec>::into_value(self.backend_code, context)?,
-            message: <vm::StringHandle as VmAbiCodec>::into_value(self.message, context)?,
+            backend_code: <Option<i32> as VmAbiCodec>::into_value(self.backend_code, context)?,
+            message: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.message, context)?,
         })
     }
 
@@ -8613,12 +11895,12 @@ impl VmAbiCodec for GpuDeviceStatusAbi<VmAbi> {
     ) -> RuntimeResult<Self> {
         Ok(Self {
             healthy: <bool as VmAbiCodec>::from_value(context, value.healthy)?,
-            loss_reason: <GpuDeviceLossReason as VmAbiCodec>::from_value(
+            loss_reason: <Option<GpuDeviceLossReason> as VmAbiCodec>::from_value(
                 context,
                 value.loss_reason,
             )?,
-            backend_code: <i32 as VmAbiCodec>::from_value(context, value.backend_code)?,
-            message: <vm::StringHandle as VmAbiCodec>::from_value(context, value.message)?,
+            backend_code: <Option<i32> as VmAbiCodec>::from_value(context, value.backend_code)?,
+            message: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.message)?,
         })
     }
 }
@@ -8719,6 +12001,441 @@ impl VmAbiCodec for GpuExtent3D {
 }
 
 impl VmCollectionElement for GpuExtent3D {}
+
+/// ABI struct for GpuExternalTextureOptions.
+#[repr(C)]
+pub struct GpuExternalTextureOptionsAbi<A: BindingAbi> {
+    /// Debug label.
+    pub label: A::String,
+    /// External-texture width visible to shaders.
+    pub width: u32,
+    /// External-texture height visible to shaders.
+    pub height: u32,
+    /// External-texture format selector.
+    pub format: GpuExternalTextureFormat,
+    /// YUV-to-RGBA conversion matrix in column-major order.
+    pub yuv_conversion_matrix: A::Array<f32>,
+    /// Gamut-conversion matrix in column-major order.
+    pub gamut_conversion_matrix: A::Array<f32>,
+    /// Source transfer-function parameters.
+    pub source_transfer_function: GpuExternalTextureTransferFunction,
+    /// Destination transfer-function parameters.
+    pub destination_transfer_function: GpuExternalTextureTransferFunction,
+    /// Sample-coordinate transform in column-major order.
+    pub sample_transform: A::Array<f32>,
+    /// Load-coordinate transform in column-major order.
+    pub load_transform: A::Array<f32>,
+    /// External-texture option flags.
+    pub flags: u32,
+}
+
+pub type GpuExternalTextureOptions = GpuExternalTextureOptionsAbi<NativeAbi>;
+pub type GpuExternalTextureOptionsVm = GpuExternalTextureOptionsAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for GpuExternalTextureOptionsAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuExternalTextureOptionsAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuExternalTextureOptionsAbi<NativeAbi> {}
+impl Clone for GpuExternalTextureOptionsAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuExternalTextureOptionsAbi<VmAbi> {}
+impl Clone for GpuExternalTextureOptionsAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuExternalTextureOptionsAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuExternalTextureOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 11 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 11 fields",
+            ))
+            .boxed());
+        }
+        let field_label =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_width = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_height = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_format =
+            <GpuExternalTextureFormat as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_yuv_conversion_matrix =
+            <VmArray<f32> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_gamut_conversion_matrix =
+            <VmArray<f32> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_source_transfer_function =
+            <GpuExternalTextureTransferFunctionVm as VmAggregateCodec>::decode_with_context(
+                context, slots[6],
+            )?;
+        let field_destination_transfer_function =
+            <GpuExternalTextureTransferFunctionVm as VmAggregateCodec>::decode_with_context(
+                context, slots[7],
+            )?;
+        let field_sample_transform =
+            <VmArray<f32> as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_load_transform =
+            <VmArray<f32> as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        Ok(Self {
+            label: field_label,
+            width: field_width,
+            height: field_height,
+            format: field_format,
+            yuv_conversion_matrix: field_yuv_conversion_matrix,
+            gamut_conversion_matrix: field_gamut_conversion_matrix,
+            source_transfer_function: field_source_transfer_function,
+            destination_transfer_function: field_destination_transfer_function,
+            sample_transform: field_sample_transform,
+            load_transform: field_load_transform,
+            flags: field_flags,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
+            <GpuExternalTextureFormat as VmAggregateCodec>::encode_with_context(
+                self.format,
+                context,
+            )?,
+            <VmArray<f32> as VmAggregateCodec>::encode_with_context(
+                self.yuv_conversion_matrix,
+                context,
+            )?,
+            <VmArray<f32> as VmAggregateCodec>::encode_with_context(
+                self.gamut_conversion_matrix,
+                context,
+            )?,
+            <GpuExternalTextureTransferFunctionVm as VmAggregateCodec>::encode_with_context(
+                self.source_transfer_function,
+                context,
+            )?,
+            <GpuExternalTextureTransferFunctionVm as VmAggregateCodec>::encode_with_context(
+                self.destination_transfer_function,
+                context,
+            )?,
+            <VmArray<f32> as VmAggregateCodec>::encode_with_context(
+                self.sample_transform,
+                context,
+            )?,
+            <VmArray<f32> as VmAggregateCodec>::encode_with_context(self.load_transform, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for GpuExternalTextureOptionsAbi<VmAbi> {}
+
+/// Value type for GpuExternalTextureOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuExternalTextureOptionsValue {
+    /// Debug label.
+    pub label: String,
+    /// External-texture width visible to shaders.
+    pub width: u32,
+    /// External-texture height visible to shaders.
+    pub height: u32,
+    /// External-texture format selector.
+    pub format: GpuExternalTextureFormat,
+    /// YUV-to-RGBA conversion matrix in column-major order.
+    pub yuv_conversion_matrix: Vec<f32>,
+    /// Gamut-conversion matrix in column-major order.
+    pub gamut_conversion_matrix: Vec<f32>,
+    /// Source transfer-function parameters.
+    pub source_transfer_function: GpuExternalTextureTransferFunction,
+    /// Destination transfer-function parameters.
+    pub destination_transfer_function: GpuExternalTextureTransferFunction,
+    /// Sample-coordinate transform in column-major order.
+    pub sample_transform: Vec<f32>,
+    /// Load-coordinate transform in column-major order.
+    pub load_transform: Vec<f32>,
+    /// External-texture option flags.
+    pub flags: u32,
+}
+
+impl NativeAbiCodec for GpuExternalTextureOptionsAbi<NativeAbi> {
+    type Value = GpuExternalTextureOptionsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(GpuExternalTextureOptionsValue {
+            label: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.label)? },
+            width: unsafe { <u32 as NativeAbiCodec>::into_value(self.width)? },
+            height: unsafe { <u32 as NativeAbiCodec>::into_value(self.height)? },
+            format: unsafe {
+                <GpuExternalTextureFormat as NativeAbiCodec>::into_value(self.format)?
+            },
+            yuv_conversion_matrix: unsafe {
+                <NativeArray<f32> as NativeAbiCodec>::into_value(self.yuv_conversion_matrix)?
+            },
+            gamut_conversion_matrix: unsafe {
+                <NativeArray<f32> as NativeAbiCodec>::into_value(self.gamut_conversion_matrix)?
+            },
+            source_transfer_function: unsafe {
+                <GpuExternalTextureTransferFunction as NativeAbiCodec>::into_value(
+                    self.source_transfer_function,
+                )?
+            },
+            destination_transfer_function: unsafe {
+                <GpuExternalTextureTransferFunction as NativeAbiCodec>::into_value(
+                    self.destination_transfer_function,
+                )?
+            },
+            sample_transform: unsafe {
+                <NativeArray<f32> as NativeAbiCodec>::into_value(self.sample_transform)?
+            },
+            load_transform: unsafe {
+                <NativeArray<f32> as NativeAbiCodec>::into_value(self.load_transform)?
+            },
+            flags: unsafe { <u32 as NativeAbiCodec>::into_value(self.flags)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            label: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.label),
+            width: <u32 as NativeAbiCodec>::from_value(binding, value.width),
+            height: <u32 as NativeAbiCodec>::from_value(binding, value.height),
+            format: <GpuExternalTextureFormat as NativeAbiCodec>::from_value(binding, value.format),
+            yuv_conversion_matrix: <NativeArray<f32> as NativeAbiCodec>::from_value(
+                binding,
+                value.yuv_conversion_matrix,
+            ),
+            gamut_conversion_matrix: <NativeArray<f32> as NativeAbiCodec>::from_value(
+                binding,
+                value.gamut_conversion_matrix,
+            ),
+            source_transfer_function:
+                <GpuExternalTextureTransferFunction as NativeAbiCodec>::from_value(
+                    binding,
+                    value.source_transfer_function,
+                ),
+            destination_transfer_function:
+                <GpuExternalTextureTransferFunction as NativeAbiCodec>::from_value(
+                    binding,
+                    value.destination_transfer_function,
+                ),
+            sample_transform: <NativeArray<f32> as NativeAbiCodec>::from_value(
+                binding,
+                value.sample_transform,
+            ),
+            load_transform: <NativeArray<f32> as NativeAbiCodec>::from_value(
+                binding,
+                value.load_transform,
+            ),
+            flags: <u32 as NativeAbiCodec>::from_value(binding, value.flags),
+        }
+    }
+}
+
+impl VmAbiCodec for GpuExternalTextureOptionsAbi<VmAbi> {
+    type Value = GpuExternalTextureOptionsValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(GpuExternalTextureOptionsValue {
+            label: <vm::StringHandle as VmAbiCodec>::into_value(self.label, context)?,
+            width: <u32 as VmAbiCodec>::into_value(self.width, context)?,
+            height: <u32 as VmAbiCodec>::into_value(self.height, context)?,
+            format: <GpuExternalTextureFormat as VmAbiCodec>::into_value(self.format, context)?,
+            yuv_conversion_matrix: <VmArray<f32> as VmAbiCodec>::into_value(
+                self.yuv_conversion_matrix,
+                context,
+            )?,
+            gamut_conversion_matrix: <VmArray<f32> as VmAbiCodec>::into_value(
+                self.gamut_conversion_matrix,
+                context,
+            )?,
+            source_transfer_function:
+                <GpuExternalTextureTransferFunctionVm as VmAbiCodec>::into_value(
+                    self.source_transfer_function,
+                    context,
+                )?,
+            destination_transfer_function:
+                <GpuExternalTextureTransferFunctionVm as VmAbiCodec>::into_value(
+                    self.destination_transfer_function,
+                    context,
+                )?,
+            sample_transform: <VmArray<f32> as VmAbiCodec>::into_value(
+                self.sample_transform,
+                context,
+            )?,
+            load_transform: <VmArray<f32> as VmAbiCodec>::into_value(self.load_transform, context)?,
+            flags: <u32 as VmAbiCodec>::into_value(self.flags, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            label: <vm::StringHandle as VmAbiCodec>::from_value(context, value.label)?,
+            width: <u32 as VmAbiCodec>::from_value(context, value.width)?,
+            height: <u32 as VmAbiCodec>::from_value(context, value.height)?,
+            format: <GpuExternalTextureFormat as VmAbiCodec>::from_value(context, value.format)?,
+            yuv_conversion_matrix: <VmArray<f32> as VmAbiCodec>::from_value(
+                context,
+                value.yuv_conversion_matrix,
+            )?,
+            gamut_conversion_matrix: <VmArray<f32> as VmAbiCodec>::from_value(
+                context,
+                value.gamut_conversion_matrix,
+            )?,
+            source_transfer_function:
+                <GpuExternalTextureTransferFunctionVm as VmAbiCodec>::from_value(
+                    context,
+                    value.source_transfer_function,
+                )?,
+            destination_transfer_function:
+                <GpuExternalTextureTransferFunctionVm as VmAbiCodec>::from_value(
+                    context,
+                    value.destination_transfer_function,
+                )?,
+            sample_transform: <VmArray<f32> as VmAbiCodec>::from_value(
+                context,
+                value.sample_transform,
+            )?,
+            load_transform: <VmArray<f32> as VmAbiCodec>::from_value(
+                context,
+                value.load_transform,
+            )?,
+            flags: <u32 as VmAbiCodec>::from_value(context, value.flags)?,
+        })
+    }
+}
+
+/// ABI struct for GpuExternalTextureTransferFunction.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct GpuExternalTextureTransferFunction {
+    /// Transfer-function coefficient a.
+    pub a: f32,
+    /// Transfer-function breakpoint b.
+    pub b: f32,
+    /// Transfer-function exponent g.
+    pub g: f32,
+    /// Transfer-function coefficient k.
+    pub k: f32,
+}
+
+pub type GpuExternalTextureTransferFunctionVm = GpuExternalTextureTransferFunction;
+
+impl VmAggregateCodec for GpuExternalTextureTransferFunction {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuExternalTextureTransferFunction",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_a = <f32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_b = <f32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_g = <f32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_k = <f32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            a: field_a,
+            b: field_b,
+            g: field_g,
+            k: field_k,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <f32 as VmAggregateCodec>::encode_with_context(self.a, context)?,
+            <f32 as VmAggregateCodec>::encode_with_context(self.b, context)?,
+            <f32 as VmAggregateCodec>::encode_with_context(self.g, context)?,
+            <f32 as VmAggregateCodec>::encode_with_context(self.k, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for GpuExternalTextureTransferFunction.
+pub type GpuExternalTextureTransferFunctionValue = GpuExternalTextureTransferFunction;
+
+impl NativeAbiCodec for GpuExternalTextureTransferFunction {
+    type Value = GpuExternalTextureTransferFunctionValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuExternalTextureTransferFunction {
+    type Value = GpuExternalTextureTransferFunctionValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for GpuExternalTextureTransferFunction {}
 
 /// ABI struct for GpuFenceOptions.
 #[repr(C)]
@@ -9017,6 +12734,107 @@ impl VmAbiCodec for GpuFragmentStateAbi<VmAbi> {
     }
 }
 
+/// ABI struct for GpuManualMemoryHint.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct GpuManualMemoryHint {
+    /// Minimum suballocated device-memory block size in bytes.
+    pub min_suballocated_device_memory_block_size: u64,
+    /// Maximum suballocated device-memory block size in bytes.
+    pub max_suballocated_device_memory_block_size: u64,
+}
+
+pub type GpuManualMemoryHintVm = GpuManualMemoryHint;
+
+impl VmAggregateCodec for GpuManualMemoryHint {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuManualMemoryHint",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_min_suballocated_device_memory_block_size =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_max_suballocated_device_memory_block_size =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            min_suballocated_device_memory_block_size:
+                field_min_suballocated_device_memory_block_size,
+            max_suballocated_device_memory_block_size:
+                field_max_suballocated_device_memory_block_size,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(
+                self.min_suballocated_device_memory_block_size,
+                context,
+            )?,
+            <u64 as VmAggregateCodec>::encode_with_context(
+                self.max_suballocated_device_memory_block_size,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for GpuManualMemoryHint.
+pub type GpuManualMemoryHintValue = GpuManualMemoryHint;
+
+impl NativeAbiCodec for GpuManualMemoryHint {
+    type Value = GpuManualMemoryHintValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuManualMemoryHint {
+    type Value = GpuManualMemoryHintValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for GpuManualMemoryHint {}
+
 /// ABI struct for GpuMappedBufferRange.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -9120,7 +12938,7 @@ pub struct GpuMultisampleState {
     /// Sample count.
     pub count: u32,
     /// Active sample mask.
-    pub mask: u32,
+    pub mask: u64,
     /// Whether alpha-to-coverage is enabled.
     pub alpha_to_coverage_enabled: bool,
 }
@@ -9150,7 +12968,7 @@ impl VmAggregateCodec for GpuMultisampleState {
             .boxed());
         }
         let field_count = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_mask = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_mask = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_alpha_to_coverage_enabled =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
@@ -9166,7 +12984,7 @@ impl VmAggregateCodec for GpuMultisampleState {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u32 as VmAggregateCodec>::encode_with_context(self.count, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.mask, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.mask, context)?,
             <bool as VmAggregateCodec>::encode_with_context(
                 self.alpha_to_coverage_enabled,
                 context,
@@ -9213,6 +13031,124 @@ impl VmAbiCodec for GpuMultisampleState {
 
 impl VmCollectionElement for GpuMultisampleState {}
 
+/// ABI struct for GpuOcclusionQueryType.
+#[repr(C)]
+pub struct GpuOcclusionQueryTypeAbi<A: BindingAbi> {
+    /// Discriminator for this query-set type variant.
+    pub kind: A::String,
+}
+
+pub type GpuOcclusionQueryType = GpuOcclusionQueryTypeAbi<NativeAbi>;
+pub type GpuOcclusionQueryTypeVm = GpuOcclusionQueryTypeAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for GpuOcclusionQueryTypeAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuOcclusionQueryTypeAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuOcclusionQueryTypeAbi<NativeAbi> {}
+impl Clone for GpuOcclusionQueryTypeAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuOcclusionQueryTypeAbi<VmAbi> {}
+impl Clone for GpuOcclusionQueryTypeAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuOcclusionQueryTypeAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuOcclusionQueryType",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self { kind: field_kind })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
+            self.kind, context,
+        )?];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for GpuOcclusionQueryTypeAbi<VmAbi> {}
+
+/// Value type for GpuOcclusionQueryType.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuOcclusionQueryTypeValue {
+    /// Discriminator for this query-set type variant.
+    pub kind: String,
+}
+
+impl NativeAbiCodec for GpuOcclusionQueryTypeAbi<NativeAbi> {
+    type Value = GpuOcclusionQueryTypeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(GpuOcclusionQueryTypeValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+        }
+    }
+}
+
+impl VmAbiCodec for GpuOcclusionQueryTypeAbi<VmAbi> {
+    type Value = GpuOcclusionQueryTypeValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(GpuOcclusionQueryTypeValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+        })
+    }
+}
+
 /// ABI struct for GpuPassTimestampWrites.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -9220,9 +13156,9 @@ pub struct GpuPassTimestampWrites {
     /// Query set receiving pass timestamps.
     pub query_set: resource::GpuQuerySetHandle,
     /// Beginning-of-pass query index when enabled.
-    pub beginning_write_index: Option<u32>,
+    pub beginning_of_pass_write_index: Option<u32>,
     /// End-of-pass query index when enabled.
-    pub end_write_index: Option<u32>,
+    pub end_of_pass_write_index: Option<u32>,
 }
 
 pub type GpuPassTimestampWritesVm = GpuPassTimestampWrites;
@@ -9253,14 +13189,14 @@ impl VmAggregateCodec for GpuPassTimestampWrites {
             <resource::GpuQuerySetHandle as VmAggregateCodec>::decode_with_context(
                 context, slots[0],
             )?;
-        let field_beginning_write_index =
+        let field_beginning_of_pass_write_index =
             <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_end_write_index =
+        let field_end_of_pass_write_index =
             <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             query_set: field_query_set,
-            beginning_write_index: field_beginning_write_index,
-            end_write_index: field_end_write_index,
+            beginning_of_pass_write_index: field_beginning_of_pass_write_index,
+            end_of_pass_write_index: field_end_of_pass_write_index,
         })
     }
 
@@ -9274,10 +13210,13 @@ impl VmAggregateCodec for GpuPassTimestampWrites {
                 context,
             )?,
             <Option<u32> as VmAggregateCodec>::encode_with_context(
-                self.beginning_write_index,
+                self.beginning_of_pass_write_index,
                 context,
             )?,
-            <Option<u32> as VmAggregateCodec>::encode_with_context(self.end_write_index, context)?,
+            <Option<u32> as VmAggregateCodec>::encode_with_context(
+                self.end_of_pass_write_index,
+                context,
+            )?,
         ];
         context
             .allocate_aggregate(slots)
@@ -9454,6 +13393,8 @@ impl VmAbiCodec for GpuPipelineConstantAbi<VmAbi> {
 /// ABI struct for GpuPipelineLayoutOptions.
 #[repr(C)]
 pub struct GpuPipelineLayoutOptionsAbi<A: BindingAbi> {
+    /// Debug label.
+    pub label: A::String,
     /// Ordered bind group layouts for this pipeline layout.
     pub bind_group_layouts: A::Slice<resource::GpuBindGroupLayoutHandle>,
     /// Immediate-data byte size when supported.
@@ -9501,21 +13442,24 @@ impl VmAggregateCodec for GpuPipelineLayoutOptionsAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 4 fields",
             ))
             .boxed());
         }
+        let field_label =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_bind_group_layouts =
             <VmSlice<resource::GpuBindGroupLayoutHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[0],
+                context, slots[1],
             )?;
         let field_immediate_size =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
+            label: field_label,
             bind_group_layouts: field_bind_group_layouts,
             immediate_size: field_immediate_size,
             flags: field_flags,
@@ -9527,6 +13471,7 @@ impl VmAggregateCodec for GpuPipelineLayoutOptionsAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
             <VmSlice<resource::GpuBindGroupLayoutHandle> as VmAggregateCodec>::encode_with_context(
                 self.bind_group_layouts,
                 context,
@@ -9545,6 +13490,8 @@ impl VmCollectionElement for GpuPipelineLayoutOptionsAbi<VmAbi> {}
 /// Value type for GpuPipelineLayoutOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuPipelineLayoutOptionsValue {
+    /// Debug label.
+    pub label: String,
     /// Ordered bind group layouts for this pipeline layout.
     pub bind_group_layouts: Vec<resource::GpuBindGroupLayoutHandle>,
     /// Immediate-data byte size when supported.
@@ -9558,6 +13505,7 @@ impl NativeAbiCodec for GpuPipelineLayoutOptionsAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(GpuPipelineLayoutOptionsValue {
+            label: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.label)? },
             bind_group_layouts: unsafe {
                 <NativeSlice<resource::GpuBindGroupLayoutHandle> as NativeAbiCodec>::into_value(
                     self.bind_group_layouts,
@@ -9570,6 +13518,7 @@ impl NativeAbiCodec for GpuPipelineLayoutOptionsAbi<NativeAbi> {
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
+            label: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.label),
             bind_group_layouts:
                 <NativeSlice<resource::GpuBindGroupLayoutHandle> as NativeAbiCodec>::from_value(
                     binding,
@@ -9589,6 +13538,7 @@ impl VmAbiCodec for GpuPipelineLayoutOptionsAbi<VmAbi> {
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(GpuPipelineLayoutOptionsValue {
+            label: <vm::StringHandle as VmAbiCodec>::into_value(self.label, context)?,
             bind_group_layouts:
                 <VmSlice<resource::GpuBindGroupLayoutHandle> as VmAbiCodec>::into_value(
                     self.bind_group_layouts,
@@ -9604,6 +13554,7 @@ impl VmAbiCodec for GpuPipelineLayoutOptionsAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
+            label: <vm::StringHandle as VmAbiCodec>::from_value(context, value.label)?,
             bind_group_layouts:
                 <VmSlice<resource::GpuBindGroupLayoutHandle> as VmAbiCodec>::from_value(
                     context,
@@ -9615,38 +13566,40 @@ impl VmAbiCodec for GpuPipelineLayoutOptionsAbi<VmAbi> {
     }
 }
 
-/// ABI struct for GpuPipelineMetadata.
+/// ABI struct for GpuPipelineStatisticsQueryType.
 #[repr(C)]
-pub struct GpuPipelineMetadataAbi<A: BindingAbi> {
-    /// Human-readable debug label, empty when unspecified.
-    pub label: A::String,
+pub struct GpuPipelineStatisticsQueryTypeAbi<A: BindingAbi> {
+    /// Discriminator for this query-set type variant.
+    pub kind: A::String,
+    /// Enabled statistics in resolve order.
+    pub pipeline_statistics_mask: GpuPipelineStatisticsMask,
 }
 
-pub type GpuPipelineMetadata = GpuPipelineMetadataAbi<NativeAbi>;
-pub type GpuPipelineMetadataVm = GpuPipelineMetadataAbi<VmAbi>;
+pub type GpuPipelineStatisticsQueryType = GpuPipelineStatisticsQueryTypeAbi<NativeAbi>;
+pub type GpuPipelineStatisticsQueryTypeVm = GpuPipelineStatisticsQueryTypeAbi<VmAbi>;
 
-impl<A: BindingAbi> std::fmt::Debug for GpuPipelineMetadataAbi<A> {
+impl<A: BindingAbi> std::fmt::Debug for GpuPipelineStatisticsQueryTypeAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("GpuPipelineMetadataAbi")
+            .debug_struct("GpuPipelineStatisticsQueryTypeAbi")
             .finish_non_exhaustive()
     }
 }
 
-impl Copy for GpuPipelineMetadataAbi<NativeAbi> {}
-impl Clone for GpuPipelineMetadataAbi<NativeAbi> {
+impl Copy for GpuPipelineStatisticsQueryTypeAbi<NativeAbi> {}
+impl Clone for GpuPipelineStatisticsQueryTypeAbi<NativeAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl Copy for GpuPipelineMetadataAbi<VmAbi> {}
-impl Clone for GpuPipelineMetadataAbi<VmAbi> {
+impl Copy for GpuPipelineStatisticsQueryTypeAbi<VmAbi> {}
+impl Clone for GpuPipelineStatisticsQueryTypeAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl VmAggregateCodec for GpuPipelineMetadataAbi<VmAbi> {
+impl VmAggregateCodec for GpuPipelineStatisticsQueryTypeAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -9654,106 +13607,7 @@ impl VmAggregateCodec for GpuPipelineMetadataAbi<VmAbi> {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "GpuPipelineMetadata",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 1 fields",
-            ))
-            .boxed());
-        }
-        let field_label =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        Ok(Self { label: field_label })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
-            self.label, context,
-        )?];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-impl VmCollectionElement for GpuPipelineMetadataAbi<VmAbi> {}
-
-/// Value type for GpuPipelineMetadata.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct GpuPipelineMetadataValue {
-    /// Human-readable debug label, empty when unspecified.
-    pub label: String,
-}
-
-impl NativeAbiCodec for GpuPipelineMetadataAbi<NativeAbi> {
-    type Value = GpuPipelineMetadataValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(GpuPipelineMetadataValue {
-            label: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.label)? },
-        })
-    }
-
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self {
-            label: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.label),
-        }
-    }
-}
-
-impl VmAbiCodec for GpuPipelineMetadataAbi<VmAbi> {
-    type Value = GpuPipelineMetadataValue;
-
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(GpuPipelineMetadataValue {
-            label: <vm::StringHandle as VmAbiCodec>::into_value(self.label, context)?,
-        })
-    }
-
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self {
-            label: <vm::StringHandle as VmAbiCodec>::from_value(context, value.label)?,
-        })
-    }
-}
-
-/// ABI struct for GpuPresentOptions.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct GpuPresentOptions {
-    /// Frame identifier returned by one successful `surfaceAcquire`.
-    pub frame_id: u64,
-    /// Present option flags.
-    pub flags: u32,
-}
-
-pub type GpuPresentOptionsVm = GpuPresentOptions;
-
-impl VmAggregateCodec for GpuPresentOptions {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "GpuPresentOptions",
+                "GpuPipelineStatisticsQueryType",
             ))
             .boxed());
         }
@@ -9767,10 +13621,150 @@ impl VmAggregateCodec for GpuPresentOptions {
             ))
             .boxed());
         }
-        let field_frame_id = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_pipeline_statistics_mask =
+            <GpuPipelineStatisticsMask as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
         Ok(Self {
-            frame_id: field_frame_id,
+            kind: field_kind,
+            pipeline_statistics_mask: field_pipeline_statistics_mask,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <GpuPipelineStatisticsMask as VmAggregateCodec>::encode_with_context(
+                self.pipeline_statistics_mask,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for GpuPipelineStatisticsQueryTypeAbi<VmAbi> {}
+
+/// Value type for GpuPipelineStatisticsQueryType.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuPipelineStatisticsQueryTypeValue {
+    /// Discriminator for this query-set type variant.
+    pub kind: String,
+    /// Enabled statistics in resolve order.
+    pub pipeline_statistics_mask: GpuPipelineStatisticsMask,
+}
+
+impl NativeAbiCodec for GpuPipelineStatisticsQueryTypeAbi<NativeAbi> {
+    type Value = GpuPipelineStatisticsQueryTypeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(GpuPipelineStatisticsQueryTypeValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            pipeline_statistics_mask: unsafe {
+                <GpuPipelineStatisticsMask as NativeAbiCodec>::into_value(
+                    self.pipeline_statistics_mask,
+                )?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            pipeline_statistics_mask: <GpuPipelineStatisticsMask as NativeAbiCodec>::from_value(
+                binding,
+                value.pipeline_statistics_mask,
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for GpuPipelineStatisticsQueryTypeAbi<VmAbi> {
+    type Value = GpuPipelineStatisticsQueryTypeValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(GpuPipelineStatisticsQueryTypeValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            pipeline_statistics_mask: <GpuPipelineStatisticsMask as VmAbiCodec>::into_value(
+                self.pipeline_statistics_mask,
+                context,
+            )?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            pipeline_statistics_mask: <GpuPipelineStatisticsMask as VmAbiCodec>::from_value(
+                context,
+                value.pipeline_statistics_mask,
+            )?,
+        })
+    }
+}
+
+/// ABI struct for GpuPresentationOptions.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct GpuPresentationOptions {
+    /// Surface frame identifier returned by `surfaceAcquire(...)`.
+    pub surface_frame_id: u64,
+    /// Begin-frame identifier from an earlier `display.beginFrameRead(...)` result when a scheduled begin frame drove this presentation.
+    pub begin_frame_id: Option<u64>,
+    /// Requested presentation timestamp in nanoseconds when supported.
+    pub desired_presentation_timestamp_ns: Option<u64>,
+    /// Present option flags.
+    pub flags: u32,
+}
+
+pub type GpuPresentationOptionsVm = GpuPresentationOptions;
+
+impl VmAggregateCodec for GpuPresentationOptions {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuPresentationOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_surface_frame_id =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_begin_frame_id =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_desired_presentation_timestamp_ns =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            surface_frame_id: field_surface_frame_id,
+            begin_frame_id: field_begin_frame_id,
+            desired_presentation_timestamp_ns: field_desired_presentation_timestamp_ns,
             flags: field_flags,
         })
     }
@@ -9780,7 +13774,12 @@ impl VmAggregateCodec for GpuPresentOptions {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <u64 as VmAggregateCodec>::encode_with_context(self.frame_id, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.surface_frame_id, context)?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(self.begin_frame_id, context)?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(
+                self.desired_presentation_timestamp_ns,
+                context,
+            )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
         context
@@ -9789,11 +13788,11 @@ impl VmAggregateCodec for GpuPresentOptions {
     }
 }
 
-/// Value type for GpuPresentOptions.
-pub type GpuPresentOptionsValue = GpuPresentOptions;
+/// Value type for GpuPresentationOptions.
+pub type GpuPresentationOptionsValue = GpuPresentationOptions;
 
-impl NativeAbiCodec for GpuPresentOptions {
-    type Value = GpuPresentOptionsValue;
+impl NativeAbiCodec for GpuPresentationOptions {
+    type Value = GpuPresentationOptionsValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(self)
@@ -9804,8 +13803,8 @@ impl NativeAbiCodec for GpuPresentOptions {
     }
 }
 
-impl VmAbiCodec for GpuPresentOptions {
-    type Value = GpuPresentOptionsValue;
+impl VmAbiCodec for GpuPresentationOptions {
+    type Value = GpuPresentationOptionsValue;
 
     fn into_value(
         self,
@@ -9822,7 +13821,7 @@ impl VmAbiCodec for GpuPresentOptions {
     }
 }
 
-impl VmCollectionElement for GpuPresentOptions {}
+impl VmCollectionElement for GpuPresentationOptions {}
 
 /// ABI struct for GpuPrimitiveState.
 #[repr(C)]
@@ -9830,14 +13829,18 @@ impl VmCollectionElement for GpuPresentOptions {}
 pub struct GpuPrimitiveState {
     /// Primitive topology selector.
     pub topology: GpuPrimitiveTopology,
-    /// Strip index format selector, zero when not used.
-    pub strip_index_format: u32,
+    /// Strip index format selector when one strip topology uses indices.
+    pub strip_index_format: Option<GpuIndexFormat>,
     /// Front-face winding selector.
     pub front_face: GpuFrontFace,
     /// Face-culling selector.
     pub cull_mode: GpuCullMode,
     /// Whether unclipped depth is enabled.
     pub unclipped_depth: bool,
+    /// Polygon rasterization selector.
+    pub polygon_mode: GpuPolygonMode,
+    /// Whether conservative rasterization is enabled.
+    pub conservative: bool,
 }
 
 pub type GpuPrimitiveStateVm = GpuPrimitiveState;
@@ -9857,29 +13860,35 @@ impl VmAggregateCodec for GpuPrimitiveState {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        if slots.len() != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 5 fields",
+                "expected 7 fields",
             ))
             .boxed());
         }
         let field_topology =
             <GpuPrimitiveTopology as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_strip_index_format =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <Option<GpuIndexFormat> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_front_face =
             <GpuFrontFace as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_cull_mode =
             <GpuCullMode as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_unclipped_depth =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_polygon_mode =
+            <GpuPolygonMode as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_conservative =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         Ok(Self {
             topology: field_topology,
             strip_index_format: field_strip_index_format,
             front_face: field_front_face,
             cull_mode: field_cull_mode,
             unclipped_depth: field_unclipped_depth,
+            polygon_mode: field_polygon_mode,
+            conservative: field_conservative,
         })
     }
 
@@ -9892,10 +13901,15 @@ impl VmAggregateCodec for GpuPrimitiveState {
                 self.topology,
                 context,
             )?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.strip_index_format, context)?,
+            <Option<GpuIndexFormat> as VmAggregateCodec>::encode_with_context(
+                self.strip_index_format,
+                context,
+            )?,
             <GpuFrontFace as VmAggregateCodec>::encode_with_context(self.front_face, context)?,
             <GpuCullMode as VmAggregateCodec>::encode_with_context(self.cull_mode, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.unclipped_depth, context)?,
+            <GpuPolygonMode as VmAggregateCodec>::encode_with_context(self.polygon_mode, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.conservative, context)?,
         ];
         context
             .allocate_aggregate(slots)
@@ -9940,20 +13954,38 @@ impl VmCollectionElement for GpuPrimitiveState {}
 
 /// ABI struct for GpuQuerySetInfo.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct GpuQuerySetInfo {
-    /// Query set type.
-    pub query_type: GpuQueryType,
+pub struct GpuQuerySetInfoAbi<A: BindingAbi> {
+    /// Query-set type payload.
+    pub query_type: platform_gpu::GpuQuerySetTypeAbi<A>,
     /// Query count.
     pub count: u32,
-    /// Pipeline-statistics bitset for statistics query type.
-    /// The enabled-flag order defines value ordering in resolved query data.
-    pub pipeline_statistics_mask: GpuPipelineStatisticsMask,
 }
 
-pub type GpuQuerySetInfoVm = GpuQuerySetInfo;
+pub type GpuQuerySetInfo = GpuQuerySetInfoAbi<NativeAbi>;
+pub type GpuQuerySetInfoVm = GpuQuerySetInfoAbi<VmAbi>;
 
-impl VmAggregateCodec for GpuQuerySetInfo {
+impl<A: BindingAbi> std::fmt::Debug for GpuQuerySetInfoAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuQuerySetInfoAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuQuerySetInfoAbi<NativeAbi> {}
+impl Clone for GpuQuerySetInfoAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuQuerySetInfoAbi<VmAbi> {}
+impl Clone for GpuQuerySetInfoAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuQuerySetInfoAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -9968,24 +14000,19 @@ impl VmAggregateCodec for GpuQuerySetInfo {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
         let field_query_type =
-            <GpuQueryType as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+            <GpuQuerySetTypeVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_count = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_pipeline_statistics_mask =
-            <GpuPipelineStatisticsMask as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
-            )?;
         Ok(Self {
             query_type: field_query_type,
             count: field_count,
-            pipeline_statistics_mask: field_pipeline_statistics_mask,
         })
     }
 
@@ -9994,12 +14021,8 @@ impl VmAggregateCodec for GpuQuerySetInfo {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <GpuQueryType as VmAggregateCodec>::encode_with_context(self.query_type, context)?,
+            <GpuQuerySetTypeVm as VmAggregateCodec>::encode_with_context(self.query_type, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.count, context)?,
-            <GpuPipelineStatisticsMask as VmAggregateCodec>::encode_with_context(
-                self.pipeline_statistics_mask,
-                context,
-            )?,
         ];
         context
             .allocate_aggregate(slots)
@@ -10007,59 +14030,99 @@ impl VmAggregateCodec for GpuQuerySetInfo {
     }
 }
 
-/// Value type for GpuQuerySetInfo.
-pub type GpuQuerySetInfoValue = GpuQuerySetInfo;
+impl VmCollectionElement for GpuQuerySetInfoAbi<VmAbi> {}
 
-impl NativeAbiCodec for GpuQuerySetInfo {
+/// Value type for GpuQuerySetInfo.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuQuerySetInfoValue {
+    /// Query-set type payload.
+    pub query_type: GpuQuerySetTypeValue,
+    /// Query count.
+    pub count: u32,
+}
+
+impl NativeAbiCodec for GpuQuerySetInfoAbi<NativeAbi> {
     type Value = GpuQuerySetInfoValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
+        Ok(GpuQuerySetInfoValue {
+            query_type: unsafe {
+                <GpuQuerySetType as NativeAbiCodec>::into_value(self.query_type)?
+            },
+            count: unsafe { <u32 as NativeAbiCodec>::into_value(self.count)? },
+        })
     }
 
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            query_type: <GpuQuerySetType as NativeAbiCodec>::from_value(binding, value.query_type),
+            count: <u32 as NativeAbiCodec>::from_value(binding, value.count),
+        }
     }
 }
 
-impl VmAbiCodec for GpuQuerySetInfo {
+impl VmAbiCodec for GpuQuerySetInfoAbi<VmAbi> {
     type Value = GpuQuerySetInfoValue;
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
+        Ok(GpuQuerySetInfoValue {
+            query_type: <GpuQuerySetTypeVm as VmAbiCodec>::into_value(self.query_type, context)?,
+            count: <u32 as VmAbiCodec>::into_value(self.count, context)?,
+        })
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalCallContext<'_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
-        Ok(value)
+        Ok(Self {
+            query_type: <GpuQuerySetTypeVm as VmAbiCodec>::from_value(context, value.query_type)?,
+            count: <u32 as VmAbiCodec>::from_value(context, value.count)?,
+        })
     }
 }
 
-impl VmCollectionElement for GpuQuerySetInfo {}
-
 /// ABI struct for GpuQuerySetOptions.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct GpuQuerySetOptions {
-    /// Query set type.
-    pub query_type: GpuQueryType,
+pub struct GpuQuerySetOptionsAbi<A: BindingAbi> {
+    /// Debug label.
+    pub label: A::String,
+    /// Query-set type payload.
+    pub query_type: platform_gpu::GpuQuerySetTypeAbi<A>,
     /// Query count.
     pub count: u32,
-    /// Pipeline-statistics bitset for statistics query type.
-    /// The enabled-flag order defines value ordering in resolved query data.
-    pub pipeline_statistics_mask: GpuPipelineStatisticsMask,
     /// Query set option flags.
     pub flags: u32,
 }
 
-pub type GpuQuerySetOptionsVm = GpuQuerySetOptions;
+pub type GpuQuerySetOptions = GpuQuerySetOptionsAbi<NativeAbi>;
+pub type GpuQuerySetOptionsVm = GpuQuerySetOptionsAbi<VmAbi>;
 
-impl VmAggregateCodec for GpuQuerySetOptions {
+impl<A: BindingAbi> std::fmt::Debug for GpuQuerySetOptionsAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuQuerySetOptionsAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuQuerySetOptionsAbi<NativeAbi> {}
+impl Clone for GpuQuerySetOptionsAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuQuerySetOptionsAbi<VmAbi> {}
+impl Clone for GpuQuerySetOptionsAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuQuerySetOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -10081,18 +14144,16 @@ impl VmAggregateCodec for GpuQuerySetOptions {
             ))
             .boxed());
         }
+        let field_label =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_query_type =
-            <GpuQueryType as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_count = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_pipeline_statistics_mask =
-            <GpuPipelineStatisticsMask as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
-            )?;
+            <GpuQuerySetTypeVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_count = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
+            label: field_label,
             query_type: field_query_type,
             count: field_count,
-            pipeline_statistics_mask: field_pipeline_statistics_mask,
             flags: field_flags,
         })
     }
@@ -10102,12 +14163,9 @@ impl VmAggregateCodec for GpuQuerySetOptions {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <GpuQueryType as VmAggregateCodec>::encode_with_context(self.query_type, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
+            <GpuQuerySetTypeVm as VmAggregateCodec>::encode_with_context(self.query_type, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.count, context)?,
-            <GpuPipelineStatisticsMask as VmAggregateCodec>::encode_with_context(
-                self.pipeline_statistics_mask,
-                context,
-            )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
         context
@@ -10116,48 +14174,86 @@ impl VmAggregateCodec for GpuQuerySetOptions {
     }
 }
 
-/// Value type for GpuQuerySetOptions.
-pub type GpuQuerySetOptionsValue = GpuQuerySetOptions;
+impl VmCollectionElement for GpuQuerySetOptionsAbi<VmAbi> {}
 
-impl NativeAbiCodec for GpuQuerySetOptions {
+/// Value type for GpuQuerySetOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuQuerySetOptionsValue {
+    /// Debug label.
+    pub label: String,
+    /// Query-set type payload.
+    pub query_type: GpuQuerySetTypeValue,
+    /// Query count.
+    pub count: u32,
+    /// Query set option flags.
+    pub flags: u32,
+}
+
+impl NativeAbiCodec for GpuQuerySetOptionsAbi<NativeAbi> {
     type Value = GpuQuerySetOptionsValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
+        Ok(GpuQuerySetOptionsValue {
+            label: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.label)? },
+            query_type: unsafe {
+                <GpuQuerySetType as NativeAbiCodec>::into_value(self.query_type)?
+            },
+            count: unsafe { <u32 as NativeAbiCodec>::into_value(self.count)? },
+            flags: unsafe { <u32 as NativeAbiCodec>::into_value(self.flags)? },
+        })
     }
 
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            label: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.label),
+            query_type: <GpuQuerySetType as NativeAbiCodec>::from_value(binding, value.query_type),
+            count: <u32 as NativeAbiCodec>::from_value(binding, value.count),
+            flags: <u32 as NativeAbiCodec>::from_value(binding, value.flags),
+        }
     }
 }
 
-impl VmAbiCodec for GpuQuerySetOptions {
+impl VmAbiCodec for GpuQuerySetOptionsAbi<VmAbi> {
     type Value = GpuQuerySetOptionsValue;
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
+        Ok(GpuQuerySetOptionsValue {
+            label: <vm::StringHandle as VmAbiCodec>::into_value(self.label, context)?,
+            query_type: <GpuQuerySetTypeVm as VmAbiCodec>::into_value(self.query_type, context)?,
+            count: <u32 as VmAbiCodec>::into_value(self.count, context)?,
+            flags: <u32 as VmAbiCodec>::into_value(self.flags, context)?,
+        })
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalCallContext<'_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
-        Ok(value)
+        Ok(Self {
+            label: <vm::StringHandle as VmAbiCodec>::from_value(context, value.label)?,
+            query_type: <GpuQuerySetTypeVm as VmAbiCodec>::from_value(context, value.query_type)?,
+            count: <u32 as VmAbiCodec>::from_value(context, value.count)?,
+            flags: <u32 as VmAbiCodec>::from_value(context, value.flags)?,
+        })
     }
 }
-
-impl VmCollectionElement for GpuQuerySetOptions {}
 
 /// ABI struct for GpuRenderBundleEncoderOptions.
 #[repr(C)]
 pub struct GpuRenderBundleEncoderOptionsAbi<A: BindingAbi> {
+    /// Debug label.
+    pub label: A::String,
     /// Color attachment format identifiers.
-    pub color_formats: A::Slice<u32>,
-    /// Depth-stencil format identifier, zero when unused.
-    pub depth_stencil_format: u32,
+    pub color_formats: A::Slice<GpuTextureFormat>,
+    /// Depth-stencil format identifier when one is used.
+    pub depth_stencil_format: Option<GpuTextureFormat>,
+    /// Whether the depth aspect is read-only.
+    pub depth_read_only: bool,
+    /// Whether the stencil aspect is read-only.
+    pub stencil_read_only: bool,
     /// Sample count.
     pub sample_count: u32,
     /// Bundle-encoder option flags.
@@ -10203,22 +14299,33 @@ impl VmAggregateCodec for GpuRenderBundleEncoderOptionsAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 7 fields",
             ))
             .boxed());
         }
+        let field_label =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_color_formats =
-            <VmSlice<u32> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+            <VmSlice<GpuTextureFormat> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
         let field_depth_stencil_format =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_sample_count = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <Option<GpuTextureFormat> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_depth_read_only =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_stencil_read_only =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_sample_count = <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         Ok(Self {
+            label: field_label,
             color_formats: field_color_formats,
             depth_stencil_format: field_depth_stencil_format,
+            depth_read_only: field_depth_read_only,
+            stencil_read_only: field_stencil_read_only,
             sample_count: field_sample_count,
             flags: field_flags,
         })
@@ -10229,8 +14336,17 @@ impl VmAggregateCodec for GpuRenderBundleEncoderOptionsAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <VmSlice<u32> as VmAggregateCodec>::encode_with_context(self.color_formats, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.depth_stencil_format, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
+            <VmSlice<GpuTextureFormat> as VmAggregateCodec>::encode_with_context(
+                self.color_formats,
+                context,
+            )?,
+            <Option<GpuTextureFormat> as VmAggregateCodec>::encode_with_context(
+                self.depth_stencil_format,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.depth_read_only, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.stencil_read_only, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.sample_count, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
@@ -10245,10 +14361,16 @@ impl VmCollectionElement for GpuRenderBundleEncoderOptionsAbi<VmAbi> {}
 /// Value type for GpuRenderBundleEncoderOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuRenderBundleEncoderOptionsValue {
+    /// Debug label.
+    pub label: String,
     /// Color attachment format identifiers.
-    pub color_formats: Vec<u32>,
-    /// Depth-stencil format identifier, zero when unused.
-    pub depth_stencil_format: u32,
+    pub color_formats: Vec<GpuTextureFormat>,
+    /// Depth-stencil format identifier when one is used.
+    pub depth_stencil_format: Option<GpuTextureFormat>,
+    /// Whether the depth aspect is read-only.
+    pub depth_read_only: bool,
+    /// Whether the stencil aspect is read-only.
+    pub stencil_read_only: bool,
     /// Sample count.
     pub sample_count: u32,
     /// Bundle-encoder option flags.
@@ -10260,11 +14382,16 @@ impl NativeAbiCodec for GpuRenderBundleEncoderOptionsAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(GpuRenderBundleEncoderOptionsValue {
+            label: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.label)? },
             color_formats: unsafe {
-                <NativeSlice<u32> as NativeAbiCodec>::into_value(self.color_formats)?
+                <NativeSlice<GpuTextureFormat> as NativeAbiCodec>::into_value(self.color_formats)?
             },
             depth_stencil_format: unsafe {
-                <u32 as NativeAbiCodec>::into_value(self.depth_stencil_format)?
+                <Option<GpuTextureFormat> as NativeAbiCodec>::into_value(self.depth_stencil_format)?
+            },
+            depth_read_only: unsafe { <bool as NativeAbiCodec>::into_value(self.depth_read_only)? },
+            stencil_read_only: unsafe {
+                <bool as NativeAbiCodec>::into_value(self.stencil_read_only)?
             },
             sample_count: unsafe { <u32 as NativeAbiCodec>::into_value(self.sample_count)? },
             flags: unsafe { <u32 as NativeAbiCodec>::into_value(self.flags)? },
@@ -10273,13 +14400,19 @@ impl NativeAbiCodec for GpuRenderBundleEncoderOptionsAbi<NativeAbi> {
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
-            color_formats: <NativeSlice<u32> as NativeAbiCodec>::from_value(
+            label: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.label),
+            color_formats: <NativeSlice<GpuTextureFormat> as NativeAbiCodec>::from_value(
                 binding,
                 value.color_formats,
             ),
-            depth_stencil_format: <u32 as NativeAbiCodec>::from_value(
+            depth_stencil_format: <Option<GpuTextureFormat> as NativeAbiCodec>::from_value(
                 binding,
                 value.depth_stencil_format,
+            ),
+            depth_read_only: <bool as NativeAbiCodec>::from_value(binding, value.depth_read_only),
+            stencil_read_only: <bool as NativeAbiCodec>::from_value(
+                binding,
+                value.stencil_read_only,
             ),
             sample_count: <u32 as NativeAbiCodec>::from_value(binding, value.sample_count),
             flags: <u32 as NativeAbiCodec>::from_value(binding, value.flags),
@@ -10295,11 +14428,17 @@ impl VmAbiCodec for GpuRenderBundleEncoderOptionsAbi<VmAbi> {
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(GpuRenderBundleEncoderOptionsValue {
-            color_formats: <VmSlice<u32> as VmAbiCodec>::into_value(self.color_formats, context)?,
-            depth_stencil_format: <u32 as VmAbiCodec>::into_value(
+            label: <vm::StringHandle as VmAbiCodec>::into_value(self.label, context)?,
+            color_formats: <VmSlice<GpuTextureFormat> as VmAbiCodec>::into_value(
+                self.color_formats,
+                context,
+            )?,
+            depth_stencil_format: <Option<GpuTextureFormat> as VmAbiCodec>::into_value(
                 self.depth_stencil_format,
                 context,
             )?,
+            depth_read_only: <bool as VmAbiCodec>::into_value(self.depth_read_only, context)?,
+            stencil_read_only: <bool as VmAbiCodec>::into_value(self.stencil_read_only, context)?,
             sample_count: <u32 as VmAbiCodec>::into_value(self.sample_count, context)?,
             flags: <u32 as VmAbiCodec>::into_value(self.flags, context)?,
         })
@@ -10310,13 +14449,137 @@ impl VmAbiCodec for GpuRenderBundleEncoderOptionsAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
-            color_formats: <VmSlice<u32> as VmAbiCodec>::from_value(context, value.color_formats)?,
-            depth_stencil_format: <u32 as VmAbiCodec>::from_value(
+            label: <vm::StringHandle as VmAbiCodec>::from_value(context, value.label)?,
+            color_formats: <VmSlice<GpuTextureFormat> as VmAbiCodec>::from_value(
+                context,
+                value.color_formats,
+            )?,
+            depth_stencil_format: <Option<GpuTextureFormat> as VmAbiCodec>::from_value(
                 context,
                 value.depth_stencil_format,
             )?,
+            depth_read_only: <bool as VmAbiCodec>::from_value(context, value.depth_read_only)?,
+            stencil_read_only: <bool as VmAbiCodec>::from_value(context, value.stencil_read_only)?,
             sample_count: <u32 as VmAbiCodec>::from_value(context, value.sample_count)?,
             flags: <u32 as VmAbiCodec>::from_value(context, value.flags)?,
+        })
+    }
+}
+
+/// ABI struct for GpuRenderBundleOptions.
+#[repr(C)]
+pub struct GpuRenderBundleOptionsAbi<A: BindingAbi> {
+    /// Debug label.
+    pub label: A::String,
+}
+
+pub type GpuRenderBundleOptions = GpuRenderBundleOptionsAbi<NativeAbi>;
+pub type GpuRenderBundleOptionsVm = GpuRenderBundleOptionsAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for GpuRenderBundleOptionsAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuRenderBundleOptionsAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuRenderBundleOptionsAbi<NativeAbi> {}
+impl Clone for GpuRenderBundleOptionsAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuRenderBundleOptionsAbi<VmAbi> {}
+impl Clone for GpuRenderBundleOptionsAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuRenderBundleOptionsAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuRenderBundleOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let field_label =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self { label: field_label })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
+            self.label, context,
+        )?];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for GpuRenderBundleOptionsAbi<VmAbi> {}
+
+/// Value type for GpuRenderBundleOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuRenderBundleOptionsValue {
+    /// Debug label.
+    pub label: String,
+}
+
+impl NativeAbiCodec for GpuRenderBundleOptionsAbi<NativeAbi> {
+    type Value = GpuRenderBundleOptionsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(GpuRenderBundleOptionsValue {
+            label: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.label)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            label: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.label),
+        }
+    }
+}
+
+impl VmAbiCodec for GpuRenderBundleOptionsAbi<VmAbi> {
+    type Value = GpuRenderBundleOptionsValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(GpuRenderBundleOptionsValue {
+            label: <vm::StringHandle as VmAbiCodec>::into_value(self.label, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            label: <vm::StringHandle as VmAbiCodec>::from_value(context, value.label)?,
         })
     }
 }
@@ -10333,14 +14596,8 @@ pub struct GpuRenderPassColorAttachment {
     pub load_op: GpuLoadOp,
     /// Color store operation.
     pub store_op: GpuStoreOp,
-    /// Clear color red component.
-    pub clear_color_r: f64,
-    /// Clear color green component.
-    pub clear_color_g: f64,
-    /// Clear color blue component.
-    pub clear_color_b: f64,
-    /// Clear color alpha component.
-    pub clear_color_a: f64,
+    /// Clear color value.
+    pub clear_value: GpuColor,
 }
 
 pub type GpuRenderPassColorAttachmentVm = GpuRenderPassColorAttachment;
@@ -10360,10 +14617,10 @@ impl VmAggregateCodec for GpuRenderPassColorAttachment {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 8 {
+        if slots.len() != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 8 fields",
+                "expected 5 fields",
             ))
             .boxed());
         }
@@ -10378,23 +14635,14 @@ impl VmAggregateCodec for GpuRenderPassColorAttachment {
             <GpuLoadOp as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_store_op =
             <GpuStoreOp as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_clear_color_r =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_clear_color_g =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_clear_color_b =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_clear_color_a =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_clear_value =
+            <GpuColorVm as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             view: field_view,
             resolve_target: field_resolve_target,
             load_op: field_load_op,
             store_op: field_store_op,
-            clear_color_r: field_clear_color_r,
-            clear_color_g: field_clear_color_g,
-            clear_color_b: field_clear_color_b,
-            clear_color_a: field_clear_color_a,
+            clear_value: field_clear_value,
         })
     }
 
@@ -10412,10 +14660,7 @@ impl VmAggregateCodec for GpuRenderPassColorAttachment {
             )?,
             <GpuLoadOp as VmAggregateCodec>::encode_with_context(self.load_op, context)?,
             <GpuStoreOp as VmAggregateCodec>::encode_with_context(self.store_op, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.clear_color_r, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.clear_color_g, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.clear_color_b, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.clear_color_a, context)?,
+            <GpuColorVm as VmAggregateCodec>::encode_with_context(self.clear_value, context)?,
         ];
         context
             .allocate_aggregate(slots)
@@ -10464,20 +14709,20 @@ impl VmCollectionElement for GpuRenderPassColorAttachment {}
 pub struct GpuRenderPassDepthStencilAttachment {
     /// Depth-stencil texture-view handle.
     pub view: resource::GpuTextureViewHandle,
-    /// Depth load operation.
-    pub depth_load_op: GpuLoadOp,
-    /// Depth store operation.
-    pub depth_store_op: GpuStoreOp,
-    /// Clear depth value.
-    pub clear_depth: f64,
+    /// Depth load operation when depth is writable.
+    pub depth_load_op: Option<GpuLoadOp>,
+    /// Depth store operation when depth is writable.
+    pub depth_store_op: Option<GpuStoreOp>,
+    /// Clear depth value when depth load uses `Clear`.
+    pub clear_depth: Option<f64>,
     /// Whether depth attachment is read-only.
     pub depth_read_only: bool,
-    /// Stencil load operation.
-    pub stencil_load_op: GpuLoadOp,
-    /// Stencil store operation.
-    pub stencil_store_op: GpuStoreOp,
-    /// Clear stencil value.
-    pub clear_stencil: u32,
+    /// Stencil load operation when stencil is writable.
+    pub stencil_load_op: Option<GpuLoadOp>,
+    /// Stencil store operation when stencil is writable.
+    pub stencil_store_op: Option<GpuStoreOp>,
+    /// Clear stencil value when stencil load uses `Clear`.
+    pub clear_stencil: Option<u32>,
     /// Whether stencil attachment is read-only.
     pub stencil_read_only: bool,
 }
@@ -10510,18 +14755,19 @@ impl VmAggregateCodec for GpuRenderPassDepthStencilAttachment {
             context, slots[0],
         )?;
         let field_depth_load_op =
-            <GpuLoadOp as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <Option<GpuLoadOp> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_depth_store_op =
-            <GpuStoreOp as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_clear_depth = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <Option<GpuStoreOp> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_clear_depth =
+            <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_depth_read_only =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_stencil_load_op =
-            <GpuLoadOp as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <Option<GpuLoadOp> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_stencil_store_op =
-            <GpuStoreOp as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <Option<GpuStoreOp> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         let field_clear_stencil =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         let field_stencil_read_only =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         Ok(Self {
@@ -10545,13 +14791,25 @@ impl VmAggregateCodec for GpuRenderPassDepthStencilAttachment {
             <resource::GpuTextureViewHandle as VmAggregateCodec>::encode_with_context(
                 self.view, context,
             )?,
-            <GpuLoadOp as VmAggregateCodec>::encode_with_context(self.depth_load_op, context)?,
-            <GpuStoreOp as VmAggregateCodec>::encode_with_context(self.depth_store_op, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.clear_depth, context)?,
+            <Option<GpuLoadOp> as VmAggregateCodec>::encode_with_context(
+                self.depth_load_op,
+                context,
+            )?,
+            <Option<GpuStoreOp> as VmAggregateCodec>::encode_with_context(
+                self.depth_store_op,
+                context,
+            )?,
+            <Option<f64> as VmAggregateCodec>::encode_with_context(self.clear_depth, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.depth_read_only, context)?,
-            <GpuLoadOp as VmAggregateCodec>::encode_with_context(self.stencil_load_op, context)?,
-            <GpuStoreOp as VmAggregateCodec>::encode_with_context(self.stencil_store_op, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.clear_stencil, context)?,
+            <Option<GpuLoadOp> as VmAggregateCodec>::encode_with_context(
+                self.stencil_load_op,
+                context,
+            )?,
+            <Option<GpuStoreOp> as VmAggregateCodec>::encode_with_context(
+                self.stencil_store_op,
+                context,
+            )?,
+            <Option<u32> as VmAggregateCodec>::encode_with_context(self.clear_stencil, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.stencil_read_only, context)?,
         ];
         context
@@ -10598,6 +14856,8 @@ impl VmCollectionElement for GpuRenderPassDepthStencilAttachment {}
 /// ABI struct for GpuRenderPassOptions.
 #[repr(C)]
 pub struct GpuRenderPassOptionsAbi<A: BindingAbi> {
+    /// Debug label.
+    pub label: A::String,
     /// Render-pass color attachments.
     pub color_attachments: A::Slice<GpuRenderPassColorAttachment>,
     /// Render-pass depth-stencil attachment descriptor when provided.
@@ -10647,27 +14907,30 @@ impl VmAggregateCodec for GpuRenderPassOptionsAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 5 fields",
             ))
             .boxed());
         }
+        let field_label =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_color_attachments =
             <VmSlice<GpuRenderPassColorAttachmentVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[0],
+                context, slots[1],
             )?;
-        let field_depth_stencil = <Option<GpuRenderPassDepthStencilAttachmentVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_depth_stencil = <Option<GpuRenderPassDepthStencilAttachmentVm> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_timestamp_writes =
             <Option<GpuPassTimestampWritesVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
+                context, slots[3],
             )?;
         let field_occlusion_query_set =
             <Option<resource::GpuQuerySetHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[3],
+                context, slots[4],
             )?;
         Ok(Self {
+            label: field_label,
             color_attachments: field_color_attachments,
             depth_stencil: field_depth_stencil,
             timestamp_writes: field_timestamp_writes,
@@ -10680,6 +14943,7 @@ impl VmAggregateCodec for GpuRenderPassOptionsAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
             <VmSlice<GpuRenderPassColorAttachmentVm> as VmAggregateCodec>::encode_with_context(self.color_attachments, context)?,
             <Option<GpuRenderPassDepthStencilAttachmentVm> as VmAggregateCodec>::encode_with_context(self.depth_stencil, context)?,
             <Option<GpuPassTimestampWritesVm> as VmAggregateCodec>::encode_with_context(self.timestamp_writes, context)?,
@@ -10696,6 +14960,8 @@ impl VmCollectionElement for GpuRenderPassOptionsAbi<VmAbi> {}
 /// Value type for GpuRenderPassOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuRenderPassOptionsValue {
+    /// Debug label.
+    pub label: String,
     /// Render-pass color attachments.
     pub color_attachments: Vec<GpuRenderPassColorAttachment>,
     /// Render-pass depth-stencil attachment descriptor when provided.
@@ -10711,6 +14977,7 @@ impl NativeAbiCodec for GpuRenderPassOptionsAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(GpuRenderPassOptionsValue {
+            label: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.label)? },
             color_attachments: unsafe {
                 <NativeSlice<GpuRenderPassColorAttachment> as NativeAbiCodec>::into_value(
                     self.color_attachments,
@@ -10736,6 +15003,7 @@ impl NativeAbiCodec for GpuRenderPassOptionsAbi<NativeAbi> {
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
+            label: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.label),
             color_attachments:
                 <NativeSlice<GpuRenderPassColorAttachment> as NativeAbiCodec>::from_value(
                     binding,
@@ -10767,6 +15035,7 @@ impl VmAbiCodec for GpuRenderPassOptionsAbi<VmAbi> {
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(GpuRenderPassOptionsValue {
+            label: <vm::StringHandle as VmAbiCodec>::into_value(self.label, context)?,
             color_attachments: <VmSlice<GpuRenderPassColorAttachmentVm> as VmAbiCodec>::into_value(
                 self.color_attachments,
                 context,
@@ -10792,6 +15061,7 @@ impl VmAbiCodec for GpuRenderPassOptionsAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
+            label: <vm::StringHandle as VmAbiCodec>::from_value(context, value.label)?,
             color_attachments: <VmSlice<GpuRenderPassColorAttachmentVm> as VmAbiCodec>::from_value(
                 context,
                 value.color_attachments,
@@ -10816,6 +15086,8 @@ impl VmAbiCodec for GpuRenderPassOptionsAbi<VmAbi> {
 /// ABI struct for GpuRenderPipelineOptions.
 #[repr(C)]
 pub struct GpuRenderPipelineOptionsAbi<A: BindingAbi> {
+    /// Debug label.
+    pub label: A::String,
     /// Explicit pipeline layout handle when provided.
     pub layout: Option<resource::GpuPipelineLayoutHandle>,
     /// Vertex stage descriptor.
@@ -10826,8 +15098,6 @@ pub struct GpuRenderPipelineOptionsAbi<A: BindingAbi> {
     pub render: GpuRenderState,
     /// Multiview mask when configured.
     pub multiview_mask: Option<u32>,
-    /// Pipeline creation metadata.
-    pub metadata: platform_gpu::GpuPipelineMetadataAbi<A>,
     /// Pipeline option flags.
     pub flags: u32,
 }
@@ -10878,29 +15148,29 @@ impl VmAggregateCodec for GpuRenderPipelineOptionsAbi<VmAbi> {
             ))
             .boxed());
         }
+        let field_label =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_layout =
             <Option<resource::GpuPipelineLayoutHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[0],
+                context, slots[1],
             )?;
         let field_vertex =
-            <GpuVertexStateVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <GpuVertexStateVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_fragment = <Option<GpuFragmentStateVm> as VmAggregateCodec>::decode_with_context(
-            context, slots[2],
+            context, slots[3],
         )?;
         let field_render =
-            <GpuRenderStateVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <GpuRenderStateVm as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_multiview_mask =
-            <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_metadata =
-            <GpuPipelineMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         Ok(Self {
+            label: field_label,
             layout: field_layout,
             vertex: field_vertex,
             fragment: field_fragment,
             render: field_render,
             multiview_mask: field_multiview_mask,
-            metadata: field_metadata,
             flags: field_flags,
         })
     }
@@ -10910,6 +15180,7 @@ impl VmAggregateCodec for GpuRenderPipelineOptionsAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
             <Option<resource::GpuPipelineLayoutHandle> as VmAggregateCodec>::encode_with_context(
                 self.layout,
                 context,
@@ -10921,10 +15192,6 @@ impl VmAggregateCodec for GpuRenderPipelineOptionsAbi<VmAbi> {
             )?,
             <GpuRenderStateVm as VmAggregateCodec>::encode_with_context(self.render, context)?,
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.multiview_mask, context)?,
-            <GpuPipelineMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
         context
@@ -10938,6 +15205,8 @@ impl VmCollectionElement for GpuRenderPipelineOptionsAbi<VmAbi> {}
 /// Value type for GpuRenderPipelineOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuRenderPipelineOptionsValue {
+    /// Debug label.
+    pub label: String,
     /// Explicit pipeline layout handle when provided.
     pub layout: Option<resource::GpuPipelineLayoutHandle>,
     /// Vertex stage descriptor.
@@ -10948,8 +15217,6 @@ pub struct GpuRenderPipelineOptionsValue {
     pub render: GpuRenderState,
     /// Multiview mask when configured.
     pub multiview_mask: Option<u32>,
-    /// Pipeline creation metadata.
-    pub metadata: GpuPipelineMetadataValue,
     /// Pipeline option flags.
     pub flags: u32,
 }
@@ -10959,6 +15226,7 @@ impl NativeAbiCodec for GpuRenderPipelineOptionsAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(GpuRenderPipelineOptionsValue {
+            label: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.label)? },
             layout: unsafe {
                 <Option<resource::GpuPipelineLayoutHandle> as NativeAbiCodec>::into_value(
                     self.layout,
@@ -10972,15 +15240,13 @@ impl NativeAbiCodec for GpuRenderPipelineOptionsAbi<NativeAbi> {
             multiview_mask: unsafe {
                 <Option<u32> as NativeAbiCodec>::into_value(self.multiview_mask)?
             },
-            metadata: unsafe {
-                <GpuPipelineMetadata as NativeAbiCodec>::into_value(self.metadata)?
-            },
             flags: unsafe { <u32 as NativeAbiCodec>::into_value(self.flags)? },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
+            label: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.label),
             layout: <Option<resource::GpuPipelineLayoutHandle> as NativeAbiCodec>::from_value(
                 binding,
                 value.layout,
@@ -10995,7 +15261,6 @@ impl NativeAbiCodec for GpuRenderPipelineOptionsAbi<NativeAbi> {
                 binding,
                 value.multiview_mask,
             ),
-            metadata: <GpuPipelineMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
             flags: <u32 as NativeAbiCodec>::from_value(binding, value.flags),
         }
     }
@@ -11009,6 +15274,7 @@ impl VmAbiCodec for GpuRenderPipelineOptionsAbi<VmAbi> {
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(GpuRenderPipelineOptionsValue {
+            label: <vm::StringHandle as VmAbiCodec>::into_value(self.label, context)?,
             layout: <Option<resource::GpuPipelineLayoutHandle> as VmAbiCodec>::into_value(
                 self.layout,
                 context,
@@ -11020,7 +15286,6 @@ impl VmAbiCodec for GpuRenderPipelineOptionsAbi<VmAbi> {
             )?,
             render: <GpuRenderStateVm as VmAbiCodec>::into_value(self.render, context)?,
             multiview_mask: <Option<u32> as VmAbiCodec>::into_value(self.multiview_mask, context)?,
-            metadata: <GpuPipelineMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
             flags: <u32 as VmAbiCodec>::into_value(self.flags, context)?,
         })
     }
@@ -11030,6 +15295,7 @@ impl VmAbiCodec for GpuRenderPipelineOptionsAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
+            label: <vm::StringHandle as VmAbiCodec>::from_value(context, value.label)?,
             layout: <Option<resource::GpuPipelineLayoutHandle> as VmAbiCodec>::from_value(
                 context,
                 value.layout,
@@ -11041,7 +15307,6 @@ impl VmAbiCodec for GpuRenderPipelineOptionsAbi<VmAbi> {
             )?,
             render: <GpuRenderStateVm as VmAbiCodec>::from_value(context, value.render)?,
             multiview_mask: <Option<u32> as VmAbiCodec>::from_value(context, value.multiview_mask)?,
-            metadata: <GpuPipelineMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
             flags: <u32 as VmAbiCodec>::from_value(context, value.flags)?,
         })
     }
@@ -11159,35 +15424,60 @@ impl VmCollectionElement for GpuRenderState {}
 
 /// ABI struct for GpuSamplerOptions.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct GpuSamplerOptions {
+pub struct GpuSamplerOptionsAbi<A: BindingAbi> {
+    /// Debug label.
+    pub label: A::String,
     /// Minification filter selector.
-    pub min_filter: u32,
+    pub min_filter: GpuFilterMode,
     /// Magnification filter selector.
-    pub mag_filter: u32,
+    pub mag_filter: GpuFilterMode,
     /// Mipmap filter selector.
-    pub mip_filter: u32,
+    pub mip_filter: GpuMipmapFilterMode,
     /// Address mode u selector.
-    pub address_u: u32,
+    pub address_u: GpuAddressMode,
     /// Address mode v selector.
-    pub address_v: u32,
+    pub address_v: GpuAddressMode,
     /// Address mode w selector.
-    pub address_w: u32,
+    pub address_w: GpuAddressMode,
     /// Sampler LOD minimum clamp.
     pub lod_min_clamp: f64,
     /// Sampler LOD maximum clamp.
     pub lod_max_clamp: f64,
-    /// Compare-function selector, zero when comparison is disabled.
-    pub compare: u32,
+    /// Compare-function selector when comparison is enabled.
+    pub compare: Option<GpuCompareFunction>,
     /// Maximum anisotropy level.
     pub max_anisotropy: u16,
+    /// Border color when one address mode clamps to border.
+    pub border_color: Option<GpuSamplerBorderColor>,
     /// Sampler option flags.
     pub flags: u32,
 }
 
-pub type GpuSamplerOptionsVm = GpuSamplerOptions;
+pub type GpuSamplerOptions = GpuSamplerOptionsAbi<NativeAbi>;
+pub type GpuSamplerOptionsVm = GpuSamplerOptionsAbi<VmAbi>;
 
-impl VmAggregateCodec for GpuSamplerOptions {
+impl<A: BindingAbi> std::fmt::Debug for GpuSamplerOptionsAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuSamplerOptionsAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuSamplerOptionsAbi<NativeAbi> {}
+impl Clone for GpuSamplerOptionsAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuSamplerOptionsAbi<VmAbi> {}
+impl Clone for GpuSamplerOptionsAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuSamplerOptionsAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -11202,28 +15492,43 @@ impl VmAggregateCodec for GpuSamplerOptions {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 11 {
+        if slots.len() != 13 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 11 fields",
+                "expected 13 fields",
             ))
             .boxed());
         }
-        let field_min_filter = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_mag_filter = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_mip_filter = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_address_u = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_address_v = <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_address_w = <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_label =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_min_filter =
+            <GpuFilterMode as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_mag_filter =
+            <GpuFilterMode as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_mip_filter =
+            <GpuMipmapFilterMode as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_address_u =
+            <GpuAddressMode as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_address_v =
+            <GpuAddressMode as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_address_w =
+            <GpuAddressMode as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         let field_lod_min_clamp =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_lod_max_clamp =
             <f64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_compare = <u32 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_lod_max_clamp =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_compare = <Option<GpuCompareFunction> as VmAggregateCodec>::decode_with_context(
+            context, slots[9],
+        )?;
         let field_max_anisotropy =
-            <u16 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+            <u16 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_border_color =
+            <Option<GpuSamplerBorderColor> as VmAggregateCodec>::decode_with_context(
+                context, slots[11],
+            )?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[12])?;
         Ok(Self {
+            label: field_label,
             min_filter: field_min_filter,
             mag_filter: field_mag_filter,
             mip_filter: field_mip_filter,
@@ -11234,6 +15539,7 @@ impl VmAggregateCodec for GpuSamplerOptions {
             lod_max_clamp: field_lod_max_clamp,
             compare: field_compare,
             max_anisotropy: field_max_anisotropy,
+            border_color: field_border_color,
             flags: field_flags,
         })
     }
@@ -11243,16 +15549,27 @@ impl VmAggregateCodec for GpuSamplerOptions {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.min_filter, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.mag_filter, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.mip_filter, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.address_u, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.address_v, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.address_w, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
+            <GpuFilterMode as VmAggregateCodec>::encode_with_context(self.min_filter, context)?,
+            <GpuFilterMode as VmAggregateCodec>::encode_with_context(self.mag_filter, context)?,
+            <GpuMipmapFilterMode as VmAggregateCodec>::encode_with_context(
+                self.mip_filter,
+                context,
+            )?,
+            <GpuAddressMode as VmAggregateCodec>::encode_with_context(self.address_u, context)?,
+            <GpuAddressMode as VmAggregateCodec>::encode_with_context(self.address_v, context)?,
+            <GpuAddressMode as VmAggregateCodec>::encode_with_context(self.address_w, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.lod_min_clamp, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.lod_max_clamp, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.compare, context)?,
+            <Option<GpuCompareFunction> as VmAggregateCodec>::encode_with_context(
+                self.compare,
+                context,
+            )?,
             <u16 as VmAggregateCodec>::encode_with_context(self.max_anisotropy, context)?,
+            <Option<GpuSamplerBorderColor> as VmAggregateCodec>::encode_with_context(
+                self.border_color,
+                context,
+            )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
         context
@@ -11261,40 +15578,148 @@ impl VmAggregateCodec for GpuSamplerOptions {
     }
 }
 
-/// Value type for GpuSamplerOptions.
-pub type GpuSamplerOptionsValue = GpuSamplerOptions;
+impl VmCollectionElement for GpuSamplerOptionsAbi<VmAbi> {}
 
-impl NativeAbiCodec for GpuSamplerOptions {
+/// Value type for GpuSamplerOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuSamplerOptionsValue {
+    /// Debug label.
+    pub label: String,
+    /// Minification filter selector.
+    pub min_filter: GpuFilterMode,
+    /// Magnification filter selector.
+    pub mag_filter: GpuFilterMode,
+    /// Mipmap filter selector.
+    pub mip_filter: GpuMipmapFilterMode,
+    /// Address mode u selector.
+    pub address_u: GpuAddressMode,
+    /// Address mode v selector.
+    pub address_v: GpuAddressMode,
+    /// Address mode w selector.
+    pub address_w: GpuAddressMode,
+    /// Sampler LOD minimum clamp.
+    pub lod_min_clamp: f64,
+    /// Sampler LOD maximum clamp.
+    pub lod_max_clamp: f64,
+    /// Compare-function selector when comparison is enabled.
+    pub compare: Option<GpuCompareFunction>,
+    /// Maximum anisotropy level.
+    pub max_anisotropy: u16,
+    /// Border color when one address mode clamps to border.
+    pub border_color: Option<GpuSamplerBorderColor>,
+    /// Sampler option flags.
+    pub flags: u32,
+}
+
+impl NativeAbiCodec for GpuSamplerOptionsAbi<NativeAbi> {
     type Value = GpuSamplerOptionsValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
+        Ok(GpuSamplerOptionsValue {
+            label: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.label)? },
+            min_filter: unsafe { <GpuFilterMode as NativeAbiCodec>::into_value(self.min_filter)? },
+            mag_filter: unsafe { <GpuFilterMode as NativeAbiCodec>::into_value(self.mag_filter)? },
+            mip_filter: unsafe {
+                <GpuMipmapFilterMode as NativeAbiCodec>::into_value(self.mip_filter)?
+            },
+            address_u: unsafe { <GpuAddressMode as NativeAbiCodec>::into_value(self.address_u)? },
+            address_v: unsafe { <GpuAddressMode as NativeAbiCodec>::into_value(self.address_v)? },
+            address_w: unsafe { <GpuAddressMode as NativeAbiCodec>::into_value(self.address_w)? },
+            lod_min_clamp: unsafe { <f64 as NativeAbiCodec>::into_value(self.lod_min_clamp)? },
+            lod_max_clamp: unsafe { <f64 as NativeAbiCodec>::into_value(self.lod_max_clamp)? },
+            compare: unsafe {
+                <Option<GpuCompareFunction> as NativeAbiCodec>::into_value(self.compare)?
+            },
+            max_anisotropy: unsafe { <u16 as NativeAbiCodec>::into_value(self.max_anisotropy)? },
+            border_color: unsafe {
+                <Option<GpuSamplerBorderColor> as NativeAbiCodec>::into_value(self.border_color)?
+            },
+            flags: unsafe { <u32 as NativeAbiCodec>::into_value(self.flags)? },
+        })
     }
 
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            label: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.label),
+            min_filter: <GpuFilterMode as NativeAbiCodec>::from_value(binding, value.min_filter),
+            mag_filter: <GpuFilterMode as NativeAbiCodec>::from_value(binding, value.mag_filter),
+            mip_filter: <GpuMipmapFilterMode as NativeAbiCodec>::from_value(
+                binding,
+                value.mip_filter,
+            ),
+            address_u: <GpuAddressMode as NativeAbiCodec>::from_value(binding, value.address_u),
+            address_v: <GpuAddressMode as NativeAbiCodec>::from_value(binding, value.address_v),
+            address_w: <GpuAddressMode as NativeAbiCodec>::from_value(binding, value.address_w),
+            lod_min_clamp: <f64 as NativeAbiCodec>::from_value(binding, value.lod_min_clamp),
+            lod_max_clamp: <f64 as NativeAbiCodec>::from_value(binding, value.lod_max_clamp),
+            compare: <Option<GpuCompareFunction> as NativeAbiCodec>::from_value(
+                binding,
+                value.compare,
+            ),
+            max_anisotropy: <u16 as NativeAbiCodec>::from_value(binding, value.max_anisotropy),
+            border_color: <Option<GpuSamplerBorderColor> as NativeAbiCodec>::from_value(
+                binding,
+                value.border_color,
+            ),
+            flags: <u32 as NativeAbiCodec>::from_value(binding, value.flags),
+        }
     }
 }
 
-impl VmAbiCodec for GpuSamplerOptions {
+impl VmAbiCodec for GpuSamplerOptionsAbi<VmAbi> {
     type Value = GpuSamplerOptionsValue;
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
+        Ok(GpuSamplerOptionsValue {
+            label: <vm::StringHandle as VmAbiCodec>::into_value(self.label, context)?,
+            min_filter: <GpuFilterMode as VmAbiCodec>::into_value(self.min_filter, context)?,
+            mag_filter: <GpuFilterMode as VmAbiCodec>::into_value(self.mag_filter, context)?,
+            mip_filter: <GpuMipmapFilterMode as VmAbiCodec>::into_value(self.mip_filter, context)?,
+            address_u: <GpuAddressMode as VmAbiCodec>::into_value(self.address_u, context)?,
+            address_v: <GpuAddressMode as VmAbiCodec>::into_value(self.address_v, context)?,
+            address_w: <GpuAddressMode as VmAbiCodec>::into_value(self.address_w, context)?,
+            lod_min_clamp: <f64 as VmAbiCodec>::into_value(self.lod_min_clamp, context)?,
+            lod_max_clamp: <f64 as VmAbiCodec>::into_value(self.lod_max_clamp, context)?,
+            compare: <Option<GpuCompareFunction> as VmAbiCodec>::into_value(self.compare, context)?,
+            max_anisotropy: <u16 as VmAbiCodec>::into_value(self.max_anisotropy, context)?,
+            border_color: <Option<GpuSamplerBorderColor> as VmAbiCodec>::into_value(
+                self.border_color,
+                context,
+            )?,
+            flags: <u32 as VmAbiCodec>::into_value(self.flags, context)?,
+        })
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalCallContext<'_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
-        Ok(value)
+        Ok(Self {
+            label: <vm::StringHandle as VmAbiCodec>::from_value(context, value.label)?,
+            min_filter: <GpuFilterMode as VmAbiCodec>::from_value(context, value.min_filter)?,
+            mag_filter: <GpuFilterMode as VmAbiCodec>::from_value(context, value.mag_filter)?,
+            mip_filter: <GpuMipmapFilterMode as VmAbiCodec>::from_value(context, value.mip_filter)?,
+            address_u: <GpuAddressMode as VmAbiCodec>::from_value(context, value.address_u)?,
+            address_v: <GpuAddressMode as VmAbiCodec>::from_value(context, value.address_v)?,
+            address_w: <GpuAddressMode as VmAbiCodec>::from_value(context, value.address_w)?,
+            lod_min_clamp: <f64 as VmAbiCodec>::from_value(context, value.lod_min_clamp)?,
+            lod_max_clamp: <f64 as VmAbiCodec>::from_value(context, value.lod_max_clamp)?,
+            compare: <Option<GpuCompareFunction> as VmAbiCodec>::from_value(
+                context,
+                value.compare,
+            )?,
+            max_anisotropy: <u16 as VmAbiCodec>::from_value(context, value.max_anisotropy)?,
+            border_color: <Option<GpuSamplerBorderColor> as VmAbiCodec>::from_value(
+                context,
+                value.border_color,
+            )?,
+            flags: <u32 as VmAbiCodec>::from_value(context, value.flags)?,
+        })
     }
 }
-
-impl VmCollectionElement for GpuSamplerOptions {}
 
 /// ABI struct for GpuShaderOptions.
 #[repr(C)]
@@ -11303,8 +15728,12 @@ pub struct GpuShaderOptionsAbi<A: BindingAbi> {
     pub format: GpuShaderFormat,
     /// Shader option flags.
     pub flags: u32,
-    /// Human-readable debug label, empty when unspecified.
+    /// Debug label.
     pub label: A::String,
+    /// Native workgroup counts for passthrough shader formats when required.
+    pub num_workgroups: Option<A::Array<u32>>,
+    /// Shader runtime-check policy when one nondefault policy is requested.
+    pub runtime_checks: Option<GpuShaderRuntimeChecks>,
 }
 
 pub type GpuShaderOptions = GpuShaderOptionsAbi<NativeAbi>;
@@ -11346,10 +15775,10 @@ impl VmAggregateCodec for GpuShaderOptionsAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 5 fields",
             ))
             .boxed());
         }
@@ -11358,10 +15787,18 @@ impl VmAggregateCodec for GpuShaderOptionsAbi<VmAbi> {
         let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_label =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_num_workgroups =
+            <Option<VmArray<u32>> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_runtime_checks =
+            <Option<GpuShaderRuntimeChecksVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[4],
+            )?;
         Ok(Self {
             format: field_format,
             flags: field_flags,
             label: field_label,
+            num_workgroups: field_num_workgroups,
+            runtime_checks: field_runtime_checks,
         })
     }
 
@@ -11373,6 +15810,14 @@ impl VmAggregateCodec for GpuShaderOptionsAbi<VmAbi> {
             <GpuShaderFormat as VmAggregateCodec>::encode_with_context(self.format, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
+            <Option<VmArray<u32>> as VmAggregateCodec>::encode_with_context(
+                self.num_workgroups,
+                context,
+            )?,
+            <Option<GpuShaderRuntimeChecksVm> as VmAggregateCodec>::encode_with_context(
+                self.runtime_checks,
+                context,
+            )?,
         ];
         context
             .allocate_aggregate(slots)
@@ -11389,8 +15834,12 @@ pub struct GpuShaderOptionsValue {
     pub format: GpuShaderFormat,
     /// Shader option flags.
     pub flags: u32,
-    /// Human-readable debug label, empty when unspecified.
+    /// Debug label.
     pub label: String,
+    /// Native workgroup counts for passthrough shader formats when required.
+    pub num_workgroups: Option<Vec<u32>>,
+    /// Shader runtime-check policy when one nondefault policy is requested.
+    pub runtime_checks: Option<GpuShaderRuntimeChecks>,
 }
 
 impl NativeAbiCodec for GpuShaderOptionsAbi<NativeAbi> {
@@ -11401,6 +15850,12 @@ impl NativeAbiCodec for GpuShaderOptionsAbi<NativeAbi> {
             format: unsafe { <GpuShaderFormat as NativeAbiCodec>::into_value(self.format)? },
             flags: unsafe { <u32 as NativeAbiCodec>::into_value(self.flags)? },
             label: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.label)? },
+            num_workgroups: unsafe {
+                <Option<NativeArray<u32>> as NativeAbiCodec>::into_value(self.num_workgroups)?
+            },
+            runtime_checks: unsafe {
+                <Option<GpuShaderRuntimeChecks> as NativeAbiCodec>::into_value(self.runtime_checks)?
+            },
         })
     }
 
@@ -11409,6 +15864,14 @@ impl NativeAbiCodec for GpuShaderOptionsAbi<NativeAbi> {
             format: <GpuShaderFormat as NativeAbiCodec>::from_value(binding, value.format),
             flags: <u32 as NativeAbiCodec>::from_value(binding, value.flags),
             label: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.label),
+            num_workgroups: <Option<NativeArray<u32>> as NativeAbiCodec>::from_value(
+                binding,
+                value.num_workgroups,
+            ),
+            runtime_checks: <Option<GpuShaderRuntimeChecks> as NativeAbiCodec>::from_value(
+                binding,
+                value.runtime_checks,
+            ),
         }
     }
 }
@@ -11424,6 +15887,14 @@ impl VmAbiCodec for GpuShaderOptionsAbi<VmAbi> {
             format: <GpuShaderFormat as VmAbiCodec>::into_value(self.format, context)?,
             flags: <u32 as VmAbiCodec>::into_value(self.flags, context)?,
             label: <vm::StringHandle as VmAbiCodec>::into_value(self.label, context)?,
+            num_workgroups: <Option<VmArray<u32>> as VmAbiCodec>::into_value(
+                self.num_workgroups,
+                context,
+            )?,
+            runtime_checks: <Option<GpuShaderRuntimeChecksVm> as VmAbiCodec>::into_value(
+                self.runtime_checks,
+                context,
+            )?,
         })
     }
 
@@ -11435,9 +15906,137 @@ impl VmAbiCodec for GpuShaderOptionsAbi<VmAbi> {
             format: <GpuShaderFormat as VmAbiCodec>::from_value(context, value.format)?,
             flags: <u32 as VmAbiCodec>::from_value(context, value.flags)?,
             label: <vm::StringHandle as VmAbiCodec>::from_value(context, value.label)?,
+            num_workgroups: <Option<VmArray<u32>> as VmAbiCodec>::from_value(
+                context,
+                value.num_workgroups,
+            )?,
+            runtime_checks: <Option<GpuShaderRuntimeChecksVm> as VmAbiCodec>::from_value(
+                context,
+                value.runtime_checks,
+            )?,
         })
     }
 }
+
+/// ABI struct for GpuShaderRuntimeChecks.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct GpuShaderRuntimeChecks {
+    /// Whether shader buffer bounds checks are enforced.
+    pub bounds_checks: bool,
+    /// Whether loop bounding is enforced.
+    pub force_loop_bounding: bool,
+    /// Whether ray-query initialization tracking is enforced.
+    pub ray_query_initialization_tracking: bool,
+    /// Whether task-shader dispatch tracking is enforced.
+    pub task_shader_dispatch_tracking: bool,
+    /// Whether mesh-shader primitive indices are clamped.
+    pub mesh_shader_primitive_indices_clamp: bool,
+}
+
+pub type GpuShaderRuntimeChecksVm = GpuShaderRuntimeChecks;
+
+impl VmAggregateCodec for GpuShaderRuntimeChecks {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuShaderRuntimeChecks",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_bounds_checks =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_force_loop_bounding =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_ray_query_initialization_tracking =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_task_shader_dispatch_tracking =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_mesh_shader_primitive_indices_clamp =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        Ok(Self {
+            bounds_checks: field_bounds_checks,
+            force_loop_bounding: field_force_loop_bounding,
+            ray_query_initialization_tracking: field_ray_query_initialization_tracking,
+            task_shader_dispatch_tracking: field_task_shader_dispatch_tracking,
+            mesh_shader_primitive_indices_clamp: field_mesh_shader_primitive_indices_clamp,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <bool as VmAggregateCodec>::encode_with_context(self.bounds_checks, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.force_loop_bounding, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.ray_query_initialization_tracking,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.task_shader_dispatch_tracking,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.mesh_shader_primitive_indices_clamp,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for GpuShaderRuntimeChecks.
+pub type GpuShaderRuntimeChecksValue = GpuShaderRuntimeChecks;
+
+impl NativeAbiCodec for GpuShaderRuntimeChecks {
+    type Value = GpuShaderRuntimeChecksValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuShaderRuntimeChecks {
+    type Value = GpuShaderRuntimeChecksValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for GpuShaderRuntimeChecks {}
 
 /// ABI struct for GpuStencilFaceState.
 #[repr(C)]
@@ -11553,8 +16152,6 @@ impl VmCollectionElement for GpuStencilFaceState {}
 pub struct GpuSubmitOptions {
     /// Submit option flags.
     pub flags: u32,
-    /// Optional wait timeout in nanoseconds.
-    pub timeout_ns: u64,
 }
 
 pub type GpuSubmitOptionsVm = GpuSubmitOptions;
@@ -11574,29 +16171,24 @@ impl VmAggregateCodec for GpuSubmitOptions {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        if slots.len() != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 2 fields",
+                "expected 1 fields",
             ))
             .boxed());
         }
         let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_timeout_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        Ok(Self {
-            flags: field_flags,
-            timeout_ns: field_timeout_ns,
-        })
+        Ok(Self { flags: field_flags })
     }
 
     fn encode_with_context(
         self,
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.timeout_ns, context)?,
-        ];
+        let slots = vec![<u32 as VmAggregateCodec>::encode_with_context(
+            self.flags, context,
+        )?];
         context
             .allocate_aggregate(slots)
             .map_err(Box::<RuntimeError>::from)
@@ -11641,14 +16233,24 @@ impl VmCollectionElement for GpuSubmitOptions {}
 /// ABI struct for GpuSurfaceCapabilities.
 #[repr(C)]
 pub struct GpuSurfaceCapabilitiesAbi<A: BindingAbi> {
-    /// Supported texture usage bitset.
-    pub usage_mask: u64,
+    /// Supported surface texture usages.
+    pub usages: GpuTextureUsageMask,
     /// Supported texture format identifiers.
-    pub formats: A::Slice<u32>,
+    pub formats: A::Slice<GpuTextureFormat>,
     /// Supported present mode selectors.
     pub present_modes: A::Slice<GpuPresentMode>,
-    /// Supported alpha mode selectors.
-    pub alpha_modes: A::Slice<GpuSurfaceAlphaMode>,
+    /// Supported composite-alpha mode selectors.
+    pub alpha_modes: A::Slice<GpuCompositeAlphaMode>,
+    /// Supported output color spaces.
+    pub color_spaces: A::Slice<display::DisplayColorSpace>,
+    /// Supported output HDR policy modes.
+    pub hdr_modes: A::Slice<display::DisplayHdrMode>,
+    /// Supported presentation timing capabilities.
+    pub timing_capability_mask: GpuSurfaceTimingCapabilityFlags,
+    /// Minimum supported desired maximum frame latency when the backend exposes one bound.
+    pub min_desired_maximum_frame_latency: Option<u32>,
+    /// Maximum supported desired maximum frame latency when the backend exposes one bound.
+    pub max_desired_maximum_frame_latency: Option<u32>,
 }
 
 pub type GpuSurfaceCapabilities = GpuSurfaceCapabilitiesAbi<NativeAbi>;
@@ -11690,27 +16292,50 @@ impl VmAggregateCodec for GpuSurfaceCapabilitiesAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 9 fields",
             ))
             .boxed());
         }
-        let field_usage_mask = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_formats =
-            <VmSlice<u32> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_usages =
+            <GpuTextureUsageMask as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_formats = <VmSlice<GpuTextureFormat> as VmAggregateCodec>::decode_with_context(
+            context, slots[1],
+        )?;
         let field_present_modes =
             <VmSlice<GpuPresentMode> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_alpha_modes =
-            <VmSlice<GpuSurfaceAlphaMode> as VmAggregateCodec>::decode_with_context(
+            <VmSlice<GpuCompositeAlphaMode> as VmAggregateCodec>::decode_with_context(
                 context, slots[3],
             )?;
+        let field_color_spaces =
+            <VmSlice<display::DisplayColorSpace> as VmAggregateCodec>::decode_with_context(
+                context, slots[4],
+            )?;
+        let field_hdr_modes =
+            <VmSlice<display::DisplayHdrMode> as VmAggregateCodec>::decode_with_context(
+                context, slots[5],
+            )?;
+        let field_timing_capability_mask =
+            <GpuSurfaceTimingCapabilityFlags as VmAggregateCodec>::decode_with_context(
+                context, slots[6],
+            )?;
+        let field_min_desired_maximum_frame_latency =
+            <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_max_desired_maximum_frame_latency =
+            <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         Ok(Self {
-            usage_mask: field_usage_mask,
+            usages: field_usages,
             formats: field_formats,
             present_modes: field_present_modes,
             alpha_modes: field_alpha_modes,
+            color_spaces: field_color_spaces,
+            hdr_modes: field_hdr_modes,
+            timing_capability_mask: field_timing_capability_mask,
+            min_desired_maximum_frame_latency: field_min_desired_maximum_frame_latency,
+            max_desired_maximum_frame_latency: field_max_desired_maximum_frame_latency,
         })
     }
 
@@ -11719,14 +16344,37 @@ impl VmAggregateCodec for GpuSurfaceCapabilitiesAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <u64 as VmAggregateCodec>::encode_with_context(self.usage_mask, context)?,
-            <VmSlice<u32> as VmAggregateCodec>::encode_with_context(self.formats, context)?,
+            <GpuTextureUsageMask as VmAggregateCodec>::encode_with_context(self.usages, context)?,
+            <VmSlice<GpuTextureFormat> as VmAggregateCodec>::encode_with_context(
+                self.formats,
+                context,
+            )?,
             <VmSlice<GpuPresentMode> as VmAggregateCodec>::encode_with_context(
                 self.present_modes,
                 context,
             )?,
-            <VmSlice<GpuSurfaceAlphaMode> as VmAggregateCodec>::encode_with_context(
+            <VmSlice<GpuCompositeAlphaMode> as VmAggregateCodec>::encode_with_context(
                 self.alpha_modes,
+                context,
+            )?,
+            <VmSlice<display::DisplayColorSpace> as VmAggregateCodec>::encode_with_context(
+                self.color_spaces,
+                context,
+            )?,
+            <VmSlice<display::DisplayHdrMode> as VmAggregateCodec>::encode_with_context(
+                self.hdr_modes,
+                context,
+            )?,
+            <GpuSurfaceTimingCapabilityFlags as VmAggregateCodec>::encode_with_context(
+                self.timing_capability_mask,
+                context,
+            )?,
+            <Option<u32> as VmAggregateCodec>::encode_with_context(
+                self.min_desired_maximum_frame_latency,
+                context,
+            )?,
+            <Option<u32> as VmAggregateCodec>::encode_with_context(
+                self.max_desired_maximum_frame_latency,
                 context,
             )?,
         ];
@@ -11741,14 +16389,24 @@ impl VmCollectionElement for GpuSurfaceCapabilitiesAbi<VmAbi> {}
 /// Value type for GpuSurfaceCapabilities.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuSurfaceCapabilitiesValue {
-    /// Supported texture usage bitset.
-    pub usage_mask: u64,
+    /// Supported surface texture usages.
+    pub usages: GpuTextureUsageMask,
     /// Supported texture format identifiers.
-    pub formats: Vec<u32>,
+    pub formats: Vec<GpuTextureFormat>,
     /// Supported present mode selectors.
     pub present_modes: Vec<GpuPresentMode>,
-    /// Supported alpha mode selectors.
-    pub alpha_modes: Vec<GpuSurfaceAlphaMode>,
+    /// Supported composite-alpha mode selectors.
+    pub alpha_modes: Vec<GpuCompositeAlphaMode>,
+    /// Supported output color spaces.
+    pub color_spaces: Vec<display::DisplayColorSpace>,
+    /// Supported output HDR policy modes.
+    pub hdr_modes: Vec<display::DisplayHdrMode>,
+    /// Supported presentation timing capabilities.
+    pub timing_capability_mask: GpuSurfaceTimingCapabilityFlags,
+    /// Minimum supported desired maximum frame latency when the backend exposes one bound.
+    pub min_desired_maximum_frame_latency: Option<u32>,
+    /// Maximum supported desired maximum frame latency when the backend exposes one bound.
+    pub max_desired_maximum_frame_latency: Option<u32>,
 }
 
 impl NativeAbiCodec for GpuSurfaceCapabilitiesAbi<NativeAbi> {
@@ -11756,28 +16414,76 @@ impl NativeAbiCodec for GpuSurfaceCapabilitiesAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(GpuSurfaceCapabilitiesValue {
-            usage_mask: unsafe { <u64 as NativeAbiCodec>::into_value(self.usage_mask)? },
-            formats: unsafe { <NativeSlice<u32> as NativeAbiCodec>::into_value(self.formats)? },
+            usages: unsafe { <GpuTextureUsageMask as NativeAbiCodec>::into_value(self.usages)? },
+            formats: unsafe {
+                <NativeSlice<GpuTextureFormat> as NativeAbiCodec>::into_value(self.formats)?
+            },
             present_modes: unsafe {
                 <NativeSlice<GpuPresentMode> as NativeAbiCodec>::into_value(self.present_modes)?
             },
             alpha_modes: unsafe {
-                <NativeSlice<GpuSurfaceAlphaMode> as NativeAbiCodec>::into_value(self.alpha_modes)?
+                <NativeSlice<GpuCompositeAlphaMode> as NativeAbiCodec>::into_value(
+                    self.alpha_modes,
+                )?
+            },
+            color_spaces: unsafe {
+                <NativeSlice<display::DisplayColorSpace> as NativeAbiCodec>::into_value(
+                    self.color_spaces,
+                )?
+            },
+            hdr_modes: unsafe {
+                <NativeSlice<display::DisplayHdrMode> as NativeAbiCodec>::into_value(
+                    self.hdr_modes,
+                )?
+            },
+            timing_capability_mask: unsafe {
+                <GpuSurfaceTimingCapabilityFlags as NativeAbiCodec>::into_value(
+                    self.timing_capability_mask,
+                )?
+            },
+            min_desired_maximum_frame_latency: unsafe {
+                <Option<u32> as NativeAbiCodec>::into_value(self.min_desired_maximum_frame_latency)?
+            },
+            max_desired_maximum_frame_latency: unsafe {
+                <Option<u32> as NativeAbiCodec>::into_value(self.max_desired_maximum_frame_latency)?
             },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
-            usage_mask: <u64 as NativeAbiCodec>::from_value(binding, value.usage_mask),
-            formats: <NativeSlice<u32> as NativeAbiCodec>::from_value(binding, value.formats),
+            usages: <GpuTextureUsageMask as NativeAbiCodec>::from_value(binding, value.usages),
+            formats: <NativeSlice<GpuTextureFormat> as NativeAbiCodec>::from_value(
+                binding,
+                value.formats,
+            ),
             present_modes: <NativeSlice<GpuPresentMode> as NativeAbiCodec>::from_value(
                 binding,
                 value.present_modes,
             ),
-            alpha_modes: <NativeSlice<GpuSurfaceAlphaMode> as NativeAbiCodec>::from_value(
+            alpha_modes: <NativeSlice<GpuCompositeAlphaMode> as NativeAbiCodec>::from_value(
                 binding,
                 value.alpha_modes,
+            ),
+            color_spaces: <NativeSlice<display::DisplayColorSpace> as NativeAbiCodec>::from_value(
+                binding,
+                value.color_spaces,
+            ),
+            hdr_modes: <NativeSlice<display::DisplayHdrMode> as NativeAbiCodec>::from_value(
+                binding,
+                value.hdr_modes,
+            ),
+            timing_capability_mask: <GpuSurfaceTimingCapabilityFlags as NativeAbiCodec>::from_value(
+                binding,
+                value.timing_capability_mask,
+            ),
+            min_desired_maximum_frame_latency: <Option<u32> as NativeAbiCodec>::from_value(
+                binding,
+                value.min_desired_maximum_frame_latency,
+            ),
+            max_desired_maximum_frame_latency: <Option<u32> as NativeAbiCodec>::from_value(
+                binding,
+                value.max_desired_maximum_frame_latency,
             ),
         }
     }
@@ -11791,14 +16497,34 @@ impl VmAbiCodec for GpuSurfaceCapabilitiesAbi<VmAbi> {
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(GpuSurfaceCapabilitiesValue {
-            usage_mask: <u64 as VmAbiCodec>::into_value(self.usage_mask, context)?,
-            formats: <VmSlice<u32> as VmAbiCodec>::into_value(self.formats, context)?,
+            usages: <GpuTextureUsageMask as VmAbiCodec>::into_value(self.usages, context)?,
+            formats: <VmSlice<GpuTextureFormat> as VmAbiCodec>::into_value(self.formats, context)?,
             present_modes: <VmSlice<GpuPresentMode> as VmAbiCodec>::into_value(
                 self.present_modes,
                 context,
             )?,
-            alpha_modes: <VmSlice<GpuSurfaceAlphaMode> as VmAbiCodec>::into_value(
+            alpha_modes: <VmSlice<GpuCompositeAlphaMode> as VmAbiCodec>::into_value(
                 self.alpha_modes,
+                context,
+            )?,
+            color_spaces: <VmSlice<display::DisplayColorSpace> as VmAbiCodec>::into_value(
+                self.color_spaces,
+                context,
+            )?,
+            hdr_modes: <VmSlice<display::DisplayHdrMode> as VmAbiCodec>::into_value(
+                self.hdr_modes,
+                context,
+            )?,
+            timing_capability_mask: <GpuSurfaceTimingCapabilityFlags as VmAbiCodec>::into_value(
+                self.timing_capability_mask,
+                context,
+            )?,
+            min_desired_maximum_frame_latency: <Option<u32> as VmAbiCodec>::into_value(
+                self.min_desired_maximum_frame_latency,
+                context,
+            )?,
+            max_desired_maximum_frame_latency: <Option<u32> as VmAbiCodec>::into_value(
+                self.max_desired_maximum_frame_latency,
                 context,
             )?,
         })
@@ -11809,16 +16535,384 @@ impl VmAbiCodec for GpuSurfaceCapabilitiesAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
-            usage_mask: <u64 as VmAbiCodec>::from_value(context, value.usage_mask)?,
-            formats: <VmSlice<u32> as VmAbiCodec>::from_value(context, value.formats)?,
+            usages: <GpuTextureUsageMask as VmAbiCodec>::from_value(context, value.usages)?,
+            formats: <VmSlice<GpuTextureFormat> as VmAbiCodec>::from_value(context, value.formats)?,
             present_modes: <VmSlice<GpuPresentMode> as VmAbiCodec>::from_value(
                 context,
                 value.present_modes,
             )?,
-            alpha_modes: <VmSlice<GpuSurfaceAlphaMode> as VmAbiCodec>::from_value(
+            alpha_modes: <VmSlice<GpuCompositeAlphaMode> as VmAbiCodec>::from_value(
                 context,
                 value.alpha_modes,
             )?,
+            color_spaces: <VmSlice<display::DisplayColorSpace> as VmAbiCodec>::from_value(
+                context,
+                value.color_spaces,
+            )?,
+            hdr_modes: <VmSlice<display::DisplayHdrMode> as VmAbiCodec>::from_value(
+                context,
+                value.hdr_modes,
+            )?,
+            timing_capability_mask: <GpuSurfaceTimingCapabilityFlags as VmAbiCodec>::from_value(
+                context,
+                value.timing_capability_mask,
+            )?,
+            min_desired_maximum_frame_latency: <Option<u32> as VmAbiCodec>::from_value(
+                context,
+                value.min_desired_maximum_frame_latency,
+            )?,
+            max_desired_maximum_frame_latency: <Option<u32> as VmAbiCodec>::from_value(
+                context,
+                value.max_desired_maximum_frame_latency,
+            )?,
+        })
+    }
+}
+
+/// ABI struct for GpuSurfaceConfiguration.
+#[repr(C)]
+pub struct GpuSurfaceConfigurationAbi<A: BindingAbi> {
+    /// Surface texture usage bitset.
+    pub usage: GpuTextureUsageMask,
+    /// Additional compatible surface view formats.
+    pub view_formats: A::Slice<GpuTextureFormat>,
+    /// Surface width in pixels.
+    pub width: u32,
+    /// Surface height in pixels.
+    pub height: u32,
+    /// Surface texture format identifier.
+    pub format: GpuTextureFormat,
+    /// Present mode selector.
+    pub present_mode: GpuPresentMode,
+    /// Composite-alpha mode selector.
+    pub alpha_mode: GpuCompositeAlphaMode,
+    /// Output color-space selector when supported.
+    pub color_space: Option<display::DisplayColorSpace>,
+    /// Output HDR policy mode when supported.
+    pub hdr_mode: Option<display::DisplayHdrMode>,
+    /// HDR metadata payload when supported.
+    pub hdr_metadata: Option<GpuSurfaceHdrMetadata>,
+    /// Requested maximum frame latency in monitor refresh units.
+    pub desired_maximum_frame_latency: u32,
+    /// Surface configuration flags.
+    pub flags: u32,
+}
+
+pub type GpuSurfaceConfiguration = GpuSurfaceConfigurationAbi<NativeAbi>;
+pub type GpuSurfaceConfigurationVm = GpuSurfaceConfigurationAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for GpuSurfaceConfigurationAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuSurfaceConfigurationAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuSurfaceConfigurationAbi<NativeAbi> {}
+impl Clone for GpuSurfaceConfigurationAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuSurfaceConfigurationAbi<VmAbi> {}
+impl Clone for GpuSurfaceConfigurationAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuSurfaceConfigurationAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuSurfaceConfiguration",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 12 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 12 fields",
+            ))
+            .boxed());
+        }
+        let field_usage =
+            <GpuTextureUsageMask as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_view_formats =
+            <VmSlice<GpuTextureFormat> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_width = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_height = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_format =
+            <GpuTextureFormat as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_present_mode =
+            <GpuPresentMode as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_alpha_mode =
+            <GpuCompositeAlphaMode as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_color_space =
+            <Option<display::DisplayColorSpace> as VmAggregateCodec>::decode_with_context(
+                context, slots[7],
+            )?;
+        let field_hdr_mode =
+            <Option<display::DisplayHdrMode> as VmAggregateCodec>::decode_with_context(
+                context, slots[8],
+            )?;
+        let field_hdr_metadata =
+            <Option<GpuSurfaceHdrMetadataVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[9],
+            )?;
+        let field_desired_maximum_frame_latency =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+        Ok(Self {
+            usage: field_usage,
+            view_formats: field_view_formats,
+            width: field_width,
+            height: field_height,
+            format: field_format,
+            present_mode: field_present_mode,
+            alpha_mode: field_alpha_mode,
+            color_space: field_color_space,
+            hdr_mode: field_hdr_mode,
+            hdr_metadata: field_hdr_metadata,
+            desired_maximum_frame_latency: field_desired_maximum_frame_latency,
+            flags: field_flags,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <GpuTextureUsageMask as VmAggregateCodec>::encode_with_context(self.usage, context)?,
+            <VmSlice<GpuTextureFormat> as VmAggregateCodec>::encode_with_context(
+                self.view_formats,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
+            <GpuTextureFormat as VmAggregateCodec>::encode_with_context(self.format, context)?,
+            <GpuPresentMode as VmAggregateCodec>::encode_with_context(self.present_mode, context)?,
+            <GpuCompositeAlphaMode as VmAggregateCodec>::encode_with_context(
+                self.alpha_mode,
+                context,
+            )?,
+            <Option<display::DisplayColorSpace> as VmAggregateCodec>::encode_with_context(
+                self.color_space,
+                context,
+            )?,
+            <Option<display::DisplayHdrMode> as VmAggregateCodec>::encode_with_context(
+                self.hdr_mode,
+                context,
+            )?,
+            <Option<GpuSurfaceHdrMetadataVm> as VmAggregateCodec>::encode_with_context(
+                self.hdr_metadata,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.desired_maximum_frame_latency,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for GpuSurfaceConfigurationAbi<VmAbi> {}
+
+/// Value type for GpuSurfaceConfiguration.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuSurfaceConfigurationValue {
+    /// Surface texture usage bitset.
+    pub usage: GpuTextureUsageMask,
+    /// Additional compatible surface view formats.
+    pub view_formats: Vec<GpuTextureFormat>,
+    /// Surface width in pixels.
+    pub width: u32,
+    /// Surface height in pixels.
+    pub height: u32,
+    /// Surface texture format identifier.
+    pub format: GpuTextureFormat,
+    /// Present mode selector.
+    pub present_mode: GpuPresentMode,
+    /// Composite-alpha mode selector.
+    pub alpha_mode: GpuCompositeAlphaMode,
+    /// Output color-space selector when supported.
+    pub color_space: Option<display::DisplayColorSpace>,
+    /// Output HDR policy mode when supported.
+    pub hdr_mode: Option<display::DisplayHdrMode>,
+    /// HDR metadata payload when supported.
+    pub hdr_metadata: Option<GpuSurfaceHdrMetadata>,
+    /// Requested maximum frame latency in monitor refresh units.
+    pub desired_maximum_frame_latency: u32,
+    /// Surface configuration flags.
+    pub flags: u32,
+}
+
+impl NativeAbiCodec for GpuSurfaceConfigurationAbi<NativeAbi> {
+    type Value = GpuSurfaceConfigurationValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(GpuSurfaceConfigurationValue {
+            usage: unsafe { <GpuTextureUsageMask as NativeAbiCodec>::into_value(self.usage)? },
+            view_formats: unsafe {
+                <NativeSlice<GpuTextureFormat> as NativeAbiCodec>::into_value(self.view_formats)?
+            },
+            width: unsafe { <u32 as NativeAbiCodec>::into_value(self.width)? },
+            height: unsafe { <u32 as NativeAbiCodec>::into_value(self.height)? },
+            format: unsafe { <GpuTextureFormat as NativeAbiCodec>::into_value(self.format)? },
+            present_mode: unsafe {
+                <GpuPresentMode as NativeAbiCodec>::into_value(self.present_mode)?
+            },
+            alpha_mode: unsafe {
+                <GpuCompositeAlphaMode as NativeAbiCodec>::into_value(self.alpha_mode)?
+            },
+            color_space: unsafe {
+                <Option<display::DisplayColorSpace> as NativeAbiCodec>::into_value(
+                    self.color_space,
+                )?
+            },
+            hdr_mode: unsafe {
+                <Option<display::DisplayHdrMode> as NativeAbiCodec>::into_value(self.hdr_mode)?
+            },
+            hdr_metadata: unsafe {
+                <Option<GpuSurfaceHdrMetadata> as NativeAbiCodec>::into_value(self.hdr_metadata)?
+            },
+            desired_maximum_frame_latency: unsafe {
+                <u32 as NativeAbiCodec>::into_value(self.desired_maximum_frame_latency)?
+            },
+            flags: unsafe { <u32 as NativeAbiCodec>::into_value(self.flags)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            usage: <GpuTextureUsageMask as NativeAbiCodec>::from_value(binding, value.usage),
+            view_formats: <NativeSlice<GpuTextureFormat> as NativeAbiCodec>::from_value(
+                binding,
+                value.view_formats,
+            ),
+            width: <u32 as NativeAbiCodec>::from_value(binding, value.width),
+            height: <u32 as NativeAbiCodec>::from_value(binding, value.height),
+            format: <GpuTextureFormat as NativeAbiCodec>::from_value(binding, value.format),
+            present_mode: <GpuPresentMode as NativeAbiCodec>::from_value(
+                binding,
+                value.present_mode,
+            ),
+            alpha_mode: <GpuCompositeAlphaMode as NativeAbiCodec>::from_value(
+                binding,
+                value.alpha_mode,
+            ),
+            color_space: <Option<display::DisplayColorSpace> as NativeAbiCodec>::from_value(
+                binding,
+                value.color_space,
+            ),
+            hdr_mode: <Option<display::DisplayHdrMode> as NativeAbiCodec>::from_value(
+                binding,
+                value.hdr_mode,
+            ),
+            hdr_metadata: <Option<GpuSurfaceHdrMetadata> as NativeAbiCodec>::from_value(
+                binding,
+                value.hdr_metadata,
+            ),
+            desired_maximum_frame_latency: <u32 as NativeAbiCodec>::from_value(
+                binding,
+                value.desired_maximum_frame_latency,
+            ),
+            flags: <u32 as NativeAbiCodec>::from_value(binding, value.flags),
+        }
+    }
+}
+
+impl VmAbiCodec for GpuSurfaceConfigurationAbi<VmAbi> {
+    type Value = GpuSurfaceConfigurationValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(GpuSurfaceConfigurationValue {
+            usage: <GpuTextureUsageMask as VmAbiCodec>::into_value(self.usage, context)?,
+            view_formats: <VmSlice<GpuTextureFormat> as VmAbiCodec>::into_value(
+                self.view_formats,
+                context,
+            )?,
+            width: <u32 as VmAbiCodec>::into_value(self.width, context)?,
+            height: <u32 as VmAbiCodec>::into_value(self.height, context)?,
+            format: <GpuTextureFormat as VmAbiCodec>::into_value(self.format, context)?,
+            present_mode: <GpuPresentMode as VmAbiCodec>::into_value(self.present_mode, context)?,
+            alpha_mode: <GpuCompositeAlphaMode as VmAbiCodec>::into_value(
+                self.alpha_mode,
+                context,
+            )?,
+            color_space: <Option<display::DisplayColorSpace> as VmAbiCodec>::into_value(
+                self.color_space,
+                context,
+            )?,
+            hdr_mode: <Option<display::DisplayHdrMode> as VmAbiCodec>::into_value(
+                self.hdr_mode,
+                context,
+            )?,
+            hdr_metadata: <Option<GpuSurfaceHdrMetadataVm> as VmAbiCodec>::into_value(
+                self.hdr_metadata,
+                context,
+            )?,
+            desired_maximum_frame_latency: <u32 as VmAbiCodec>::into_value(
+                self.desired_maximum_frame_latency,
+                context,
+            )?,
+            flags: <u32 as VmAbiCodec>::into_value(self.flags, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            usage: <GpuTextureUsageMask as VmAbiCodec>::from_value(context, value.usage)?,
+            view_formats: <VmSlice<GpuTextureFormat> as VmAbiCodec>::from_value(
+                context,
+                value.view_formats,
+            )?,
+            width: <u32 as VmAbiCodec>::from_value(context, value.width)?,
+            height: <u32 as VmAbiCodec>::from_value(context, value.height)?,
+            format: <GpuTextureFormat as VmAbiCodec>::from_value(context, value.format)?,
+            present_mode: <GpuPresentMode as VmAbiCodec>::from_value(context, value.present_mode)?,
+            alpha_mode: <GpuCompositeAlphaMode as VmAbiCodec>::from_value(
+                context,
+                value.alpha_mode,
+            )?,
+            color_space: <Option<display::DisplayColorSpace> as VmAbiCodec>::from_value(
+                context,
+                value.color_space,
+            )?,
+            hdr_mode: <Option<display::DisplayHdrMode> as VmAbiCodec>::from_value(
+                context,
+                value.hdr_mode,
+            )?,
+            hdr_metadata: <Option<GpuSurfaceHdrMetadataVm> as VmAbiCodec>::from_value(
+                context,
+                value.hdr_metadata,
+            )?,
+            desired_maximum_frame_latency: <u32 as VmAbiCodec>::from_value(
+                context,
+                value.desired_maximum_frame_latency,
+            )?,
+            flags: <u32 as VmAbiCodec>::from_value(context, value.flags)?,
         })
     }
 }
@@ -11828,11 +16922,12 @@ impl VmAbiCodec for GpuSurfaceCapabilitiesAbi<VmAbi> {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuSurfaceFrame {
     /// Acquire status selector.
+    /// `Outdated` means reconfigure this surface, while `Lost` means reopen it.
     pub status: GpuSurfaceAcquireStatus,
     /// Acquired surface texture handle when presentable.
     pub texture: Option<resource::GpuTextureHandle>,
     /// Surface frame identifier when one texture was acquired.
-    pub frame_id: Option<u64>,
+    pub surface_frame_id: Option<u64>,
 }
 
 pub type GpuSurfaceFrameVm = GpuSurfaceFrame;
@@ -11865,12 +16960,12 @@ impl VmAggregateCodec for GpuSurfaceFrame {
             <Option<resource::GpuTextureHandle> as VmAggregateCodec>::decode_with_context(
                 context, slots[1],
             )?;
-        let field_frame_id =
+        let field_surface_frame_id =
             <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             status: field_status,
             texture: field_texture,
-            frame_id: field_frame_id,
+            surface_frame_id: field_surface_frame_id,
         })
     }
 
@@ -11887,7 +16982,7 @@ impl VmAggregateCodec for GpuSurfaceFrame {
                 self.texture,
                 context,
             )?,
-            <Option<u64> as VmAggregateCodec>::encode_with_context(self.frame_id, context)?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(self.surface_frame_id, context)?,
         ];
         context
             .allocate_aggregate(slots)
@@ -11930,54 +17025,23 @@ impl VmAbiCodec for GpuSurfaceFrame {
 
 impl VmCollectionElement for GpuSurfaceFrame {}
 
-/// ABI struct for GpuSurfaceOptions.
+/// ABI struct for GpuSurfaceHdrMetadata.
 #[repr(C)]
-pub struct GpuSurfaceOptionsAbi<A: BindingAbi> {
-    /// Surface texture usage bitset.
-    pub usage: u64,
-    /// Additional compatible surface view formats.
-    pub view_formats: A::Slice<u32>,
-    /// Surface width in pixels.
-    pub width: u32,
-    /// Surface height in pixels.
-    pub height: u32,
-    /// Surface texture format identifier.
-    pub format: u32,
-    /// Present mode selector.
-    pub present_mode: GpuPresentMode,
-    /// Alpha mode selector.
-    pub alpha_mode: GpuSurfaceAlphaMode,
-    /// Requested maximum frame latency in monitor refresh units.
-    pub desired_max_frame_latency: u32,
-    /// Surface option flags.
-    pub flags: u32,
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct GpuSurfaceHdrMetadata {
+    /// Maximum content light level in nits.
+    pub max_content_light_level_nits: f64,
+    /// Maximum frame-average light level in nits.
+    pub max_frame_average_light_level_nits: f64,
+    /// Maximum mastering luminance in nits.
+    pub max_mastering_luminance_nits: f64,
+    /// Minimum mastering luminance in nits.
+    pub min_mastering_luminance_nits: f64,
 }
 
-pub type GpuSurfaceOptions = GpuSurfaceOptionsAbi<NativeAbi>;
-pub type GpuSurfaceOptionsVm = GpuSurfaceOptionsAbi<VmAbi>;
+pub type GpuSurfaceHdrMetadataVm = GpuSurfaceHdrMetadata;
 
-impl<A: BindingAbi> std::fmt::Debug for GpuSurfaceOptionsAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("GpuSurfaceOptionsAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for GpuSurfaceOptionsAbi<NativeAbi> {}
-impl Clone for GpuSurfaceOptionsAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for GpuSurfaceOptionsAbi<VmAbi> {}
-impl Clone for GpuSurfaceOptionsAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for GpuSurfaceOptionsAbi<VmAbi> {
+impl VmAggregateCodec for GpuSurfaceHdrMetadata {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -11985,7 +17049,392 @@ impl VmAggregateCodec for GpuSurfaceOptionsAbi<VmAbi> {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "GpuSurfaceOptions",
+                "GpuSurfaceHdrMetadata",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_max_content_light_level_nits =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_max_frame_average_light_level_nits =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_max_mastering_luminance_nits =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_min_mastering_luminance_nits =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            max_content_light_level_nits: field_max_content_light_level_nits,
+            max_frame_average_light_level_nits: field_max_frame_average_light_level_nits,
+            max_mastering_luminance_nits: field_max_mastering_luminance_nits,
+            min_mastering_luminance_nits: field_min_mastering_luminance_nits,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <f64 as VmAggregateCodec>::encode_with_context(
+                self.max_content_light_level_nits,
+                context,
+            )?,
+            <f64 as VmAggregateCodec>::encode_with_context(
+                self.max_frame_average_light_level_nits,
+                context,
+            )?,
+            <f64 as VmAggregateCodec>::encode_with_context(
+                self.max_mastering_luminance_nits,
+                context,
+            )?,
+            <f64 as VmAggregateCodec>::encode_with_context(
+                self.min_mastering_luminance_nits,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for GpuSurfaceHdrMetadata.
+pub type GpuSurfaceHdrMetadataValue = GpuSurfaceHdrMetadata;
+
+impl NativeAbiCodec for GpuSurfaceHdrMetadata {
+    type Value = GpuSurfaceHdrMetadataValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuSurfaceHdrMetadata {
+    type Value = GpuSurfaceHdrMetadataValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for GpuSurfaceHdrMetadata {}
+
+/// ABI struct for GpuSurfacePresentationEvent.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct GpuSurfacePresentationEvent {
+    /// Surface associated with this presentation event.
+    pub surface: resource::GpuSurfaceHandle,
+    /// Surface frame identifier associated with this presentation event.
+    pub surface_frame_id: u64,
+    /// Begin-frame identifier associated with this presentation when one was supplied.
+    pub begin_frame_id: Option<u64>,
+    /// Presentation result selector.
+    pub result: GpuPresentationResult,
+    /// Requested presentation timestamp when one was supplied.
+    pub desired_presentation_timestamp_ns: Option<u64>,
+    /// Actual presentation timestamp when available.
+    /// This is typically only present when `result` is `Presented`.
+    pub presented_at_ns: Option<u64>,
+    /// Effective refresh interval in nanoseconds when available.
+    pub refresh_interval_ns: Option<u64>,
+    /// Compositor latency in nanoseconds when available.
+    pub compositor_latency_ns: Option<u64>,
+    /// Reporting timestamp in nanoseconds.
+    pub reported_at_ns: u64,
+    /// Monotonic event sequence number.
+    pub sequence: u64,
+    /// Number of presentation events dropped by this stream before this event.
+    pub dropped_count: u64,
+}
+
+pub type GpuSurfacePresentationEventVm = GpuSurfacePresentationEvent;
+
+impl VmAggregateCodec for GpuSurfacePresentationEvent {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuSurfacePresentationEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 11 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 11 fields",
+            ))
+            .boxed());
+        }
+        let field_surface = <resource::GpuSurfaceHandle as VmAggregateCodec>::decode_with_context(
+            context, slots[0],
+        )?;
+        let field_surface_frame_id =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_begin_frame_id =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_result =
+            <GpuPresentationResult as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_desired_presentation_timestamp_ns =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_presented_at_ns =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_refresh_interval_ns =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_compositor_latency_ns =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_reported_at_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_dropped_count =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        Ok(Self {
+            surface: field_surface,
+            surface_frame_id: field_surface_frame_id,
+            begin_frame_id: field_begin_frame_id,
+            result: field_result,
+            desired_presentation_timestamp_ns: field_desired_presentation_timestamp_ns,
+            presented_at_ns: field_presented_at_ns,
+            refresh_interval_ns: field_refresh_interval_ns,
+            compositor_latency_ns: field_compositor_latency_ns,
+            reported_at_ns: field_reported_at_ns,
+            sequence: field_sequence,
+            dropped_count: field_dropped_count,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <resource::GpuSurfaceHandle as VmAggregateCodec>::encode_with_context(
+                self.surface,
+                context,
+            )?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.surface_frame_id, context)?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(self.begin_frame_id, context)?,
+            <GpuPresentationResult as VmAggregateCodec>::encode_with_context(self.result, context)?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(
+                self.desired_presentation_timestamp_ns,
+                context,
+            )?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(self.presented_at_ns, context)?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(
+                self.refresh_interval_ns,
+                context,
+            )?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(
+                self.compositor_latency_ns,
+                context,
+            )?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.reported_at_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.dropped_count, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for GpuSurfacePresentationEvent.
+pub type GpuSurfacePresentationEventValue = GpuSurfacePresentationEvent;
+
+impl NativeAbiCodec for GpuSurfacePresentationEvent {
+    type Value = GpuSurfacePresentationEventValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuSurfacePresentationEvent {
+    type Value = GpuSurfacePresentationEventValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for GpuSurfacePresentationEvent {}
+
+/// ABI struct for GpuSurfacePresentationOpenOptions.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct GpuSurfacePresentationOpenOptions {
+    /// Requested queue capacity, or zero for backend default.
+    pub queue_capacity: u32,
+    /// Queue overflow policy.
+    pub overflow_policy: GpuPresentationOverflowPolicy,
+}
+
+pub type GpuSurfacePresentationOpenOptionsVm = GpuSurfacePresentationOpenOptions;
+
+impl VmAggregateCodec for GpuSurfacePresentationOpenOptions {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuSurfacePresentationOpenOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_queue_capacity =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_overflow_policy =
+            <GpuPresentationOverflowPolicy as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        Ok(Self {
+            queue_capacity: field_queue_capacity,
+            overflow_policy: field_overflow_policy,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u32 as VmAggregateCodec>::encode_with_context(self.queue_capacity, context)?,
+            <GpuPresentationOverflowPolicy as VmAggregateCodec>::encode_with_context(
+                self.overflow_policy,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for GpuSurfacePresentationOpenOptions.
+pub type GpuSurfacePresentationOpenOptionsValue = GpuSurfacePresentationOpenOptions;
+
+impl NativeAbiCodec for GpuSurfacePresentationOpenOptions {
+    type Value = GpuSurfacePresentationOpenOptionsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuSurfacePresentationOpenOptions {
+    type Value = GpuSurfacePresentationOpenOptionsValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for GpuSurfacePresentationOpenOptions {}
+
+/// ABI struct for GpuSurfaceStatusInfo.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct GpuSurfaceStatusInfo {
+    /// Surface configuration and lifecycle state.
+    pub status: GpuSurfaceStatus,
+    /// Configured surface width in pixels when available.
+    pub width: Option<u32>,
+    /// Configured surface height in pixels when available.
+    pub height: Option<u32>,
+    /// Configured surface texture format when available.
+    pub format: Option<GpuTextureFormat>,
+    /// Configured present mode when available.
+    pub present_mode: Option<GpuPresentMode>,
+    /// Configured composite-alpha mode when available.
+    pub alpha_mode: Option<GpuCompositeAlphaMode>,
+    /// Configured output color space when available.
+    pub color_space: Option<display::DisplayColorSpace>,
+    /// Configured output HDR mode when available.
+    pub hdr_mode: Option<display::DisplayHdrMode>,
+    /// Configured desired maximum frame latency when available.
+    pub desired_maximum_frame_latency: Option<u32>,
+}
+
+pub type GpuSurfaceStatusInfoVm = GpuSurfaceStatusInfo;
+
+impl VmAggregateCodec for GpuSurfaceStatusInfo {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuSurfaceStatusInfo",
             ))
             .boxed());
         }
@@ -11999,29 +17448,40 @@ impl VmAggregateCodec for GpuSurfaceOptionsAbi<VmAbi> {
             ))
             .boxed());
         }
-        let field_usage = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_view_formats =
-            <VmSlice<u32> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_width = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_height = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_format = <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_status =
+            <GpuSurfaceStatus as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_width =
+            <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_height =
+            <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_format =
+            <Option<GpuTextureFormat> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_present_mode =
-            <GpuPresentMode as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <Option<GpuPresentMode> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_alpha_mode =
-            <GpuSurfaceAlphaMode as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_desired_max_frame_latency =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+            <Option<GpuCompositeAlphaMode> as VmAggregateCodec>::decode_with_context(
+                context, slots[5],
+            )?;
+        let field_color_space =
+            <Option<display::DisplayColorSpace> as VmAggregateCodec>::decode_with_context(
+                context, slots[6],
+            )?;
+        let field_hdr_mode =
+            <Option<display::DisplayHdrMode> as VmAggregateCodec>::decode_with_context(
+                context, slots[7],
+            )?;
+        let field_desired_maximum_frame_latency =
+            <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         Ok(Self {
-            usage: field_usage,
-            view_formats: field_view_formats,
+            status: field_status,
             width: field_width,
             height: field_height,
             format: field_format,
             present_mode: field_present_mode,
             alpha_mode: field_alpha_mode,
-            desired_max_frame_latency: field_desired_max_frame_latency,
-            flags: field_flags,
+            color_space: field_color_space,
+            hdr_mode: field_hdr_mode,
+            desired_maximum_frame_latency: field_desired_maximum_frame_latency,
         })
     }
 
@@ -12030,21 +17490,33 @@ impl VmAggregateCodec for GpuSurfaceOptionsAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <u64 as VmAggregateCodec>::encode_with_context(self.usage, context)?,
-            <VmSlice<u32> as VmAggregateCodec>::encode_with_context(self.view_formats, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.format, context)?,
-            <GpuPresentMode as VmAggregateCodec>::encode_with_context(self.present_mode, context)?,
-            <GpuSurfaceAlphaMode as VmAggregateCodec>::encode_with_context(
+            <GpuSurfaceStatus as VmAggregateCodec>::encode_with_context(self.status, context)?,
+            <Option<u32> as VmAggregateCodec>::encode_with_context(self.width, context)?,
+            <Option<u32> as VmAggregateCodec>::encode_with_context(self.height, context)?,
+            <Option<GpuTextureFormat> as VmAggregateCodec>::encode_with_context(
+                self.format,
+                context,
+            )?,
+            <Option<GpuPresentMode> as VmAggregateCodec>::encode_with_context(
+                self.present_mode,
+                context,
+            )?,
+            <Option<GpuCompositeAlphaMode> as VmAggregateCodec>::encode_with_context(
                 self.alpha_mode,
                 context,
             )?,
-            <u32 as VmAggregateCodec>::encode_with_context(
-                self.desired_max_frame_latency,
+            <Option<display::DisplayColorSpace> as VmAggregateCodec>::encode_with_context(
+                self.color_space,
                 context,
             )?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
+            <Option<display::DisplayHdrMode> as VmAggregateCodec>::encode_with_context(
+                self.hdr_mode,
+                context,
+            )?,
+            <Option<u32> as VmAggregateCodec>::encode_with_context(
+                self.desired_maximum_frame_latency,
+                context,
+            )?,
         ];
         context
             .allocate_aggregate(slots)
@@ -12052,126 +17524,40 @@ impl VmAggregateCodec for GpuSurfaceOptionsAbi<VmAbi> {
     }
 }
 
-impl VmCollectionElement for GpuSurfaceOptionsAbi<VmAbi> {}
+/// Value type for GpuSurfaceStatusInfo.
+pub type GpuSurfaceStatusInfoValue = GpuSurfaceStatusInfo;
 
-/// Value type for GpuSurfaceOptions.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct GpuSurfaceOptionsValue {
-    /// Surface texture usage bitset.
-    pub usage: u64,
-    /// Additional compatible surface view formats.
-    pub view_formats: Vec<u32>,
-    /// Surface width in pixels.
-    pub width: u32,
-    /// Surface height in pixels.
-    pub height: u32,
-    /// Surface texture format identifier.
-    pub format: u32,
-    /// Present mode selector.
-    pub present_mode: GpuPresentMode,
-    /// Alpha mode selector.
-    pub alpha_mode: GpuSurfaceAlphaMode,
-    /// Requested maximum frame latency in monitor refresh units.
-    pub desired_max_frame_latency: u32,
-    /// Surface option flags.
-    pub flags: u32,
-}
-
-impl NativeAbiCodec for GpuSurfaceOptionsAbi<NativeAbi> {
-    type Value = GpuSurfaceOptionsValue;
+impl NativeAbiCodec for GpuSurfaceStatusInfo {
+    type Value = GpuSurfaceStatusInfoValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(GpuSurfaceOptionsValue {
-            usage: unsafe { <u64 as NativeAbiCodec>::into_value(self.usage)? },
-            view_formats: unsafe {
-                <NativeSlice<u32> as NativeAbiCodec>::into_value(self.view_formats)?
-            },
-            width: unsafe { <u32 as NativeAbiCodec>::into_value(self.width)? },
-            height: unsafe { <u32 as NativeAbiCodec>::into_value(self.height)? },
-            format: unsafe { <u32 as NativeAbiCodec>::into_value(self.format)? },
-            present_mode: unsafe {
-                <GpuPresentMode as NativeAbiCodec>::into_value(self.present_mode)?
-            },
-            alpha_mode: unsafe {
-                <GpuSurfaceAlphaMode as NativeAbiCodec>::into_value(self.alpha_mode)?
-            },
-            desired_max_frame_latency: unsafe {
-                <u32 as NativeAbiCodec>::into_value(self.desired_max_frame_latency)?
-            },
-            flags: unsafe { <u32 as NativeAbiCodec>::into_value(self.flags)? },
-        })
+        Ok(self)
     }
 
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self {
-            usage: <u64 as NativeAbiCodec>::from_value(binding, value.usage),
-            view_formats: <NativeSlice<u32> as NativeAbiCodec>::from_value(
-                binding,
-                value.view_formats,
-            ),
-            width: <u32 as NativeAbiCodec>::from_value(binding, value.width),
-            height: <u32 as NativeAbiCodec>::from_value(binding, value.height),
-            format: <u32 as NativeAbiCodec>::from_value(binding, value.format),
-            present_mode: <GpuPresentMode as NativeAbiCodec>::from_value(
-                binding,
-                value.present_mode,
-            ),
-            alpha_mode: <GpuSurfaceAlphaMode as NativeAbiCodec>::from_value(
-                binding,
-                value.alpha_mode,
-            ),
-            desired_max_frame_latency: <u32 as NativeAbiCodec>::from_value(
-                binding,
-                value.desired_max_frame_latency,
-            ),
-            flags: <u32 as NativeAbiCodec>::from_value(binding, value.flags),
-        }
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
     }
 }
 
-impl VmAbiCodec for GpuSurfaceOptionsAbi<VmAbi> {
-    type Value = GpuSurfaceOptionsValue;
+impl VmAbiCodec for GpuSurfaceStatusInfo {
+    type Value = GpuSurfaceStatusInfoValue;
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(GpuSurfaceOptionsValue {
-            usage: <u64 as VmAbiCodec>::into_value(self.usage, context)?,
-            view_formats: <VmSlice<u32> as VmAbiCodec>::into_value(self.view_formats, context)?,
-            width: <u32 as VmAbiCodec>::into_value(self.width, context)?,
-            height: <u32 as VmAbiCodec>::into_value(self.height, context)?,
-            format: <u32 as VmAbiCodec>::into_value(self.format, context)?,
-            present_mode: <GpuPresentMode as VmAbiCodec>::into_value(self.present_mode, context)?,
-            alpha_mode: <GpuSurfaceAlphaMode as VmAbiCodec>::into_value(self.alpha_mode, context)?,
-            desired_max_frame_latency: <u32 as VmAbiCodec>::into_value(
-                self.desired_max_frame_latency,
-                context,
-            )?,
-            flags: <u32 as VmAbiCodec>::into_value(self.flags, context)?,
-        })
+        Ok(self)
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalCallContext<'_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
-        Ok(Self {
-            usage: <u64 as VmAbiCodec>::from_value(context, value.usage)?,
-            view_formats: <VmSlice<u32> as VmAbiCodec>::from_value(context, value.view_formats)?,
-            width: <u32 as VmAbiCodec>::from_value(context, value.width)?,
-            height: <u32 as VmAbiCodec>::from_value(context, value.height)?,
-            format: <u32 as VmAbiCodec>::from_value(context, value.format)?,
-            present_mode: <GpuPresentMode as VmAbiCodec>::from_value(context, value.present_mode)?,
-            alpha_mode: <GpuSurfaceAlphaMode as VmAbiCodec>::from_value(context, value.alpha_mode)?,
-            desired_max_frame_latency: <u32 as VmAbiCodec>::from_value(
-                context,
-                value.desired_max_frame_latency,
-            )?,
-            flags: <u32 as VmAbiCodec>::from_value(context, value.flags)?,
-        })
+        Ok(value)
     }
 }
+
+impl VmCollectionElement for GpuSurfaceStatusInfo {}
 
 /// ABI struct for GpuTextureCopy.
 #[repr(C)]
@@ -12188,7 +17574,7 @@ pub struct GpuTextureCopy {
     /// Origin z coordinate.
     pub origin_z: u32,
     /// Texture aspect selector.
-    pub aspect: u32,
+    pub aspect: GpuTextureAspect,
 }
 
 pub type GpuTextureCopyVm = GpuTextureCopy;
@@ -12222,7 +17608,8 @@ impl VmAggregateCodec for GpuTextureCopy {
         let field_origin_x = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_origin_y = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_origin_z = <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_aspect = <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_aspect =
+            <GpuTextureAspect as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         Ok(Self {
             texture: field_texture,
             mip_level: field_mip_level,
@@ -12246,7 +17633,7 @@ impl VmAggregateCodec for GpuTextureCopy {
             <u32 as VmAggregateCodec>::encode_with_context(self.origin_x, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.origin_y, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.origin_z, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.aspect, context)?,
+            <GpuTextureAspect as VmAggregateCodec>::encode_with_context(self.aspect, context)?,
         ];
         context
             .allocate_aggregate(slots)
@@ -12304,9 +17691,9 @@ pub struct GpuTextureInfo {
     /// Texture sample count.
     pub samples: u32,
     /// Texture format identifier.
-    pub format: u32,
+    pub format: GpuTextureFormat,
     /// Texture usage bitset.
-    pub usage: u64,
+    pub usage: GpuTextureUsageMask,
     /// Texture dimension selector.
     pub dimension: GpuTextureDimension,
 }
@@ -12341,8 +17728,10 @@ impl VmAggregateCodec for GpuTextureInfo {
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_mip_levels = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_samples = <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_format = <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_usage = <u64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_format =
+            <GpuTextureFormat as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_usage =
+            <GpuTextureUsageMask as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         let field_dimension =
             <GpuTextureDimension as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         Ok(Self {
@@ -12367,8 +17756,8 @@ impl VmAggregateCodec for GpuTextureInfo {
             <u32 as VmAggregateCodec>::encode_with_context(self.depth_or_layers, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.mip_levels, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.samples, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.format, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.usage, context)?,
+            <GpuTextureFormat as VmAggregateCodec>::encode_with_context(self.format, context)?,
+            <GpuTextureUsageMask as VmAggregateCodec>::encode_with_context(self.usage, context)?,
             <GpuTextureDimension as VmAggregateCodec>::encode_with_context(
                 self.dimension,
                 context,
@@ -12418,6 +17807,8 @@ impl VmCollectionElement for GpuTextureInfo {}
 /// ABI struct for GpuTextureOptions.
 #[repr(C)]
 pub struct GpuTextureOptionsAbi<A: BindingAbi> {
+    /// Debug label.
+    pub label: A::String,
     /// Texture width in texels.
     pub width: u32,
     /// Texture height in texels.
@@ -12429,13 +17820,13 @@ pub struct GpuTextureOptionsAbi<A: BindingAbi> {
     /// Texture sample count.
     pub samples: u32,
     /// Texture format identifier.
-    pub format: u32,
+    pub format: GpuTextureFormat,
     /// Texture dimension selector.
     pub dimension: GpuTextureDimension,
     /// Texture usage bitset.
-    pub usage: u64,
+    pub usage: GpuTextureUsageMask,
     /// Additional compatible texture-view format identifiers.
-    pub view_formats: A::Slice<u32>,
+    pub view_formats: A::Slice<GpuTextureFormat>,
     /// Texture option flags.
     pub flags: u32,
 }
@@ -12479,27 +17870,34 @@ impl VmAggregateCodec for GpuTextureOptionsAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 10 {
+        if slots.len() != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 10 fields",
+                "expected 11 fields",
             ))
             .boxed());
         }
-        let field_width = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_height = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_label =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_width = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_height = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_depth_or_layers =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_mip_levels = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_samples = <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_format = <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_mip_levels = <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_samples = <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_format =
+            <GpuTextureFormat as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         let field_dimension =
-            <GpuTextureDimension as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_usage = <u64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <GpuTextureDimension as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_usage =
+            <GpuTextureUsageMask as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         let field_view_formats =
-            <VmSlice<u32> as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+            <VmSlice<GpuTextureFormat> as VmAggregateCodec>::decode_with_context(
+                context, slots[9],
+            )?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
         Ok(Self {
+            label: field_label,
             width: field_width,
             height: field_height,
             depth_or_layers: field_depth_or_layers,
@@ -12518,18 +17916,22 @@ impl VmAggregateCodec for GpuTextureOptionsAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.depth_or_layers, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.mip_levels, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.samples, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.format, context)?,
+            <GpuTextureFormat as VmAggregateCodec>::encode_with_context(self.format, context)?,
             <GpuTextureDimension as VmAggregateCodec>::encode_with_context(
                 self.dimension,
                 context,
             )?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.usage, context)?,
-            <VmSlice<u32> as VmAggregateCodec>::encode_with_context(self.view_formats, context)?,
+            <GpuTextureUsageMask as VmAggregateCodec>::encode_with_context(self.usage, context)?,
+            <VmSlice<GpuTextureFormat> as VmAggregateCodec>::encode_with_context(
+                self.view_formats,
+                context,
+            )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
         context
@@ -12543,6 +17945,8 @@ impl VmCollectionElement for GpuTextureOptionsAbi<VmAbi> {}
 /// Value type for GpuTextureOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuTextureOptionsValue {
+    /// Debug label.
+    pub label: String,
     /// Texture width in texels.
     pub width: u32,
     /// Texture height in texels.
@@ -12554,13 +17958,13 @@ pub struct GpuTextureOptionsValue {
     /// Texture sample count.
     pub samples: u32,
     /// Texture format identifier.
-    pub format: u32,
+    pub format: GpuTextureFormat,
     /// Texture dimension selector.
     pub dimension: GpuTextureDimension,
     /// Texture usage bitset.
-    pub usage: u64,
+    pub usage: GpuTextureUsageMask,
     /// Additional compatible texture-view format identifiers.
-    pub view_formats: Vec<u32>,
+    pub view_formats: Vec<GpuTextureFormat>,
     /// Texture option flags.
     pub flags: u32,
 }
@@ -12570,18 +17974,19 @@ impl NativeAbiCodec for GpuTextureOptionsAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(GpuTextureOptionsValue {
+            label: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.label)? },
             width: unsafe { <u32 as NativeAbiCodec>::into_value(self.width)? },
             height: unsafe { <u32 as NativeAbiCodec>::into_value(self.height)? },
             depth_or_layers: unsafe { <u32 as NativeAbiCodec>::into_value(self.depth_or_layers)? },
             mip_levels: unsafe { <u32 as NativeAbiCodec>::into_value(self.mip_levels)? },
             samples: unsafe { <u32 as NativeAbiCodec>::into_value(self.samples)? },
-            format: unsafe { <u32 as NativeAbiCodec>::into_value(self.format)? },
+            format: unsafe { <GpuTextureFormat as NativeAbiCodec>::into_value(self.format)? },
             dimension: unsafe {
                 <GpuTextureDimension as NativeAbiCodec>::into_value(self.dimension)?
             },
-            usage: unsafe { <u64 as NativeAbiCodec>::into_value(self.usage)? },
+            usage: unsafe { <GpuTextureUsageMask as NativeAbiCodec>::into_value(self.usage)? },
             view_formats: unsafe {
-                <NativeSlice<u32> as NativeAbiCodec>::into_value(self.view_formats)?
+                <NativeSlice<GpuTextureFormat> as NativeAbiCodec>::into_value(self.view_formats)?
             },
             flags: unsafe { <u32 as NativeAbiCodec>::into_value(self.flags)? },
         })
@@ -12589,18 +17994,19 @@ impl NativeAbiCodec for GpuTextureOptionsAbi<NativeAbi> {
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
+            label: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.label),
             width: <u32 as NativeAbiCodec>::from_value(binding, value.width),
             height: <u32 as NativeAbiCodec>::from_value(binding, value.height),
             depth_or_layers: <u32 as NativeAbiCodec>::from_value(binding, value.depth_or_layers),
             mip_levels: <u32 as NativeAbiCodec>::from_value(binding, value.mip_levels),
             samples: <u32 as NativeAbiCodec>::from_value(binding, value.samples),
-            format: <u32 as NativeAbiCodec>::from_value(binding, value.format),
+            format: <GpuTextureFormat as NativeAbiCodec>::from_value(binding, value.format),
             dimension: <GpuTextureDimension as NativeAbiCodec>::from_value(
                 binding,
                 value.dimension,
             ),
-            usage: <u64 as NativeAbiCodec>::from_value(binding, value.usage),
-            view_formats: <NativeSlice<u32> as NativeAbiCodec>::from_value(
+            usage: <GpuTextureUsageMask as NativeAbiCodec>::from_value(binding, value.usage),
+            view_formats: <NativeSlice<GpuTextureFormat> as NativeAbiCodec>::from_value(
                 binding,
                 value.view_formats,
             ),
@@ -12617,15 +18023,19 @@ impl VmAbiCodec for GpuTextureOptionsAbi<VmAbi> {
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(GpuTextureOptionsValue {
+            label: <vm::StringHandle as VmAbiCodec>::into_value(self.label, context)?,
             width: <u32 as VmAbiCodec>::into_value(self.width, context)?,
             height: <u32 as VmAbiCodec>::into_value(self.height, context)?,
             depth_or_layers: <u32 as VmAbiCodec>::into_value(self.depth_or_layers, context)?,
             mip_levels: <u32 as VmAbiCodec>::into_value(self.mip_levels, context)?,
             samples: <u32 as VmAbiCodec>::into_value(self.samples, context)?,
-            format: <u32 as VmAbiCodec>::into_value(self.format, context)?,
+            format: <GpuTextureFormat as VmAbiCodec>::into_value(self.format, context)?,
             dimension: <GpuTextureDimension as VmAbiCodec>::into_value(self.dimension, context)?,
-            usage: <u64 as VmAbiCodec>::into_value(self.usage, context)?,
-            view_formats: <VmSlice<u32> as VmAbiCodec>::into_value(self.view_formats, context)?,
+            usage: <GpuTextureUsageMask as VmAbiCodec>::into_value(self.usage, context)?,
+            view_formats: <VmSlice<GpuTextureFormat> as VmAbiCodec>::into_value(
+                self.view_formats,
+                context,
+            )?,
             flags: <u32 as VmAbiCodec>::into_value(self.flags, context)?,
         })
     }
@@ -12635,45 +18045,41 @@ impl VmAbiCodec for GpuTextureOptionsAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
+            label: <vm::StringHandle as VmAbiCodec>::from_value(context, value.label)?,
             width: <u32 as VmAbiCodec>::from_value(context, value.width)?,
             height: <u32 as VmAbiCodec>::from_value(context, value.height)?,
             depth_or_layers: <u32 as VmAbiCodec>::from_value(context, value.depth_or_layers)?,
             mip_levels: <u32 as VmAbiCodec>::from_value(context, value.mip_levels)?,
             samples: <u32 as VmAbiCodec>::from_value(context, value.samples)?,
-            format: <u32 as VmAbiCodec>::from_value(context, value.format)?,
+            format: <GpuTextureFormat as VmAbiCodec>::from_value(context, value.format)?,
             dimension: <GpuTextureDimension as VmAbiCodec>::from_value(context, value.dimension)?,
-            usage: <u64 as VmAbiCodec>::from_value(context, value.usage)?,
-            view_formats: <VmSlice<u32> as VmAbiCodec>::from_value(context, value.view_formats)?,
+            usage: <GpuTextureUsageMask as VmAbiCodec>::from_value(context, value.usage)?,
+            view_formats: <VmSlice<GpuTextureFormat> as VmAbiCodec>::from_value(
+                context,
+                value.view_formats,
+            )?,
             flags: <u32 as VmAbiCodec>::from_value(context, value.flags)?,
         })
     }
 }
 
-/// ABI struct for GpuTextureViewOptions.
+/// ABI struct for GpuTextureSubresourceRange.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct GpuTextureViewOptions {
-    /// View format identifier, zero to inherit the texture format.
-    pub format: u32,
-    /// View dimension selector.
-    pub dimension: u32,
-    /// Base mip-level index.
+pub struct GpuTextureSubresourceRange {
+    /// Starting mip-level index.
     pub base_mip_level: u32,
-    /// Mip-level count, zero for all remaining levels.
+    /// Number of mip levels.
     pub mip_level_count: u32,
-    /// Base array-layer index.
+    /// Starting array-layer index.
     pub base_array_layer: u32,
-    /// Array-layer count, zero for all remaining layers.
+    /// Number of array layers.
     pub array_layer_count: u32,
-    /// Texture aspect selector.
-    pub aspect: u32,
-    /// Texture-view option flags.
-    pub flags: u32,
 }
 
-pub type GpuTextureViewOptionsVm = GpuTextureViewOptions;
+pub type GpuTextureSubresourceRangeVm = GpuTextureSubresourceRange;
 
-impl VmAggregateCodec for GpuTextureViewOptions {
+impl VmAggregateCodec for GpuTextureSubresourceRange {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -12681,41 +18087,33 @@ impl VmAggregateCodec for GpuTextureViewOptions {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "GpuTextureViewOptions",
+                "GpuTextureSubresourceRange",
             ))
             .boxed());
         }
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 8 {
+        if slots.len() != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 8 fields",
+                "expected 4 fields",
             ))
             .boxed());
         }
-        let field_format = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_dimension = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_base_mip_level =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_mip_level_count =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_base_array_layer =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_array_layer_count =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_aspect = <u32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
-            format: field_format,
-            dimension: field_dimension,
             base_mip_level: field_base_mip_level,
             mip_level_count: field_mip_level_count,
             base_array_layer: field_base_array_layer,
             array_layer_count: field_array_layer_count,
-            aspect: field_aspect,
-            flags: field_flags,
         })
     }
 
@@ -12724,14 +18122,10 @@ impl VmAggregateCodec for GpuTextureViewOptions {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.format, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.dimension, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.base_mip_level, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.mip_level_count, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.base_array_layer, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.array_layer_count, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.aspect, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
         context
             .allocate_aggregate(slots)
@@ -12739,11 +18133,11 @@ impl VmAggregateCodec for GpuTextureViewOptions {
     }
 }
 
-/// Value type for GpuTextureViewOptions.
-pub type GpuTextureViewOptionsValue = GpuTextureViewOptions;
+/// Value type for GpuTextureSubresourceRange.
+pub type GpuTextureSubresourceRangeValue = GpuTextureSubresourceRange;
 
-impl NativeAbiCodec for GpuTextureViewOptions {
-    type Value = GpuTextureViewOptionsValue;
+impl NativeAbiCodec for GpuTextureSubresourceRange {
+    type Value = GpuTextureSubresourceRangeValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(self)
@@ -12754,8 +18148,8 @@ impl NativeAbiCodec for GpuTextureViewOptions {
     }
 }
 
-impl VmAbiCodec for GpuTextureViewOptions {
-    type Value = GpuTextureViewOptionsValue;
+impl VmAbiCodec for GpuTextureSubresourceRange {
+    type Value = GpuTextureSubresourceRangeValue;
 
     fn into_value(
         self,
@@ -12772,14 +18166,523 @@ impl VmAbiCodec for GpuTextureViewOptions {
     }
 }
 
-impl VmCollectionElement for GpuTextureViewOptions {}
+impl VmCollectionElement for GpuTextureSubresourceRange {}
+
+/// ABI struct for GpuTextureTransition.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct GpuTextureTransition {
+    /// Texture handle.
+    pub texture: resource::GpuTextureHandle,
+    /// Optional subresource selector.
+    pub subresources: Option<GpuTextureSubresourceRange>,
+    /// Target texture use state.
+    pub state: GpuTextureUseMask,
+}
+
+pub type GpuTextureTransitionVm = GpuTextureTransition;
+
+impl VmAggregateCodec for GpuTextureTransition {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuTextureTransition",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_texture = <resource::GpuTextureHandle as VmAggregateCodec>::decode_with_context(
+            context, slots[0],
+        )?;
+        let field_subresources =
+            <Option<GpuTextureSubresourceRangeVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_state =
+            <GpuTextureUseMask as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            texture: field_texture,
+            subresources: field_subresources,
+            state: field_state,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <resource::GpuTextureHandle as VmAggregateCodec>::encode_with_context(
+                self.texture,
+                context,
+            )?,
+            <Option<GpuTextureSubresourceRangeVm> as VmAggregateCodec>::encode_with_context(
+                self.subresources,
+                context,
+            )?,
+            <GpuTextureUseMask as VmAggregateCodec>::encode_with_context(self.state, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for GpuTextureTransition.
+pub type GpuTextureTransitionValue = GpuTextureTransition;
+
+impl NativeAbiCodec for GpuTextureTransition {
+    type Value = GpuTextureTransitionValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for GpuTextureTransition {
+    type Value = GpuTextureTransitionValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for GpuTextureTransition {}
+
+/// ABI struct for GpuTextureViewOptions.
+#[repr(C)]
+pub struct GpuTextureViewOptionsAbi<A: BindingAbi> {
+    /// Debug label.
+    pub label: A::String,
+    /// View format identifier when one compatible view format is selected.
+    pub format: Option<GpuTextureFormat>,
+    /// View usage bitset, or `void` to inherit the full texture usage set.
+    pub usage: Option<GpuTextureUsageMask>,
+    /// View dimension selector.
+    pub dimension: Option<GpuTextureViewDimension>,
+    /// Base mip-level index.
+    pub base_mip_level: u32,
+    /// Mip-level count when the view does not cover the remaining mip range.
+    pub mip_level_count: Option<u32>,
+    /// Base array-layer index.
+    pub base_array_layer: u32,
+    /// Array-layer count when the view does not cover the remaining layer range.
+    pub array_layer_count: Option<u32>,
+    /// Texture aspect selector.
+    pub aspect: GpuTextureAspect,
+    /// Texture-view option flags.
+    pub flags: u32,
+}
+
+pub type GpuTextureViewOptions = GpuTextureViewOptionsAbi<NativeAbi>;
+pub type GpuTextureViewOptionsVm = GpuTextureViewOptionsAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for GpuTextureViewOptionsAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuTextureViewOptionsAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuTextureViewOptionsAbi<NativeAbi> {}
+impl Clone for GpuTextureViewOptionsAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuTextureViewOptionsAbi<VmAbi> {}
+impl Clone for GpuTextureViewOptionsAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuTextureViewOptionsAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuTextureViewOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 10 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 10 fields",
+            ))
+            .boxed());
+        }
+        let field_label =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_format =
+            <Option<GpuTextureFormat> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_usage = <Option<GpuTextureUsageMask> as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
+        let field_dimension =
+            <Option<GpuTextureViewDimension> as VmAggregateCodec>::decode_with_context(
+                context, slots[3],
+            )?;
+        let field_base_mip_level =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_mip_level_count =
+            <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_base_array_layer =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_array_layer_count =
+            <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_aspect =
+            <GpuTextureAspect as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        Ok(Self {
+            label: field_label,
+            format: field_format,
+            usage: field_usage,
+            dimension: field_dimension,
+            base_mip_level: field_base_mip_level,
+            mip_level_count: field_mip_level_count,
+            base_array_layer: field_base_array_layer,
+            array_layer_count: field_array_layer_count,
+            aspect: field_aspect,
+            flags: field_flags,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
+            <Option<GpuTextureFormat> as VmAggregateCodec>::encode_with_context(
+                self.format,
+                context,
+            )?,
+            <Option<GpuTextureUsageMask> as VmAggregateCodec>::encode_with_context(
+                self.usage, context,
+            )?,
+            <Option<GpuTextureViewDimension> as VmAggregateCodec>::encode_with_context(
+                self.dimension,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.base_mip_level, context)?,
+            <Option<u32> as VmAggregateCodec>::encode_with_context(self.mip_level_count, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.base_array_layer, context)?,
+            <Option<u32> as VmAggregateCodec>::encode_with_context(
+                self.array_layer_count,
+                context,
+            )?,
+            <GpuTextureAspect as VmAggregateCodec>::encode_with_context(self.aspect, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for GpuTextureViewOptionsAbi<VmAbi> {}
+
+/// Value type for GpuTextureViewOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuTextureViewOptionsValue {
+    /// Debug label.
+    pub label: String,
+    /// View format identifier when one compatible view format is selected.
+    pub format: Option<GpuTextureFormat>,
+    /// View usage bitset, or `void` to inherit the full texture usage set.
+    pub usage: Option<GpuTextureUsageMask>,
+    /// View dimension selector.
+    pub dimension: Option<GpuTextureViewDimension>,
+    /// Base mip-level index.
+    pub base_mip_level: u32,
+    /// Mip-level count when the view does not cover the remaining mip range.
+    pub mip_level_count: Option<u32>,
+    /// Base array-layer index.
+    pub base_array_layer: u32,
+    /// Array-layer count when the view does not cover the remaining layer range.
+    pub array_layer_count: Option<u32>,
+    /// Texture aspect selector.
+    pub aspect: GpuTextureAspect,
+    /// Texture-view option flags.
+    pub flags: u32,
+}
+
+impl NativeAbiCodec for GpuTextureViewOptionsAbi<NativeAbi> {
+    type Value = GpuTextureViewOptionsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(GpuTextureViewOptionsValue {
+            label: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.label)? },
+            format: unsafe {
+                <Option<GpuTextureFormat> as NativeAbiCodec>::into_value(self.format)?
+            },
+            usage: unsafe {
+                <Option<GpuTextureUsageMask> as NativeAbiCodec>::into_value(self.usage)?
+            },
+            dimension: unsafe {
+                <Option<GpuTextureViewDimension> as NativeAbiCodec>::into_value(self.dimension)?
+            },
+            base_mip_level: unsafe { <u32 as NativeAbiCodec>::into_value(self.base_mip_level)? },
+            mip_level_count: unsafe {
+                <Option<u32> as NativeAbiCodec>::into_value(self.mip_level_count)?
+            },
+            base_array_layer: unsafe {
+                <u32 as NativeAbiCodec>::into_value(self.base_array_layer)?
+            },
+            array_layer_count: unsafe {
+                <Option<u32> as NativeAbiCodec>::into_value(self.array_layer_count)?
+            },
+            aspect: unsafe { <GpuTextureAspect as NativeAbiCodec>::into_value(self.aspect)? },
+            flags: unsafe { <u32 as NativeAbiCodec>::into_value(self.flags)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            label: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.label),
+            format: <Option<GpuTextureFormat> as NativeAbiCodec>::from_value(binding, value.format),
+            usage: <Option<GpuTextureUsageMask> as NativeAbiCodec>::from_value(
+                binding,
+                value.usage,
+            ),
+            dimension: <Option<GpuTextureViewDimension> as NativeAbiCodec>::from_value(
+                binding,
+                value.dimension,
+            ),
+            base_mip_level: <u32 as NativeAbiCodec>::from_value(binding, value.base_mip_level),
+            mip_level_count: <Option<u32> as NativeAbiCodec>::from_value(
+                binding,
+                value.mip_level_count,
+            ),
+            base_array_layer: <u32 as NativeAbiCodec>::from_value(binding, value.base_array_layer),
+            array_layer_count: <Option<u32> as NativeAbiCodec>::from_value(
+                binding,
+                value.array_layer_count,
+            ),
+            aspect: <GpuTextureAspect as NativeAbiCodec>::from_value(binding, value.aspect),
+            flags: <u32 as NativeAbiCodec>::from_value(binding, value.flags),
+        }
+    }
+}
+
+impl VmAbiCodec for GpuTextureViewOptionsAbi<VmAbi> {
+    type Value = GpuTextureViewOptionsValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(GpuTextureViewOptionsValue {
+            label: <vm::StringHandle as VmAbiCodec>::into_value(self.label, context)?,
+            format: <Option<GpuTextureFormat> as VmAbiCodec>::into_value(self.format, context)?,
+            usage: <Option<GpuTextureUsageMask> as VmAbiCodec>::into_value(self.usage, context)?,
+            dimension: <Option<GpuTextureViewDimension> as VmAbiCodec>::into_value(
+                self.dimension,
+                context,
+            )?,
+            base_mip_level: <u32 as VmAbiCodec>::into_value(self.base_mip_level, context)?,
+            mip_level_count: <Option<u32> as VmAbiCodec>::into_value(
+                self.mip_level_count,
+                context,
+            )?,
+            base_array_layer: <u32 as VmAbiCodec>::into_value(self.base_array_layer, context)?,
+            array_layer_count: <Option<u32> as VmAbiCodec>::into_value(
+                self.array_layer_count,
+                context,
+            )?,
+            aspect: <GpuTextureAspect as VmAbiCodec>::into_value(self.aspect, context)?,
+            flags: <u32 as VmAbiCodec>::into_value(self.flags, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            label: <vm::StringHandle as VmAbiCodec>::from_value(context, value.label)?,
+            format: <Option<GpuTextureFormat> as VmAbiCodec>::from_value(context, value.format)?,
+            usage: <Option<GpuTextureUsageMask> as VmAbiCodec>::from_value(context, value.usage)?,
+            dimension: <Option<GpuTextureViewDimension> as VmAbiCodec>::from_value(
+                context,
+                value.dimension,
+            )?,
+            base_mip_level: <u32 as VmAbiCodec>::from_value(context, value.base_mip_level)?,
+            mip_level_count: <Option<u32> as VmAbiCodec>::from_value(
+                context,
+                value.mip_level_count,
+            )?,
+            base_array_layer: <u32 as VmAbiCodec>::from_value(context, value.base_array_layer)?,
+            array_layer_count: <Option<u32> as VmAbiCodec>::from_value(
+                context,
+                value.array_layer_count,
+            )?,
+            aspect: <GpuTextureAspect as VmAbiCodec>::from_value(context, value.aspect)?,
+            flags: <u32 as VmAbiCodec>::from_value(context, value.flags)?,
+        })
+    }
+}
+
+/// ABI struct for GpuTimestampQueryType.
+#[repr(C)]
+pub struct GpuTimestampQueryTypeAbi<A: BindingAbi> {
+    /// Discriminator for this query-set type variant.
+    pub kind: A::String,
+}
+
+pub type GpuTimestampQueryType = GpuTimestampQueryTypeAbi<NativeAbi>;
+pub type GpuTimestampQueryTypeVm = GpuTimestampQueryTypeAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for GpuTimestampQueryTypeAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuTimestampQueryTypeAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuTimestampQueryTypeAbi<NativeAbi> {}
+impl Clone for GpuTimestampQueryTypeAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuTimestampQueryTypeAbi<VmAbi> {}
+impl Clone for GpuTimestampQueryTypeAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuTimestampQueryTypeAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuTimestampQueryType",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self { kind: field_kind })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
+            self.kind, context,
+        )?];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for GpuTimestampQueryTypeAbi<VmAbi> {}
+
+/// Value type for GpuTimestampQueryType.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuTimestampQueryTypeValue {
+    /// Discriminator for this query-set type variant.
+    pub kind: String,
+}
+
+impl NativeAbiCodec for GpuTimestampQueryTypeAbi<NativeAbi> {
+    type Value = GpuTimestampQueryTypeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(GpuTimestampQueryTypeValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+        }
+    }
+}
+
+impl VmAbiCodec for GpuTimestampQueryTypeAbi<VmAbi> {
+    type Value = GpuTimestampQueryTypeValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(GpuTimestampQueryTypeValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+        })
+    }
+}
 
 /// ABI struct for GpuVertexAttribute.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuVertexAttribute {
     /// Vertex attribute format selector.
-    pub format: u32,
+    pub format: GpuVertexFormat,
     /// Byte offset for this attribute within one vertex element.
     pub offset: u64,
     /// Shader location index.
@@ -12810,7 +18713,8 @@ impl VmAggregateCodec for GpuVertexAttribute {
             ))
             .boxed());
         }
-        let field_format = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_format =
+            <GpuVertexFormat as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_offset = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_shader_location =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
@@ -12826,7 +18730,7 @@ impl VmAggregateCodec for GpuVertexAttribute {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.format, context)?,
+            <GpuVertexFormat as VmAggregateCodec>::encode_with_context(self.format, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.offset, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.shader_location, context)?,
         ];
@@ -13255,6 +19159,8 @@ pub struct GpuadapterinfoReplayRecord {
     pub driver: String,
     /// Host driver version when available.
     pub driver_version: String,
+    /// Additional driver metadata when available.
+    pub driver_info: String,
     /// Backend API kind.
     pub backend: GpuBackend,
     /// Adapter category.
@@ -13263,10 +19169,14 @@ pub struct GpuadapterinfoReplayRecord {
     pub vendor_id: u32,
     /// Device identifier when available.
     pub device_id: u32,
+    /// Backend-specific PCI bus identifier when available.
+    pub pci_bus_id: String,
     /// Minimum subgroup size when available.
     pub subgroup_min_size: u32,
     /// Maximum subgroup size when available.
     pub subgroup_max_size: u32,
+    /// Whether transient attachments can reduce backing-memory usage on this adapter.
+    pub transient_saves_memory: bool,
     /// Whether this adapter is a fallback implementation.
     pub is_fallback: bool,
     /// Supported feature identifiers.
@@ -13293,10 +19203,19 @@ pub struct GpubindgroupbufferresourceReplayRecord {
 pub struct GpubindgroupentryReplayRecord {
     /// Binding index.
     pub binding: u32,
-    /// Binding array element index, zero when not array-indexed.
-    pub binding_array_element: u32,
+    /// Binding array element index when this entry targets one array element.
+    pub binding_array_element: Option<u32>,
     /// Typed resource payload.
     pub resource: GpubindgroupresourceReplayRecord,
+}
+
+/// Replay struct for GpuBindGroupExternalTextureResource.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpubindgroupexternaltextureresourceReplayRecord {
+    /// Discriminator for this bind-group resource variant.
+    pub kind: String,
+    /// External-texture handle.
+    pub external_texture: resource::GpuExternalTextureHandle,
 }
 
 /// Replay struct for GpuBindGroupLayoutBufferResource.
@@ -13319,10 +19238,26 @@ pub struct GpubindgrouplayoutentryReplayRecord {
     pub binding: u32,
     /// Shader stage visibility mask.
     pub visibility: GpuShaderVisibilityMask,
-    /// Binding array length, zero when not an array binding.
-    pub binding_array_count: u32,
+    /// Binding array length when this entry is array-backed.
+    pub binding_array_count: Option<u32>,
     /// Typed resource payload.
     pub resource: GpubindgrouplayoutresourceReplayRecord,
+}
+
+/// Replay struct for GpuBindGroupLayoutExternalTextureResource.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpubindgrouplayoutexternaltextureresourceReplayRecord {
+    /// Discriminator for this bind-group-layout resource variant.
+    pub kind: String,
+}
+
+/// Replay struct for GpuBindGroupLayoutOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpubindgrouplayoutoptionsReplayRecord {
+    /// Debug label.
+    pub label: String,
+    /// Bind-group-layout option flags.
+    pub flags: u32,
 }
 
 /// Replay struct for GpuBindGroupLayoutSampledTextureResource.
@@ -13355,9 +19290,18 @@ pub struct GpubindgrouplayoutstoragetextureresourceReplayRecord {
     /// Storage-texture access selector.
     pub storage_texture_access: GpuStorageTextureAccess,
     /// Storage-texture format identifier.
-    pub storage_texture_format: u32,
+    pub storage_texture_format: GpuTextureFormat,
     /// Texture view dimension selector.
     pub texture_view_dimension: GpuTextureViewDimension,
+}
+
+/// Replay struct for GpuBindGroupOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpubindgroupoptionsReplayRecord {
+    /// Debug label.
+    pub label: String,
+    /// Bind-group option flags.
+    pub flags: u32,
 }
 
 /// Replay struct for GpuBindGroupSamplerResource.
@@ -13378,6 +19322,21 @@ pub struct GpubindgrouptextureresourceReplayRecord {
     pub texture: resource::GpuTextureViewHandle,
 }
 
+/// Replay struct for GpuBufferOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpubufferoptionsReplayRecord {
+    /// Debug label.
+    pub label: String,
+    /// Buffer size in bytes.
+    pub size: u64,
+    /// Buffer usage bitset.
+    pub usage: GpuBufferUsageMask,
+    /// Whether the buffer starts mapped for host access.
+    pub mapped_at_creation: bool,
+    /// Buffer option flags.
+    pub flags: u32,
+}
+
 /// Replay struct for GpuCapturedError.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpucapturederrorReplayRecord {
@@ -13385,6 +19344,22 @@ pub struct GpucapturederrorReplayRecord {
     pub message: Option<String>,
     /// Backend-specific status code when one error was captured.
     pub backend_code: Option<i32>,
+}
+
+/// Replay struct for GpuCommandBufferOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpucommandbufferoptionsReplayRecord {
+    /// Debug label.
+    pub label: String,
+}
+
+/// Replay struct for GpuCommandEncoderOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpucommandencoderoptionsReplayRecord {
+    /// Debug label.
+    pub label: String,
+    /// Encoder option flags.
+    pub flags: u32,
 }
 
 /// Replay struct for GpuCompilationInfo.
@@ -13411,15 +19386,26 @@ pub struct GpucompilationmessageReplayRecord {
     pub length: u32,
 }
 
+/// Replay struct for GpuComputePassOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpucomputepassoptionsReplayRecord {
+    /// Debug label.
+    pub label: String,
+    /// Timestamp-write descriptor when enabled.
+    pub timestamp_writes: Option<GpuPassTimestampWrites>,
+    /// Compute-pass option flags.
+    pub flags: u32,
+}
+
 /// Replay struct for GpuComputePipelineOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpucomputepipelineoptionsReplayRecord {
+    /// Debug label.
+    pub label: String,
     /// Explicit pipeline layout handle when provided.
     pub layout: Option<resource::GpuPipelineLayoutHandle>,
     /// Compute stage descriptor.
     pub compute: GpucomputestateReplayRecord,
-    /// Pipeline creation metadata.
-    pub metadata: GpupipelinemetadataReplayRecord,
     /// Pipeline option flags.
     pub flags: u32,
 }
@@ -13457,10 +19443,22 @@ pub struct GpudeviceinfoReplayRecord {
 /// Replay struct for GpuDeviceOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpudeviceoptionsReplayRecord {
+    /// Debug label.
+    pub label: String,
     /// Required feature identifiers.
     pub required_features: Vec<GpuFeatureId>,
     /// Required minimum limits.
     pub required_limits: GpuAdapterLimits,
+    /// Memory allocation hint.
+    pub memory_hint: GpuMemoryHint,
+    /// Manual memory-allocation guidance when `memoryHint` is `Manual`.
+    pub manual_memory_hint: Option<GpuManualMemoryHint>,
+    /// Whether experimental feature identifiers are allowed.
+    pub allow_experimental_features: bool,
+    /// Trace mode selector.
+    pub trace_mode: GpuTraceMode,
+    /// Trace output directory when `traceMode` is `Directory`.
+    pub trace_directory: Option<String>,
     /// Preferred backend override.
     pub backend: GpuBackend,
     /// Device option flags.
@@ -13472,12 +19470,40 @@ pub struct GpudeviceoptionsReplayRecord {
 pub struct GpudevicestatusReplayRecord {
     /// Whether the device is currently operational.
     pub healthy: bool,
-    /// Device-loss reason category.
-    pub loss_reason: GpuDeviceLossReason,
-    /// Backend-specific status code.
-    pub backend_code: i32,
-    /// Human-readable status message.
-    pub message: String,
+    /// Device-loss reason category when the device is not healthy.
+    /// `Unknown` and `Destroyed` match WebGPU and `wgpu` reasons.
+    pub loss_reason: Option<GpuDeviceLossReason>,
+    /// Backend-specific status code when the backend exposes one.
+    pub backend_code: Option<i32>,
+    /// Human-readable status message when the backend exposes one.
+    pub message: Option<String>,
+}
+
+/// Replay struct for GpuExternalTextureOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuexternaltextureoptionsReplayRecord {
+    /// Debug label.
+    pub label: String,
+    /// External-texture width visible to shaders.
+    pub width: u32,
+    /// External-texture height visible to shaders.
+    pub height: u32,
+    /// External-texture format selector.
+    pub format: GpuExternalTextureFormat,
+    /// YUV-to-RGBA conversion matrix in column-major order.
+    pub yuv_conversion_matrix: Vec<f32>,
+    /// Gamut-conversion matrix in column-major order.
+    pub gamut_conversion_matrix: Vec<f32>,
+    /// Source transfer-function parameters.
+    pub source_transfer_function: GpuExternalTextureTransferFunction,
+    /// Destination transfer-function parameters.
+    pub destination_transfer_function: GpuExternalTextureTransferFunction,
+    /// Sample-coordinate transform in column-major order.
+    pub sample_transform: Vec<f32>,
+    /// Load-coordinate transform in column-major order.
+    pub load_transform: Vec<f32>,
+    /// External-texture option flags.
+    pub flags: u32,
 }
 
 /// Replay struct for GpuFragmentState.
@@ -13493,6 +19519,13 @@ pub struct GpufragmentstateReplayRecord {
     pub targets: Vec<GpuColorTargetState>,
 }
 
+/// Replay struct for GpuOcclusionQueryType.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuocclusionquerytypeReplayRecord {
+    /// Discriminator for this query-set type variant.
+    pub kind: String,
+}
+
 /// Replay struct for GpuPipelineConstant.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpupipelineconstantReplayRecord {
@@ -13505,6 +19538,8 @@ pub struct GpupipelineconstantReplayRecord {
 /// Replay struct for GpuPipelineLayoutOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpupipelinelayoutoptionsReplayRecord {
+    /// Debug label.
+    pub label: String,
     /// Ordered bind group layouts for this pipeline layout.
     pub bind_group_layouts: Vec<resource::GpuBindGroupLayoutHandle>,
     /// Immediate-data byte size when supported.
@@ -13513,29 +19548,68 @@ pub struct GpupipelinelayoutoptionsReplayRecord {
     pub flags: u32,
 }
 
-/// Replay struct for GpuPipelineMetadata.
+/// Replay struct for GpuPipelineStatisticsQueryType.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct GpupipelinemetadataReplayRecord {
-    /// Human-readable debug label, empty when unspecified.
+pub struct GpupipelinestatisticsquerytypeReplayRecord {
+    /// Discriminator for this query-set type variant.
+    pub kind: String,
+    /// Enabled statistics in resolve order.
+    pub pipeline_statistics_mask: GpuPipelineStatisticsMask,
+}
+
+/// Replay struct for GpuQuerySetInfo.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuquerysetinfoReplayRecord {
+    /// Query-set type payload.
+    pub query_type: GpuquerysettypeReplayRecord,
+    /// Query count.
+    pub count: u32,
+}
+
+/// Replay struct for GpuQuerySetOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuquerysetoptionsReplayRecord {
+    /// Debug label.
     pub label: String,
+    /// Query-set type payload.
+    pub query_type: GpuquerysettypeReplayRecord,
+    /// Query count.
+    pub count: u32,
+    /// Query set option flags.
+    pub flags: u32,
 }
 
 /// Replay struct for GpuRenderBundleEncoderOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpurenderbundleencoderoptionsReplayRecord {
+    /// Debug label.
+    pub label: String,
     /// Color attachment format identifiers.
-    pub color_formats: Vec<u32>,
-    /// Depth-stencil format identifier, zero when unused.
-    pub depth_stencil_format: u32,
+    pub color_formats: Vec<GpuTextureFormat>,
+    /// Depth-stencil format identifier when one is used.
+    pub depth_stencil_format: Option<GpuTextureFormat>,
+    /// Whether the depth aspect is read-only.
+    pub depth_read_only: bool,
+    /// Whether the stencil aspect is read-only.
+    pub stencil_read_only: bool,
     /// Sample count.
     pub sample_count: u32,
     /// Bundle-encoder option flags.
     pub flags: u32,
 }
 
+/// Replay struct for GpuRenderBundleOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpurenderbundleoptionsReplayRecord {
+    /// Debug label.
+    pub label: String,
+}
+
 /// Replay struct for GpuRenderPassOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpurenderpassoptionsReplayRecord {
+    /// Debug label.
+    pub label: String,
     /// Render-pass color attachments.
     pub color_attachments: Vec<GpuRenderPassColorAttachment>,
     /// Render-pass depth-stencil attachment descriptor when provided.
@@ -13549,6 +19623,8 @@ pub struct GpurenderpassoptionsReplayRecord {
 /// Replay struct for GpuRenderPipelineOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpurenderpipelineoptionsReplayRecord {
+    /// Debug label.
+    pub label: String,
     /// Explicit pipeline layout handle when provided.
     pub layout: Option<resource::GpuPipelineLayoutHandle>,
     /// Vertex stage descriptor.
@@ -13559,9 +19635,38 @@ pub struct GpurenderpipelineoptionsReplayRecord {
     pub render: GpuRenderState,
     /// Multiview mask when configured.
     pub multiview_mask: Option<u32>,
-    /// Pipeline creation metadata.
-    pub metadata: GpupipelinemetadataReplayRecord,
     /// Pipeline option flags.
+    pub flags: u32,
+}
+
+/// Replay struct for GpuSamplerOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpusampleroptionsReplayRecord {
+    /// Debug label.
+    pub label: String,
+    /// Minification filter selector.
+    pub min_filter: GpuFilterMode,
+    /// Magnification filter selector.
+    pub mag_filter: GpuFilterMode,
+    /// Mipmap filter selector.
+    pub mip_filter: GpuMipmapFilterMode,
+    /// Address mode u selector.
+    pub address_u: GpuAddressMode,
+    /// Address mode v selector.
+    pub address_v: GpuAddressMode,
+    /// Address mode w selector.
+    pub address_w: GpuAddressMode,
+    /// Sampler LOD minimum clamp.
+    pub lod_min_clamp: f64,
+    /// Sampler LOD maximum clamp.
+    pub lod_max_clamp: f64,
+    /// Compare-function selector when comparison is enabled.
+    pub compare: Option<GpuCompareFunction>,
+    /// Maximum anisotropy level.
+    pub max_anisotropy: u16,
+    /// Border color when one address mode clamps to border.
+    pub border_color: Option<GpuSamplerBorderColor>,
+    /// Sampler option flags.
     pub flags: u32,
 }
 
@@ -13572,49 +19677,71 @@ pub struct GpushaderoptionsReplayRecord {
     pub format: GpuShaderFormat,
     /// Shader option flags.
     pub flags: u32,
-    /// Human-readable debug label, empty when unspecified.
+    /// Debug label.
     pub label: String,
+    /// Native workgroup counts for passthrough shader formats when required.
+    pub num_workgroups: Option<Vec<u32>>,
+    /// Shader runtime-check policy when one nondefault policy is requested.
+    pub runtime_checks: Option<GpuShaderRuntimeChecks>,
 }
 
 /// Replay struct for GpuSurfaceCapabilities.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpusurfacecapabilitiesReplayRecord {
-    /// Supported texture usage bitset.
-    pub usage_mask: u64,
+    /// Supported surface texture usages.
+    pub usages: GpuTextureUsageMask,
     /// Supported texture format identifiers.
-    pub formats: Vec<u32>,
+    pub formats: Vec<GpuTextureFormat>,
     /// Supported present mode selectors.
     pub present_modes: Vec<GpuPresentMode>,
-    /// Supported alpha mode selectors.
-    pub alpha_modes: Vec<GpuSurfaceAlphaMode>,
+    /// Supported composite-alpha mode selectors.
+    pub alpha_modes: Vec<GpuCompositeAlphaMode>,
+    /// Supported output color spaces.
+    pub color_spaces: Vec<display::DisplayColorSpace>,
+    /// Supported output HDR policy modes.
+    pub hdr_modes: Vec<display::DisplayHdrMode>,
+    /// Supported presentation timing capabilities.
+    pub timing_capability_mask: GpuSurfaceTimingCapabilityFlags,
+    /// Minimum supported desired maximum frame latency when the backend exposes one bound.
+    pub min_desired_maximum_frame_latency: Option<u32>,
+    /// Maximum supported desired maximum frame latency when the backend exposes one bound.
+    pub max_desired_maximum_frame_latency: Option<u32>,
 }
 
-/// Replay struct for GpuSurfaceOptions.
+/// Replay struct for GpuSurfaceConfiguration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct GpusurfaceoptionsReplayRecord {
+pub struct GpusurfaceconfigurationReplayRecord {
     /// Surface texture usage bitset.
-    pub usage: u64,
+    pub usage: GpuTextureUsageMask,
     /// Additional compatible surface view formats.
-    pub view_formats: Vec<u32>,
+    pub view_formats: Vec<GpuTextureFormat>,
     /// Surface width in pixels.
     pub width: u32,
     /// Surface height in pixels.
     pub height: u32,
     /// Surface texture format identifier.
-    pub format: u32,
+    pub format: GpuTextureFormat,
     /// Present mode selector.
     pub present_mode: GpuPresentMode,
-    /// Alpha mode selector.
-    pub alpha_mode: GpuSurfaceAlphaMode,
+    /// Composite-alpha mode selector.
+    pub alpha_mode: GpuCompositeAlphaMode,
+    /// Output color-space selector when supported.
+    pub color_space: Option<display::DisplayColorSpace>,
+    /// Output HDR policy mode when supported.
+    pub hdr_mode: Option<display::DisplayHdrMode>,
+    /// HDR metadata payload when supported.
+    pub hdr_metadata: Option<GpuSurfaceHdrMetadata>,
     /// Requested maximum frame latency in monitor refresh units.
-    pub desired_max_frame_latency: u32,
-    /// Surface option flags.
+    pub desired_maximum_frame_latency: u32,
+    /// Surface configuration flags.
     pub flags: u32,
 }
 
 /// Replay struct for GpuTextureOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GputextureoptionsReplayRecord {
+    /// Debug label.
+    pub label: String,
     /// Texture width in texels.
     pub width: u32,
     /// Texture height in texels.
@@ -13626,15 +19753,47 @@ pub struct GputextureoptionsReplayRecord {
     /// Texture sample count.
     pub samples: u32,
     /// Texture format identifier.
-    pub format: u32,
+    pub format: GpuTextureFormat,
     /// Texture dimension selector.
     pub dimension: GpuTextureDimension,
     /// Texture usage bitset.
-    pub usage: u64,
+    pub usage: GpuTextureUsageMask,
     /// Additional compatible texture-view format identifiers.
-    pub view_formats: Vec<u32>,
+    pub view_formats: Vec<GpuTextureFormat>,
     /// Texture option flags.
     pub flags: u32,
+}
+
+/// Replay struct for GpuTextureViewOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GputextureviewoptionsReplayRecord {
+    /// Debug label.
+    pub label: String,
+    /// View format identifier when one compatible view format is selected.
+    pub format: Option<GpuTextureFormat>,
+    /// View usage bitset, or `void` to inherit the full texture usage set.
+    pub usage: Option<GpuTextureUsageMask>,
+    /// View dimension selector.
+    pub dimension: Option<GpuTextureViewDimension>,
+    /// Base mip-level index.
+    pub base_mip_level: u32,
+    /// Mip-level count when the view does not cover the remaining mip range.
+    pub mip_level_count: Option<u32>,
+    /// Base array-layer index.
+    pub base_array_layer: u32,
+    /// Array-layer count when the view does not cover the remaining layer range.
+    pub array_layer_count: Option<u32>,
+    /// Texture aspect selector.
+    pub aspect: GpuTextureAspect,
+    /// Texture-view option flags.
+    pub flags: u32,
+}
+
+/// Replay struct for GpuTimestampQueryType.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GputimestampquerytypeReplayRecord {
+    /// Discriminator for this query-set type variant.
+    pub kind: String,
 }
 
 /// Replay struct for GpuVertexBufferLayout.
@@ -13668,6 +19827,10 @@ pub struct GpuvertexstateReplayRecord {
 pub enum GpubindgrouplayoutresourceReplayRecord {
     /// GpuBindGroupLayoutBufferResource variant.
     GpuBindGroupLayoutBufferResource(GpubindgrouplayoutbufferresourceReplayRecord),
+    /// GpuBindGroupLayoutExternalTextureResource variant.
+    GpuBindGroupLayoutExternalTextureResource(
+        GpubindgrouplayoutexternaltextureresourceReplayRecord,
+    ),
     /// GpuBindGroupLayoutSampledTextureResource variant.
     GpuBindGroupLayoutSampledTextureResource(GpubindgrouplayoutsampledtextureresourceReplayRecord),
     /// GpuBindGroupLayoutSamplerResource variant.
@@ -13681,8 +19844,721 @@ pub enum GpubindgrouplayoutresourceReplayRecord {
 pub enum GpubindgroupresourceReplayRecord {
     /// GpuBindGroupBufferResource variant.
     GpuBindGroupBufferResource(GpubindgroupbufferresourceReplayRecord),
+    /// GpuBindGroupExternalTextureResource variant.
+    GpuBindGroupExternalTextureResource(GpubindgroupexternaltextureresourceReplayRecord),
     /// GpuBindGroupSamplerResource variant.
     GpuBindGroupSamplerResource(GpubindgroupsamplerresourceReplayRecord),
     /// GpuBindGroupTextureResource variant.
     GpuBindGroupTextureResource(GpubindgrouptextureresourceReplayRecord),
 }
+
+/// Replay enum for GpuQuerySetType.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum GpuquerysettypeReplayRecord {
+    /// GpuOcclusionQueryType variant.
+    GpuOcclusionQueryType(GpuocclusionquerytypeReplayRecord),
+    /// GpuPipelineStatisticsQueryType variant.
+    GpuPipelineStatisticsQueryType(GpupipelinestatisticsquerytypeReplayRecord),
+    /// GpuTimestampQueryType variant.
+    GpuTimestampQueryType(GputimestampquerytypeReplayRecord),
+}
+
+/// Buffer usage bit for bottom-level acceleration-structure input.
+pub const GPU_BUFFER_USAGE_BLAS_INPUT: GpuBufferUsageMask = GpuBufferUsageMask(1024u32);
+
+/// Buffer usage bit for copy destination.
+pub const GPU_BUFFER_USAGE_COPY_DST: GpuBufferUsageMask = GpuBufferUsageMask(8u32);
+
+/// Buffer usage bit for copy source.
+pub const GPU_BUFFER_USAGE_COPY_SRC: GpuBufferUsageMask = GpuBufferUsageMask(4u32);
+
+/// Buffer usage bit for index input.
+pub const GPU_BUFFER_USAGE_INDEX: GpuBufferUsageMask = GpuBufferUsageMask(16u32);
+
+/// Buffer usage bit for indirect input.
+pub const GPU_BUFFER_USAGE_INDIRECT: GpuBufferUsageMask = GpuBufferUsageMask(256u32);
+
+/// Buffer usage bit for read mapping.
+pub const GPU_BUFFER_USAGE_MAP_READ: GpuBufferUsageMask = GpuBufferUsageMask(1u32);
+
+/// Buffer usage bit for write mapping.
+pub const GPU_BUFFER_USAGE_MAP_WRITE: GpuBufferUsageMask = GpuBufferUsageMask(2u32);
+
+/// Buffer usage bit for query resolve.
+pub const GPU_BUFFER_USAGE_QUERY_RESOLVE: GpuBufferUsageMask = GpuBufferUsageMask(512u32);
+
+/// Buffer usage bit for storage binding.
+pub const GPU_BUFFER_USAGE_STORAGE: GpuBufferUsageMask = GpuBufferUsageMask(128u32);
+
+/// Buffer usage bit for top-level acceleration-structure input.
+pub const GPU_BUFFER_USAGE_TLAS_INPUT: GpuBufferUsageMask = GpuBufferUsageMask(2048u32);
+
+/// Buffer usage bit for uniform binding.
+pub const GPU_BUFFER_USAGE_UNIFORM: GpuBufferUsageMask = GpuBufferUsageMask(64u32);
+
+/// Buffer usage bit for vertex input.
+pub const GPU_BUFFER_USAGE_VERTEX: GpuBufferUsageMask = GpuBufferUsageMask(32u32);
+
+/// Buffer use bit for copy destination.
+pub const GPU_BUFFER_USE_COPY_DST: GpuBufferUseMask = GpuBufferUseMask(8u32);
+
+/// Buffer use bit for copy source.
+pub const GPU_BUFFER_USE_COPY_SRC: GpuBufferUseMask = GpuBufferUseMask(4u32);
+
+/// Buffer use bit for index input.
+pub const GPU_BUFFER_USE_INDEX: GpuBufferUseMask = GpuBufferUseMask(16u32);
+
+/// Buffer use bit for indirect input.
+pub const GPU_BUFFER_USE_INDIRECT: GpuBufferUseMask = GpuBufferUseMask(512u32);
+
+/// Buffer use bit for read mapping.
+pub const GPU_BUFFER_USE_MAP_READ: GpuBufferUseMask = GpuBufferUseMask(1u32);
+
+/// Buffer use bit for write mapping.
+pub const GPU_BUFFER_USE_MAP_WRITE: GpuBufferUseMask = GpuBufferUseMask(2u32);
+
+/// Buffer use bit for query resolve.
+pub const GPU_BUFFER_USE_QUERY_RESOLVE: GpuBufferUseMask = GpuBufferUseMask(1024u32);
+
+/// Buffer use bit for read-only storage binding.
+pub const GPU_BUFFER_USE_STORAGE_READ_ONLY: GpuBufferUseMask = GpuBufferUseMask(128u32);
+
+/// Buffer use bit for read-write storage binding.
+pub const GPU_BUFFER_USE_STORAGE_READ_WRITE: GpuBufferUseMask = GpuBufferUseMask(256u32);
+
+/// Buffer use bit for uniform binding.
+pub const GPU_BUFFER_USE_UNIFORM: GpuBufferUseMask = GpuBufferUseMask(64u32);
+
+/// Buffer use bit for vertex input.
+pub const GPU_BUFFER_USE_VERTEX: GpuBufferUseMask = GpuBufferUseMask(32u32);
+
+/// Color-write bits for RGBA.
+pub const GPU_COLOR_WRITE_ALL: GpuColorWriteMask = GpuColorWriteMask(15u32);
+
+/// Color-write bit for alpha.
+pub const GPU_COLOR_WRITE_ALPHA: GpuColorWriteMask = GpuColorWriteMask(8u32);
+
+/// Color-write bit for blue.
+pub const GPU_COLOR_WRITE_BLUE: GpuColorWriteMask = GpuColorWriteMask(4u32);
+
+/// Color-write bits for RGB.
+pub const GPU_COLOR_WRITE_COLOR: GpuColorWriteMask = GpuColorWriteMask(7u32);
+
+/// Color-write bit for green.
+pub const GPU_COLOR_WRITE_GREEN: GpuColorWriteMask = GpuColorWriteMask(2u32);
+
+/// Color-write bit for red.
+pub const GPU_COLOR_WRITE_RED: GpuColorWriteMask = GpuColorWriteMask(1u32);
+
+/// Timing capability bit for compositor-latency reporting.
+pub const GPU_SURFACE_TIMING_CAP_COMPOSITOR_LATENCY: GpuSurfaceTimingCapabilityFlags =
+    GpuSurfaceTimingCapabilityFlags(8u32);
+
+/// Timing capability bit for requested presentation timestamps.
+pub const GPU_SURFACE_TIMING_CAP_DESIRED_PRESENTATION_TIMESTAMP: GpuSurfaceTimingCapabilityFlags =
+    GpuSurfaceTimingCapabilityFlags(16u32);
+
+/// Timing capability bit for presentation streams.
+pub const GPU_SURFACE_TIMING_CAP_PRESENTATION_STREAM: GpuSurfaceTimingCapabilityFlags =
+    GpuSurfaceTimingCapabilityFlags(1u32);
+
+/// Timing capability bit for actual presented timestamps.
+pub const GPU_SURFACE_TIMING_CAP_PRESENTED_TIMESTAMP: GpuSurfaceTimingCapabilityFlags =
+    GpuSurfaceTimingCapabilityFlags(2u32);
+
+/// Timing capability bit for refresh-interval reporting.
+pub const GPU_SURFACE_TIMING_CAP_REFRESH_INTERVAL: GpuSurfaceTimingCapabilityFlags =
+    GpuSurfaceTimingCapabilityFlags(4u32);
+
+/// ASTC 10x10 HDR.
+pub const GPU_TEXTURE_FORMAT_ASTC_10X10_HDR: GpuTextureFormat = GpuTextureFormat(112u32);
+
+/// ASTC 10x10 unorm.
+pub const GPU_TEXTURE_FORMAT_ASTC_10X10_UNORM: GpuTextureFormat = GpuTextureFormat(110u32);
+
+/// ASTC 10x10 sRGB.
+pub const GPU_TEXTURE_FORMAT_ASTC_10X10_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(111u32);
+
+/// ASTC 10x5 HDR.
+pub const GPU_TEXTURE_FORMAT_ASTC_10X5_HDR: GpuTextureFormat = GpuTextureFormat(103u32);
+
+/// ASTC 10x5 unorm.
+pub const GPU_TEXTURE_FORMAT_ASTC_10X5_UNORM: GpuTextureFormat = GpuTextureFormat(101u32);
+
+/// ASTC 10x5 sRGB.
+pub const GPU_TEXTURE_FORMAT_ASTC_10X5_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(102u32);
+
+/// ASTC 10x6 HDR.
+pub const GPU_TEXTURE_FORMAT_ASTC_10X6_HDR: GpuTextureFormat = GpuTextureFormat(106u32);
+
+/// ASTC 10x6 unorm.
+pub const GPU_TEXTURE_FORMAT_ASTC_10X6_UNORM: GpuTextureFormat = GpuTextureFormat(104u32);
+
+/// ASTC 10x6 sRGB.
+pub const GPU_TEXTURE_FORMAT_ASTC_10X6_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(105u32);
+
+/// ASTC 10x8 HDR.
+pub const GPU_TEXTURE_FORMAT_ASTC_10X8_HDR: GpuTextureFormat = GpuTextureFormat(109u32);
+
+/// ASTC 10x8 unorm.
+pub const GPU_TEXTURE_FORMAT_ASTC_10X8_UNORM: GpuTextureFormat = GpuTextureFormat(107u32);
+
+/// ASTC 10x8 sRGB.
+pub const GPU_TEXTURE_FORMAT_ASTC_10X8_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(108u32);
+
+/// ASTC 12x10 HDR.
+pub const GPU_TEXTURE_FORMAT_ASTC_12X10_HDR: GpuTextureFormat = GpuTextureFormat(115u32);
+
+/// ASTC 12x10 unorm.
+pub const GPU_TEXTURE_FORMAT_ASTC_12X10_UNORM: GpuTextureFormat = GpuTextureFormat(113u32);
+
+/// ASTC 12x10 sRGB.
+pub const GPU_TEXTURE_FORMAT_ASTC_12X10_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(114u32);
+
+/// ASTC 12x12 HDR.
+pub const GPU_TEXTURE_FORMAT_ASTC_12X12_HDR: GpuTextureFormat = GpuTextureFormat(118u32);
+
+/// ASTC 12x12 unorm.
+pub const GPU_TEXTURE_FORMAT_ASTC_12X12_UNORM: GpuTextureFormat = GpuTextureFormat(116u32);
+
+/// ASTC 12x12 sRGB.
+pub const GPU_TEXTURE_FORMAT_ASTC_12X12_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(117u32);
+
+/// ASTC 4x4 HDR.
+pub const GPU_TEXTURE_FORMAT_ASTC_4X4_HDR: GpuTextureFormat = GpuTextureFormat(79u32);
+
+/// ASTC 4x4 unorm.
+pub const GPU_TEXTURE_FORMAT_ASTC_4X4_UNORM: GpuTextureFormat = GpuTextureFormat(77u32);
+
+/// ASTC 4x4 sRGB.
+pub const GPU_TEXTURE_FORMAT_ASTC_4X4_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(78u32);
+
+/// ASTC 5x4 HDR.
+pub const GPU_TEXTURE_FORMAT_ASTC_5X4_HDR: GpuTextureFormat = GpuTextureFormat(82u32);
+
+/// ASTC 5x4 unorm.
+pub const GPU_TEXTURE_FORMAT_ASTC_5X4_UNORM: GpuTextureFormat = GpuTextureFormat(80u32);
+
+/// ASTC 5x4 sRGB.
+pub const GPU_TEXTURE_FORMAT_ASTC_5X4_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(81u32);
+
+/// ASTC 5x5 HDR.
+pub const GPU_TEXTURE_FORMAT_ASTC_5X5_HDR: GpuTextureFormat = GpuTextureFormat(85u32);
+
+/// ASTC 5x5 unorm.
+pub const GPU_TEXTURE_FORMAT_ASTC_5X5_UNORM: GpuTextureFormat = GpuTextureFormat(83u32);
+
+/// ASTC 5x5 sRGB.
+pub const GPU_TEXTURE_FORMAT_ASTC_5X5_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(84u32);
+
+/// ASTC 6x5 HDR.
+pub const GPU_TEXTURE_FORMAT_ASTC_6X5_HDR: GpuTextureFormat = GpuTextureFormat(88u32);
+
+/// ASTC 6x5 unorm.
+pub const GPU_TEXTURE_FORMAT_ASTC_6X5_UNORM: GpuTextureFormat = GpuTextureFormat(86u32);
+
+/// ASTC 6x5 sRGB.
+pub const GPU_TEXTURE_FORMAT_ASTC_6X5_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(87u32);
+
+/// ASTC 6x6 HDR.
+pub const GPU_TEXTURE_FORMAT_ASTC_6X6_HDR: GpuTextureFormat = GpuTextureFormat(91u32);
+
+/// ASTC 6x6 unorm.
+pub const GPU_TEXTURE_FORMAT_ASTC_6X6_UNORM: GpuTextureFormat = GpuTextureFormat(89u32);
+
+/// ASTC 6x6 sRGB.
+pub const GPU_TEXTURE_FORMAT_ASTC_6X6_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(90u32);
+
+/// ASTC 8x5 HDR.
+pub const GPU_TEXTURE_FORMAT_ASTC_8X5_HDR: GpuTextureFormat = GpuTextureFormat(94u32);
+
+/// ASTC 8x5 unorm.
+pub const GPU_TEXTURE_FORMAT_ASTC_8X5_UNORM: GpuTextureFormat = GpuTextureFormat(92u32);
+
+/// ASTC 8x5 sRGB.
+pub const GPU_TEXTURE_FORMAT_ASTC_8X5_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(93u32);
+
+/// ASTC 8x6 HDR.
+pub const GPU_TEXTURE_FORMAT_ASTC_8X6_HDR: GpuTextureFormat = GpuTextureFormat(97u32);
+
+/// ASTC 8x6 unorm.
+pub const GPU_TEXTURE_FORMAT_ASTC_8X6_UNORM: GpuTextureFormat = GpuTextureFormat(95u32);
+
+/// ASTC 8x6 sRGB.
+pub const GPU_TEXTURE_FORMAT_ASTC_8X6_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(96u32);
+
+/// ASTC 8x8 HDR.
+pub const GPU_TEXTURE_FORMAT_ASTC_8X8_HDR: GpuTextureFormat = GpuTextureFormat(100u32);
+
+/// ASTC 8x8 unorm.
+pub const GPU_TEXTURE_FORMAT_ASTC_8X8_UNORM: GpuTextureFormat = GpuTextureFormat(98u32);
+
+/// ASTC 8x8 sRGB.
+pub const GPU_TEXTURE_FORMAT_ASTC_8X8_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(99u32);
+
+/// BC1 RGBA unorm.
+pub const GPU_TEXTURE_FORMAT_BC1_RGBA_UNORM: GpuTextureFormat = GpuTextureFormat(53u32);
+
+/// BC1 RGBA sRGB.
+pub const GPU_TEXTURE_FORMAT_BC1_RGBA_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(54u32);
+
+/// BC2 RGBA unorm.
+pub const GPU_TEXTURE_FORMAT_BC2_RGBA_UNORM: GpuTextureFormat = GpuTextureFormat(55u32);
+
+/// BC2 RGBA sRGB.
+pub const GPU_TEXTURE_FORMAT_BC2_RGBA_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(56u32);
+
+/// BC3 RGBA unorm.
+pub const GPU_TEXTURE_FORMAT_BC3_RGBA_UNORM: GpuTextureFormat = GpuTextureFormat(57u32);
+
+/// BC3 RGBA sRGB.
+pub const GPU_TEXTURE_FORMAT_BC3_RGBA_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(58u32);
+
+/// BC4 red snorm.
+pub const GPU_TEXTURE_FORMAT_BC4_R_SNORM: GpuTextureFormat = GpuTextureFormat(60u32);
+
+/// BC4 red unorm.
+pub const GPU_TEXTURE_FORMAT_BC4_R_UNORM: GpuTextureFormat = GpuTextureFormat(59u32);
+
+/// BC5 red-green snorm.
+pub const GPU_TEXTURE_FORMAT_BC5_RG_SNORM: GpuTextureFormat = GpuTextureFormat(62u32);
+
+/// BC5 red-green unorm.
+pub const GPU_TEXTURE_FORMAT_BC5_RG_UNORM: GpuTextureFormat = GpuTextureFormat(61u32);
+
+/// BC6H RGB signed float.
+pub const GPU_TEXTURE_FORMAT_BC6H_RGB_FLOAT: GpuTextureFormat = GpuTextureFormat(64u32);
+
+/// BC6H RGB unsigned float.
+pub const GPU_TEXTURE_FORMAT_BC6H_RGB_UFLOAT: GpuTextureFormat = GpuTextureFormat(63u32);
+
+/// BC7 RGBA unorm.
+pub const GPU_TEXTURE_FORMAT_BC7_RGBA_UNORM: GpuTextureFormat = GpuTextureFormat(65u32);
+
+/// BC7 RGBA sRGB.
+pub const GPU_TEXTURE_FORMAT_BC7_RGBA_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(66u32);
+
+/// 8-bit normalized BGRA.
+pub const GPU_TEXTURE_FORMAT_BGRA8_UNORM: GpuTextureFormat = GpuTextureFormat(27u32);
+
+/// 8-bit normalized sRGB BGRA.
+pub const GPU_TEXTURE_FORMAT_BGRA8_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(28u32);
+
+/// 16-bit normalized depth.
+pub const GPU_TEXTURE_FORMAT_DEPTH16_UNORM: GpuTextureFormat = GpuTextureFormat(46u32);
+
+/// At-least-24-bit depth.
+pub const GPU_TEXTURE_FORMAT_DEPTH24_PLUS: GpuTextureFormat = GpuTextureFormat(47u32);
+
+/// At-least-24-bit depth with stencil.
+pub const GPU_TEXTURE_FORMAT_DEPTH24_PLUS_STENCIL8: GpuTextureFormat = GpuTextureFormat(48u32);
+
+/// 32-bit floating-point depth.
+pub const GPU_TEXTURE_FORMAT_DEPTH32_FLOAT: GpuTextureFormat = GpuTextureFormat(49u32);
+
+/// 32-bit floating-point depth with stencil.
+pub const GPU_TEXTURE_FORMAT_DEPTH32_FLOAT_STENCIL8: GpuTextureFormat = GpuTextureFormat(50u32);
+
+/// EAC red snorm.
+pub const GPU_TEXTURE_FORMAT_EAC_R11_SNORM: GpuTextureFormat = GpuTextureFormat(74u32);
+
+/// EAC red unorm.
+pub const GPU_TEXTURE_FORMAT_EAC_R11_UNORM: GpuTextureFormat = GpuTextureFormat(73u32);
+
+/// EAC red-green snorm.
+pub const GPU_TEXTURE_FORMAT_EAC_RG11_SNORM: GpuTextureFormat = GpuTextureFormat(76u32);
+
+/// EAC red-green unorm.
+pub const GPU_TEXTURE_FORMAT_EAC_RG11_UNORM: GpuTextureFormat = GpuTextureFormat(75u32);
+
+/// ETC2 RGB8A1 unorm.
+pub const GPU_TEXTURE_FORMAT_ETC2_RGB8A1_UNORM: GpuTextureFormat = GpuTextureFormat(69u32);
+
+/// ETC2 RGB8A1 sRGB.
+pub const GPU_TEXTURE_FORMAT_ETC2_RGB8A1_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(70u32);
+
+/// ETC2 RGB8 unorm.
+pub const GPU_TEXTURE_FORMAT_ETC2_RGB8_UNORM: GpuTextureFormat = GpuTextureFormat(67u32);
+
+/// ETC2 RGB8 sRGB.
+pub const GPU_TEXTURE_FORMAT_ETC2_RGB8_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(68u32);
+
+/// ETC2 RGBA8 unorm.
+pub const GPU_TEXTURE_FORMAT_ETC2_RGBA8_UNORM: GpuTextureFormat = GpuTextureFormat(71u32);
+
+/// ETC2 RGBA8 sRGB.
+pub const GPU_TEXTURE_FORMAT_ETC2_RGBA8_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(72u32);
+
+/// Texture-format feature bit for blendable render attachments.
+pub const GPU_TEXTURE_FORMAT_FEATURE_BLENDABLE: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(1024u32);
+
+/// Texture-format feature bit for filterable sampling.
+pub const GPU_TEXTURE_FORMAT_FEATURE_FILTERABLE: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(1u32);
+
+/// Texture-format feature bit for multisample resolve targets.
+pub const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_RESOLVE: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(32u32);
+
+/// Texture-format feature bit for sample count 16.
+pub const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_X16: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(16u32);
+
+/// Texture-format feature bit for sample count 2.
+pub const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_X2: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(2u32);
+
+/// Texture-format feature bit for sample count 4.
+pub const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_X4: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(4u32);
+
+/// Texture-format feature bit for sample count 8.
+pub const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_X8: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(8u32);
+
+/// Texture-format feature bit for atomic storage access.
+pub const GPU_TEXTURE_FORMAT_FEATURE_STORAGE_ATOMIC: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(512u32);
+
+/// Texture-format feature bit for read-only storage access.
+pub const GPU_TEXTURE_FORMAT_FEATURE_STORAGE_READ_ONLY: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(64u32);
+
+/// Texture-format feature bit for read-write storage access.
+pub const GPU_TEXTURE_FORMAT_FEATURE_STORAGE_READ_WRITE: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(256u32);
+
+/// Texture-format feature bit for write-only storage access.
+pub const GPU_TEXTURE_FORMAT_FEATURE_STORAGE_WRITE_ONLY: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(128u32);
+
+/// Two-plane NV12 YUV.
+pub const GPU_TEXTURE_FORMAT_NV12: GpuTextureFormat = GpuTextureFormat(51u32);
+
+/// Two-plane P010 YUV.
+pub const GPU_TEXTURE_FORMAT_P010: GpuTextureFormat = GpuTextureFormat(52u32);
+
+/// 16-bit floating-point red.
+pub const GPU_TEXTURE_FORMAT_R16_FLOAT: GpuTextureFormat = GpuTextureFormat(9u32);
+
+/// 16-bit signed red integer.
+pub const GPU_TEXTURE_FORMAT_R16_SINT: GpuTextureFormat = GpuTextureFormat(6u32);
+
+/// 16-bit signed normalized red.
+pub const GPU_TEXTURE_FORMAT_R16_SNORM: GpuTextureFormat = GpuTextureFormat(8u32);
+
+/// 16-bit unsigned red integer.
+pub const GPU_TEXTURE_FORMAT_R16_UINT: GpuTextureFormat = GpuTextureFormat(5u32);
+
+/// 16-bit normalized red.
+pub const GPU_TEXTURE_FORMAT_R16_UNORM: GpuTextureFormat = GpuTextureFormat(7u32);
+
+/// 32-bit floating-point red.
+pub const GPU_TEXTURE_FORMAT_R32_FLOAT: GpuTextureFormat = GpuTextureFormat(16u32);
+
+/// 32-bit signed red integer.
+pub const GPU_TEXTURE_FORMAT_R32_SINT: GpuTextureFormat = GpuTextureFormat(15u32);
+
+/// 32-bit unsigned red integer.
+pub const GPU_TEXTURE_FORMAT_R32_UINT: GpuTextureFormat = GpuTextureFormat(14u32);
+
+/// 64-bit unsigned red integer.
+pub const GPU_TEXTURE_FORMAT_R64_UINT: GpuTextureFormat = GpuTextureFormat(33u32);
+
+/// 8-bit signed red integer.
+pub const GPU_TEXTURE_FORMAT_R8_SINT: GpuTextureFormat = GpuTextureFormat(4u32);
+
+/// 8-bit signed normalized red.
+pub const GPU_TEXTURE_FORMAT_R8_SNORM: GpuTextureFormat = GpuTextureFormat(2u32);
+
+/// 8-bit unsigned red integer.
+pub const GPU_TEXTURE_FORMAT_R8_UINT: GpuTextureFormat = GpuTextureFormat(3u32);
+
+/// 8-bit normalized red.
+pub const GPU_TEXTURE_FORMAT_R8_UNORM: GpuTextureFormat = GpuTextureFormat(1u32);
+
+/// Packed unsigned float RG11B10.
+pub const GPU_TEXTURE_FORMAT_RG11B10_UFLOAT: GpuTextureFormat = GpuTextureFormat(32u32);
+
+/// 16-bit floating-point red-green.
+pub const GPU_TEXTURE_FORMAT_RG16_FLOAT: GpuTextureFormat = GpuTextureFormat(21u32);
+
+/// 16-bit signed red-green integer.
+pub const GPU_TEXTURE_FORMAT_RG16_SINT: GpuTextureFormat = GpuTextureFormat(18u32);
+
+/// 16-bit signed normalized red-green.
+pub const GPU_TEXTURE_FORMAT_RG16_SNORM: GpuTextureFormat = GpuTextureFormat(20u32);
+
+/// 16-bit unsigned red-green integer.
+pub const GPU_TEXTURE_FORMAT_RG16_UINT: GpuTextureFormat = GpuTextureFormat(17u32);
+
+/// 16-bit normalized red-green.
+pub const GPU_TEXTURE_FORMAT_RG16_UNORM: GpuTextureFormat = GpuTextureFormat(19u32);
+
+/// 32-bit floating-point red-green.
+pub const GPU_TEXTURE_FORMAT_RG32_FLOAT: GpuTextureFormat = GpuTextureFormat(36u32);
+
+/// 32-bit signed red-green integer.
+pub const GPU_TEXTURE_FORMAT_RG32_SINT: GpuTextureFormat = GpuTextureFormat(35u32);
+
+/// 32-bit unsigned red-green integer.
+pub const GPU_TEXTURE_FORMAT_RG32_UINT: GpuTextureFormat = GpuTextureFormat(34u32);
+
+/// 8-bit signed red-green integer.
+pub const GPU_TEXTURE_FORMAT_RG8_SINT: GpuTextureFormat = GpuTextureFormat(13u32);
+
+/// 8-bit signed normalized red-green.
+pub const GPU_TEXTURE_FORMAT_RG8_SNORM: GpuTextureFormat = GpuTextureFormat(11u32);
+
+/// 8-bit unsigned red-green integer.
+pub const GPU_TEXTURE_FORMAT_RG8_UINT: GpuTextureFormat = GpuTextureFormat(12u32);
+
+/// 8-bit normalized red-green.
+pub const GPU_TEXTURE_FORMAT_RG8_UNORM: GpuTextureFormat = GpuTextureFormat(10u32);
+
+/// Packed unsigned RGB10A2.
+pub const GPU_TEXTURE_FORMAT_RGB10A2_UINT: GpuTextureFormat = GpuTextureFormat(30u32);
+
+/// Packed normalized RGB10A2.
+pub const GPU_TEXTURE_FORMAT_RGB10A2_UNORM: GpuTextureFormat = GpuTextureFormat(31u32);
+
+/// Shared-exponent RGB.
+pub const GPU_TEXTURE_FORMAT_RGB9E5_UFLOAT: GpuTextureFormat = GpuTextureFormat(29u32);
+
+/// 16-bit floating-point RGBA.
+pub const GPU_TEXTURE_FORMAT_RGBA16_FLOAT: GpuTextureFormat = GpuTextureFormat(41u32);
+
+/// 16-bit signed RGBA integer.
+pub const GPU_TEXTURE_FORMAT_RGBA16_SINT: GpuTextureFormat = GpuTextureFormat(38u32);
+
+/// 16-bit signed normalized RGBA.
+pub const GPU_TEXTURE_FORMAT_RGBA16_SNORM: GpuTextureFormat = GpuTextureFormat(40u32);
+
+/// 16-bit unsigned RGBA integer.
+pub const GPU_TEXTURE_FORMAT_RGBA16_UINT: GpuTextureFormat = GpuTextureFormat(37u32);
+
+/// 16-bit normalized RGBA.
+pub const GPU_TEXTURE_FORMAT_RGBA16_UNORM: GpuTextureFormat = GpuTextureFormat(39u32);
+
+/// 32-bit floating-point RGBA.
+pub const GPU_TEXTURE_FORMAT_RGBA32_FLOAT: GpuTextureFormat = GpuTextureFormat(44u32);
+
+/// 32-bit signed RGBA integer.
+pub const GPU_TEXTURE_FORMAT_RGBA32_SINT: GpuTextureFormat = GpuTextureFormat(43u32);
+
+/// 32-bit unsigned RGBA integer.
+pub const GPU_TEXTURE_FORMAT_RGBA32_UINT: GpuTextureFormat = GpuTextureFormat(42u32);
+
+/// 8-bit signed RGBA integer.
+pub const GPU_TEXTURE_FORMAT_RGBA8_SINT: GpuTextureFormat = GpuTextureFormat(26u32);
+
+/// 8-bit signed normalized RGBA.
+pub const GPU_TEXTURE_FORMAT_RGBA8_SNORM: GpuTextureFormat = GpuTextureFormat(24u32);
+
+/// 8-bit unsigned RGBA integer.
+pub const GPU_TEXTURE_FORMAT_RGBA8_UINT: GpuTextureFormat = GpuTextureFormat(25u32);
+
+/// 8-bit normalized RGBA.
+pub const GPU_TEXTURE_FORMAT_RGBA8_UNORM: GpuTextureFormat = GpuTextureFormat(22u32);
+
+/// 8-bit normalized sRGB RGBA.
+pub const GPU_TEXTURE_FORMAT_RGBA8_UNORM_SRGB: GpuTextureFormat = GpuTextureFormat(23u32);
+
+/// 8-bit stencil.
+pub const GPU_TEXTURE_FORMAT_STENCIL8: GpuTextureFormat = GpuTextureFormat(45u32);
+
+/// Texture usage bit for copy destination.
+pub const GPU_TEXTURE_USAGE_COPY_DST: GpuTextureUsageMask = GpuTextureUsageMask(2u32);
+
+/// Texture usage bit for copy source.
+pub const GPU_TEXTURE_USAGE_COPY_SRC: GpuTextureUsageMask = GpuTextureUsageMask(1u32);
+
+/// Texture usage bit for render attachment.
+pub const GPU_TEXTURE_USAGE_RENDER_ATTACHMENT: GpuTextureUsageMask = GpuTextureUsageMask(16u32);
+
+/// Texture usage bit for storage atomics.
+pub const GPU_TEXTURE_USAGE_STORAGE_ATOMIC: GpuTextureUsageMask = GpuTextureUsageMask(65536u32);
+
+/// Texture usage bit for storage-texture binding.
+pub const GPU_TEXTURE_USAGE_STORAGE_BINDING: GpuTextureUsageMask = GpuTextureUsageMask(8u32);
+
+/// Texture usage bit for sampled-texture binding.
+pub const GPU_TEXTURE_USAGE_TEXTURE_BINDING: GpuTextureUsageMask = GpuTextureUsageMask(4u32);
+
+/// Texture usage bit for transient attachments.
+pub const GPU_TEXTURE_USAGE_TRANSIENT: GpuTextureUsageMask = GpuTextureUsageMask(131072u32);
+
+/// Texture use bit for color render targets.
+pub const GPU_TEXTURE_USE_COLOR_TARGET: GpuTextureUseMask = GpuTextureUseMask(32u32);
+
+/// Texture use bit for copy destination.
+pub const GPU_TEXTURE_USE_COPY_DST: GpuTextureUseMask = GpuTextureUseMask(8u32);
+
+/// Texture use bit for copy source.
+pub const GPU_TEXTURE_USE_COPY_SRC: GpuTextureUseMask = GpuTextureUseMask(4u32);
+
+/// Texture use bit for read-only depth-stencil access.
+pub const GPU_TEXTURE_USE_DEPTH_STENCIL_READ: GpuTextureUseMask = GpuTextureUseMask(64u32);
+
+/// Texture use bit for writable depth-stencil access.
+pub const GPU_TEXTURE_USE_DEPTH_STENCIL_WRITE: GpuTextureUseMask = GpuTextureUseMask(128u32);
+
+/// Texture use bit for presentable state.
+pub const GPU_TEXTURE_USE_PRESENT: GpuTextureUseMask = GpuTextureUseMask(2u32);
+
+/// Texture use bit for sampled or fetched resource access.
+pub const GPU_TEXTURE_USE_RESOURCE: GpuTextureUseMask = GpuTextureUseMask(16u32);
+
+/// Texture use bit for atomic storage access.
+pub const GPU_TEXTURE_USE_STORAGE_ATOMIC: GpuTextureUseMask = GpuTextureUseMask(2048u32);
+
+/// Texture use bit for read-only storage access.
+pub const GPU_TEXTURE_USE_STORAGE_READ_ONLY: GpuTextureUseMask = GpuTextureUseMask(256u32);
+
+/// Texture use bit for read-write storage access.
+pub const GPU_TEXTURE_USE_STORAGE_READ_WRITE: GpuTextureUseMask = GpuTextureUseMask(1024u32);
+
+/// Texture use bit for write-only storage access.
+pub const GPU_TEXTURE_USE_STORAGE_WRITE_ONLY: GpuTextureUseMask = GpuTextureUseMask(512u32);
+
+/// Texture use bit for transient render-attachment allocation.
+pub const GPU_TEXTURE_USE_TRANSIENT: GpuTextureUseMask = GpuTextureUseMask(4096u32);
+
+/// Texture use bit for uninitialized state.
+pub const GPU_TEXTURE_USE_UNINITIALIZED: GpuTextureUseMask = GpuTextureUseMask(1u32);
+
+/// 16-bit float scalar vertex format.
+pub const GPU_VERTEX_FORMAT_FLOAT16: GpuVertexFormat = GpuVertexFormat(41u32);
+
+/// 16-bit float x2 vertex format.
+pub const GPU_VERTEX_FORMAT_FLOAT16X2: GpuVertexFormat = GpuVertexFormat(17u32);
+
+/// 16-bit float x4 vertex format.
+pub const GPU_VERTEX_FORMAT_FLOAT16X4: GpuVertexFormat = GpuVertexFormat(18u32);
+
+/// 32-bit float vertex format.
+pub const GPU_VERTEX_FORMAT_FLOAT32: GpuVertexFormat = GpuVertexFormat(19u32);
+
+/// 32-bit float x2 vertex format.
+pub const GPU_VERTEX_FORMAT_FLOAT32X2: GpuVertexFormat = GpuVertexFormat(20u32);
+
+/// 32-bit float x3 vertex format.
+pub const GPU_VERTEX_FORMAT_FLOAT32X3: GpuVertexFormat = GpuVertexFormat(21u32);
+
+/// 32-bit float x4 vertex format.
+pub const GPU_VERTEX_FORMAT_FLOAT32X4: GpuVertexFormat = GpuVertexFormat(22u32);
+
+/// 64-bit float scalar vertex format.
+pub const GPU_VERTEX_FORMAT_FLOAT64: GpuVertexFormat = GpuVertexFormat(42u32);
+
+/// 64-bit float x2 vertex format.
+pub const GPU_VERTEX_FORMAT_FLOAT64X2: GpuVertexFormat = GpuVertexFormat(43u32);
+
+/// 64-bit float x3 vertex format.
+pub const GPU_VERTEX_FORMAT_FLOAT64X3: GpuVertexFormat = GpuVertexFormat(44u32);
+
+/// 64-bit float x4 vertex format.
+pub const GPU_VERTEX_FORMAT_FLOAT64X4: GpuVertexFormat = GpuVertexFormat(45u32);
+
+/// Signed 16-bit scalar vertex format.
+pub const GPU_VERTEX_FORMAT_SINT16: GpuVertexFormat = GpuVertexFormat(38u32);
+
+/// Signed 16-bit x2 vertex format.
+pub const GPU_VERTEX_FORMAT_SINT16X2: GpuVertexFormat = GpuVertexFormat(11u32);
+
+/// Signed 16-bit x4 vertex format.
+pub const GPU_VERTEX_FORMAT_SINT16X4: GpuVertexFormat = GpuVertexFormat(12u32);
+
+/// Signed 32-bit vertex format.
+pub const GPU_VERTEX_FORMAT_SINT32: GpuVertexFormat = GpuVertexFormat(27u32);
+
+/// Signed 32-bit x2 vertex format.
+pub const GPU_VERTEX_FORMAT_SINT32X2: GpuVertexFormat = GpuVertexFormat(28u32);
+
+/// Signed 32-bit x3 vertex format.
+pub const GPU_VERTEX_FORMAT_SINT32X3: GpuVertexFormat = GpuVertexFormat(29u32);
+
+/// Signed 32-bit x4 vertex format.
+pub const GPU_VERTEX_FORMAT_SINT32X4: GpuVertexFormat = GpuVertexFormat(30u32);
+
+/// Signed 8-bit scalar vertex format.
+pub const GPU_VERTEX_FORMAT_SINT8: GpuVertexFormat = GpuVertexFormat(34u32);
+
+/// Signed 8-bit x2 vertex format.
+pub const GPU_VERTEX_FORMAT_SINT8X2: GpuVertexFormat = GpuVertexFormat(3u32);
+
+/// Signed 8-bit x4 vertex format.
+pub const GPU_VERTEX_FORMAT_SINT8X4: GpuVertexFormat = GpuVertexFormat(4u32);
+
+/// Signed normalized 16-bit scalar vertex format.
+pub const GPU_VERTEX_FORMAT_SNORM16: GpuVertexFormat = GpuVertexFormat(40u32);
+
+/// Signed normalized 16-bit x2 vertex format.
+pub const GPU_VERTEX_FORMAT_SNORM16X2: GpuVertexFormat = GpuVertexFormat(15u32);
+
+/// Signed normalized 16-bit x4 vertex format.
+pub const GPU_VERTEX_FORMAT_SNORM16X4: GpuVertexFormat = GpuVertexFormat(16u32);
+
+/// Signed normalized 8-bit scalar vertex format.
+pub const GPU_VERTEX_FORMAT_SNORM8: GpuVertexFormat = GpuVertexFormat(36u32);
+
+/// Signed normalized 8-bit x2 vertex format.
+pub const GPU_VERTEX_FORMAT_SNORM8X2: GpuVertexFormat = GpuVertexFormat(7u32);
+
+/// Signed normalized 8-bit x4 vertex format.
+pub const GPU_VERTEX_FORMAT_SNORM8X4: GpuVertexFormat = GpuVertexFormat(8u32);
+
+/// Unsigned 16-bit scalar vertex format.
+pub const GPU_VERTEX_FORMAT_UINT16: GpuVertexFormat = GpuVertexFormat(37u32);
+
+/// Unsigned 16-bit x2 vertex format.
+pub const GPU_VERTEX_FORMAT_UINT16X2: GpuVertexFormat = GpuVertexFormat(9u32);
+
+/// Unsigned 16-bit x4 vertex format.
+pub const GPU_VERTEX_FORMAT_UINT16X4: GpuVertexFormat = GpuVertexFormat(10u32);
+
+/// Unsigned 32-bit vertex format.
+pub const GPU_VERTEX_FORMAT_UINT32: GpuVertexFormat = GpuVertexFormat(23u32);
+
+/// Unsigned 32-bit x2 vertex format.
+pub const GPU_VERTEX_FORMAT_UINT32X2: GpuVertexFormat = GpuVertexFormat(24u32);
+
+/// Unsigned 32-bit x3 vertex format.
+pub const GPU_VERTEX_FORMAT_UINT32X3: GpuVertexFormat = GpuVertexFormat(25u32);
+
+/// Unsigned 32-bit x4 vertex format.
+pub const GPU_VERTEX_FORMAT_UINT32X4: GpuVertexFormat = GpuVertexFormat(26u32);
+
+/// Unsigned 8-bit scalar vertex format.
+pub const GPU_VERTEX_FORMAT_UINT8: GpuVertexFormat = GpuVertexFormat(33u32);
+
+/// Unsigned 8-bit x2 vertex format.
+pub const GPU_VERTEX_FORMAT_UINT8X2: GpuVertexFormat = GpuVertexFormat(1u32);
+
+/// Unsigned 8-bit x4 vertex format.
+pub const GPU_VERTEX_FORMAT_UINT8X4: GpuVertexFormat = GpuVertexFormat(2u32);
+
+/// Packed normalized 10:10:10:2 vertex format.
+pub const GPU_VERTEX_FORMAT_UNORM10_10_10_2: GpuVertexFormat = GpuVertexFormat(31u32);
+
+/// Unsigned normalized 16-bit scalar vertex format.
+pub const GPU_VERTEX_FORMAT_UNORM16: GpuVertexFormat = GpuVertexFormat(39u32);
+
+/// Unsigned normalized 16-bit x2 vertex format.
+pub const GPU_VERTEX_FORMAT_UNORM16X2: GpuVertexFormat = GpuVertexFormat(13u32);
+
+/// Unsigned normalized 16-bit x4 vertex format.
+pub const GPU_VERTEX_FORMAT_UNORM16X4: GpuVertexFormat = GpuVertexFormat(14u32);
+
+/// Unsigned normalized 8-bit scalar vertex format.
+pub const GPU_VERTEX_FORMAT_UNORM8: GpuVertexFormat = GpuVertexFormat(35u32);
+
+/// Unsigned normalized 8-bit x2 vertex format.
+pub const GPU_VERTEX_FORMAT_UNORM8X2: GpuVertexFormat = GpuVertexFormat(5u32);
+
+/// Unsigned normalized 8-bit x4 vertex format.
+pub const GPU_VERTEX_FORMAT_UNORM8X4: GpuVertexFormat = GpuVertexFormat(6u32);
+
+/// 8-bit BGRA normalized vertex format.
+pub const GPU_VERTEX_FORMAT_UNORM8X4_BGRA: GpuVertexFormat = GpuVertexFormat(32u32);

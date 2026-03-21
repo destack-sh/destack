@@ -3,5 +3,3 @@ mod core;
 mod event;
 #[cfg(any(unix, windows))]
 mod registration;
-
-pub(super) use core::*;

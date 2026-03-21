@@ -2896,8 +2896,8 @@ fn decode_destack_os_intent_share_paths_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmArray<fs::OsPathVm>, Option<vm::StringHandle>)> {
-    let paths_value = arg_value(args, 0, "paths", "Array<OsPath>")?;
-    let paths = decode_array::<fs::OsPathVm>(context, paths_value, "paths", "Array<OsPath>")?;
+    let paths_value = arg_value(args, 0, "paths", "OsPath[]")?;
+    let paths = decode_array::<fs::OsPathVm>(context, paths_value, "paths", "OsPath[]")?;
     let mimetype_value = arg_value(args, 1, "mimetype", "string | void")?;
     let mimetype = if mimetype_value.tag() == vm::ValueTag::Void {
         None
@@ -3872,8 +3872,8 @@ fn decode_destack_os_media_delete_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmArray<vm::StringHandle>,)> {
-    let ids_value = arg_value(args, 0, "ids", "Array<string>")?;
-    let ids = decode_array::<vm::StringHandle>(context, ids_value, "ids", "Array<string>")?;
+    let ids_value = arg_value(args, 0, "ids", "string[]")?;
+    let ids = decode_array::<vm::StringHandle>(context, ids_value, "ids", "string[]")?;
     Ok((ids,))
 }
 
@@ -7118,7 +7118,7 @@ pub(crate) const OS_INTENT_READ: BindingDescriptor = BindingDescriptor::external
 /// Binding descriptor for destack.os.intent.sharePaths.
 pub(crate) const OS_INTENT_SHARE_PATHS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.intent.sharePaths",
-    "export function intentSharePaths(paths: Array<OsPath>, mimeType: string | void): Result<void, PlatformError>",
+    "export function intentSharePaths(paths: OsPath[], mimeType: string | void): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.intent.write"],
@@ -7399,7 +7399,7 @@ pub(crate) const OS_LOCATION_WATCH_TRY_READ: BindingDescriptor = BindingDescript
 pub(crate) const OS_MEDIA_DELETE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.media.delete",
-        "export function mediaDelete(ids: Array<string>): Result<uint32, PlatformError>",
+        "export function mediaDelete(ids: string[]): Result<uint32, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.media.write"],

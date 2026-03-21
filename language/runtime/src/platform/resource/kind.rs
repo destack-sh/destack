@@ -76,8 +76,12 @@ macro_rules! for_each_resource_handle_kind {
             (GpuDeviceHandle, GpuDevice, "resource.gpu.device", "gpu_device", "The handle for one gpu device."),
             (GpuQueueHandle, GpuQueue, "resource.gpu.queue", "gpu_queue", "The handle for one gpu queue."),
             (GpuSurfaceHandle, GpuSurface, "resource.gpu.surface", "gpu_surface", "The handle for one gpu surface endpoint."),
+            (GpuSurfacePresentationHandle, GpuSurfacePresentation, "resource.gpu.surface.presentation", "gpu_surface_presentation", "The handle for one gpu surface presentation stream."),
+            (GpuCommandBufferHandle, GpuCommandBuffer, "resource.gpu.command.buffer", "gpu_command_buffer", "The handle for one gpu command buffer."),
+            (GpuCommandEncoderHandle, GpuCommandEncoder, "resource.gpu.command.encoder", "gpu_command_encoder", "The handle for one gpu command encoder."),
             (GpuCommandListHandle, GpuCommandList, "resource.gpu.command.list", "gpu_command_list", "The handle for one gpu command list."),
             (GpuComputePassHandle, GpuComputePass, "resource.gpu.compute.pass", "gpu_compute_pass", "The handle for one gpu compute pass endpoint."),
+            (GpuExternalTextureHandle, GpuExternalTexture, "resource.gpu.external.texture", "gpu_external_texture", "The handle for one gpu external texture."),
             (GpuRenderPassHandle, GpuRenderPass, "resource.gpu.render.pass", "gpu_render_pass", "The handle for one gpu render pass endpoint."),
             (GpuRenderBundleHandle, GpuRenderBundle, "resource.gpu.render.bundle", "gpu_render_bundle", "The handle for one gpu render bundle endpoint."),
             (GpuRenderBundleEncoderHandle, GpuRenderBundleEncoder, "resource.gpu.render.bundle.encoder", "gpu_render_bundle_encoder", "The handle for one gpu render bundle encoder endpoint."),
@@ -235,8 +239,12 @@ macro_rules! define_resource_kind {
                     | Self::GpuDevice
                     | Self::GpuQueue
                     | Self::GpuSurface
+                    | Self::GpuSurfacePresentation
+                    | Self::GpuCommandBuffer
+                    | Self::GpuCommandEncoder
                     | Self::GpuCommandList
                     | Self::GpuComputePass
+                    | Self::GpuExternalTexture
                     | Self::GpuRenderPass
                     | Self::GpuRenderBundle
                     | Self::GpuRenderBundleEncoder

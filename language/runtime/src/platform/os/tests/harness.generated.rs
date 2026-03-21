@@ -5,7 +5,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::os::tests::HarnessContext;
+use crate::platform::os::tests::OsHarnessContext;
 use crate::platform::os::{
     BackgroundEvent, BackgroundEventMetadata, BackgroundEventMetadataVm,
     BackgroundEventOpenOptions, BackgroundEventOpenOptionsVm, BackgroundEventVm, BackgroundStatus,
@@ -68,7 +68,7 @@ use crate::platform::{
 };
 use destack_vm as vm;
 
-impl<'call> HarnessContext<'call> {
+impl<'call> OsHarnessContext<'call> {
     /// Return the generated VM context if available.
     #[allow(clippy::mut_from_ref)]
     fn generated_vm_context_mut(&self) -> Option<&mut vm::ExternalCallContext<'_>> {

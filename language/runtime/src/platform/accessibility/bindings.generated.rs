@@ -13,36 +13,101 @@ use crate::platform::accessibility::{
     AccessibilityAction, AccessibilityActionMetadata, AccessibilityActionMetadataVm,
     AccessibilityActionOpenOptions, AccessibilityActionOpenOptionsVm, AccessibilityActionValue,
     AccessibilityActionVm, AccessibilityActivateAction, AccessibilityActivateActionValue,
-    AccessibilityActivateActionVm, AccessibilityAutoComplete, AccessibilityCollapseAction,
-    AccessibilityCollapseActionValue, AccessibilityCollapseActionVm, AccessibilityCurrentKind,
+    AccessibilityActivateActionVm, AccessibilityAddToSelectionAction,
+    AccessibilityAddToSelectionActionValue, AccessibilityAddToSelectionActionVm,
+    AccessibilityAutoComplete, AccessibilityClearSelectionAction,
+    AccessibilityClearSelectionActionValue, AccessibilityClearSelectionActionVm,
+    AccessibilityCollapseAction, AccessibilityCollapseActionValue, AccessibilityCollapseActionVm,
+    AccessibilityCollectionInfo, AccessibilityCollectionInfoVm, AccessibilityCollectionItemInfo,
+    AccessibilityCollectionItemInfoVm, AccessibilityCurrentKind, AccessibilityCustomAction,
+    AccessibilityCustomActionInvocation, AccessibilityCustomActionInvocationValue,
+    AccessibilityCustomActionInvocationVm, AccessibilityCustomActionVm,
     AccessibilityDecrementAction, AccessibilityDecrementActionValue,
     AccessibilityDecrementActionVm, AccessibilityDismissAction, AccessibilityDismissActionValue,
-    AccessibilityDismissActionVm, AccessibilityExpandAction, AccessibilityExpandActionValue,
+    AccessibilityDismissActionVm, AccessibilityDocumentEmbeddedObjectsResponse,
+    AccessibilityDocumentEmbeddedObjectsResponseVm, AccessibilityDocumentOpenOptions,
+    AccessibilityDocumentOpenOptionsVm, AccessibilityDocumentQuery,
+    AccessibilityDocumentQueryMetadata, AccessibilityDocumentQueryMetadataVm,
+    AccessibilityDocumentQueryStatus, AccessibilityDocumentQueryValue,
+    AccessibilityDocumentQueryVm, AccessibilityDocumentRangeAtPointQuery,
+    AccessibilityDocumentRangeAtPointQueryValue, AccessibilityDocumentRangeAtPointQueryVm,
+    AccessibilityDocumentRangeBoundsResponse, AccessibilityDocumentRangeBoundsResponseVm,
+    AccessibilityDocumentRangeForChildQuery, AccessibilityDocumentRangeForChildQueryValue,
+    AccessibilityDocumentRangeForChildQueryVm, AccessibilityDocumentRangeForUnitQuery,
+    AccessibilityDocumentRangeForUnitQueryValue, AccessibilityDocumentRangeForUnitQueryVm,
+    AccessibilityDocumentRangeResponse, AccessibilityDocumentRangeResponseVm,
+    AccessibilityDocumentRangesResponse, AccessibilityDocumentRangesResponseVm,
+    AccessibilityDocumentReadEmbeddedObjectsQuery,
+    AccessibilityDocumentReadEmbeddedObjectsQueryValue,
+    AccessibilityDocumentReadEmbeddedObjectsQueryVm, AccessibilityDocumentReadRangeBoundsQuery,
+    AccessibilityDocumentReadRangeBoundsQueryValue, AccessibilityDocumentReadRangeBoundsQueryVm,
+    AccessibilityDocumentReadStyleRunsQuery, AccessibilityDocumentReadStyleRunsQueryValue,
+    AccessibilityDocumentReadStyleRunsQueryVm, AccessibilityDocumentReadTextQuery,
+    AccessibilityDocumentReadTextQueryValue, AccessibilityDocumentReadTextQueryVm,
+    AccessibilityDocumentReadUnitRangesQuery, AccessibilityDocumentReadUnitRangesQueryValue,
+    AccessibilityDocumentReadUnitRangesQueryVm, AccessibilityDocumentResponse,
+    AccessibilityDocumentResponseVm, AccessibilityDocumentStyleRunsResponse,
+    AccessibilityDocumentStyleRunsResponseVm, AccessibilityDocumentTextResponse,
+    AccessibilityDocumentTextResponseVm, AccessibilityEmbeddedObject,
+    AccessibilityEmbeddedObjectVm, AccessibilityExpandAction, AccessibilityExpandActionValue,
     AccessibilityExpandActionVm, AccessibilityFocusAction, AccessibilityFocusActionValue,
     AccessibilityFocusActionVm, AccessibilityHasPopup, AccessibilityIncrementAction,
     AccessibilityIncrementActionValue, AccessibilityIncrementActionVm, AccessibilityInvalidKind,
-    AccessibilityLiveRegionPoliteness, AccessibilityNode, AccessibilityNodeId,
-    AccessibilityNodeRelations, AccessibilityNodeRelationsVm, AccessibilityNodeVm,
-    AccessibilityOrientation, AccessibilityRangeValue, AccessibilityRangeValueVm,
-    AccessibilityRelevantFlags, AccessibilityRole, AccessibilityScrollIntoViewAction,
+    AccessibilityLiveRegionPoliteness, AccessibilityMoveTextSelectionAction,
+    AccessibilityMoveTextSelectionActionValue, AccessibilityMoveTextSelectionActionVm,
+    AccessibilityNode, AccessibilityNodeBounds, AccessibilityNodeBoundsVm, AccessibilityNodeId,
+    AccessibilityNodeRelations, AccessibilityNodeRelationsVm, AccessibilityNodeState,
+    AccessibilityNodeStateVm, AccessibilityNodeVm, AccessibilityNotification,
+    AccessibilityNotificationKind, AccessibilityNotificationVm, AccessibilityOrientation,
+    AccessibilityRangeValue, AccessibilityRangeValueVm, AccessibilityRelevantFlags,
+    AccessibilityRemoveFromSelectionAction, AccessibilityRemoveFromSelectionActionValue,
+    AccessibilityRemoveFromSelectionActionVm, AccessibilityReplaceSelectedTextAction,
+    AccessibilityReplaceSelectedTextActionValue, AccessibilityReplaceSelectedTextActionVm,
+    AccessibilityRole, AccessibilityScrollAction, AccessibilityScrollActionValue,
+    AccessibilityScrollActionVm, AccessibilityScrollDirection, AccessibilityScrollIntoViewAction,
     AccessibilityScrollIntoViewActionValue, AccessibilityScrollIntoViewActionVm,
-    AccessibilitySelectAction, AccessibilitySelectActionValue, AccessibilitySelectActionVm,
+    AccessibilityScrollState, AccessibilityScrollStateVm,
+    AccessibilityScrollTextRangeIntoViewAction, AccessibilityScrollTextRangeIntoViewActionValue,
+    AccessibilityScrollTextRangeIntoViewActionVm, AccessibilitySelectAction,
+    AccessibilitySelectActionValue, AccessibilitySelectActionVm,
     AccessibilitySetNumericValueAction, AccessibilitySetNumericValueActionValue,
     AccessibilitySetNumericValueActionVm, AccessibilitySetSelectedTextRangeAction,
     AccessibilitySetSelectedTextRangeActionValue, AccessibilitySetSelectedTextRangeActionVm,
-    AccessibilitySetTextValueAction, AccessibilitySetTextValueActionValue,
-    AccessibilitySetTextValueActionVm, AccessibilityShowContextMenuAction,
-    AccessibilityShowContextMenuActionValue, AccessibilityShowContextMenuActionVm,
-    AccessibilitySortDirection, AccessibilityTextSelection, AccessibilityTextSelectionVm,
-    AccessibilityTreeUpdate, AccessibilityTreeUpdateVm, AccessibilityTristate,
-    AccessibilityactionReplayRecord, AccessibilityactivateactionReplayRecord,
-    AccessibilitycollapseactionReplayRecord, AccessibilitydecrementactionReplayRecord,
-    AccessibilitydismissactionReplayRecord, AccessibilityexpandactionReplayRecord,
+    AccessibilitySetSelectedTextRangesAction, AccessibilitySetSelectedTextRangesActionValue,
+    AccessibilitySetSelectedTextRangesActionVm, AccessibilitySetTextValueAction,
+    AccessibilitySetTextValueActionValue, AccessibilitySetTextValueActionVm,
+    AccessibilityShowMenuAction, AccessibilityShowMenuActionValue, AccessibilityShowMenuActionVm,
+    AccessibilitySortDirection, AccessibilitySupportedTextSelection, AccessibilityTextDocument,
+    AccessibilityTextDocumentVm, AccessibilityTextRange, AccessibilityTextRangeVm,
+    AccessibilityTextRect, AccessibilityTextRectVm, AccessibilityTextSelection,
+    AccessibilityTextSelectionVm, AccessibilityTextState, AccessibilityTextStateVm,
+    AccessibilityTextStyleRun, AccessibilityTextStyleRunVm, AccessibilityTextUnit,
+    AccessibilityTextUnitFlags, AccessibilityToggleAction, AccessibilityToggleActionValue,
+    AccessibilityToggleActionVm, AccessibilityTreeUpdate, AccessibilityTreeUpdateVm,
+    AccessibilityTristate, AccessibilityactionReplayRecord,
+    AccessibilityactivateactionReplayRecord, AccessibilityaddtoselectionactionReplayRecord,
+    AccessibilityclearselectionactionReplayRecord, AccessibilitycollapseactionReplayRecord,
+    AccessibilitycustomactioninvocationReplayRecord, AccessibilitydecrementactionReplayRecord,
+    AccessibilitydismissactionReplayRecord, AccessibilitydocumentqueryReplayRecord,
+    AccessibilitydocumentrangeatpointqueryReplayRecord,
+    AccessibilitydocumentrangeforchildqueryReplayRecord,
+    AccessibilitydocumentrangeforunitqueryReplayRecord,
+    AccessibilitydocumentreadembeddedobjectsqueryReplayRecord,
+    AccessibilitydocumentreadrangeboundsqueryReplayRecord,
+    AccessibilitydocumentreadstylerunsqueryReplayRecord,
+    AccessibilitydocumentreadtextqueryReplayRecord,
+    AccessibilitydocumentreadunitrangesqueryReplayRecord, AccessibilityexpandactionReplayRecord,
     AccessibilityfocusactionReplayRecord, AccessibilityincrementactionReplayRecord,
-    AccessibilityscrollintoviewactionReplayRecord, AccessibilityselectactionReplayRecord,
+    AccessibilitymovetextselectionactionReplayRecord,
+    AccessibilityremovefromselectionactionReplayRecord,
+    AccessibilityreplaceselectedtextactionReplayRecord, AccessibilityscrollactionReplayRecord,
+    AccessibilityscrollintoviewactionReplayRecord,
+    AccessibilityscrolltextrangeintoviewactionReplayRecord, AccessibilityselectactionReplayRecord,
     AccessibilitysetnumericvalueactionReplayRecord,
     AccessibilitysetselectedtextrangeactionReplayRecord,
-    AccessibilitysettextvalueactionReplayRecord, AccessibilityshowcontextmenuactionReplayRecord,
+    AccessibilitysetselectedtextrangesactionReplayRecord,
+    AccessibilitysettextvalueactionReplayRecord, AccessibilityshowmenuactionReplayRecord,
+    AccessibilitytoggleactionReplayRecord,
 };
 use crate::platform::{
     PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice, abi as platform_abi,
@@ -64,8 +129,7 @@ use crate::platform::accessibility::simulation::{
 };
 use crate::platform::accessibility::{native as platform_native, vm as platform_vm};
 use crate::platform::{
-    accessibility as platform_accessibility, display as platform_display, display,
-    resource as platform_resource, resource,
+    accessibility as platform_accessibility, resource as platform_resource, resource,
 };
 
 /// Read a positional argument value.
@@ -81,6 +145,38 @@ fn arg_value(
     })?;
 
     Ok(value)
+}
+
+/// Decode a boolean argument.
+#[allow(dead_code)]
+fn decode_bool(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<bool> {
+    value.as_bool().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })
+}
+
+/// Decode a signed integer argument with an explicit width.
+#[allow(dead_code)]
+fn decode_int(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+    bits: u8,
+) -> RuntimeResult<i64> {
+    let (raw, width) = value.as_int_with_width().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })?;
+    if width != bits {
+        return Err(
+            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
+        );
+    }
+
+    Ok(raw)
 }
 
 /// Decode an unsigned integer argument with an explicit width.
@@ -101,6 +197,16 @@ fn decode_uint(
     }
 
     Ok(raw)
+}
+
+/// Decode an i32 argument.
+#[allow(dead_code)]
+fn decode_int32(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<i32> {
+    Ok(decode_int(value, name, expected, 32)? as i32)
 }
 
 /// Decode a u8 argument.
@@ -294,8 +400,70 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityActionVm::AccessibilityAddToSelectionAction(value) => {
+                let tag_value = vm::Value::uint(1903946355u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityActionVm::AccessibilityClearSelectionAction(value) => {
+                let tag_value = vm::Value::uint(496612936u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
@@ -319,12 +487,46 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityActionVm::AccessibilityCustomActionInvocation(value) => {
+                let tag_value = vm::Value::uint(3631164633u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.action_id.value());
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -344,8 +546,12 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
@@ -369,8 +575,12 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
@@ -394,8 +604,12 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
@@ -419,8 +633,12 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
@@ -444,12 +662,140 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityActionVm::AccessibilityMoveTextSelectionAction(value) => {
+                let tag_value = vm::Value::uint(727684083u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.unit as i32 as i64, 32));
+                    let field_3: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.count as i64, 32));
+                    let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.extend));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityActionVm::AccessibilityRemoveFromSelectionAction(value) => {
+                let tag_value = vm::Value::uint(3010974441u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityActionVm::AccessibilityReplaceSelectedTextAction(value) => {
+                let tag_value = vm::Value::uint(2533321292u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.text.value());
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityActionVm::AccessibilityScrollAction(value) => {
+                let tag_value = vm::Value::uint(1817520472u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.direction as i32 as i64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -469,12 +815,56 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityActionVm::AccessibilityScrollTextRangeIntoViewAction(value) => {
+                let tag_value = vm::Value::uint(129083950u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.start_offset as u64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.end_offset as u64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_3: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::bool(value.align_to_start));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -494,8 +884,12 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
@@ -519,8 +913,12 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.value));
@@ -545,8 +943,12 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
@@ -555,6 +957,36 @@ fn encode_destack_accessibility_action_read_result(
                         Ok(vm::Value::uint(value.focus_offset as u64, 32));
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityActionVm::AccessibilitySetSelectedTextRangesAction(value) => {
+                let tag_value = vm::Value::uint(1445324535u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = value.selections.to_value(context);
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -574,8 +1006,12 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(value.value.value());
@@ -587,8 +1023,8 @@ fn encode_destack_accessibility_action_read_result(
                     .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
             }
-            AccessibilityActionVm::AccessibilityShowContextMenuAction(value) => {
-                let tag_value = vm::Value::uint(2866784432u64, 32);
+            AccessibilityActionVm::AccessibilityShowMenuAction(value) => {
+                let tag_value = vm::Value::uint(3837586638u64, 32);
                 let payload_value = {
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = {
@@ -600,8 +1036,41 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityActionVm::AccessibilityToggleAction(value) => {
+                let tag_value = vm::Value::uint(3853401430u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
@@ -654,8 +1123,70 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityActionVm::AccessibilityAddToSelectionAction(value) => {
+                let tag_value = vm::Value::uint(1903946355u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityActionVm::AccessibilityClearSelectionAction(value) => {
+                let tag_value = vm::Value::uint(496612936u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
@@ -679,12 +1210,46 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityActionVm::AccessibilityCustomActionInvocation(value) => {
+                let tag_value = vm::Value::uint(3631164633u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.action_id.value());
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -704,8 +1269,12 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
@@ -729,8 +1298,12 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
@@ -754,8 +1327,12 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
@@ -779,8 +1356,12 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
@@ -804,12 +1385,140 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityActionVm::AccessibilityMoveTextSelectionAction(value) => {
+                let tag_value = vm::Value::uint(727684083u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.unit as i32 as i64, 32));
+                    let field_3: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.count as i64, 32));
+                    let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.extend));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityActionVm::AccessibilityRemoveFromSelectionAction(value) => {
+                let tag_value = vm::Value::uint(3010974441u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityActionVm::AccessibilityReplaceSelectedTextAction(value) => {
+                let tag_value = vm::Value::uint(2533321292u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = Ok(value.text.value());
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityActionVm::AccessibilityScrollAction(value) => {
+                let tag_value = vm::Value::uint(1817520472u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.direction as i32 as i64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -829,12 +1538,56 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityActionVm::AccessibilityScrollTextRangeIntoViewAction(value) => {
+                let tag_value = vm::Value::uint(129083950u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.start_offset as u64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.end_offset as u64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_3: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::bool(value.align_to_start));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -854,8 +1607,12 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
@@ -879,8 +1636,12 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.value));
@@ -905,8 +1666,12 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
@@ -915,6 +1680,36 @@ fn encode_destack_accessibility_action_try_read_result(
                         Ok(vm::Value::uint(value.focus_offset as u64, 32));
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityActionVm::AccessibilitySetSelectedTextRangesAction(value) => {
+                let tag_value = vm::Value::uint(1445324535u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = value.selections.to_value(context);
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -934,8 +1729,12 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(value.value.value());
@@ -947,8 +1746,8 @@ fn encode_destack_accessibility_action_try_read_result(
                     .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
             }
-            AccessibilityActionVm::AccessibilityShowContextMenuAction(value) => {
-                let tag_value = vm::Value::uint(2866784432u64, 32);
+            AccessibilityActionVm::AccessibilityShowMenuAction(value) => {
+                let tag_value = vm::Value::uint(3837586638u64, 32);
                 let payload_value = {
                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = {
@@ -960,8 +1759,41 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityActionVm::AccessibilityToggleAction(value) => {
+                let tag_value = vm::Value::uint(3853401430u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
@@ -974,6 +1806,1168 @@ fn encode_destack_accessibility_action_try_read_result(
             }
         })
         .and_then(|value| value)
+}
+
+/// Decode arguments for destack.accessibility.document.clear.
+#[inline]
+fn decode_destack_accessibility_document_clear_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::WindowHandle, AccessibilityNodeId)> {
+    let window_value = arg_value(args, 0, "window", "WindowHandle")?;
+    let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
+    let window_inner = resource::ResourceId(window_inner_inner);
+    let window = resource::WindowHandle(window_inner);
+    let nodeid_value = arg_value(args, 1, "nodeid", "AccessibilityNodeId")?;
+    let nodeid_inner = decode_uint64(nodeid_value, "nodeid_inner", "AccessibilityNodeId")?;
+    let nodeid = AccessibilityNodeId(nodeid_inner);
+    Ok((window, nodeid))
+}
+
+/// Encode the result for destack.accessibility.document.clear.
+#[inline]
+fn encode_destack_accessibility_document_clear_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.accessibility.document.close.
+#[inline]
+fn decode_destack_accessibility_document_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::AccessibilityDocumentHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "AccessibilityDocumentHandle")?;
+    let handle_inner_inner = decode_uint64(
+        handle_value,
+        "handle_inner_inner",
+        "AccessibilityDocumentHandle",
+    )?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AccessibilityDocumentHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.accessibility.document.close.
+#[inline]
+fn encode_destack_accessibility_document_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.accessibility.document.open.
+#[inline]
+fn decode_destack_accessibility_document_open_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::WindowHandle, AccessibilityDocumentOpenOptionsVm)> {
+    let window_value = arg_value(args, 0, "window", "WindowHandle")?;
+    let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
+    let window_inner = resource::ResourceId(window_inner_inner);
+    let window = resource::WindowHandle(window_inner);
+    let options_value = arg_value(args, 1, "options", "AccessibilityDocumentOpenOptions")?;
+    let options = {
+        if options_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "options",
+                "AccessibilityDocumentOpenOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(options_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "options",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let options_queue_capacity =
+            decode_uint32(slots[0], "options_queue_capacity", "queueCapacity")?;
+        AccessibilityDocumentOpenOptionsVm {
+            queue_capacity: options_queue_capacity,
+        }
+    };
+    Ok((window, options))
+}
+
+/// Encode the result for destack.accessibility.document.open.
+#[inline]
+fn encode_destack_accessibility_document_open_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::AccessibilityDocumentHandle>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.accessibility.document.read.
+#[inline]
+fn decode_destack_accessibility_document_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::AccessibilityDocumentHandle, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "AccessibilityDocumentHandle")?;
+    let handle_inner_inner = decode_uint64(
+        handle_value,
+        "handle_inner_inner",
+        "AccessibilityDocumentHandle",
+    )?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AccessibilityDocumentHandle(handle_inner);
+    let timeoutns_value = arg_value(args, 1, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, timeoutns))
+}
+
+/// Encode the result for destack.accessibility.document.read.
+#[inline]
+fn encode_destack_accessibility_document_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<AccessibilityDocumentQueryVm>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| match value {
+            AccessibilityDocumentQueryVm::AccessibilityDocumentRangeAtPointQuery(value) => {
+                let tag_value = vm::Value::uint(1763166206u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.request_id, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            match value.metadata.document_revision {
+                                Some(value) => Ok(vm::Value::uint(value, 64)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_6: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.x));
+                    let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.y));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityDocumentQueryVm::AccessibilityDocumentRangeForChildQuery(value) => {
+                let tag_value = vm::Value::uint(150143220u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.request_id, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            match value.metadata.document_revision {
+                                Some(value) => Ok(vm::Value::uint(value, 64)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_6: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.child_node_id.0, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityDocumentQueryVm::AccessibilityDocumentRangeForUnitQuery(value) => {
+                let tag_value = vm::Value::uint(1379004282u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.request_id, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            match value.metadata.document_revision {
+                                Some(value) => Ok(vm::Value::uint(value, 64)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_6: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.unit as i32 as i64, 32));
+                    let field_3: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.offset as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityDocumentQueryVm::AccessibilityDocumentReadEmbeddedObjectsQuery(value) => {
+                let tag_value = vm::Value::uint(657266885u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.request_id, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            match value.metadata.document_revision {
+                                Some(value) => Ok(vm::Value::uint(value, 64)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_6: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.start_offset as u64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.end_offset as u64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityDocumentQueryVm::AccessibilityDocumentReadRangeBoundsQuery(value) => {
+                let tag_value = vm::Value::uint(2184449520u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.request_id, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            match value.metadata.document_revision {
+                                Some(value) => Ok(vm::Value::uint(value, 64)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_6: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.start_offset as u64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.end_offset as u64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityDocumentQueryVm::AccessibilityDocumentReadStyleRunsQuery(value) => {
+                let tag_value = vm::Value::uint(4215888034u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.request_id, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            match value.metadata.document_revision {
+                                Some(value) => Ok(vm::Value::uint(value, 64)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_6: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.start_offset as u64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.end_offset as u64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityDocumentQueryVm::AccessibilityDocumentReadTextQuery(value) => {
+                let tag_value = vm::Value::uint(299345949u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.request_id, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            match value.metadata.document_revision {
+                                Some(value) => Ok(vm::Value::uint(value, 64)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_6: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.start_offset as u64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.end_offset as u64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityDocumentQueryVm::AccessibilityDocumentReadUnitRangesQuery(value) => {
+                let tag_value = vm::Value::uint(477874338u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.request_id, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            match value.metadata.document_revision {
+                                Some(value) => Ok(vm::Value::uint(value, 64)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_6: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.unit as i32 as i64, 32));
+                    let field_3: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.start_offset as u64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.end_offset as u64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+        })
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.accessibility.document.respond.
+#[inline]
+fn decode_destack_accessibility_document_respond_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::AccessibilityDocumentHandle,
+    AccessibilityDocumentResponseVm,
+)> {
+    let handle_value = arg_value(args, 0, "handle", "AccessibilityDocumentHandle")?;
+    let handle_inner_inner = decode_uint64(
+        handle_value,
+        "handle_inner_inner",
+        "AccessibilityDocumentHandle",
+    )?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AccessibilityDocumentHandle(handle_inner);
+    let response_value = arg_value(args, 1, "response", "AccessibilityDocumentResponse")?;
+    let response = <AccessibilityDocumentResponseVm as VmAggregateCodec>::decode_with_context(
+        context,
+        response_value,
+    )?;
+    Ok((handle, response))
+}
+
+/// Encode the result for destack.accessibility.document.respond.
+#[inline]
+fn encode_destack_accessibility_document_respond_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.accessibility.document.set.
+#[inline]
+fn decode_destack_accessibility_document_set_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::WindowHandle,
+    AccessibilityNodeId,
+    AccessibilityTextDocumentVm,
+)> {
+    let window_value = arg_value(args, 0, "window", "WindowHandle")?;
+    let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
+    let window_inner = resource::ResourceId(window_inner_inner);
+    let window = resource::WindowHandle(window_inner);
+    let nodeid_value = arg_value(args, 1, "nodeid", "AccessibilityNodeId")?;
+    let nodeid_inner = decode_uint64(nodeid_value, "nodeid_inner", "AccessibilityNodeId")?;
+    let nodeid = AccessibilityNodeId(nodeid_inner);
+    let document_value = arg_value(args, 2, "document", "AccessibilityTextDocument")?;
+    let document = {
+        if document_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "document",
+                "AccessibilityTextDocument",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(document_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 6 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "document",
+                "expected 6 fields",
+            ))
+            .boxed());
+        }
+        let document_revision = decode_uint64(slots[0], "document_revision", "revision")?;
+        let document_document_range = {
+            if slots[1].tag() != vm::ValueTag::Aggregate {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                    "document_document_range",
+                    "documentRange",
+                ))
+                .boxed());
+            }
+            let slots = context
+                .aggregate_slots(slots[1])
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            if slots.len() != 2 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "document_document_range",
+                    "expected 2 fields",
+                ))
+                .boxed());
+            }
+            let document_document_range_start_offset = decode_uint32(
+                slots[0],
+                "document_document_range_start_offset",
+                "startOffset",
+            )?;
+            let document_document_range_end_offset =
+                decode_uint32(slots[1], "document_document_range_end_offset", "endOffset")?;
+            AccessibilityTextRangeVm {
+                start_offset: document_document_range_start_offset,
+                end_offset: document_document_range_end_offset,
+            }
+        };
+        let document_supported_selection_raw = decode_int32(
+            slots[2],
+            "document_supported_selection_raw",
+            "supportedSelection",
+        )?;
+        let document_supported_selection = match document_supported_selection_raw {
+            1i32 => AccessibilitySupportedTextSelection::None,
+            2i32 => AccessibilitySupportedTextSelection::Single,
+            3i32 => AccessibilitySupportedTextSelection::Multiple,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "document_supported_selection",
+                    "unknown AccessibilitySupportedTextSelection value",
+                ))
+                .boxed());
+            }
+        };
+        let document_supported_units_inner =
+            decode_uint32(slots[3], "document_supported_units_inner", "supportedUnits")?;
+        let document_supported_units = AccessibilityTextUnitFlags(document_supported_units_inner);
+        let document_selections = decode_slice::<AccessibilityTextSelectionVm>(
+            context,
+            slots[4],
+            "document_selections",
+            "selections",
+        )?;
+        let document_visible_ranges = decode_slice::<AccessibilityTextRangeVm>(
+            context,
+            slots[5],
+            "document_visible_ranges",
+            "visibleRanges",
+        )?;
+        AccessibilityTextDocumentVm {
+            revision: document_revision,
+            document_range: document_document_range,
+            supported_selection: document_supported_selection,
+            supported_units: document_supported_units,
+            selections: document_selections,
+            visible_ranges: document_visible_ranges,
+        }
+    };
+    Ok((window, nodeid, document))
+}
+
+/// Encode the result for destack.accessibility.document.set.
+#[inline]
+fn encode_destack_accessibility_document_set_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.accessibility.document.tryRead.
+#[inline]
+fn decode_destack_accessibility_document_try_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::AccessibilityDocumentHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "AccessibilityDocumentHandle")?;
+    let handle_inner_inner = decode_uint64(
+        handle_value,
+        "handle_inner_inner",
+        "AccessibilityDocumentHandle",
+    )?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AccessibilityDocumentHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.accessibility.document.tryRead.
+#[inline]
+fn encode_destack_accessibility_document_try_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<AccessibilityDocumentQueryVm>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| match value {
+            AccessibilityDocumentQueryVm::AccessibilityDocumentRangeAtPointQuery(value) => {
+                let tag_value = vm::Value::uint(1763166206u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.request_id, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            match value.metadata.document_revision {
+                                Some(value) => Ok(vm::Value::uint(value, 64)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_6: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.x));
+                    let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.y));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityDocumentQueryVm::AccessibilityDocumentRangeForChildQuery(value) => {
+                let tag_value = vm::Value::uint(150143220u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.request_id, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            match value.metadata.document_revision {
+                                Some(value) => Ok(vm::Value::uint(value, 64)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_6: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.child_node_id.0, 64));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityDocumentQueryVm::AccessibilityDocumentRangeForUnitQuery(value) => {
+                let tag_value = vm::Value::uint(1379004282u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.request_id, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            match value.metadata.document_revision {
+                                Some(value) => Ok(vm::Value::uint(value, 64)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_6: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.unit as i32 as i64, 32));
+                    let field_3: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.offset as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityDocumentQueryVm::AccessibilityDocumentReadEmbeddedObjectsQuery(value) => {
+                let tag_value = vm::Value::uint(657266885u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.request_id, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            match value.metadata.document_revision {
+                                Some(value) => Ok(vm::Value::uint(value, 64)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_6: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.start_offset as u64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.end_offset as u64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityDocumentQueryVm::AccessibilityDocumentReadRangeBoundsQuery(value) => {
+                let tag_value = vm::Value::uint(2184449520u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.request_id, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            match value.metadata.document_revision {
+                                Some(value) => Ok(vm::Value::uint(value, 64)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_6: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.start_offset as u64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.end_offset as u64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityDocumentQueryVm::AccessibilityDocumentReadStyleRunsQuery(value) => {
+                let tag_value = vm::Value::uint(4215888034u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.request_id, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            match value.metadata.document_revision {
+                                Some(value) => Ok(vm::Value::uint(value, 64)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_6: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.start_offset as u64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.end_offset as u64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityDocumentQueryVm::AccessibilityDocumentReadTextQuery(value) => {
+                let tag_value = vm::Value::uint(299345949u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.request_id, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            match value.metadata.document_revision {
+                                Some(value) => Ok(vm::Value::uint(value, 64)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_6: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.start_offset as u64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.end_offset as u64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            AccessibilityDocumentQueryVm::AccessibilityDocumentReadUnitRangesQuery(value) => {
+                let tag_value = vm::Value::uint(477874338u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.request_id, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.node_id.0, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            match value.metadata.document_revision {
+                                Some(value) => Ok(vm::Value::uint(value, 64)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_6: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.unit as i32 as i64, 32));
+                    let field_3: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.start_offset as u64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.range.end_offset as u64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+        })
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.accessibility.notification.post.
+#[inline]
+fn decode_destack_accessibility_notification_post_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::WindowHandle, AccessibilityNotificationVm)> {
+    let window_value = arg_value(args, 0, "window", "WindowHandle")?;
+    let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
+    let window_inner = resource::ResourceId(window_inner_inner);
+    let window = resource::WindowHandle(window_inner);
+    let notification_value = arg_value(args, 1, "notification", "AccessibilityNotification")?;
+    let notification = {
+        if notification_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "notification",
+                "AccessibilityNotification",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(notification_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "notification",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let notification_kind_raw = decode_int32(slots[0], "notification_kind_raw", "kind")?;
+        let notification_kind = match notification_kind_raw {
+            1i32 => AccessibilityNotificationKind::Announcement,
+            2i32 => AccessibilityNotificationKind::FocusChanged,
+            3i32 => AccessibilityNotificationKind::LiveRegionChanged,
+            4i32 => AccessibilityNotificationKind::ScreenChanged,
+            5i32 => AccessibilityNotificationKind::LayoutChanged,
+            6i32 => AccessibilityNotificationKind::ChildrenChanged,
+            7i32 => AccessibilityNotificationKind::ValueChanged,
+            8i32 => AccessibilityNotificationKind::TextChanged,
+            9i32 => AccessibilityNotificationKind::SelectionChanged,
+            10i32 => AccessibilityNotificationKind::TextSelectionChanged,
+            11i32 => AccessibilityNotificationKind::TitleChanged,
+            12i32 => AccessibilityNotificationKind::SelectedChildrenChanged,
+            13i32 => AccessibilityNotificationKind::SelectedRowsChanged,
+            14i32 => AccessibilityNotificationKind::SelectedColumnsChanged,
+            15i32 => AccessibilityNotificationKind::RowCountChanged,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "notification_kind",
+                    "unknown AccessibilityNotificationKind value",
+                ))
+                .boxed());
+            }
+        };
+        let notification_node_id = if slots[1].tag() == vm::ValueTag::Void {
+            None
+        } else {
+            let notification_node_id_inner_inner =
+                decode_uint64(slots[1], "notification_node_id_inner_inner", "nodeId")?;
+            let notification_node_id_inner = AccessibilityNodeId(notification_node_id_inner_inner);
+            Some(notification_node_id_inner)
+        };
+        let notification_text = if slots[2].tag() == vm::ValueTag::Void {
+            None
+        } else {
+            let notification_text_inner =
+                decode_string(slots[2], "notification_text_inner", "text")?;
+            Some(notification_text_inner)
+        };
+        let notification_politeness = if slots[3].tag() == vm::ValueTag::Void {
+            None
+        } else {
+            let notification_politeness_inner_raw =
+                decode_int32(slots[3], "notification_politeness_inner_raw", "politeness")?;
+            let notification_politeness_inner = match notification_politeness_inner_raw {
+                1i32 => AccessibilityLiveRegionPoliteness::Off,
+                2i32 => AccessibilityLiveRegionPoliteness::Polite,
+                3i32 => AccessibilityLiveRegionPoliteness::Assertive,
+                _ => {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "notification_politeness_inner",
+                        "unknown AccessibilityLiveRegionPoliteness value",
+                    ))
+                    .boxed());
+                }
+            };
+            Some(notification_politeness_inner)
+        };
+        let notification_text_range = if slots[4].tag() == vm::ValueTag::Void {
+            None
+        } else {
+            let notification_text_range_inner = {
+                if slots[4].tag() != vm::ValueTag::Aggregate {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                        "notification_text_range_inner",
+                        "textRange",
+                    ))
+                    .boxed());
+                }
+                let slots = context
+                    .aggregate_slots(slots[4])
+                    .map_err(|error| RuntimeError::from(error).boxed())?;
+                if slots.len() != 2 {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "notification_text_range_inner",
+                        "expected 2 fields",
+                    ))
+                    .boxed());
+                }
+                let notification_text_range_inner_start_offset = decode_uint32(
+                    slots[0],
+                    "notification_text_range_inner_start_offset",
+                    "startOffset",
+                )?;
+                let notification_text_range_inner_end_offset = decode_uint32(
+                    slots[1],
+                    "notification_text_range_inner_end_offset",
+                    "endOffset",
+                )?;
+                AccessibilityTextRangeVm {
+                    start_offset: notification_text_range_inner_start_offset,
+                    end_offset: notification_text_range_inner_end_offset,
+                }
+            };
+            Some(notification_text_range_inner)
+        };
+        AccessibilityNotificationVm {
+            kind: notification_kind,
+            node_id: notification_node_id,
+            text: notification_text,
+            politeness: notification_politeness,
+            text_range: notification_text_range,
+        }
+    };
+    Ok((window, notification))
+}
+
+/// Encode the result for destack.accessibility.notification.post.
+#[inline]
+fn encode_destack_accessibility_notification_post_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.accessibility.tree.apply.
@@ -1074,6 +3068,37 @@ fn encode_destack_accessibility_tree_clear_result(
     result.map(|_| vm::Value::VOID)
 }
 
+/// Decode arguments for destack.accessibility.tree.hitTest.
+#[inline]
+fn decode_destack_accessibility_tree_hit_test_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::WindowHandle, f64, f64)> {
+    let window_value = arg_value(args, 0, "window", "WindowHandle")?;
+    let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
+    let window_inner = resource::ResourceId(window_inner_inner);
+    let window = resource::WindowHandle(window_inner);
+    let x_value = arg_value(args, 1, "x", "float64")?;
+    let x = decode_float64(x_value, "x", "float64")?;
+    let y_value = arg_value(args, 2, "y", "float64")?;
+    let y = decode_float64(y_value, "y", "float64")?;
+    Ok((window, x, y))
+}
+
+/// Encode the result for destack.accessibility.tree.hitTest.
+#[inline]
+fn encode_destack_accessibility_tree_hit_test_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<Option<AccessibilityNodeId>>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| match value {
+            Some(value) => Ok(vm::Value::uint(value.0, 64)),
+            None => Ok(vm::Value::VOID),
+        })
+        .and_then(|value| value)
+}
+
 /// Replay payload for destack.accessibility.action.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AccessibilityActionCloseReplayRecord {
@@ -1102,6 +3127,62 @@ struct AccessibilityActionTryReadReplayRecord {
     pub result: Result<AccessibilityactionReplayRecord, TraceError>,
 }
 
+/// Replay payload for destack.accessibility.document.clear.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AccessibilityDocumentClearReplayRecord {
+    /// Replay result payload.
+    pub result: Result<(), TraceError>,
+}
+
+/// Replay payload for destack.accessibility.document.close.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AccessibilityDocumentCloseReplayRecord {
+    /// Replay result payload.
+    pub result: Result<(), TraceError>,
+}
+
+/// Replay payload for destack.accessibility.document.open.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AccessibilityDocumentOpenReplayRecord {
+    /// Replay result payload.
+    pub result: Result<resource::AccessibilityDocumentHandle, TraceError>,
+}
+
+/// Replay payload for destack.accessibility.document.read.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AccessibilityDocumentReadReplayRecord {
+    /// Replay result payload.
+    pub result: Result<AccessibilitydocumentqueryReplayRecord, TraceError>,
+}
+
+/// Replay payload for destack.accessibility.document.respond.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AccessibilityDocumentRespondReplayRecord {
+    /// Replay result payload.
+    pub result: Result<(), TraceError>,
+}
+
+/// Replay payload for destack.accessibility.document.set.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AccessibilityDocumentSetReplayRecord {
+    /// Replay result payload.
+    pub result: Result<(), TraceError>,
+}
+
+/// Replay payload for destack.accessibility.document.tryRead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AccessibilityDocumentTryReadReplayRecord {
+    /// Replay result payload.
+    pub result: Result<AccessibilitydocumentqueryReplayRecord, TraceError>,
+}
+
+/// Replay payload for destack.accessibility.notification.post.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AccessibilityNotificationPostReplayRecord {
+    /// Replay result payload.
+    pub result: Result<(), TraceError>,
+}
+
 /// Replay payload for destack.accessibility.tree.apply.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AccessibilityTreeApplyReplayRecord {
@@ -1114,6 +3195,13 @@ struct AccessibilityTreeApplyReplayRecord {
 struct AccessibilityTreeClearReplayRecord {
     /// Replay result payload.
     pub result: Result<(), TraceError>,
+}
+
+/// Replay payload for destack.accessibility.tree.hitTest.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AccessibilityTreeHitTestReplayRecord {
+    /// Replay result payload.
+    pub result: Result<Option<AccessibilityNodeId>, TraceError>,
 }
 
 /// Binding descriptor for destack.accessibility.action.close.
@@ -1172,6 +3260,118 @@ pub(crate) const ACCESSIBILITY_ACTION_TRY_READ: BindingDescriptor = BindingDescr
     .with_namespace("accessibility")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
+/// Binding descriptor for destack.accessibility.document.clear.
+pub(crate) const ACCESSIBILITY_DOCUMENT_CLEAR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.accessibility.document.clear",
+    "export function documentClear(window: WindowHandle, nodeId: AccessibilityNodeId): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["accessibility.publish"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("accessibility")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.accessibility.document.close.
+pub(crate) const ACCESSIBILITY_DOCUMENT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.accessibility.document.close",
+    "export function documentClose(handle: AccessibilityDocumentHandle): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["accessibility.publish"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("accessibility")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.accessibility.document.open.
+pub(crate) const ACCESSIBILITY_DOCUMENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.accessibility.document.open",
+    "export function documentOpen(window: WindowHandle, options: AccessibilityDocumentOpenOptions): Result<AccessibilityDocumentHandle, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["accessibility.publish"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("accessibility")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.accessibility.document.read.
+pub(crate) const ACCESSIBILITY_DOCUMENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.accessibility.document.read",
+    "export function documentRead(handle: AccessibilityDocumentHandle, timeoutNs: uint64): Result<AccessibilityDocumentQuery, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["accessibility.publish"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("accessibility")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.accessibility.document.respond.
+pub(crate) const ACCESSIBILITY_DOCUMENT_RESPOND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.accessibility.document.respond",
+    "export function documentRespond(handle: AccessibilityDocumentHandle, response: AccessibilityDocumentResponse): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["accessibility.publish"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("accessibility")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.accessibility.document.set.
+pub(crate) const ACCESSIBILITY_DOCUMENT_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.accessibility.document.set",
+    "export function documentSet(window: WindowHandle, nodeId: AccessibilityNodeId, document: AccessibilityTextDocument): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["accessibility.publish"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("accessibility")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.accessibility.document.tryRead.
+pub(crate) const ACCESSIBILITY_DOCUMENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.accessibility.document.tryRead",
+    "export function documentTryRead(handle: AccessibilityDocumentHandle): Result<AccessibilityDocumentQuery, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["accessibility.publish"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+    BindingAffinity::Any,
+)
+    .with_namespace("accessibility")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.accessibility.notification.post.
+pub(crate) const ACCESSIBILITY_NOTIFICATION_POST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.accessibility.notification.post",
+    "export function notificationPost(window: WindowHandle, notification: AccessibilityNotification): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["accessibility.notify"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("accessibility")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.accessibility.tree.apply.
 pub(crate) const ACCESSIBILITY_TREE_APPLY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.accessibility.tree.apply",
@@ -1214,6 +3414,20 @@ pub(crate) const ACCESSIBILITY_TREE_CLEAR: BindingDescriptor =
         "windows",
     ]);
 
+/// Binding descriptor for destack.accessibility.tree.hitTest.
+pub(crate) const ACCESSIBILITY_TREE_HIT_TEST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.accessibility.tree.hitTest",
+    "export function treeHitTest(window: WindowHandle, x: float64, y: float64): Result<AccessibilityNodeId | void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["accessibility.publish"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("accessibility")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Native binding set for accessibility.
 pub(crate) const ACCESSIBILITY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "accessibility",
@@ -1239,6 +3453,46 @@ pub(crate) const ACCESSIBILITY_NATIVE_BINDINGS: NativeBindingSet = NativeBinding
             destack_accessibility_action_try_read as *const (),
         ),
         NativeBinding::new(
+            ACCESSIBILITY_DOCUMENT_CLEAR,
+            "destack.accessibility.document.clear",
+            destack_accessibility_document_clear as *const (),
+        ),
+        NativeBinding::new(
+            ACCESSIBILITY_DOCUMENT_CLOSE,
+            "destack.accessibility.document.close",
+            destack_accessibility_document_close as *const (),
+        ),
+        NativeBinding::new(
+            ACCESSIBILITY_DOCUMENT_OPEN,
+            "destack.accessibility.document.open",
+            destack_accessibility_document_open as *const (),
+        ),
+        NativeBinding::new(
+            ACCESSIBILITY_DOCUMENT_READ,
+            "destack.accessibility.document.read",
+            destack_accessibility_document_read as *const (),
+        ),
+        NativeBinding::new(
+            ACCESSIBILITY_DOCUMENT_RESPOND,
+            "destack.accessibility.document.respond",
+            destack_accessibility_document_respond as *const (),
+        ),
+        NativeBinding::new(
+            ACCESSIBILITY_DOCUMENT_SET,
+            "destack.accessibility.document.set",
+            destack_accessibility_document_set as *const (),
+        ),
+        NativeBinding::new(
+            ACCESSIBILITY_DOCUMENT_TRY_READ,
+            "destack.accessibility.document.tryRead",
+            destack_accessibility_document_try_read as *const (),
+        ),
+        NativeBinding::new(
+            ACCESSIBILITY_NOTIFICATION_POST,
+            "destack.accessibility.notification.post",
+            destack_accessibility_notification_post as *const (),
+        ),
+        NativeBinding::new(
             ACCESSIBILITY_TREE_APPLY,
             "destack.accessibility.tree.apply",
             destack_accessibility_tree_apply as *const (),
@@ -1247,6 +3501,11 @@ pub(crate) const ACCESSIBILITY_NATIVE_BINDINGS: NativeBindingSet = NativeBinding
             ACCESSIBILITY_TREE_CLEAR,
             "destack.accessibility.tree.clear",
             destack_accessibility_tree_clear as *const (),
+        ),
+        NativeBinding::new(
+            ACCESSIBILITY_TREE_HIT_TEST,
+            "destack.accessibility.tree.hitTest",
+            destack_accessibility_tree_hit_test as *const (),
         ),
     ],
 };
@@ -1383,11 +3642,13 @@ fn destack_accessibility_action_read_replay(
                         let result_recorded_accessibility_activate_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_activate_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_activate_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_activate_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_activate_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_activate_action_metadata_window,
                             node_id: result_recorded_accessibility_activate_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_activate_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_activate_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_activate_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_activate_action = AccessibilityactivateactionReplayRecord {
                             kind: result_recorded_accessibility_activate_action_kind,
@@ -1395,17 +3656,59 @@ fn destack_accessibility_action_read_replay(
                         };
                         AccessibilityactionReplayRecord::AccessibilityActivateAction(result_recorded_accessibility_activate_action)
                     }
+                    AccessibilityAction::AccessibilityAddToSelectionAction(value) => {
+                        let result_recorded_accessibility_add_to_selection_action_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_add_to_selection_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_add_to_selection_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_add_to_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_add_to_selection_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_add_to_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_add_to_selection_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_add_to_selection_action_metadata_window,
+                            node_id: result_recorded_accessibility_add_to_selection_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_add_to_selection_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_add_to_selection_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_add_to_selection_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_add_to_selection_action = AccessibilityaddtoselectionactionReplayRecord {
+                            kind: result_recorded_accessibility_add_to_selection_action_kind,
+                            metadata: result_recorded_accessibility_add_to_selection_action_metadata,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityAddToSelectionAction(result_recorded_accessibility_add_to_selection_action)
+                    }
+                    AccessibilityAction::AccessibilityClearSelectionAction(value) => {
+                        let result_recorded_accessibility_clear_selection_action_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_clear_selection_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_clear_selection_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_clear_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_clear_selection_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_clear_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_clear_selection_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_clear_selection_action_metadata_window,
+                            node_id: result_recorded_accessibility_clear_selection_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_clear_selection_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_clear_selection_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_clear_selection_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_clear_selection_action = AccessibilityclearselectionactionReplayRecord {
+                            kind: result_recorded_accessibility_clear_selection_action_kind,
+                            metadata: result_recorded_accessibility_clear_selection_action_metadata,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityClearSelectionAction(result_recorded_accessibility_clear_selection_action)
+                    }
                     AccessibilityAction::AccessibilityCollapseAction(value) => {
                         let result_recorded_accessibility_collapse_action_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_accessibility_collapse_action_metadata_window = value.metadata.window;
                         let result_recorded_accessibility_collapse_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_collapse_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_collapse_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_collapse_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_collapse_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_collapse_action_metadata_window,
                             node_id: result_recorded_accessibility_collapse_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_collapse_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_collapse_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_collapse_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_collapse_action = AccessibilitycollapseactionReplayRecord {
                             kind: result_recorded_accessibility_collapse_action_kind,
@@ -1413,17 +3716,41 @@ fn destack_accessibility_action_read_replay(
                         };
                         AccessibilityactionReplayRecord::AccessibilityCollapseAction(result_recorded_accessibility_collapse_action)
                     }
+                    AccessibilityAction::AccessibilityCustomActionInvocation(value) => {
+                        let result_recorded_accessibility_custom_action_invocation_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_custom_action_invocation_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_custom_action_invocation_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_custom_action_invocation_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_custom_action_invocation_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_custom_action_invocation_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_custom_action_invocation_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_custom_action_invocation_metadata_window,
+                            node_id: result_recorded_accessibility_custom_action_invocation_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_custom_action_invocation_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_custom_action_invocation_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_custom_action_invocation_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_custom_action_invocation_action_id = unsafe { value.action_id.as_str()? }.to_string();
+                        let result_recorded_accessibility_custom_action_invocation = AccessibilitycustomactioninvocationReplayRecord {
+                            kind: result_recorded_accessibility_custom_action_invocation_kind,
+                            metadata: result_recorded_accessibility_custom_action_invocation_metadata,
+                            action_id: result_recorded_accessibility_custom_action_invocation_action_id,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityCustomActionInvocation(result_recorded_accessibility_custom_action_invocation)
+                    }
                     AccessibilityAction::AccessibilityDecrementAction(value) => {
                         let result_recorded_accessibility_decrement_action_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_accessibility_decrement_action_metadata_window = value.metadata.window;
                         let result_recorded_accessibility_decrement_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_decrement_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_decrement_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_decrement_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_decrement_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_decrement_action_metadata_window,
                             node_id: result_recorded_accessibility_decrement_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_decrement_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_decrement_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_decrement_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_decrement_action = AccessibilitydecrementactionReplayRecord {
                             kind: result_recorded_accessibility_decrement_action_kind,
@@ -1437,11 +3764,13 @@ fn destack_accessibility_action_read_replay(
                         let result_recorded_accessibility_dismiss_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_dismiss_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_dismiss_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_dismiss_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_dismiss_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_dismiss_action_metadata_window,
                             node_id: result_recorded_accessibility_dismiss_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_dismiss_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_dismiss_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_dismiss_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_dismiss_action = AccessibilitydismissactionReplayRecord {
                             kind: result_recorded_accessibility_dismiss_action_kind,
@@ -1455,11 +3784,13 @@ fn destack_accessibility_action_read_replay(
                         let result_recorded_accessibility_expand_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_expand_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_expand_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_expand_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_expand_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_expand_action_metadata_window,
                             node_id: result_recorded_accessibility_expand_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_expand_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_expand_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_expand_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_expand_action = AccessibilityexpandactionReplayRecord {
                             kind: result_recorded_accessibility_expand_action_kind,
@@ -1473,11 +3804,13 @@ fn destack_accessibility_action_read_replay(
                         let result_recorded_accessibility_focus_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_focus_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_focus_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_focus_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_focus_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_focus_action_metadata_window,
                             node_id: result_recorded_accessibility_focus_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_focus_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_focus_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_focus_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_focus_action = AccessibilityfocusactionReplayRecord {
                             kind: result_recorded_accessibility_focus_action_kind,
@@ -1491,11 +3824,13 @@ fn destack_accessibility_action_read_replay(
                         let result_recorded_accessibility_increment_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_increment_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_increment_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_increment_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_increment_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_increment_action_metadata_window,
                             node_id: result_recorded_accessibility_increment_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_increment_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_increment_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_increment_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_increment_action = AccessibilityincrementactionReplayRecord {
                             kind: result_recorded_accessibility_increment_action_kind,
@@ -1503,17 +3838,109 @@ fn destack_accessibility_action_read_replay(
                         };
                         AccessibilityactionReplayRecord::AccessibilityIncrementAction(result_recorded_accessibility_increment_action)
                     }
+                    AccessibilityAction::AccessibilityMoveTextSelectionAction(value) => {
+                        let result_recorded_accessibility_move_text_selection_action_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_move_text_selection_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_move_text_selection_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_move_text_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_move_text_selection_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_move_text_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_move_text_selection_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_move_text_selection_action_metadata_window,
+                            node_id: result_recorded_accessibility_move_text_selection_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_move_text_selection_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_move_text_selection_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_move_text_selection_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_move_text_selection_action_unit = value.unit;
+                        let result_recorded_accessibility_move_text_selection_action_count = value.count;
+                        let result_recorded_accessibility_move_text_selection_action_extend = value.extend;
+                        let result_recorded_accessibility_move_text_selection_action = AccessibilitymovetextselectionactionReplayRecord {
+                            kind: result_recorded_accessibility_move_text_selection_action_kind,
+                            metadata: result_recorded_accessibility_move_text_selection_action_metadata,
+                            unit: result_recorded_accessibility_move_text_selection_action_unit,
+                            count: result_recorded_accessibility_move_text_selection_action_count,
+                            extend: result_recorded_accessibility_move_text_selection_action_extend,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityMoveTextSelectionAction(result_recorded_accessibility_move_text_selection_action)
+                    }
+                    AccessibilityAction::AccessibilityRemoveFromSelectionAction(value) => {
+                        let result_recorded_accessibility_remove_from_selection_action_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_remove_from_selection_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_remove_from_selection_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_remove_from_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_remove_from_selection_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_remove_from_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_remove_from_selection_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_remove_from_selection_action_metadata_window,
+                            node_id: result_recorded_accessibility_remove_from_selection_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_remove_from_selection_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_remove_from_selection_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_remove_from_selection_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_remove_from_selection_action = AccessibilityremovefromselectionactionReplayRecord {
+                            kind: result_recorded_accessibility_remove_from_selection_action_kind,
+                            metadata: result_recorded_accessibility_remove_from_selection_action_metadata,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityRemoveFromSelectionAction(result_recorded_accessibility_remove_from_selection_action)
+                    }
+                    AccessibilityAction::AccessibilityReplaceSelectedTextAction(value) => {
+                        let result_recorded_accessibility_replace_selected_text_action_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_replace_selected_text_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_replace_selected_text_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_replace_selected_text_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_replace_selected_text_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_replace_selected_text_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_replace_selected_text_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_replace_selected_text_action_metadata_window,
+                            node_id: result_recorded_accessibility_replace_selected_text_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_replace_selected_text_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_replace_selected_text_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_replace_selected_text_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_replace_selected_text_action_text = unsafe { value.text.as_str()? }.to_string();
+                        let result_recorded_accessibility_replace_selected_text_action = AccessibilityreplaceselectedtextactionReplayRecord {
+                            kind: result_recorded_accessibility_replace_selected_text_action_kind,
+                            metadata: result_recorded_accessibility_replace_selected_text_action_metadata,
+                            text: result_recorded_accessibility_replace_selected_text_action_text,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityReplaceSelectedTextAction(result_recorded_accessibility_replace_selected_text_action)
+                    }
+                    AccessibilityAction::AccessibilityScrollAction(value) => {
+                        let result_recorded_accessibility_scroll_action_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_scroll_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_scroll_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_scroll_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_scroll_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_scroll_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_scroll_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_scroll_action_metadata_window,
+                            node_id: result_recorded_accessibility_scroll_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_scroll_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_scroll_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_scroll_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_scroll_action_direction = value.direction;
+                        let result_recorded_accessibility_scroll_action = AccessibilityscrollactionReplayRecord {
+                            kind: result_recorded_accessibility_scroll_action_kind,
+                            metadata: result_recorded_accessibility_scroll_action_metadata,
+                            direction: result_recorded_accessibility_scroll_action_direction,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityScrollAction(result_recorded_accessibility_scroll_action)
+                    }
                     AccessibilityAction::AccessibilityScrollIntoViewAction(value) => {
                         let result_recorded_accessibility_scroll_into_view_action_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_accessibility_scroll_into_view_action_metadata_window = value.metadata.window;
                         let result_recorded_accessibility_scroll_into_view_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_scroll_into_view_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_scroll_into_view_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_scroll_into_view_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_scroll_into_view_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_scroll_into_view_action_metadata_window,
                             node_id: result_recorded_accessibility_scroll_into_view_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_scroll_into_view_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_scroll_into_view_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_scroll_into_view_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_scroll_into_view_action = AccessibilityscrollintoviewactionReplayRecord {
                             kind: result_recorded_accessibility_scroll_into_view_action_kind,
@@ -1521,17 +3948,48 @@ fn destack_accessibility_action_read_replay(
                         };
                         AccessibilityactionReplayRecord::AccessibilityScrollIntoViewAction(result_recorded_accessibility_scroll_into_view_action)
                     }
+                    AccessibilityAction::AccessibilityScrollTextRangeIntoViewAction(value) => {
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_scroll_text_range_into_view_action_metadata_window,
+                            node_id: result_recorded_accessibility_scroll_text_range_into_view_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_scroll_text_range_into_view_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_scroll_text_range_into_view_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_scroll_text_range_into_view_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_scroll_text_range_into_view_action_range_start_offset,
+                            end_offset: result_recorded_accessibility_scroll_text_range_into_view_action_range_end_offset,
+                        };
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_align_to_start = value.align_to_start;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action = AccessibilityscrolltextrangeintoviewactionReplayRecord {
+                            kind: result_recorded_accessibility_scroll_text_range_into_view_action_kind,
+                            metadata: result_recorded_accessibility_scroll_text_range_into_view_action_metadata,
+                            range: result_recorded_accessibility_scroll_text_range_into_view_action_range,
+                            align_to_start: result_recorded_accessibility_scroll_text_range_into_view_action_align_to_start,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityScrollTextRangeIntoViewAction(result_recorded_accessibility_scroll_text_range_into_view_action)
+                    }
                     AccessibilityAction::AccessibilitySelectAction(value) => {
                         let result_recorded_accessibility_select_action_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_accessibility_select_action_metadata_window = value.metadata.window;
                         let result_recorded_accessibility_select_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_select_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_select_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_select_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_select_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_select_action_metadata_window,
                             node_id: result_recorded_accessibility_select_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_select_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_select_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_select_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_select_action = AccessibilityselectactionReplayRecord {
                             kind: result_recorded_accessibility_select_action_kind,
@@ -1545,11 +4003,13 @@ fn destack_accessibility_action_read_replay(
                         let result_recorded_accessibility_set_numeric_value_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_set_numeric_value_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_set_numeric_value_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_set_numeric_value_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_set_numeric_value_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_set_numeric_value_action_metadata_window,
                             node_id: result_recorded_accessibility_set_numeric_value_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_set_numeric_value_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_set_numeric_value_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_set_numeric_value_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_set_numeric_value_action_value = value.value;
                         let result_recorded_accessibility_set_numeric_value_action = AccessibilitysetnumericvalueactionReplayRecord {
@@ -1565,11 +4025,13 @@ fn destack_accessibility_action_read_replay(
                         let result_recorded_accessibility_set_selected_text_range_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_set_selected_text_range_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_set_selected_text_range_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_set_selected_text_range_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_set_selected_text_range_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_set_selected_text_range_action_metadata_window,
                             node_id: result_recorded_accessibility_set_selected_text_range_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_set_selected_text_range_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_set_selected_text_range_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_set_selected_text_range_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_set_selected_text_range_action_anchor_offset = value.anchor_offset;
                         let result_recorded_accessibility_set_selected_text_range_action_focus_offset = value.focus_offset;
@@ -1581,17 +4043,50 @@ fn destack_accessibility_action_read_replay(
                         };
                         AccessibilityactionReplayRecord::AccessibilitySetSelectedTextRangeAction(result_recorded_accessibility_set_selected_text_range_action)
                     }
+                    AccessibilityAction::AccessibilitySetSelectedTextRangesAction(value) => {
+                        let result_recorded_accessibility_set_selected_text_ranges_action_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_set_selected_text_ranges_action_metadata_window,
+                            node_id: result_recorded_accessibility_set_selected_text_ranges_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_set_selected_text_ranges_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_set_selected_text_ranges_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_set_selected_text_ranges_action_metadata_dropped_count,
+                        };
+                        let mut result_recorded_accessibility_set_selected_text_ranges_action_selections = Vec::new();
+                        for result_recorded_accessibility_set_selected_text_ranges_action_selections_item in unsafe { value.selections.as_slice()? }.iter().cloned() {
+                            let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_anchor_offset = result_recorded_accessibility_set_selected_text_ranges_action_selections_item.anchor_offset;
+                            let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_focus_offset = result_recorded_accessibility_set_selected_text_ranges_action_selections_item.focus_offset;
+                            let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded = AccessibilityTextSelection {
+                                anchor_offset: result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_anchor_offset,
+                                focus_offset: result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_focus_offset,
+                            };
+                            result_recorded_accessibility_set_selected_text_ranges_action_selections.push(result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded);
+                        }
+                        let result_recorded_accessibility_set_selected_text_ranges_action = AccessibilitysetselectedtextrangesactionReplayRecord {
+                            kind: result_recorded_accessibility_set_selected_text_ranges_action_kind,
+                            metadata: result_recorded_accessibility_set_selected_text_ranges_action_metadata,
+                            selections: result_recorded_accessibility_set_selected_text_ranges_action_selections,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilitySetSelectedTextRangesAction(result_recorded_accessibility_set_selected_text_ranges_action)
+                    }
                     AccessibilityAction::AccessibilitySetTextValueAction(value) => {
                         let result_recorded_accessibility_set_text_value_action_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_accessibility_set_text_value_action_metadata_window = value.metadata.window;
                         let result_recorded_accessibility_set_text_value_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_set_text_value_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_set_text_value_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_set_text_value_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_set_text_value_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_set_text_value_action_metadata_window,
                             node_id: result_recorded_accessibility_set_text_value_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_set_text_value_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_set_text_value_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_set_text_value_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_set_text_value_action_value = unsafe { value.value.as_str()? }.to_string();
                         let result_recorded_accessibility_set_text_value_action = AccessibilitysettextvalueactionReplayRecord {
@@ -1601,23 +4096,45 @@ fn destack_accessibility_action_read_replay(
                         };
                         AccessibilityactionReplayRecord::AccessibilitySetTextValueAction(result_recorded_accessibility_set_text_value_action)
                     }
-                    AccessibilityAction::AccessibilityShowContextMenuAction(value) => {
-                        let result_recorded_accessibility_show_context_menu_action_kind = unsafe { value.kind.as_str()? }.to_string();
-                        let result_recorded_accessibility_show_context_menu_action_metadata_window = value.metadata.window;
-                        let result_recorded_accessibility_show_context_menu_action_metadata_node_id = value.metadata.node_id;
-                        let result_recorded_accessibility_show_context_menu_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_accessibility_show_context_menu_action_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_accessibility_show_context_menu_action_metadata = AccessibilityActionMetadata {
-                            window: result_recorded_accessibility_show_context_menu_action_metadata_window,
-                            node_id: result_recorded_accessibility_show_context_menu_action_metadata_node_id,
-                            timestamp_ns: result_recorded_accessibility_show_context_menu_action_metadata_timestamp_ns,
-                            sequence: result_recorded_accessibility_show_context_menu_action_metadata_sequence,
+                    AccessibilityAction::AccessibilityShowMenuAction(value) => {
+                        let result_recorded_accessibility_show_menu_action_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_show_menu_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_show_menu_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_show_menu_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_show_menu_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_show_menu_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_show_menu_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_show_menu_action_metadata_window,
+                            node_id: result_recorded_accessibility_show_menu_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_show_menu_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_show_menu_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_show_menu_action_metadata_dropped_count,
                         };
-                        let result_recorded_accessibility_show_context_menu_action = AccessibilityshowcontextmenuactionReplayRecord {
-                            kind: result_recorded_accessibility_show_context_menu_action_kind,
-                            metadata: result_recorded_accessibility_show_context_menu_action_metadata,
+                        let result_recorded_accessibility_show_menu_action = AccessibilityshowmenuactionReplayRecord {
+                            kind: result_recorded_accessibility_show_menu_action_kind,
+                            metadata: result_recorded_accessibility_show_menu_action_metadata,
                         };
-                        AccessibilityactionReplayRecord::AccessibilityShowContextMenuAction(result_recorded_accessibility_show_context_menu_action)
+                        AccessibilityactionReplayRecord::AccessibilityShowMenuAction(result_recorded_accessibility_show_menu_action)
+                    }
+                    AccessibilityAction::AccessibilityToggleAction(value) => {
+                        let result_recorded_accessibility_toggle_action_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_toggle_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_toggle_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_toggle_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_toggle_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_toggle_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_toggle_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_toggle_action_metadata_window,
+                            node_id: result_recorded_accessibility_toggle_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_toggle_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_toggle_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_toggle_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_toggle_action = AccessibilitytoggleactionReplayRecord {
+                            kind: result_recorded_accessibility_toggle_action_kind,
+                            metadata: result_recorded_accessibility_toggle_action_metadata,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityToggleAction(result_recorded_accessibility_toggle_action)
                     }
                 };
                 let payload = AccessibilityActionReadReplayRecord {
@@ -1649,11 +4166,13 @@ fn destack_accessibility_action_read_replay(
                             let value_native_accessibility_activate_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_activate_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_activate_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_activate_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_activate_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_activate_action_metadata_window,
                                 node_id: value_native_accessibility_activate_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_activate_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_activate_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_activate_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_activate_action = AccessibilityActivateAction {
                                 kind: value_native_accessibility_activate_action_kind,
@@ -1661,17 +4180,59 @@ fn destack_accessibility_action_read_replay(
                             };
                             AccessibilityAction::AccessibilityActivateAction(value_native_accessibility_activate_action)
                         }
+                        AccessibilityactionReplayRecord::AccessibilityAddToSelectionAction(value) => {
+                            let value_native_accessibility_add_to_selection_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_add_to_selection_action_metadata_window = value.metadata.window;
+                            let value_native_accessibility_add_to_selection_action_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_add_to_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_add_to_selection_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_add_to_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_add_to_selection_action_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_add_to_selection_action_metadata_window,
+                                node_id: value_native_accessibility_add_to_selection_action_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_add_to_selection_action_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_add_to_selection_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_add_to_selection_action_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_add_to_selection_action = AccessibilityAddToSelectionAction {
+                                kind: value_native_accessibility_add_to_selection_action_kind,
+                                metadata: value_native_accessibility_add_to_selection_action_metadata,
+                            };
+                            AccessibilityAction::AccessibilityAddToSelectionAction(value_native_accessibility_add_to_selection_action)
+                        }
+                        AccessibilityactionReplayRecord::AccessibilityClearSelectionAction(value) => {
+                            let value_native_accessibility_clear_selection_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_clear_selection_action_metadata_window = value.metadata.window;
+                            let value_native_accessibility_clear_selection_action_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_clear_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_clear_selection_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_clear_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_clear_selection_action_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_clear_selection_action_metadata_window,
+                                node_id: value_native_accessibility_clear_selection_action_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_clear_selection_action_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_clear_selection_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_clear_selection_action_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_clear_selection_action = AccessibilityClearSelectionAction {
+                                kind: value_native_accessibility_clear_selection_action_kind,
+                                metadata: value_native_accessibility_clear_selection_action_metadata,
+                            };
+                            AccessibilityAction::AccessibilityClearSelectionAction(value_native_accessibility_clear_selection_action)
+                        }
                         AccessibilityactionReplayRecord::AccessibilityCollapseAction(value) => {
                             let value_native_accessibility_collapse_action_kind = binding.store_string(value.kind.as_str());
                             let value_native_accessibility_collapse_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_collapse_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_collapse_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_collapse_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_collapse_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_collapse_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_collapse_action_metadata_window,
                                 node_id: value_native_accessibility_collapse_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_collapse_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_collapse_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_collapse_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_collapse_action = AccessibilityCollapseAction {
                                 kind: value_native_accessibility_collapse_action_kind,
@@ -1679,17 +4240,41 @@ fn destack_accessibility_action_read_replay(
                             };
                             AccessibilityAction::AccessibilityCollapseAction(value_native_accessibility_collapse_action)
                         }
+                        AccessibilityactionReplayRecord::AccessibilityCustomActionInvocation(value) => {
+                            let value_native_accessibility_custom_action_invocation_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_custom_action_invocation_metadata_window = value.metadata.window;
+                            let value_native_accessibility_custom_action_invocation_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_custom_action_invocation_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_custom_action_invocation_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_custom_action_invocation_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_custom_action_invocation_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_custom_action_invocation_metadata_window,
+                                node_id: value_native_accessibility_custom_action_invocation_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_custom_action_invocation_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_custom_action_invocation_metadata_sequence,
+                                dropped_count: value_native_accessibility_custom_action_invocation_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_custom_action_invocation_action_id = binding.store_string(value.action_id.as_str());
+                            let value_native_accessibility_custom_action_invocation = AccessibilityCustomActionInvocation {
+                                kind: value_native_accessibility_custom_action_invocation_kind,
+                                metadata: value_native_accessibility_custom_action_invocation_metadata,
+                                action_id: value_native_accessibility_custom_action_invocation_action_id,
+                            };
+                            AccessibilityAction::AccessibilityCustomActionInvocation(value_native_accessibility_custom_action_invocation)
+                        }
                         AccessibilityactionReplayRecord::AccessibilityDecrementAction(value) => {
                             let value_native_accessibility_decrement_action_kind = binding.store_string(value.kind.as_str());
                             let value_native_accessibility_decrement_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_decrement_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_decrement_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_decrement_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_decrement_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_decrement_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_decrement_action_metadata_window,
                                 node_id: value_native_accessibility_decrement_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_decrement_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_decrement_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_decrement_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_decrement_action = AccessibilityDecrementAction {
                                 kind: value_native_accessibility_decrement_action_kind,
@@ -1703,11 +4288,13 @@ fn destack_accessibility_action_read_replay(
                             let value_native_accessibility_dismiss_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_dismiss_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_dismiss_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_dismiss_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_dismiss_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_dismiss_action_metadata_window,
                                 node_id: value_native_accessibility_dismiss_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_dismiss_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_dismiss_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_dismiss_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_dismiss_action = AccessibilityDismissAction {
                                 kind: value_native_accessibility_dismiss_action_kind,
@@ -1721,11 +4308,13 @@ fn destack_accessibility_action_read_replay(
                             let value_native_accessibility_expand_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_expand_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_expand_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_expand_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_expand_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_expand_action_metadata_window,
                                 node_id: value_native_accessibility_expand_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_expand_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_expand_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_expand_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_expand_action = AccessibilityExpandAction {
                                 kind: value_native_accessibility_expand_action_kind,
@@ -1739,11 +4328,13 @@ fn destack_accessibility_action_read_replay(
                             let value_native_accessibility_focus_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_focus_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_focus_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_focus_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_focus_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_focus_action_metadata_window,
                                 node_id: value_native_accessibility_focus_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_focus_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_focus_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_focus_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_focus_action = AccessibilityFocusAction {
                                 kind: value_native_accessibility_focus_action_kind,
@@ -1757,11 +4348,13 @@ fn destack_accessibility_action_read_replay(
                             let value_native_accessibility_increment_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_increment_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_increment_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_increment_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_increment_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_increment_action_metadata_window,
                                 node_id: value_native_accessibility_increment_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_increment_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_increment_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_increment_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_increment_action = AccessibilityIncrementAction {
                                 kind: value_native_accessibility_increment_action_kind,
@@ -1769,17 +4362,109 @@ fn destack_accessibility_action_read_replay(
                             };
                             AccessibilityAction::AccessibilityIncrementAction(value_native_accessibility_increment_action)
                         }
+                        AccessibilityactionReplayRecord::AccessibilityMoveTextSelectionAction(value) => {
+                            let value_native_accessibility_move_text_selection_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_move_text_selection_action_metadata_window = value.metadata.window;
+                            let value_native_accessibility_move_text_selection_action_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_move_text_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_move_text_selection_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_move_text_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_move_text_selection_action_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_move_text_selection_action_metadata_window,
+                                node_id: value_native_accessibility_move_text_selection_action_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_move_text_selection_action_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_move_text_selection_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_move_text_selection_action_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_move_text_selection_action_unit = value.unit;
+                            let value_native_accessibility_move_text_selection_action_count = value.count;
+                            let value_native_accessibility_move_text_selection_action_extend = value.extend;
+                            let value_native_accessibility_move_text_selection_action = AccessibilityMoveTextSelectionAction {
+                                kind: value_native_accessibility_move_text_selection_action_kind,
+                                metadata: value_native_accessibility_move_text_selection_action_metadata,
+                                unit: value_native_accessibility_move_text_selection_action_unit,
+                                count: value_native_accessibility_move_text_selection_action_count,
+                                extend: value_native_accessibility_move_text_selection_action_extend,
+                            };
+                            AccessibilityAction::AccessibilityMoveTextSelectionAction(value_native_accessibility_move_text_selection_action)
+                        }
+                        AccessibilityactionReplayRecord::AccessibilityRemoveFromSelectionAction(value) => {
+                            let value_native_accessibility_remove_from_selection_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_remove_from_selection_action_metadata_window = value.metadata.window;
+                            let value_native_accessibility_remove_from_selection_action_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_remove_from_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_remove_from_selection_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_remove_from_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_remove_from_selection_action_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_remove_from_selection_action_metadata_window,
+                                node_id: value_native_accessibility_remove_from_selection_action_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_remove_from_selection_action_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_remove_from_selection_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_remove_from_selection_action_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_remove_from_selection_action = AccessibilityRemoveFromSelectionAction {
+                                kind: value_native_accessibility_remove_from_selection_action_kind,
+                                metadata: value_native_accessibility_remove_from_selection_action_metadata,
+                            };
+                            AccessibilityAction::AccessibilityRemoveFromSelectionAction(value_native_accessibility_remove_from_selection_action)
+                        }
+                        AccessibilityactionReplayRecord::AccessibilityReplaceSelectedTextAction(value) => {
+                            let value_native_accessibility_replace_selected_text_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_replace_selected_text_action_metadata_window = value.metadata.window;
+                            let value_native_accessibility_replace_selected_text_action_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_replace_selected_text_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_replace_selected_text_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_replace_selected_text_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_replace_selected_text_action_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_replace_selected_text_action_metadata_window,
+                                node_id: value_native_accessibility_replace_selected_text_action_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_replace_selected_text_action_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_replace_selected_text_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_replace_selected_text_action_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_replace_selected_text_action_text = binding.store_string(value.text.as_str());
+                            let value_native_accessibility_replace_selected_text_action = AccessibilityReplaceSelectedTextAction {
+                                kind: value_native_accessibility_replace_selected_text_action_kind,
+                                metadata: value_native_accessibility_replace_selected_text_action_metadata,
+                                text: value_native_accessibility_replace_selected_text_action_text,
+                            };
+                            AccessibilityAction::AccessibilityReplaceSelectedTextAction(value_native_accessibility_replace_selected_text_action)
+                        }
+                        AccessibilityactionReplayRecord::AccessibilityScrollAction(value) => {
+                            let value_native_accessibility_scroll_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_scroll_action_metadata_window = value.metadata.window;
+                            let value_native_accessibility_scroll_action_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_scroll_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_scroll_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_scroll_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_scroll_action_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_scroll_action_metadata_window,
+                                node_id: value_native_accessibility_scroll_action_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_scroll_action_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_scroll_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_scroll_action_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_scroll_action_direction = value.direction;
+                            let value_native_accessibility_scroll_action = AccessibilityScrollAction {
+                                kind: value_native_accessibility_scroll_action_kind,
+                                metadata: value_native_accessibility_scroll_action_metadata,
+                                direction: value_native_accessibility_scroll_action_direction,
+                            };
+                            AccessibilityAction::AccessibilityScrollAction(value_native_accessibility_scroll_action)
+                        }
                         AccessibilityactionReplayRecord::AccessibilityScrollIntoViewAction(value) => {
                             let value_native_accessibility_scroll_into_view_action_kind = binding.store_string(value.kind.as_str());
                             let value_native_accessibility_scroll_into_view_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_scroll_into_view_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_scroll_into_view_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_scroll_into_view_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_scroll_into_view_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_scroll_into_view_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_scroll_into_view_action_metadata_window,
                                 node_id: value_native_accessibility_scroll_into_view_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_scroll_into_view_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_scroll_into_view_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_scroll_into_view_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_scroll_into_view_action = AccessibilityScrollIntoViewAction {
                                 kind: value_native_accessibility_scroll_into_view_action_kind,
@@ -1787,17 +4472,48 @@ fn destack_accessibility_action_read_replay(
                             };
                             AccessibilityAction::AccessibilityScrollIntoViewAction(value_native_accessibility_scroll_into_view_action)
                         }
+                        AccessibilityactionReplayRecord::AccessibilityScrollTextRangeIntoViewAction(value) => {
+                            let value_native_accessibility_scroll_text_range_into_view_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_scroll_text_range_into_view_action_metadata_window = value.metadata.window;
+                            let value_native_accessibility_scroll_text_range_into_view_action_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_scroll_text_range_into_view_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_scroll_text_range_into_view_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_scroll_text_range_into_view_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_scroll_text_range_into_view_action_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_scroll_text_range_into_view_action_metadata_window,
+                                node_id: value_native_accessibility_scroll_text_range_into_view_action_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_scroll_text_range_into_view_action_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_scroll_text_range_into_view_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_scroll_text_range_into_view_action_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_scroll_text_range_into_view_action_range_start_offset = value.range.start_offset;
+                            let value_native_accessibility_scroll_text_range_into_view_action_range_end_offset = value.range.end_offset;
+                            let value_native_accessibility_scroll_text_range_into_view_action_range = AccessibilityTextRange {
+                                start_offset: value_native_accessibility_scroll_text_range_into_view_action_range_start_offset,
+                                end_offset: value_native_accessibility_scroll_text_range_into_view_action_range_end_offset,
+                            };
+                            let value_native_accessibility_scroll_text_range_into_view_action_align_to_start = value.align_to_start;
+                            let value_native_accessibility_scroll_text_range_into_view_action = AccessibilityScrollTextRangeIntoViewAction {
+                                kind: value_native_accessibility_scroll_text_range_into_view_action_kind,
+                                metadata: value_native_accessibility_scroll_text_range_into_view_action_metadata,
+                                range: value_native_accessibility_scroll_text_range_into_view_action_range,
+                                align_to_start: value_native_accessibility_scroll_text_range_into_view_action_align_to_start,
+                            };
+                            AccessibilityAction::AccessibilityScrollTextRangeIntoViewAction(value_native_accessibility_scroll_text_range_into_view_action)
+                        }
                         AccessibilityactionReplayRecord::AccessibilitySelectAction(value) => {
                             let value_native_accessibility_select_action_kind = binding.store_string(value.kind.as_str());
                             let value_native_accessibility_select_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_select_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_select_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_select_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_select_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_select_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_select_action_metadata_window,
                                 node_id: value_native_accessibility_select_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_select_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_select_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_select_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_select_action = AccessibilitySelectAction {
                                 kind: value_native_accessibility_select_action_kind,
@@ -1811,11 +4527,13 @@ fn destack_accessibility_action_read_replay(
                             let value_native_accessibility_set_numeric_value_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_set_numeric_value_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_set_numeric_value_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_set_numeric_value_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_set_numeric_value_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_set_numeric_value_action_metadata_window,
                                 node_id: value_native_accessibility_set_numeric_value_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_set_numeric_value_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_set_numeric_value_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_set_numeric_value_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_set_numeric_value_action_value = value.value;
                             let value_native_accessibility_set_numeric_value_action = AccessibilitySetNumericValueAction {
@@ -1831,11 +4549,13 @@ fn destack_accessibility_action_read_replay(
                             let value_native_accessibility_set_selected_text_range_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_set_selected_text_range_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_set_selected_text_range_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_set_selected_text_range_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_set_selected_text_range_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_set_selected_text_range_action_metadata_window,
                                 node_id: value_native_accessibility_set_selected_text_range_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_set_selected_text_range_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_set_selected_text_range_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_set_selected_text_range_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_set_selected_text_range_action_anchor_offset = value.anchor_offset;
                             let value_native_accessibility_set_selected_text_range_action_focus_offset = value.focus_offset;
@@ -1847,17 +4567,51 @@ fn destack_accessibility_action_read_replay(
                             };
                             AccessibilityAction::AccessibilitySetSelectedTextRangeAction(value_native_accessibility_set_selected_text_range_action)
                         }
+                        AccessibilityactionReplayRecord::AccessibilitySetSelectedTextRangesAction(value) => {
+                            let value_native_accessibility_set_selected_text_ranges_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_set_selected_text_ranges_action_metadata_window = value.metadata.window;
+                            let value_native_accessibility_set_selected_text_ranges_action_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_set_selected_text_ranges_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_set_selected_text_ranges_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_set_selected_text_ranges_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_set_selected_text_ranges_action_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_set_selected_text_ranges_action_metadata_window,
+                                node_id: value_native_accessibility_set_selected_text_ranges_action_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_set_selected_text_ranges_action_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_set_selected_text_ranges_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_set_selected_text_ranges_action_metadata_dropped_count,
+                            };
+                            let mut value_native_accessibility_set_selected_text_ranges_action_selections_values = Vec::new();
+                            for value_native_accessibility_set_selected_text_ranges_action_selections_item in value.selections.iter().cloned() {
+                                let value_native_accessibility_set_selected_text_ranges_action_selections_decoded_anchor_offset = value_native_accessibility_set_selected_text_ranges_action_selections_item.anchor_offset;
+                                let value_native_accessibility_set_selected_text_ranges_action_selections_decoded_focus_offset = value_native_accessibility_set_selected_text_ranges_action_selections_item.focus_offset;
+                                let value_native_accessibility_set_selected_text_ranges_action_selections_decoded = AccessibilityTextSelection {
+                                    anchor_offset: value_native_accessibility_set_selected_text_ranges_action_selections_decoded_anchor_offset,
+                                    focus_offset: value_native_accessibility_set_selected_text_ranges_action_selections_decoded_focus_offset,
+                                };
+                                value_native_accessibility_set_selected_text_ranges_action_selections_values.push(value_native_accessibility_set_selected_text_ranges_action_selections_decoded);
+                            }
+                            let value_native_accessibility_set_selected_text_ranges_action_selections = binding.store_slice(value_native_accessibility_set_selected_text_ranges_action_selections_values);
+                            let value_native_accessibility_set_selected_text_ranges_action = AccessibilitySetSelectedTextRangesAction {
+                                kind: value_native_accessibility_set_selected_text_ranges_action_kind,
+                                metadata: value_native_accessibility_set_selected_text_ranges_action_metadata,
+                                selections: value_native_accessibility_set_selected_text_ranges_action_selections,
+                            };
+                            AccessibilityAction::AccessibilitySetSelectedTextRangesAction(value_native_accessibility_set_selected_text_ranges_action)
+                        }
                         AccessibilityactionReplayRecord::AccessibilitySetTextValueAction(value) => {
                             let value_native_accessibility_set_text_value_action_kind = binding.store_string(value.kind.as_str());
                             let value_native_accessibility_set_text_value_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_set_text_value_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_set_text_value_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_set_text_value_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_set_text_value_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_set_text_value_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_set_text_value_action_metadata_window,
                                 node_id: value_native_accessibility_set_text_value_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_set_text_value_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_set_text_value_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_set_text_value_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_set_text_value_action_value = binding.store_string(value.value.as_str());
                             let value_native_accessibility_set_text_value_action = AccessibilitySetTextValueAction {
@@ -1867,23 +4621,45 @@ fn destack_accessibility_action_read_replay(
                             };
                             AccessibilityAction::AccessibilitySetTextValueAction(value_native_accessibility_set_text_value_action)
                         }
-                        AccessibilityactionReplayRecord::AccessibilityShowContextMenuAction(value) => {
-                            let value_native_accessibility_show_context_menu_action_kind = binding.store_string(value.kind.as_str());
-                            let value_native_accessibility_show_context_menu_action_metadata_window = value.metadata.window;
-                            let value_native_accessibility_show_context_menu_action_metadata_node_id = value.metadata.node_id;
-                            let value_native_accessibility_show_context_menu_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let value_native_accessibility_show_context_menu_action_metadata_sequence = value.metadata.sequence;
-                            let value_native_accessibility_show_context_menu_action_metadata = AccessibilityActionMetadata {
-                                window: value_native_accessibility_show_context_menu_action_metadata_window,
-                                node_id: value_native_accessibility_show_context_menu_action_metadata_node_id,
-                                timestamp_ns: value_native_accessibility_show_context_menu_action_metadata_timestamp_ns,
-                                sequence: value_native_accessibility_show_context_menu_action_metadata_sequence,
+                        AccessibilityactionReplayRecord::AccessibilityShowMenuAction(value) => {
+                            let value_native_accessibility_show_menu_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_show_menu_action_metadata_window = value.metadata.window;
+                            let value_native_accessibility_show_menu_action_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_show_menu_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_show_menu_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_show_menu_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_show_menu_action_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_show_menu_action_metadata_window,
+                                node_id: value_native_accessibility_show_menu_action_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_show_menu_action_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_show_menu_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_show_menu_action_metadata_dropped_count,
                             };
-                            let value_native_accessibility_show_context_menu_action = AccessibilityShowContextMenuAction {
-                                kind: value_native_accessibility_show_context_menu_action_kind,
-                                metadata: value_native_accessibility_show_context_menu_action_metadata,
+                            let value_native_accessibility_show_menu_action = AccessibilityShowMenuAction {
+                                kind: value_native_accessibility_show_menu_action_kind,
+                                metadata: value_native_accessibility_show_menu_action_metadata,
                             };
-                            AccessibilityAction::AccessibilityShowContextMenuAction(value_native_accessibility_show_context_menu_action)
+                            AccessibilityAction::AccessibilityShowMenuAction(value_native_accessibility_show_menu_action)
+                        }
+                        AccessibilityactionReplayRecord::AccessibilityToggleAction(value) => {
+                            let value_native_accessibility_toggle_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_toggle_action_metadata_window = value.metadata.window;
+                            let value_native_accessibility_toggle_action_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_toggle_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_toggle_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_toggle_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_toggle_action_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_toggle_action_metadata_window,
+                                node_id: value_native_accessibility_toggle_action_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_toggle_action_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_toggle_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_toggle_action_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_toggle_action = AccessibilityToggleAction {
+                                kind: value_native_accessibility_toggle_action_kind,
+                                metadata: value_native_accessibility_toggle_action_metadata,
+                            };
+                            AccessibilityAction::AccessibilityToggleAction(value_native_accessibility_toggle_action)
                         }
                     };
                     unsafe { out.write(value_native) };
@@ -1921,11 +4697,13 @@ fn destack_accessibility_action_try_read_replay(
                         let result_recorded_accessibility_activate_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_activate_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_activate_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_activate_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_activate_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_activate_action_metadata_window,
                             node_id: result_recorded_accessibility_activate_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_activate_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_activate_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_activate_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_activate_action = AccessibilityactivateactionReplayRecord {
                             kind: result_recorded_accessibility_activate_action_kind,
@@ -1933,17 +4711,59 @@ fn destack_accessibility_action_try_read_replay(
                         };
                         AccessibilityactionReplayRecord::AccessibilityActivateAction(result_recorded_accessibility_activate_action)
                     }
+                    AccessibilityAction::AccessibilityAddToSelectionAction(value) => {
+                        let result_recorded_accessibility_add_to_selection_action_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_add_to_selection_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_add_to_selection_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_add_to_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_add_to_selection_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_add_to_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_add_to_selection_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_add_to_selection_action_metadata_window,
+                            node_id: result_recorded_accessibility_add_to_selection_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_add_to_selection_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_add_to_selection_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_add_to_selection_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_add_to_selection_action = AccessibilityaddtoselectionactionReplayRecord {
+                            kind: result_recorded_accessibility_add_to_selection_action_kind,
+                            metadata: result_recorded_accessibility_add_to_selection_action_metadata,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityAddToSelectionAction(result_recorded_accessibility_add_to_selection_action)
+                    }
+                    AccessibilityAction::AccessibilityClearSelectionAction(value) => {
+                        let result_recorded_accessibility_clear_selection_action_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_clear_selection_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_clear_selection_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_clear_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_clear_selection_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_clear_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_clear_selection_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_clear_selection_action_metadata_window,
+                            node_id: result_recorded_accessibility_clear_selection_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_clear_selection_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_clear_selection_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_clear_selection_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_clear_selection_action = AccessibilityclearselectionactionReplayRecord {
+                            kind: result_recorded_accessibility_clear_selection_action_kind,
+                            metadata: result_recorded_accessibility_clear_selection_action_metadata,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityClearSelectionAction(result_recorded_accessibility_clear_selection_action)
+                    }
                     AccessibilityAction::AccessibilityCollapseAction(value) => {
                         let result_recorded_accessibility_collapse_action_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_accessibility_collapse_action_metadata_window = value.metadata.window;
                         let result_recorded_accessibility_collapse_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_collapse_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_collapse_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_collapse_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_collapse_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_collapse_action_metadata_window,
                             node_id: result_recorded_accessibility_collapse_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_collapse_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_collapse_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_collapse_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_collapse_action = AccessibilitycollapseactionReplayRecord {
                             kind: result_recorded_accessibility_collapse_action_kind,
@@ -1951,17 +4771,41 @@ fn destack_accessibility_action_try_read_replay(
                         };
                         AccessibilityactionReplayRecord::AccessibilityCollapseAction(result_recorded_accessibility_collapse_action)
                     }
+                    AccessibilityAction::AccessibilityCustomActionInvocation(value) => {
+                        let result_recorded_accessibility_custom_action_invocation_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_custom_action_invocation_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_custom_action_invocation_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_custom_action_invocation_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_custom_action_invocation_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_custom_action_invocation_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_custom_action_invocation_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_custom_action_invocation_metadata_window,
+                            node_id: result_recorded_accessibility_custom_action_invocation_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_custom_action_invocation_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_custom_action_invocation_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_custom_action_invocation_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_custom_action_invocation_action_id = unsafe { value.action_id.as_str()? }.to_string();
+                        let result_recorded_accessibility_custom_action_invocation = AccessibilitycustomactioninvocationReplayRecord {
+                            kind: result_recorded_accessibility_custom_action_invocation_kind,
+                            metadata: result_recorded_accessibility_custom_action_invocation_metadata,
+                            action_id: result_recorded_accessibility_custom_action_invocation_action_id,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityCustomActionInvocation(result_recorded_accessibility_custom_action_invocation)
+                    }
                     AccessibilityAction::AccessibilityDecrementAction(value) => {
                         let result_recorded_accessibility_decrement_action_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_accessibility_decrement_action_metadata_window = value.metadata.window;
                         let result_recorded_accessibility_decrement_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_decrement_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_decrement_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_decrement_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_decrement_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_decrement_action_metadata_window,
                             node_id: result_recorded_accessibility_decrement_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_decrement_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_decrement_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_decrement_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_decrement_action = AccessibilitydecrementactionReplayRecord {
                             kind: result_recorded_accessibility_decrement_action_kind,
@@ -1975,11 +4819,13 @@ fn destack_accessibility_action_try_read_replay(
                         let result_recorded_accessibility_dismiss_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_dismiss_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_dismiss_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_dismiss_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_dismiss_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_dismiss_action_metadata_window,
                             node_id: result_recorded_accessibility_dismiss_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_dismiss_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_dismiss_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_dismiss_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_dismiss_action = AccessibilitydismissactionReplayRecord {
                             kind: result_recorded_accessibility_dismiss_action_kind,
@@ -1993,11 +4839,13 @@ fn destack_accessibility_action_try_read_replay(
                         let result_recorded_accessibility_expand_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_expand_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_expand_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_expand_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_expand_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_expand_action_metadata_window,
                             node_id: result_recorded_accessibility_expand_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_expand_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_expand_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_expand_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_expand_action = AccessibilityexpandactionReplayRecord {
                             kind: result_recorded_accessibility_expand_action_kind,
@@ -2011,11 +4859,13 @@ fn destack_accessibility_action_try_read_replay(
                         let result_recorded_accessibility_focus_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_focus_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_focus_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_focus_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_focus_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_focus_action_metadata_window,
                             node_id: result_recorded_accessibility_focus_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_focus_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_focus_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_focus_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_focus_action = AccessibilityfocusactionReplayRecord {
                             kind: result_recorded_accessibility_focus_action_kind,
@@ -2029,11 +4879,13 @@ fn destack_accessibility_action_try_read_replay(
                         let result_recorded_accessibility_increment_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_increment_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_increment_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_increment_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_increment_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_increment_action_metadata_window,
                             node_id: result_recorded_accessibility_increment_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_increment_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_increment_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_increment_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_increment_action = AccessibilityincrementactionReplayRecord {
                             kind: result_recorded_accessibility_increment_action_kind,
@@ -2041,17 +4893,109 @@ fn destack_accessibility_action_try_read_replay(
                         };
                         AccessibilityactionReplayRecord::AccessibilityIncrementAction(result_recorded_accessibility_increment_action)
                     }
+                    AccessibilityAction::AccessibilityMoveTextSelectionAction(value) => {
+                        let result_recorded_accessibility_move_text_selection_action_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_move_text_selection_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_move_text_selection_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_move_text_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_move_text_selection_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_move_text_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_move_text_selection_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_move_text_selection_action_metadata_window,
+                            node_id: result_recorded_accessibility_move_text_selection_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_move_text_selection_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_move_text_selection_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_move_text_selection_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_move_text_selection_action_unit = value.unit;
+                        let result_recorded_accessibility_move_text_selection_action_count = value.count;
+                        let result_recorded_accessibility_move_text_selection_action_extend = value.extend;
+                        let result_recorded_accessibility_move_text_selection_action = AccessibilitymovetextselectionactionReplayRecord {
+                            kind: result_recorded_accessibility_move_text_selection_action_kind,
+                            metadata: result_recorded_accessibility_move_text_selection_action_metadata,
+                            unit: result_recorded_accessibility_move_text_selection_action_unit,
+                            count: result_recorded_accessibility_move_text_selection_action_count,
+                            extend: result_recorded_accessibility_move_text_selection_action_extend,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityMoveTextSelectionAction(result_recorded_accessibility_move_text_selection_action)
+                    }
+                    AccessibilityAction::AccessibilityRemoveFromSelectionAction(value) => {
+                        let result_recorded_accessibility_remove_from_selection_action_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_remove_from_selection_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_remove_from_selection_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_remove_from_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_remove_from_selection_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_remove_from_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_remove_from_selection_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_remove_from_selection_action_metadata_window,
+                            node_id: result_recorded_accessibility_remove_from_selection_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_remove_from_selection_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_remove_from_selection_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_remove_from_selection_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_remove_from_selection_action = AccessibilityremovefromselectionactionReplayRecord {
+                            kind: result_recorded_accessibility_remove_from_selection_action_kind,
+                            metadata: result_recorded_accessibility_remove_from_selection_action_metadata,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityRemoveFromSelectionAction(result_recorded_accessibility_remove_from_selection_action)
+                    }
+                    AccessibilityAction::AccessibilityReplaceSelectedTextAction(value) => {
+                        let result_recorded_accessibility_replace_selected_text_action_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_replace_selected_text_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_replace_selected_text_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_replace_selected_text_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_replace_selected_text_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_replace_selected_text_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_replace_selected_text_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_replace_selected_text_action_metadata_window,
+                            node_id: result_recorded_accessibility_replace_selected_text_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_replace_selected_text_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_replace_selected_text_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_replace_selected_text_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_replace_selected_text_action_text = unsafe { value.text.as_str()? }.to_string();
+                        let result_recorded_accessibility_replace_selected_text_action = AccessibilityreplaceselectedtextactionReplayRecord {
+                            kind: result_recorded_accessibility_replace_selected_text_action_kind,
+                            metadata: result_recorded_accessibility_replace_selected_text_action_metadata,
+                            text: result_recorded_accessibility_replace_selected_text_action_text,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityReplaceSelectedTextAction(result_recorded_accessibility_replace_selected_text_action)
+                    }
+                    AccessibilityAction::AccessibilityScrollAction(value) => {
+                        let result_recorded_accessibility_scroll_action_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_scroll_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_scroll_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_scroll_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_scroll_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_scroll_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_scroll_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_scroll_action_metadata_window,
+                            node_id: result_recorded_accessibility_scroll_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_scroll_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_scroll_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_scroll_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_scroll_action_direction = value.direction;
+                        let result_recorded_accessibility_scroll_action = AccessibilityscrollactionReplayRecord {
+                            kind: result_recorded_accessibility_scroll_action_kind,
+                            metadata: result_recorded_accessibility_scroll_action_metadata,
+                            direction: result_recorded_accessibility_scroll_action_direction,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityScrollAction(result_recorded_accessibility_scroll_action)
+                    }
                     AccessibilityAction::AccessibilityScrollIntoViewAction(value) => {
                         let result_recorded_accessibility_scroll_into_view_action_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_accessibility_scroll_into_view_action_metadata_window = value.metadata.window;
                         let result_recorded_accessibility_scroll_into_view_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_scroll_into_view_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_scroll_into_view_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_scroll_into_view_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_scroll_into_view_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_scroll_into_view_action_metadata_window,
                             node_id: result_recorded_accessibility_scroll_into_view_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_scroll_into_view_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_scroll_into_view_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_scroll_into_view_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_scroll_into_view_action = AccessibilityscrollintoviewactionReplayRecord {
                             kind: result_recorded_accessibility_scroll_into_view_action_kind,
@@ -2059,17 +5003,48 @@ fn destack_accessibility_action_try_read_replay(
                         };
                         AccessibilityactionReplayRecord::AccessibilityScrollIntoViewAction(result_recorded_accessibility_scroll_into_view_action)
                     }
+                    AccessibilityAction::AccessibilityScrollTextRangeIntoViewAction(value) => {
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_scroll_text_range_into_view_action_metadata_window,
+                            node_id: result_recorded_accessibility_scroll_text_range_into_view_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_scroll_text_range_into_view_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_scroll_text_range_into_view_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_scroll_text_range_into_view_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_scroll_text_range_into_view_action_range_start_offset,
+                            end_offset: result_recorded_accessibility_scroll_text_range_into_view_action_range_end_offset,
+                        };
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_align_to_start = value.align_to_start;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action = AccessibilityscrolltextrangeintoviewactionReplayRecord {
+                            kind: result_recorded_accessibility_scroll_text_range_into_view_action_kind,
+                            metadata: result_recorded_accessibility_scroll_text_range_into_view_action_metadata,
+                            range: result_recorded_accessibility_scroll_text_range_into_view_action_range,
+                            align_to_start: result_recorded_accessibility_scroll_text_range_into_view_action_align_to_start,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityScrollTextRangeIntoViewAction(result_recorded_accessibility_scroll_text_range_into_view_action)
+                    }
                     AccessibilityAction::AccessibilitySelectAction(value) => {
                         let result_recorded_accessibility_select_action_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_accessibility_select_action_metadata_window = value.metadata.window;
                         let result_recorded_accessibility_select_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_select_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_select_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_select_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_select_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_select_action_metadata_window,
                             node_id: result_recorded_accessibility_select_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_select_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_select_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_select_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_select_action = AccessibilityselectactionReplayRecord {
                             kind: result_recorded_accessibility_select_action_kind,
@@ -2083,11 +5058,13 @@ fn destack_accessibility_action_try_read_replay(
                         let result_recorded_accessibility_set_numeric_value_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_set_numeric_value_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_set_numeric_value_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_set_numeric_value_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_set_numeric_value_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_set_numeric_value_action_metadata_window,
                             node_id: result_recorded_accessibility_set_numeric_value_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_set_numeric_value_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_set_numeric_value_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_set_numeric_value_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_set_numeric_value_action_value = value.value;
                         let result_recorded_accessibility_set_numeric_value_action = AccessibilitysetnumericvalueactionReplayRecord {
@@ -2103,11 +5080,13 @@ fn destack_accessibility_action_try_read_replay(
                         let result_recorded_accessibility_set_selected_text_range_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_set_selected_text_range_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_set_selected_text_range_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_set_selected_text_range_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_set_selected_text_range_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_set_selected_text_range_action_metadata_window,
                             node_id: result_recorded_accessibility_set_selected_text_range_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_set_selected_text_range_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_set_selected_text_range_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_set_selected_text_range_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_set_selected_text_range_action_anchor_offset = value.anchor_offset;
                         let result_recorded_accessibility_set_selected_text_range_action_focus_offset = value.focus_offset;
@@ -2119,17 +5098,50 @@ fn destack_accessibility_action_try_read_replay(
                         };
                         AccessibilityactionReplayRecord::AccessibilitySetSelectedTextRangeAction(result_recorded_accessibility_set_selected_text_range_action)
                     }
+                    AccessibilityAction::AccessibilitySetSelectedTextRangesAction(value) => {
+                        let result_recorded_accessibility_set_selected_text_ranges_action_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_set_selected_text_ranges_action_metadata_window,
+                            node_id: result_recorded_accessibility_set_selected_text_ranges_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_set_selected_text_ranges_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_set_selected_text_ranges_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_set_selected_text_ranges_action_metadata_dropped_count,
+                        };
+                        let mut result_recorded_accessibility_set_selected_text_ranges_action_selections = Vec::new();
+                        for result_recorded_accessibility_set_selected_text_ranges_action_selections_item in unsafe { value.selections.as_slice()? }.iter().cloned() {
+                            let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_anchor_offset = result_recorded_accessibility_set_selected_text_ranges_action_selections_item.anchor_offset;
+                            let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_focus_offset = result_recorded_accessibility_set_selected_text_ranges_action_selections_item.focus_offset;
+                            let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded = AccessibilityTextSelection {
+                                anchor_offset: result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_anchor_offset,
+                                focus_offset: result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_focus_offset,
+                            };
+                            result_recorded_accessibility_set_selected_text_ranges_action_selections.push(result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded);
+                        }
+                        let result_recorded_accessibility_set_selected_text_ranges_action = AccessibilitysetselectedtextrangesactionReplayRecord {
+                            kind: result_recorded_accessibility_set_selected_text_ranges_action_kind,
+                            metadata: result_recorded_accessibility_set_selected_text_ranges_action_metadata,
+                            selections: result_recorded_accessibility_set_selected_text_ranges_action_selections,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilitySetSelectedTextRangesAction(result_recorded_accessibility_set_selected_text_ranges_action)
+                    }
                     AccessibilityAction::AccessibilitySetTextValueAction(value) => {
                         let result_recorded_accessibility_set_text_value_action_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_accessibility_set_text_value_action_metadata_window = value.metadata.window;
                         let result_recorded_accessibility_set_text_value_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_set_text_value_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_set_text_value_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_set_text_value_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_set_text_value_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_set_text_value_action_metadata_window,
                             node_id: result_recorded_accessibility_set_text_value_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_set_text_value_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_set_text_value_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_set_text_value_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_set_text_value_action_value = unsafe { value.value.as_str()? }.to_string();
                         let result_recorded_accessibility_set_text_value_action = AccessibilitysettextvalueactionReplayRecord {
@@ -2139,23 +5151,45 @@ fn destack_accessibility_action_try_read_replay(
                         };
                         AccessibilityactionReplayRecord::AccessibilitySetTextValueAction(result_recorded_accessibility_set_text_value_action)
                     }
-                    AccessibilityAction::AccessibilityShowContextMenuAction(value) => {
-                        let result_recorded_accessibility_show_context_menu_action_kind = unsafe { value.kind.as_str()? }.to_string();
-                        let result_recorded_accessibility_show_context_menu_action_metadata_window = value.metadata.window;
-                        let result_recorded_accessibility_show_context_menu_action_metadata_node_id = value.metadata.node_id;
-                        let result_recorded_accessibility_show_context_menu_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_accessibility_show_context_menu_action_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_accessibility_show_context_menu_action_metadata = AccessibilityActionMetadata {
-                            window: result_recorded_accessibility_show_context_menu_action_metadata_window,
-                            node_id: result_recorded_accessibility_show_context_menu_action_metadata_node_id,
-                            timestamp_ns: result_recorded_accessibility_show_context_menu_action_metadata_timestamp_ns,
-                            sequence: result_recorded_accessibility_show_context_menu_action_metadata_sequence,
+                    AccessibilityAction::AccessibilityShowMenuAction(value) => {
+                        let result_recorded_accessibility_show_menu_action_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_show_menu_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_show_menu_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_show_menu_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_show_menu_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_show_menu_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_show_menu_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_show_menu_action_metadata_window,
+                            node_id: result_recorded_accessibility_show_menu_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_show_menu_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_show_menu_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_show_menu_action_metadata_dropped_count,
                         };
-                        let result_recorded_accessibility_show_context_menu_action = AccessibilityshowcontextmenuactionReplayRecord {
-                            kind: result_recorded_accessibility_show_context_menu_action_kind,
-                            metadata: result_recorded_accessibility_show_context_menu_action_metadata,
+                        let result_recorded_accessibility_show_menu_action = AccessibilityshowmenuactionReplayRecord {
+                            kind: result_recorded_accessibility_show_menu_action_kind,
+                            metadata: result_recorded_accessibility_show_menu_action_metadata,
                         };
-                        AccessibilityactionReplayRecord::AccessibilityShowContextMenuAction(result_recorded_accessibility_show_context_menu_action)
+                        AccessibilityactionReplayRecord::AccessibilityShowMenuAction(result_recorded_accessibility_show_menu_action)
+                    }
+                    AccessibilityAction::AccessibilityToggleAction(value) => {
+                        let result_recorded_accessibility_toggle_action_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_toggle_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_toggle_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_toggle_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_toggle_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_toggle_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_toggle_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_toggle_action_metadata_window,
+                            node_id: result_recorded_accessibility_toggle_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_toggle_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_toggle_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_toggle_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_toggle_action = AccessibilitytoggleactionReplayRecord {
+                            kind: result_recorded_accessibility_toggle_action_kind,
+                            metadata: result_recorded_accessibility_toggle_action_metadata,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityToggleAction(result_recorded_accessibility_toggle_action)
                     }
                 };
                 let payload = AccessibilityActionTryReadReplayRecord {
@@ -2187,11 +5221,13 @@ fn destack_accessibility_action_try_read_replay(
                             let value_native_accessibility_activate_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_activate_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_activate_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_activate_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_activate_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_activate_action_metadata_window,
                                 node_id: value_native_accessibility_activate_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_activate_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_activate_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_activate_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_activate_action = AccessibilityActivateAction {
                                 kind: value_native_accessibility_activate_action_kind,
@@ -2199,17 +5235,59 @@ fn destack_accessibility_action_try_read_replay(
                             };
                             AccessibilityAction::AccessibilityActivateAction(value_native_accessibility_activate_action)
                         }
+                        AccessibilityactionReplayRecord::AccessibilityAddToSelectionAction(value) => {
+                            let value_native_accessibility_add_to_selection_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_add_to_selection_action_metadata_window = value.metadata.window;
+                            let value_native_accessibility_add_to_selection_action_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_add_to_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_add_to_selection_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_add_to_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_add_to_selection_action_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_add_to_selection_action_metadata_window,
+                                node_id: value_native_accessibility_add_to_selection_action_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_add_to_selection_action_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_add_to_selection_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_add_to_selection_action_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_add_to_selection_action = AccessibilityAddToSelectionAction {
+                                kind: value_native_accessibility_add_to_selection_action_kind,
+                                metadata: value_native_accessibility_add_to_selection_action_metadata,
+                            };
+                            AccessibilityAction::AccessibilityAddToSelectionAction(value_native_accessibility_add_to_selection_action)
+                        }
+                        AccessibilityactionReplayRecord::AccessibilityClearSelectionAction(value) => {
+                            let value_native_accessibility_clear_selection_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_clear_selection_action_metadata_window = value.metadata.window;
+                            let value_native_accessibility_clear_selection_action_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_clear_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_clear_selection_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_clear_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_clear_selection_action_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_clear_selection_action_metadata_window,
+                                node_id: value_native_accessibility_clear_selection_action_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_clear_selection_action_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_clear_selection_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_clear_selection_action_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_clear_selection_action = AccessibilityClearSelectionAction {
+                                kind: value_native_accessibility_clear_selection_action_kind,
+                                metadata: value_native_accessibility_clear_selection_action_metadata,
+                            };
+                            AccessibilityAction::AccessibilityClearSelectionAction(value_native_accessibility_clear_selection_action)
+                        }
                         AccessibilityactionReplayRecord::AccessibilityCollapseAction(value) => {
                             let value_native_accessibility_collapse_action_kind = binding.store_string(value.kind.as_str());
                             let value_native_accessibility_collapse_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_collapse_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_collapse_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_collapse_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_collapse_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_collapse_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_collapse_action_metadata_window,
                                 node_id: value_native_accessibility_collapse_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_collapse_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_collapse_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_collapse_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_collapse_action = AccessibilityCollapseAction {
                                 kind: value_native_accessibility_collapse_action_kind,
@@ -2217,17 +5295,41 @@ fn destack_accessibility_action_try_read_replay(
                             };
                             AccessibilityAction::AccessibilityCollapseAction(value_native_accessibility_collapse_action)
                         }
+                        AccessibilityactionReplayRecord::AccessibilityCustomActionInvocation(value) => {
+                            let value_native_accessibility_custom_action_invocation_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_custom_action_invocation_metadata_window = value.metadata.window;
+                            let value_native_accessibility_custom_action_invocation_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_custom_action_invocation_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_custom_action_invocation_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_custom_action_invocation_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_custom_action_invocation_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_custom_action_invocation_metadata_window,
+                                node_id: value_native_accessibility_custom_action_invocation_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_custom_action_invocation_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_custom_action_invocation_metadata_sequence,
+                                dropped_count: value_native_accessibility_custom_action_invocation_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_custom_action_invocation_action_id = binding.store_string(value.action_id.as_str());
+                            let value_native_accessibility_custom_action_invocation = AccessibilityCustomActionInvocation {
+                                kind: value_native_accessibility_custom_action_invocation_kind,
+                                metadata: value_native_accessibility_custom_action_invocation_metadata,
+                                action_id: value_native_accessibility_custom_action_invocation_action_id,
+                            };
+                            AccessibilityAction::AccessibilityCustomActionInvocation(value_native_accessibility_custom_action_invocation)
+                        }
                         AccessibilityactionReplayRecord::AccessibilityDecrementAction(value) => {
                             let value_native_accessibility_decrement_action_kind = binding.store_string(value.kind.as_str());
                             let value_native_accessibility_decrement_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_decrement_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_decrement_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_decrement_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_decrement_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_decrement_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_decrement_action_metadata_window,
                                 node_id: value_native_accessibility_decrement_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_decrement_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_decrement_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_decrement_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_decrement_action = AccessibilityDecrementAction {
                                 kind: value_native_accessibility_decrement_action_kind,
@@ -2241,11 +5343,13 @@ fn destack_accessibility_action_try_read_replay(
                             let value_native_accessibility_dismiss_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_dismiss_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_dismiss_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_dismiss_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_dismiss_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_dismiss_action_metadata_window,
                                 node_id: value_native_accessibility_dismiss_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_dismiss_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_dismiss_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_dismiss_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_dismiss_action = AccessibilityDismissAction {
                                 kind: value_native_accessibility_dismiss_action_kind,
@@ -2259,11 +5363,13 @@ fn destack_accessibility_action_try_read_replay(
                             let value_native_accessibility_expand_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_expand_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_expand_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_expand_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_expand_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_expand_action_metadata_window,
                                 node_id: value_native_accessibility_expand_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_expand_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_expand_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_expand_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_expand_action = AccessibilityExpandAction {
                                 kind: value_native_accessibility_expand_action_kind,
@@ -2277,11 +5383,13 @@ fn destack_accessibility_action_try_read_replay(
                             let value_native_accessibility_focus_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_focus_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_focus_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_focus_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_focus_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_focus_action_metadata_window,
                                 node_id: value_native_accessibility_focus_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_focus_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_focus_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_focus_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_focus_action = AccessibilityFocusAction {
                                 kind: value_native_accessibility_focus_action_kind,
@@ -2295,11 +5403,13 @@ fn destack_accessibility_action_try_read_replay(
                             let value_native_accessibility_increment_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_increment_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_increment_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_increment_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_increment_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_increment_action_metadata_window,
                                 node_id: value_native_accessibility_increment_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_increment_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_increment_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_increment_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_increment_action = AccessibilityIncrementAction {
                                 kind: value_native_accessibility_increment_action_kind,
@@ -2307,17 +5417,109 @@ fn destack_accessibility_action_try_read_replay(
                             };
                             AccessibilityAction::AccessibilityIncrementAction(value_native_accessibility_increment_action)
                         }
+                        AccessibilityactionReplayRecord::AccessibilityMoveTextSelectionAction(value) => {
+                            let value_native_accessibility_move_text_selection_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_move_text_selection_action_metadata_window = value.metadata.window;
+                            let value_native_accessibility_move_text_selection_action_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_move_text_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_move_text_selection_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_move_text_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_move_text_selection_action_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_move_text_selection_action_metadata_window,
+                                node_id: value_native_accessibility_move_text_selection_action_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_move_text_selection_action_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_move_text_selection_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_move_text_selection_action_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_move_text_selection_action_unit = value.unit;
+                            let value_native_accessibility_move_text_selection_action_count = value.count;
+                            let value_native_accessibility_move_text_selection_action_extend = value.extend;
+                            let value_native_accessibility_move_text_selection_action = AccessibilityMoveTextSelectionAction {
+                                kind: value_native_accessibility_move_text_selection_action_kind,
+                                metadata: value_native_accessibility_move_text_selection_action_metadata,
+                                unit: value_native_accessibility_move_text_selection_action_unit,
+                                count: value_native_accessibility_move_text_selection_action_count,
+                                extend: value_native_accessibility_move_text_selection_action_extend,
+                            };
+                            AccessibilityAction::AccessibilityMoveTextSelectionAction(value_native_accessibility_move_text_selection_action)
+                        }
+                        AccessibilityactionReplayRecord::AccessibilityRemoveFromSelectionAction(value) => {
+                            let value_native_accessibility_remove_from_selection_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_remove_from_selection_action_metadata_window = value.metadata.window;
+                            let value_native_accessibility_remove_from_selection_action_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_remove_from_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_remove_from_selection_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_remove_from_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_remove_from_selection_action_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_remove_from_selection_action_metadata_window,
+                                node_id: value_native_accessibility_remove_from_selection_action_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_remove_from_selection_action_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_remove_from_selection_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_remove_from_selection_action_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_remove_from_selection_action = AccessibilityRemoveFromSelectionAction {
+                                kind: value_native_accessibility_remove_from_selection_action_kind,
+                                metadata: value_native_accessibility_remove_from_selection_action_metadata,
+                            };
+                            AccessibilityAction::AccessibilityRemoveFromSelectionAction(value_native_accessibility_remove_from_selection_action)
+                        }
+                        AccessibilityactionReplayRecord::AccessibilityReplaceSelectedTextAction(value) => {
+                            let value_native_accessibility_replace_selected_text_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_replace_selected_text_action_metadata_window = value.metadata.window;
+                            let value_native_accessibility_replace_selected_text_action_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_replace_selected_text_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_replace_selected_text_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_replace_selected_text_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_replace_selected_text_action_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_replace_selected_text_action_metadata_window,
+                                node_id: value_native_accessibility_replace_selected_text_action_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_replace_selected_text_action_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_replace_selected_text_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_replace_selected_text_action_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_replace_selected_text_action_text = binding.store_string(value.text.as_str());
+                            let value_native_accessibility_replace_selected_text_action = AccessibilityReplaceSelectedTextAction {
+                                kind: value_native_accessibility_replace_selected_text_action_kind,
+                                metadata: value_native_accessibility_replace_selected_text_action_metadata,
+                                text: value_native_accessibility_replace_selected_text_action_text,
+                            };
+                            AccessibilityAction::AccessibilityReplaceSelectedTextAction(value_native_accessibility_replace_selected_text_action)
+                        }
+                        AccessibilityactionReplayRecord::AccessibilityScrollAction(value) => {
+                            let value_native_accessibility_scroll_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_scroll_action_metadata_window = value.metadata.window;
+                            let value_native_accessibility_scroll_action_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_scroll_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_scroll_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_scroll_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_scroll_action_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_scroll_action_metadata_window,
+                                node_id: value_native_accessibility_scroll_action_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_scroll_action_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_scroll_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_scroll_action_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_scroll_action_direction = value.direction;
+                            let value_native_accessibility_scroll_action = AccessibilityScrollAction {
+                                kind: value_native_accessibility_scroll_action_kind,
+                                metadata: value_native_accessibility_scroll_action_metadata,
+                                direction: value_native_accessibility_scroll_action_direction,
+                            };
+                            AccessibilityAction::AccessibilityScrollAction(value_native_accessibility_scroll_action)
+                        }
                         AccessibilityactionReplayRecord::AccessibilityScrollIntoViewAction(value) => {
                             let value_native_accessibility_scroll_into_view_action_kind = binding.store_string(value.kind.as_str());
                             let value_native_accessibility_scroll_into_view_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_scroll_into_view_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_scroll_into_view_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_scroll_into_view_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_scroll_into_view_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_scroll_into_view_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_scroll_into_view_action_metadata_window,
                                 node_id: value_native_accessibility_scroll_into_view_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_scroll_into_view_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_scroll_into_view_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_scroll_into_view_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_scroll_into_view_action = AccessibilityScrollIntoViewAction {
                                 kind: value_native_accessibility_scroll_into_view_action_kind,
@@ -2325,17 +5527,48 @@ fn destack_accessibility_action_try_read_replay(
                             };
                             AccessibilityAction::AccessibilityScrollIntoViewAction(value_native_accessibility_scroll_into_view_action)
                         }
+                        AccessibilityactionReplayRecord::AccessibilityScrollTextRangeIntoViewAction(value) => {
+                            let value_native_accessibility_scroll_text_range_into_view_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_scroll_text_range_into_view_action_metadata_window = value.metadata.window;
+                            let value_native_accessibility_scroll_text_range_into_view_action_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_scroll_text_range_into_view_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_scroll_text_range_into_view_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_scroll_text_range_into_view_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_scroll_text_range_into_view_action_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_scroll_text_range_into_view_action_metadata_window,
+                                node_id: value_native_accessibility_scroll_text_range_into_view_action_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_scroll_text_range_into_view_action_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_scroll_text_range_into_view_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_scroll_text_range_into_view_action_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_scroll_text_range_into_view_action_range_start_offset = value.range.start_offset;
+                            let value_native_accessibility_scroll_text_range_into_view_action_range_end_offset = value.range.end_offset;
+                            let value_native_accessibility_scroll_text_range_into_view_action_range = AccessibilityTextRange {
+                                start_offset: value_native_accessibility_scroll_text_range_into_view_action_range_start_offset,
+                                end_offset: value_native_accessibility_scroll_text_range_into_view_action_range_end_offset,
+                            };
+                            let value_native_accessibility_scroll_text_range_into_view_action_align_to_start = value.align_to_start;
+                            let value_native_accessibility_scroll_text_range_into_view_action = AccessibilityScrollTextRangeIntoViewAction {
+                                kind: value_native_accessibility_scroll_text_range_into_view_action_kind,
+                                metadata: value_native_accessibility_scroll_text_range_into_view_action_metadata,
+                                range: value_native_accessibility_scroll_text_range_into_view_action_range,
+                                align_to_start: value_native_accessibility_scroll_text_range_into_view_action_align_to_start,
+                            };
+                            AccessibilityAction::AccessibilityScrollTextRangeIntoViewAction(value_native_accessibility_scroll_text_range_into_view_action)
+                        }
                         AccessibilityactionReplayRecord::AccessibilitySelectAction(value) => {
                             let value_native_accessibility_select_action_kind = binding.store_string(value.kind.as_str());
                             let value_native_accessibility_select_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_select_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_select_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_select_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_select_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_select_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_select_action_metadata_window,
                                 node_id: value_native_accessibility_select_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_select_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_select_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_select_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_select_action = AccessibilitySelectAction {
                                 kind: value_native_accessibility_select_action_kind,
@@ -2349,11 +5582,13 @@ fn destack_accessibility_action_try_read_replay(
                             let value_native_accessibility_set_numeric_value_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_set_numeric_value_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_set_numeric_value_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_set_numeric_value_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_set_numeric_value_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_set_numeric_value_action_metadata_window,
                                 node_id: value_native_accessibility_set_numeric_value_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_set_numeric_value_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_set_numeric_value_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_set_numeric_value_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_set_numeric_value_action_value = value.value;
                             let value_native_accessibility_set_numeric_value_action = AccessibilitySetNumericValueAction {
@@ -2369,11 +5604,13 @@ fn destack_accessibility_action_try_read_replay(
                             let value_native_accessibility_set_selected_text_range_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_set_selected_text_range_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_set_selected_text_range_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_set_selected_text_range_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_set_selected_text_range_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_set_selected_text_range_action_metadata_window,
                                 node_id: value_native_accessibility_set_selected_text_range_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_set_selected_text_range_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_set_selected_text_range_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_set_selected_text_range_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_set_selected_text_range_action_anchor_offset = value.anchor_offset;
                             let value_native_accessibility_set_selected_text_range_action_focus_offset = value.focus_offset;
@@ -2385,17 +5622,51 @@ fn destack_accessibility_action_try_read_replay(
                             };
                             AccessibilityAction::AccessibilitySetSelectedTextRangeAction(value_native_accessibility_set_selected_text_range_action)
                         }
+                        AccessibilityactionReplayRecord::AccessibilitySetSelectedTextRangesAction(value) => {
+                            let value_native_accessibility_set_selected_text_ranges_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_set_selected_text_ranges_action_metadata_window = value.metadata.window;
+                            let value_native_accessibility_set_selected_text_ranges_action_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_set_selected_text_ranges_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_set_selected_text_ranges_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_set_selected_text_ranges_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_set_selected_text_ranges_action_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_set_selected_text_ranges_action_metadata_window,
+                                node_id: value_native_accessibility_set_selected_text_ranges_action_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_set_selected_text_ranges_action_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_set_selected_text_ranges_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_set_selected_text_ranges_action_metadata_dropped_count,
+                            };
+                            let mut value_native_accessibility_set_selected_text_ranges_action_selections_values = Vec::new();
+                            for value_native_accessibility_set_selected_text_ranges_action_selections_item in value.selections.iter().cloned() {
+                                let value_native_accessibility_set_selected_text_ranges_action_selections_decoded_anchor_offset = value_native_accessibility_set_selected_text_ranges_action_selections_item.anchor_offset;
+                                let value_native_accessibility_set_selected_text_ranges_action_selections_decoded_focus_offset = value_native_accessibility_set_selected_text_ranges_action_selections_item.focus_offset;
+                                let value_native_accessibility_set_selected_text_ranges_action_selections_decoded = AccessibilityTextSelection {
+                                    anchor_offset: value_native_accessibility_set_selected_text_ranges_action_selections_decoded_anchor_offset,
+                                    focus_offset: value_native_accessibility_set_selected_text_ranges_action_selections_decoded_focus_offset,
+                                };
+                                value_native_accessibility_set_selected_text_ranges_action_selections_values.push(value_native_accessibility_set_selected_text_ranges_action_selections_decoded);
+                            }
+                            let value_native_accessibility_set_selected_text_ranges_action_selections = binding.store_slice(value_native_accessibility_set_selected_text_ranges_action_selections_values);
+                            let value_native_accessibility_set_selected_text_ranges_action = AccessibilitySetSelectedTextRangesAction {
+                                kind: value_native_accessibility_set_selected_text_ranges_action_kind,
+                                metadata: value_native_accessibility_set_selected_text_ranges_action_metadata,
+                                selections: value_native_accessibility_set_selected_text_ranges_action_selections,
+                            };
+                            AccessibilityAction::AccessibilitySetSelectedTextRangesAction(value_native_accessibility_set_selected_text_ranges_action)
+                        }
                         AccessibilityactionReplayRecord::AccessibilitySetTextValueAction(value) => {
                             let value_native_accessibility_set_text_value_action_kind = binding.store_string(value.kind.as_str());
                             let value_native_accessibility_set_text_value_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_set_text_value_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_set_text_value_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_accessibility_set_text_value_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_set_text_value_action_metadata_dropped_count = value.metadata.dropped_count;
                             let value_native_accessibility_set_text_value_action_metadata = AccessibilityActionMetadata {
                                 window: value_native_accessibility_set_text_value_action_metadata_window,
                                 node_id: value_native_accessibility_set_text_value_action_metadata_node_id,
                                 timestamp_ns: value_native_accessibility_set_text_value_action_metadata_timestamp_ns,
                                 sequence: value_native_accessibility_set_text_value_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_set_text_value_action_metadata_dropped_count,
                             };
                             let value_native_accessibility_set_text_value_action_value = binding.store_string(value.value.as_str());
                             let value_native_accessibility_set_text_value_action = AccessibilitySetTextValueAction {
@@ -2405,28 +5676,1592 @@ fn destack_accessibility_action_try_read_replay(
                             };
                             AccessibilityAction::AccessibilitySetTextValueAction(value_native_accessibility_set_text_value_action)
                         }
-                        AccessibilityactionReplayRecord::AccessibilityShowContextMenuAction(value) => {
-                            let value_native_accessibility_show_context_menu_action_kind = binding.store_string(value.kind.as_str());
-                            let value_native_accessibility_show_context_menu_action_metadata_window = value.metadata.window;
-                            let value_native_accessibility_show_context_menu_action_metadata_node_id = value.metadata.node_id;
-                            let value_native_accessibility_show_context_menu_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let value_native_accessibility_show_context_menu_action_metadata_sequence = value.metadata.sequence;
-                            let value_native_accessibility_show_context_menu_action_metadata = AccessibilityActionMetadata {
-                                window: value_native_accessibility_show_context_menu_action_metadata_window,
-                                node_id: value_native_accessibility_show_context_menu_action_metadata_node_id,
-                                timestamp_ns: value_native_accessibility_show_context_menu_action_metadata_timestamp_ns,
-                                sequence: value_native_accessibility_show_context_menu_action_metadata_sequence,
+                        AccessibilityactionReplayRecord::AccessibilityShowMenuAction(value) => {
+                            let value_native_accessibility_show_menu_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_show_menu_action_metadata_window = value.metadata.window;
+                            let value_native_accessibility_show_menu_action_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_show_menu_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_show_menu_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_show_menu_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_show_menu_action_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_show_menu_action_metadata_window,
+                                node_id: value_native_accessibility_show_menu_action_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_show_menu_action_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_show_menu_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_show_menu_action_metadata_dropped_count,
                             };
-                            let value_native_accessibility_show_context_menu_action = AccessibilityShowContextMenuAction {
-                                kind: value_native_accessibility_show_context_menu_action_kind,
-                                metadata: value_native_accessibility_show_context_menu_action_metadata,
+                            let value_native_accessibility_show_menu_action = AccessibilityShowMenuAction {
+                                kind: value_native_accessibility_show_menu_action_kind,
+                                metadata: value_native_accessibility_show_menu_action_metadata,
                             };
-                            AccessibilityAction::AccessibilityShowContextMenuAction(value_native_accessibility_show_context_menu_action)
+                            AccessibilityAction::AccessibilityShowMenuAction(value_native_accessibility_show_menu_action)
+                        }
+                        AccessibilityactionReplayRecord::AccessibilityToggleAction(value) => {
+                            let value_native_accessibility_toggle_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_toggle_action_metadata_window = value.metadata.window;
+                            let value_native_accessibility_toggle_action_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_toggle_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_toggle_action_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_toggle_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_toggle_action_metadata = AccessibilityActionMetadata {
+                                window: value_native_accessibility_toggle_action_metadata_window,
+                                node_id: value_native_accessibility_toggle_action_metadata_node_id,
+                                timestamp_ns: value_native_accessibility_toggle_action_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_toggle_action_metadata_sequence,
+                                dropped_count: value_native_accessibility_toggle_action_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_toggle_action = AccessibilityToggleAction {
+                                kind: value_native_accessibility_toggle_action_kind,
+                                metadata: value_native_accessibility_toggle_action_metadata,
+                            };
+                            AccessibilityAction::AccessibilityToggleAction(value_native_accessibility_toggle_action)
                         }
                     };
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_accessibility_document_clear_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+    nodeid: AccessibilityNodeId,
+) -> RuntimeResult<()> {
+    let _ = (&window, &nodeid);
+
+    binding.trace().run_binding_without_context(
+        ACCESSIBILITY_DOCUMENT_CLEAR,
+        binding.replay_payload_for(ACCESSIBILITY_DOCUMENT_CLEAR)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_accessibility_document_clear(binding, window, nodeid)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_accessibility_document_clear(
+                    binding, window, nodeid,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AccessibilityDocumentClearReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    AccessibilityDocumentClearReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_accessibility_document_close_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::AccessibilityDocumentHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        ACCESSIBILITY_DOCUMENT_CLOSE,
+        binding.replay_payload_for(ACCESSIBILITY_DOCUMENT_CLOSE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_accessibility_document_close(binding, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_accessibility_document_close(binding, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AccessibilityDocumentCloseReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    AccessibilityDocumentCloseReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_accessibility_document_open_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut resource::AccessibilityDocumentHandle,
+    window: resource::WindowHandle,
+    options: AccessibilityDocumentOpenOptions,
+) -> RuntimeResult<()> {
+    let _ = (&window, &options);
+
+    binding.trace().run_binding_without_context(
+        ACCESSIBILITY_DOCUMENT_OPEN,
+        binding.replay_payload_for(ACCESSIBILITY_DOCUMENT_OPEN)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_accessibility_document_open(binding, out, window, options)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_accessibility_document_open(
+                    binding, out, window, options,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: resource::AccessibilityDocumentHandle = unsafe { out.read() };
+                let result_recorded = result_value;
+                let payload = AccessibilityDocumentOpenReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    AccessibilityDocumentOpenReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    unsafe { out.write(value) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_accessibility_document_read_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut AccessibilityDocumentQuery,
+    handle: resource::AccessibilityDocumentHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &timeoutns);
+
+    binding.trace().run_binding_without_context(
+        ACCESSIBILITY_DOCUMENT_READ,
+        binding.replay_payload_for(ACCESSIBILITY_DOCUMENT_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe { platform_native::destack_accessibility_document_read(binding, out, handle, timeoutns) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_accessibility_document_read(binding, out, handle, timeoutns) },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: AccessibilityDocumentQuery = unsafe { out.read() };
+                let result_recorded = match result_value {
+                    AccessibilityDocumentQuery::AccessibilityDocumentRangeAtPointQuery(value) => {
+                        let result_recorded_accessibility_document_range_at_point_query_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_range_at_point_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_range_at_point_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_range_at_point_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_range_at_point_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_range_at_point_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_range_at_point_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_range_at_point_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_range_at_point_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_range_at_point_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_range_at_point_query_x = value.x;
+                        let result_recorded_accessibility_document_range_at_point_query_y = value.y;
+                        let result_recorded_accessibility_document_range_at_point_query = AccessibilitydocumentrangeatpointqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_range_at_point_query_kind,
+                            metadata: result_recorded_accessibility_document_range_at_point_query_metadata,
+                            x: result_recorded_accessibility_document_range_at_point_query_x,
+                            y: result_recorded_accessibility_document_range_at_point_query_y,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeAtPointQuery(result_recorded_accessibility_document_range_at_point_query)
+                    }
+                    AccessibilityDocumentQuery::AccessibilityDocumentRangeForChildQuery(value) => {
+                        let result_recorded_accessibility_document_range_for_child_query_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_range_for_child_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_range_for_child_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_range_for_child_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_range_for_child_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_range_for_child_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_range_for_child_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_range_for_child_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_range_for_child_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_range_for_child_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_range_for_child_query_child_node_id = value.child_node_id;
+                        let result_recorded_accessibility_document_range_for_child_query = AccessibilitydocumentrangeforchildqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_range_for_child_query_kind,
+                            metadata: result_recorded_accessibility_document_range_for_child_query_metadata,
+                            child_node_id: result_recorded_accessibility_document_range_for_child_query_child_node_id,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeForChildQuery(result_recorded_accessibility_document_range_for_child_query)
+                    }
+                    AccessibilityDocumentQuery::AccessibilityDocumentRangeForUnitQuery(value) => {
+                        let result_recorded_accessibility_document_range_for_unit_query_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_range_for_unit_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_range_for_unit_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_range_for_unit_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_range_for_unit_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_range_for_unit_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_range_for_unit_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_range_for_unit_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_range_for_unit_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_range_for_unit_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_range_for_unit_query_unit = value.unit;
+                        let result_recorded_accessibility_document_range_for_unit_query_offset = value.offset;
+                        let result_recorded_accessibility_document_range_for_unit_query = AccessibilitydocumentrangeforunitqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_range_for_unit_query_kind,
+                            metadata: result_recorded_accessibility_document_range_for_unit_query_metadata,
+                            unit: result_recorded_accessibility_document_range_for_unit_query_unit,
+                            offset: result_recorded_accessibility_document_range_for_unit_query_offset,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeForUnitQuery(result_recorded_accessibility_document_range_for_unit_query)
+                    }
+                    AccessibilityDocumentQuery::AccessibilityDocumentReadEmbeddedObjectsQuery(value) => {
+                        let result_recorded_accessibility_document_read_embedded_objects_query_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_read_embedded_objects_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_read_embedded_objects_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_read_embedded_objects_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_read_embedded_objects_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_read_embedded_objects_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_read_embedded_objects_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_read_embedded_objects_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_read_embedded_objects_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_read_embedded_objects_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_read_embedded_objects_query_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_document_read_embedded_objects_query_range_start_offset,
+                            end_offset: result_recorded_accessibility_document_read_embedded_objects_query_range_end_offset,
+                        };
+                        let result_recorded_accessibility_document_read_embedded_objects_query = AccessibilitydocumentreadembeddedobjectsqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_read_embedded_objects_query_kind,
+                            metadata: result_recorded_accessibility_document_read_embedded_objects_query_metadata,
+                            range: result_recorded_accessibility_document_read_embedded_objects_query_range,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadEmbeddedObjectsQuery(result_recorded_accessibility_document_read_embedded_objects_query)
+                    }
+                    AccessibilityDocumentQuery::AccessibilityDocumentReadRangeBoundsQuery(value) => {
+                        let result_recorded_accessibility_document_read_range_bounds_query_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_read_range_bounds_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_read_range_bounds_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_read_range_bounds_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_read_range_bounds_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_read_range_bounds_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_read_range_bounds_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_read_range_bounds_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_read_range_bounds_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_read_range_bounds_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_read_range_bounds_query_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_document_read_range_bounds_query_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_document_read_range_bounds_query_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_document_read_range_bounds_query_range_start_offset,
+                            end_offset: result_recorded_accessibility_document_read_range_bounds_query_range_end_offset,
+                        };
+                        let result_recorded_accessibility_document_read_range_bounds_query = AccessibilitydocumentreadrangeboundsqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_read_range_bounds_query_kind,
+                            metadata: result_recorded_accessibility_document_read_range_bounds_query_metadata,
+                            range: result_recorded_accessibility_document_read_range_bounds_query_range,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadRangeBoundsQuery(result_recorded_accessibility_document_read_range_bounds_query)
+                    }
+                    AccessibilityDocumentQuery::AccessibilityDocumentReadStyleRunsQuery(value) => {
+                        let result_recorded_accessibility_document_read_style_runs_query_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_read_style_runs_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_read_style_runs_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_read_style_runs_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_read_style_runs_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_read_style_runs_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_read_style_runs_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_read_style_runs_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_read_style_runs_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_read_style_runs_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_read_style_runs_query_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_document_read_style_runs_query_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_document_read_style_runs_query_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_document_read_style_runs_query_range_start_offset,
+                            end_offset: result_recorded_accessibility_document_read_style_runs_query_range_end_offset,
+                        };
+                        let result_recorded_accessibility_document_read_style_runs_query = AccessibilitydocumentreadstylerunsqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_read_style_runs_query_kind,
+                            metadata: result_recorded_accessibility_document_read_style_runs_query_metadata,
+                            range: result_recorded_accessibility_document_read_style_runs_query_range,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadStyleRunsQuery(result_recorded_accessibility_document_read_style_runs_query)
+                    }
+                    AccessibilityDocumentQuery::AccessibilityDocumentReadTextQuery(value) => {
+                        let result_recorded_accessibility_document_read_text_query_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_document_read_text_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_read_text_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_read_text_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_read_text_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_read_text_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_read_text_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_read_text_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_read_text_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_read_text_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_read_text_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_read_text_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_read_text_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_read_text_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_read_text_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_read_text_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_read_text_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_read_text_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_read_text_query_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_document_read_text_query_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_document_read_text_query_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_document_read_text_query_range_start_offset,
+                            end_offset: result_recorded_accessibility_document_read_text_query_range_end_offset,
+                        };
+                        let result_recorded_accessibility_document_read_text_query = AccessibilitydocumentreadtextqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_read_text_query_kind,
+                            metadata: result_recorded_accessibility_document_read_text_query_metadata,
+                            range: result_recorded_accessibility_document_read_text_query_range,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadTextQuery(result_recorded_accessibility_document_read_text_query)
+                    }
+                    AccessibilityDocumentQuery::AccessibilityDocumentReadUnitRangesQuery(value) => {
+                        let result_recorded_accessibility_document_read_unit_ranges_query_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_read_unit_ranges_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_read_unit_ranges_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_read_unit_ranges_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_read_unit_ranges_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_read_unit_ranges_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_read_unit_ranges_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_read_unit_ranges_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_read_unit_ranges_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_read_unit_ranges_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_read_unit_ranges_query_unit = value.unit;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_document_read_unit_ranges_query_range_start_offset,
+                            end_offset: result_recorded_accessibility_document_read_unit_ranges_query_range_end_offset,
+                        };
+                        let result_recorded_accessibility_document_read_unit_ranges_query = AccessibilitydocumentreadunitrangesqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_read_unit_ranges_query_kind,
+                            metadata: result_recorded_accessibility_document_read_unit_ranges_query_metadata,
+                            unit: result_recorded_accessibility_document_read_unit_ranges_query_unit,
+                            range: result_recorded_accessibility_document_read_unit_ranges_query_range,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadUnitRangesQuery(result_recorded_accessibility_document_read_unit_ranges_query)
+                    }
+                };
+                let payload = AccessibilityDocumentReadReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    AccessibilityDocumentReadReplayRecord {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = match value {
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeAtPointQuery(value) => {
+                            let value_native_accessibility_document_range_at_point_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_range_at_point_query_metadata_request_id = value.metadata.request_id;
+                            let value_native_accessibility_document_range_at_point_query_metadata_window = value.metadata.window;
+                            let value_native_accessibility_document_range_at_point_query_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_document_range_at_point_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let value_native_accessibility_document_range_at_point_query_metadata_document_revision_inner = value;
+                                Some(value_native_accessibility_document_range_at_point_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_accessibility_document_range_at_point_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_document_range_at_point_query_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_document_range_at_point_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_document_range_at_point_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: value_native_accessibility_document_range_at_point_query_metadata_request_id,
+                                window: value_native_accessibility_document_range_at_point_query_metadata_window,
+                                node_id: value_native_accessibility_document_range_at_point_query_metadata_node_id,
+                                document_revision: value_native_accessibility_document_range_at_point_query_metadata_document_revision,
+                                timestamp_ns: value_native_accessibility_document_range_at_point_query_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_document_range_at_point_query_metadata_sequence,
+                                dropped_count: value_native_accessibility_document_range_at_point_query_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_document_range_at_point_query_x = value.x;
+                            let value_native_accessibility_document_range_at_point_query_y = value.y;
+                            let value_native_accessibility_document_range_at_point_query = AccessibilityDocumentRangeAtPointQuery {
+                                kind: value_native_accessibility_document_range_at_point_query_kind,
+                                metadata: value_native_accessibility_document_range_at_point_query_metadata,
+                                x: value_native_accessibility_document_range_at_point_query_x,
+                                y: value_native_accessibility_document_range_at_point_query_y,
+                            };
+                            AccessibilityDocumentQuery::AccessibilityDocumentRangeAtPointQuery(value_native_accessibility_document_range_at_point_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeForChildQuery(value) => {
+                            let value_native_accessibility_document_range_for_child_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_range_for_child_query_metadata_request_id = value.metadata.request_id;
+                            let value_native_accessibility_document_range_for_child_query_metadata_window = value.metadata.window;
+                            let value_native_accessibility_document_range_for_child_query_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_document_range_for_child_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let value_native_accessibility_document_range_for_child_query_metadata_document_revision_inner = value;
+                                Some(value_native_accessibility_document_range_for_child_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_accessibility_document_range_for_child_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_document_range_for_child_query_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_document_range_for_child_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_document_range_for_child_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: value_native_accessibility_document_range_for_child_query_metadata_request_id,
+                                window: value_native_accessibility_document_range_for_child_query_metadata_window,
+                                node_id: value_native_accessibility_document_range_for_child_query_metadata_node_id,
+                                document_revision: value_native_accessibility_document_range_for_child_query_metadata_document_revision,
+                                timestamp_ns: value_native_accessibility_document_range_for_child_query_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_document_range_for_child_query_metadata_sequence,
+                                dropped_count: value_native_accessibility_document_range_for_child_query_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_document_range_for_child_query_child_node_id = value.child_node_id;
+                            let value_native_accessibility_document_range_for_child_query = AccessibilityDocumentRangeForChildQuery {
+                                kind: value_native_accessibility_document_range_for_child_query_kind,
+                                metadata: value_native_accessibility_document_range_for_child_query_metadata,
+                                child_node_id: value_native_accessibility_document_range_for_child_query_child_node_id,
+                            };
+                            AccessibilityDocumentQuery::AccessibilityDocumentRangeForChildQuery(value_native_accessibility_document_range_for_child_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeForUnitQuery(value) => {
+                            let value_native_accessibility_document_range_for_unit_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_range_for_unit_query_metadata_request_id = value.metadata.request_id;
+                            let value_native_accessibility_document_range_for_unit_query_metadata_window = value.metadata.window;
+                            let value_native_accessibility_document_range_for_unit_query_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_document_range_for_unit_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let value_native_accessibility_document_range_for_unit_query_metadata_document_revision_inner = value;
+                                Some(value_native_accessibility_document_range_for_unit_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_accessibility_document_range_for_unit_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_document_range_for_unit_query_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_document_range_for_unit_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_document_range_for_unit_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: value_native_accessibility_document_range_for_unit_query_metadata_request_id,
+                                window: value_native_accessibility_document_range_for_unit_query_metadata_window,
+                                node_id: value_native_accessibility_document_range_for_unit_query_metadata_node_id,
+                                document_revision: value_native_accessibility_document_range_for_unit_query_metadata_document_revision,
+                                timestamp_ns: value_native_accessibility_document_range_for_unit_query_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_document_range_for_unit_query_metadata_sequence,
+                                dropped_count: value_native_accessibility_document_range_for_unit_query_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_document_range_for_unit_query_unit = value.unit;
+                            let value_native_accessibility_document_range_for_unit_query_offset = value.offset;
+                            let value_native_accessibility_document_range_for_unit_query = AccessibilityDocumentRangeForUnitQuery {
+                                kind: value_native_accessibility_document_range_for_unit_query_kind,
+                                metadata: value_native_accessibility_document_range_for_unit_query_metadata,
+                                unit: value_native_accessibility_document_range_for_unit_query_unit,
+                                offset: value_native_accessibility_document_range_for_unit_query_offset,
+                            };
+                            AccessibilityDocumentQuery::AccessibilityDocumentRangeForUnitQuery(value_native_accessibility_document_range_for_unit_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadEmbeddedObjectsQuery(value) => {
+                            let value_native_accessibility_document_read_embedded_objects_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_read_embedded_objects_query_metadata_request_id = value.metadata.request_id;
+                            let value_native_accessibility_document_read_embedded_objects_query_metadata_window = value.metadata.window;
+                            let value_native_accessibility_document_read_embedded_objects_query_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_document_read_embedded_objects_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let value_native_accessibility_document_read_embedded_objects_query_metadata_document_revision_inner = value;
+                                Some(value_native_accessibility_document_read_embedded_objects_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_accessibility_document_read_embedded_objects_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_document_read_embedded_objects_query_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_document_read_embedded_objects_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_document_read_embedded_objects_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: value_native_accessibility_document_read_embedded_objects_query_metadata_request_id,
+                                window: value_native_accessibility_document_read_embedded_objects_query_metadata_window,
+                                node_id: value_native_accessibility_document_read_embedded_objects_query_metadata_node_id,
+                                document_revision: value_native_accessibility_document_read_embedded_objects_query_metadata_document_revision,
+                                timestamp_ns: value_native_accessibility_document_read_embedded_objects_query_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_document_read_embedded_objects_query_metadata_sequence,
+                                dropped_count: value_native_accessibility_document_read_embedded_objects_query_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_document_read_embedded_objects_query_range_start_offset = value.range.start_offset;
+                            let value_native_accessibility_document_read_embedded_objects_query_range_end_offset = value.range.end_offset;
+                            let value_native_accessibility_document_read_embedded_objects_query_range = AccessibilityTextRange {
+                                start_offset: value_native_accessibility_document_read_embedded_objects_query_range_start_offset,
+                                end_offset: value_native_accessibility_document_read_embedded_objects_query_range_end_offset,
+                            };
+                            let value_native_accessibility_document_read_embedded_objects_query = AccessibilityDocumentReadEmbeddedObjectsQuery {
+                                kind: value_native_accessibility_document_read_embedded_objects_query_kind,
+                                metadata: value_native_accessibility_document_read_embedded_objects_query_metadata,
+                                range: value_native_accessibility_document_read_embedded_objects_query_range,
+                            };
+                            AccessibilityDocumentQuery::AccessibilityDocumentReadEmbeddedObjectsQuery(value_native_accessibility_document_read_embedded_objects_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadRangeBoundsQuery(value) => {
+                            let value_native_accessibility_document_read_range_bounds_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_read_range_bounds_query_metadata_request_id = value.metadata.request_id;
+                            let value_native_accessibility_document_read_range_bounds_query_metadata_window = value.metadata.window;
+                            let value_native_accessibility_document_read_range_bounds_query_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_document_read_range_bounds_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let value_native_accessibility_document_read_range_bounds_query_metadata_document_revision_inner = value;
+                                Some(value_native_accessibility_document_read_range_bounds_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_accessibility_document_read_range_bounds_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_document_read_range_bounds_query_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_document_read_range_bounds_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_document_read_range_bounds_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: value_native_accessibility_document_read_range_bounds_query_metadata_request_id,
+                                window: value_native_accessibility_document_read_range_bounds_query_metadata_window,
+                                node_id: value_native_accessibility_document_read_range_bounds_query_metadata_node_id,
+                                document_revision: value_native_accessibility_document_read_range_bounds_query_metadata_document_revision,
+                                timestamp_ns: value_native_accessibility_document_read_range_bounds_query_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_document_read_range_bounds_query_metadata_sequence,
+                                dropped_count: value_native_accessibility_document_read_range_bounds_query_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_document_read_range_bounds_query_range_start_offset = value.range.start_offset;
+                            let value_native_accessibility_document_read_range_bounds_query_range_end_offset = value.range.end_offset;
+                            let value_native_accessibility_document_read_range_bounds_query_range = AccessibilityTextRange {
+                                start_offset: value_native_accessibility_document_read_range_bounds_query_range_start_offset,
+                                end_offset: value_native_accessibility_document_read_range_bounds_query_range_end_offset,
+                            };
+                            let value_native_accessibility_document_read_range_bounds_query = AccessibilityDocumentReadRangeBoundsQuery {
+                                kind: value_native_accessibility_document_read_range_bounds_query_kind,
+                                metadata: value_native_accessibility_document_read_range_bounds_query_metadata,
+                                range: value_native_accessibility_document_read_range_bounds_query_range,
+                            };
+                            AccessibilityDocumentQuery::AccessibilityDocumentReadRangeBoundsQuery(value_native_accessibility_document_read_range_bounds_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadStyleRunsQuery(value) => {
+                            let value_native_accessibility_document_read_style_runs_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_read_style_runs_query_metadata_request_id = value.metadata.request_id;
+                            let value_native_accessibility_document_read_style_runs_query_metadata_window = value.metadata.window;
+                            let value_native_accessibility_document_read_style_runs_query_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_document_read_style_runs_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let value_native_accessibility_document_read_style_runs_query_metadata_document_revision_inner = value;
+                                Some(value_native_accessibility_document_read_style_runs_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_accessibility_document_read_style_runs_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_document_read_style_runs_query_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_document_read_style_runs_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_document_read_style_runs_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: value_native_accessibility_document_read_style_runs_query_metadata_request_id,
+                                window: value_native_accessibility_document_read_style_runs_query_metadata_window,
+                                node_id: value_native_accessibility_document_read_style_runs_query_metadata_node_id,
+                                document_revision: value_native_accessibility_document_read_style_runs_query_metadata_document_revision,
+                                timestamp_ns: value_native_accessibility_document_read_style_runs_query_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_document_read_style_runs_query_metadata_sequence,
+                                dropped_count: value_native_accessibility_document_read_style_runs_query_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_document_read_style_runs_query_range_start_offset = value.range.start_offset;
+                            let value_native_accessibility_document_read_style_runs_query_range_end_offset = value.range.end_offset;
+                            let value_native_accessibility_document_read_style_runs_query_range = AccessibilityTextRange {
+                                start_offset: value_native_accessibility_document_read_style_runs_query_range_start_offset,
+                                end_offset: value_native_accessibility_document_read_style_runs_query_range_end_offset,
+                            };
+                            let value_native_accessibility_document_read_style_runs_query = AccessibilityDocumentReadStyleRunsQuery {
+                                kind: value_native_accessibility_document_read_style_runs_query_kind,
+                                metadata: value_native_accessibility_document_read_style_runs_query_metadata,
+                                range: value_native_accessibility_document_read_style_runs_query_range,
+                            };
+                            AccessibilityDocumentQuery::AccessibilityDocumentReadStyleRunsQuery(value_native_accessibility_document_read_style_runs_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadTextQuery(value) => {
+                            let value_native_accessibility_document_read_text_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_read_text_query_metadata_request_id = value.metadata.request_id;
+                            let value_native_accessibility_document_read_text_query_metadata_window = value.metadata.window;
+                            let value_native_accessibility_document_read_text_query_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_document_read_text_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let value_native_accessibility_document_read_text_query_metadata_document_revision_inner = value;
+                                Some(value_native_accessibility_document_read_text_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_accessibility_document_read_text_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_document_read_text_query_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_document_read_text_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_document_read_text_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: value_native_accessibility_document_read_text_query_metadata_request_id,
+                                window: value_native_accessibility_document_read_text_query_metadata_window,
+                                node_id: value_native_accessibility_document_read_text_query_metadata_node_id,
+                                document_revision: value_native_accessibility_document_read_text_query_metadata_document_revision,
+                                timestamp_ns: value_native_accessibility_document_read_text_query_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_document_read_text_query_metadata_sequence,
+                                dropped_count: value_native_accessibility_document_read_text_query_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_document_read_text_query_range_start_offset = value.range.start_offset;
+                            let value_native_accessibility_document_read_text_query_range_end_offset = value.range.end_offset;
+                            let value_native_accessibility_document_read_text_query_range = AccessibilityTextRange {
+                                start_offset: value_native_accessibility_document_read_text_query_range_start_offset,
+                                end_offset: value_native_accessibility_document_read_text_query_range_end_offset,
+                            };
+                            let value_native_accessibility_document_read_text_query = AccessibilityDocumentReadTextQuery {
+                                kind: value_native_accessibility_document_read_text_query_kind,
+                                metadata: value_native_accessibility_document_read_text_query_metadata,
+                                range: value_native_accessibility_document_read_text_query_range,
+                            };
+                            AccessibilityDocumentQuery::AccessibilityDocumentReadTextQuery(value_native_accessibility_document_read_text_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadUnitRangesQuery(value) => {
+                            let value_native_accessibility_document_read_unit_ranges_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_read_unit_ranges_query_metadata_request_id = value.metadata.request_id;
+                            let value_native_accessibility_document_read_unit_ranges_query_metadata_window = value.metadata.window;
+                            let value_native_accessibility_document_read_unit_ranges_query_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_document_read_unit_ranges_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let value_native_accessibility_document_read_unit_ranges_query_metadata_document_revision_inner = value;
+                                Some(value_native_accessibility_document_read_unit_ranges_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_accessibility_document_read_unit_ranges_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_document_read_unit_ranges_query_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_document_read_unit_ranges_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_document_read_unit_ranges_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: value_native_accessibility_document_read_unit_ranges_query_metadata_request_id,
+                                window: value_native_accessibility_document_read_unit_ranges_query_metadata_window,
+                                node_id: value_native_accessibility_document_read_unit_ranges_query_metadata_node_id,
+                                document_revision: value_native_accessibility_document_read_unit_ranges_query_metadata_document_revision,
+                                timestamp_ns: value_native_accessibility_document_read_unit_ranges_query_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_document_read_unit_ranges_query_metadata_sequence,
+                                dropped_count: value_native_accessibility_document_read_unit_ranges_query_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_document_read_unit_ranges_query_unit = value.unit;
+                            let value_native_accessibility_document_read_unit_ranges_query_range_start_offset = value.range.start_offset;
+                            let value_native_accessibility_document_read_unit_ranges_query_range_end_offset = value.range.end_offset;
+                            let value_native_accessibility_document_read_unit_ranges_query_range = AccessibilityTextRange {
+                                start_offset: value_native_accessibility_document_read_unit_ranges_query_range_start_offset,
+                                end_offset: value_native_accessibility_document_read_unit_ranges_query_range_end_offset,
+                            };
+                            let value_native_accessibility_document_read_unit_ranges_query = AccessibilityDocumentReadUnitRangesQuery {
+                                kind: value_native_accessibility_document_read_unit_ranges_query_kind,
+                                metadata: value_native_accessibility_document_read_unit_ranges_query_metadata,
+                                unit: value_native_accessibility_document_read_unit_ranges_query_unit,
+                                range: value_native_accessibility_document_read_unit_ranges_query_range,
+                            };
+                            AccessibilityDocumentQuery::AccessibilityDocumentReadUnitRangesQuery(value_native_accessibility_document_read_unit_ranges_query)
+                        }
+                    };
+                    unsafe { out.write(value_native) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_accessibility_document_respond_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::AccessibilityDocumentHandle,
+    response: AccessibilityDocumentResponse,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &response);
+
+    binding.trace().run_binding_without_context(
+        ACCESSIBILITY_DOCUMENT_RESPOND,
+        binding.replay_payload_for(ACCESSIBILITY_DOCUMENT_RESPOND)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_accessibility_document_respond(binding, handle, response)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_accessibility_document_respond(
+                    binding, handle, response,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AccessibilityDocumentRespondReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    AccessibilityDocumentRespondReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_accessibility_document_set_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+    nodeid: AccessibilityNodeId,
+    document: AccessibilityTextDocument,
+) -> RuntimeResult<()> {
+    let _ = (&window, &nodeid, &document);
+
+    binding.trace().run_binding_without_context(
+        ACCESSIBILITY_DOCUMENT_SET,
+        binding.replay_payload_for(ACCESSIBILITY_DOCUMENT_SET)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_accessibility_document_set(
+                    binding, window, nodeid, document,
+                )
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_accessibility_document_set(
+                    binding, window, nodeid, document,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AccessibilityDocumentSetReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    AccessibilityDocumentSetReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_accessibility_document_try_read_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut AccessibilityDocumentQuery,
+    handle: resource::AccessibilityDocumentHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        ACCESSIBILITY_DOCUMENT_TRY_READ,
+        binding.replay_payload_for(ACCESSIBILITY_DOCUMENT_TRY_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe { platform_native::destack_accessibility_document_try_read(binding, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_accessibility_document_try_read(binding, out, handle) },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: AccessibilityDocumentQuery = unsafe { out.read() };
+                let result_recorded = match result_value {
+                    AccessibilityDocumentQuery::AccessibilityDocumentRangeAtPointQuery(value) => {
+                        let result_recorded_accessibility_document_range_at_point_query_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_range_at_point_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_range_at_point_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_range_at_point_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_range_at_point_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_range_at_point_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_range_at_point_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_range_at_point_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_range_at_point_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_range_at_point_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_range_at_point_query_x = value.x;
+                        let result_recorded_accessibility_document_range_at_point_query_y = value.y;
+                        let result_recorded_accessibility_document_range_at_point_query = AccessibilitydocumentrangeatpointqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_range_at_point_query_kind,
+                            metadata: result_recorded_accessibility_document_range_at_point_query_metadata,
+                            x: result_recorded_accessibility_document_range_at_point_query_x,
+                            y: result_recorded_accessibility_document_range_at_point_query_y,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeAtPointQuery(result_recorded_accessibility_document_range_at_point_query)
+                    }
+                    AccessibilityDocumentQuery::AccessibilityDocumentRangeForChildQuery(value) => {
+                        let result_recorded_accessibility_document_range_for_child_query_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_range_for_child_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_range_for_child_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_range_for_child_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_range_for_child_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_range_for_child_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_range_for_child_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_range_for_child_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_range_for_child_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_range_for_child_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_range_for_child_query_child_node_id = value.child_node_id;
+                        let result_recorded_accessibility_document_range_for_child_query = AccessibilitydocumentrangeforchildqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_range_for_child_query_kind,
+                            metadata: result_recorded_accessibility_document_range_for_child_query_metadata,
+                            child_node_id: result_recorded_accessibility_document_range_for_child_query_child_node_id,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeForChildQuery(result_recorded_accessibility_document_range_for_child_query)
+                    }
+                    AccessibilityDocumentQuery::AccessibilityDocumentRangeForUnitQuery(value) => {
+                        let result_recorded_accessibility_document_range_for_unit_query_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_range_for_unit_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_range_for_unit_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_range_for_unit_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_range_for_unit_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_range_for_unit_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_range_for_unit_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_range_for_unit_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_range_for_unit_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_range_for_unit_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_range_for_unit_query_unit = value.unit;
+                        let result_recorded_accessibility_document_range_for_unit_query_offset = value.offset;
+                        let result_recorded_accessibility_document_range_for_unit_query = AccessibilitydocumentrangeforunitqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_range_for_unit_query_kind,
+                            metadata: result_recorded_accessibility_document_range_for_unit_query_metadata,
+                            unit: result_recorded_accessibility_document_range_for_unit_query_unit,
+                            offset: result_recorded_accessibility_document_range_for_unit_query_offset,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeForUnitQuery(result_recorded_accessibility_document_range_for_unit_query)
+                    }
+                    AccessibilityDocumentQuery::AccessibilityDocumentReadEmbeddedObjectsQuery(value) => {
+                        let result_recorded_accessibility_document_read_embedded_objects_query_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_read_embedded_objects_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_read_embedded_objects_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_read_embedded_objects_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_read_embedded_objects_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_read_embedded_objects_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_read_embedded_objects_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_read_embedded_objects_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_read_embedded_objects_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_read_embedded_objects_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_read_embedded_objects_query_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_document_read_embedded_objects_query_range_start_offset,
+                            end_offset: result_recorded_accessibility_document_read_embedded_objects_query_range_end_offset,
+                        };
+                        let result_recorded_accessibility_document_read_embedded_objects_query = AccessibilitydocumentreadembeddedobjectsqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_read_embedded_objects_query_kind,
+                            metadata: result_recorded_accessibility_document_read_embedded_objects_query_metadata,
+                            range: result_recorded_accessibility_document_read_embedded_objects_query_range,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadEmbeddedObjectsQuery(result_recorded_accessibility_document_read_embedded_objects_query)
+                    }
+                    AccessibilityDocumentQuery::AccessibilityDocumentReadRangeBoundsQuery(value) => {
+                        let result_recorded_accessibility_document_read_range_bounds_query_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_read_range_bounds_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_read_range_bounds_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_read_range_bounds_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_read_range_bounds_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_read_range_bounds_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_read_range_bounds_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_read_range_bounds_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_read_range_bounds_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_read_range_bounds_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_read_range_bounds_query_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_document_read_range_bounds_query_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_document_read_range_bounds_query_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_document_read_range_bounds_query_range_start_offset,
+                            end_offset: result_recorded_accessibility_document_read_range_bounds_query_range_end_offset,
+                        };
+                        let result_recorded_accessibility_document_read_range_bounds_query = AccessibilitydocumentreadrangeboundsqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_read_range_bounds_query_kind,
+                            metadata: result_recorded_accessibility_document_read_range_bounds_query_metadata,
+                            range: result_recorded_accessibility_document_read_range_bounds_query_range,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadRangeBoundsQuery(result_recorded_accessibility_document_read_range_bounds_query)
+                    }
+                    AccessibilityDocumentQuery::AccessibilityDocumentReadStyleRunsQuery(value) => {
+                        let result_recorded_accessibility_document_read_style_runs_query_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_read_style_runs_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_read_style_runs_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_read_style_runs_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_read_style_runs_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_read_style_runs_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_read_style_runs_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_read_style_runs_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_read_style_runs_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_read_style_runs_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_read_style_runs_query_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_document_read_style_runs_query_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_document_read_style_runs_query_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_document_read_style_runs_query_range_start_offset,
+                            end_offset: result_recorded_accessibility_document_read_style_runs_query_range_end_offset,
+                        };
+                        let result_recorded_accessibility_document_read_style_runs_query = AccessibilitydocumentreadstylerunsqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_read_style_runs_query_kind,
+                            metadata: result_recorded_accessibility_document_read_style_runs_query_metadata,
+                            range: result_recorded_accessibility_document_read_style_runs_query_range,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadStyleRunsQuery(result_recorded_accessibility_document_read_style_runs_query)
+                    }
+                    AccessibilityDocumentQuery::AccessibilityDocumentReadTextQuery(value) => {
+                        let result_recorded_accessibility_document_read_text_query_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_document_read_text_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_read_text_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_read_text_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_read_text_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_read_text_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_read_text_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_read_text_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_read_text_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_read_text_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_read_text_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_read_text_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_read_text_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_read_text_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_read_text_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_read_text_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_read_text_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_read_text_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_read_text_query_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_document_read_text_query_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_document_read_text_query_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_document_read_text_query_range_start_offset,
+                            end_offset: result_recorded_accessibility_document_read_text_query_range_end_offset,
+                        };
+                        let result_recorded_accessibility_document_read_text_query = AccessibilitydocumentreadtextqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_read_text_query_kind,
+                            metadata: result_recorded_accessibility_document_read_text_query_metadata,
+                            range: result_recorded_accessibility_document_read_text_query_range,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadTextQuery(result_recorded_accessibility_document_read_text_query)
+                    }
+                    AccessibilityDocumentQuery::AccessibilityDocumentReadUnitRangesQuery(value) => {
+                        let result_recorded_accessibility_document_read_unit_ranges_query_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_read_unit_ranges_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_read_unit_ranges_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_read_unit_ranges_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_read_unit_ranges_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_read_unit_ranges_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_read_unit_ranges_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_read_unit_ranges_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_read_unit_ranges_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_read_unit_ranges_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_read_unit_ranges_query_unit = value.unit;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_document_read_unit_ranges_query_range_start_offset,
+                            end_offset: result_recorded_accessibility_document_read_unit_ranges_query_range_end_offset,
+                        };
+                        let result_recorded_accessibility_document_read_unit_ranges_query = AccessibilitydocumentreadunitrangesqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_read_unit_ranges_query_kind,
+                            metadata: result_recorded_accessibility_document_read_unit_ranges_query_metadata,
+                            unit: result_recorded_accessibility_document_read_unit_ranges_query_unit,
+                            range: result_recorded_accessibility_document_read_unit_ranges_query_range,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadUnitRangesQuery(result_recorded_accessibility_document_read_unit_ranges_query)
+                    }
+                };
+                let payload = AccessibilityDocumentTryReadReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    AccessibilityDocumentTryReadReplayRecord {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = match value {
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeAtPointQuery(value) => {
+                            let value_native_accessibility_document_range_at_point_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_range_at_point_query_metadata_request_id = value.metadata.request_id;
+                            let value_native_accessibility_document_range_at_point_query_metadata_window = value.metadata.window;
+                            let value_native_accessibility_document_range_at_point_query_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_document_range_at_point_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let value_native_accessibility_document_range_at_point_query_metadata_document_revision_inner = value;
+                                Some(value_native_accessibility_document_range_at_point_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_accessibility_document_range_at_point_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_document_range_at_point_query_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_document_range_at_point_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_document_range_at_point_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: value_native_accessibility_document_range_at_point_query_metadata_request_id,
+                                window: value_native_accessibility_document_range_at_point_query_metadata_window,
+                                node_id: value_native_accessibility_document_range_at_point_query_metadata_node_id,
+                                document_revision: value_native_accessibility_document_range_at_point_query_metadata_document_revision,
+                                timestamp_ns: value_native_accessibility_document_range_at_point_query_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_document_range_at_point_query_metadata_sequence,
+                                dropped_count: value_native_accessibility_document_range_at_point_query_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_document_range_at_point_query_x = value.x;
+                            let value_native_accessibility_document_range_at_point_query_y = value.y;
+                            let value_native_accessibility_document_range_at_point_query = AccessibilityDocumentRangeAtPointQuery {
+                                kind: value_native_accessibility_document_range_at_point_query_kind,
+                                metadata: value_native_accessibility_document_range_at_point_query_metadata,
+                                x: value_native_accessibility_document_range_at_point_query_x,
+                                y: value_native_accessibility_document_range_at_point_query_y,
+                            };
+                            AccessibilityDocumentQuery::AccessibilityDocumentRangeAtPointQuery(value_native_accessibility_document_range_at_point_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeForChildQuery(value) => {
+                            let value_native_accessibility_document_range_for_child_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_range_for_child_query_metadata_request_id = value.metadata.request_id;
+                            let value_native_accessibility_document_range_for_child_query_metadata_window = value.metadata.window;
+                            let value_native_accessibility_document_range_for_child_query_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_document_range_for_child_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let value_native_accessibility_document_range_for_child_query_metadata_document_revision_inner = value;
+                                Some(value_native_accessibility_document_range_for_child_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_accessibility_document_range_for_child_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_document_range_for_child_query_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_document_range_for_child_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_document_range_for_child_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: value_native_accessibility_document_range_for_child_query_metadata_request_id,
+                                window: value_native_accessibility_document_range_for_child_query_metadata_window,
+                                node_id: value_native_accessibility_document_range_for_child_query_metadata_node_id,
+                                document_revision: value_native_accessibility_document_range_for_child_query_metadata_document_revision,
+                                timestamp_ns: value_native_accessibility_document_range_for_child_query_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_document_range_for_child_query_metadata_sequence,
+                                dropped_count: value_native_accessibility_document_range_for_child_query_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_document_range_for_child_query_child_node_id = value.child_node_id;
+                            let value_native_accessibility_document_range_for_child_query = AccessibilityDocumentRangeForChildQuery {
+                                kind: value_native_accessibility_document_range_for_child_query_kind,
+                                metadata: value_native_accessibility_document_range_for_child_query_metadata,
+                                child_node_id: value_native_accessibility_document_range_for_child_query_child_node_id,
+                            };
+                            AccessibilityDocumentQuery::AccessibilityDocumentRangeForChildQuery(value_native_accessibility_document_range_for_child_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeForUnitQuery(value) => {
+                            let value_native_accessibility_document_range_for_unit_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_range_for_unit_query_metadata_request_id = value.metadata.request_id;
+                            let value_native_accessibility_document_range_for_unit_query_metadata_window = value.metadata.window;
+                            let value_native_accessibility_document_range_for_unit_query_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_document_range_for_unit_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let value_native_accessibility_document_range_for_unit_query_metadata_document_revision_inner = value;
+                                Some(value_native_accessibility_document_range_for_unit_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_accessibility_document_range_for_unit_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_document_range_for_unit_query_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_document_range_for_unit_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_document_range_for_unit_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: value_native_accessibility_document_range_for_unit_query_metadata_request_id,
+                                window: value_native_accessibility_document_range_for_unit_query_metadata_window,
+                                node_id: value_native_accessibility_document_range_for_unit_query_metadata_node_id,
+                                document_revision: value_native_accessibility_document_range_for_unit_query_metadata_document_revision,
+                                timestamp_ns: value_native_accessibility_document_range_for_unit_query_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_document_range_for_unit_query_metadata_sequence,
+                                dropped_count: value_native_accessibility_document_range_for_unit_query_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_document_range_for_unit_query_unit = value.unit;
+                            let value_native_accessibility_document_range_for_unit_query_offset = value.offset;
+                            let value_native_accessibility_document_range_for_unit_query = AccessibilityDocumentRangeForUnitQuery {
+                                kind: value_native_accessibility_document_range_for_unit_query_kind,
+                                metadata: value_native_accessibility_document_range_for_unit_query_metadata,
+                                unit: value_native_accessibility_document_range_for_unit_query_unit,
+                                offset: value_native_accessibility_document_range_for_unit_query_offset,
+                            };
+                            AccessibilityDocumentQuery::AccessibilityDocumentRangeForUnitQuery(value_native_accessibility_document_range_for_unit_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadEmbeddedObjectsQuery(value) => {
+                            let value_native_accessibility_document_read_embedded_objects_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_read_embedded_objects_query_metadata_request_id = value.metadata.request_id;
+                            let value_native_accessibility_document_read_embedded_objects_query_metadata_window = value.metadata.window;
+                            let value_native_accessibility_document_read_embedded_objects_query_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_document_read_embedded_objects_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let value_native_accessibility_document_read_embedded_objects_query_metadata_document_revision_inner = value;
+                                Some(value_native_accessibility_document_read_embedded_objects_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_accessibility_document_read_embedded_objects_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_document_read_embedded_objects_query_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_document_read_embedded_objects_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_document_read_embedded_objects_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: value_native_accessibility_document_read_embedded_objects_query_metadata_request_id,
+                                window: value_native_accessibility_document_read_embedded_objects_query_metadata_window,
+                                node_id: value_native_accessibility_document_read_embedded_objects_query_metadata_node_id,
+                                document_revision: value_native_accessibility_document_read_embedded_objects_query_metadata_document_revision,
+                                timestamp_ns: value_native_accessibility_document_read_embedded_objects_query_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_document_read_embedded_objects_query_metadata_sequence,
+                                dropped_count: value_native_accessibility_document_read_embedded_objects_query_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_document_read_embedded_objects_query_range_start_offset = value.range.start_offset;
+                            let value_native_accessibility_document_read_embedded_objects_query_range_end_offset = value.range.end_offset;
+                            let value_native_accessibility_document_read_embedded_objects_query_range = AccessibilityTextRange {
+                                start_offset: value_native_accessibility_document_read_embedded_objects_query_range_start_offset,
+                                end_offset: value_native_accessibility_document_read_embedded_objects_query_range_end_offset,
+                            };
+                            let value_native_accessibility_document_read_embedded_objects_query = AccessibilityDocumentReadEmbeddedObjectsQuery {
+                                kind: value_native_accessibility_document_read_embedded_objects_query_kind,
+                                metadata: value_native_accessibility_document_read_embedded_objects_query_metadata,
+                                range: value_native_accessibility_document_read_embedded_objects_query_range,
+                            };
+                            AccessibilityDocumentQuery::AccessibilityDocumentReadEmbeddedObjectsQuery(value_native_accessibility_document_read_embedded_objects_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadRangeBoundsQuery(value) => {
+                            let value_native_accessibility_document_read_range_bounds_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_read_range_bounds_query_metadata_request_id = value.metadata.request_id;
+                            let value_native_accessibility_document_read_range_bounds_query_metadata_window = value.metadata.window;
+                            let value_native_accessibility_document_read_range_bounds_query_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_document_read_range_bounds_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let value_native_accessibility_document_read_range_bounds_query_metadata_document_revision_inner = value;
+                                Some(value_native_accessibility_document_read_range_bounds_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_accessibility_document_read_range_bounds_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_document_read_range_bounds_query_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_document_read_range_bounds_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_document_read_range_bounds_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: value_native_accessibility_document_read_range_bounds_query_metadata_request_id,
+                                window: value_native_accessibility_document_read_range_bounds_query_metadata_window,
+                                node_id: value_native_accessibility_document_read_range_bounds_query_metadata_node_id,
+                                document_revision: value_native_accessibility_document_read_range_bounds_query_metadata_document_revision,
+                                timestamp_ns: value_native_accessibility_document_read_range_bounds_query_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_document_read_range_bounds_query_metadata_sequence,
+                                dropped_count: value_native_accessibility_document_read_range_bounds_query_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_document_read_range_bounds_query_range_start_offset = value.range.start_offset;
+                            let value_native_accessibility_document_read_range_bounds_query_range_end_offset = value.range.end_offset;
+                            let value_native_accessibility_document_read_range_bounds_query_range = AccessibilityTextRange {
+                                start_offset: value_native_accessibility_document_read_range_bounds_query_range_start_offset,
+                                end_offset: value_native_accessibility_document_read_range_bounds_query_range_end_offset,
+                            };
+                            let value_native_accessibility_document_read_range_bounds_query = AccessibilityDocumentReadRangeBoundsQuery {
+                                kind: value_native_accessibility_document_read_range_bounds_query_kind,
+                                metadata: value_native_accessibility_document_read_range_bounds_query_metadata,
+                                range: value_native_accessibility_document_read_range_bounds_query_range,
+                            };
+                            AccessibilityDocumentQuery::AccessibilityDocumentReadRangeBoundsQuery(value_native_accessibility_document_read_range_bounds_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadStyleRunsQuery(value) => {
+                            let value_native_accessibility_document_read_style_runs_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_read_style_runs_query_metadata_request_id = value.metadata.request_id;
+                            let value_native_accessibility_document_read_style_runs_query_metadata_window = value.metadata.window;
+                            let value_native_accessibility_document_read_style_runs_query_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_document_read_style_runs_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let value_native_accessibility_document_read_style_runs_query_metadata_document_revision_inner = value;
+                                Some(value_native_accessibility_document_read_style_runs_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_accessibility_document_read_style_runs_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_document_read_style_runs_query_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_document_read_style_runs_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_document_read_style_runs_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: value_native_accessibility_document_read_style_runs_query_metadata_request_id,
+                                window: value_native_accessibility_document_read_style_runs_query_metadata_window,
+                                node_id: value_native_accessibility_document_read_style_runs_query_metadata_node_id,
+                                document_revision: value_native_accessibility_document_read_style_runs_query_metadata_document_revision,
+                                timestamp_ns: value_native_accessibility_document_read_style_runs_query_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_document_read_style_runs_query_metadata_sequence,
+                                dropped_count: value_native_accessibility_document_read_style_runs_query_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_document_read_style_runs_query_range_start_offset = value.range.start_offset;
+                            let value_native_accessibility_document_read_style_runs_query_range_end_offset = value.range.end_offset;
+                            let value_native_accessibility_document_read_style_runs_query_range = AccessibilityTextRange {
+                                start_offset: value_native_accessibility_document_read_style_runs_query_range_start_offset,
+                                end_offset: value_native_accessibility_document_read_style_runs_query_range_end_offset,
+                            };
+                            let value_native_accessibility_document_read_style_runs_query = AccessibilityDocumentReadStyleRunsQuery {
+                                kind: value_native_accessibility_document_read_style_runs_query_kind,
+                                metadata: value_native_accessibility_document_read_style_runs_query_metadata,
+                                range: value_native_accessibility_document_read_style_runs_query_range,
+                            };
+                            AccessibilityDocumentQuery::AccessibilityDocumentReadStyleRunsQuery(value_native_accessibility_document_read_style_runs_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadTextQuery(value) => {
+                            let value_native_accessibility_document_read_text_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_read_text_query_metadata_request_id = value.metadata.request_id;
+                            let value_native_accessibility_document_read_text_query_metadata_window = value.metadata.window;
+                            let value_native_accessibility_document_read_text_query_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_document_read_text_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let value_native_accessibility_document_read_text_query_metadata_document_revision_inner = value;
+                                Some(value_native_accessibility_document_read_text_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_accessibility_document_read_text_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_document_read_text_query_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_document_read_text_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_document_read_text_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: value_native_accessibility_document_read_text_query_metadata_request_id,
+                                window: value_native_accessibility_document_read_text_query_metadata_window,
+                                node_id: value_native_accessibility_document_read_text_query_metadata_node_id,
+                                document_revision: value_native_accessibility_document_read_text_query_metadata_document_revision,
+                                timestamp_ns: value_native_accessibility_document_read_text_query_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_document_read_text_query_metadata_sequence,
+                                dropped_count: value_native_accessibility_document_read_text_query_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_document_read_text_query_range_start_offset = value.range.start_offset;
+                            let value_native_accessibility_document_read_text_query_range_end_offset = value.range.end_offset;
+                            let value_native_accessibility_document_read_text_query_range = AccessibilityTextRange {
+                                start_offset: value_native_accessibility_document_read_text_query_range_start_offset,
+                                end_offset: value_native_accessibility_document_read_text_query_range_end_offset,
+                            };
+                            let value_native_accessibility_document_read_text_query = AccessibilityDocumentReadTextQuery {
+                                kind: value_native_accessibility_document_read_text_query_kind,
+                                metadata: value_native_accessibility_document_read_text_query_metadata,
+                                range: value_native_accessibility_document_read_text_query_range,
+                            };
+                            AccessibilityDocumentQuery::AccessibilityDocumentReadTextQuery(value_native_accessibility_document_read_text_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadUnitRangesQuery(value) => {
+                            let value_native_accessibility_document_read_unit_ranges_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_read_unit_ranges_query_metadata_request_id = value.metadata.request_id;
+                            let value_native_accessibility_document_read_unit_ranges_query_metadata_window = value.metadata.window;
+                            let value_native_accessibility_document_read_unit_ranges_query_metadata_node_id = value.metadata.node_id;
+                            let value_native_accessibility_document_read_unit_ranges_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let value_native_accessibility_document_read_unit_ranges_query_metadata_document_revision_inner = value;
+                                Some(value_native_accessibility_document_read_unit_ranges_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_accessibility_document_read_unit_ranges_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_accessibility_document_read_unit_ranges_query_metadata_sequence = value.metadata.sequence;
+                            let value_native_accessibility_document_read_unit_ranges_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_accessibility_document_read_unit_ranges_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: value_native_accessibility_document_read_unit_ranges_query_metadata_request_id,
+                                window: value_native_accessibility_document_read_unit_ranges_query_metadata_window,
+                                node_id: value_native_accessibility_document_read_unit_ranges_query_metadata_node_id,
+                                document_revision: value_native_accessibility_document_read_unit_ranges_query_metadata_document_revision,
+                                timestamp_ns: value_native_accessibility_document_read_unit_ranges_query_metadata_timestamp_ns,
+                                sequence: value_native_accessibility_document_read_unit_ranges_query_metadata_sequence,
+                                dropped_count: value_native_accessibility_document_read_unit_ranges_query_metadata_dropped_count,
+                            };
+                            let value_native_accessibility_document_read_unit_ranges_query_unit = value.unit;
+                            let value_native_accessibility_document_read_unit_ranges_query_range_start_offset = value.range.start_offset;
+                            let value_native_accessibility_document_read_unit_ranges_query_range_end_offset = value.range.end_offset;
+                            let value_native_accessibility_document_read_unit_ranges_query_range = AccessibilityTextRange {
+                                start_offset: value_native_accessibility_document_read_unit_ranges_query_range_start_offset,
+                                end_offset: value_native_accessibility_document_read_unit_ranges_query_range_end_offset,
+                            };
+                            let value_native_accessibility_document_read_unit_ranges_query = AccessibilityDocumentReadUnitRangesQuery {
+                                kind: value_native_accessibility_document_read_unit_ranges_query_kind,
+                                metadata: value_native_accessibility_document_read_unit_ranges_query_metadata,
+                                unit: value_native_accessibility_document_read_unit_ranges_query_unit,
+                                range: value_native_accessibility_document_read_unit_ranges_query_range,
+                            };
+                            AccessibilityDocumentQuery::AccessibilityDocumentReadUnitRangesQuery(value_native_accessibility_document_read_unit_ranges_query)
+                        }
+                    };
+                    unsafe { out.write(value_native) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_accessibility_notification_post_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+    notification: AccessibilityNotification,
+) -> RuntimeResult<()> {
+    let _ = (&window, &notification);
+
+    binding.trace().run_binding_without_context(
+        ACCESSIBILITY_NOTIFICATION_POST,
+        binding.replay_payload_for(ACCESSIBILITY_NOTIFICATION_POST)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_accessibility_notification_post(
+                    binding,
+                    window,
+                    notification,
+                )
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_accessibility_notification_post(
+                    binding,
+                    window,
+                    notification,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AccessibilityNotificationPostReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    AccessibilityNotificationPostReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
@@ -2532,6 +7367,68 @@ fn destack_accessibility_tree_clear_replay(
     )
 }
 
+#[inline]
+fn destack_accessibility_tree_hit_test_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut Option<AccessibilityNodeId>,
+    window: resource::WindowHandle,
+    x: f64,
+    y: f64,
+) -> RuntimeResult<()> {
+    let _ = (&window, &x, &y);
+
+    binding.trace().run_binding_without_context(
+        ACCESSIBILITY_TREE_HIT_TEST,
+        binding.replay_payload_for(ACCESSIBILITY_TREE_HIT_TEST)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_accessibility_tree_hit_test(binding, out, window, x, y)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_accessibility_tree_hit_test(
+                    binding, out, window, x, y,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: Option<AccessibilityNodeId> = unsafe { out.read() };
+                let result_recorded = if let Some(value) = result_value {
+                    let result_recorded_inner = value;
+                    Some(result_recorded_inner)
+                } else {
+                    None
+                };
+                let payload = AccessibilityTreeHitTestReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    AccessibilityTreeHitTestReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    unsafe { out.write(value) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
 /// Native export wrappers for accessibility bindings.
 #[unsafe(export_name = "destack.accessibility.action.close")]
 pub(crate) unsafe extern "C" fn destack_accessibility_action_close(
@@ -2599,6 +7496,129 @@ pub(crate) unsafe extern "C" fn destack_accessibility_action_try_read(
     })
 }
 
+#[unsafe(export_name = "destack.accessibility.document.clear")]
+pub(crate) unsafe extern "C" fn destack_accessibility_document_clear(
+    window: resource::WindowHandle,
+    nodeid: AccessibilityNodeId,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&window, &nodeid);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(ACCESSIBILITY_DOCUMENT_CLEAR)?;
+        destack_accessibility_document_clear_replay(context, world, window, nodeid)
+    })
+}
+
+#[unsafe(export_name = "destack.accessibility.document.close")]
+pub(crate) unsafe extern "C" fn destack_accessibility_document_close(
+    handle: resource::AccessibilityDocumentHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(ACCESSIBILITY_DOCUMENT_CLOSE)?;
+        destack_accessibility_document_close_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.accessibility.document.open")]
+pub(crate) unsafe extern "C" fn destack_accessibility_document_open(
+    out: *mut resource::AccessibilityDocumentHandle,
+    window: resource::WindowHandle,
+    options: AccessibilityDocumentOpenOptions,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &window, &options);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(ACCESSIBILITY_DOCUMENT_OPEN)?;
+        destack_accessibility_document_open_replay(context, world, out, window, options)
+    })
+}
+
+#[unsafe(export_name = "destack.accessibility.document.read")]
+pub(crate) unsafe extern "C" fn destack_accessibility_document_read(
+    out: *mut AccessibilityDocumentQuery,
+    handle: resource::AccessibilityDocumentHandle,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &timeoutns);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(ACCESSIBILITY_DOCUMENT_READ)?;
+        destack_accessibility_document_read_replay(context, world, out, handle, timeoutns)
+    })
+}
+
+#[unsafe(export_name = "destack.accessibility.document.respond")]
+pub(crate) unsafe extern "C" fn destack_accessibility_document_respond(
+    handle: resource::AccessibilityDocumentHandle,
+    response: AccessibilityDocumentResponse,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &response);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(ACCESSIBILITY_DOCUMENT_RESPOND)?;
+        destack_accessibility_document_respond_replay(context, world, handle, response)
+    })
+}
+
+#[unsafe(export_name = "destack.accessibility.document.set")]
+pub(crate) unsafe extern "C" fn destack_accessibility_document_set(
+    window: resource::WindowHandle,
+    nodeid: AccessibilityNodeId,
+    document: AccessibilityTextDocument,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&window, &nodeid, &document);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(ACCESSIBILITY_DOCUMENT_SET)?;
+        destack_accessibility_document_set_replay(context, world, window, nodeid, document)
+    })
+}
+
+#[unsafe(export_name = "destack.accessibility.document.tryRead")]
+pub(crate) unsafe extern "C" fn destack_accessibility_document_try_read(
+    out: *mut AccessibilityDocumentQuery,
+    handle: resource::AccessibilityDocumentHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(ACCESSIBILITY_DOCUMENT_TRY_READ)?;
+        destack_accessibility_document_try_read_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.accessibility.notification.post")]
+pub(crate) unsafe extern "C" fn destack_accessibility_notification_post(
+    window: resource::WindowHandle,
+    notification: AccessibilityNotification,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&window, &notification);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(ACCESSIBILITY_NOTIFICATION_POST)?;
+        destack_accessibility_notification_post_replay(context, world, window, notification)
+    })
+}
+
 #[unsafe(export_name = "destack.accessibility.tree.apply")]
 pub(crate) unsafe extern "C" fn destack_accessibility_tree_apply(
     window: resource::WindowHandle,
@@ -2623,6 +7643,25 @@ pub(crate) unsafe extern "C" fn destack_accessibility_tree_clear(
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(ACCESSIBILITY_TREE_CLEAR)?;
         destack_accessibility_tree_clear_replay(context, world, window)
+    })
+}
+
+#[unsafe(export_name = "destack.accessibility.tree.hitTest")]
+pub(crate) unsafe extern "C" fn destack_accessibility_tree_hit_test(
+    out: *mut Option<AccessibilityNodeId>,
+    window: resource::WindowHandle,
+    x: f64,
+    y: f64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &window, &x, &y);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(ACCESSIBILITY_TREE_HIT_TEST)?;
+        destack_accessibility_tree_hit_test_replay(context, world, out, window, x, y)
     })
 }
 
@@ -2768,17 +7807,65 @@ fn destack_accessibility_action_read_vm_replay(
                         let result_recorded_accessibility_activate_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_activate_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_activate_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_activate_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_activate_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_activate_action_metadata_window,
                             node_id: result_recorded_accessibility_activate_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_activate_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_activate_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_activate_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_activate_action = AccessibilityactivateactionReplayRecord {
                             kind: result_recorded_accessibility_activate_action_kind,
                             metadata: result_recorded_accessibility_activate_action_metadata,
                         };
                         AccessibilityactionReplayRecord::AccessibilityActivateAction(result_recorded_accessibility_activate_action)
+                    }
+                    AccessibilityActionVm::AccessibilityAddToSelectionAction(value) => {
+                        let result_recorded_accessibility_add_to_selection_action_kind = {
+                            let result_recorded_accessibility_add_to_selection_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_add_to_selection_action_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_add_to_selection_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_add_to_selection_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_add_to_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_add_to_selection_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_add_to_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_add_to_selection_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_add_to_selection_action_metadata_window,
+                            node_id: result_recorded_accessibility_add_to_selection_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_add_to_selection_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_add_to_selection_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_add_to_selection_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_add_to_selection_action = AccessibilityaddtoselectionactionReplayRecord {
+                            kind: result_recorded_accessibility_add_to_selection_action_kind,
+                            metadata: result_recorded_accessibility_add_to_selection_action_metadata,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityAddToSelectionAction(result_recorded_accessibility_add_to_selection_action)
+                    }
+                    AccessibilityActionVm::AccessibilityClearSelectionAction(value) => {
+                        let result_recorded_accessibility_clear_selection_action_kind = {
+                            let result_recorded_accessibility_clear_selection_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_clear_selection_action_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_clear_selection_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_clear_selection_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_clear_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_clear_selection_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_clear_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_clear_selection_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_clear_selection_action_metadata_window,
+                            node_id: result_recorded_accessibility_clear_selection_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_clear_selection_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_clear_selection_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_clear_selection_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_clear_selection_action = AccessibilityclearselectionactionReplayRecord {
+                            kind: result_recorded_accessibility_clear_selection_action_kind,
+                            metadata: result_recorded_accessibility_clear_selection_action_metadata,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityClearSelectionAction(result_recorded_accessibility_clear_selection_action)
                     }
                     AccessibilityActionVm::AccessibilityCollapseAction(value) => {
                         let result_recorded_accessibility_collapse_action_kind = {
@@ -2789,17 +7876,47 @@ fn destack_accessibility_action_read_vm_replay(
                         let result_recorded_accessibility_collapse_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_collapse_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_collapse_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_collapse_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_collapse_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_collapse_action_metadata_window,
                             node_id: result_recorded_accessibility_collapse_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_collapse_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_collapse_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_collapse_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_collapse_action = AccessibilitycollapseactionReplayRecord {
                             kind: result_recorded_accessibility_collapse_action_kind,
                             metadata: result_recorded_accessibility_collapse_action_metadata,
                         };
                         AccessibilityactionReplayRecord::AccessibilityCollapseAction(result_recorded_accessibility_collapse_action)
+                    }
+                    AccessibilityActionVm::AccessibilityCustomActionInvocation(value) => {
+                        let result_recorded_accessibility_custom_action_invocation_kind = {
+                            let result_recorded_accessibility_custom_action_invocation_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_custom_action_invocation_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_custom_action_invocation_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_custom_action_invocation_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_custom_action_invocation_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_custom_action_invocation_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_custom_action_invocation_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_custom_action_invocation_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_custom_action_invocation_metadata_window,
+                            node_id: result_recorded_accessibility_custom_action_invocation_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_custom_action_invocation_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_custom_action_invocation_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_custom_action_invocation_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_custom_action_invocation_action_id = {
+                            let result_recorded_accessibility_custom_action_invocation_action_id_ref = context.string_ref(value.action_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_custom_action_invocation_action_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_custom_action_invocation = AccessibilitycustomactioninvocationReplayRecord {
+                            kind: result_recorded_accessibility_custom_action_invocation_kind,
+                            metadata: result_recorded_accessibility_custom_action_invocation_metadata,
+                            action_id: result_recorded_accessibility_custom_action_invocation_action_id,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityCustomActionInvocation(result_recorded_accessibility_custom_action_invocation)
                     }
                     AccessibilityActionVm::AccessibilityDecrementAction(value) => {
                         let result_recorded_accessibility_decrement_action_kind = {
@@ -2810,11 +7927,13 @@ fn destack_accessibility_action_read_vm_replay(
                         let result_recorded_accessibility_decrement_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_decrement_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_decrement_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_decrement_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_decrement_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_decrement_action_metadata_window,
                             node_id: result_recorded_accessibility_decrement_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_decrement_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_decrement_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_decrement_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_decrement_action = AccessibilitydecrementactionReplayRecord {
                             kind: result_recorded_accessibility_decrement_action_kind,
@@ -2831,11 +7950,13 @@ fn destack_accessibility_action_read_vm_replay(
                         let result_recorded_accessibility_dismiss_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_dismiss_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_dismiss_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_dismiss_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_dismiss_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_dismiss_action_metadata_window,
                             node_id: result_recorded_accessibility_dismiss_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_dismiss_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_dismiss_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_dismiss_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_dismiss_action = AccessibilitydismissactionReplayRecord {
                             kind: result_recorded_accessibility_dismiss_action_kind,
@@ -2852,11 +7973,13 @@ fn destack_accessibility_action_read_vm_replay(
                         let result_recorded_accessibility_expand_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_expand_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_expand_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_expand_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_expand_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_expand_action_metadata_window,
                             node_id: result_recorded_accessibility_expand_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_expand_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_expand_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_expand_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_expand_action = AccessibilityexpandactionReplayRecord {
                             kind: result_recorded_accessibility_expand_action_kind,
@@ -2873,11 +7996,13 @@ fn destack_accessibility_action_read_vm_replay(
                         let result_recorded_accessibility_focus_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_focus_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_focus_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_focus_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_focus_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_focus_action_metadata_window,
                             node_id: result_recorded_accessibility_focus_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_focus_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_focus_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_focus_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_focus_action = AccessibilityfocusactionReplayRecord {
                             kind: result_recorded_accessibility_focus_action_kind,
@@ -2894,17 +8019,124 @@ fn destack_accessibility_action_read_vm_replay(
                         let result_recorded_accessibility_increment_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_increment_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_increment_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_increment_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_increment_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_increment_action_metadata_window,
                             node_id: result_recorded_accessibility_increment_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_increment_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_increment_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_increment_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_increment_action = AccessibilityincrementactionReplayRecord {
                             kind: result_recorded_accessibility_increment_action_kind,
                             metadata: result_recorded_accessibility_increment_action_metadata,
                         };
                         AccessibilityactionReplayRecord::AccessibilityIncrementAction(result_recorded_accessibility_increment_action)
+                    }
+                    AccessibilityActionVm::AccessibilityMoveTextSelectionAction(value) => {
+                        let result_recorded_accessibility_move_text_selection_action_kind = {
+                            let result_recorded_accessibility_move_text_selection_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_move_text_selection_action_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_move_text_selection_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_move_text_selection_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_move_text_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_move_text_selection_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_move_text_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_move_text_selection_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_move_text_selection_action_metadata_window,
+                            node_id: result_recorded_accessibility_move_text_selection_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_move_text_selection_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_move_text_selection_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_move_text_selection_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_move_text_selection_action_unit = value.unit;
+                        let result_recorded_accessibility_move_text_selection_action_count = value.count;
+                        let result_recorded_accessibility_move_text_selection_action_extend = value.extend;
+                        let result_recorded_accessibility_move_text_selection_action = AccessibilitymovetextselectionactionReplayRecord {
+                            kind: result_recorded_accessibility_move_text_selection_action_kind,
+                            metadata: result_recorded_accessibility_move_text_selection_action_metadata,
+                            unit: result_recorded_accessibility_move_text_selection_action_unit,
+                            count: result_recorded_accessibility_move_text_selection_action_count,
+                            extend: result_recorded_accessibility_move_text_selection_action_extend,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityMoveTextSelectionAction(result_recorded_accessibility_move_text_selection_action)
+                    }
+                    AccessibilityActionVm::AccessibilityRemoveFromSelectionAction(value) => {
+                        let result_recorded_accessibility_remove_from_selection_action_kind = {
+                            let result_recorded_accessibility_remove_from_selection_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_remove_from_selection_action_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_remove_from_selection_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_remove_from_selection_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_remove_from_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_remove_from_selection_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_remove_from_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_remove_from_selection_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_remove_from_selection_action_metadata_window,
+                            node_id: result_recorded_accessibility_remove_from_selection_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_remove_from_selection_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_remove_from_selection_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_remove_from_selection_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_remove_from_selection_action = AccessibilityremovefromselectionactionReplayRecord {
+                            kind: result_recorded_accessibility_remove_from_selection_action_kind,
+                            metadata: result_recorded_accessibility_remove_from_selection_action_metadata,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityRemoveFromSelectionAction(result_recorded_accessibility_remove_from_selection_action)
+                    }
+                    AccessibilityActionVm::AccessibilityReplaceSelectedTextAction(value) => {
+                        let result_recorded_accessibility_replace_selected_text_action_kind = {
+                            let result_recorded_accessibility_replace_selected_text_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_replace_selected_text_action_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_replace_selected_text_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_replace_selected_text_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_replace_selected_text_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_replace_selected_text_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_replace_selected_text_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_replace_selected_text_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_replace_selected_text_action_metadata_window,
+                            node_id: result_recorded_accessibility_replace_selected_text_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_replace_selected_text_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_replace_selected_text_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_replace_selected_text_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_replace_selected_text_action_text = {
+                            let result_recorded_accessibility_replace_selected_text_action_text_ref = context.string_ref(value.text).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_replace_selected_text_action_text_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_replace_selected_text_action = AccessibilityreplaceselectedtextactionReplayRecord {
+                            kind: result_recorded_accessibility_replace_selected_text_action_kind,
+                            metadata: result_recorded_accessibility_replace_selected_text_action_metadata,
+                            text: result_recorded_accessibility_replace_selected_text_action_text,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityReplaceSelectedTextAction(result_recorded_accessibility_replace_selected_text_action)
+                    }
+                    AccessibilityActionVm::AccessibilityScrollAction(value) => {
+                        let result_recorded_accessibility_scroll_action_kind = {
+                            let result_recorded_accessibility_scroll_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_scroll_action_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_scroll_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_scroll_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_scroll_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_scroll_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_scroll_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_scroll_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_scroll_action_metadata_window,
+                            node_id: result_recorded_accessibility_scroll_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_scroll_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_scroll_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_scroll_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_scroll_action_direction = value.direction;
+                        let result_recorded_accessibility_scroll_action = AccessibilityscrollactionReplayRecord {
+                            kind: result_recorded_accessibility_scroll_action_kind,
+                            metadata: result_recorded_accessibility_scroll_action_metadata,
+                            direction: result_recorded_accessibility_scroll_action_direction,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityScrollAction(result_recorded_accessibility_scroll_action)
                     }
                     AccessibilityActionVm::AccessibilityScrollIntoViewAction(value) => {
                         let result_recorded_accessibility_scroll_into_view_action_kind = {
@@ -2915,17 +8147,51 @@ fn destack_accessibility_action_read_vm_replay(
                         let result_recorded_accessibility_scroll_into_view_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_scroll_into_view_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_scroll_into_view_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_scroll_into_view_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_scroll_into_view_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_scroll_into_view_action_metadata_window,
                             node_id: result_recorded_accessibility_scroll_into_view_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_scroll_into_view_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_scroll_into_view_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_scroll_into_view_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_scroll_into_view_action = AccessibilityscrollintoviewactionReplayRecord {
                             kind: result_recorded_accessibility_scroll_into_view_action_kind,
                             metadata: result_recorded_accessibility_scroll_into_view_action_metadata,
                         };
                         AccessibilityactionReplayRecord::AccessibilityScrollIntoViewAction(result_recorded_accessibility_scroll_into_view_action)
+                    }
+                    AccessibilityActionVm::AccessibilityScrollTextRangeIntoViewAction(value) => {
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_kind = {
+                            let result_recorded_accessibility_scroll_text_range_into_view_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_scroll_text_range_into_view_action_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_scroll_text_range_into_view_action_metadata_window,
+                            node_id: result_recorded_accessibility_scroll_text_range_into_view_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_scroll_text_range_into_view_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_scroll_text_range_into_view_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_scroll_text_range_into_view_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_scroll_text_range_into_view_action_range_start_offset,
+                            end_offset: result_recorded_accessibility_scroll_text_range_into_view_action_range_end_offset,
+                        };
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_align_to_start = value.align_to_start;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action = AccessibilityscrolltextrangeintoviewactionReplayRecord {
+                            kind: result_recorded_accessibility_scroll_text_range_into_view_action_kind,
+                            metadata: result_recorded_accessibility_scroll_text_range_into_view_action_metadata,
+                            range: result_recorded_accessibility_scroll_text_range_into_view_action_range,
+                            align_to_start: result_recorded_accessibility_scroll_text_range_into_view_action_align_to_start,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityScrollTextRangeIntoViewAction(result_recorded_accessibility_scroll_text_range_into_view_action)
                     }
                     AccessibilityActionVm::AccessibilitySelectAction(value) => {
                         let result_recorded_accessibility_select_action_kind = {
@@ -2936,11 +8202,13 @@ fn destack_accessibility_action_read_vm_replay(
                         let result_recorded_accessibility_select_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_select_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_select_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_select_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_select_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_select_action_metadata_window,
                             node_id: result_recorded_accessibility_select_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_select_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_select_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_select_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_select_action = AccessibilityselectactionReplayRecord {
                             kind: result_recorded_accessibility_select_action_kind,
@@ -2957,11 +8225,13 @@ fn destack_accessibility_action_read_vm_replay(
                         let result_recorded_accessibility_set_numeric_value_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_set_numeric_value_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_set_numeric_value_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_set_numeric_value_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_set_numeric_value_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_set_numeric_value_action_metadata_window,
                             node_id: result_recorded_accessibility_set_numeric_value_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_set_numeric_value_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_set_numeric_value_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_set_numeric_value_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_set_numeric_value_action_value = value.value;
                         let result_recorded_accessibility_set_numeric_value_action = AccessibilitysetnumericvalueactionReplayRecord {
@@ -2980,11 +8250,13 @@ fn destack_accessibility_action_read_vm_replay(
                         let result_recorded_accessibility_set_selected_text_range_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_set_selected_text_range_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_set_selected_text_range_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_set_selected_text_range_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_set_selected_text_range_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_set_selected_text_range_action_metadata_window,
                             node_id: result_recorded_accessibility_set_selected_text_range_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_set_selected_text_range_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_set_selected_text_range_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_set_selected_text_range_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_set_selected_text_range_action_anchor_offset = value.anchor_offset;
                         let result_recorded_accessibility_set_selected_text_range_action_focus_offset = value.focus_offset;
@@ -2996,6 +8268,52 @@ fn destack_accessibility_action_read_vm_replay(
                         };
                         AccessibilityactionReplayRecord::AccessibilitySetSelectedTextRangeAction(result_recorded_accessibility_set_selected_text_range_action)
                     }
+                    AccessibilityActionVm::AccessibilitySetSelectedTextRangesAction(value) => {
+                        let result_recorded_accessibility_set_selected_text_ranges_action_kind = {
+                            let result_recorded_accessibility_set_selected_text_ranges_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_set_selected_text_ranges_action_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_set_selected_text_ranges_action_metadata_window,
+                            node_id: result_recorded_accessibility_set_selected_text_ranges_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_set_selected_text_ranges_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_set_selected_text_ranges_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_set_selected_text_ranges_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_set_selected_text_ranges_action_selections_raw = value.selections.raw_values(context)?;
+                        let mut result_recorded_accessibility_set_selected_text_ranges_action_selections = Vec::with_capacity(result_recorded_accessibility_set_selected_text_ranges_action_selections_raw.len());
+                        for result_recorded_accessibility_set_selected_text_ranges_action_selections_item_value in result_recorded_accessibility_set_selected_text_ranges_action_selections_raw {
+                            let result_recorded_accessibility_set_selected_text_ranges_action_selections_item = {
+                                if result_recorded_accessibility_set_selected_text_ranges_action_selections_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_accessibility_set_selected_text_ranges_action_selections_item", "item")).boxed()); }
+                                let slots = context.aggregate_slots(result_recorded_accessibility_set_selected_text_ranges_action_selections_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_accessibility_set_selected_text_ranges_action_selections_item", "expected 2 fields")).boxed()); }
+                                let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_anchor_offset = decode_uint32(slots[0], "result_recorded_accessibility_set_selected_text_ranges_action_selections_item_anchor_offset", "anchorOffset")?;
+                                let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_focus_offset = decode_uint32(slots[1], "result_recorded_accessibility_set_selected_text_ranges_action_selections_item_focus_offset", "focusOffset")?;
+                                AccessibilityTextSelectionVm {
+                                    anchor_offset: result_recorded_accessibility_set_selected_text_ranges_action_selections_item_anchor_offset,
+                                    focus_offset: result_recorded_accessibility_set_selected_text_ranges_action_selections_item_focus_offset,
+                                }
+                            };
+                            let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_anchor_offset = result_recorded_accessibility_set_selected_text_ranges_action_selections_item.anchor_offset;
+                            let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_focus_offset = result_recorded_accessibility_set_selected_text_ranges_action_selections_item.focus_offset;
+                            let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded = AccessibilityTextSelection {
+                                anchor_offset: result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_anchor_offset,
+                                focus_offset: result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_focus_offset,
+                            };
+                            result_recorded_accessibility_set_selected_text_ranges_action_selections.push(result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded);
+                        }
+                        let result_recorded_accessibility_set_selected_text_ranges_action = AccessibilitysetselectedtextrangesactionReplayRecord {
+                            kind: result_recorded_accessibility_set_selected_text_ranges_action_kind,
+                            metadata: result_recorded_accessibility_set_selected_text_ranges_action_metadata,
+                            selections: result_recorded_accessibility_set_selected_text_ranges_action_selections,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilitySetSelectedTextRangesAction(result_recorded_accessibility_set_selected_text_ranges_action)
+                    }
                     AccessibilityActionVm::AccessibilitySetTextValueAction(value) => {
                         let result_recorded_accessibility_set_text_value_action_kind = {
                             let result_recorded_accessibility_set_text_value_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -3005,11 +8323,13 @@ fn destack_accessibility_action_read_vm_replay(
                         let result_recorded_accessibility_set_text_value_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_set_text_value_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_set_text_value_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_set_text_value_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_set_text_value_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_set_text_value_action_metadata_window,
                             node_id: result_recorded_accessibility_set_text_value_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_set_text_value_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_set_text_value_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_set_text_value_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_set_text_value_action_value = {
                             let result_recorded_accessibility_set_text_value_action_value_ref = context.string_ref(value.value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -3022,26 +8342,51 @@ fn destack_accessibility_action_read_vm_replay(
                         };
                         AccessibilityactionReplayRecord::AccessibilitySetTextValueAction(result_recorded_accessibility_set_text_value_action)
                     }
-                    AccessibilityActionVm::AccessibilityShowContextMenuAction(value) => {
-                        let result_recorded_accessibility_show_context_menu_action_kind = {
-                            let result_recorded_accessibility_show_context_menu_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_accessibility_show_context_menu_action_kind_ref.as_str().to_string()
+                    AccessibilityActionVm::AccessibilityShowMenuAction(value) => {
+                        let result_recorded_accessibility_show_menu_action_kind = {
+                            let result_recorded_accessibility_show_menu_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_show_menu_action_kind_ref.as_str().to_string()
                         };
-                        let result_recorded_accessibility_show_context_menu_action_metadata_window = value.metadata.window;
-                        let result_recorded_accessibility_show_context_menu_action_metadata_node_id = value.metadata.node_id;
-                        let result_recorded_accessibility_show_context_menu_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_accessibility_show_context_menu_action_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_accessibility_show_context_menu_action_metadata = AccessibilityActionMetadata {
-                            window: result_recorded_accessibility_show_context_menu_action_metadata_window,
-                            node_id: result_recorded_accessibility_show_context_menu_action_metadata_node_id,
-                            timestamp_ns: result_recorded_accessibility_show_context_menu_action_metadata_timestamp_ns,
-                            sequence: result_recorded_accessibility_show_context_menu_action_metadata_sequence,
+                        let result_recorded_accessibility_show_menu_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_show_menu_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_show_menu_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_show_menu_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_show_menu_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_show_menu_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_show_menu_action_metadata_window,
+                            node_id: result_recorded_accessibility_show_menu_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_show_menu_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_show_menu_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_show_menu_action_metadata_dropped_count,
                         };
-                        let result_recorded_accessibility_show_context_menu_action = AccessibilityshowcontextmenuactionReplayRecord {
-                            kind: result_recorded_accessibility_show_context_menu_action_kind,
-                            metadata: result_recorded_accessibility_show_context_menu_action_metadata,
+                        let result_recorded_accessibility_show_menu_action = AccessibilityshowmenuactionReplayRecord {
+                            kind: result_recorded_accessibility_show_menu_action_kind,
+                            metadata: result_recorded_accessibility_show_menu_action_metadata,
                         };
-                        AccessibilityactionReplayRecord::AccessibilityShowContextMenuAction(result_recorded_accessibility_show_context_menu_action)
+                        AccessibilityactionReplayRecord::AccessibilityShowMenuAction(result_recorded_accessibility_show_menu_action)
+                    }
+                    AccessibilityActionVm::AccessibilityToggleAction(value) => {
+                        let result_recorded_accessibility_toggle_action_kind = {
+                            let result_recorded_accessibility_toggle_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_toggle_action_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_toggle_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_toggle_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_toggle_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_toggle_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_toggle_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_toggle_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_toggle_action_metadata_window,
+                            node_id: result_recorded_accessibility_toggle_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_toggle_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_toggle_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_toggle_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_toggle_action = AccessibilitytoggleactionReplayRecord {
+                            kind: result_recorded_accessibility_toggle_action_kind,
+                            metadata: result_recorded_accessibility_toggle_action_metadata,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityToggleAction(result_recorded_accessibility_toggle_action)
                     }
                 };
                 let payload = AccessibilityActionReadReplayRecord {
@@ -3074,11 +8419,13 @@ fn destack_accessibility_action_read_vm_replay(
                             let vm_result_accessibility_activate_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_activate_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_activate_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_activate_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_activate_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_activate_action_metadata_window,
                                 node_id: vm_result_accessibility_activate_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_activate_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_activate_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_activate_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_activate_action = AccessibilityActivateActionVm {
                                 kind: vm_result_accessibility_activate_action_kind,
@@ -3086,17 +8433,59 @@ fn destack_accessibility_action_read_vm_replay(
                             };
                             AccessibilityActionVm::AccessibilityActivateAction(vm_result_accessibility_activate_action)
                         }
+                        AccessibilityactionReplayRecord::AccessibilityAddToSelectionAction(value) => {
+                            let vm_result_accessibility_add_to_selection_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_add_to_selection_action_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_add_to_selection_action_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_add_to_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_add_to_selection_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_add_to_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_add_to_selection_action_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_add_to_selection_action_metadata_window,
+                                node_id: vm_result_accessibility_add_to_selection_action_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_add_to_selection_action_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_add_to_selection_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_add_to_selection_action_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_add_to_selection_action = AccessibilityAddToSelectionActionVm {
+                                kind: vm_result_accessibility_add_to_selection_action_kind,
+                                metadata: vm_result_accessibility_add_to_selection_action_metadata,
+                            };
+                            AccessibilityActionVm::AccessibilityAddToSelectionAction(vm_result_accessibility_add_to_selection_action)
+                        }
+                        AccessibilityactionReplayRecord::AccessibilityClearSelectionAction(value) => {
+                            let vm_result_accessibility_clear_selection_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_clear_selection_action_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_clear_selection_action_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_clear_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_clear_selection_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_clear_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_clear_selection_action_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_clear_selection_action_metadata_window,
+                                node_id: vm_result_accessibility_clear_selection_action_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_clear_selection_action_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_clear_selection_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_clear_selection_action_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_clear_selection_action = AccessibilityClearSelectionActionVm {
+                                kind: vm_result_accessibility_clear_selection_action_kind,
+                                metadata: vm_result_accessibility_clear_selection_action_metadata,
+                            };
+                            AccessibilityActionVm::AccessibilityClearSelectionAction(vm_result_accessibility_clear_selection_action)
+                        }
                         AccessibilityactionReplayRecord::AccessibilityCollapseAction(value) => {
                             let vm_result_accessibility_collapse_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_accessibility_collapse_action_metadata_window = value.metadata.window;
                             let vm_result_accessibility_collapse_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_collapse_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_collapse_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_collapse_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_collapse_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_collapse_action_metadata_window,
                                 node_id: vm_result_accessibility_collapse_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_collapse_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_collapse_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_collapse_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_collapse_action = AccessibilityCollapseActionVm {
                                 kind: vm_result_accessibility_collapse_action_kind,
@@ -3104,17 +8493,41 @@ fn destack_accessibility_action_read_vm_replay(
                             };
                             AccessibilityActionVm::AccessibilityCollapseAction(vm_result_accessibility_collapse_action)
                         }
+                        AccessibilityactionReplayRecord::AccessibilityCustomActionInvocation(value) => {
+                            let vm_result_accessibility_custom_action_invocation_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_custom_action_invocation_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_custom_action_invocation_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_custom_action_invocation_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_custom_action_invocation_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_custom_action_invocation_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_custom_action_invocation_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_custom_action_invocation_metadata_window,
+                                node_id: vm_result_accessibility_custom_action_invocation_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_custom_action_invocation_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_custom_action_invocation_metadata_sequence,
+                                dropped_count: vm_result_accessibility_custom_action_invocation_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_custom_action_invocation_action_id = context.string_handle(value.action_id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_custom_action_invocation = AccessibilityCustomActionInvocationVm {
+                                kind: vm_result_accessibility_custom_action_invocation_kind,
+                                metadata: vm_result_accessibility_custom_action_invocation_metadata,
+                                action_id: vm_result_accessibility_custom_action_invocation_action_id,
+                            };
+                            AccessibilityActionVm::AccessibilityCustomActionInvocation(vm_result_accessibility_custom_action_invocation)
+                        }
                         AccessibilityactionReplayRecord::AccessibilityDecrementAction(value) => {
                             let vm_result_accessibility_decrement_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_accessibility_decrement_action_metadata_window = value.metadata.window;
                             let vm_result_accessibility_decrement_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_decrement_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_decrement_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_decrement_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_decrement_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_decrement_action_metadata_window,
                                 node_id: vm_result_accessibility_decrement_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_decrement_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_decrement_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_decrement_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_decrement_action = AccessibilityDecrementActionVm {
                                 kind: vm_result_accessibility_decrement_action_kind,
@@ -3128,11 +8541,13 @@ fn destack_accessibility_action_read_vm_replay(
                             let vm_result_accessibility_dismiss_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_dismiss_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_dismiss_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_dismiss_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_dismiss_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_dismiss_action_metadata_window,
                                 node_id: vm_result_accessibility_dismiss_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_dismiss_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_dismiss_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_dismiss_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_dismiss_action = AccessibilityDismissActionVm {
                                 kind: vm_result_accessibility_dismiss_action_kind,
@@ -3146,11 +8561,13 @@ fn destack_accessibility_action_read_vm_replay(
                             let vm_result_accessibility_expand_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_expand_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_expand_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_expand_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_expand_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_expand_action_metadata_window,
                                 node_id: vm_result_accessibility_expand_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_expand_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_expand_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_expand_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_expand_action = AccessibilityExpandActionVm {
                                 kind: vm_result_accessibility_expand_action_kind,
@@ -3164,11 +8581,13 @@ fn destack_accessibility_action_read_vm_replay(
                             let vm_result_accessibility_focus_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_focus_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_focus_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_focus_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_focus_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_focus_action_metadata_window,
                                 node_id: vm_result_accessibility_focus_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_focus_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_focus_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_focus_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_focus_action = AccessibilityFocusActionVm {
                                 kind: vm_result_accessibility_focus_action_kind,
@@ -3182,11 +8601,13 @@ fn destack_accessibility_action_read_vm_replay(
                             let vm_result_accessibility_increment_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_increment_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_increment_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_increment_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_increment_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_increment_action_metadata_window,
                                 node_id: vm_result_accessibility_increment_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_increment_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_increment_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_increment_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_increment_action = AccessibilityIncrementActionVm {
                                 kind: vm_result_accessibility_increment_action_kind,
@@ -3194,17 +8615,109 @@ fn destack_accessibility_action_read_vm_replay(
                             };
                             AccessibilityActionVm::AccessibilityIncrementAction(vm_result_accessibility_increment_action)
                         }
+                        AccessibilityactionReplayRecord::AccessibilityMoveTextSelectionAction(value) => {
+                            let vm_result_accessibility_move_text_selection_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_move_text_selection_action_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_move_text_selection_action_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_move_text_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_move_text_selection_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_move_text_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_move_text_selection_action_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_move_text_selection_action_metadata_window,
+                                node_id: vm_result_accessibility_move_text_selection_action_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_move_text_selection_action_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_move_text_selection_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_move_text_selection_action_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_move_text_selection_action_unit = value.unit;
+                            let vm_result_accessibility_move_text_selection_action_count = value.count;
+                            let vm_result_accessibility_move_text_selection_action_extend = value.extend;
+                            let vm_result_accessibility_move_text_selection_action = AccessibilityMoveTextSelectionActionVm {
+                                kind: vm_result_accessibility_move_text_selection_action_kind,
+                                metadata: vm_result_accessibility_move_text_selection_action_metadata,
+                                unit: vm_result_accessibility_move_text_selection_action_unit,
+                                count: vm_result_accessibility_move_text_selection_action_count,
+                                extend: vm_result_accessibility_move_text_selection_action_extend,
+                            };
+                            AccessibilityActionVm::AccessibilityMoveTextSelectionAction(vm_result_accessibility_move_text_selection_action)
+                        }
+                        AccessibilityactionReplayRecord::AccessibilityRemoveFromSelectionAction(value) => {
+                            let vm_result_accessibility_remove_from_selection_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_remove_from_selection_action_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_remove_from_selection_action_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_remove_from_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_remove_from_selection_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_remove_from_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_remove_from_selection_action_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_remove_from_selection_action_metadata_window,
+                                node_id: vm_result_accessibility_remove_from_selection_action_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_remove_from_selection_action_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_remove_from_selection_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_remove_from_selection_action_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_remove_from_selection_action = AccessibilityRemoveFromSelectionActionVm {
+                                kind: vm_result_accessibility_remove_from_selection_action_kind,
+                                metadata: vm_result_accessibility_remove_from_selection_action_metadata,
+                            };
+                            AccessibilityActionVm::AccessibilityRemoveFromSelectionAction(vm_result_accessibility_remove_from_selection_action)
+                        }
+                        AccessibilityactionReplayRecord::AccessibilityReplaceSelectedTextAction(value) => {
+                            let vm_result_accessibility_replace_selected_text_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_replace_selected_text_action_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_replace_selected_text_action_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_replace_selected_text_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_replace_selected_text_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_replace_selected_text_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_replace_selected_text_action_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_replace_selected_text_action_metadata_window,
+                                node_id: vm_result_accessibility_replace_selected_text_action_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_replace_selected_text_action_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_replace_selected_text_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_replace_selected_text_action_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_replace_selected_text_action_text = context.string_handle(value.text.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_replace_selected_text_action = AccessibilityReplaceSelectedTextActionVm {
+                                kind: vm_result_accessibility_replace_selected_text_action_kind,
+                                metadata: vm_result_accessibility_replace_selected_text_action_metadata,
+                                text: vm_result_accessibility_replace_selected_text_action_text,
+                            };
+                            AccessibilityActionVm::AccessibilityReplaceSelectedTextAction(vm_result_accessibility_replace_selected_text_action)
+                        }
+                        AccessibilityactionReplayRecord::AccessibilityScrollAction(value) => {
+                            let vm_result_accessibility_scroll_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_scroll_action_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_scroll_action_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_scroll_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_scroll_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_scroll_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_scroll_action_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_scroll_action_metadata_window,
+                                node_id: vm_result_accessibility_scroll_action_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_scroll_action_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_scroll_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_scroll_action_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_scroll_action_direction = value.direction;
+                            let vm_result_accessibility_scroll_action = AccessibilityScrollActionVm {
+                                kind: vm_result_accessibility_scroll_action_kind,
+                                metadata: vm_result_accessibility_scroll_action_metadata,
+                                direction: vm_result_accessibility_scroll_action_direction,
+                            };
+                            AccessibilityActionVm::AccessibilityScrollAction(vm_result_accessibility_scroll_action)
+                        }
                         AccessibilityactionReplayRecord::AccessibilityScrollIntoViewAction(value) => {
                             let vm_result_accessibility_scroll_into_view_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_accessibility_scroll_into_view_action_metadata_window = value.metadata.window;
                             let vm_result_accessibility_scroll_into_view_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_scroll_into_view_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_scroll_into_view_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_scroll_into_view_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_scroll_into_view_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_scroll_into_view_action_metadata_window,
                                 node_id: vm_result_accessibility_scroll_into_view_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_scroll_into_view_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_scroll_into_view_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_scroll_into_view_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_scroll_into_view_action = AccessibilityScrollIntoViewActionVm {
                                 kind: vm_result_accessibility_scroll_into_view_action_kind,
@@ -3212,17 +8725,48 @@ fn destack_accessibility_action_read_vm_replay(
                             };
                             AccessibilityActionVm::AccessibilityScrollIntoViewAction(vm_result_accessibility_scroll_into_view_action)
                         }
+                        AccessibilityactionReplayRecord::AccessibilityScrollTextRangeIntoViewAction(value) => {
+                            let vm_result_accessibility_scroll_text_range_into_view_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_scroll_text_range_into_view_action_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_scroll_text_range_into_view_action_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_scroll_text_range_into_view_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_scroll_text_range_into_view_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_scroll_text_range_into_view_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_scroll_text_range_into_view_action_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_scroll_text_range_into_view_action_metadata_window,
+                                node_id: vm_result_accessibility_scroll_text_range_into_view_action_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_scroll_text_range_into_view_action_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_scroll_text_range_into_view_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_scroll_text_range_into_view_action_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_scroll_text_range_into_view_action_range_start_offset = value.range.start_offset;
+                            let vm_result_accessibility_scroll_text_range_into_view_action_range_end_offset = value.range.end_offset;
+                            let vm_result_accessibility_scroll_text_range_into_view_action_range = AccessibilityTextRange {
+                                start_offset: vm_result_accessibility_scroll_text_range_into_view_action_range_start_offset,
+                                end_offset: vm_result_accessibility_scroll_text_range_into_view_action_range_end_offset,
+                            };
+                            let vm_result_accessibility_scroll_text_range_into_view_action_align_to_start = value.align_to_start;
+                            let vm_result_accessibility_scroll_text_range_into_view_action = AccessibilityScrollTextRangeIntoViewActionVm {
+                                kind: vm_result_accessibility_scroll_text_range_into_view_action_kind,
+                                metadata: vm_result_accessibility_scroll_text_range_into_view_action_metadata,
+                                range: vm_result_accessibility_scroll_text_range_into_view_action_range,
+                                align_to_start: vm_result_accessibility_scroll_text_range_into_view_action_align_to_start,
+                            };
+                            AccessibilityActionVm::AccessibilityScrollTextRangeIntoViewAction(vm_result_accessibility_scroll_text_range_into_view_action)
+                        }
                         AccessibilityactionReplayRecord::AccessibilitySelectAction(value) => {
                             let vm_result_accessibility_select_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_accessibility_select_action_metadata_window = value.metadata.window;
                             let vm_result_accessibility_select_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_select_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_select_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_select_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_select_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_select_action_metadata_window,
                                 node_id: vm_result_accessibility_select_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_select_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_select_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_select_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_select_action = AccessibilitySelectActionVm {
                                 kind: vm_result_accessibility_select_action_kind,
@@ -3236,11 +8780,13 @@ fn destack_accessibility_action_read_vm_replay(
                             let vm_result_accessibility_set_numeric_value_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_set_numeric_value_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_set_numeric_value_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_set_numeric_value_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_set_numeric_value_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_set_numeric_value_action_metadata_window,
                                 node_id: vm_result_accessibility_set_numeric_value_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_set_numeric_value_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_set_numeric_value_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_set_numeric_value_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_set_numeric_value_action_value = value.value;
                             let vm_result_accessibility_set_numeric_value_action = AccessibilitySetNumericValueActionVm {
@@ -3256,11 +8802,13 @@ fn destack_accessibility_action_read_vm_replay(
                             let vm_result_accessibility_set_selected_text_range_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_set_selected_text_range_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_set_selected_text_range_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_set_selected_text_range_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_set_selected_text_range_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_set_selected_text_range_action_metadata_window,
                                 node_id: vm_result_accessibility_set_selected_text_range_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_set_selected_text_range_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_set_selected_text_range_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_set_selected_text_range_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_set_selected_text_range_action_anchor_offset = value.anchor_offset;
                             let vm_result_accessibility_set_selected_text_range_action_focus_offset = value.focus_offset;
@@ -3272,17 +8820,51 @@ fn destack_accessibility_action_read_vm_replay(
                             };
                             AccessibilityActionVm::AccessibilitySetSelectedTextRangeAction(vm_result_accessibility_set_selected_text_range_action)
                         }
+                        AccessibilityactionReplayRecord::AccessibilitySetSelectedTextRangesAction(value) => {
+                            let vm_result_accessibility_set_selected_text_ranges_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_set_selected_text_ranges_action_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_set_selected_text_ranges_action_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_set_selected_text_ranges_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_set_selected_text_ranges_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_set_selected_text_ranges_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_set_selected_text_ranges_action_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_set_selected_text_ranges_action_metadata_window,
+                                node_id: vm_result_accessibility_set_selected_text_ranges_action_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_set_selected_text_ranges_action_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_set_selected_text_ranges_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_set_selected_text_ranges_action_metadata_dropped_count,
+                            };
+                            let mut vm_result_accessibility_set_selected_text_ranges_action_selections_values = Vec::with_capacity(value.selections.len());
+                            for vm_result_accessibility_set_selected_text_ranges_action_selections_item in value.selections.iter().cloned() {
+                                let vm_result_accessibility_set_selected_text_ranges_action_selections_item_value_anchor_offset = vm_result_accessibility_set_selected_text_ranges_action_selections_item.anchor_offset;
+                                let vm_result_accessibility_set_selected_text_ranges_action_selections_item_value_focus_offset = vm_result_accessibility_set_selected_text_ranges_action_selections_item.focus_offset;
+                                let vm_result_accessibility_set_selected_text_ranges_action_selections_item_value = AccessibilityTextSelection {
+                                    anchor_offset: vm_result_accessibility_set_selected_text_ranges_action_selections_item_value_anchor_offset,
+                                    focus_offset: vm_result_accessibility_set_selected_text_ranges_action_selections_item_value_focus_offset,
+                                };
+                                vm_result_accessibility_set_selected_text_ranges_action_selections_values.push(vm_result_accessibility_set_selected_text_ranges_action_selections_item_value);
+                            }
+                            let vm_result_accessibility_set_selected_text_ranges_action_selections = VmSlice::from_values(context, &vm_result_accessibility_set_selected_text_ranges_action_selections_values)?;
+                            let vm_result_accessibility_set_selected_text_ranges_action = AccessibilitySetSelectedTextRangesActionVm {
+                                kind: vm_result_accessibility_set_selected_text_ranges_action_kind,
+                                metadata: vm_result_accessibility_set_selected_text_ranges_action_metadata,
+                                selections: vm_result_accessibility_set_selected_text_ranges_action_selections,
+                            };
+                            AccessibilityActionVm::AccessibilitySetSelectedTextRangesAction(vm_result_accessibility_set_selected_text_ranges_action)
+                        }
                         AccessibilityactionReplayRecord::AccessibilitySetTextValueAction(value) => {
                             let vm_result_accessibility_set_text_value_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_accessibility_set_text_value_action_metadata_window = value.metadata.window;
                             let vm_result_accessibility_set_text_value_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_set_text_value_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_set_text_value_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_set_text_value_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_set_text_value_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_set_text_value_action_metadata_window,
                                 node_id: vm_result_accessibility_set_text_value_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_set_text_value_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_set_text_value_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_set_text_value_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_set_text_value_action_value = context.string_handle(value.value.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_accessibility_set_text_value_action = AccessibilitySetTextValueActionVm {
@@ -3292,23 +8874,45 @@ fn destack_accessibility_action_read_vm_replay(
                             };
                             AccessibilityActionVm::AccessibilitySetTextValueAction(vm_result_accessibility_set_text_value_action)
                         }
-                        AccessibilityactionReplayRecord::AccessibilityShowContextMenuAction(value) => {
-                            let vm_result_accessibility_show_context_menu_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_accessibility_show_context_menu_action_metadata_window = value.metadata.window;
-                            let vm_result_accessibility_show_context_menu_action_metadata_node_id = value.metadata.node_id;
-                            let vm_result_accessibility_show_context_menu_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let vm_result_accessibility_show_context_menu_action_metadata_sequence = value.metadata.sequence;
-                            let vm_result_accessibility_show_context_menu_action_metadata = AccessibilityActionMetadata {
-                                window: vm_result_accessibility_show_context_menu_action_metadata_window,
-                                node_id: vm_result_accessibility_show_context_menu_action_metadata_node_id,
-                                timestamp_ns: vm_result_accessibility_show_context_menu_action_metadata_timestamp_ns,
-                                sequence: vm_result_accessibility_show_context_menu_action_metadata_sequence,
+                        AccessibilityactionReplayRecord::AccessibilityShowMenuAction(value) => {
+                            let vm_result_accessibility_show_menu_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_show_menu_action_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_show_menu_action_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_show_menu_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_show_menu_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_show_menu_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_show_menu_action_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_show_menu_action_metadata_window,
+                                node_id: vm_result_accessibility_show_menu_action_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_show_menu_action_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_show_menu_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_show_menu_action_metadata_dropped_count,
                             };
-                            let vm_result_accessibility_show_context_menu_action = AccessibilityShowContextMenuActionVm {
-                                kind: vm_result_accessibility_show_context_menu_action_kind,
-                                metadata: vm_result_accessibility_show_context_menu_action_metadata,
+                            let vm_result_accessibility_show_menu_action = AccessibilityShowMenuActionVm {
+                                kind: vm_result_accessibility_show_menu_action_kind,
+                                metadata: vm_result_accessibility_show_menu_action_metadata,
                             };
-                            AccessibilityActionVm::AccessibilityShowContextMenuAction(vm_result_accessibility_show_context_menu_action)
+                            AccessibilityActionVm::AccessibilityShowMenuAction(vm_result_accessibility_show_menu_action)
+                        }
+                        AccessibilityactionReplayRecord::AccessibilityToggleAction(value) => {
+                            let vm_result_accessibility_toggle_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_toggle_action_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_toggle_action_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_toggle_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_toggle_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_toggle_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_toggle_action_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_toggle_action_metadata_window,
+                                node_id: vm_result_accessibility_toggle_action_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_toggle_action_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_toggle_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_toggle_action_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_toggle_action = AccessibilityToggleActionVm {
+                                kind: vm_result_accessibility_toggle_action_kind,
+                                metadata: vm_result_accessibility_toggle_action_metadata,
+                            };
+                            AccessibilityActionVm::AccessibilityToggleAction(vm_result_accessibility_toggle_action)
                         }
                     };
                     Ok(vm_result)
@@ -3352,17 +8956,65 @@ fn destack_accessibility_action_try_read_vm_replay(
                         let result_recorded_accessibility_activate_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_activate_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_activate_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_activate_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_activate_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_activate_action_metadata_window,
                             node_id: result_recorded_accessibility_activate_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_activate_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_activate_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_activate_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_activate_action = AccessibilityactivateactionReplayRecord {
                             kind: result_recorded_accessibility_activate_action_kind,
                             metadata: result_recorded_accessibility_activate_action_metadata,
                         };
                         AccessibilityactionReplayRecord::AccessibilityActivateAction(result_recorded_accessibility_activate_action)
+                    }
+                    AccessibilityActionVm::AccessibilityAddToSelectionAction(value) => {
+                        let result_recorded_accessibility_add_to_selection_action_kind = {
+                            let result_recorded_accessibility_add_to_selection_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_add_to_selection_action_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_add_to_selection_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_add_to_selection_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_add_to_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_add_to_selection_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_add_to_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_add_to_selection_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_add_to_selection_action_metadata_window,
+                            node_id: result_recorded_accessibility_add_to_selection_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_add_to_selection_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_add_to_selection_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_add_to_selection_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_add_to_selection_action = AccessibilityaddtoselectionactionReplayRecord {
+                            kind: result_recorded_accessibility_add_to_selection_action_kind,
+                            metadata: result_recorded_accessibility_add_to_selection_action_metadata,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityAddToSelectionAction(result_recorded_accessibility_add_to_selection_action)
+                    }
+                    AccessibilityActionVm::AccessibilityClearSelectionAction(value) => {
+                        let result_recorded_accessibility_clear_selection_action_kind = {
+                            let result_recorded_accessibility_clear_selection_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_clear_selection_action_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_clear_selection_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_clear_selection_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_clear_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_clear_selection_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_clear_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_clear_selection_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_clear_selection_action_metadata_window,
+                            node_id: result_recorded_accessibility_clear_selection_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_clear_selection_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_clear_selection_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_clear_selection_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_clear_selection_action = AccessibilityclearselectionactionReplayRecord {
+                            kind: result_recorded_accessibility_clear_selection_action_kind,
+                            metadata: result_recorded_accessibility_clear_selection_action_metadata,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityClearSelectionAction(result_recorded_accessibility_clear_selection_action)
                     }
                     AccessibilityActionVm::AccessibilityCollapseAction(value) => {
                         let result_recorded_accessibility_collapse_action_kind = {
@@ -3373,17 +9025,47 @@ fn destack_accessibility_action_try_read_vm_replay(
                         let result_recorded_accessibility_collapse_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_collapse_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_collapse_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_collapse_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_collapse_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_collapse_action_metadata_window,
                             node_id: result_recorded_accessibility_collapse_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_collapse_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_collapse_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_collapse_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_collapse_action = AccessibilitycollapseactionReplayRecord {
                             kind: result_recorded_accessibility_collapse_action_kind,
                             metadata: result_recorded_accessibility_collapse_action_metadata,
                         };
                         AccessibilityactionReplayRecord::AccessibilityCollapseAction(result_recorded_accessibility_collapse_action)
+                    }
+                    AccessibilityActionVm::AccessibilityCustomActionInvocation(value) => {
+                        let result_recorded_accessibility_custom_action_invocation_kind = {
+                            let result_recorded_accessibility_custom_action_invocation_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_custom_action_invocation_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_custom_action_invocation_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_custom_action_invocation_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_custom_action_invocation_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_custom_action_invocation_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_custom_action_invocation_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_custom_action_invocation_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_custom_action_invocation_metadata_window,
+                            node_id: result_recorded_accessibility_custom_action_invocation_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_custom_action_invocation_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_custom_action_invocation_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_custom_action_invocation_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_custom_action_invocation_action_id = {
+                            let result_recorded_accessibility_custom_action_invocation_action_id_ref = context.string_ref(value.action_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_custom_action_invocation_action_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_custom_action_invocation = AccessibilitycustomactioninvocationReplayRecord {
+                            kind: result_recorded_accessibility_custom_action_invocation_kind,
+                            metadata: result_recorded_accessibility_custom_action_invocation_metadata,
+                            action_id: result_recorded_accessibility_custom_action_invocation_action_id,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityCustomActionInvocation(result_recorded_accessibility_custom_action_invocation)
                     }
                     AccessibilityActionVm::AccessibilityDecrementAction(value) => {
                         let result_recorded_accessibility_decrement_action_kind = {
@@ -3394,11 +9076,13 @@ fn destack_accessibility_action_try_read_vm_replay(
                         let result_recorded_accessibility_decrement_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_decrement_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_decrement_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_decrement_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_decrement_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_decrement_action_metadata_window,
                             node_id: result_recorded_accessibility_decrement_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_decrement_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_decrement_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_decrement_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_decrement_action = AccessibilitydecrementactionReplayRecord {
                             kind: result_recorded_accessibility_decrement_action_kind,
@@ -3415,11 +9099,13 @@ fn destack_accessibility_action_try_read_vm_replay(
                         let result_recorded_accessibility_dismiss_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_dismiss_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_dismiss_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_dismiss_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_dismiss_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_dismiss_action_metadata_window,
                             node_id: result_recorded_accessibility_dismiss_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_dismiss_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_dismiss_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_dismiss_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_dismiss_action = AccessibilitydismissactionReplayRecord {
                             kind: result_recorded_accessibility_dismiss_action_kind,
@@ -3436,11 +9122,13 @@ fn destack_accessibility_action_try_read_vm_replay(
                         let result_recorded_accessibility_expand_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_expand_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_expand_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_expand_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_expand_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_expand_action_metadata_window,
                             node_id: result_recorded_accessibility_expand_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_expand_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_expand_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_expand_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_expand_action = AccessibilityexpandactionReplayRecord {
                             kind: result_recorded_accessibility_expand_action_kind,
@@ -3457,11 +9145,13 @@ fn destack_accessibility_action_try_read_vm_replay(
                         let result_recorded_accessibility_focus_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_focus_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_focus_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_focus_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_focus_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_focus_action_metadata_window,
                             node_id: result_recorded_accessibility_focus_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_focus_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_focus_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_focus_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_focus_action = AccessibilityfocusactionReplayRecord {
                             kind: result_recorded_accessibility_focus_action_kind,
@@ -3478,17 +9168,124 @@ fn destack_accessibility_action_try_read_vm_replay(
                         let result_recorded_accessibility_increment_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_increment_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_increment_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_increment_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_increment_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_increment_action_metadata_window,
                             node_id: result_recorded_accessibility_increment_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_increment_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_increment_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_increment_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_increment_action = AccessibilityincrementactionReplayRecord {
                             kind: result_recorded_accessibility_increment_action_kind,
                             metadata: result_recorded_accessibility_increment_action_metadata,
                         };
                         AccessibilityactionReplayRecord::AccessibilityIncrementAction(result_recorded_accessibility_increment_action)
+                    }
+                    AccessibilityActionVm::AccessibilityMoveTextSelectionAction(value) => {
+                        let result_recorded_accessibility_move_text_selection_action_kind = {
+                            let result_recorded_accessibility_move_text_selection_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_move_text_selection_action_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_move_text_selection_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_move_text_selection_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_move_text_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_move_text_selection_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_move_text_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_move_text_selection_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_move_text_selection_action_metadata_window,
+                            node_id: result_recorded_accessibility_move_text_selection_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_move_text_selection_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_move_text_selection_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_move_text_selection_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_move_text_selection_action_unit = value.unit;
+                        let result_recorded_accessibility_move_text_selection_action_count = value.count;
+                        let result_recorded_accessibility_move_text_selection_action_extend = value.extend;
+                        let result_recorded_accessibility_move_text_selection_action = AccessibilitymovetextselectionactionReplayRecord {
+                            kind: result_recorded_accessibility_move_text_selection_action_kind,
+                            metadata: result_recorded_accessibility_move_text_selection_action_metadata,
+                            unit: result_recorded_accessibility_move_text_selection_action_unit,
+                            count: result_recorded_accessibility_move_text_selection_action_count,
+                            extend: result_recorded_accessibility_move_text_selection_action_extend,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityMoveTextSelectionAction(result_recorded_accessibility_move_text_selection_action)
+                    }
+                    AccessibilityActionVm::AccessibilityRemoveFromSelectionAction(value) => {
+                        let result_recorded_accessibility_remove_from_selection_action_kind = {
+                            let result_recorded_accessibility_remove_from_selection_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_remove_from_selection_action_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_remove_from_selection_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_remove_from_selection_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_remove_from_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_remove_from_selection_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_remove_from_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_remove_from_selection_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_remove_from_selection_action_metadata_window,
+                            node_id: result_recorded_accessibility_remove_from_selection_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_remove_from_selection_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_remove_from_selection_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_remove_from_selection_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_remove_from_selection_action = AccessibilityremovefromselectionactionReplayRecord {
+                            kind: result_recorded_accessibility_remove_from_selection_action_kind,
+                            metadata: result_recorded_accessibility_remove_from_selection_action_metadata,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityRemoveFromSelectionAction(result_recorded_accessibility_remove_from_selection_action)
+                    }
+                    AccessibilityActionVm::AccessibilityReplaceSelectedTextAction(value) => {
+                        let result_recorded_accessibility_replace_selected_text_action_kind = {
+                            let result_recorded_accessibility_replace_selected_text_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_replace_selected_text_action_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_replace_selected_text_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_replace_selected_text_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_replace_selected_text_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_replace_selected_text_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_replace_selected_text_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_replace_selected_text_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_replace_selected_text_action_metadata_window,
+                            node_id: result_recorded_accessibility_replace_selected_text_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_replace_selected_text_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_replace_selected_text_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_replace_selected_text_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_replace_selected_text_action_text = {
+                            let result_recorded_accessibility_replace_selected_text_action_text_ref = context.string_ref(value.text).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_replace_selected_text_action_text_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_replace_selected_text_action = AccessibilityreplaceselectedtextactionReplayRecord {
+                            kind: result_recorded_accessibility_replace_selected_text_action_kind,
+                            metadata: result_recorded_accessibility_replace_selected_text_action_metadata,
+                            text: result_recorded_accessibility_replace_selected_text_action_text,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityReplaceSelectedTextAction(result_recorded_accessibility_replace_selected_text_action)
+                    }
+                    AccessibilityActionVm::AccessibilityScrollAction(value) => {
+                        let result_recorded_accessibility_scroll_action_kind = {
+                            let result_recorded_accessibility_scroll_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_scroll_action_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_scroll_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_scroll_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_scroll_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_scroll_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_scroll_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_scroll_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_scroll_action_metadata_window,
+                            node_id: result_recorded_accessibility_scroll_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_scroll_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_scroll_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_scroll_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_scroll_action_direction = value.direction;
+                        let result_recorded_accessibility_scroll_action = AccessibilityscrollactionReplayRecord {
+                            kind: result_recorded_accessibility_scroll_action_kind,
+                            metadata: result_recorded_accessibility_scroll_action_metadata,
+                            direction: result_recorded_accessibility_scroll_action_direction,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityScrollAction(result_recorded_accessibility_scroll_action)
                     }
                     AccessibilityActionVm::AccessibilityScrollIntoViewAction(value) => {
                         let result_recorded_accessibility_scroll_into_view_action_kind = {
@@ -3499,17 +9296,51 @@ fn destack_accessibility_action_try_read_vm_replay(
                         let result_recorded_accessibility_scroll_into_view_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_scroll_into_view_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_scroll_into_view_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_scroll_into_view_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_scroll_into_view_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_scroll_into_view_action_metadata_window,
                             node_id: result_recorded_accessibility_scroll_into_view_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_scroll_into_view_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_scroll_into_view_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_scroll_into_view_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_scroll_into_view_action = AccessibilityscrollintoviewactionReplayRecord {
                             kind: result_recorded_accessibility_scroll_into_view_action_kind,
                             metadata: result_recorded_accessibility_scroll_into_view_action_metadata,
                         };
                         AccessibilityactionReplayRecord::AccessibilityScrollIntoViewAction(result_recorded_accessibility_scroll_into_view_action)
+                    }
+                    AccessibilityActionVm::AccessibilityScrollTextRangeIntoViewAction(value) => {
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_kind = {
+                            let result_recorded_accessibility_scroll_text_range_into_view_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_scroll_text_range_into_view_action_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_scroll_text_range_into_view_action_metadata_window,
+                            node_id: result_recorded_accessibility_scroll_text_range_into_view_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_scroll_text_range_into_view_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_scroll_text_range_into_view_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_scroll_text_range_into_view_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_scroll_text_range_into_view_action_range_start_offset,
+                            end_offset: result_recorded_accessibility_scroll_text_range_into_view_action_range_end_offset,
+                        };
+                        let result_recorded_accessibility_scroll_text_range_into_view_action_align_to_start = value.align_to_start;
+                        let result_recorded_accessibility_scroll_text_range_into_view_action = AccessibilityscrolltextrangeintoviewactionReplayRecord {
+                            kind: result_recorded_accessibility_scroll_text_range_into_view_action_kind,
+                            metadata: result_recorded_accessibility_scroll_text_range_into_view_action_metadata,
+                            range: result_recorded_accessibility_scroll_text_range_into_view_action_range,
+                            align_to_start: result_recorded_accessibility_scroll_text_range_into_view_action_align_to_start,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityScrollTextRangeIntoViewAction(result_recorded_accessibility_scroll_text_range_into_view_action)
                     }
                     AccessibilityActionVm::AccessibilitySelectAction(value) => {
                         let result_recorded_accessibility_select_action_kind = {
@@ -3520,11 +9351,13 @@ fn destack_accessibility_action_try_read_vm_replay(
                         let result_recorded_accessibility_select_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_select_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_select_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_select_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_select_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_select_action_metadata_window,
                             node_id: result_recorded_accessibility_select_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_select_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_select_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_select_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_select_action = AccessibilityselectactionReplayRecord {
                             kind: result_recorded_accessibility_select_action_kind,
@@ -3541,11 +9374,13 @@ fn destack_accessibility_action_try_read_vm_replay(
                         let result_recorded_accessibility_set_numeric_value_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_set_numeric_value_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_set_numeric_value_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_set_numeric_value_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_set_numeric_value_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_set_numeric_value_action_metadata_window,
                             node_id: result_recorded_accessibility_set_numeric_value_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_set_numeric_value_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_set_numeric_value_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_set_numeric_value_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_set_numeric_value_action_value = value.value;
                         let result_recorded_accessibility_set_numeric_value_action = AccessibilitysetnumericvalueactionReplayRecord {
@@ -3564,11 +9399,13 @@ fn destack_accessibility_action_try_read_vm_replay(
                         let result_recorded_accessibility_set_selected_text_range_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_set_selected_text_range_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_set_selected_text_range_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_set_selected_text_range_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_set_selected_text_range_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_set_selected_text_range_action_metadata_window,
                             node_id: result_recorded_accessibility_set_selected_text_range_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_set_selected_text_range_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_set_selected_text_range_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_set_selected_text_range_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_set_selected_text_range_action_anchor_offset = value.anchor_offset;
                         let result_recorded_accessibility_set_selected_text_range_action_focus_offset = value.focus_offset;
@@ -3580,6 +9417,52 @@ fn destack_accessibility_action_try_read_vm_replay(
                         };
                         AccessibilityactionReplayRecord::AccessibilitySetSelectedTextRangeAction(result_recorded_accessibility_set_selected_text_range_action)
                     }
+                    AccessibilityActionVm::AccessibilitySetSelectedTextRangesAction(value) => {
+                        let result_recorded_accessibility_set_selected_text_ranges_action_kind = {
+                            let result_recorded_accessibility_set_selected_text_ranges_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_set_selected_text_ranges_action_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_set_selected_text_ranges_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_set_selected_text_ranges_action_metadata_window,
+                            node_id: result_recorded_accessibility_set_selected_text_ranges_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_set_selected_text_ranges_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_set_selected_text_ranges_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_set_selected_text_ranges_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_set_selected_text_ranges_action_selections_raw = value.selections.raw_values(context)?;
+                        let mut result_recorded_accessibility_set_selected_text_ranges_action_selections = Vec::with_capacity(result_recorded_accessibility_set_selected_text_ranges_action_selections_raw.len());
+                        for result_recorded_accessibility_set_selected_text_ranges_action_selections_item_value in result_recorded_accessibility_set_selected_text_ranges_action_selections_raw {
+                            let result_recorded_accessibility_set_selected_text_ranges_action_selections_item = {
+                                if result_recorded_accessibility_set_selected_text_ranges_action_selections_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_accessibility_set_selected_text_ranges_action_selections_item", "item")).boxed()); }
+                                let slots = context.aggregate_slots(result_recorded_accessibility_set_selected_text_ranges_action_selections_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_accessibility_set_selected_text_ranges_action_selections_item", "expected 2 fields")).boxed()); }
+                                let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_anchor_offset = decode_uint32(slots[0], "result_recorded_accessibility_set_selected_text_ranges_action_selections_item_anchor_offset", "anchorOffset")?;
+                                let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_focus_offset = decode_uint32(slots[1], "result_recorded_accessibility_set_selected_text_ranges_action_selections_item_focus_offset", "focusOffset")?;
+                                AccessibilityTextSelectionVm {
+                                    anchor_offset: result_recorded_accessibility_set_selected_text_ranges_action_selections_item_anchor_offset,
+                                    focus_offset: result_recorded_accessibility_set_selected_text_ranges_action_selections_item_focus_offset,
+                                }
+                            };
+                            let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_anchor_offset = result_recorded_accessibility_set_selected_text_ranges_action_selections_item.anchor_offset;
+                            let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_focus_offset = result_recorded_accessibility_set_selected_text_ranges_action_selections_item.focus_offset;
+                            let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded = AccessibilityTextSelection {
+                                anchor_offset: result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_anchor_offset,
+                                focus_offset: result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_focus_offset,
+                            };
+                            result_recorded_accessibility_set_selected_text_ranges_action_selections.push(result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded);
+                        }
+                        let result_recorded_accessibility_set_selected_text_ranges_action = AccessibilitysetselectedtextrangesactionReplayRecord {
+                            kind: result_recorded_accessibility_set_selected_text_ranges_action_kind,
+                            metadata: result_recorded_accessibility_set_selected_text_ranges_action_metadata,
+                            selections: result_recorded_accessibility_set_selected_text_ranges_action_selections,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilitySetSelectedTextRangesAction(result_recorded_accessibility_set_selected_text_ranges_action)
+                    }
                     AccessibilityActionVm::AccessibilitySetTextValueAction(value) => {
                         let result_recorded_accessibility_set_text_value_action_kind = {
                             let result_recorded_accessibility_set_text_value_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -3589,11 +9472,13 @@ fn destack_accessibility_action_try_read_vm_replay(
                         let result_recorded_accessibility_set_text_value_action_metadata_node_id = value.metadata.node_id;
                         let result_recorded_accessibility_set_text_value_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_accessibility_set_text_value_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_set_text_value_action_metadata_dropped_count = value.metadata.dropped_count;
                         let result_recorded_accessibility_set_text_value_action_metadata = AccessibilityActionMetadata {
                             window: result_recorded_accessibility_set_text_value_action_metadata_window,
                             node_id: result_recorded_accessibility_set_text_value_action_metadata_node_id,
                             timestamp_ns: result_recorded_accessibility_set_text_value_action_metadata_timestamp_ns,
                             sequence: result_recorded_accessibility_set_text_value_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_set_text_value_action_metadata_dropped_count,
                         };
                         let result_recorded_accessibility_set_text_value_action_value = {
                             let result_recorded_accessibility_set_text_value_action_value_ref = context.string_ref(value.value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -3606,26 +9491,51 @@ fn destack_accessibility_action_try_read_vm_replay(
                         };
                         AccessibilityactionReplayRecord::AccessibilitySetTextValueAction(result_recorded_accessibility_set_text_value_action)
                     }
-                    AccessibilityActionVm::AccessibilityShowContextMenuAction(value) => {
-                        let result_recorded_accessibility_show_context_menu_action_kind = {
-                            let result_recorded_accessibility_show_context_menu_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_accessibility_show_context_menu_action_kind_ref.as_str().to_string()
+                    AccessibilityActionVm::AccessibilityShowMenuAction(value) => {
+                        let result_recorded_accessibility_show_menu_action_kind = {
+                            let result_recorded_accessibility_show_menu_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_show_menu_action_kind_ref.as_str().to_string()
                         };
-                        let result_recorded_accessibility_show_context_menu_action_metadata_window = value.metadata.window;
-                        let result_recorded_accessibility_show_context_menu_action_metadata_node_id = value.metadata.node_id;
-                        let result_recorded_accessibility_show_context_menu_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_accessibility_show_context_menu_action_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_accessibility_show_context_menu_action_metadata = AccessibilityActionMetadata {
-                            window: result_recorded_accessibility_show_context_menu_action_metadata_window,
-                            node_id: result_recorded_accessibility_show_context_menu_action_metadata_node_id,
-                            timestamp_ns: result_recorded_accessibility_show_context_menu_action_metadata_timestamp_ns,
-                            sequence: result_recorded_accessibility_show_context_menu_action_metadata_sequence,
+                        let result_recorded_accessibility_show_menu_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_show_menu_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_show_menu_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_show_menu_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_show_menu_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_show_menu_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_show_menu_action_metadata_window,
+                            node_id: result_recorded_accessibility_show_menu_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_show_menu_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_show_menu_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_show_menu_action_metadata_dropped_count,
                         };
-                        let result_recorded_accessibility_show_context_menu_action = AccessibilityshowcontextmenuactionReplayRecord {
-                            kind: result_recorded_accessibility_show_context_menu_action_kind,
-                            metadata: result_recorded_accessibility_show_context_menu_action_metadata,
+                        let result_recorded_accessibility_show_menu_action = AccessibilityshowmenuactionReplayRecord {
+                            kind: result_recorded_accessibility_show_menu_action_kind,
+                            metadata: result_recorded_accessibility_show_menu_action_metadata,
                         };
-                        AccessibilityactionReplayRecord::AccessibilityShowContextMenuAction(result_recorded_accessibility_show_context_menu_action)
+                        AccessibilityactionReplayRecord::AccessibilityShowMenuAction(result_recorded_accessibility_show_menu_action)
+                    }
+                    AccessibilityActionVm::AccessibilityToggleAction(value) => {
+                        let result_recorded_accessibility_toggle_action_kind = {
+                            let result_recorded_accessibility_toggle_action_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_toggle_action_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_toggle_action_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_toggle_action_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_toggle_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_toggle_action_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_toggle_action_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_toggle_action_metadata = AccessibilityActionMetadata {
+                            window: result_recorded_accessibility_toggle_action_metadata_window,
+                            node_id: result_recorded_accessibility_toggle_action_metadata_node_id,
+                            timestamp_ns: result_recorded_accessibility_toggle_action_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_toggle_action_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_toggle_action_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_toggle_action = AccessibilitytoggleactionReplayRecord {
+                            kind: result_recorded_accessibility_toggle_action_kind,
+                            metadata: result_recorded_accessibility_toggle_action_metadata,
+                        };
+                        AccessibilityactionReplayRecord::AccessibilityToggleAction(result_recorded_accessibility_toggle_action)
                     }
                 };
                 let payload = AccessibilityActionTryReadReplayRecord {
@@ -3658,11 +9568,13 @@ fn destack_accessibility_action_try_read_vm_replay(
                             let vm_result_accessibility_activate_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_activate_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_activate_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_activate_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_activate_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_activate_action_metadata_window,
                                 node_id: vm_result_accessibility_activate_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_activate_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_activate_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_activate_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_activate_action = AccessibilityActivateActionVm {
                                 kind: vm_result_accessibility_activate_action_kind,
@@ -3670,17 +9582,59 @@ fn destack_accessibility_action_try_read_vm_replay(
                             };
                             AccessibilityActionVm::AccessibilityActivateAction(vm_result_accessibility_activate_action)
                         }
+                        AccessibilityactionReplayRecord::AccessibilityAddToSelectionAction(value) => {
+                            let vm_result_accessibility_add_to_selection_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_add_to_selection_action_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_add_to_selection_action_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_add_to_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_add_to_selection_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_add_to_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_add_to_selection_action_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_add_to_selection_action_metadata_window,
+                                node_id: vm_result_accessibility_add_to_selection_action_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_add_to_selection_action_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_add_to_selection_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_add_to_selection_action_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_add_to_selection_action = AccessibilityAddToSelectionActionVm {
+                                kind: vm_result_accessibility_add_to_selection_action_kind,
+                                metadata: vm_result_accessibility_add_to_selection_action_metadata,
+                            };
+                            AccessibilityActionVm::AccessibilityAddToSelectionAction(vm_result_accessibility_add_to_selection_action)
+                        }
+                        AccessibilityactionReplayRecord::AccessibilityClearSelectionAction(value) => {
+                            let vm_result_accessibility_clear_selection_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_clear_selection_action_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_clear_selection_action_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_clear_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_clear_selection_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_clear_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_clear_selection_action_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_clear_selection_action_metadata_window,
+                                node_id: vm_result_accessibility_clear_selection_action_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_clear_selection_action_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_clear_selection_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_clear_selection_action_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_clear_selection_action = AccessibilityClearSelectionActionVm {
+                                kind: vm_result_accessibility_clear_selection_action_kind,
+                                metadata: vm_result_accessibility_clear_selection_action_metadata,
+                            };
+                            AccessibilityActionVm::AccessibilityClearSelectionAction(vm_result_accessibility_clear_selection_action)
+                        }
                         AccessibilityactionReplayRecord::AccessibilityCollapseAction(value) => {
                             let vm_result_accessibility_collapse_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_accessibility_collapse_action_metadata_window = value.metadata.window;
                             let vm_result_accessibility_collapse_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_collapse_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_collapse_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_collapse_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_collapse_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_collapse_action_metadata_window,
                                 node_id: vm_result_accessibility_collapse_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_collapse_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_collapse_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_collapse_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_collapse_action = AccessibilityCollapseActionVm {
                                 kind: vm_result_accessibility_collapse_action_kind,
@@ -3688,17 +9642,41 @@ fn destack_accessibility_action_try_read_vm_replay(
                             };
                             AccessibilityActionVm::AccessibilityCollapseAction(vm_result_accessibility_collapse_action)
                         }
+                        AccessibilityactionReplayRecord::AccessibilityCustomActionInvocation(value) => {
+                            let vm_result_accessibility_custom_action_invocation_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_custom_action_invocation_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_custom_action_invocation_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_custom_action_invocation_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_custom_action_invocation_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_custom_action_invocation_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_custom_action_invocation_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_custom_action_invocation_metadata_window,
+                                node_id: vm_result_accessibility_custom_action_invocation_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_custom_action_invocation_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_custom_action_invocation_metadata_sequence,
+                                dropped_count: vm_result_accessibility_custom_action_invocation_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_custom_action_invocation_action_id = context.string_handle(value.action_id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_custom_action_invocation = AccessibilityCustomActionInvocationVm {
+                                kind: vm_result_accessibility_custom_action_invocation_kind,
+                                metadata: vm_result_accessibility_custom_action_invocation_metadata,
+                                action_id: vm_result_accessibility_custom_action_invocation_action_id,
+                            };
+                            AccessibilityActionVm::AccessibilityCustomActionInvocation(vm_result_accessibility_custom_action_invocation)
+                        }
                         AccessibilityactionReplayRecord::AccessibilityDecrementAction(value) => {
                             let vm_result_accessibility_decrement_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_accessibility_decrement_action_metadata_window = value.metadata.window;
                             let vm_result_accessibility_decrement_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_decrement_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_decrement_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_decrement_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_decrement_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_decrement_action_metadata_window,
                                 node_id: vm_result_accessibility_decrement_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_decrement_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_decrement_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_decrement_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_decrement_action = AccessibilityDecrementActionVm {
                                 kind: vm_result_accessibility_decrement_action_kind,
@@ -3712,11 +9690,13 @@ fn destack_accessibility_action_try_read_vm_replay(
                             let vm_result_accessibility_dismiss_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_dismiss_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_dismiss_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_dismiss_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_dismiss_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_dismiss_action_metadata_window,
                                 node_id: vm_result_accessibility_dismiss_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_dismiss_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_dismiss_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_dismiss_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_dismiss_action = AccessibilityDismissActionVm {
                                 kind: vm_result_accessibility_dismiss_action_kind,
@@ -3730,11 +9710,13 @@ fn destack_accessibility_action_try_read_vm_replay(
                             let vm_result_accessibility_expand_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_expand_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_expand_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_expand_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_expand_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_expand_action_metadata_window,
                                 node_id: vm_result_accessibility_expand_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_expand_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_expand_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_expand_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_expand_action = AccessibilityExpandActionVm {
                                 kind: vm_result_accessibility_expand_action_kind,
@@ -3748,11 +9730,13 @@ fn destack_accessibility_action_try_read_vm_replay(
                             let vm_result_accessibility_focus_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_focus_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_focus_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_focus_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_focus_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_focus_action_metadata_window,
                                 node_id: vm_result_accessibility_focus_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_focus_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_focus_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_focus_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_focus_action = AccessibilityFocusActionVm {
                                 kind: vm_result_accessibility_focus_action_kind,
@@ -3766,11 +9750,13 @@ fn destack_accessibility_action_try_read_vm_replay(
                             let vm_result_accessibility_increment_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_increment_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_increment_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_increment_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_increment_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_increment_action_metadata_window,
                                 node_id: vm_result_accessibility_increment_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_increment_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_increment_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_increment_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_increment_action = AccessibilityIncrementActionVm {
                                 kind: vm_result_accessibility_increment_action_kind,
@@ -3778,17 +9764,109 @@ fn destack_accessibility_action_try_read_vm_replay(
                             };
                             AccessibilityActionVm::AccessibilityIncrementAction(vm_result_accessibility_increment_action)
                         }
+                        AccessibilityactionReplayRecord::AccessibilityMoveTextSelectionAction(value) => {
+                            let vm_result_accessibility_move_text_selection_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_move_text_selection_action_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_move_text_selection_action_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_move_text_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_move_text_selection_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_move_text_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_move_text_selection_action_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_move_text_selection_action_metadata_window,
+                                node_id: vm_result_accessibility_move_text_selection_action_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_move_text_selection_action_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_move_text_selection_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_move_text_selection_action_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_move_text_selection_action_unit = value.unit;
+                            let vm_result_accessibility_move_text_selection_action_count = value.count;
+                            let vm_result_accessibility_move_text_selection_action_extend = value.extend;
+                            let vm_result_accessibility_move_text_selection_action = AccessibilityMoveTextSelectionActionVm {
+                                kind: vm_result_accessibility_move_text_selection_action_kind,
+                                metadata: vm_result_accessibility_move_text_selection_action_metadata,
+                                unit: vm_result_accessibility_move_text_selection_action_unit,
+                                count: vm_result_accessibility_move_text_selection_action_count,
+                                extend: vm_result_accessibility_move_text_selection_action_extend,
+                            };
+                            AccessibilityActionVm::AccessibilityMoveTextSelectionAction(vm_result_accessibility_move_text_selection_action)
+                        }
+                        AccessibilityactionReplayRecord::AccessibilityRemoveFromSelectionAction(value) => {
+                            let vm_result_accessibility_remove_from_selection_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_remove_from_selection_action_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_remove_from_selection_action_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_remove_from_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_remove_from_selection_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_remove_from_selection_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_remove_from_selection_action_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_remove_from_selection_action_metadata_window,
+                                node_id: vm_result_accessibility_remove_from_selection_action_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_remove_from_selection_action_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_remove_from_selection_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_remove_from_selection_action_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_remove_from_selection_action = AccessibilityRemoveFromSelectionActionVm {
+                                kind: vm_result_accessibility_remove_from_selection_action_kind,
+                                metadata: vm_result_accessibility_remove_from_selection_action_metadata,
+                            };
+                            AccessibilityActionVm::AccessibilityRemoveFromSelectionAction(vm_result_accessibility_remove_from_selection_action)
+                        }
+                        AccessibilityactionReplayRecord::AccessibilityReplaceSelectedTextAction(value) => {
+                            let vm_result_accessibility_replace_selected_text_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_replace_selected_text_action_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_replace_selected_text_action_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_replace_selected_text_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_replace_selected_text_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_replace_selected_text_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_replace_selected_text_action_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_replace_selected_text_action_metadata_window,
+                                node_id: vm_result_accessibility_replace_selected_text_action_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_replace_selected_text_action_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_replace_selected_text_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_replace_selected_text_action_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_replace_selected_text_action_text = context.string_handle(value.text.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_replace_selected_text_action = AccessibilityReplaceSelectedTextActionVm {
+                                kind: vm_result_accessibility_replace_selected_text_action_kind,
+                                metadata: vm_result_accessibility_replace_selected_text_action_metadata,
+                                text: vm_result_accessibility_replace_selected_text_action_text,
+                            };
+                            AccessibilityActionVm::AccessibilityReplaceSelectedTextAction(vm_result_accessibility_replace_selected_text_action)
+                        }
+                        AccessibilityactionReplayRecord::AccessibilityScrollAction(value) => {
+                            let vm_result_accessibility_scroll_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_scroll_action_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_scroll_action_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_scroll_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_scroll_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_scroll_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_scroll_action_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_scroll_action_metadata_window,
+                                node_id: vm_result_accessibility_scroll_action_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_scroll_action_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_scroll_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_scroll_action_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_scroll_action_direction = value.direction;
+                            let vm_result_accessibility_scroll_action = AccessibilityScrollActionVm {
+                                kind: vm_result_accessibility_scroll_action_kind,
+                                metadata: vm_result_accessibility_scroll_action_metadata,
+                                direction: vm_result_accessibility_scroll_action_direction,
+                            };
+                            AccessibilityActionVm::AccessibilityScrollAction(vm_result_accessibility_scroll_action)
+                        }
                         AccessibilityactionReplayRecord::AccessibilityScrollIntoViewAction(value) => {
                             let vm_result_accessibility_scroll_into_view_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_accessibility_scroll_into_view_action_metadata_window = value.metadata.window;
                             let vm_result_accessibility_scroll_into_view_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_scroll_into_view_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_scroll_into_view_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_scroll_into_view_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_scroll_into_view_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_scroll_into_view_action_metadata_window,
                                 node_id: vm_result_accessibility_scroll_into_view_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_scroll_into_view_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_scroll_into_view_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_scroll_into_view_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_scroll_into_view_action = AccessibilityScrollIntoViewActionVm {
                                 kind: vm_result_accessibility_scroll_into_view_action_kind,
@@ -3796,17 +9874,48 @@ fn destack_accessibility_action_try_read_vm_replay(
                             };
                             AccessibilityActionVm::AccessibilityScrollIntoViewAction(vm_result_accessibility_scroll_into_view_action)
                         }
+                        AccessibilityactionReplayRecord::AccessibilityScrollTextRangeIntoViewAction(value) => {
+                            let vm_result_accessibility_scroll_text_range_into_view_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_scroll_text_range_into_view_action_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_scroll_text_range_into_view_action_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_scroll_text_range_into_view_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_scroll_text_range_into_view_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_scroll_text_range_into_view_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_scroll_text_range_into_view_action_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_scroll_text_range_into_view_action_metadata_window,
+                                node_id: vm_result_accessibility_scroll_text_range_into_view_action_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_scroll_text_range_into_view_action_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_scroll_text_range_into_view_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_scroll_text_range_into_view_action_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_scroll_text_range_into_view_action_range_start_offset = value.range.start_offset;
+                            let vm_result_accessibility_scroll_text_range_into_view_action_range_end_offset = value.range.end_offset;
+                            let vm_result_accessibility_scroll_text_range_into_view_action_range = AccessibilityTextRange {
+                                start_offset: vm_result_accessibility_scroll_text_range_into_view_action_range_start_offset,
+                                end_offset: vm_result_accessibility_scroll_text_range_into_view_action_range_end_offset,
+                            };
+                            let vm_result_accessibility_scroll_text_range_into_view_action_align_to_start = value.align_to_start;
+                            let vm_result_accessibility_scroll_text_range_into_view_action = AccessibilityScrollTextRangeIntoViewActionVm {
+                                kind: vm_result_accessibility_scroll_text_range_into_view_action_kind,
+                                metadata: vm_result_accessibility_scroll_text_range_into_view_action_metadata,
+                                range: vm_result_accessibility_scroll_text_range_into_view_action_range,
+                                align_to_start: vm_result_accessibility_scroll_text_range_into_view_action_align_to_start,
+                            };
+                            AccessibilityActionVm::AccessibilityScrollTextRangeIntoViewAction(vm_result_accessibility_scroll_text_range_into_view_action)
+                        }
                         AccessibilityactionReplayRecord::AccessibilitySelectAction(value) => {
                             let vm_result_accessibility_select_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_accessibility_select_action_metadata_window = value.metadata.window;
                             let vm_result_accessibility_select_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_select_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_select_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_select_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_select_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_select_action_metadata_window,
                                 node_id: vm_result_accessibility_select_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_select_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_select_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_select_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_select_action = AccessibilitySelectActionVm {
                                 kind: vm_result_accessibility_select_action_kind,
@@ -3820,11 +9929,13 @@ fn destack_accessibility_action_try_read_vm_replay(
                             let vm_result_accessibility_set_numeric_value_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_set_numeric_value_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_set_numeric_value_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_set_numeric_value_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_set_numeric_value_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_set_numeric_value_action_metadata_window,
                                 node_id: vm_result_accessibility_set_numeric_value_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_set_numeric_value_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_set_numeric_value_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_set_numeric_value_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_set_numeric_value_action_value = value.value;
                             let vm_result_accessibility_set_numeric_value_action = AccessibilitySetNumericValueActionVm {
@@ -3840,11 +9951,13 @@ fn destack_accessibility_action_try_read_vm_replay(
                             let vm_result_accessibility_set_selected_text_range_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_set_selected_text_range_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_set_selected_text_range_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_set_selected_text_range_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_set_selected_text_range_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_set_selected_text_range_action_metadata_window,
                                 node_id: vm_result_accessibility_set_selected_text_range_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_set_selected_text_range_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_set_selected_text_range_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_set_selected_text_range_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_set_selected_text_range_action_anchor_offset = value.anchor_offset;
                             let vm_result_accessibility_set_selected_text_range_action_focus_offset = value.focus_offset;
@@ -3856,17 +9969,51 @@ fn destack_accessibility_action_try_read_vm_replay(
                             };
                             AccessibilityActionVm::AccessibilitySetSelectedTextRangeAction(vm_result_accessibility_set_selected_text_range_action)
                         }
+                        AccessibilityactionReplayRecord::AccessibilitySetSelectedTextRangesAction(value) => {
+                            let vm_result_accessibility_set_selected_text_ranges_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_set_selected_text_ranges_action_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_set_selected_text_ranges_action_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_set_selected_text_ranges_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_set_selected_text_ranges_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_set_selected_text_ranges_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_set_selected_text_ranges_action_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_set_selected_text_ranges_action_metadata_window,
+                                node_id: vm_result_accessibility_set_selected_text_ranges_action_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_set_selected_text_ranges_action_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_set_selected_text_ranges_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_set_selected_text_ranges_action_metadata_dropped_count,
+                            };
+                            let mut vm_result_accessibility_set_selected_text_ranges_action_selections_values = Vec::with_capacity(value.selections.len());
+                            for vm_result_accessibility_set_selected_text_ranges_action_selections_item in value.selections.iter().cloned() {
+                                let vm_result_accessibility_set_selected_text_ranges_action_selections_item_value_anchor_offset = vm_result_accessibility_set_selected_text_ranges_action_selections_item.anchor_offset;
+                                let vm_result_accessibility_set_selected_text_ranges_action_selections_item_value_focus_offset = vm_result_accessibility_set_selected_text_ranges_action_selections_item.focus_offset;
+                                let vm_result_accessibility_set_selected_text_ranges_action_selections_item_value = AccessibilityTextSelection {
+                                    anchor_offset: vm_result_accessibility_set_selected_text_ranges_action_selections_item_value_anchor_offset,
+                                    focus_offset: vm_result_accessibility_set_selected_text_ranges_action_selections_item_value_focus_offset,
+                                };
+                                vm_result_accessibility_set_selected_text_ranges_action_selections_values.push(vm_result_accessibility_set_selected_text_ranges_action_selections_item_value);
+                            }
+                            let vm_result_accessibility_set_selected_text_ranges_action_selections = VmSlice::from_values(context, &vm_result_accessibility_set_selected_text_ranges_action_selections_values)?;
+                            let vm_result_accessibility_set_selected_text_ranges_action = AccessibilitySetSelectedTextRangesActionVm {
+                                kind: vm_result_accessibility_set_selected_text_ranges_action_kind,
+                                metadata: vm_result_accessibility_set_selected_text_ranges_action_metadata,
+                                selections: vm_result_accessibility_set_selected_text_ranges_action_selections,
+                            };
+                            AccessibilityActionVm::AccessibilitySetSelectedTextRangesAction(vm_result_accessibility_set_selected_text_ranges_action)
+                        }
                         AccessibilityactionReplayRecord::AccessibilitySetTextValueAction(value) => {
                             let vm_result_accessibility_set_text_value_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_accessibility_set_text_value_action_metadata_window = value.metadata.window;
                             let vm_result_accessibility_set_text_value_action_metadata_node_id = value.metadata.node_id;
                             let vm_result_accessibility_set_text_value_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_accessibility_set_text_value_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_set_text_value_action_metadata_dropped_count = value.metadata.dropped_count;
                             let vm_result_accessibility_set_text_value_action_metadata = AccessibilityActionMetadata {
                                 window: vm_result_accessibility_set_text_value_action_metadata_window,
                                 node_id: vm_result_accessibility_set_text_value_action_metadata_node_id,
                                 timestamp_ns: vm_result_accessibility_set_text_value_action_metadata_timestamp_ns,
                                 sequence: vm_result_accessibility_set_text_value_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_set_text_value_action_metadata_dropped_count,
                             };
                             let vm_result_accessibility_set_text_value_action_value = context.string_handle(value.value.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_accessibility_set_text_value_action = AccessibilitySetTextValueActionVm {
@@ -3876,23 +10023,45 @@ fn destack_accessibility_action_try_read_vm_replay(
                             };
                             AccessibilityActionVm::AccessibilitySetTextValueAction(vm_result_accessibility_set_text_value_action)
                         }
-                        AccessibilityactionReplayRecord::AccessibilityShowContextMenuAction(value) => {
-                            let vm_result_accessibility_show_context_menu_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_accessibility_show_context_menu_action_metadata_window = value.metadata.window;
-                            let vm_result_accessibility_show_context_menu_action_metadata_node_id = value.metadata.node_id;
-                            let vm_result_accessibility_show_context_menu_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let vm_result_accessibility_show_context_menu_action_metadata_sequence = value.metadata.sequence;
-                            let vm_result_accessibility_show_context_menu_action_metadata = AccessibilityActionMetadata {
-                                window: vm_result_accessibility_show_context_menu_action_metadata_window,
-                                node_id: vm_result_accessibility_show_context_menu_action_metadata_node_id,
-                                timestamp_ns: vm_result_accessibility_show_context_menu_action_metadata_timestamp_ns,
-                                sequence: vm_result_accessibility_show_context_menu_action_metadata_sequence,
+                        AccessibilityactionReplayRecord::AccessibilityShowMenuAction(value) => {
+                            let vm_result_accessibility_show_menu_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_show_menu_action_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_show_menu_action_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_show_menu_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_show_menu_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_show_menu_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_show_menu_action_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_show_menu_action_metadata_window,
+                                node_id: vm_result_accessibility_show_menu_action_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_show_menu_action_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_show_menu_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_show_menu_action_metadata_dropped_count,
                             };
-                            let vm_result_accessibility_show_context_menu_action = AccessibilityShowContextMenuActionVm {
-                                kind: vm_result_accessibility_show_context_menu_action_kind,
-                                metadata: vm_result_accessibility_show_context_menu_action_metadata,
+                            let vm_result_accessibility_show_menu_action = AccessibilityShowMenuActionVm {
+                                kind: vm_result_accessibility_show_menu_action_kind,
+                                metadata: vm_result_accessibility_show_menu_action_metadata,
                             };
-                            AccessibilityActionVm::AccessibilityShowContextMenuAction(vm_result_accessibility_show_context_menu_action)
+                            AccessibilityActionVm::AccessibilityShowMenuAction(vm_result_accessibility_show_menu_action)
+                        }
+                        AccessibilityactionReplayRecord::AccessibilityToggleAction(value) => {
+                            let vm_result_accessibility_toggle_action_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_toggle_action_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_toggle_action_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_toggle_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_toggle_action_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_toggle_action_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_toggle_action_metadata = AccessibilityActionMetadata {
+                                window: vm_result_accessibility_toggle_action_metadata_window,
+                                node_id: vm_result_accessibility_toggle_action_metadata_node_id,
+                                timestamp_ns: vm_result_accessibility_toggle_action_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_toggle_action_metadata_sequence,
+                                dropped_count: vm_result_accessibility_toggle_action_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_toggle_action = AccessibilityToggleActionVm {
+                                kind: vm_result_accessibility_toggle_action_kind,
+                                metadata: vm_result_accessibility_toggle_action_metadata,
+                            };
+                            AccessibilityActionVm::AccessibilityToggleAction(vm_result_accessibility_toggle_action)
                         }
                     };
                     Ok(vm_result)
@@ -3902,6 +10071,1625 @@ fn destack_accessibility_action_try_read_vm_replay(
         },
     );
     let result = encode_destack_accessibility_action_try_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_accessibility_document_clear_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+    nodeid: AccessibilityNodeId,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        ACCESSIBILITY_DOCUMENT_CLEAR,
+        binding.replay_payload_for(ACCESSIBILITY_DOCUMENT_CLEAR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_accessibility_document_clear(binding, context, window, nodeid)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_accessibility_document_clear(
+                    binding, context, window, nodeid,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AccessibilityDocumentClearReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    AccessibilityDocumentClearReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_accessibility_document_clear_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_accessibility_document_close_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AccessibilityDocumentHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        ACCESSIBILITY_DOCUMENT_CLOSE,
+        binding.replay_payload_for(ACCESSIBILITY_DOCUMENT_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_accessibility_document_close(binding, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_accessibility_document_close(
+                    binding, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AccessibilityDocumentCloseReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    AccessibilityDocumentCloseReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_accessibility_document_close_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_accessibility_document_open_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+    options: AccessibilityDocumentOpenOptionsVm,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        ACCESSIBILITY_DOCUMENT_OPEN,
+        binding.replay_payload_for(ACCESSIBILITY_DOCUMENT_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_accessibility_document_open(binding, context, window, options)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_accessibility_document_open(
+                    binding, context, window, options,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::AccessibilityDocumentHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = AccessibilityDocumentOpenReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    AccessibilityDocumentOpenReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_accessibility_document_open_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_accessibility_document_read_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AccessibilityDocumentHandle,
+    timeoutns: u64,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        ACCESSIBILITY_DOCUMENT_READ,
+        binding.replay_payload_for(ACCESSIBILITY_DOCUMENT_READ)?,
+        context,
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_accessibility_document_read(binding, context, handle, timeoutns),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_accessibility_document_read(binding, context, handle, timeoutns),
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: AccessibilityDocumentQueryVm = value.clone();
+                let result_recorded = match result_value {
+                    AccessibilityDocumentQueryVm::AccessibilityDocumentRangeAtPointQuery(value) => {
+                        let result_recorded_accessibility_document_range_at_point_query_kind = {
+                            let result_recorded_accessibility_document_range_at_point_query_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_document_range_at_point_query_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_range_at_point_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_range_at_point_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_range_at_point_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_range_at_point_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_range_at_point_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_range_at_point_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_range_at_point_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_range_at_point_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_range_at_point_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_range_at_point_query_x = value.x;
+                        let result_recorded_accessibility_document_range_at_point_query_y = value.y;
+                        let result_recorded_accessibility_document_range_at_point_query = AccessibilitydocumentrangeatpointqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_range_at_point_query_kind,
+                            metadata: result_recorded_accessibility_document_range_at_point_query_metadata,
+                            x: result_recorded_accessibility_document_range_at_point_query_x,
+                            y: result_recorded_accessibility_document_range_at_point_query_y,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeAtPointQuery(result_recorded_accessibility_document_range_at_point_query)
+                    }
+                    AccessibilityDocumentQueryVm::AccessibilityDocumentRangeForChildQuery(value) => {
+                        let result_recorded_accessibility_document_range_for_child_query_kind = {
+                            let result_recorded_accessibility_document_range_for_child_query_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_document_range_for_child_query_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_range_for_child_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_range_for_child_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_range_for_child_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_range_for_child_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_range_for_child_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_range_for_child_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_range_for_child_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_range_for_child_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_range_for_child_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_range_for_child_query_child_node_id = value.child_node_id;
+                        let result_recorded_accessibility_document_range_for_child_query = AccessibilitydocumentrangeforchildqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_range_for_child_query_kind,
+                            metadata: result_recorded_accessibility_document_range_for_child_query_metadata,
+                            child_node_id: result_recorded_accessibility_document_range_for_child_query_child_node_id,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeForChildQuery(result_recorded_accessibility_document_range_for_child_query)
+                    }
+                    AccessibilityDocumentQueryVm::AccessibilityDocumentRangeForUnitQuery(value) => {
+                        let result_recorded_accessibility_document_range_for_unit_query_kind = {
+                            let result_recorded_accessibility_document_range_for_unit_query_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_document_range_for_unit_query_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_range_for_unit_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_range_for_unit_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_range_for_unit_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_range_for_unit_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_range_for_unit_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_range_for_unit_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_range_for_unit_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_range_for_unit_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_range_for_unit_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_range_for_unit_query_unit = value.unit;
+                        let result_recorded_accessibility_document_range_for_unit_query_offset = value.offset;
+                        let result_recorded_accessibility_document_range_for_unit_query = AccessibilitydocumentrangeforunitqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_range_for_unit_query_kind,
+                            metadata: result_recorded_accessibility_document_range_for_unit_query_metadata,
+                            unit: result_recorded_accessibility_document_range_for_unit_query_unit,
+                            offset: result_recorded_accessibility_document_range_for_unit_query_offset,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeForUnitQuery(result_recorded_accessibility_document_range_for_unit_query)
+                    }
+                    AccessibilityDocumentQueryVm::AccessibilityDocumentReadEmbeddedObjectsQuery(value) => {
+                        let result_recorded_accessibility_document_read_embedded_objects_query_kind = {
+                            let result_recorded_accessibility_document_read_embedded_objects_query_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_document_read_embedded_objects_query_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_read_embedded_objects_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_read_embedded_objects_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_read_embedded_objects_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_read_embedded_objects_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_read_embedded_objects_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_read_embedded_objects_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_read_embedded_objects_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_read_embedded_objects_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_read_embedded_objects_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_read_embedded_objects_query_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_document_read_embedded_objects_query_range_start_offset,
+                            end_offset: result_recorded_accessibility_document_read_embedded_objects_query_range_end_offset,
+                        };
+                        let result_recorded_accessibility_document_read_embedded_objects_query = AccessibilitydocumentreadembeddedobjectsqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_read_embedded_objects_query_kind,
+                            metadata: result_recorded_accessibility_document_read_embedded_objects_query_metadata,
+                            range: result_recorded_accessibility_document_read_embedded_objects_query_range,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadEmbeddedObjectsQuery(result_recorded_accessibility_document_read_embedded_objects_query)
+                    }
+                    AccessibilityDocumentQueryVm::AccessibilityDocumentReadRangeBoundsQuery(value) => {
+                        let result_recorded_accessibility_document_read_range_bounds_query_kind = {
+                            let result_recorded_accessibility_document_read_range_bounds_query_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_document_read_range_bounds_query_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_read_range_bounds_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_read_range_bounds_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_read_range_bounds_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_read_range_bounds_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_read_range_bounds_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_read_range_bounds_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_read_range_bounds_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_read_range_bounds_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_read_range_bounds_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_read_range_bounds_query_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_document_read_range_bounds_query_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_document_read_range_bounds_query_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_document_read_range_bounds_query_range_start_offset,
+                            end_offset: result_recorded_accessibility_document_read_range_bounds_query_range_end_offset,
+                        };
+                        let result_recorded_accessibility_document_read_range_bounds_query = AccessibilitydocumentreadrangeboundsqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_read_range_bounds_query_kind,
+                            metadata: result_recorded_accessibility_document_read_range_bounds_query_metadata,
+                            range: result_recorded_accessibility_document_read_range_bounds_query_range,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadRangeBoundsQuery(result_recorded_accessibility_document_read_range_bounds_query)
+                    }
+                    AccessibilityDocumentQueryVm::AccessibilityDocumentReadStyleRunsQuery(value) => {
+                        let result_recorded_accessibility_document_read_style_runs_query_kind = {
+                            let result_recorded_accessibility_document_read_style_runs_query_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_document_read_style_runs_query_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_read_style_runs_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_read_style_runs_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_read_style_runs_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_read_style_runs_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_read_style_runs_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_read_style_runs_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_read_style_runs_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_read_style_runs_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_read_style_runs_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_read_style_runs_query_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_document_read_style_runs_query_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_document_read_style_runs_query_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_document_read_style_runs_query_range_start_offset,
+                            end_offset: result_recorded_accessibility_document_read_style_runs_query_range_end_offset,
+                        };
+                        let result_recorded_accessibility_document_read_style_runs_query = AccessibilitydocumentreadstylerunsqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_read_style_runs_query_kind,
+                            metadata: result_recorded_accessibility_document_read_style_runs_query_metadata,
+                            range: result_recorded_accessibility_document_read_style_runs_query_range,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadStyleRunsQuery(result_recorded_accessibility_document_read_style_runs_query)
+                    }
+                    AccessibilityDocumentQueryVm::AccessibilityDocumentReadTextQuery(value) => {
+                        let result_recorded_accessibility_document_read_text_query_kind = {
+                            let result_recorded_accessibility_document_read_text_query_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_document_read_text_query_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_document_read_text_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_read_text_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_read_text_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_read_text_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_read_text_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_read_text_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_read_text_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_read_text_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_read_text_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_read_text_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_read_text_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_read_text_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_read_text_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_read_text_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_read_text_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_read_text_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_read_text_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_read_text_query_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_document_read_text_query_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_document_read_text_query_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_document_read_text_query_range_start_offset,
+                            end_offset: result_recorded_accessibility_document_read_text_query_range_end_offset,
+                        };
+                        let result_recorded_accessibility_document_read_text_query = AccessibilitydocumentreadtextqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_read_text_query_kind,
+                            metadata: result_recorded_accessibility_document_read_text_query_metadata,
+                            range: result_recorded_accessibility_document_read_text_query_range,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadTextQuery(result_recorded_accessibility_document_read_text_query)
+                    }
+                    AccessibilityDocumentQueryVm::AccessibilityDocumentReadUnitRangesQuery(value) => {
+                        let result_recorded_accessibility_document_read_unit_ranges_query_kind = {
+                            let result_recorded_accessibility_document_read_unit_ranges_query_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_document_read_unit_ranges_query_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_read_unit_ranges_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_read_unit_ranges_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_read_unit_ranges_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_read_unit_ranges_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_read_unit_ranges_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_read_unit_ranges_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_read_unit_ranges_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_read_unit_ranges_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_read_unit_ranges_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_read_unit_ranges_query_unit = value.unit;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_document_read_unit_ranges_query_range_start_offset,
+                            end_offset: result_recorded_accessibility_document_read_unit_ranges_query_range_end_offset,
+                        };
+                        let result_recorded_accessibility_document_read_unit_ranges_query = AccessibilitydocumentreadunitrangesqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_read_unit_ranges_query_kind,
+                            metadata: result_recorded_accessibility_document_read_unit_ranges_query_metadata,
+                            unit: result_recorded_accessibility_document_read_unit_ranges_query_unit,
+                            range: result_recorded_accessibility_document_read_unit_ranges_query_range,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadUnitRangesQuery(result_recorded_accessibility_document_read_unit_ranges_query)
+                    }
+                };
+                let payload = AccessibilityDocumentReadReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    AccessibilityDocumentReadReplayRecord {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = match value {
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeAtPointQuery(value) => {
+                            let vm_result_accessibility_document_range_at_point_query_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_document_range_at_point_query_metadata_request_id = value.metadata.request_id;
+                            let vm_result_accessibility_document_range_at_point_query_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_document_range_at_point_query_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_document_range_at_point_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let vm_result_accessibility_document_range_at_point_query_metadata_document_revision_inner = value;
+                                Some(vm_result_accessibility_document_range_at_point_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_accessibility_document_range_at_point_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_document_range_at_point_query_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_document_range_at_point_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_document_range_at_point_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: vm_result_accessibility_document_range_at_point_query_metadata_request_id,
+                                window: vm_result_accessibility_document_range_at_point_query_metadata_window,
+                                node_id: vm_result_accessibility_document_range_at_point_query_metadata_node_id,
+                                document_revision: vm_result_accessibility_document_range_at_point_query_metadata_document_revision,
+                                timestamp_ns: vm_result_accessibility_document_range_at_point_query_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_document_range_at_point_query_metadata_sequence,
+                                dropped_count: vm_result_accessibility_document_range_at_point_query_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_document_range_at_point_query_x = value.x;
+                            let vm_result_accessibility_document_range_at_point_query_y = value.y;
+                            let vm_result_accessibility_document_range_at_point_query = AccessibilityDocumentRangeAtPointQueryVm {
+                                kind: vm_result_accessibility_document_range_at_point_query_kind,
+                                metadata: vm_result_accessibility_document_range_at_point_query_metadata,
+                                x: vm_result_accessibility_document_range_at_point_query_x,
+                                y: vm_result_accessibility_document_range_at_point_query_y,
+                            };
+                            AccessibilityDocumentQueryVm::AccessibilityDocumentRangeAtPointQuery(vm_result_accessibility_document_range_at_point_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeForChildQuery(value) => {
+                            let vm_result_accessibility_document_range_for_child_query_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_document_range_for_child_query_metadata_request_id = value.metadata.request_id;
+                            let vm_result_accessibility_document_range_for_child_query_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_document_range_for_child_query_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_document_range_for_child_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let vm_result_accessibility_document_range_for_child_query_metadata_document_revision_inner = value;
+                                Some(vm_result_accessibility_document_range_for_child_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_accessibility_document_range_for_child_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_document_range_for_child_query_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_document_range_for_child_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_document_range_for_child_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: vm_result_accessibility_document_range_for_child_query_metadata_request_id,
+                                window: vm_result_accessibility_document_range_for_child_query_metadata_window,
+                                node_id: vm_result_accessibility_document_range_for_child_query_metadata_node_id,
+                                document_revision: vm_result_accessibility_document_range_for_child_query_metadata_document_revision,
+                                timestamp_ns: vm_result_accessibility_document_range_for_child_query_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_document_range_for_child_query_metadata_sequence,
+                                dropped_count: vm_result_accessibility_document_range_for_child_query_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_document_range_for_child_query_child_node_id = value.child_node_id;
+                            let vm_result_accessibility_document_range_for_child_query = AccessibilityDocumentRangeForChildQueryVm {
+                                kind: vm_result_accessibility_document_range_for_child_query_kind,
+                                metadata: vm_result_accessibility_document_range_for_child_query_metadata,
+                                child_node_id: vm_result_accessibility_document_range_for_child_query_child_node_id,
+                            };
+                            AccessibilityDocumentQueryVm::AccessibilityDocumentRangeForChildQuery(vm_result_accessibility_document_range_for_child_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeForUnitQuery(value) => {
+                            let vm_result_accessibility_document_range_for_unit_query_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_document_range_for_unit_query_metadata_request_id = value.metadata.request_id;
+                            let vm_result_accessibility_document_range_for_unit_query_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_document_range_for_unit_query_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_document_range_for_unit_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let vm_result_accessibility_document_range_for_unit_query_metadata_document_revision_inner = value;
+                                Some(vm_result_accessibility_document_range_for_unit_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_accessibility_document_range_for_unit_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_document_range_for_unit_query_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_document_range_for_unit_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_document_range_for_unit_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: vm_result_accessibility_document_range_for_unit_query_metadata_request_id,
+                                window: vm_result_accessibility_document_range_for_unit_query_metadata_window,
+                                node_id: vm_result_accessibility_document_range_for_unit_query_metadata_node_id,
+                                document_revision: vm_result_accessibility_document_range_for_unit_query_metadata_document_revision,
+                                timestamp_ns: vm_result_accessibility_document_range_for_unit_query_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_document_range_for_unit_query_metadata_sequence,
+                                dropped_count: vm_result_accessibility_document_range_for_unit_query_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_document_range_for_unit_query_unit = value.unit;
+                            let vm_result_accessibility_document_range_for_unit_query_offset = value.offset;
+                            let vm_result_accessibility_document_range_for_unit_query = AccessibilityDocumentRangeForUnitQueryVm {
+                                kind: vm_result_accessibility_document_range_for_unit_query_kind,
+                                metadata: vm_result_accessibility_document_range_for_unit_query_metadata,
+                                unit: vm_result_accessibility_document_range_for_unit_query_unit,
+                                offset: vm_result_accessibility_document_range_for_unit_query_offset,
+                            };
+                            AccessibilityDocumentQueryVm::AccessibilityDocumentRangeForUnitQuery(vm_result_accessibility_document_range_for_unit_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadEmbeddedObjectsQuery(value) => {
+                            let vm_result_accessibility_document_read_embedded_objects_query_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_document_read_embedded_objects_query_metadata_request_id = value.metadata.request_id;
+                            let vm_result_accessibility_document_read_embedded_objects_query_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_document_read_embedded_objects_query_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_document_read_embedded_objects_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let vm_result_accessibility_document_read_embedded_objects_query_metadata_document_revision_inner = value;
+                                Some(vm_result_accessibility_document_read_embedded_objects_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_accessibility_document_read_embedded_objects_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_document_read_embedded_objects_query_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_document_read_embedded_objects_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_document_read_embedded_objects_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: vm_result_accessibility_document_read_embedded_objects_query_metadata_request_id,
+                                window: vm_result_accessibility_document_read_embedded_objects_query_metadata_window,
+                                node_id: vm_result_accessibility_document_read_embedded_objects_query_metadata_node_id,
+                                document_revision: vm_result_accessibility_document_read_embedded_objects_query_metadata_document_revision,
+                                timestamp_ns: vm_result_accessibility_document_read_embedded_objects_query_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_document_read_embedded_objects_query_metadata_sequence,
+                                dropped_count: vm_result_accessibility_document_read_embedded_objects_query_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_document_read_embedded_objects_query_range_start_offset = value.range.start_offset;
+                            let vm_result_accessibility_document_read_embedded_objects_query_range_end_offset = value.range.end_offset;
+                            let vm_result_accessibility_document_read_embedded_objects_query_range = AccessibilityTextRange {
+                                start_offset: vm_result_accessibility_document_read_embedded_objects_query_range_start_offset,
+                                end_offset: vm_result_accessibility_document_read_embedded_objects_query_range_end_offset,
+                            };
+                            let vm_result_accessibility_document_read_embedded_objects_query = AccessibilityDocumentReadEmbeddedObjectsQueryVm {
+                                kind: vm_result_accessibility_document_read_embedded_objects_query_kind,
+                                metadata: vm_result_accessibility_document_read_embedded_objects_query_metadata,
+                                range: vm_result_accessibility_document_read_embedded_objects_query_range,
+                            };
+                            AccessibilityDocumentQueryVm::AccessibilityDocumentReadEmbeddedObjectsQuery(vm_result_accessibility_document_read_embedded_objects_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadRangeBoundsQuery(value) => {
+                            let vm_result_accessibility_document_read_range_bounds_query_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_document_read_range_bounds_query_metadata_request_id = value.metadata.request_id;
+                            let vm_result_accessibility_document_read_range_bounds_query_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_document_read_range_bounds_query_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_document_read_range_bounds_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let vm_result_accessibility_document_read_range_bounds_query_metadata_document_revision_inner = value;
+                                Some(vm_result_accessibility_document_read_range_bounds_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_accessibility_document_read_range_bounds_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_document_read_range_bounds_query_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_document_read_range_bounds_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_document_read_range_bounds_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: vm_result_accessibility_document_read_range_bounds_query_metadata_request_id,
+                                window: vm_result_accessibility_document_read_range_bounds_query_metadata_window,
+                                node_id: vm_result_accessibility_document_read_range_bounds_query_metadata_node_id,
+                                document_revision: vm_result_accessibility_document_read_range_bounds_query_metadata_document_revision,
+                                timestamp_ns: vm_result_accessibility_document_read_range_bounds_query_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_document_read_range_bounds_query_metadata_sequence,
+                                dropped_count: vm_result_accessibility_document_read_range_bounds_query_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_document_read_range_bounds_query_range_start_offset = value.range.start_offset;
+                            let vm_result_accessibility_document_read_range_bounds_query_range_end_offset = value.range.end_offset;
+                            let vm_result_accessibility_document_read_range_bounds_query_range = AccessibilityTextRange {
+                                start_offset: vm_result_accessibility_document_read_range_bounds_query_range_start_offset,
+                                end_offset: vm_result_accessibility_document_read_range_bounds_query_range_end_offset,
+                            };
+                            let vm_result_accessibility_document_read_range_bounds_query = AccessibilityDocumentReadRangeBoundsQueryVm {
+                                kind: vm_result_accessibility_document_read_range_bounds_query_kind,
+                                metadata: vm_result_accessibility_document_read_range_bounds_query_metadata,
+                                range: vm_result_accessibility_document_read_range_bounds_query_range,
+                            };
+                            AccessibilityDocumentQueryVm::AccessibilityDocumentReadRangeBoundsQuery(vm_result_accessibility_document_read_range_bounds_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadStyleRunsQuery(value) => {
+                            let vm_result_accessibility_document_read_style_runs_query_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_document_read_style_runs_query_metadata_request_id = value.metadata.request_id;
+                            let vm_result_accessibility_document_read_style_runs_query_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_document_read_style_runs_query_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_document_read_style_runs_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let vm_result_accessibility_document_read_style_runs_query_metadata_document_revision_inner = value;
+                                Some(vm_result_accessibility_document_read_style_runs_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_accessibility_document_read_style_runs_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_document_read_style_runs_query_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_document_read_style_runs_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_document_read_style_runs_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: vm_result_accessibility_document_read_style_runs_query_metadata_request_id,
+                                window: vm_result_accessibility_document_read_style_runs_query_metadata_window,
+                                node_id: vm_result_accessibility_document_read_style_runs_query_metadata_node_id,
+                                document_revision: vm_result_accessibility_document_read_style_runs_query_metadata_document_revision,
+                                timestamp_ns: vm_result_accessibility_document_read_style_runs_query_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_document_read_style_runs_query_metadata_sequence,
+                                dropped_count: vm_result_accessibility_document_read_style_runs_query_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_document_read_style_runs_query_range_start_offset = value.range.start_offset;
+                            let vm_result_accessibility_document_read_style_runs_query_range_end_offset = value.range.end_offset;
+                            let vm_result_accessibility_document_read_style_runs_query_range = AccessibilityTextRange {
+                                start_offset: vm_result_accessibility_document_read_style_runs_query_range_start_offset,
+                                end_offset: vm_result_accessibility_document_read_style_runs_query_range_end_offset,
+                            };
+                            let vm_result_accessibility_document_read_style_runs_query = AccessibilityDocumentReadStyleRunsQueryVm {
+                                kind: vm_result_accessibility_document_read_style_runs_query_kind,
+                                metadata: vm_result_accessibility_document_read_style_runs_query_metadata,
+                                range: vm_result_accessibility_document_read_style_runs_query_range,
+                            };
+                            AccessibilityDocumentQueryVm::AccessibilityDocumentReadStyleRunsQuery(vm_result_accessibility_document_read_style_runs_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadTextQuery(value) => {
+                            let vm_result_accessibility_document_read_text_query_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_document_read_text_query_metadata_request_id = value.metadata.request_id;
+                            let vm_result_accessibility_document_read_text_query_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_document_read_text_query_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_document_read_text_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let vm_result_accessibility_document_read_text_query_metadata_document_revision_inner = value;
+                                Some(vm_result_accessibility_document_read_text_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_accessibility_document_read_text_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_document_read_text_query_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_document_read_text_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_document_read_text_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: vm_result_accessibility_document_read_text_query_metadata_request_id,
+                                window: vm_result_accessibility_document_read_text_query_metadata_window,
+                                node_id: vm_result_accessibility_document_read_text_query_metadata_node_id,
+                                document_revision: vm_result_accessibility_document_read_text_query_metadata_document_revision,
+                                timestamp_ns: vm_result_accessibility_document_read_text_query_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_document_read_text_query_metadata_sequence,
+                                dropped_count: vm_result_accessibility_document_read_text_query_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_document_read_text_query_range_start_offset = value.range.start_offset;
+                            let vm_result_accessibility_document_read_text_query_range_end_offset = value.range.end_offset;
+                            let vm_result_accessibility_document_read_text_query_range = AccessibilityTextRange {
+                                start_offset: vm_result_accessibility_document_read_text_query_range_start_offset,
+                                end_offset: vm_result_accessibility_document_read_text_query_range_end_offset,
+                            };
+                            let vm_result_accessibility_document_read_text_query = AccessibilityDocumentReadTextQueryVm {
+                                kind: vm_result_accessibility_document_read_text_query_kind,
+                                metadata: vm_result_accessibility_document_read_text_query_metadata,
+                                range: vm_result_accessibility_document_read_text_query_range,
+                            };
+                            AccessibilityDocumentQueryVm::AccessibilityDocumentReadTextQuery(vm_result_accessibility_document_read_text_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadUnitRangesQuery(value) => {
+                            let vm_result_accessibility_document_read_unit_ranges_query_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_document_read_unit_ranges_query_metadata_request_id = value.metadata.request_id;
+                            let vm_result_accessibility_document_read_unit_ranges_query_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_document_read_unit_ranges_query_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_document_read_unit_ranges_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let vm_result_accessibility_document_read_unit_ranges_query_metadata_document_revision_inner = value;
+                                Some(vm_result_accessibility_document_read_unit_ranges_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_accessibility_document_read_unit_ranges_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_document_read_unit_ranges_query_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_document_read_unit_ranges_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_document_read_unit_ranges_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: vm_result_accessibility_document_read_unit_ranges_query_metadata_request_id,
+                                window: vm_result_accessibility_document_read_unit_ranges_query_metadata_window,
+                                node_id: vm_result_accessibility_document_read_unit_ranges_query_metadata_node_id,
+                                document_revision: vm_result_accessibility_document_read_unit_ranges_query_metadata_document_revision,
+                                timestamp_ns: vm_result_accessibility_document_read_unit_ranges_query_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_document_read_unit_ranges_query_metadata_sequence,
+                                dropped_count: vm_result_accessibility_document_read_unit_ranges_query_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_document_read_unit_ranges_query_unit = value.unit;
+                            let vm_result_accessibility_document_read_unit_ranges_query_range_start_offset = value.range.start_offset;
+                            let vm_result_accessibility_document_read_unit_ranges_query_range_end_offset = value.range.end_offset;
+                            let vm_result_accessibility_document_read_unit_ranges_query_range = AccessibilityTextRange {
+                                start_offset: vm_result_accessibility_document_read_unit_ranges_query_range_start_offset,
+                                end_offset: vm_result_accessibility_document_read_unit_ranges_query_range_end_offset,
+                            };
+                            let vm_result_accessibility_document_read_unit_ranges_query = AccessibilityDocumentReadUnitRangesQueryVm {
+                                kind: vm_result_accessibility_document_read_unit_ranges_query_kind,
+                                metadata: vm_result_accessibility_document_read_unit_ranges_query_metadata,
+                                unit: vm_result_accessibility_document_read_unit_ranges_query_unit,
+                                range: vm_result_accessibility_document_read_unit_ranges_query_range,
+                            };
+                            AccessibilityDocumentQueryVm::AccessibilityDocumentReadUnitRangesQuery(vm_result_accessibility_document_read_unit_ranges_query)
+                        }
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_accessibility_document_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_accessibility_document_respond_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AccessibilityDocumentHandle,
+    response: AccessibilityDocumentResponseVm,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        ACCESSIBILITY_DOCUMENT_RESPOND,
+        binding.replay_payload_for(ACCESSIBILITY_DOCUMENT_RESPOND)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_accessibility_document_respond(
+                binding, context, handle, response,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_accessibility_document_respond(
+                    binding, context, handle, response,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AccessibilityDocumentRespondReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    AccessibilityDocumentRespondReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_accessibility_document_respond_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_accessibility_document_set_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+    nodeid: AccessibilityNodeId,
+    document: AccessibilityTextDocumentVm,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        ACCESSIBILITY_DOCUMENT_SET,
+        binding.replay_payload_for(ACCESSIBILITY_DOCUMENT_SET)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_accessibility_document_set(
+                binding, context, window, nodeid, document,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_accessibility_document_set(
+                binding, context, window, nodeid, document,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AccessibilityDocumentSetReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    AccessibilityDocumentSetReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_accessibility_document_set_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_accessibility_document_try_read_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AccessibilityDocumentHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        ACCESSIBILITY_DOCUMENT_TRY_READ,
+        binding.replay_payload_for(ACCESSIBILITY_DOCUMENT_TRY_READ)?,
+        context,
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_accessibility_document_try_read(binding, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_accessibility_document_try_read(binding, context, handle),
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: AccessibilityDocumentQueryVm = value.clone();
+                let result_recorded = match result_value {
+                    AccessibilityDocumentQueryVm::AccessibilityDocumentRangeAtPointQuery(value) => {
+                        let result_recorded_accessibility_document_range_at_point_query_kind = {
+                            let result_recorded_accessibility_document_range_at_point_query_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_document_range_at_point_query_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_range_at_point_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_range_at_point_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_range_at_point_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_range_at_point_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_range_at_point_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_range_at_point_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_range_at_point_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_range_at_point_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_range_at_point_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_range_at_point_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_range_at_point_query_x = value.x;
+                        let result_recorded_accessibility_document_range_at_point_query_y = value.y;
+                        let result_recorded_accessibility_document_range_at_point_query = AccessibilitydocumentrangeatpointqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_range_at_point_query_kind,
+                            metadata: result_recorded_accessibility_document_range_at_point_query_metadata,
+                            x: result_recorded_accessibility_document_range_at_point_query_x,
+                            y: result_recorded_accessibility_document_range_at_point_query_y,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeAtPointQuery(result_recorded_accessibility_document_range_at_point_query)
+                    }
+                    AccessibilityDocumentQueryVm::AccessibilityDocumentRangeForChildQuery(value) => {
+                        let result_recorded_accessibility_document_range_for_child_query_kind = {
+                            let result_recorded_accessibility_document_range_for_child_query_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_document_range_for_child_query_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_range_for_child_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_range_for_child_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_range_for_child_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_range_for_child_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_range_for_child_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_range_for_child_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_range_for_child_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_range_for_child_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_range_for_child_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_range_for_child_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_range_for_child_query_child_node_id = value.child_node_id;
+                        let result_recorded_accessibility_document_range_for_child_query = AccessibilitydocumentrangeforchildqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_range_for_child_query_kind,
+                            metadata: result_recorded_accessibility_document_range_for_child_query_metadata,
+                            child_node_id: result_recorded_accessibility_document_range_for_child_query_child_node_id,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeForChildQuery(result_recorded_accessibility_document_range_for_child_query)
+                    }
+                    AccessibilityDocumentQueryVm::AccessibilityDocumentRangeForUnitQuery(value) => {
+                        let result_recorded_accessibility_document_range_for_unit_query_kind = {
+                            let result_recorded_accessibility_document_range_for_unit_query_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_document_range_for_unit_query_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_range_for_unit_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_range_for_unit_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_range_for_unit_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_range_for_unit_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_range_for_unit_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_range_for_unit_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_range_for_unit_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_range_for_unit_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_range_for_unit_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_range_for_unit_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_range_for_unit_query_unit = value.unit;
+                        let result_recorded_accessibility_document_range_for_unit_query_offset = value.offset;
+                        let result_recorded_accessibility_document_range_for_unit_query = AccessibilitydocumentrangeforunitqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_range_for_unit_query_kind,
+                            metadata: result_recorded_accessibility_document_range_for_unit_query_metadata,
+                            unit: result_recorded_accessibility_document_range_for_unit_query_unit,
+                            offset: result_recorded_accessibility_document_range_for_unit_query_offset,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeForUnitQuery(result_recorded_accessibility_document_range_for_unit_query)
+                    }
+                    AccessibilityDocumentQueryVm::AccessibilityDocumentReadEmbeddedObjectsQuery(value) => {
+                        let result_recorded_accessibility_document_read_embedded_objects_query_kind = {
+                            let result_recorded_accessibility_document_read_embedded_objects_query_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_document_read_embedded_objects_query_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_read_embedded_objects_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_read_embedded_objects_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_read_embedded_objects_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_read_embedded_objects_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_read_embedded_objects_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_read_embedded_objects_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_read_embedded_objects_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_read_embedded_objects_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_read_embedded_objects_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_read_embedded_objects_query_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_document_read_embedded_objects_query_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_document_read_embedded_objects_query_range_start_offset,
+                            end_offset: result_recorded_accessibility_document_read_embedded_objects_query_range_end_offset,
+                        };
+                        let result_recorded_accessibility_document_read_embedded_objects_query = AccessibilitydocumentreadembeddedobjectsqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_read_embedded_objects_query_kind,
+                            metadata: result_recorded_accessibility_document_read_embedded_objects_query_metadata,
+                            range: result_recorded_accessibility_document_read_embedded_objects_query_range,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadEmbeddedObjectsQuery(result_recorded_accessibility_document_read_embedded_objects_query)
+                    }
+                    AccessibilityDocumentQueryVm::AccessibilityDocumentReadRangeBoundsQuery(value) => {
+                        let result_recorded_accessibility_document_read_range_bounds_query_kind = {
+                            let result_recorded_accessibility_document_read_range_bounds_query_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_document_read_range_bounds_query_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_read_range_bounds_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_read_range_bounds_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_read_range_bounds_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_read_range_bounds_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_read_range_bounds_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_read_range_bounds_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_read_range_bounds_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_read_range_bounds_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_read_range_bounds_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_read_range_bounds_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_read_range_bounds_query_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_document_read_range_bounds_query_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_document_read_range_bounds_query_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_document_read_range_bounds_query_range_start_offset,
+                            end_offset: result_recorded_accessibility_document_read_range_bounds_query_range_end_offset,
+                        };
+                        let result_recorded_accessibility_document_read_range_bounds_query = AccessibilitydocumentreadrangeboundsqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_read_range_bounds_query_kind,
+                            metadata: result_recorded_accessibility_document_read_range_bounds_query_metadata,
+                            range: result_recorded_accessibility_document_read_range_bounds_query_range,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadRangeBoundsQuery(result_recorded_accessibility_document_read_range_bounds_query)
+                    }
+                    AccessibilityDocumentQueryVm::AccessibilityDocumentReadStyleRunsQuery(value) => {
+                        let result_recorded_accessibility_document_read_style_runs_query_kind = {
+                            let result_recorded_accessibility_document_read_style_runs_query_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_document_read_style_runs_query_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_read_style_runs_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_read_style_runs_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_read_style_runs_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_read_style_runs_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_read_style_runs_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_read_style_runs_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_read_style_runs_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_read_style_runs_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_read_style_runs_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_read_style_runs_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_read_style_runs_query_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_document_read_style_runs_query_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_document_read_style_runs_query_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_document_read_style_runs_query_range_start_offset,
+                            end_offset: result_recorded_accessibility_document_read_style_runs_query_range_end_offset,
+                        };
+                        let result_recorded_accessibility_document_read_style_runs_query = AccessibilitydocumentreadstylerunsqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_read_style_runs_query_kind,
+                            metadata: result_recorded_accessibility_document_read_style_runs_query_metadata,
+                            range: result_recorded_accessibility_document_read_style_runs_query_range,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadStyleRunsQuery(result_recorded_accessibility_document_read_style_runs_query)
+                    }
+                    AccessibilityDocumentQueryVm::AccessibilityDocumentReadTextQuery(value) => {
+                        let result_recorded_accessibility_document_read_text_query_kind = {
+                            let result_recorded_accessibility_document_read_text_query_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_document_read_text_query_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_document_read_text_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_read_text_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_read_text_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_read_text_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_read_text_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_read_text_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_read_text_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_read_text_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_read_text_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_read_text_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_read_text_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_read_text_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_read_text_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_read_text_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_read_text_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_read_text_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_read_text_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_read_text_query_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_document_read_text_query_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_document_read_text_query_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_document_read_text_query_range_start_offset,
+                            end_offset: result_recorded_accessibility_document_read_text_query_range_end_offset,
+                        };
+                        let result_recorded_accessibility_document_read_text_query = AccessibilitydocumentreadtextqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_read_text_query_kind,
+                            metadata: result_recorded_accessibility_document_read_text_query_metadata,
+                            range: result_recorded_accessibility_document_read_text_query_range,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadTextQuery(result_recorded_accessibility_document_read_text_query)
+                    }
+                    AccessibilityDocumentQueryVm::AccessibilityDocumentReadUnitRangesQuery(value) => {
+                        let result_recorded_accessibility_document_read_unit_ranges_query_kind = {
+                            let result_recorded_accessibility_document_read_unit_ranges_query_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_accessibility_document_read_unit_ranges_query_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_request_id = value.metadata.request_id;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_window = value.metadata.window;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_node_id = value.metadata.node_id;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                            let result_recorded_accessibility_document_read_unit_ranges_query_metadata_document_revision_inner = value;
+                            Some(result_recorded_accessibility_document_read_unit_ranges_query_metadata_document_revision_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_metadata = AccessibilityDocumentQueryMetadata {
+                            request_id: result_recorded_accessibility_document_read_unit_ranges_query_metadata_request_id,
+                            window: result_recorded_accessibility_document_read_unit_ranges_query_metadata_window,
+                            node_id: result_recorded_accessibility_document_read_unit_ranges_query_metadata_node_id,
+                            document_revision: result_recorded_accessibility_document_read_unit_ranges_query_metadata_document_revision,
+                            timestamp_ns: result_recorded_accessibility_document_read_unit_ranges_query_metadata_timestamp_ns,
+                            sequence: result_recorded_accessibility_document_read_unit_ranges_query_metadata_sequence,
+                            dropped_count: result_recorded_accessibility_document_read_unit_ranges_query_metadata_dropped_count,
+                        };
+                        let result_recorded_accessibility_document_read_unit_ranges_query_unit = value.unit;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_range_start_offset = value.range.start_offset;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_range_end_offset = value.range.end_offset;
+                        let result_recorded_accessibility_document_read_unit_ranges_query_range = AccessibilityTextRange {
+                            start_offset: result_recorded_accessibility_document_read_unit_ranges_query_range_start_offset,
+                            end_offset: result_recorded_accessibility_document_read_unit_ranges_query_range_end_offset,
+                        };
+                        let result_recorded_accessibility_document_read_unit_ranges_query = AccessibilitydocumentreadunitrangesqueryReplayRecord {
+                            kind: result_recorded_accessibility_document_read_unit_ranges_query_kind,
+                            metadata: result_recorded_accessibility_document_read_unit_ranges_query_metadata,
+                            unit: result_recorded_accessibility_document_read_unit_ranges_query_unit,
+                            range: result_recorded_accessibility_document_read_unit_ranges_query_range,
+                        };
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadUnitRangesQuery(result_recorded_accessibility_document_read_unit_ranges_query)
+                    }
+                };
+                let payload = AccessibilityDocumentTryReadReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    AccessibilityDocumentTryReadReplayRecord {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = match value {
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeAtPointQuery(value) => {
+                            let vm_result_accessibility_document_range_at_point_query_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_document_range_at_point_query_metadata_request_id = value.metadata.request_id;
+                            let vm_result_accessibility_document_range_at_point_query_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_document_range_at_point_query_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_document_range_at_point_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let vm_result_accessibility_document_range_at_point_query_metadata_document_revision_inner = value;
+                                Some(vm_result_accessibility_document_range_at_point_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_accessibility_document_range_at_point_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_document_range_at_point_query_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_document_range_at_point_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_document_range_at_point_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: vm_result_accessibility_document_range_at_point_query_metadata_request_id,
+                                window: vm_result_accessibility_document_range_at_point_query_metadata_window,
+                                node_id: vm_result_accessibility_document_range_at_point_query_metadata_node_id,
+                                document_revision: vm_result_accessibility_document_range_at_point_query_metadata_document_revision,
+                                timestamp_ns: vm_result_accessibility_document_range_at_point_query_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_document_range_at_point_query_metadata_sequence,
+                                dropped_count: vm_result_accessibility_document_range_at_point_query_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_document_range_at_point_query_x = value.x;
+                            let vm_result_accessibility_document_range_at_point_query_y = value.y;
+                            let vm_result_accessibility_document_range_at_point_query = AccessibilityDocumentRangeAtPointQueryVm {
+                                kind: vm_result_accessibility_document_range_at_point_query_kind,
+                                metadata: vm_result_accessibility_document_range_at_point_query_metadata,
+                                x: vm_result_accessibility_document_range_at_point_query_x,
+                                y: vm_result_accessibility_document_range_at_point_query_y,
+                            };
+                            AccessibilityDocumentQueryVm::AccessibilityDocumentRangeAtPointQuery(vm_result_accessibility_document_range_at_point_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeForChildQuery(value) => {
+                            let vm_result_accessibility_document_range_for_child_query_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_document_range_for_child_query_metadata_request_id = value.metadata.request_id;
+                            let vm_result_accessibility_document_range_for_child_query_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_document_range_for_child_query_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_document_range_for_child_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let vm_result_accessibility_document_range_for_child_query_metadata_document_revision_inner = value;
+                                Some(vm_result_accessibility_document_range_for_child_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_accessibility_document_range_for_child_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_document_range_for_child_query_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_document_range_for_child_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_document_range_for_child_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: vm_result_accessibility_document_range_for_child_query_metadata_request_id,
+                                window: vm_result_accessibility_document_range_for_child_query_metadata_window,
+                                node_id: vm_result_accessibility_document_range_for_child_query_metadata_node_id,
+                                document_revision: vm_result_accessibility_document_range_for_child_query_metadata_document_revision,
+                                timestamp_ns: vm_result_accessibility_document_range_for_child_query_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_document_range_for_child_query_metadata_sequence,
+                                dropped_count: vm_result_accessibility_document_range_for_child_query_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_document_range_for_child_query_child_node_id = value.child_node_id;
+                            let vm_result_accessibility_document_range_for_child_query = AccessibilityDocumentRangeForChildQueryVm {
+                                kind: vm_result_accessibility_document_range_for_child_query_kind,
+                                metadata: vm_result_accessibility_document_range_for_child_query_metadata,
+                                child_node_id: vm_result_accessibility_document_range_for_child_query_child_node_id,
+                            };
+                            AccessibilityDocumentQueryVm::AccessibilityDocumentRangeForChildQuery(vm_result_accessibility_document_range_for_child_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeForUnitQuery(value) => {
+                            let vm_result_accessibility_document_range_for_unit_query_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_document_range_for_unit_query_metadata_request_id = value.metadata.request_id;
+                            let vm_result_accessibility_document_range_for_unit_query_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_document_range_for_unit_query_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_document_range_for_unit_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let vm_result_accessibility_document_range_for_unit_query_metadata_document_revision_inner = value;
+                                Some(vm_result_accessibility_document_range_for_unit_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_accessibility_document_range_for_unit_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_document_range_for_unit_query_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_document_range_for_unit_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_document_range_for_unit_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: vm_result_accessibility_document_range_for_unit_query_metadata_request_id,
+                                window: vm_result_accessibility_document_range_for_unit_query_metadata_window,
+                                node_id: vm_result_accessibility_document_range_for_unit_query_metadata_node_id,
+                                document_revision: vm_result_accessibility_document_range_for_unit_query_metadata_document_revision,
+                                timestamp_ns: vm_result_accessibility_document_range_for_unit_query_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_document_range_for_unit_query_metadata_sequence,
+                                dropped_count: vm_result_accessibility_document_range_for_unit_query_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_document_range_for_unit_query_unit = value.unit;
+                            let vm_result_accessibility_document_range_for_unit_query_offset = value.offset;
+                            let vm_result_accessibility_document_range_for_unit_query = AccessibilityDocumentRangeForUnitQueryVm {
+                                kind: vm_result_accessibility_document_range_for_unit_query_kind,
+                                metadata: vm_result_accessibility_document_range_for_unit_query_metadata,
+                                unit: vm_result_accessibility_document_range_for_unit_query_unit,
+                                offset: vm_result_accessibility_document_range_for_unit_query_offset,
+                            };
+                            AccessibilityDocumentQueryVm::AccessibilityDocumentRangeForUnitQuery(vm_result_accessibility_document_range_for_unit_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadEmbeddedObjectsQuery(value) => {
+                            let vm_result_accessibility_document_read_embedded_objects_query_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_document_read_embedded_objects_query_metadata_request_id = value.metadata.request_id;
+                            let vm_result_accessibility_document_read_embedded_objects_query_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_document_read_embedded_objects_query_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_document_read_embedded_objects_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let vm_result_accessibility_document_read_embedded_objects_query_metadata_document_revision_inner = value;
+                                Some(vm_result_accessibility_document_read_embedded_objects_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_accessibility_document_read_embedded_objects_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_document_read_embedded_objects_query_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_document_read_embedded_objects_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_document_read_embedded_objects_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: vm_result_accessibility_document_read_embedded_objects_query_metadata_request_id,
+                                window: vm_result_accessibility_document_read_embedded_objects_query_metadata_window,
+                                node_id: vm_result_accessibility_document_read_embedded_objects_query_metadata_node_id,
+                                document_revision: vm_result_accessibility_document_read_embedded_objects_query_metadata_document_revision,
+                                timestamp_ns: vm_result_accessibility_document_read_embedded_objects_query_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_document_read_embedded_objects_query_metadata_sequence,
+                                dropped_count: vm_result_accessibility_document_read_embedded_objects_query_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_document_read_embedded_objects_query_range_start_offset = value.range.start_offset;
+                            let vm_result_accessibility_document_read_embedded_objects_query_range_end_offset = value.range.end_offset;
+                            let vm_result_accessibility_document_read_embedded_objects_query_range = AccessibilityTextRange {
+                                start_offset: vm_result_accessibility_document_read_embedded_objects_query_range_start_offset,
+                                end_offset: vm_result_accessibility_document_read_embedded_objects_query_range_end_offset,
+                            };
+                            let vm_result_accessibility_document_read_embedded_objects_query = AccessibilityDocumentReadEmbeddedObjectsQueryVm {
+                                kind: vm_result_accessibility_document_read_embedded_objects_query_kind,
+                                metadata: vm_result_accessibility_document_read_embedded_objects_query_metadata,
+                                range: vm_result_accessibility_document_read_embedded_objects_query_range,
+                            };
+                            AccessibilityDocumentQueryVm::AccessibilityDocumentReadEmbeddedObjectsQuery(vm_result_accessibility_document_read_embedded_objects_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadRangeBoundsQuery(value) => {
+                            let vm_result_accessibility_document_read_range_bounds_query_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_document_read_range_bounds_query_metadata_request_id = value.metadata.request_id;
+                            let vm_result_accessibility_document_read_range_bounds_query_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_document_read_range_bounds_query_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_document_read_range_bounds_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let vm_result_accessibility_document_read_range_bounds_query_metadata_document_revision_inner = value;
+                                Some(vm_result_accessibility_document_read_range_bounds_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_accessibility_document_read_range_bounds_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_document_read_range_bounds_query_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_document_read_range_bounds_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_document_read_range_bounds_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: vm_result_accessibility_document_read_range_bounds_query_metadata_request_id,
+                                window: vm_result_accessibility_document_read_range_bounds_query_metadata_window,
+                                node_id: vm_result_accessibility_document_read_range_bounds_query_metadata_node_id,
+                                document_revision: vm_result_accessibility_document_read_range_bounds_query_metadata_document_revision,
+                                timestamp_ns: vm_result_accessibility_document_read_range_bounds_query_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_document_read_range_bounds_query_metadata_sequence,
+                                dropped_count: vm_result_accessibility_document_read_range_bounds_query_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_document_read_range_bounds_query_range_start_offset = value.range.start_offset;
+                            let vm_result_accessibility_document_read_range_bounds_query_range_end_offset = value.range.end_offset;
+                            let vm_result_accessibility_document_read_range_bounds_query_range = AccessibilityTextRange {
+                                start_offset: vm_result_accessibility_document_read_range_bounds_query_range_start_offset,
+                                end_offset: vm_result_accessibility_document_read_range_bounds_query_range_end_offset,
+                            };
+                            let vm_result_accessibility_document_read_range_bounds_query = AccessibilityDocumentReadRangeBoundsQueryVm {
+                                kind: vm_result_accessibility_document_read_range_bounds_query_kind,
+                                metadata: vm_result_accessibility_document_read_range_bounds_query_metadata,
+                                range: vm_result_accessibility_document_read_range_bounds_query_range,
+                            };
+                            AccessibilityDocumentQueryVm::AccessibilityDocumentReadRangeBoundsQuery(vm_result_accessibility_document_read_range_bounds_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadStyleRunsQuery(value) => {
+                            let vm_result_accessibility_document_read_style_runs_query_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_document_read_style_runs_query_metadata_request_id = value.metadata.request_id;
+                            let vm_result_accessibility_document_read_style_runs_query_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_document_read_style_runs_query_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_document_read_style_runs_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let vm_result_accessibility_document_read_style_runs_query_metadata_document_revision_inner = value;
+                                Some(vm_result_accessibility_document_read_style_runs_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_accessibility_document_read_style_runs_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_document_read_style_runs_query_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_document_read_style_runs_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_document_read_style_runs_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: vm_result_accessibility_document_read_style_runs_query_metadata_request_id,
+                                window: vm_result_accessibility_document_read_style_runs_query_metadata_window,
+                                node_id: vm_result_accessibility_document_read_style_runs_query_metadata_node_id,
+                                document_revision: vm_result_accessibility_document_read_style_runs_query_metadata_document_revision,
+                                timestamp_ns: vm_result_accessibility_document_read_style_runs_query_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_document_read_style_runs_query_metadata_sequence,
+                                dropped_count: vm_result_accessibility_document_read_style_runs_query_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_document_read_style_runs_query_range_start_offset = value.range.start_offset;
+                            let vm_result_accessibility_document_read_style_runs_query_range_end_offset = value.range.end_offset;
+                            let vm_result_accessibility_document_read_style_runs_query_range = AccessibilityTextRange {
+                                start_offset: vm_result_accessibility_document_read_style_runs_query_range_start_offset,
+                                end_offset: vm_result_accessibility_document_read_style_runs_query_range_end_offset,
+                            };
+                            let vm_result_accessibility_document_read_style_runs_query = AccessibilityDocumentReadStyleRunsQueryVm {
+                                kind: vm_result_accessibility_document_read_style_runs_query_kind,
+                                metadata: vm_result_accessibility_document_read_style_runs_query_metadata,
+                                range: vm_result_accessibility_document_read_style_runs_query_range,
+                            };
+                            AccessibilityDocumentQueryVm::AccessibilityDocumentReadStyleRunsQuery(vm_result_accessibility_document_read_style_runs_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadTextQuery(value) => {
+                            let vm_result_accessibility_document_read_text_query_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_document_read_text_query_metadata_request_id = value.metadata.request_id;
+                            let vm_result_accessibility_document_read_text_query_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_document_read_text_query_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_document_read_text_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let vm_result_accessibility_document_read_text_query_metadata_document_revision_inner = value;
+                                Some(vm_result_accessibility_document_read_text_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_accessibility_document_read_text_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_document_read_text_query_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_document_read_text_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_document_read_text_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: vm_result_accessibility_document_read_text_query_metadata_request_id,
+                                window: vm_result_accessibility_document_read_text_query_metadata_window,
+                                node_id: vm_result_accessibility_document_read_text_query_metadata_node_id,
+                                document_revision: vm_result_accessibility_document_read_text_query_metadata_document_revision,
+                                timestamp_ns: vm_result_accessibility_document_read_text_query_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_document_read_text_query_metadata_sequence,
+                                dropped_count: vm_result_accessibility_document_read_text_query_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_document_read_text_query_range_start_offset = value.range.start_offset;
+                            let vm_result_accessibility_document_read_text_query_range_end_offset = value.range.end_offset;
+                            let vm_result_accessibility_document_read_text_query_range = AccessibilityTextRange {
+                                start_offset: vm_result_accessibility_document_read_text_query_range_start_offset,
+                                end_offset: vm_result_accessibility_document_read_text_query_range_end_offset,
+                            };
+                            let vm_result_accessibility_document_read_text_query = AccessibilityDocumentReadTextQueryVm {
+                                kind: vm_result_accessibility_document_read_text_query_kind,
+                                metadata: vm_result_accessibility_document_read_text_query_metadata,
+                                range: vm_result_accessibility_document_read_text_query_range,
+                            };
+                            AccessibilityDocumentQueryVm::AccessibilityDocumentReadTextQuery(vm_result_accessibility_document_read_text_query)
+                        }
+                        AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadUnitRangesQuery(value) => {
+                            let vm_result_accessibility_document_read_unit_ranges_query_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_accessibility_document_read_unit_ranges_query_metadata_request_id = value.metadata.request_id;
+                            let vm_result_accessibility_document_read_unit_ranges_query_metadata_window = value.metadata.window;
+                            let vm_result_accessibility_document_read_unit_ranges_query_metadata_node_id = value.metadata.node_id;
+                            let vm_result_accessibility_document_read_unit_ranges_query_metadata_document_revision = if let Some(value) = value.metadata.document_revision {
+                                let vm_result_accessibility_document_read_unit_ranges_query_metadata_document_revision_inner = value;
+                                Some(vm_result_accessibility_document_read_unit_ranges_query_metadata_document_revision_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_accessibility_document_read_unit_ranges_query_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_accessibility_document_read_unit_ranges_query_metadata_sequence = value.metadata.sequence;
+                            let vm_result_accessibility_document_read_unit_ranges_query_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_accessibility_document_read_unit_ranges_query_metadata = AccessibilityDocumentQueryMetadata {
+                                request_id: vm_result_accessibility_document_read_unit_ranges_query_metadata_request_id,
+                                window: vm_result_accessibility_document_read_unit_ranges_query_metadata_window,
+                                node_id: vm_result_accessibility_document_read_unit_ranges_query_metadata_node_id,
+                                document_revision: vm_result_accessibility_document_read_unit_ranges_query_metadata_document_revision,
+                                timestamp_ns: vm_result_accessibility_document_read_unit_ranges_query_metadata_timestamp_ns,
+                                sequence: vm_result_accessibility_document_read_unit_ranges_query_metadata_sequence,
+                                dropped_count: vm_result_accessibility_document_read_unit_ranges_query_metadata_dropped_count,
+                            };
+                            let vm_result_accessibility_document_read_unit_ranges_query_unit = value.unit;
+                            let vm_result_accessibility_document_read_unit_ranges_query_range_start_offset = value.range.start_offset;
+                            let vm_result_accessibility_document_read_unit_ranges_query_range_end_offset = value.range.end_offset;
+                            let vm_result_accessibility_document_read_unit_ranges_query_range = AccessibilityTextRange {
+                                start_offset: vm_result_accessibility_document_read_unit_ranges_query_range_start_offset,
+                                end_offset: vm_result_accessibility_document_read_unit_ranges_query_range_end_offset,
+                            };
+                            let vm_result_accessibility_document_read_unit_ranges_query = AccessibilityDocumentReadUnitRangesQueryVm {
+                                kind: vm_result_accessibility_document_read_unit_ranges_query_kind,
+                                metadata: vm_result_accessibility_document_read_unit_ranges_query_metadata,
+                                unit: vm_result_accessibility_document_read_unit_ranges_query_unit,
+                                range: vm_result_accessibility_document_read_unit_ranges_query_range,
+                            };
+                            AccessibilityDocumentQueryVm::AccessibilityDocumentReadUnitRangesQuery(vm_result_accessibility_document_read_unit_ranges_query)
+                        }
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_accessibility_document_try_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_accessibility_notification_post_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+    notification: AccessibilityNotificationVm,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        ACCESSIBILITY_NOTIFICATION_POST,
+        binding.replay_payload_for(ACCESSIBILITY_NOTIFICATION_POST)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_accessibility_notification_post(
+                binding,
+                context,
+                window,
+                notification,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_accessibility_notification_post(
+                    binding,
+                    context,
+                    window,
+                    notification,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AccessibilityNotificationPostReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    AccessibilityNotificationPostReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_accessibility_notification_post_result(context, result)?;
     Ok(result)
 }
 
@@ -4010,6 +11798,76 @@ fn destack_accessibility_tree_clear_vm_replay(
     Ok(result)
 }
 
+#[inline]
+fn destack_accessibility_tree_hit_test_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+    x: f64,
+    y: f64,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        ACCESSIBILITY_TREE_HIT_TEST,
+        binding.replay_payload_for(ACCESSIBILITY_TREE_HIT_TEST)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_accessibility_tree_hit_test(binding, context, window, x, y)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_accessibility_tree_hit_test(
+                    binding, context, window, x, y,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: Option<AccessibilityNodeId> = value.clone();
+                let result_recorded = if let Some(value) = result_value {
+                    let result_recorded_inner = value;
+                    Some(result_recorded_inner)
+                } else {
+                    None
+                };
+                let payload = AccessibilityTreeHitTestReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    AccessibilityTreeHitTestReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = if let Some(value) = value {
+                        let vm_result_inner = value;
+                        Some(vm_result_inner)
+                    } else {
+                        None
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_accessibility_tree_hit_test_result(context, result)?;
+    Ok(result)
+}
+
 /// Register VM bindings for accessibility.
 pub(crate) fn register_accessibility_vm_bindings(
     registry: &mut BindingRegistry,
@@ -4102,6 +11960,184 @@ pub(crate) fn register_accessibility_vm_bindings(
         binding!(
             registry,
             isolate,
+            ACCESSIBILITY_DOCUMENT_CLEAR,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (window, nodeid) =
+                        decode_destack_accessibility_document_clear_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(ACCESSIBILITY_DOCUMENT_CLEAR)?;
+                    destack_accessibility_document_clear_vm_replay(
+                        binding, context, world, window, nodeid,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            ACCESSIBILITY_DOCUMENT_CLOSE,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_accessibility_document_close_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(ACCESSIBILITY_DOCUMENT_CLOSE)?;
+                    destack_accessibility_document_close_vm_replay(binding, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            ACCESSIBILITY_DOCUMENT_OPEN,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (window, options) =
+                        decode_destack_accessibility_document_open_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(ACCESSIBILITY_DOCUMENT_OPEN)?;
+                    destack_accessibility_document_open_vm_replay(
+                        binding, context, world, window, options,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            ACCESSIBILITY_DOCUMENT_READ,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle, timeoutns) =
+                        decode_destack_accessibility_document_read_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(ACCESSIBILITY_DOCUMENT_READ)?;
+                    destack_accessibility_document_read_vm_replay(
+                        binding, context, world, handle, timeoutns,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            ACCESSIBILITY_DOCUMENT_RESPOND,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle, response) =
+                        decode_destack_accessibility_document_respond_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(ACCESSIBILITY_DOCUMENT_RESPOND)?;
+                    destack_accessibility_document_respond_vm_replay(
+                        binding, context, world, handle, response,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            ACCESSIBILITY_DOCUMENT_SET,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (window, nodeid, document) =
+                        decode_destack_accessibility_document_set_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(ACCESSIBILITY_DOCUMENT_SET)?;
+                    destack_accessibility_document_set_vm_replay(
+                        binding, context, world, window, nodeid, document,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            ACCESSIBILITY_DOCUMENT_TRY_READ,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_accessibility_document_try_read_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(ACCESSIBILITY_DOCUMENT_TRY_READ)?;
+                    destack_accessibility_document_try_read_vm_replay(
+                        binding, context, world, handle,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            ACCESSIBILITY_NOTIFICATION_POST,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (window, notification) =
+                        decode_destack_accessibility_notification_post_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(ACCESSIBILITY_NOTIFICATION_POST)?;
+                    destack_accessibility_notification_post_vm_replay(
+                        binding,
+                        context,
+                        world,
+                        window,
+                        notification,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
             ACCESSIBILITY_TREE_APPLY,
             move |context, args| {
                 with_binding_call_context(|binding| {
@@ -4134,6 +12170,28 @@ pub(crate) fn register_accessibility_vm_bindings(
                     let (world, _binding_hook_guard) =
                         binding.on_before_binding_resolve_world(ACCESSIBILITY_TREE_CLEAR)?;
                     destack_accessibility_tree_clear_vm_replay(binding, context, world, window)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            ACCESSIBILITY_TREE_HIT_TEST,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (window, x, y) =
+                        decode_destack_accessibility_tree_hit_test_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(ACCESSIBILITY_TREE_HIT_TEST)?;
+                    destack_accessibility_tree_hit_test_vm_replay(
+                        binding, context, world, window, x, y,
+                    )
                 })
                 .map_err(Into::into)
             }

@@ -8,21 +8,24 @@ use crate::runtime::BindingCallContext;
 
 use crate::platform::gpu::{
     GpuAdapterFormatCapabilities, GpuAdapterInfo, GpuAdapterLimits, GpuAdapterRequest,
-    GpuBindGroupEntry, GpuBindGroupLayoutEntry, GpuBufferCopy, GpuBufferCopyLayout, GpuBufferInfo,
-    GpuBufferOptions, GpuCapturedError, GpuCommandEncoderOptions, GpuCompilationInfo,
+    GpuBindGroupEntry, GpuBindGroupLayoutEntry, GpuBindGroupLayoutOptions, GpuBindGroupOptions,
+    GpuBufferCopy, GpuBufferCopyLayout, GpuBufferInfo, GpuBufferOptions, GpuBufferTransition,
+    GpuCapturedError, GpuCommandBufferOptions, GpuCommandEncoderOptions, GpuCompilationInfo,
     GpuComputePassOptions, GpuComputePipelineOptions, GpuDeviceInfo, GpuDeviceOptions,
-    GpuDeviceStatus, GpuErrorFilter, GpuExtent3D, GpuFeatureId, GpuFenceOptions, GpuIndexFormat,
-    GpuMapMode, GpuMappedBufferRange, GpuPipelineLayoutOptions, GpuPresentOptions, GpuQuerySetInfo,
-    GpuQuerySetOptions, GpuRenderBundleEncoderOptions, GpuRenderPassOptions,
-    GpuRenderPipelineOptions, GpuSamplerOptions, GpuShaderOptions, GpuSubmitOptions,
-    GpuSurfaceCapabilities, GpuSurfaceFrame, GpuSurfaceOptions, GpuTextureCopy, GpuTextureInfo,
-    GpuTextureOptions, GpuTextureViewOptions,
+    GpuDeviceStatus, GpuErrorFilter, GpuExtent3D, GpuExternalTextureOptions, GpuFeatureId,
+    GpuFenceOptions, GpuIndexFormat, GpuMapMode, GpuMappedBufferRange, GpuPipelineLayoutOptions,
+    GpuPresentationOptions, GpuQuerySetInfo, GpuQuerySetOptions, GpuRenderBundleEncoderOptions,
+    GpuRenderBundleOptions, GpuRenderPassOptions, GpuRenderPipelineOptions, GpuSamplerOptions,
+    GpuShaderOptions, GpuSubmitOptions, GpuSurfaceCapabilities, GpuSurfaceConfiguration,
+    GpuSurfaceFrame, GpuSurfacePresentationEvent, GpuSurfacePresentationOpenOptions,
+    GpuSurfaceStatusInfo, GpuTextureCopy, GpuTextureFormat, GpuTextureInfo, GpuTextureOptions,
+    GpuTextureTransition, GpuTextureViewOptions,
 };
 use crate::platform::resource;
 
-/// Close one GPU adapter.
+/// Close a GPU adapter.
 ///
-/// Close one opened adapter endpoint and release host backend references.
+/// Close an adapter and release host backend references.
 /// The adapter handle becomes invalid after close.
 ///
 /// # Platform
@@ -46,10 +49,10 @@ pub(crate) unsafe fn destack_gpu_adapter_close(
     Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.adapter.close")).boxed())
 }
 
-/// Read one adapter feature snapshot.
+/// Read an adapter feature snapshot.
 ///
-/// Read one feature identifier snapshot from one opened adapter.
-/// Feature identifiers follow runtime GPU feature contracts.
+/// Read the enabled feature identifiers for an adapter.
+/// Feature identifiers follow the runtime GPU feature registry.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -76,10 +79,9 @@ pub(crate) unsafe fn destack_gpu_adapter_features(
     Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.adapter.features")).boxed())
 }
 
-/// Query one adapter texture-format capability snapshot.
+/// Query texture-format capabilities for an adapter.
 ///
-/// Query one texture format on one adapter and return normalized format capability data.
-/// Capabilities can vary by backend and device generation.
+/// Query one texture format on an adapter and return normalized capability data.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -97,7 +99,7 @@ pub(crate) unsafe fn destack_gpu_adapter_format_capabilities(
     _binding: &BindingCallContext,
     out: *mut GpuAdapterFormatCapabilities,
     handle: resource::GpuAdapterHandle,
-    format: u32,
+    format: GpuTextureFormat,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -110,10 +112,10 @@ pub(crate) unsafe fn destack_gpu_adapter_format_capabilities(
     .boxed())
 }
 
-/// Check whether one adapter supports one feature.
+/// Check whether an adapter supports a feature.
 ///
-/// Check one feature identifier against one opened adapter feature set.
-/// Feature identifiers follow runtime GPU feature contracts.
+/// Check one feature identifier against the adapter feature set.
+/// Feature identifiers follow the runtime GPU feature registry.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -144,10 +146,9 @@ pub(crate) unsafe fn destack_gpu_adapter_has_feature(
     .boxed())
 }
 
-/// Read metadata for one opened adapter.
+/// Read adapter metadata.
 ///
-/// Query the current normalized adapter metadata through an opened adapter handle.
-/// Returned values reflect host backend limits and feature reporting.
+/// Read the current normalized adapter metadata.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -174,9 +175,9 @@ pub(crate) unsafe fn destack_gpu_adapter_info(
     Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.adapter.info")).boxed())
 }
 
-/// Read one adapter limits snapshot.
+/// Read an adapter limits snapshot.
 ///
-/// Read one normalized limits snapshot from one opened adapter.
+/// Read the normalized limits for an adapter.
 /// Limits remain stable for the adapter lifetime.
 ///
 /// # Platform
@@ -206,8 +207,7 @@ pub(crate) unsafe fn destack_gpu_adapter_limits(
 
 /// List available GPU adapters.
 ///
-/// Enumerate host GPU adapters and return stable identifiers with normalized capability metadata.
-/// Adapter visibility and ordering follow host graphics API enumeration behavior.
+/// List host GPU adapters with stable identifiers and normalized capability metadata.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -234,10 +234,9 @@ pub(crate) unsafe fn destack_gpu_adapter_list(
     Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.adapter.list")).boxed())
 }
 
-/// Open one GPU adapter.
+/// Open a GPU adapter.
 ///
-/// Open one host GPU adapter endpoint for device creation and capability queries.
-/// Handle lifetime follows host backend object ownership semantics.
+/// Open a GPU adapter for device creation and capability queries.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -264,9 +263,9 @@ pub(crate) unsafe fn destack_gpu_adapter_open(
     Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.adapter.open")).boxed())
 }
 
-/// Create one bind group.
+/// Create a bind group.
 ///
-/// Create one bind group from one layout and explicit resource entries.
+/// Create a bind group from a layout and explicit resource entries.
 /// Resource compatibility is validated against the target layout.
 ///
 /// # Platform
@@ -287,19 +286,19 @@ pub(crate) unsafe fn destack_gpu_bind_group_create(
     device: resource::GpuDeviceHandle,
     layout: resource::GpuBindGroupLayoutHandle,
     entries: NativeSlice<GpuBindGroupEntry>,
-    flags: u32,
+    options: GpuBindGroupOptions,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, device, layout, entries, flags);
+    let _ = (out, device, layout, entries, options);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.bind.groupCreate")).boxed())
 }
 
-/// Destroy one bind group.
+/// Destroy a bind group.
 ///
-/// Destroy one bind group and release backend descriptor allocation resources.
+/// Destroy a bind group and release backend descriptor allocation resources.
 /// The bind group handle becomes invalid after destroy.
 ///
 /// # Platform
@@ -326,9 +325,9 @@ pub(crate) unsafe fn destack_gpu_bind_group_destroy(
     .boxed())
 }
 
-/// Create one bind group layout.
+/// Create a bind group layout.
 ///
-/// Create one bind group layout descriptor from ordered binding entries.
+/// Create a bind group layout from ordered binding entries.
 /// Validation rules follow backend pipeline-layout contracts.
 ///
 /// # Platform
@@ -348,12 +347,12 @@ pub(crate) unsafe fn destack_gpu_bind_group_layout_create(
     out: *mut resource::GpuBindGroupLayoutHandle,
     device: resource::GpuDeviceHandle,
     entries: NativeSlice<GpuBindGroupLayoutEntry>,
-    flags: u32,
+    options: GpuBindGroupLayoutOptions,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, device, entries, flags);
+    let _ = (out, device, entries, options);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.bind.groupLayoutCreate",
@@ -361,9 +360,9 @@ pub(crate) unsafe fn destack_gpu_bind_group_layout_create(
     .boxed())
 }
 
-/// Destroy one bind group layout.
+/// Destroy a bind group layout.
 ///
-/// Destroy one bind group layout and release backend descriptor-layout resources.
+/// Destroy a bind group layout and release backend descriptor-layout resources.
 /// The layout handle becomes invalid after destroy.
 ///
 /// # Platform
@@ -390,9 +389,9 @@ pub(crate) unsafe fn destack_gpu_bind_group_layout_destroy(
     .boxed())
 }
 
-/// Create one pipeline layout.
+/// Create a pipeline layout.
 ///
-/// Create one pipeline layout from ordered bind group layouts.
+/// Create a pipeline layout from ordered bind group layouts.
 /// Backend layout compatibility checks occur during creation.
 ///
 /// # Platform
@@ -424,9 +423,9 @@ pub(crate) unsafe fn destack_gpu_pipeline_layout_create(
     .boxed())
 }
 
-/// Destroy one pipeline layout.
+/// Destroy a pipeline layout.
 ///
-/// Destroy one pipeline layout and release backend layout resources.
+/// Destroy a pipeline layout and release backend layout resources.
 /// The layout handle becomes invalid after destroy.
 ///
 /// # Platform
@@ -513,6 +512,35 @@ pub(crate) unsafe fn destack_gpu_command_bind_render_pipeline(
     .boxed())
 }
 
+/// Destroy one command buffer.
+///
+/// Destroy a finished command buffer without submitting it.
+/// Submitted command buffers are consumed by `queueSubmit(...)` and do not need one separate destroy call.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses command-buffer destroy or release operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `gpu.queue`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_gpu_command_buffer_destroy(
+    _binding: &BindingCallContext,
+    handle: resource::GpuCommandBufferHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.command.bufferDestroy",
+    ))
+    .boxed())
+}
+
 /// Clear one buffer range.
 ///
 /// Encode one clear operation that writes zero to one buffer range.
@@ -532,7 +560,7 @@ pub(crate) unsafe fn destack_gpu_command_bind_render_pipeline(
 /// External, recordable.
 pub(crate) unsafe fn destack_gpu_command_clear_buffer(
     _binding: &BindingCallContext,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuCommandEncoderHandle,
     buffer: resource::GpuBufferHandle,
     offset: u64,
     size: u64,
@@ -545,10 +573,10 @@ pub(crate) unsafe fn destack_gpu_command_clear_buffer(
     .boxed())
 }
 
-/// Begin one compute pass.
+/// Begin a compute pass.
 ///
-/// Begin compute-pass encoding on one command encoder with optional timestamp writes.
-/// Returns one compute-pass handle for pass-scoped commands.
+/// Begin compute-pass encoding on a command encoder with optional timestamp writes.
+/// Returns a compute-pass handle for pass-scoped commands.
 /// Nested pass semantics follow backend command recording rules.
 ///
 /// # Platform
@@ -566,7 +594,7 @@ pub(crate) unsafe fn destack_gpu_command_clear_buffer(
 pub(crate) unsafe fn destack_gpu_command_compute_pass_begin(
     _binding: &BindingCallContext,
     out: *mut resource::GpuComputePassHandle,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuCommandEncoderHandle,
     options: GpuComputePassOptions,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -580,9 +608,9 @@ pub(crate) unsafe fn destack_gpu_command_compute_pass_begin(
     .boxed())
 }
 
-/// End one compute pass.
+/// End a compute pass.
 ///
-/// End compute-pass encoding for one active compute-pass handle.
+/// End compute-pass encoding for an active compute-pass handle.
 /// Pass finalization follows backend validation behavior.
 ///
 /// # Platform
@@ -717,7 +745,7 @@ pub(crate) unsafe fn destack_gpu_command_compute_pass_push_debug_group(
 /// External, recordable.
 pub(crate) unsafe fn destack_gpu_command_copy_buffer(
     _binding: &BindingCallContext,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuCommandEncoderHandle,
     src: resource::GpuBufferHandle,
     srcoffset: u64,
     dst: resource::GpuBufferHandle,
@@ -751,7 +779,7 @@ pub(crate) unsafe fn destack_gpu_command_copy_buffer(
 /// External, recordable.
 pub(crate) unsafe fn destack_gpu_command_copy_buffer_to_texture(
     _binding: &BindingCallContext,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuCommandEncoderHandle,
     source: GpuBufferCopy,
     destination: GpuTextureCopy,
     size: GpuExtent3D,
@@ -783,7 +811,7 @@ pub(crate) unsafe fn destack_gpu_command_copy_buffer_to_texture(
 /// External, recordable.
 pub(crate) unsafe fn destack_gpu_command_copy_texture_to_buffer(
     _binding: &BindingCallContext,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuCommandEncoderHandle,
     source: GpuTextureCopy,
     destination: GpuBufferCopy,
     size: GpuExtent3D,
@@ -815,7 +843,7 @@ pub(crate) unsafe fn destack_gpu_command_copy_texture_to_buffer(
 /// External, recordable.
 pub(crate) unsafe fn destack_gpu_command_copy_texture_to_texture(
     _binding: &BindingCallContext,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuCommandEncoderHandle,
     source: GpuTextureCopy,
     destination: GpuTextureCopy,
     size: GpuExtent3D,
@@ -1031,9 +1059,9 @@ pub(crate) unsafe fn destack_gpu_command_draw_indirect(
     .boxed())
 }
 
-/// Close one command encoder.
+/// Close a command encoder.
 ///
-/// Close one command encoder object and release backend recording resources.
+/// Close a command encoder and release backend recording resources.
 /// The encoder handle becomes invalid after close.
 ///
 /// # Platform
@@ -1050,7 +1078,7 @@ pub(crate) unsafe fn destack_gpu_command_draw_indirect(
 /// External, recordable.
 pub(crate) unsafe fn destack_gpu_command_encoder_close(
     _binding: &BindingCallContext,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuCommandEncoderHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
 
@@ -1062,8 +1090,8 @@ pub(crate) unsafe fn destack_gpu_command_encoder_close(
 
 /// Finish one command encoder.
 ///
-/// Finalize recording for one command encoder and make it ready for queue submission.
-/// Finalization semantics follow backend validation rules.
+/// Finish one command encoder and produce one command buffer.
+/// The encoder handle becomes invalid after a successful finish.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1079,9 +1107,14 @@ pub(crate) unsafe fn destack_gpu_command_encoder_close(
 /// External, recordable.
 pub(crate) unsafe fn destack_gpu_command_encoder_finish(
     _binding: &BindingCallContext,
-    handle: resource::GpuCommandListHandle,
+    out: *mut resource::GpuCommandBufferHandle,
+    handle: resource::GpuCommandEncoderHandle,
+    options: GpuCommandBufferOptions,
 ) -> RuntimeResult<()> {
-    let _ = handle;
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle, options);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.command.encoderFinish",
@@ -1089,14 +1122,14 @@ pub(crate) unsafe fn destack_gpu_command_encoder_finish(
     .boxed())
 }
 
-/// Open one command encoder.
+/// Open a command encoder.
 ///
-/// Open one command encoder object for recording backend commands.
+/// Open a command encoder for recording backend commands.
 /// Encoder lifecycle follows backend recording and submission semantics.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses WebGPU-style command encoder or command buffer creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
+/// Uses WebGPU-style command-encoder creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1108,7 +1141,7 @@ pub(crate) unsafe fn destack_gpu_command_encoder_finish(
 /// External, recordable.
 pub(crate) unsafe fn destack_gpu_command_encoder_open(
     _binding: &BindingCallContext,
-    out: *mut resource::GpuCommandListHandle,
+    out: *mut resource::GpuCommandEncoderHandle,
     device: resource::GpuDeviceHandle,
     options: GpuCommandEncoderOptions,
 ) -> RuntimeResult<()> {
@@ -1125,7 +1158,7 @@ pub(crate) unsafe fn destack_gpu_command_encoder_open(
 
 /// Execute one batch of render bundles in the active render pass.
 ///
-/// Execute recorded render bundles in-order within one active render pass.
+/// Execute recorded render bundles in-order within an active render pass.
 /// Bundle compatibility is validated against current render-pass configuration.
 ///
 /// # Platform
@@ -1172,7 +1205,7 @@ pub(crate) unsafe fn destack_gpu_command_execute_bundles(
 /// External, recordable.
 pub(crate) unsafe fn destack_gpu_command_insert_debug_marker(
     _binding: &BindingCallContext,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuCommandEncoderHandle,
     marker: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (handle, marker);
@@ -1217,7 +1250,7 @@ pub(crate) unsafe fn destack_gpu_command_multi_draw_indexed_indirect(
     .boxed())
 }
 
-/// Draw multiple indirect indexed command ranges with one host-visible count buffer.
+/// Draw multiple indirect indexed command ranges with a host-visible count buffer.
 ///
 /// Encode multiple indexed draws loaded from one argument buffer with draw count read from one count buffer.
 /// This operation requires one backend feature lane that enables indirect-count draws.
@@ -1294,7 +1327,7 @@ pub(crate) unsafe fn destack_gpu_command_multi_draw_indirect(
     .boxed())
 }
 
-/// Draw multiple indirect non-indexed command ranges with one host-visible count buffer.
+/// Draw multiple indirect non-indexed command ranges with a host-visible count buffer.
 ///
 /// Encode multiple non-indexed draws loaded from one argument buffer with draw count read from one count buffer.
 /// This operation requires one backend feature lane that enables indirect-count draws.
@@ -1356,7 +1389,7 @@ pub(crate) unsafe fn destack_gpu_command_multi_draw_indirect_count(
 /// External, recordable.
 pub(crate) unsafe fn destack_gpu_command_pop_debug_group(
     _binding: &BindingCallContext,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuCommandEncoderHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
 
@@ -1385,7 +1418,7 @@ pub(crate) unsafe fn destack_gpu_command_pop_debug_group(
 /// External, recordable.
 pub(crate) unsafe fn destack_gpu_command_push_debug_group(
     _binding: &BindingCallContext,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuCommandEncoderHandle,
     label: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = (handle, label);
@@ -1396,10 +1429,10 @@ pub(crate) unsafe fn destack_gpu_command_push_debug_group(
     .boxed())
 }
 
-/// Submit one command encoder batch to one queue.
+/// Submit one command-buffer batch to one queue.
 ///
-/// Submit one batch of finalized command encoders to one queue with explicit submit options.
-/// Queue ordering and dependency behavior follow backend queue semantics.
+/// Submit one batch of finished command buffers to one queue with explicit submit options.
+/// Submitted command buffers are consumed by this call.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1416,10 +1449,10 @@ pub(crate) unsafe fn destack_gpu_command_push_debug_group(
 pub(crate) unsafe fn destack_gpu_queue_submit(
     _binding: &BindingCallContext,
     queue: resource::GpuQueueHandle,
-    commandlists: NativeSlice<resource::GpuCommandListHandle>,
+    commandbuffers: NativeSlice<resource::GpuCommandBufferHandle>,
     options: GpuSubmitOptions,
 ) -> RuntimeResult<()> {
-    let _ = (queue, commandlists, options);
+    let _ = (queue, commandbuffers, options);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.command.queueSubmit",
@@ -1427,7 +1460,7 @@ pub(crate) unsafe fn destack_gpu_queue_submit(
     .boxed())
 }
 
-/// Wait for one queue to become idle.
+/// Wait for a queue to become idle.
 ///
 /// Wait until one queue has no remaining submitted work.
 /// Wait semantics follow backend queue fence and idle behavior.
@@ -1524,9 +1557,9 @@ pub(crate) unsafe fn destack_gpu_queue_write_texture(
     .boxed())
 }
 
-/// Destroy one render bundle.
+/// Destroy a render bundle.
 ///
-/// Destroy one render-bundle object and release backend command storage.
+/// Destroy a render-bundle object and release backend command storage.
 /// The bundle handle becomes invalid after destroy.
 ///
 /// # Platform
@@ -1699,9 +1732,9 @@ pub(crate) unsafe fn destack_gpu_render_bundle_draw_indirect(
     .boxed())
 }
 
-/// Close one render-bundle encoder without producing a bundle.
+/// Close a render-bundle encoder without producing a bundle.
 ///
-/// Close one opened bundle encoder and release recording resources.
+/// Close a bundle encoder and release recording resources.
 /// Any recorded commands are discarded.
 ///
 /// # Platform
@@ -1730,7 +1763,7 @@ pub(crate) unsafe fn destack_gpu_render_bundle_encoder_close(
 
 /// Finish one render-bundle encoder.
 ///
-/// Finalize one render-bundle encoder and produce one reusable render bundle.
+/// Finalize a render-bundle encoder and produce a reusable render bundle.
 /// The encoder handle becomes invalid after successful finish.
 ///
 /// # Platform
@@ -1749,11 +1782,12 @@ pub(crate) unsafe fn destack_gpu_render_bundle_encoder_finish(
     _binding: &BindingCallContext,
     out: *mut resource::GpuRenderBundleHandle,
     handle: resource::GpuRenderBundleEncoderHandle,
+    options: GpuRenderBundleOptions,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, handle);
+    let _ = (out, handle, options);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.command.renderBundleEncoderFinish",
@@ -1761,9 +1795,9 @@ pub(crate) unsafe fn destack_gpu_render_bundle_encoder_finish(
     .boxed())
 }
 
-/// Open one render-bundle encoder.
+/// Open a render-bundle encoder.
 ///
-/// Open one render-bundle encoder object for pre-recording reusable draw commands.
+/// Open a render-bundle encoder for pre-recording reusable draw commands.
 /// Bundle-encoder configuration defines attachment compatibility requirements.
 ///
 /// # Platform
@@ -2012,11 +2046,11 @@ pub(crate) unsafe fn destack_gpu_render_bundle_set_vertex_buffer(
     .boxed())
 }
 
-/// Begin one render pass.
+/// Begin a render pass.
 ///
-/// Begin render-pass encoding on one command encoder with explicit attachments and optional query wiring.
+/// Begin render-pass encoding on a command encoder with explicit attachments and optional query wiring.
 /// Attachment load, clear, timestamp, and occlusion behavior follow backend render pass semantics.
-/// Returns one render-pass handle for pass-scoped commands.
+/// Returns a render-pass handle for pass-scoped commands.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -2033,7 +2067,7 @@ pub(crate) unsafe fn destack_gpu_render_bundle_set_vertex_buffer(
 pub(crate) unsafe fn destack_gpu_command_render_pass_begin(
     _binding: &BindingCallContext,
     out: *mut resource::GpuRenderPassHandle,
-    handle: resource::GpuCommandListHandle,
+    handle: resource::GpuCommandEncoderHandle,
     options: GpuRenderPassOptions,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -2047,9 +2081,9 @@ pub(crate) unsafe fn destack_gpu_command_render_pass_begin(
     .boxed())
 }
 
-/// End one render pass.
+/// End a render pass.
 ///
-/// End render-pass encoding for one active render-pass handle.
+/// End render-pass encoding for an active render-pass handle.
 /// Pass finalization follows backend validation behavior.
 ///
 /// # Platform
@@ -2165,9 +2199,9 @@ pub(crate) unsafe fn destack_gpu_command_render_pass_push_debug_group(
     .boxed())
 }
 
-/// Set one blend constant for the active render pass.
+/// Set a blend constant for the active render pass.
 ///
-/// Set one blend constant used by blend factors that reference constant color.
+/// Set a blend constant used by blend factors that reference constant color.
 /// Constant color remains active until changed or render pass ends.
 ///
 /// # Platform
@@ -2295,9 +2329,9 @@ pub(crate) unsafe fn destack_gpu_command_set_render_bind_group(
     .boxed())
 }
 
-/// Set one scissor rectangle for the active render pass.
+/// Set a scissor rectangle for the active render pass.
 ///
-/// Set one scissor rectangle that clips subsequent draw calls.
+/// Set a scissor rectangle that clips subsequent draw calls.
 /// Rectangle coordinates are expressed in framebuffer pixels.
 ///
 /// # Platform
@@ -2328,9 +2362,9 @@ pub(crate) unsafe fn destack_gpu_command_set_scissor(
     .boxed())
 }
 
-/// Set one stencil-reference value for the active render pass.
+/// Set a stencil-reference value for the active render pass.
 ///
-/// Set one stencil-reference value consumed by stencil compare operations.
+/// Set a stencil-reference value consumed by stencil compare operations.
 /// The reference value remains active until changed or render pass ends.
 ///
 /// # Platform
@@ -2391,9 +2425,9 @@ pub(crate) unsafe fn destack_gpu_command_set_vertex_buffer(
     .boxed())
 }
 
-/// Set one viewport state for the active render pass.
+/// Set viewport state for the active render pass.
 ///
-/// Set one viewport rectangle and depth range for subsequent draw calls.
+/// Set a viewport rectangle and depth range for subsequent draw calls.
 /// Coordinate interpretation follows backend clip-space conventions.
 ///
 /// # Platform
@@ -2426,9 +2460,40 @@ pub(crate) unsafe fn destack_gpu_command_set_viewport(
     .boxed())
 }
 
-/// Set one debug label on one GPU resource object.
+/// Insert explicit resource transitions.
 ///
-/// Set one human-readable label on one GPU resource or pipeline object.
+/// Insert explicit buffer and texture transitions into a command encoder.
+/// Transition ordering and hazard tracking follow backend resource-state rules.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses wgpu-style explicit transition commands on Vulkan, Metal, D3D12, and OpenGL-class backends when supported.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `gpu.queue`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_gpu_command_transition_resources(
+    _binding: &BindingCallContext,
+    handle: resource::GpuCommandEncoderHandle,
+    buffers: NativeSlice<GpuBufferTransition>,
+    textures: NativeSlice<GpuTextureTransition>,
+) -> RuntimeResult<()> {
+    let _ = (handle, buffers, textures);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.command.transitionResources",
+    ))
+    .boxed())
+}
+
+/// Set a debug label on a GPU resource object.
+///
+/// Set a human-readable label on a GPU resource or pipeline object.
 /// Label visibility and truncation behavior are backend-defined.
 ///
 /// # Platform
@@ -2453,9 +2518,9 @@ pub(crate) unsafe fn destack_gpu_set_label(
     Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.debug.setLabel")).boxed())
 }
 
-/// Close one logical GPU device.
+/// Close a logical GPU device.
 ///
-/// Close one logical device and release backend device resources.
+/// Close a logical device and release backend device resources.
 /// Outstanding queue work behavior follows host backend teardown guarantees.
 ///
 /// # Platform
@@ -2479,9 +2544,9 @@ pub(crate) unsafe fn destack_gpu_device_close(
     Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.device.close")).boxed())
 }
 
-/// Read one device feature snapshot.
+/// Read a device feature snapshot.
 ///
-/// Read one enabled feature identifier snapshot from one logical device.
+/// Read the enabled feature identifiers for a logical device.
 /// Feature identifiers follow runtime GPU feature contracts.
 ///
 /// # Platform
@@ -2511,7 +2576,7 @@ pub(crate) unsafe fn destack_gpu_device_features(
 
 /// Check whether one device supports one feature.
 ///
-/// Check one feature identifier against one logical device enabled feature set.
+/// Check one feature identifier against a logical device enabled feature set.
 /// Feature identifiers follow runtime GPU feature contracts.
 ///
 /// # Platform
@@ -2543,10 +2608,9 @@ pub(crate) unsafe fn destack_gpu_device_has_feature(
     .boxed())
 }
 
-/// Read metadata for one logical device.
+/// Read device metadata.
 ///
-/// Query effective features and limits for one created logical device.
-/// Results reflect backend feature enablement and negotiation outcomes.
+/// Read the effective features and limits for a logical device.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -2573,9 +2637,9 @@ pub(crate) unsafe fn destack_gpu_device_info(
     Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.device.info")).boxed())
 }
 
-/// Read one device limits snapshot.
+/// Read a device limits snapshot.
 ///
-/// Read one effective limits snapshot from one logical device.
+/// Read the effective limits for a logical device.
 /// Limits remain stable for the device lifetime.
 ///
 /// # Platform
@@ -2603,9 +2667,9 @@ pub(crate) unsafe fn destack_gpu_device_limits(
     Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.device.limits")).boxed())
 }
 
-/// Open one logical GPU device.
+/// Open a logical GPU device.
 ///
-/// Create one logical device from one adapter using required features and limits.
+/// Create a logical device from an adapter using required features and limits.
 /// Device creation fails when the backend cannot satisfy the requested contract.
 ///
 /// # Platform
@@ -2634,9 +2698,9 @@ pub(crate) unsafe fn destack_gpu_device_open(
     Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.device.open")).boxed())
 }
 
-/// Poll one logical device for completion progress.
+/// Poll a logical device for completion progress.
 ///
-/// Poll one device and optionally wait for work completion until the timeout expires.
+/// Poll a device and optionally wait for work completion until the timeout expires.
 /// Returned value is a backend-defined count of completed submission units.
 ///
 /// # Platform
@@ -2668,7 +2732,7 @@ pub(crate) unsafe fn destack_gpu_device_poll(
 
 /// Pop one device error scope.
 ///
-/// Pop one previously pushed error scope and return captured error details.
+/// Pop a previously pushed error scope and return captured error details.
 /// Pop fails when no scope exists on the device scope stack.
 ///
 /// # Platform
@@ -2702,7 +2766,7 @@ pub(crate) unsafe fn destack_gpu_device_pop_error_scope(
 
 /// Push one device error scope.
 ///
-/// Push one error scope to capture asynchronous validation and runtime errors.
+/// Push an error scope to capture asynchronous validation and runtime errors.
 /// Scopes are popped in last-in-first-out order.
 ///
 /// # Platform
@@ -2730,9 +2794,9 @@ pub(crate) unsafe fn destack_gpu_device_push_error_scope(
     .boxed())
 }
 
-/// Resolve one default queue for one logical device.
+/// Resolve the default queue for a logical device.
 ///
-/// Resolve one queue endpoint for command submission from one logical device.
+/// Resolve the default queue for a logical device.
 /// Queue identity follows backend default-queue semantics.
 ///
 /// # Platform
@@ -2760,9 +2824,9 @@ pub(crate) unsafe fn destack_gpu_device_queue(
     Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.device.queue")).boxed())
 }
 
-/// Read health status for one logical device.
+/// Read device health status.
 ///
-/// Return one snapshot of device-loss and backend health state.
+/// Return the current device-loss and backend health state.
 /// Status can transition asynchronously as backend work progresses.
 ///
 /// # Platform
@@ -2792,7 +2856,7 @@ pub(crate) unsafe fn destack_gpu_device_status(
 
 /// Resolve one bind-group layout from one pipeline.
 ///
-/// Resolve one bind-group layout at the requested group index from one pipeline object.
+/// Resolve a bind-group layout at the requested group index from a pipeline.
 /// This follows pipeline-layout reflection rules of the selected backend.
 ///
 /// # Platform
@@ -2824,9 +2888,9 @@ pub(crate) unsafe fn destack_gpu_pipeline_bind_group_layout(
     .boxed())
 }
 
-/// Create one compute pipeline.
+/// Create a compute pipeline.
 ///
-/// Create one compute pipeline from one compute stage descriptor and one explicit or inferred layout.
+/// Create a compute pipeline from a compute stage descriptor and an explicit or inferred layout.
 /// Pipeline compilation and cache behavior follow host backend semantics.
 ///
 /// # Platform
@@ -2858,10 +2922,10 @@ pub(crate) unsafe fn destack_gpu_compute_pipeline_create(
     .boxed())
 }
 
-/// Destroy one pipeline object.
+/// Destroy a pipeline object.
 ///
-/// Destroy one pipeline object and release backend compiled state.
-/// Outstanding command lists referencing the pipeline must be synchronized by callers.
+/// Destroy a pipeline object and release backend compiled state.
+/// Outstanding command buffers, render bundles, and active passes referencing the pipeline must be synchronized by callers.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -2884,9 +2948,9 @@ pub(crate) unsafe fn destack_gpu_pipeline_destroy(
     Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.pipeline.destroy")).boxed())
 }
 
-/// Create one render pipeline.
+/// Create a render pipeline.
 ///
-/// Create one render pipeline with explicit shader stages, one explicit or inferred layout, and render-state descriptors.
+/// Create a render pipeline with explicit shader stages, an explicit or inferred layout, and render-state descriptors.
 /// Pipeline compilation and backend render-state linkage follow host API semantics.
 ///
 /// # Platform
@@ -2918,9 +2982,9 @@ pub(crate) unsafe fn destack_gpu_render_pipeline_create(
     .boxed())
 }
 
-/// Read one shader-compilation diagnostics snapshot.
+/// Read a shader-compilation diagnostics snapshot.
 ///
-/// Read one snapshot of compilation diagnostics for one shader module.
+/// Read compilation diagnostics for a shader module.
 /// Diagnostics are backend-defined and can include warnings and informational messages.
 ///
 /// # Platform
@@ -2952,9 +3016,9 @@ pub(crate) unsafe fn destack_gpu_shader_compilation_info(
     .boxed())
 }
 
-/// Create one shader module.
+/// Create a shader module.
 ///
-/// Create one shader module from one source or binary payload and module metadata.
+/// Create a shader module from source or binary payload bytes and module metadata.
 /// Stage and entry-point selection are defined by pipeline stage descriptors, not by shader-module creation.
 ///
 /// # Platform
@@ -2987,9 +3051,9 @@ pub(crate) unsafe fn destack_gpu_shader_create(
     .boxed())
 }
 
-/// Destroy one shader module.
+/// Destroy a shader module.
 ///
-/// Destroy one shader module and release backend compiler or cache resources.
+/// Destroy a shader module and release backend compiler or cache resources.
 /// The shader handle becomes invalid after destroy.
 ///
 /// # Platform
@@ -3018,9 +3082,11 @@ pub(crate) unsafe fn destack_gpu_shader_destroy(
 
 /// Acquire one presentable surface texture.
 ///
-/// Acquire one surface texture for rendering the next frame.
-/// Returned status indicates whether presentation can proceed or whether reconfiguration is required.
-/// When no texture is present, `texture` and `frameId` are void.
+/// Acquire a surface texture for rendering the next frame.
+/// The returned status indicates whether presentation can proceed or whether reconfiguration is required.
+/// When no texture is present, `texture` and `surfaceFrameId` are void.
+/// `Outdated` means reconfigure this surface, while `Lost` means close and reopen it.
+/// Begin-frame scheduling itself is owned by `display.frame`, not surface acquisition.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -3051,10 +3117,10 @@ pub(crate) unsafe fn destack_gpu_surface_acquire(
     .boxed())
 }
 
-/// Read surface capabilities for one adapter.
+/// Read surface capabilities for an adapter.
 ///
-/// Query one surface and adapter pair for compatible formats and present modes.
-/// Capabilities can change when the window or monitor configuration changes.
+/// Query a surface and adapter pair for compatible formats and present modes.
+/// Color-space, HDR, timing, and frame-latency results are part of the same negotiation snapshot.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -3085,9 +3151,9 @@ pub(crate) unsafe fn destack_gpu_surface_capabilities(
     .boxed())
 }
 
-/// Close one present surface.
+/// Close a present surface.
 ///
-/// Close one present surface and release host compositor resources.
+/// Close a present surface and release host compositor resources.
 /// Surface handle becomes invalid after close.
 ///
 /// # Platform
@@ -3114,11 +3180,10 @@ pub(crate) unsafe fn destack_gpu_surface_close(
     .boxed())
 }
 
-/// Configure one present surface.
+/// Configure a present surface.
 ///
-/// Configure one present surface with explicit dimensions and swap behavior.
-/// Surface configuration must precede frame acquisition and presentation.
-/// Present mode selection in this API defines frame pacing and v-sync behavior.
+/// Configure a present surface with explicit dimensions and presentation behavior.
+/// Color space, HDR policy, HDR metadata, and `desiredMaximumFrameLatency` are negotiated here when supported.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -3136,9 +3201,9 @@ pub(crate) unsafe fn destack_gpu_surface_configure(
     _binding: &BindingCallContext,
     device: resource::GpuDeviceHandle,
     surface: resource::GpuSurfaceHandle,
-    options: GpuSurfaceOptions,
+    configuration: GpuSurfaceConfiguration,
 ) -> RuntimeResult<()> {
-    let _ = (device, surface, options);
+    let _ = (device, surface, configuration);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.present.surfaceConfigure",
@@ -3146,9 +3211,9 @@ pub(crate) unsafe fn destack_gpu_surface_configure(
     .boxed())
 }
 
-/// Open one present surface.
+/// Open a present surface.
 ///
-/// Open one present surface bound to one window host object.
+/// Open a present surface bound to a window.
 /// Surface lifetime is independent from device lifetime.
 ///
 /// # Platform
@@ -3181,10 +3246,9 @@ pub(crate) unsafe fn destack_gpu_surface_open(
 
 /// Present one acquired frame to one surface.
 ///
-/// Present one previously acquired frame on one configured surface.
-/// The `frameId` must match one outstanding successful `surfaceAcquire` result.
-/// Presentation timing and tearing behavior follow compositor and backend contracts.
-/// This is the authoritative frame-pacing lane for rendered output.
+/// Present a previously acquired frame on a configured surface.
+/// The `surfaceFrameId` must match an outstanding successful `surfaceAcquire(...)` result.
+/// Pass `beginFrameId` for cross-thread correlation and `desiredPresentationTimestampNs` when timed presentation is supported.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -3201,7 +3265,7 @@ pub(crate) unsafe fn destack_gpu_surface_open(
 pub(crate) unsafe fn destack_gpu_surface_present(
     _binding: &BindingCallContext,
     surface: resource::GpuSurfaceHandle,
-    options: GpuPresentOptions,
+    options: GpuPresentationOptions,
 ) -> RuntimeResult<()> {
     let _ = (surface, options);
 
@@ -3211,9 +3275,244 @@ pub(crate) unsafe fn destack_gpu_surface_present(
     .boxed())
 }
 
-/// Remove active configuration from one present surface.
+/// Close a presentation stream.
 ///
-/// Remove swapchain configuration from one surface and release configured present resources.
+/// Close a presentation stream and release host routing resources.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses DXGI statistics teardown, Metal drawable handler release, and Vulkan timing-stream cleanup.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `gpu.present`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_gpu_surface_presentation_close(
+    _binding: &BindingCallContext,
+    handle: resource::GpuSurfacePresentationHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.present.surfacePresentationClose",
+    ))
+    .boxed())
+}
+
+/// Open a presentation stream for a surface.
+///
+/// Open a presentation stream for a present surface.
+/// Presentation events report results and timing data when the surface exposes presentation telemetry.
+/// Backends can collapse `Superseded` into `Dropped` when they do not expose that distinction.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses DXGI frame statistics, Metal drawable presentation handlers, and Vulkan presentation timing extensions where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `gpu.present`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_gpu_surface_presentation_open(
+    _binding: &BindingCallContext,
+    out: *mut resource::GpuSurfacePresentationHandle,
+    surface: resource::GpuSurfaceHandle,
+    options: GpuSurfacePresentationOpenOptions,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, surface, options);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.present.surfacePresentationOpen",
+    ))
+    .boxed())
+}
+
+/// Wait for a presentation event.
+///
+/// Wait for the next event from a presentation stream.
+/// Use `surfaceFrameId` to match each event to an earlier `surfaceAcquire(...)` result.
+/// When `beginFrameId` is present, it can also be matched to a scheduled begin frame.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses DXGI frame statistics waits, Metal drawable presentation callbacks, and Vulkan presentation timing waits.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `gpu.present`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_gpu_surface_presentation_read(
+    _binding: &BindingCallContext,
+    out: *mut GpuSurfacePresentationEvent,
+    handle: resource::GpuSurfacePresentationHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle, timeoutns);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.present.surfacePresentationRead",
+    ))
+    .boxed())
+}
+
+/// Wait for a batch of presentation events.
+///
+/// Wait for pending events from a presentation stream and return up to `maxEvents` events.
+/// Use `surfaceFrameId` to match each event to an earlier `surfaceAcquire(...)` result.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses DXGI frame statistics waits, Metal drawable callback queues, and Vulkan presentation timing waits.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `gpu.present`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_gpu_surface_presentation_read_batch(
+    _binding: &BindingCallContext,
+    out: *mut NativeArray<GpuSurfacePresentationEvent>,
+    handle: resource::GpuSurfacePresentationHandle,
+    maxevents: u32,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle, maxevents, timeoutns);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.present.surfacePresentationReadBatch",
+    ))
+    .boxed())
+}
+
+/// Poll a presentation event without blocking.
+///
+/// Poll a pending event from a presentation stream without waiting.
+/// Empty queue state is reported through ioWouldBlock.
+/// Use `surfaceFrameId` to match each event to an earlier `surfaceAcquire(...)` result.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses nonblocking DXGI frame statistics, Metal drawable callbacks, and Vulkan presentation timing polling.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `gpu.present`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_gpu_surface_presentation_try_read(
+    _binding: &BindingCallContext,
+    out: *mut GpuSurfacePresentationEvent,
+    handle: resource::GpuSurfacePresentationHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.present.surfacePresentationTryRead",
+    ))
+    .boxed())
+}
+
+/// Poll a batch of presentation events without blocking.
+///
+/// Poll pending events from a presentation stream and return up to `maxEvents` events.
+/// Use `surfaceFrameId` to match each event to an earlier `surfaceAcquire(...)` result.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses nonblocking DXGI frame statistics, Metal drawable callback queues, and Vulkan presentation timing polling.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `gpu.present`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_gpu_surface_presentation_try_read_batch(
+    _binding: &BindingCallContext,
+    out: *mut NativeArray<GpuSurfacePresentationEvent>,
+    handle: resource::GpuSurfacePresentationHandle,
+    maxevents: u32,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle, maxevents);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.present.surfacePresentationTryReadBatch",
+    ))
+    .boxed())
+}
+
+/// Read a present surface status snapshot.
+///
+/// Read the current surface configuration and lifecycle state.
+/// After `display.windowRenderState(...)` or `renderStateChanged` reports `SurfaceLost`, use this result to choose recovery.
+/// `Unconfigured` or `Outdated` means reconfigure the current surface, while `Lost` means reopen it.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses WebGPU surface configuration state, DXGI swapchain state, CAMetalLayer drawable state, and Vulkan WSI surface state queries.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `gpu.present`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_gpu_surface_status(
+    _binding: &BindingCallContext,
+    out: *mut GpuSurfaceStatusInfo,
+    surface: resource::GpuSurfaceHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, surface);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.present.surfaceStatus",
+    ))
+    .boxed())
+}
+
+/// Remove the active configuration from a present surface.
+///
+/// Remove the active configuration from a present surface and release configured resources.
 /// Surface must be configured again before the next frame acquisition.
 ///
 /// # Platform
@@ -3240,9 +3539,9 @@ pub(crate) unsafe fn destack_gpu_surface_unconfigure(
     .boxed())
 }
 
-/// Create one GPU buffer.
+/// Create a GPU buffer.
 ///
-/// Create one buffer resource on one logical device with explicit size and usage flags.
+/// Create a buffer resource on a logical device with explicit size and usage flags.
 /// Allocation placement and memory domain are host backend decisions.
 ///
 /// # Platform
@@ -3274,9 +3573,9 @@ pub(crate) unsafe fn destack_gpu_buffer_create(
     .boxed())
 }
 
-/// Destroy one GPU buffer.
+/// Destroy a GPU buffer.
 ///
-/// Destroy one buffer resource and release host backend memory references.
+/// Destroy a buffer resource and release host backend memory references.
 /// Outstanding use of the buffer is host-undefined and must be synchronized by callers.
 ///
 /// # Platform
@@ -3303,9 +3602,9 @@ pub(crate) unsafe fn destack_gpu_buffer_destroy(
     .boxed())
 }
 
-/// Read one buffer metadata snapshot.
+/// Read a buffer metadata snapshot.
 ///
-/// Read one metadata snapshot for one buffer resource.
+/// Read the current metadata snapshot for a buffer resource.
 /// Snapshot values remain stable except map state, which can change asynchronously.
 ///
 /// # Platform
@@ -3336,9 +3635,9 @@ pub(crate) unsafe fn destack_gpu_buffer_info(
     .boxed())
 }
 
-/// Map one buffer range.
+/// Map a buffer range.
 ///
-/// Map one host-visible byte range for direct CPU access.
+/// Map a host-visible byte range for direct CPU access.
 /// Mapping coherence and cache behavior follow host backend memory rules.
 ///
 /// # Platform
@@ -3372,9 +3671,9 @@ pub(crate) unsafe fn destack_gpu_buffer_map(
     .boxed())
 }
 
-/// Read one byte range from one GPU buffer.
+/// Read a byte range from a GPU buffer.
 ///
-/// Read one byte range from one buffer resource into host-visible memory.
+/// Read a byte range from a buffer resource into host-visible memory.
 /// Readback can stall based on backend synchronization and transfer state.
 ///
 /// # Platform
@@ -3407,9 +3706,9 @@ pub(crate) unsafe fn destack_gpu_buffer_read(
     .boxed())
 }
 
-/// Unmap one mapped buffer.
+/// Unmap a mapped buffer.
 ///
-/// Unmap one previously mapped buffer range and flush host synchronization as required.
+/// Unmap a previously mapped buffer range and flush host synchronization as required.
 /// Visibility of writes follows backend memory model semantics.
 ///
 /// # Platform
@@ -3436,9 +3735,9 @@ pub(crate) unsafe fn destack_gpu_buffer_unmap(
     .boxed())
 }
 
-/// Write one byte range to one GPU buffer.
+/// Write a byte range to a GPU buffer.
 ///
-/// Write one byte range into one buffer resource from host memory.
+/// Write a byte range into a buffer resource from host memory.
 /// Host staging and synchronization behavior follow backend upload semantics.
 ///
 /// # Platform
@@ -3467,9 +3766,73 @@ pub(crate) unsafe fn destack_gpu_buffer_write(
     .boxed())
 }
 
-/// Create one sampler resource.
+/// Create an external texture resource.
 ///
-/// Create one sampler resource with explicit filter and address mode selections.
+/// Create an external texture from one or more texture views and explicit color-conversion metadata.
+/// Plane count and plane formats must match the selected external-texture format.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses WebGPU or Dawn-style external-texture creation paths on supported backends.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `gpu.memory`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_gpu_external_texture_create(
+    _binding: &BindingCallContext,
+    out: *mut resource::GpuExternalTextureHandle,
+    device: resource::GpuDeviceHandle,
+    planeviews: NativeSlice<resource::GpuTextureViewHandle>,
+    options: GpuExternalTextureOptions,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, device, planeviews, options);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.resource.externalTextureCreate",
+    ))
+    .boxed())
+}
+
+/// Destroy an external texture resource.
+///
+/// Destroy an external texture and release backend conversion and view state.
+/// The external-texture handle becomes invalid after destroy.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses WebGPU or Dawn-style external-texture destroy operations on supported backends.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `gpu.memory`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_gpu_external_texture_destroy(
+    _binding: &BindingCallContext,
+    handle: resource::GpuExternalTextureHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.resource.externalTextureDestroy",
+    ))
+    .boxed())
+}
+
+/// Create a sampler resource.
+///
+/// Create a sampler resource with explicit filter and address mode selections.
 /// Sampler state maps to host backend sampler descriptors.
 ///
 /// # Platform
@@ -3501,9 +3864,9 @@ pub(crate) unsafe fn destack_gpu_sampler_create(
     .boxed())
 }
 
-/// Destroy one sampler resource.
+/// Destroy a sampler resource.
 ///
-/// Destroy one sampler resource and release host backend references.
+/// Destroy a sampler resource and release host backend references.
 /// The sampler handle becomes invalid after destroy.
 ///
 /// # Platform
@@ -3530,9 +3893,9 @@ pub(crate) unsafe fn destack_gpu_sampler_destroy(
     .boxed())
 }
 
-/// Create one texture resource.
+/// Create a texture resource.
 ///
-/// Create one texture resource with explicit dimensions, format, and usage flags.
+/// Create a texture resource with explicit dimensions, format, and usage flags.
 /// Allocation placement and tiling are host backend decisions.
 ///
 /// # Platform
@@ -3564,9 +3927,9 @@ pub(crate) unsafe fn destack_gpu_texture_create(
     .boxed())
 }
 
-/// Destroy one texture resource.
+/// Destroy a texture resource.
 ///
-/// Destroy one texture resource and release host backend memory references.
+/// Destroy a texture resource and release host backend memory references.
 /// Outstanding use of the texture must be synchronized by callers.
 ///
 /// # Platform
@@ -3593,9 +3956,9 @@ pub(crate) unsafe fn destack_gpu_texture_destroy(
     .boxed())
 }
 
-/// Read one texture metadata snapshot.
+/// Read a texture metadata snapshot.
 ///
-/// Read one metadata snapshot for one texture resource.
+/// Read the current metadata snapshot for a texture resource.
 /// Snapshot values remain stable for the texture lifetime.
 ///
 /// # Platform
@@ -3626,9 +3989,9 @@ pub(crate) unsafe fn destack_gpu_texture_info(
     .boxed())
 }
 
-/// Create one texture view.
+/// Create a texture view.
 ///
-/// Create one view of one texture resource for bindings and render attachments.
+/// Create a view of a texture resource for bindings and render attachments.
 /// View range and dimension are validated against the source texture descriptor.
 ///
 /// # Platform
@@ -3660,9 +4023,9 @@ pub(crate) unsafe fn destack_gpu_texture_view_create(
     .boxed())
 }
 
-/// Destroy one texture view.
+/// Destroy a texture view.
 ///
-/// Destroy one texture-view endpoint and release backend view resources.
+/// Destroy a texture view and release backend view resources.
 /// The texture-view handle becomes invalid after destroy.
 ///
 /// # Platform
@@ -3689,10 +4052,10 @@ pub(crate) unsafe fn destack_gpu_texture_view_destroy(
     .boxed())
 }
 
-/// Begin one pipeline-statistics query in one compute pass.
+/// Begin a pipeline-statistics query in a compute pass.
 ///
-/// Begin one pipeline-statistics query in one active compute pass.
-/// Pipeline-statistics queries cannot be nested and require one matching end call.
+/// Begin a pipeline-statistics query in an active compute pass.
+/// Pipeline-statistics queries cannot be nested and require a matching end call.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -3720,9 +4083,9 @@ pub(crate) unsafe fn destack_gpu_command_begin_compute_pipeline_statistics_query
     .boxed())
 }
 
-/// Begin one occlusion query.
+/// Begin an occlusion query.
 ///
-/// Begin one occlusion query in the active render pass.
+/// Begin an occlusion query in the active render pass.
 /// Query nesting and pass compatibility follow backend semantics.
 ///
 /// # Platform
@@ -3751,10 +4114,10 @@ pub(crate) unsafe fn destack_gpu_command_begin_occlusion_query(
     .boxed())
 }
 
-/// Begin one pipeline-statistics query in one render pass.
+/// Begin a pipeline-statistics query in a render pass.
 ///
-/// Begin one pipeline-statistics query in one active render pass.
-/// Pipeline-statistics queries cannot be nested and require one matching end call.
+/// Begin a pipeline-statistics query in an active render pass.
+/// Pipeline-statistics queries cannot be nested and require a matching end call.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -3782,9 +4145,9 @@ pub(crate) unsafe fn destack_gpu_command_begin_render_pipeline_statistics_query(
     .boxed())
 }
 
-/// End one pipeline-statistics query in one compute pass.
+/// End a pipeline-statistics query in a compute pass.
 ///
-/// End one active pipeline-statistics query in one compute pass.
+/// End an active pipeline-statistics query in a compute pass.
 /// The active query must match the most recent begin call.
 ///
 /// # Platform
@@ -3811,9 +4174,9 @@ pub(crate) unsafe fn destack_gpu_command_end_compute_pipeline_statistics_query(
     .boxed())
 }
 
-/// End one occlusion query.
+/// End an occlusion query.
 ///
-/// End one occlusion query in the active render pass.
+/// End an occlusion query in the active render pass.
 /// The current query must match the last begin call for this pass.
 ///
 /// # Platform
@@ -3840,9 +4203,9 @@ pub(crate) unsafe fn destack_gpu_command_end_occlusion_query(
     .boxed())
 }
 
-/// End one pipeline-statistics query in one render pass.
+/// End a pipeline-statistics query in a render pass.
 ///
-/// End one active pipeline-statistics query in one render pass.
+/// End an active pipeline-statistics query in a render pass.
 /// The active query must match the most recent begin call.
 ///
 /// # Platform
@@ -3871,7 +4234,7 @@ pub(crate) unsafe fn destack_gpu_command_end_render_pipeline_statistics_query(
 
 /// Resolve one query range into one destination buffer.
 ///
-/// Resolve one query range and write results into one destination buffer.
+/// Resolve a query range and write results into a destination buffer.
 /// Destination alignment and encoding follow backend query-result rules.
 ///
 /// # Platform
@@ -3888,7 +4251,7 @@ pub(crate) unsafe fn destack_gpu_command_end_render_pipeline_statistics_query(
 /// External, recordable.
 pub(crate) unsafe fn destack_gpu_command_resolve_queries(
     _binding: &BindingCallContext,
-    commandlist: resource::GpuCommandListHandle,
+    commandencoder: resource::GpuCommandEncoderHandle,
     queryset: resource::GpuQuerySetHandle,
     firstquery: u32,
     querycount: u32,
@@ -3896,7 +4259,7 @@ pub(crate) unsafe fn destack_gpu_command_resolve_queries(
     destinationoffset: u64,
 ) -> RuntimeResult<()> {
     let _ = (
-        commandlist,
+        commandencoder,
         queryset,
         firstquery,
         querycount,
@@ -3910,9 +4273,9 @@ pub(crate) unsafe fn destack_gpu_command_resolve_queries(
     .boxed())
 }
 
-/// Write one timestamp query from one command list.
+/// Write a timestamp query from a command encoder.
 ///
-/// Emit one timestamp query at the current command-list position.
+/// Emit a timestamp query at the current command-list position.
 /// Query availability and timestamp period follow backend semantics.
 ///
 /// # Platform
@@ -3929,11 +4292,11 @@ pub(crate) unsafe fn destack_gpu_command_resolve_queries(
 /// External, recordable.
 pub(crate) unsafe fn destack_gpu_command_write_timestamp(
     _binding: &BindingCallContext,
-    commandlist: resource::GpuCommandListHandle,
+    commandencoder: resource::GpuCommandEncoderHandle,
     queryset: resource::GpuQuerySetHandle,
     queryindex: u32,
 ) -> RuntimeResult<()> {
-    let _ = (commandlist, queryset, queryindex);
+    let _ = (commandencoder, queryset, queryindex);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.sync.commandWriteTimestamp",
@@ -3941,9 +4304,9 @@ pub(crate) unsafe fn destack_gpu_command_write_timestamp(
     .boxed())
 }
 
-/// Create one synchronization fence.
+/// Create a synchronization fence.
 ///
-/// Create one fence object for queue wait and signal coordination.
+/// Create a fence object for queue wait and signal coordination.
 /// Timeline mode availability depends on backend feature support.
 ///
 /// # Platform
@@ -3972,9 +4335,9 @@ pub(crate) unsafe fn destack_gpu_fence_create(
     Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.sync.fenceCreate")).boxed())
 }
 
-/// Destroy one synchronization fence.
+/// Destroy a synchronization fence.
 ///
-/// Destroy one fence object and release backend synchronization resources.
+/// Destroy a fence object and release backend synchronization resources.
 /// The fence handle becomes invalid after destroy.
 ///
 /// # Platform
@@ -4001,11 +4364,11 @@ pub(crate) unsafe fn destack_gpu_fence_destroy(
     .boxed())
 }
 
-/// Create one query set.
+/// Create a query set.
 ///
-/// Create one query set for timestamp, occlusion, or pipeline-statistics queries.
+/// Create a query set for timestamp, occlusion, or pipeline-statistics queries.
 /// Query set size and type are fixed for the object lifetime.
-/// Pipeline-statistics queries are one optional lane and require feature support.
+/// Pipeline-statistics queries are optional and require feature support.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -4036,9 +4399,9 @@ pub(crate) unsafe fn destack_gpu_query_set_create(
     .boxed())
 }
 
-/// Destroy one query set.
+/// Destroy a query set.
 ///
-/// Destroy one query set and release backend query resources.
+/// Destroy a query set and release backend query resources.
 /// The query set handle becomes invalid after destroy.
 ///
 /// # Platform
@@ -4065,9 +4428,9 @@ pub(crate) unsafe fn destack_gpu_query_set_destroy(
     .boxed())
 }
 
-/// Read one query-set metadata snapshot.
+/// Read a query-set metadata snapshot.
 ///
-/// Read one query-set type and count snapshot from one query-set handle.
+/// Read the current query-set type and count snapshot.
 /// Values remain stable for the query-set lifetime.
 ///
 /// # Platform
@@ -4098,9 +4461,9 @@ pub(crate) unsafe fn destack_gpu_query_set_info(
     .boxed())
 }
 
-/// Signal one fence value from one queue.
+/// Signal a fence value from a queue.
 ///
-/// Signal one fence from one queue after prior submissions complete.
+/// Signal a fence from a queue after prior submissions complete.
 /// Value handling follows backend binary or timeline semantics.
 ///
 /// # Platform
@@ -4126,7 +4489,7 @@ pub(crate) unsafe fn destack_gpu_queue_signal(
     Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.sync.queueSignal")).boxed())
 }
 
-/// Read one queue timestamp period.
+/// Read a queue timestamp period.
 ///
 /// Read the queue timestamp period in nanoseconds per hardware timestamp tick.
 /// Multiply timestamp query deltas by this value to convert to nanoseconds.
@@ -4159,9 +4522,9 @@ pub(crate) unsafe fn destack_gpu_queue_timestamp_period(
     .boxed())
 }
 
-/// Wait for one fence value.
+/// Wait for a fence value.
 ///
-/// Wait for one fence to reach or exceed one requested value.
+/// Wait for a fence to reach or exceed a requested value.
 /// Timeout uses nanoseconds in the runtime monotonic domain.
 ///
 /// # Platform
@@ -4190,7 +4553,7 @@ pub(crate) unsafe fn destack_gpu_queue_wait(
 
 /// Wait for all previously submitted queue work.
 ///
-/// Wait for one queue to complete all prior submissions.
+/// Wait for a queue to complete all prior submissions.
 /// Timeout uses nanoseconds in the runtime monotonic domain.
 ///
 /// # Platform

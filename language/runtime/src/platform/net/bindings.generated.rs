@@ -5648,7 +5648,7 @@ pub(crate) const NET_RAW_SOCKET: BindingDescriptor = BindingDescriptor::external
 pub(crate) const NET_RESOLVE_LOOKUP: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.net.resolve.lookup",
-        "export function resolve(query: ResolveQuery): Result<Array<SocketAddress>, PlatformError>",
+        "export function resolve(query: ResolveQuery): Result<SocketAddress[], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.dns"],
