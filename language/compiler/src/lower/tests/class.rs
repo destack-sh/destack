@@ -124,23 +124,23 @@ function readPacketSize(value: int32): int32 {
         module_id,
         "native",
         r#"
-global @PacketHeader#vtable: [ref?<raw readonly void>; 2] = zeroinit ; readonly
-global @MessageHeader#vtable: [ref?<raw readonly void>; 3] = zeroinit ; readonly
+global @PacketHeader#vtable: [ref?<raw addrspace(global) readonly void>; 2] = zeroinit ; readonly
+global @MessageHeader#vtable: [ref?<raw addrspace(global) readonly void>; 3] = zeroinit ; readonly
 
 function @readPacketSize(v0: i32) -> i32 {
 block0(v0: i32):
-    v1: ref<raw readonly [ref?<raw readonly void>; 2]> = global.addr @PacketHeader#vtable
-    v2: ref<raw readonly void> = bitcast v1 -> ref<raw readonly void>
-    v3: { @vtable: ref<raw readonly void>, packetSize: i32 } = struct { @vtable: ref<raw readonly void>, packetSize: i32 } (v2, v0)
-    v4: ref<managed readonly { @vtable: ref<raw readonly void>, packetSize: i32 }> = managed.alloc { @vtable: ref<raw readonly void>, packetSize: i32 }
+    v1: ref<raw addrspace(global) readonly [ref?<raw addrspace(global) readonly void>; 2]> = global.addr @PacketHeader#vtable
+    v2: ref<raw addrspace(global) readonly void> = bitcast v1 -> ref<raw addrspace(global) readonly void>
+    v3: { @vtable: ref<raw addrspace(global) readonly void>, packetSize: i32 } = struct { @vtable: ref<raw addrspace(global) readonly void>, packetSize: i32 } (v2, v0)
+    v4: ref<managed readonly { @vtable: ref<raw addrspace(global) readonly void>, packetSize: i32 }> = managed.alloc { @vtable: ref<raw addrspace(global) readonly void>, packetSize: i32 }
     store v4, v3
-    v5: { @vtable: ref<raw readonly void>, packetSize: i32 } = load v4
+    v5: { @vtable: ref<raw addrspace(global) readonly void>, packetSize: i32 } = load v4
     v6: i32 = field.get v5, 1
     return v6
 }
 
-function @MessageHeader.ping(v0: ref<managed readonly { @vtable: ref<raw readonly void>, packetSize: i32 }>) -> i32 {
-block0(v0: ref<managed readonly { @vtable: ref<raw readonly void>, packetSize: i32 }>):
+function @MessageHeader.ping(v0: ref<managed readonly { @vtable: ref<raw addrspace(global) readonly void>, packetSize: i32 }>) -> i32 {
+block0(v0: ref<managed readonly { @vtable: ref<raw addrspace(global) readonly void>, packetSize: i32 }>):
     v1: i32 = iconst 1i32
     return v1
 }
@@ -288,11 +288,11 @@ function useDog(d: Dog): int32 {
         module_id,
         "native",
         r#"
-type @Animal = { @vtable: ref<raw readonly void>, name: i32 }
-type @Dog = { @vtable: ref<raw readonly void>, name: i32, breed: i32 }
+type @Animal = { @vtable: ref<raw addrspace(global) readonly void>, name: i32 }
+type @Dog = { @vtable: ref<raw addrspace(global) readonly void>, name: i32, breed: i32 }
 
-global @Animal#vtable: [ref?<raw readonly void>; 3] = zeroinit ; readonly
-global @Dog#vtable: [ref?<raw readonly void>; 3] = zeroinit ; readonly
+global @Animal#vtable: [ref?<raw addrspace(global) readonly void>; 3] = zeroinit ; readonly
+global @Dog#vtable: [ref?<raw addrspace(global) readonly void>; 3] = zeroinit ; readonly
 
 function @useDog(v0: ref<managed readonly @Dog>) -> i32 {
 block0(v0: ref<managed readonly @Dog>):
@@ -368,10 +368,10 @@ class Car extends Vehicle {
         module_id,
         "native",
         r#"
-type @Struct0 = { @vtable: ref<raw readonly void> }
+type @Struct0 = { @vtable: ref<raw addrspace(global) readonly void> }
 
-global @Vehicle#vtable: [ref?<raw readonly void>; 4] = zeroinit ; readonly
-global @Car#vtable: [ref?<raw readonly void>; 5] = zeroinit ; readonly
+global @Vehicle#vtable: [ref?<raw addrspace(global) readonly void>; 4] = zeroinit ; readonly
+global @Car#vtable: [ref?<raw addrspace(global) readonly void>; 5] = zeroinit ; readonly
 
 function @Vehicle.start(v0: ref<managed readonly @Struct0>) -> i32 {
 block0(v0: ref<managed readonly @Struct0>):
@@ -459,11 +459,11 @@ function callLogger(base: Logger): int32 {
         module_id,
         "native",
         r#"
-type @Logger = { @vtable: ref<raw readonly void>, logLevel: i32 }
-type @FileLogger = { @vtable: ref<raw readonly void>, logLevel: i32, fileMode: i32 }
+type @Logger = { @vtable: ref<raw addrspace(global) readonly void>, logLevel: i32 }
+type @FileLogger = { @vtable: ref<raw addrspace(global) readonly void>, logLevel: i32, fileMode: i32 }
 
-global @Logger#vtable: [ref?<raw readonly void>; 3] = zeroinit ; readonly
-global @FileLogger#vtable: [ref?<raw readonly void>; 3] = zeroinit ; readonly
+global @Logger#vtable: [ref?<raw addrspace(global) readonly void>; 3] = zeroinit ; readonly
+global @FileLogger#vtable: [ref?<raw addrspace(global) readonly void>; 3] = zeroinit ; readonly
 
 function @callLogger(v0: ref<managed readonly @Logger>) -> i32 {
 block0(v0: ref<managed readonly @Logger>):
@@ -528,10 +528,10 @@ function callLogger(base: Logger): int32 {
         module_id,
         "native",
         r#"
-type @Struct0 = { @vtable: ref<raw readonly void> }
+type @Struct0 = { @vtable: ref<raw addrspace(global) readonly void> }
 
-global @Logger#vtable: [ref?<raw readonly void>; 3] = zeroinit ; readonly
-global @FileLogger#vtable: [ref?<raw readonly void>; 3] = zeroinit ; readonly
+global @Logger#vtable: [ref?<raw addrspace(global) readonly void>; 3] = zeroinit ; readonly
+global @FileLogger#vtable: [ref?<raw addrspace(global) readonly void>; 3] = zeroinit ; readonly
 
 function @callLogger(v0: ref<managed readonly @Struct0>) -> i32 {
 block0(v0: ref<managed readonly @Struct0>):

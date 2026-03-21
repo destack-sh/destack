@@ -4,7 +4,7 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::lower::lower_mutability;
 use crate::lower::r#type::{FieldInput, FieldLayoutKind, LayoutPolicy, StructLayout};
-use crate::{LowerResult, ModuleLowerer};
+use crate::{LowerError, LowerResult, ModuleLowerer};
 
 // suffix for closure environment metadata names
 const CLOSURE_ENV_METADATA_SUFFIX: &str = "#env";
@@ -59,24 +59,38 @@ impl ModuleLowerer<'_> {
             return Ok(None);
         }
 
-        // build fields from captured bindings
-        let mut fields = Vec::new();
+        // collect captured bindings and their field inputs
+        let mut captures = Vec::new();
         let mut field_inputs = Vec::new();
-        for (index, capture) in capture_set.captures.iter().enumerate() {
+        for capture in &capture_set.captures {
             let (field_type, field_input) = self.capture_field_for_binding(*capture)?;
-            fields.push(ClosureEnvField {
-                symbol: capture.symbol,
-                kind: capture.kind,
-                index: index as u32,
-                ty: field_type,
-            });
+            captures.push((*capture, field_type));
             field_inputs.push(field_input);
         }
 
-        // compute and cache the layout
+        // compute the actual layout order
         let layout = self
             .type_lowerer
             .compute_struct_layout(field_inputs, LayoutPolicy::Optimized);
+
+        // record fields using their concrete layout indices
+        let mut fields = Vec::with_capacity(captures.len());
+        for (capture, field_type) in captures {
+            let Some(index) = layout.field_index_by_source(capture.symbol.local_id.id) else {
+                return Err(LowerError::Internal {
+                    module: self.module_id,
+                    message: "missing closure environment field in computed layout".to_string(),
+                });
+            };
+
+            fields.push(ClosureEnvField {
+                symbol: capture.symbol,
+                kind: capture.kind,
+                index,
+                ty: field_type,
+            });
+        }
+
         let env_type = self
             .type_lowerer
             .create_struct_type(&layout, &mut self.builder);

@@ -414,9 +414,9 @@ class Counter {
         module_id,
         "native",
         r#"
-type @Counter = { @vtable: ref<raw readonly void>, value: i32 }
+type @Counter = { @vtable: ref<raw addrspace(global) readonly void>, value: i32 }
 
-global @Counter#vtable: [ref?<raw readonly void>; 3] = zeroinit ; readonly
+global @Counter#vtable: [ref?<raw addrspace(global) readonly void>; 3] = zeroinit ; readonly
 
 function @Counter.borrowValue(v0: ref<managed readonly @Counter>) -> ref<borrowed i32> {
 block0(v0: ref<managed readonly @Counter>):
