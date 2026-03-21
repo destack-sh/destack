@@ -1,4 +1,4 @@
-use crate::analyze::common::InferContext;
+use crate::analyze::common::{AnalyzeIndex, InferContext};
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{InferTable, NodeTree, SymbolTable, TypeTable};
@@ -49,7 +49,16 @@ impl Compiler {
             return Ok(());
         };
         // solve transient infer constraints
-        let mut ctx = InferContext::new(&module, profile, &options, tree, symbols, types, infer);
+        let mut ctx = InferContext::new(
+            &module,
+            profile,
+            &options,
+            tree,
+            symbols,
+            types,
+            infer,
+            AnalyzeIndex::default(),
+        );
         {
             let (mut ctx, infer) = ctx.split_type_context_and_infer();
             self.solve_infer_table(&mut ctx, infer);

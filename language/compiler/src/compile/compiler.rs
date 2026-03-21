@@ -6,6 +6,7 @@ use destack_source::{DiagnosticCollector, DiagnosticSeverity, ModuleId, Uri};
 use destack_workspace::{Program, Session, Target};
 use parking_lot::Mutex;
 
+use super::CompilerIndex;
 use crate::{
     ArtifactRequirementCollector, ArtifactRequirementSet, CompileDiagnostic, CompilerEvent,
     CompilerOptions, CompilerStats, TaskError, TaskQueue, TaskWarning,
@@ -44,6 +45,8 @@ pub struct Compiler {
     /// Locks for serializing module creation per (URI, loader) pair.
     /// The loader salt distinguishes imports with non-default loaders.
     import_locks: DashMap<(Uri, Option<String>), Arc<Mutex<Option<ModuleId>>>>,
+    /// Ephemeral compiler indices derived from artifacts.
+    pub(crate) index: CompilerIndex,
 }
 
 impl std::fmt::Debug for Compiler {
@@ -76,6 +79,7 @@ impl Compiler {
             comptime_target,
             queue: TaskQueue::new(),
             import_locks: DashMap::new(),
+            index: CompilerIndex::default(),
             stats: Arc::new(CompilerStats::new_with_timings(timings)),
         };
 

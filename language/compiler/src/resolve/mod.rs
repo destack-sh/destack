@@ -2,7 +2,7 @@ mod binding;
 mod dependency;
 mod error;
 mod language;
-mod module;
+pub(crate) mod module;
 mod process;
 #[cfg(test)]
 mod tests;

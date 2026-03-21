@@ -7,9 +7,10 @@ use std::time::{Duration, Instant};
 use destack_workspace::ArtifactKey;
 
 use crate::{
-    AnalyzeError, ArtifactRequirementSet, ArtifactTaskKeyExt, Compiler, CompilerEvent,
-    ElaborateError, ExecuteError, GenerateError, ImportError, InternalError, LinkError, LowerError,
-    OptimizeError, ResolveError, TaskError, TaskHandle, TaskId, TaskOutcome, TaskPhase, TaskStatus,
+    AnalyzeError, ArtifactRequirement, ArtifactRequirementSet, ArtifactTaskKeyExt, Compiler,
+    CompilerEvent, ElaborateError, ExecuteError, GenerateError, ImportError, InternalError,
+    LinkError, LowerError, OptimizeError, ResolveError, TaskError, TaskHandle, TaskId, TaskOutcome,
+    TaskPhase, TaskStatus,
 };
 
 #[cfg(feature = "parallel")]
@@ -25,7 +26,7 @@ thread_local! {
     /// The task currently being executed on this worker.
     static CURRENT_TASK: RefCell<Option<ArtifactKey>> = const { RefCell::new(None) };
     /// The exact artifact requirements satisfied by the current task attempt.
-    static CURRENT_REQUIREMENTS: RefCell<Vec<crate::ArtifactRequirement>> = const { RefCell::new(Vec::new()) };
+    static CURRENT_REQUIREMENTS: RefCell<Vec<ArtifactRequirement>> = const { RefCell::new(Vec::new()) };
 }
 
 impl Compiler {
@@ -40,7 +41,7 @@ impl Compiler {
     }
 
     /// Record one satisfied artifact requirement for the current task attempt.
-    pub(crate) fn record_current_requirement(&self, requirement: crate::ArtifactRequirement) {
+    pub(crate) fn record_current_requirement(&self, requirement: ArtifactRequirement) {
         if !self.should_record_current_requirement(&requirement) {
             return;
         }
@@ -60,7 +61,7 @@ impl Compiler {
     /// Return whether one exact requirement was already satisfied in the current task attempt.
     pub(crate) fn current_requirement_is_recorded(
         &self,
-        requirement: &crate::ArtifactRequirement,
+        requirement: &ArtifactRequirement,
     ) -> bool {
         CURRENT_REQUIREMENTS.with(|requirements| {
             requirements.borrow().iter().any(|existing| {
@@ -70,30 +71,9 @@ impl Compiler {
     }
 
     /// Return whether one satisfied requirement should persist past task completion.
-    fn should_record_current_requirement(&self, requirement: &crate::ArtifactRequirement) -> bool {
-        match (&self.current_artifact_key(), &requirement.key) {
-            (None, _) => false,
-            (
-                Some(
-                    ArtifactKey::LanguageEnvironment { .. }
-                    | ArtifactKey::IntrinsicEnvironment { .. }
-                    | ArtifactKey::LibraryEnvironment { .. },
-                ),
-                _,
-            ) => false,
-            (Some(_), required_key) => {
-                if matches!(
-                    required_key,
-                    ArtifactKey::LanguageEnvironment { .. }
-                        | ArtifactKey::IntrinsicEnvironment { .. }
-                        | ArtifactKey::LibraryEnvironment { .. }
-                ) {
-                    return false;
-                }
-
-                true
-            }
-        }
+    fn should_record_current_requirement(&self, requirement: &ArtifactRequirement) -> bool {
+        let _ = requirement;
+        self.current_artifact_key().is_some()
     }
 
     /// Clear the current task requirement log.
@@ -104,7 +84,7 @@ impl Compiler {
     }
 
     /// Take the current task requirement log.
-    fn take_current_requirements(&self) -> Vec<crate::ArtifactRequirement> {
+    fn take_current_requirements(&self) -> Vec<ArtifactRequirement> {
         CURRENT_REQUIREMENTS.with(|requirements| std::mem::take(&mut *requirements.borrow_mut()))
     }
 
@@ -129,17 +109,6 @@ impl Compiler {
 
             // rerun stale final tasks when the current artifact requirement is no longer satisfied
             if !self.artifact_key_is_available(&artifact_key) {
-                if std::env::var_os("DESTACK_DEBUG_REQUEUE").is_some() {
-                    let current_dependency = self.artifact_dependency_for_key(&artifact_key);
-                    let published_dependency = self.program.artifacts.dependency(&artifact_key);
-                    let requirements_satisfied =
-                        self.artifact_requirements_are_satisfied(&artifact_key);
-                    eprintln!(
-                        "REQUEUE artifact={args} key={artifact_key:?} task_id={:?} published={published_dependency:?} current={current_dependency:?} requirements_satisfied={requirements_satisfied:?} final_requirements={:?}",
-                        handle.id, handle.final_requirements
-                    );
-                }
-
                 let task_id = self
                     .queue
                     .try_requeue_final(&artifact_key)
@@ -243,6 +212,7 @@ impl Compiler {
     /// Fail yielded tasks when the scheduler has no ready work but tasks are still pending.
     fn fail_stalled_yielded_tasks(&self) {
         let yielded_tasks = self.queue.yielded_tasks_with_requirements();
+
         for (task_id, requirement) in yielded_tasks {
             let _handle = self.queue.get_task(task_id);
             let error = self.get_yield_failed_error(task_id, &requirement);

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::analyze::common::TypeContext;
 use crate::analyze::module::GlobalMergeCategory;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler};
@@ -187,6 +189,129 @@ struct SignatureShape {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Remap merged owner parameters from one carrier symbol into another.
+    pub(crate) fn remap_merged_owner_parameters_in_type(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        source_id: LocalNodeIdAny,
+        source_symbol: GlobalSymbolId,
+        target_symbol: GlobalSymbolId,
+        type_id: LocalTypeId,
+    ) -> LocalTypeId {
+        // skip when the type already lives in the target owner space
+        if source_symbol == target_symbol {
+            return type_id;
+        }
+
+        // collect the declaration ordered parameter lists for both carriers
+        let Some(source_parameters) =
+            self.collect_static_parameter_symbols(ctx.type_view(), source_symbol)
+        else {
+            return type_id;
+        };
+        if source_parameters.is_empty() {
+            return type_id;
+        }
+
+        let Some(target_parameters) =
+            self.collect_static_parameter_symbols(ctx.type_view(), target_symbol)
+        else {
+            return type_id;
+        };
+        if target_parameters.len() != source_parameters.len() {
+            return type_id;
+        }
+
+        // build a positional owner parameter remap
+        let mut substitutions = HashMap::new();
+        for (source_parameter, target_parameter) in
+            source_parameters.iter().zip(target_parameters.iter())
+        {
+            let target_parameter_type = ctx.types.insert_type_from_any(
+                Type::Reference {
+                    symbol: *target_parameter,
+                    static_arguments: None,
+                },
+                source_id,
+            );
+            substitutions.insert(*source_parameter, target_parameter_type);
+        }
+        if substitutions.is_empty() {
+            return type_id;
+        }
+
+        // rewrite the imported type into the target carrier parameter space
+        let mut cache = HashMap::new();
+        self.substitute_static_parameters(type_id, &substitutions, ctx.types, &mut cache)
+    }
+
+    /// Remap one merged object shape into the target carrier parameter space.
+    fn remap_merged_owner_parameters_in_shape(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        source_id: LocalNodeIdAny,
+        source_symbol: GlobalSymbolId,
+        target_symbol: GlobalSymbolId,
+        shape: &ObjectShape,
+    ) -> ObjectShape {
+        // reuse the incoming shape when both carriers already match
+        if source_symbol == target_symbol {
+            return shape.clone();
+        }
+
+        // rewrite every typed member edge in the imported shape
+        let mut remapped_shape = shape.clone();
+
+        for field in &mut remapped_shape.fields {
+            field.ty = self.remap_merged_owner_parameters_in_type(
+                &mut ctx.reborrow(),
+                source_id,
+                source_symbol,
+                target_symbol,
+                field.ty,
+            );
+        }
+
+        for signature in &mut remapped_shape.call_signatures {
+            *signature = self.remap_merged_owner_parameters_in_type(
+                &mut ctx.reborrow(),
+                source_id,
+                source_symbol,
+                target_symbol,
+                *signature,
+            );
+        }
+
+        for signature in &mut remapped_shape.construct_signatures {
+            *signature = self.remap_merged_owner_parameters_in_type(
+                &mut ctx.reborrow(),
+                source_id,
+                source_symbol,
+                target_symbol,
+                *signature,
+            );
+        }
+
+        for signature in &mut remapped_shape.index_signatures {
+            signature.key_type = self.remap_merged_owner_parameters_in_type(
+                &mut ctx.reborrow(),
+                source_id,
+                source_symbol,
+                target_symbol,
+                signature.key_type,
+            );
+            signature.value_type = self.remap_merged_owner_parameters_in_type(
+                &mut ctx.reborrow(),
+                source_id,
+                source_symbol,
+                target_symbol,
+                signature.value_type,
+            );
+        }
+
+        remapped_shape
+    }
+
     /// Import one remote merge shape for a symbol into the local type table.
     fn import_remote_merge_shape_for_symbol(
         &self,
@@ -203,7 +328,7 @@ impl Compiler {
         )
         .map_err(AnalyzeError::from)?;
         let snapshot = self
-            .require_artifact_dir_declared(global_symbol.module_id, ctx.profile)
+            .require_indexed_dir_declared(&ctx.index, global_symbol.module_id, ctx.profile)
             .map_err(AnalyzeError::from)?;
 
         // pick the remote shape source type
@@ -326,12 +451,22 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
         symbol_id: LocalSymbolId,
+        source_symbol: GlobalSymbolId,
         shape: &ObjectShape,
         allow_merge: bool,
     ) -> LocalTypeId {
         // seed the merge with any existing instance members
         let symbol = symbol_id.into_global(ctx.module.id);
         let mut merged_shape = ObjectShape::default();
+
+        // rewrite the incoming shape into the target carrier space
+        let shape = self.remap_merged_owner_parameters_in_shape(
+            &mut ctx.reborrow(),
+            declaration_id.into_any(),
+            source_symbol,
+            symbol,
+            shape,
+        );
 
         // reuse existing instance members when merges are allowed
         if allow_merge && let Some(existing_id) = ctx.types.get_instance_type_id(symbol) {
@@ -340,7 +475,7 @@ impl Compiler {
         }
 
         // merge the new shape into the instance type
-        merged_shape.extend_from_shape(shape);
+        merged_shape.extend_from_shape(&shape);
         self.canonicalize_merged_object_shape(&mut merged_shape, ctx.types);
         let instance_ty = merged_shape.into_object_type();
         let instance_ty_id = ctx.types.insert_type_from(instance_ty, declaration_id);
@@ -586,6 +721,7 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
         symbol_id: LocalSymbolId,
+        source_symbol: GlobalSymbolId,
         shape: &ObjectShape,
         allow_merge: bool,
     ) -> LocalTypeId {
@@ -593,6 +729,15 @@ impl Compiler {
         let symbol = symbol_id.into_global(ctx.module.id);
         let mut merged_shape = ObjectShape::default();
         let mut extras = Vec::new();
+
+        // rewrite the incoming shape into the target carrier space
+        let shape = self.remap_merged_owner_parameters_in_shape(
+            &mut ctx.reborrow(),
+            declaration_id.into_any(),
+            source_symbol,
+            symbol,
+            shape,
+        );
 
         // reuse existing value members when merges are allowed
         if allow_merge && let Some(existing_id) = ctx.types.get_value_type_id(symbol) {
@@ -607,7 +752,7 @@ impl Compiler {
         }
 
         // merge the new shape into the value shape
-        merged_shape.extend_from_shape(shape);
+        merged_shape.extend_from_shape(&shape);
 
         let source = ValueShapeSource::Declaration(declaration_id);
         self.build_value_shape_type(&source, symbol, merged_shape, extras, ctx.types)
@@ -879,6 +1024,7 @@ impl Compiler {
     ) -> Option<LocalTypeId> {
         let symbol_entry = ctx.symbols.get_symbol(symbol_id);
         let mut instance_ty_id = None;
+        let source_symbol = symbol_id.into_global(ctx.module.id);
 
         // build an instance type for mergeable symbols
         if self.symbol_supports_instance_merge(symbol_entry) {
@@ -886,6 +1032,7 @@ impl Compiler {
                 &mut ctx.reborrow(),
                 declaration_id,
                 symbol_id,
+                source_symbol,
                 shape,
                 allow_merge,
             ));
@@ -913,6 +1060,7 @@ impl Compiler {
                     &mut ctx.reborrow(),
                     declaration_id,
                     group_symbol_id,
+                    source_symbol,
                     shape,
                     true,
                 );
@@ -946,11 +1094,13 @@ impl Compiler {
         // collect merge symbols for this key and space
         let merge_symbols = self.collect_global_merge_sources_for_key(
             ctx.module,
+            &ctx.index,
+            ctx.symbols,
             ctx.profile,
             key,
             symbol_entry.space,
             GlobalMergeCategory::Instance,
-        );
+        )?;
         if merge_symbols.is_empty() {
             return Ok(());
         }
@@ -978,6 +1128,7 @@ impl Compiler {
                 &mut ctx.reborrow(),
                 declaration_id,
                 symbol_id,
+                global_symbol,
                 &shape,
                 true,
             );
@@ -1010,11 +1161,13 @@ impl Compiler {
         // collect merge symbols for this key and space
         let merge_symbols = self.collect_global_merge_sources_for_key(
             ctx.module,
+            &ctx.index,
+            ctx.symbols,
             ctx.profile,
             key,
             symbol_entry.space,
             GlobalMergeCategory::Value,
-        );
+        )?;
         if merge_symbols.is_empty() {
             return Ok(());
         }
@@ -1041,6 +1194,7 @@ impl Compiler {
                 &mut ctx.reborrow(),
                 declaration_id,
                 symbol_id,
+                global_symbol,
                 &remote_shape,
                 true,
             );

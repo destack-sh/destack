@@ -8,7 +8,7 @@ mod function;
 mod key;
 mod literal;
 mod r#match;
-pub mod module;
+pub(crate) mod module;
 mod operator;
 mod path;
 mod pattern;

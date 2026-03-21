@@ -15,7 +15,7 @@ use super::r#type::{
     is_union_type, is_unknown_type, numeric_cast_operator,
 };
 use crate::analyze::TypeView;
-use crate::analyze::common::TypeContext;
+use crate::analyze::common::{AnalyzeIndex, TypeContext};
 use crate::elaborate::common::ElaborateState;
 use crate::{Compiler, ElaborateError, ElaborateResult, ElaborateWarning};
 
@@ -753,6 +753,7 @@ impl Compiler {
                     state.tree,
                     state.symbols,
                     state.types,
+                    AnalyzeIndex::default(),
                 );
                 let to_outer = self.is_type_assignable(
                     &mut ctx.reborrow(),
@@ -1057,6 +1058,7 @@ impl Compiler {
                 state.tree,
                 state.symbols,
                 state.types,
+                AnalyzeIndex::default(),
             );
             self.ensure_type_evaluated(&mut ctx, target_type_id)
                 .map_err(|_| ElaborateError::UnsupportedConstruct {
@@ -1108,6 +1110,7 @@ impl Compiler {
                 state.tree,
                 state.symbols,
                 state.types,
+                AnalyzeIndex::default(),
             );
             let to_target =
                 self.is_type_assignable(&mut ctx.reborrow(), target_type_id, value_type_id);
@@ -1139,6 +1142,7 @@ impl Compiler {
                     state.tree,
                     state.symbols,
                     state.types,
+                    AnalyzeIndex::default(),
                 );
                 let to_target = self.is_type_assignable(
                     &mut ctx.reborrow(),
@@ -1182,6 +1186,7 @@ impl Compiler {
                     state.tree,
                     state.symbols,
                     state.types,
+                    AnalyzeIndex::default(),
                 );
                 let to_target =
                     self.is_type_assignable(&mut ctx.reborrow(), target_type_id, value_type_id);
@@ -1463,6 +1468,7 @@ impl Compiler {
             state.tree,
             state.symbols,
             state.types,
+            AnalyzeIndex::default(),
         );
         let assignable = self.is_type_assignable(&mut ctx.reborrow(), target_id, source_id);
         if assignable.is_assignable() {
@@ -1768,6 +1774,7 @@ impl Compiler {
                     state.tree,
                     state.symbols,
                     state.types,
+                    AnalyzeIndex::default(),
                 );
                 let Some(Type::Array { element, .. }) = self.normalize_well_known_type_reference(
                     &mut ctx.reborrow(),
@@ -1791,6 +1798,7 @@ impl Compiler {
                 state.tree,
                 state.symbols,
                 state.types,
+                AnalyzeIndex::default(),
             );
             let to_target = self.is_type_assignable(
                 &mut ctx.reborrow(),
@@ -1986,6 +1994,7 @@ impl Compiler {
                         state.tree,
                         state.symbols,
                         state.types,
+                        AnalyzeIndex::default(),
                     );
                     if let Some(alias_target_id) = self
                         .require_alias_target_type_id_for_symbol(

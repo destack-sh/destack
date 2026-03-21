@@ -1,9 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
 use super::SignatureResolutionMode;
+use super::argument::StaticArgumentValidationMode;
 use super::member::{MemberLookupMode, MemberResolution};
 use crate::analyze::StaticSubstitutionEnvironment;
-use crate::analyze::common::{CanonicalSymbolMode, InferContext, TreeSymbolView, TypeView};
+use crate::analyze::common::{
+    AnalyzeIndex, CanonicalSymbolMode, InferContext, TreeSymbolView, TypeView,
+};
 use crate::analyze::infer::RemoteValueTypeReadDomain;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferState};
@@ -134,6 +137,8 @@ struct ResolvedMemberCallTypeContext {
 struct UnionMemberCallResolutionContext<'a> {
     /// The current module tree and symbol view.
     tree_symbols: TreeSymbolView<'a>,
+    /// The task-local analyze index.
+    index: AnalyzeIndex,
     /// The call expression being inferred.
     expression_id: LocalNodeId<Expression>,
     /// The receiver expression of the member call.
@@ -1223,6 +1228,7 @@ impl Compiler {
         );
         let context = UnionMemberCallResolutionContext {
             tree_symbols: ctx.tree_symbol_view(),
+            index: ctx.index.clone(),
             expression_id,
             receiver_expression_id,
             receiver_union_ty_id,
@@ -1339,6 +1345,7 @@ impl Compiler {
             context.tree_symbols.module,
             context.tree_symbols.module.id,
             context.tree_symbols.profile,
+            &context.index,
             context.tree_symbols.tree,
             context.tree_symbols.symbols,
             types,
@@ -1357,6 +1364,7 @@ impl Compiler {
                 context.tree_symbols.module,
                 context.tree_symbols.module.id,
                 context.tree_symbols.profile,
+                &context.index,
                 context.tree_symbols.tree,
                 context.tree_symbols.symbols,
                 types,
@@ -3696,6 +3704,7 @@ impl Compiler {
                     error_node,
                     static_parameter,
                     &resolved_argument,
+                    StaticArgumentValidationMode::Analyze,
                 )?)
             } else {
                 None

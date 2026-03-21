@@ -5,8 +5,8 @@ use rustc_hash::FxHasher;
 use crate::Compiler;
 use destack_dir::{
     Expression, FloatType, GlobalNodeIdAny, GlobalSymbolId, IntType, IntrinsicType, LocalNodeId,
-    LocalTypeId, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, Type, TypeLiteral,
-    TypeTable,
+    LocalTypeId, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, SymbolType, Type,
+    TypeLiteral, TypeTable,
 };
 use destack_source::ModuleId;
 
@@ -63,7 +63,7 @@ impl DeclaredTypeResolutionContext {
             && matches!(
                 ty,
                 Type::Reference { symbol, .. }
-                    if matches!(symbol.ty(), destack_dir::SymbolType::TypeAlias | destack_dir::SymbolType::Newtype)
+                    if matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype)
             );
         if blocks_alias_argument_slot {
             return false;

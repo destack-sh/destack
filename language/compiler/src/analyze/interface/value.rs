@@ -184,6 +184,7 @@ impl Compiler {
             options: &base_ctx.options,
             tree: ctx.tree,
             symbols: ctx.symbols,
+            index: ctx.index.clone(),
             types: ctx.types,
             infer: &mut infer,
         };

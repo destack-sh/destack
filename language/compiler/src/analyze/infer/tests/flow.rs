@@ -138,7 +138,15 @@ fn test_build_flow_graph_short_circuit_guard() {
     // build the flow graph
     let graph = FlowGraphBuilder::new(module.id, &tree).build(condition_id);
     let context = InferState::new(profile, AnalyzeOptions::from(&CompilerOptions::default()));
-    let mut flow_ctx = TypeContext::new(&module, profile, &context.options, &tree, &symbols, types);
+    let mut flow_ctx = TypeContext::new(
+        &module,
+        profile,
+        &context.options,
+        &tree,
+        &symbols,
+        types,
+        AnalyzeIndex::default(),
+    );
     let flow = test
         .compiler
         .compute_flow_table_for_graph(&mut flow_ctx, &graph, &context)

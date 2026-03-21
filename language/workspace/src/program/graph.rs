@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::ProfileId;
 
 /// Module dependency graph for a profile.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModuleGraph {
     /// The profile id for this graph.
     pub profile_id: ProfileId,
@@ -27,6 +27,11 @@ impl ModuleGraph {
             dependents: IndexMap::new(),
             module_versions: IndexMap::new(),
         }
+    }
+
+    /// Return whether another graph represents the same dependency snapshot.
+    pub fn matches_snapshot(&self, other: &Self) -> bool {
+        self == other
     }
 
     /// Update the dependencies for a module.

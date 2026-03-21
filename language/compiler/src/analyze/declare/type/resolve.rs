@@ -1283,7 +1283,7 @@ impl Compiler {
             None
         } else {
             let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE_ARGUMENTS);
-            self.resolve_type_reference_static_arguments(
+            self.resolve_declared_type_reference_static_arguments(
                 &mut ctx.reborrow(),
                 expression_id.into_any(),
                 target_symbol,

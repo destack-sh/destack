@@ -484,6 +484,7 @@ impl Compiler {
                         view.tree,
                         view.symbols,
                         ctx.types,
+                        ctx.index.clone(),
                     );
                     self.resolve_static_parameter_in_module(&mut ctx, symbol_id, source_id)
                 },
@@ -710,7 +711,11 @@ impl Compiler {
             // remote modules are read-only here: do not force declaration evaluation
             let remote_declared = {
                 let remote_dir = self
-                    .require_artifact_dir_declared(primary_declaration.module_id, ctx.profile)
+                    .require_indexed_dir_declared(
+                        &ctx.index,
+                        primary_declaration.module_id,
+                        ctx.profile,
+                    )
                     .ok()?;
                 let remote_types = &remote_dir.types;
                 remote_types.get_declared_type_id(primary_declaration).map(

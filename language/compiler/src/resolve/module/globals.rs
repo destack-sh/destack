@@ -9,6 +9,7 @@ use destack_source::ModuleId;
 use destack_workspace::{DirPrepared, Module, ProfileId};
 use indexmap::IndexMap;
 use std::collections::VecDeque;
+use std::sync::Arc;
 
 use crate::resolve::binding::cache::ResolveScopeIndexCache;
 use crate::{ArtifactRequirementError, Compiler, ResolveError, ResolveResult};
@@ -37,6 +38,15 @@ pub(crate) struct GlobalSymbolTable {
     pub sources_by_space: IndexMap<GlobalSymbolGroupKey, Vec<GlobalSymbolId>>,
     /// Modules remaining to process.
     pub pending: VecDeque<ModuleId>,
+}
+
+/// Cache key for one global symbol table snapshot.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct GlobalSymbolTableCacheKey {
+    /// The profile that selected the global roots.
+    pub profile_id: ProfileId,
+    /// The selected root modules for the table.
+    pub roots: Vec<ModuleId>,
 }
 
 impl Default for GlobalSymbolTable {
@@ -92,9 +102,33 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
-    ) -> ResolveResult<GlobalSymbolTable> {
+    ) -> ResolveResult<Arc<GlobalSymbolTable>> {
         let roots = self.select_global_symbol_table(module_id, profile_id)?;
-        self.build_global_symbol_table(&roots, profile_id)
+        let Some(module_graph) = self.program.artifacts.module_graph(profile_id) else {
+            return Ok(Arc::new(
+                self.build_global_symbol_table(&roots, profile_id)?,
+            ));
+        };
+        let cache_key = GlobalSymbolTableCacheKey {
+            profile_id,
+            roots: roots.clone(),
+        };
+
+        if let Some(cached) = self.index.global_symbol_tables.get(&cache_key) {
+            let (cached_graph, cached_table) = cached.value();
+            if Arc::ptr_eq(cached_graph, &module_graph)
+                || cached_graph.matches_snapshot(module_graph.as_ref())
+            {
+                return Ok(Arc::clone(cached_table));
+            }
+        }
+
+        let cache = Arc::new(self.build_global_symbol_table(&roots, profile_id)?);
+        self.index
+            .global_symbol_tables
+            .insert(cache_key, (module_graph, cache.clone()));
+
+        Ok(cache)
     }
 
     /// Resolve a path against the global symbol table.

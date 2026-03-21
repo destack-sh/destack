@@ -1,4 +1,4 @@
-use crate::analyze::common::TypeContext;
+use crate::analyze::common::{AnalyzeIndex, TypeContext};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, StaticParameterKind, SymbolSpace,
@@ -43,6 +43,7 @@ impl Compiler {
                     view.tree,
                     view.symbols,
                     ctx.types,
+                    AnalyzeIndex::default(),
                 );
                 self.static_parameter_reference_in_symbols(&mut ctx.reborrow(), *target_symbol)
             },

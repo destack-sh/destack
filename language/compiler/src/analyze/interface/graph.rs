@@ -3,6 +3,7 @@ use destack_source::ModuleId;
 use destack_workspace::{ModuleGraph, ProfileId};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::VecDeque;
+use std::sync::Arc;
 
 /// Canonical interface component index for one graph snapshot.
 #[derive(Debug, Default)]
@@ -82,36 +83,44 @@ impl Compiler {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> ModuleId {
-        let Some(graph) = self.program.artifacts.module_graph(profile) else {
+        let Some(index) = self.interface_component_graph_index(profile) else {
             return module_id;
         };
 
-        let index = self.interface_component_graph_index(profile, &graph);
         index
             .component_anchor_for_module(module_id)
             .unwrap_or(module_id)
     }
 
-    /// Build a canonical interface component index for one graph snapshot.
+    /// Return the canonical interface component index for the current graph snapshot.
     pub(super) fn interface_component_graph_index(
         &self,
-        _profile: ProfileId,
-        graph: &ModuleGraph,
-    ) -> InterfaceComponentGraphIndex {
+        profile: ProfileId,
+    ) -> Option<Arc<InterfaceComponentGraphIndex>> {
+        let graph = self.program.artifacts.module_graph(profile)?;
+
+        // reuse the cached index while the current graph snapshot is unchanged
+        if let Some(entry) = self.index.interface_component_graph_indices.get(&profile)
+            && (Arc::ptr_eq(&entry.value().0, &graph)
+                || entry.value().0.matches_snapshot(graph.as_ref()))
+        {
+            return Some(entry.value().1.clone());
+        }
+
         // collect all modules that participate in this graph snapshot
-        let modules = self.interface_graph_module_domain(graph);
+        let modules = self.interface_graph_module_domain(&graph);
         if modules.is_empty() {
-            return InterfaceComponentGraphIndex::default();
+            return Some(Arc::new(InterfaceComponentGraphIndex::default()));
         }
 
         // compute strongly connected components once for this module domain
-        let components = self.interface_graph_scc(graph, &modules);
+        let components = self.interface_graph_scc(&graph, &modules);
         if components.is_empty() {
-            return InterfaceComponentGraphIndex::default();
+            return Some(Arc::new(InterfaceComponentGraphIndex::default()));
         }
 
         // schedule components in deterministic topological order
-        let component_order = self.interface_graph_component_order(graph, &components);
+        let component_order = self.interface_graph_component_order(&graph, &components);
         let mut ordered_components = Vec::with_capacity(component_order.len());
         for component_id in component_order {
             if let Some(component_modules) = components.get(component_id) {
@@ -159,12 +168,17 @@ impl Compiler {
             component_dependency_anchors.push(dependency_anchors);
         }
 
-        InterfaceComponentGraphIndex {
+        let index = Arc::new(InterfaceComponentGraphIndex {
             module_to_component,
             component_modules: ordered_components,
             component_anchors,
             component_dependency_anchors,
-        }
+        });
+        self.index
+            .interface_component_graph_indices
+            .insert(profile, (graph, index.clone()));
+
+        Some(index)
     }
 
     /// Collect one deterministic module domain from the graph snapshot.
@@ -351,5 +365,57 @@ impl Compiler {
         );
 
         order
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use destack_workspace::ArtifactKey;
+
+    use crate::TestProgram;
+
+    /// Rebuild the cached interface component index when the module graph snapshot changes.
+    #[test]
+    fn test_interface_component_graph_index_rebuilds_after_graph_change() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "main.ds",
+            r#"
+export const value = 1;
+"#,
+        );
+
+        // build and cache the initial interface graph index
+        test.resolve_module(module_id);
+        test.compile_check_clean();
+
+        let profile = test.default_profile_id(module_id);
+        let initial_index = test
+            .compiler
+            .interface_component_graph_index(profile)
+            .unwrap_or_else(|| panic!("expected interface component graph index"));
+
+        // publish a distinct module graph snapshot for the same profile
+        let mut graph = test
+            .program
+            .artifacts
+            .module_graph(profile)
+            .unwrap_or_else(|| panic!("expected module graph for test profile"))
+            .as_ref()
+            .clone();
+        graph.update_module(module_id, test.module_version(module_id), vec![module_id]);
+        test.program
+            .artifacts
+            .publish(ArtifactKey::module_graph(profile), graph);
+
+        let rebuilt_index = test
+            .compiler
+            .interface_component_graph_index(profile)
+            .unwrap_or_else(|| panic!("expected rebuilt interface component graph index"));
+
+        // a changed graph snapshot must not reuse the old cached index
+        assert!(!Arc::ptr_eq(&initial_index, &rebuilt_index));
     }
 }

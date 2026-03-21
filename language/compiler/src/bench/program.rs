@@ -121,7 +121,7 @@ impl BenchProgram {
     pub(super) fn resolve_language_environment(&self) {
         let profile = self.default_profile_id_for_root();
         self.compiler
-            .drive(|compiler| compiler.require_language_environment(profile))
+            .run_to_completion(|compiler| compiler.require_language_environment(profile))
             .unwrap_or_else(|error| panic!("failed to resolve language environment: {error:?}"));
     }
 
@@ -129,7 +129,7 @@ impl BenchProgram {
     pub(super) fn resolve_libs(&self) {
         let profile = self.default_profile_id_for_root();
         self.compiler
-            .drive(|compiler| compiler.require_library_environment(profile))
+            .run_to_completion(|compiler| compiler.require_library_environment(profile))
             .unwrap_or_else(|error| panic!("failed to resolve libs: {error:?}"));
     }
 

@@ -72,6 +72,7 @@ impl Compiler {
             ctx.module,
             ctx.module.id,
             ctx.profile,
+            &ctx.index,
             ctx.tree,
             ctx.symbols,
             ctx.types,

@@ -1,4 +1,4 @@
-use crate::analyze::common::TypeContext;
+use crate::analyze::common::{AnalyzeIndex, TypeContext};
 use crate::timing::tags;
 use crate::{
     AnalyzeError, AnalyzeResult, ArtifactRequirementCollector, ArtifactRequirementError, Compiler,
@@ -65,7 +65,7 @@ impl Compiler {
             return Ok(());
         }
 
-        // load module state and dir ctx
+        // load module state and resolved directory inputs
         let module = self.program.modules.get(module_id);
         let module = module.as_ref();
 
@@ -87,7 +87,15 @@ impl Compiler {
         let mut collector = ArtifactRequirementCollector::new();
         let module_checks = self.module_check_options_for_module(module.id);
         let options = self.analyze_context_options_for_module(module.id);
-        let mut ctx = TypeContext::new(&module, profile, &options, tree, symbols, types);
+        let mut ctx = TypeContext::new(
+            &module,
+            profile,
+            &options,
+            tree,
+            symbols,
+            types,
+            AnalyzeIndex::default(),
+        );
 
         {
             let _timing = self.timing_scope(tags::ANALYZE_DECLARE_DECLARATIONS);

@@ -130,7 +130,7 @@ function main(): int32 {
         .unwrap_or_else(|| panic!("missing native profile"));
 
     test.compiler
-        .drive(|compiler| compiler.require_library_environment(profile))
+        .run_to_completion(|compiler| compiler.require_library_environment(profile))
         .unwrap_or_else(|error| panic!("failed to resolve native library environment: {error:?}"));
     test.compile();
 
@@ -168,7 +168,7 @@ function main(): int32 {
         .unwrap_or_else(|| panic!("missing native profile"));
 
     test.compiler
-        .drive(|compiler| compiler.require_library_environment(profile))
+        .run_to_completion(|compiler| compiler.require_library_environment(profile))
         .unwrap_or_else(|error| panic!("failed to resolve native library environment: {error:?}"));
     test.compile();
 
@@ -185,6 +185,12 @@ function main(): int32 {
             destack_dir::SymbolSpaceOrder::TypeThenValue,
         )
         .unwrap_or_else(|| panic!("missing native String well-known symbol"));
+
+    test.compiler
+        .run_to_completion(|compiler| {
+            compiler.require_dir_declared(string_symbol.module_id, profile)
+        })
+        .unwrap_or_else(|error| panic!("failed to declare native String owner module: {error:?}"));
 
     let declared = test
         .compiler

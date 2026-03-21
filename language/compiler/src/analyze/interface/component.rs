@@ -85,14 +85,17 @@ impl Compiler {
         )?;
 
         // resolve the strict component ownership from the graph snapshot
-        let graph = self
-            .program
+        self.program
             .artifacts
             .module_graph(profile)
             .ok_or(AnalyzeError::Internal {
                 message: format!("missing interface graph snapshot for profile {profile:?}"),
             })?;
-        let index = self.interface_component_graph_index(profile, &graph);
+        let index =
+            self.interface_component_graph_index(profile)
+                .ok_or(AnalyzeError::Internal {
+                    message: format!("missing interface component index for profile {profile:?}"),
+                })?;
         let component_modules = index
             .component_modules_for_module(module_id)
             .map(ToOwned::to_owned)

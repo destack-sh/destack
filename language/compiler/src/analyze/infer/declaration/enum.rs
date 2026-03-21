@@ -224,7 +224,7 @@ impl Compiler {
         }
 
         let owner_dir = self
-            .require_artifact_dir_declared(target_symbol.module_id, ctx.profile)
+            .require_indexed_dir_declared(&ctx.index, target_symbol.module_id, ctx.profile)
             .map_err(AnalyzeError::from)?;
         let owner_module = self.program.modules.get(target_symbol.module_id);
         let owner_module = owner_module.as_ref();
@@ -322,7 +322,8 @@ impl Compiler {
 
         // consume already published values from remote modules
         if enum_symbol.module_id != ctx.module.id {
-            let remote_dir = self.require_artifact_dir_declared(enum_symbol.module_id, ctx.profile);
+            let remote_dir =
+                self.require_indexed_dir_declared(&ctx.index, enum_symbol.module_id, ctx.profile);
             match remote_dir {
                 Ok(remote_dir) => return remote_dir.types.get_enum_backing_type(enum_symbol),
                 Err(error) => {

@@ -8,8 +8,9 @@ use destack_workspace::{Module, ProfileId};
 use indexmap::IndexSet;
 
 use crate::analyze::common::{
-    InferContext, MaterializationMode, NormalizationMode, REWRITER_TAG_INFER_MATERIALIZER,
-    RelationMode, TypeContext, TypeRewriteCache, TypeWalkContext, rewrite_type_with_cache,
+    AnalyzeIndex, InferContext, MaterializationMode, NormalizationMode,
+    REWRITER_TAG_INFER_MATERIALIZER, RelationMode, TypeContext, TypeRewriteCache, TypeWalkContext,
+    rewrite_type_with_cache,
 };
 use crate::timing::tags;
 use crate::{AnalyzeOptions, Assignability, Compiler};
@@ -161,6 +162,7 @@ impl TypeRewriter for InferTypeMaterializer<'_> {
                             self.tree,
                             self.symbols,
                             types,
+                            AnalyzeIndex::default(),
                         );
                         self.compiler.resolve_infer_type_for_check(
                             &mut ctx.reborrow(),

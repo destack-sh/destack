@@ -1,5 +1,5 @@
 use super::{ModuleId, TestProgram};
-use crate::analyze::common::{SymbolTypeView, TypeContext};
+use crate::analyze::common::{AnalyzeIndex, SymbolTypeView, TypeContext};
 use crate::analyze::declare::{StaticConstantResolutionMode, TypeMemberResolution};
 use destack_dir::{
     Declarator, Expression, FloatType, LocalScopeMark, LocalSymbolId, LocalTypeId, Pattern,
@@ -115,8 +115,15 @@ fn resolve_declared_namespace_annotation_type(
         .expect("expected type annotation for namespace symbol");
 
     let options = test.compiler.analyze_context_options_for_module(module.id);
-    let mut type_context =
-        TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
+    let mut type_context = TypeContext::new(
+        &module,
+        profile,
+        &options,
+        &tree,
+        &symbols,
+        &mut types,
+        AnalyzeIndex::default(),
+    );
     let value_type_id = test
         .compiler
         .resolve_declared_type_expression(&mut type_context, value_annotation_id, true, true)
@@ -784,8 +791,15 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
         panic!("expected member type annotation for logSegment");
     };
     let options = test.compiler.analyze_context_options_for_module(module.id);
-    let mut type_context =
-        TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
+    let mut type_context = TypeContext::new(
+        &module,
+        profile,
+        &options,
+        &tree,
+        &symbols,
+        &mut types,
+        AnalyzeIndex::default(),
+    );
     let member_selection = test
         .compiler
         .resolve_type_member_symbol(
@@ -829,7 +843,15 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
         value: StaticExpression::Type { ty: string_type_id },
     }];
     let options = test.compiler.analyze_context_options_for_module(module.id);
-    let mut ctx = TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
+    let mut ctx = TypeContext::new(
+        &module,
+        profile,
+        &options,
+        &tree,
+        &symbols,
+        &mut types,
+        AnalyzeIndex::default(),
+    );
     let substitutions = test.compiler.build_type_parameter_substitutions_for_symbol(
         &mut ctx,
         segment_plan_symbol,

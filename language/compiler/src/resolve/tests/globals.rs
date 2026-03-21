@@ -1,5 +1,7 @@
+use std::sync::Arc;
+
 use destack_dir::{DependencySource, StaticKey};
-use destack_workspace::TargetId;
+use destack_workspace::{ArtifactKey, TargetId};
 
 use crate::{ResolveError, TestProgram};
 
@@ -34,6 +36,52 @@ export {};
     assert!(cache.symbols.contains_key(&test_fn_key),);
     let test_iface_key = StaticKey::Name(test.program.strings.intern("TestGlobalInterface"));
     assert!(cache.symbols.contains_key(&test_iface_key),);
+}
+
+/// Rebuild the cached global symbol table when the module graph snapshot changes.
+#[test]
+fn test_global_symbol_table_rebuilds_after_module_graph_change() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "main.d.ts",
+        r#"
+declare global {
+    interface FirstGlobal {}
+}
+export {};
+"#,
+    );
+
+    // build and cache the initial global symbol table
+    test.resolve_module(module_id);
+    test.compile_check_clean();
+
+    let profile = test.default_profile_id(module_id);
+    let initial_table = test
+        .compiler
+        .global_symbol_table_for_module(module_id, profile)
+        .unwrap_or_else(|error| panic!("failed to build initial global symbol table: {error:?}"));
+
+    // publish a distinct module graph snapshot for the same profile
+    let mut graph = test
+        .program
+        .artifacts
+        .module_graph(profile)
+        .unwrap_or_else(|| panic!("expected module graph for test profile"))
+        .as_ref()
+        .clone();
+    graph.update_module(module_id, test.module_version(module_id), vec![module_id]);
+    test.program
+        .artifacts
+        .publish(ArtifactKey::module_graph(profile), graph);
+
+    let rebuilt_table = test
+        .compiler
+        .global_symbol_table_for_module(module_id, profile)
+        .unwrap_or_else(|error| panic!("failed to rebuild global symbol table: {error:?}"));
+
+    // a changed graph snapshot must not reuse the old cached table
+    assert!(!Arc::ptr_eq(&initial_table, &rebuilt_table));
 }
 
 /// Resolve `export as namespace` globals in both value and type spaces.

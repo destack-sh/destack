@@ -1,4 +1,4 @@
-use crate::analyze::common::TypeContext;
+use crate::analyze::common::{AnalyzeIndex, TypeContext};
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, ArtifactRequirementError, Compiler};
 use destack_dir::{
@@ -81,8 +81,15 @@ impl Compiler {
         if should_skip_declaration_validation {
             should_return_after_validation = true;
         } else {
-            let mut ctx =
-                TypeContext::new(&module, profile, &analyze_options, tree, symbols, types);
+            let mut ctx = TypeContext::new(
+                &module,
+                profile,
+                &analyze_options,
+                tree,
+                symbols,
+                types,
+                AnalyzeIndex::default(),
+            );
 
             // NOTE #Performance: validation still runs as multiple passes over the tree
             // validate binding identifiers
@@ -122,7 +129,7 @@ impl Compiler {
                 self.validate_expression(&mut ctx.reborrow(), analyze_options, id, expression);
             }
 
-            // validate type-index access resolution with one shared ctx context
+            // validate type-index access resolution with one shared type context
             for (id, expression) in ctx.tree.iter_nodes_of_type::<Expression>() {
                 if !self.is_node_active(ctx.tree, ctx.symbols, id.into_any()) {
                     continue;

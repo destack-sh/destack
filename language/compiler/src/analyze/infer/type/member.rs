@@ -18,7 +18,7 @@ impl Compiler {
 
         // normalize to declared symbol typing first
         let symbol = self
-            .remap_typevalue_symbol_to_type_space(ctx.module_symbol_view(), symbol)
+            .remap_typevalue_symbol_to_type_space(ctx.module_symbol_view(), &ctx.index, symbol)
             .map_err(AnalyzeError::from)?;
 
         Ok(Type::Reference {

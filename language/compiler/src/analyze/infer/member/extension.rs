@@ -120,6 +120,7 @@ impl Compiler {
             && extension_symbol.module_id != ctx.module.id
         {
             self.import_instance_type_for_symbol(
+                &ctx.index,
                 ctx.profile,
                 source_id,
                 extension_symbol,

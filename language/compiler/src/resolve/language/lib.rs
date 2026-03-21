@@ -76,20 +76,6 @@ impl Compiler {
             return Err(ResolveError::Yield { requirement });
         }
 
-        // require declared library surfaces before building the environment
-        let mut collector = ArtifactRequirementCollector::new();
-        for &module_id in &library_modules {
-            if let Err(error) = self.require_dir_declared(module_id, profile_id)
-                && let Some(error) = collector.try_collect::<(), _>(Err(error))
-            {
-                let requirement = error.into_requirement();
-                return Err(ResolveError::UnsatisfiedRequirement { requirement });
-            }
-        }
-        if let Some(requirement) = collector.try_into_requirement() {
-            return Err(ResolveError::Yield { requirement });
-        }
-
         // build the global symbol cache for library modules
         let global_cache = {
             let _timing = self.timing_scope(tags::RESOLVE_LIBS_GLOBAL_CACHE);

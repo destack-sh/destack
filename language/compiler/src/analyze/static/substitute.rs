@@ -2,8 +2,9 @@ use std::collections::HashMap;
 
 use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::{
-    CanonicalSymbolMode, MaterializationMode, ModuleSymbolView, REWRITER_TAG_STATIC_ARGUMENT,
-    TypeContext, TypeRewriteCache, TypeWalkContext, rewrite_type_with_cache,
+    AnalyzeIndex, CanonicalSymbolMode, MaterializationMode, ModuleSymbolView,
+    REWRITER_TAG_STATIC_ARGUMENT, TypeContext, TypeRewriteCache, TypeWalkContext,
+    rewrite_type_with_cache,
 };
 use crate::timing::tags;
 use crate::{AnalyzeResult, Compiler};
@@ -131,6 +132,7 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
                 self.argument_tree,
                 self.argument_symbols,
                 types,
+                AnalyzeIndex::default(),
             );
             let _ = self.compiler.resolve_declared_type(&mut ctx.reborrow(), id);
         }
@@ -190,6 +192,7 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
                 self.argument_tree,
                 self.argument_symbols,
                 types,
+                AnalyzeIndex::default(),
             );
             self.compiler.materialize_static_arguments_for_reference(
                 &mut ctx.reborrow(),
@@ -216,6 +219,7 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
                 &reference_snapshot.tree,
                 &reference_snapshot.symbols,
                 types,
+                AnalyzeIndex::default(),
             );
             self.compiler.materialize_static_arguments_for_reference(
                 &mut ctx.reborrow(),

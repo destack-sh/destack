@@ -6,6 +6,7 @@ mod evaluative;
 mod extension;
 mod global;
 mod import;
+mod index;
 mod instance;
 mod key;
 mod literal;
@@ -25,6 +26,7 @@ mod walk;
 pub(crate) use canonical::CanonicalSymbolMode;
 pub(crate) use context::{ConstContext, ContextualTypingMode, FreshnessMode, WideningMode};
 pub(crate) use destack_dir::NormalizationMode;
+pub(crate) use index::{AnalyzeIndex, GlobalMergeSourcesKey};
 pub(crate) use literal::evaluate_numeric_literal;
 pub(crate) use materialize::{MaterializationMode, ReadonlyMaterializer};
 pub(crate) use phase::{

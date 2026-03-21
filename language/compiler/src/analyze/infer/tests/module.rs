@@ -572,6 +572,47 @@ values.first() satisfies number | undefined;
     }
 }
 
+/// Remap merged generic members into the active receiver parameter space.
+#[test]
+fn test_merge_generic_interface_members_preserve_receiver_substitutions() {
+    // arrange one merged generic global interface
+    let test = TestProgram::memory_sequential();
+    test.add_module(
+        "a.ds",
+        r#"
+declare global {
+    interface Box<T> {
+        first(): T | undefined;
+    }
+}
+"#,
+    );
+    test.add_module(
+        "b.ds",
+        r#"
+declare global {
+    interface Box<T> {
+        last(): T | undefined;
+    }
+}
+"#,
+    );
+    let main_id = test.add_module(
+        "main.ds",
+        r#"
+import "./a.ds";
+import "./b.ds";
+
+declare let box: Box<number>;
+box.first() satisfies number | undefined;
+box.last() satisfies number | undefined;
+"#,
+    );
+
+    // analyze the entry module
+    test.analyze_module_and_check_clean(main_id);
+}
+
 /// Analyze cross module type import.
 #[test]
 fn test_analyze_cross_module_type_import() {
@@ -713,7 +754,7 @@ type Alias = import("./mod.ds").User;
 
     let profile = test.default_profile_id(module_id);
     test.compiler
-        .drive(|compiler| {
+        .run_to_completion(|compiler| {
             let module = compiler.program.modules.get(module_id);
             let dir = compiler
                 .require_artifact_dir_resolved(module_id, profile)
