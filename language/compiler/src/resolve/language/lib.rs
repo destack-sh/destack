@@ -283,7 +283,7 @@ impl Compiler {
     }
 
     /// Resolve the builtin library selection for one profile key.
-    fn builtin_library_selection(
+    pub(crate) fn builtin_library_selection(
         &self,
         builtins: &Builtins,
         profile_key: &ProfileKey,

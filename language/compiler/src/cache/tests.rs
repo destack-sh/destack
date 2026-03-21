@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use destack_builtin::LanguageSymbol;
 use destack_core::StringPool;
 use destack_dir::{Dumper, DumperOptions, NodeVisitor};
 use destack_source::{File, FileId, FileType, FileVersion, TemporaryPhysicalFileSystem, Uri};
@@ -122,6 +123,26 @@ fn build_memory_cache_compiler(
     );
 
     (session, program, compiler, root.path_for("main.ts"))
+}
+
+/// Append text to one file and bump its version.
+fn append_file_text(program: &Program, file_id: FileId, suffix: &str) {
+    let file = program.files.get(file_id);
+    let destack_source::FileContent::Text { content } = &file.content else {
+        panic!("expected text file");
+    };
+    let content = format!("{content}{suffix}");
+    let file = File::from_text(
+        file.id,
+        file.name.clone(),
+        file.uri.clone(),
+        file.path.clone(),
+        file.ty,
+        content,
+    )
+    .with_version(file.version.next());
+
+    program.files.replace(file);
 }
 
 /// Normalize one AST for stable cross-session comparison.
@@ -270,6 +291,145 @@ fn test_compiler_reuses_language_environment_image_across_sessions() {
         .unwrap_or_else(|error| panic!("failed to load language environment: {error:?}"));
     assert_eq!(resolved.items, expected.items);
     assert_eq!(resolved.symbols, expected.symbols);
+}
+
+/// Invalidate a persisted language environment image when builtin source changes.
+#[test]
+fn test_language_environment_image_tracks_builtin_source_content() {
+    let root = TemporaryPhysicalFileSystem::new_with_prefix("language_environment_source_hash");
+    let (_session, program, compiler, module_path) = build_disk_cache_compiler(&root);
+
+    // persist the language environment once
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
+    let profile_id = program.default_profile_id_for_module(module_id);
+    compiler
+        .run_to_completion(|compiler| compiler.process_language_environment(profile_id))
+        .unwrap_or_else(|error| panic!("failed to persist language environment: {error:?}"));
+    assert!(
+        compiler
+            .load_language_environment_image(profile_id)
+            .unwrap_or_else(|error| panic!(
+                "failed to load persisted language environment: {error}"
+            ))
+            .is_some()
+    );
+
+    // perturb one builtin source file that contributes to the language environment
+    let builtins = program
+        .builtins
+        .as_ref()
+        .unwrap_or_else(|| panic!("expected builtin registry"));
+    let builtin_module_id = builtins.module_for_item(LanguageSymbol::Add);
+    let builtin_file_id = program.modules.get(builtin_module_id).file_id;
+    append_file_text(
+        program.as_ref(),
+        builtin_file_id,
+        "\n// changed for cache invalidation\n",
+    );
+
+    // the persisted image should now be rejected
+    assert!(
+        compiler
+            .load_language_environment_image(profile_id)
+            .unwrap_or_else(|error| panic!("failed to reload language environment image: {error}"))
+            .is_none()
+    );
+}
+
+/// Invalidate a persisted library environment image when library source changes.
+#[test]
+fn test_library_environment_image_tracks_library_source_content() {
+    let root = TemporaryPhysicalFileSystem::new_with_prefix("library_environment_source_hash");
+    let (_session, program, compiler, module_path) = build_disk_cache_compiler(&root);
+
+    // persist the library environment once
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
+    let profile_id = program.default_profile_id_for_module(module_id);
+    compiler
+        .run_to_completion(|compiler| compiler.process_library_environment(profile_id))
+        .unwrap_or_else(|error| panic!("failed to persist library environment: {error:?}"));
+    assert!(
+        compiler
+            .load_library_environment_image(profile_id)
+            .unwrap_or_else(|error| panic!("failed to load persisted library environment: {error}"))
+            .is_some()
+    );
+
+    // perturb one selected library module source file
+    let environment = program
+        .artifacts
+        .library_environment(profile_id)
+        .unwrap_or_else(|| panic!("expected published library environment"));
+    let builtin_module_id = *environment
+        .modules
+        .first()
+        .unwrap_or_else(|| panic!("expected selected library modules"));
+    let builtin_file_id = program.modules.get(builtin_module_id).file_id;
+    append_file_text(
+        program.as_ref(),
+        builtin_file_id,
+        "\n// changed for cache invalidation\n",
+    );
+
+    // the persisted image should now be rejected
+    assert!(
+        compiler
+            .load_library_environment_image(profile_id)
+            .unwrap_or_else(|error| panic!("failed to reload library environment image: {error}"))
+            .is_none()
+    );
+}
+
+/// Invalidate a persisted intrinsic environment image when builtin source changes.
+#[test]
+fn test_intrinsic_environment_image_tracks_builtin_source_content() {
+    let root = TemporaryPhysicalFileSystem::new_with_prefix("intrinsic_environment_source_hash");
+    let (_session, program, compiler, module_path) = build_disk_cache_compiler(&root);
+
+    // persist the intrinsic environment once
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
+    let profile_id = program.default_profile_id_for_module(module_id);
+    compiler
+        .run_to_completion(|compiler| compiler.process_intrinsic_environment(profile_id))
+        .unwrap_or_else(|error| panic!("failed to persist intrinsic environment: {error:?}"));
+    assert!(
+        compiler
+            .load_intrinsic_environment_image(profile_id)
+            .unwrap_or_else(|error| panic!(
+                "failed to load persisted intrinsic environment: {error}"
+            ))
+            .is_some()
+    );
+
+    // perturb one builtin source file that contributes intrinsic bindings
+    let builtins = program
+        .builtins
+        .as_ref()
+        .unwrap_or_else(|| panic!("expected builtin registry"));
+    let builtin_module_id = *builtins
+        .intrinsic_module_ids()
+        .first()
+        .unwrap_or_else(|| panic!("expected intrinsic builtin modules"));
+    let builtin_file_id = program.modules.get(builtin_module_id).file_id;
+    append_file_text(
+        program.as_ref(),
+        builtin_file_id,
+        "\n// changed for cache invalidation\n",
+    );
+
+    // the persisted image should now be rejected
+    assert!(
+        compiler
+            .load_intrinsic_environment_image(profile_id)
+            .unwrap_or_else(|error| panic!("failed to reload intrinsic environment image: {error}"))
+            .is_none()
+    );
 }
 
 /// Invalidate a resolved directory when its library environment dependency changes.

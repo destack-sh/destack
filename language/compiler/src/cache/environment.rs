@@ -1,5 +1,5 @@
 use crate::compile::Compiler;
-use destack_source::ProfileVersion;
+use destack_source::{ModuleId, ProfileVersion};
 use destack_workspace::{
     ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, IntrinsicEnvironment,
     LanguageEnvironment, LibraryEnvironment, ProfileId, ProfileKey,
@@ -36,19 +36,103 @@ impl EnvironmentImageContext {
 
 impl Compiler {
     /// Build one persistent image context for a profile scoped environment artifact.
-    fn environment_image_context(&self, profile_id: ProfileId) -> EnvironmentImageContext {
+    fn environment_image_context(
+        &self,
+        profile_id: ProfileId,
+        environment_input_hash: u64,
+    ) -> EnvironmentImageContext {
         let profile = self.program.profile(profile_id);
 
-        // image validity for environments is profile and compiler configuration scoped
+        // image validity for environments is profile, compiler behavior, and source scoped
         let mut hasher = CacheHasher::new();
         hasher.hash_compiler_options(&self.options);
         hasher.hash_value(&profile.key);
+        hasher.hash_value(&environment_input_hash);
 
         EnvironmentImageContext {
             profile_key: profile.key.clone(),
             profile_version: profile.version,
             config_hash: hasher.finish(),
         }
+    }
+
+    /// Hash one builtin module set by exact module ids and current source content.
+    fn environment_module_source_hash(&self, module_ids: &[ModuleId]) -> Option<u64> {
+        // normalize the module set before hashing
+        let mut module_ids = module_ids.to_vec();
+        module_ids.sort_unstable();
+        module_ids.dedup();
+
+        // hash the exact source inputs for this environment
+        let mut hasher = CacheHasher::new();
+        for module_id in module_ids {
+            let source_hash = self.module_source_hash(module_id)?;
+            hasher.hash_value(&module_id);
+            hasher.hash_value(&source_hash);
+        }
+
+        Some(hasher.finish())
+    }
+
+    /// Build the image context for one language environment.
+    fn language_environment_image_context(
+        &self,
+        profile_id: ProfileId,
+    ) -> Option<EnvironmentImageContext> {
+        let builtins = self.program.builtins.as_ref()?;
+        let mut module_ids: Vec<_> = builtins
+            .intrinsic_module_by_item
+            .values()
+            .copied()
+            .collect();
+        module_ids.sort_unstable();
+        module_ids.dedup();
+
+        let environment_input_hash = self.environment_module_source_hash(&module_ids)?;
+
+        Some(self.environment_image_context(profile_id, environment_input_hash))
+    }
+
+    /// Build the image context for one intrinsic environment.
+    fn intrinsic_environment_image_context(
+        &self,
+        profile_id: ProfileId,
+    ) -> Option<EnvironmentImageContext> {
+        let builtins = self.program.builtins.as_ref()?;
+        let module_ids = builtins.intrinsic_module_ids();
+        let environment_input_hash = self.environment_module_source_hash(&module_ids)?;
+
+        Some(self.environment_image_context(profile_id, environment_input_hash))
+    }
+
+    /// Build the image context for one library environment.
+    fn library_environment_image_context(
+        &self,
+        profile_id: ProfileId,
+    ) -> Option<EnvironmentImageContext> {
+        // skip library images when library loading is disabled
+        if !self.options.load_libraries {
+            return None;
+        }
+
+        let selection = self.builtin_library_selection_from_input(profile_id).ok()?;
+
+        // hash the exact ordered library surface and backing module sources
+        let mut hasher = CacheHasher::new();
+        hasher.hash_value(&selection.ordered_libraries);
+        hasher.hash_value(&selection.ambient_modules);
+
+        for module_batch in &selection.modules_to_resolve {
+            hasher.hash_value(&module_batch.len());
+
+            for &module_id in module_batch {
+                let source_hash = self.module_source_hash(module_id)?;
+                hasher.hash_value(&module_id);
+                hasher.hash_value(&source_hash);
+            }
+        }
+
+        Some(self.environment_image_context(profile_id, hasher.finish()))
     }
 
     /// Load one persisted profile environment image when disk mode is enabled.
@@ -88,7 +172,9 @@ impl Compiler {
         &self,
         profile_id: ProfileId,
     ) -> Result<Option<LanguageEnvironment>, ArtifactImageError> {
-        let context = self.environment_image_context(profile_id);
+        let Some(context) = self.language_environment_image_context(profile_id) else {
+            return Ok(None);
+        };
         let image_key = ArtifactImageKey::LanguageEnvironment {
             profile: context.profile_key.clone(),
         };
@@ -102,7 +188,9 @@ impl Compiler {
         profile_id: ProfileId,
         environment: LanguageEnvironment,
     ) -> Result<(), ArtifactImageError> {
-        let context = self.environment_image_context(profile_id);
+        let Some(context) = self.language_environment_image_context(profile_id) else {
+            return Ok(());
+        };
         let image_key = ArtifactImageKey::LanguageEnvironment {
             profile: context.profile_key.clone(),
         };
@@ -115,7 +203,9 @@ impl Compiler {
         &self,
         profile_id: ProfileId,
     ) -> Result<Option<IntrinsicEnvironment>, ArtifactImageError> {
-        let context = self.environment_image_context(profile_id);
+        let Some(context) = self.intrinsic_environment_image_context(profile_id) else {
+            return Ok(None);
+        };
         let image_key = ArtifactImageKey::IntrinsicEnvironment {
             profile: context.profile_key.clone(),
         };
@@ -129,7 +219,9 @@ impl Compiler {
         profile_id: ProfileId,
         environment: IntrinsicEnvironment,
     ) -> Result<(), ArtifactImageError> {
-        let context = self.environment_image_context(profile_id);
+        let Some(context) = self.intrinsic_environment_image_context(profile_id) else {
+            return Ok(());
+        };
         let image_key = ArtifactImageKey::IntrinsicEnvironment {
             profile: context.profile_key.clone(),
         };
@@ -142,7 +234,9 @@ impl Compiler {
         &self,
         profile_id: ProfileId,
     ) -> Result<Option<LibraryEnvironment>, ArtifactImageError> {
-        let context = self.environment_image_context(profile_id);
+        let Some(context) = self.library_environment_image_context(profile_id) else {
+            return Ok(None);
+        };
         let image_key = ArtifactImageKey::LibraryEnvironment {
             profile: context.profile_key.clone(),
         };
@@ -156,7 +250,9 @@ impl Compiler {
         profile_id: ProfileId,
         environment: LibraryEnvironment,
     ) -> Result<(), ArtifactImageError> {
-        let context = self.environment_image_context(profile_id);
+        let Some(context) = self.library_environment_image_context(profile_id) else {
+            return Ok(());
+        };
         let image_key = ArtifactImageKey::LibraryEnvironment {
             profile: context.profile_key.clone(),
         };

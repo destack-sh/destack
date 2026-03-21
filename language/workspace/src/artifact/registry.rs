@@ -745,6 +745,7 @@ impl ArtifactRegistry {
     /// Clear all semantic artifacts.
     pub fn clear(&self) {
         self.dependencies.clear();
+        self.module_graphs.clear();
         self.language_environments.clear();
         self.intrinsic_environments.clear();
         self.lib_environments.clear();
@@ -759,5 +760,77 @@ impl ArtifactRegistry {
         self.dir_patched.clear();
         self.mir_bases.clear();
         self.mir_optimized.clear();
+        self.module_output.clear();
+        self.package_output.clear();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
+
+    use crate::{ArtifactDependency, ArtifactKey, ModuleGraph, ModuleOutput, PackageOutput};
+
+    use super::ArtifactRegistry;
+
+    /// Clear every published artifact family from the registry.
+    #[test]
+    fn test_clear_removes_all_published_artifact_families() {
+        let registry = ArtifactRegistry::new();
+        let profile = ProfileId::new(1);
+        let module = ModuleId::EPHEMERAL;
+        let package = PackageId::EPHEMERAL;
+        let target = TargetId::new(package, "test");
+
+        // seed a representative sample of graph and output artifacts
+        registry.set_dependency(
+            ArtifactKey::module_graph(profile),
+            ArtifactDependency::new(1),
+        );
+        registry.publish(
+            ArtifactKey::module_graph(profile),
+            ModuleGraph::new(profile),
+        );
+        registry.set_dependency(
+            ArtifactKey::ModuleOutput {
+                module,
+                target: target.clone(),
+            },
+            ArtifactDependency::new(2),
+        );
+        registry.publish(
+            ArtifactKey::ModuleOutput {
+                module,
+                target: target.clone(),
+            },
+            ModuleOutput::default(),
+        );
+        registry.set_dependency(
+            ArtifactKey::PackageOutput {
+                package,
+                target: target.clone(),
+            },
+            ArtifactDependency::new(3),
+        );
+        registry.publish(
+            ArtifactKey::PackageOutput {
+                package,
+                target: target.clone(),
+            },
+            PackageOutput::default(),
+        );
+
+        // clear the full registry state
+        registry.clear();
+
+        // the registry should not retain stale live payloads after clear
+        assert!(
+            registry
+                .dependency(&ArtifactKey::module_graph(profile))
+                .is_none()
+        );
+        assert!(registry.module_graph(profile).is_none());
+        assert!(registry.module_output(module, &target).is_none());
+        assert!(registry.package_output(package, &target).is_none());
     }
 }

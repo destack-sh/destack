@@ -7,8 +7,8 @@ use destack_dir::{
 };
 use destack_source::ModuleId;
 use destack_workspace::{
-    ArtifactKey, CanonicalStaticKey, LanguageEnvironment, LibraryEnvironment, ProfileId,
-    WellKnownSymbols,
+    ArtifactKey, BuiltinLibrarySelection, CanonicalStaticKey, LanguageEnvironment,
+    LibraryEnvironment, ProfileId, WellKnownSymbols,
 };
 use std::collections::HashSet;
 
@@ -122,6 +122,23 @@ impl Compiler {
 
         self.selected_library_modules_from_input(profile)
             .unwrap_or_default()
+    }
+
+    /// Return the builtin library selection derived from current profile input.
+    pub(crate) fn builtin_library_selection_from_input(
+        &self,
+        profile_id: ProfileId,
+    ) -> ResolveResult<BuiltinLibrarySelection> {
+        if !self.options.load_libraries {
+            return Ok(BuiltinLibrarySelection::default());
+        }
+
+        let Some(builtins) = self.program.builtins.as_ref() else {
+            return Ok(BuiltinLibrarySelection::default());
+        };
+
+        let profile_key = self.program.profile(profile_id).key.clone();
+        self.builtin_library_selection(builtins, &profile_key)
     }
 
     /// Return the ambient library modules for one profile.
