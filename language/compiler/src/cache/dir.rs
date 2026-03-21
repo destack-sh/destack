@@ -68,7 +68,7 @@ impl ProfileDirImageContext {
 
 impl Compiler {
     /// Hash the current source content for one module.
-    fn module_source_hash(&self, module_id: ModuleId) -> Option<u64> {
+    pub(super) fn module_source_hash(&self, module_id: ModuleId) -> Option<u64> {
         let module = self.program.modules.get(module_id);
         let file = self.program.files.get(module.file_id);
 
