@@ -9,5 +9,8 @@ mod option;
 use generator::RuntimeGenerator;
 
 fn main() {
-    RuntimeGenerator::run();
+    if let Err(error) = RuntimeGenerator::run() {
+        eprintln!("generate-bindings failed: {error}");
+        std::process::exit(1);
+    }
 }

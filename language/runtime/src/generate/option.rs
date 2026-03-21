@@ -9,7 +9,7 @@ pub(crate) struct GeneratorOptions {
 }
 
 /// Parse CLI options for runtime binding generation.
-pub(crate) fn parse_generator_options() -> GeneratorOptions {
+pub(crate) fn parse_generator_options() -> Result<GeneratorOptions, String> {
     // parse domain selectors from CLI flags
     let mut domains = BTreeSet::new();
     let mut refresh_stubs = false;
@@ -19,7 +19,7 @@ pub(crate) fn parse_generator_options() -> GeneratorOptions {
         // parse repeated single-domain flags
         if argument == "--domain" {
             let Some(value) = arguments.next() else {
-                panic!("--domain requires a value");
+                return Err("--domain requires a value".to_string());
             };
             if !value.trim().is_empty() {
                 domains.insert(value.trim().to_string());
@@ -36,7 +36,7 @@ pub(crate) fn parse_generator_options() -> GeneratorOptions {
         // parse comma-separated domain list flags
         if argument == "--domains" {
             let Some(value) = arguments.next() else {
-                panic!("--domains requires a value");
+                return Err("--domains requires a value".to_string());
             };
             for entry in value.split(',') {
                 let entry = entry.trim();
@@ -62,18 +62,18 @@ pub(crate) fn parse_generator_options() -> GeneratorOptions {
             continue;
         }
 
-        panic!("unsupported generate-bindings option {argument}");
+        return Err(format!("unsupported generate-bindings option {argument}"));
     }
 
     if domains.is_empty() {
-        return GeneratorOptions {
+        return Ok(GeneratorOptions {
             domains: None,
             refresh_stubs,
-        };
+        });
     }
 
-    GeneratorOptions {
+    Ok(GeneratorOptions {
         domains: Some(domains),
         refresh_stubs,
-    }
+    })
 }

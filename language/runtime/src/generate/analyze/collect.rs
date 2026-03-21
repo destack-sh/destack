@@ -443,10 +443,11 @@ fn binding_type_supports_integer_constants(binding_type: &BindingType) -> bool {
     }
 }
 
+/// The builtin URI prefix for platform generator modules.
+const PLATFORM_URI_PREFIX: &str = "builtin://platform/";
+
 /// Resolve one platform domain name from one builtin platform module uri.
 fn module_platform_domain(module_uri: &str) -> Option<String> {
-    const PLATFORM_URI_PREFIX: &str = "builtin://library/platform/";
-
     let trimmed = module_uri.strip_prefix(PLATFORM_URI_PREFIX)?;
     let domain = trimmed.split('/').next().unwrap_or_default().trim();
     if domain.is_empty() {
@@ -458,8 +459,6 @@ fn module_platform_domain(module_uri: &str) -> Option<String> {
 
 /// Return the nested implementation prefix for one builtin platform module uri.
 fn module_platform_implementation_prefix(module_uri: &str) -> Option<String> {
-    const PLATFORM_URI_PREFIX: &str = "builtin://library/platform/";
-
     let trimmed = module_uri.strip_prefix(PLATFORM_URI_PREFIX)?;
     let mut parts = trimmed.split('/');
 
@@ -1476,6 +1475,8 @@ fn scalar_string_literal(
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use super::super::{BindingType, CatalogBindingReplayKind, CatalogEntropyKind};
 
     use super::{
@@ -1488,11 +1489,11 @@ mod tests {
     #[test]
     fn test_module_platform_domain_parses_builtin_uri() {
         assert_eq!(
-            module_platform_domain("builtin://library/platform/display/window.ds"),
+            module_platform_domain("builtin://platform/display/window.ds"),
             Some("display".to_string())
         );
         assert_eq!(
-            module_platform_domain("builtin://library/platform/crypto/key.ds"),
+            module_platform_domain("builtin://platform/crypto/key.ds"),
             Some("crypto".to_string())
         );
         assert_eq!(
@@ -1505,13 +1506,11 @@ mod tests {
     #[test]
     fn test_module_platform_implementation_prefix_parses_nested_paths() {
         assert_eq!(
-            module_platform_implementation_prefix(
-                "builtin://library/platform/device/midi/backend.ds"
-            ),
+            module_platform_implementation_prefix("builtin://platform/device/midi/backend.ds"),
             Some("midi".to_string())
         );
         assert_eq!(
-            module_platform_implementation_prefix("builtin://library/platform/display/window.ds"),
+            module_platform_implementation_prefix("builtin://platform/display/window.ds"),
             None
         );
     }
@@ -1541,7 +1540,7 @@ mod tests {
                 Some(Path::new(
                     "/tmp/destack/language/builtin/library/platform/device/midi/backend.ds"
                 )),
-                "builtin://library/platform/device/midi/backend.ds",
+                "builtin://platform/device/midi/backend.ds",
                 "backend.list"
             ),
             "midi.backend.list".to_string()
@@ -1551,7 +1550,7 @@ mod tests {
                 Some(Path::new(
                     "/tmp/destack/language/builtin/library/platform/device/midi/backend.ds"
                 )),
-                "builtin://library/platform/device/midi/backend.ds",
+                "builtin://platform/device/midi/backend.ds",
                 "midi.backend.list"
             ),
             "midi.backend.list".to_string()
@@ -1561,7 +1560,7 @@ mod tests {
                 Some(Path::new(
                     "/tmp/destack/language/builtin/library/platform/device/bluetooth.ds"
                 )),
-                "builtin://library/platform/device/bluetooth.ds",
+                "builtin://platform/device/bluetooth.ds",
                 "bluetooth.session.open"
             ),
             "bluetooth.session.open".to_string()

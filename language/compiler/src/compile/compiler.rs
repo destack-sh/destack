@@ -191,8 +191,8 @@ impl Compiler {
         });
     }
 
-    /// Drive a requirement-producing operation to completion.
-    pub fn drive<T, E, F>(&self, mut action: F) -> Result<T, E>
+    /// Run one requirement-producing operation to completion.
+    pub fn run_to_completion<T, E, F>(&self, mut action: F) -> Result<T, E>
     where
         F: FnMut(&Self) -> Result<T, E>,
         E: TryInto<ArtifactRequirementSet, Error = E>,

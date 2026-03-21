@@ -3,11 +3,13 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_compiler::{Compiler, CompilerOptions, TaskOutcome};
+use destack_compiler::{
+    ArtifactRequirementCollector, ArtifactRequirementError, Compiler, CompilerOptions,
+};
 use destack_source::DiagnosticSeverity;
 use destack_workspace::{
-    ArtifactKey, EnvSnapshot, OutputFormat, Platform, ProfileFlags, ProfileId, ProfileKey, Program,
-    Runtime, Session,
+    EnvSnapshot, OutputFormat, Platform, ProfileFlags, ProfileId, ProfileKey, Program, Runtime,
+    Session,
 };
 
 use crate::analyze::{
@@ -19,6 +21,9 @@ use crate::capability::generate_platform_capability_kind;
 use crate::emit::{RenderSpec, render_platform_bindings_index, render_test_harness};
 use crate::model::{ModuleAbiTypes, ModuleSpec, WorkspaceLayout};
 use crate::option::parse_generator_options;
+
+/// The builtin URI prefix for platform generator modules.
+const PLATFORM_URI_PREFIX: &str = "builtin://platform/";
 
 /// Generator for runtime binding code from the compiler catalog.
 pub(crate) struct RuntimeGenerator {
@@ -133,42 +138,72 @@ impl RuntimeGenerator {
         &self,
         profile_id: ProfileId,
         platform_modules: &[destack_source::ModuleId],
-    ) {
-        // resolve builtin symbols for the target profile
-        let builtins_outcome = self
-            .compiler
-            .run_task(ArtifactKey::language_environment(profile_id));
-        self.assert_task_complete(builtins_outcome, "ResolveBuiltins");
+    ) -> Result<(), String> {
+        self.compiler
+            .run_to_completion(|compiler| {
+                self.require_platform_analysis(compiler, profile_id, platform_modules)
+            })
+            .map_err(|error| match error {
+                ArtifactRequirementError::NotReady { requirement } => {
+                    format!("platform analysis did not converge: {requirement:?}")
+                }
+                ArtifactRequirementError::Failed { requirement } => {
+                    format!("failed to analyze platform modules: {requirement:?}")
+                }
+            })?;
 
-        // resolve builtin libraries for the target profile
-        let resolve_outcome = self
-            .compiler
-            .run_task(ArtifactKey::lib_environment(profile_id));
-        self.assert_task_complete(resolve_outcome, "ResolveLibs");
+        Ok(())
+    }
 
-        // build the full platform surface sequentially
-        for module_id in platform_modules {
-            let outcome = self
-                .compiler
-                .run_task(ArtifactKey::dir_patched(*module_id, profile_id));
-            let task_name = format!("BuildDirPatched({module_id:?})");
-            self.assert_task_complete(outcome, &task_name);
+    /// Require the full platform analysis surface for one profile.
+    fn require_platform_analysis(
+        &self,
+        compiler: &Compiler,
+        profile_id: ProfileId,
+        platform_modules: &[destack_source::ModuleId],
+    ) -> Result<(), ArtifactRequirementError> {
+        // collect the full root requirement set before driving
+        let mut collector = ArtifactRequirementCollector::new();
+
+        if let Some(error) =
+            collector.try_collect(compiler.require_language_environment(profile_id))
+        {
+            return Err(error);
         }
+
+        if let Some(error) = collector.try_collect(compiler.require_library_environment(profile_id))
+        {
+            return Err(error);
+        }
+
+        for module_id in platform_modules {
+            if let Some(error) =
+                collector.try_collect(compiler.require_dir_patched(*module_id, profile_id))
+            {
+                return Err(error);
+            }
+        }
+
+        if let Some(requirement) = collector.try_into_requirement() {
+            return Err(ArtifactRequirementError::NotReady { requirement });
+        }
+
+        Ok(())
     }
 
     /// Print diagnostics and stop on errors.
     /// TODO #Cleanup: use proper diagnostic reporting here?
-    fn report_diagnostics(&self) {
+    fn report_diagnostics(&self) -> Result<(), String> {
         // exit early when no errors are present
         if !self
             .program
             .diagnostics
             .has_diagnostics_of_severity(DiagnosticSeverity::Error)
         {
-            return;
+            return Ok(());
         }
 
-        panic!("binding generation failed due to diagnostics");
+        Err("binding generation failed due to diagnostics".to_string())
     }
 
     /// Filter platform modules by selected domain names.
@@ -176,10 +211,10 @@ impl RuntimeGenerator {
         &self,
         platform_modules: &[destack_source::ModuleId],
         domains: Option<&BTreeSet<String>>,
-    ) -> Vec<destack_source::ModuleId> {
+    ) -> Result<Vec<destack_source::ModuleId>, String> {
         // return all modules when no domain filter is active
         let Some(domains) = domains else {
-            return platform_modules.to_vec();
+            return Ok(platform_modules.to_vec());
         };
 
         // select modules by canonical builtin uri prefix
@@ -198,10 +233,23 @@ impl RuntimeGenerator {
         // fail loudly when no module matched the requested domains
         if selected.is_empty() {
             let requested = domains.iter().cloned().collect::<Vec<_>>().join(", ");
-            panic!("no platform modules matched requested domains: {requested}");
+            let available_modules = platform_modules
+                .iter()
+                .take(12)
+                .map(|module_id| {
+                    let module = self.program.modules.get(*module_id);
+                    let module = module.as_ref();
+                    module.uri.as_ref().to_string()
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            return Err(format!(
+                "no platform modules matched requested domains: {requested}; available modules: {available_modules}"
+            ));
         }
 
-        selected
+        Ok(selected)
     }
 
     /// Build the platform profile key for binding generation.
@@ -277,25 +325,6 @@ impl RuntimeGenerator {
         }
 
         Platform::Universal
-    }
-
-    /// Assert that one compiler task completed successfully.
-    fn assert_task_complete(&self, outcome: TaskOutcome, task_name: &str) {
-        match outcome {
-            TaskOutcome::Complete => {}
-            TaskOutcome::Skipped => {
-                panic!("binding generation task {task_name} was skipped");
-            }
-            TaskOutcome::Error { error } => {
-                panic!(
-                    "binding generation task {task_name} failed: {} ({error:?})",
-                    error.message(&self.program),
-                );
-            }
-            TaskOutcome::Yield { requirement } => {
-                panic!("binding generation task {task_name} yielded unexpectedly: {requirement:?}");
-            }
-        }
     }
 
     /// Collect and render bindings for all platform modules.
@@ -618,12 +647,13 @@ impl RuntimeGenerator {
 
 impl RuntimeGenerator {
     /// Run the platform binding generator from the current workspace.
-    pub(crate) fn run() {
+    pub(crate) fn run() -> Result<(), String> {
         // parse runtime binding generator options
-        let options = parse_generator_options();
+        let options = parse_generator_options()?;
 
         // build a compiler session for platform bindings
-        let cwd = std::env::current_dir().expect("failed to resolve current directory");
+        let cwd = std::env::current_dir()
+            .map_err(|error| format!("failed to resolve current directory: {error}"))?;
         let generator = Self::new(cwd);
 
         // configure the native profile for platform modules
@@ -636,7 +666,7 @@ impl RuntimeGenerator {
         // load the platform modules for analysis
         let platform_modules = generator.load_platform_modules(&profile_key);
         let selected_modules =
-            generator.select_modules(&platform_modules, options.domains.as_ref());
+            generator.select_modules(&platform_modules, options.domains.as_ref())?;
 
         // keep full analysis for whole-library generation
         // targeted domain runs should only analyze the selected surface so unrelated module drift
@@ -648,10 +678,10 @@ impl RuntimeGenerator {
         };
 
         // run analysis passes before extraction
-        generator.analyze_platform_modules(profile_id, &analysis_modules);
+        generator.analyze_platform_modules(profile_id, &analysis_modules)?;
 
         // validate diagnostics before rendering output
-        generator.report_diagnostics();
+        generator.report_diagnostics()?;
 
         // collect bindings and render outputs
         generator.generate_bindings(
@@ -663,12 +693,14 @@ impl RuntimeGenerator {
 
         // regenerate runtime capability kinds from intrinsic capability source of truth
         generate_platform_capability_kind();
+
+        Ok(())
     }
 
     /// Return true when one module uri matches one requested domain selector set.
     fn module_matches_requested_domains(module_uri: &str, domains: &BTreeSet<String>) -> bool {
         domains.iter().any(|domain| {
-            let prefix = format!("builtin://library/platform/{domain}/");
+            let prefix = format!("{PLATFORM_URI_PREFIX}{domain}/");
             module_uri.starts_with(&prefix)
         })
     }
@@ -687,15 +719,15 @@ mod tests {
         let domains = BTreeSet::from(["crypto".to_string(), "fs".to_string()]);
 
         assert!(RuntimeGenerator::module_matches_requested_domains(
-            "builtin://library/platform/crypto/key.ds",
+            "builtin://platform/crypto/key.ds",
             &domains
         ));
         assert!(RuntimeGenerator::module_matches_requested_domains(
-            "builtin://library/platform/fs/path.ds",
+            "builtin://platform/fs/path.ds",
             &domains
         ));
         assert!(!RuntimeGenerator::module_matches_requested_domains(
-            "builtin://library/platform/net/socket.ds",
+            "builtin://platform/net/socket.ds",
             &domains
         ));
     }
@@ -711,12 +743,16 @@ mod tests {
             .profiles
             .get_or_create(profile_key.clone());
         let platform_modules = generator.load_platform_modules(&profile_key);
-        let selected_modules = generator.select_modules(
-            &platform_modules,
-            Some(&BTreeSet::from(["time".to_string()])),
-        );
+        let selected_modules = generator
+            .select_modules(
+                &platform_modules,
+                Some(&BTreeSet::from(["time".to_string()])),
+            )
+            .expect("time domain should resolve");
 
-        generator.analyze_platform_modules(profile_id, &selected_modules);
+        generator
+            .analyze_platform_modules(profile_id, &selected_modules)
+            .expect("platform analysis should complete");
 
         let catalog = generator.collect_catalog(profile_id, &selected_modules);
         assert!(
@@ -737,12 +773,16 @@ mod tests {
             .profiles
             .get_or_create(profile_key.clone());
         let platform_modules = generator.load_platform_modules(&profile_key);
-        let selected_modules = generator.select_modules(
-            &platform_modules,
-            Some(&BTreeSet::from(["fs".to_string(), "os".to_string()])),
-        );
+        let selected_modules = generator
+            .select_modules(
+                &platform_modules,
+                Some(&BTreeSet::from(["fs".to_string(), "os".to_string()])),
+            )
+            .expect("fs and os domains should resolve");
 
-        generator.analyze_platform_modules(profile_id, &selected_modules);
+        generator
+            .analyze_platform_modules(profile_id, &selected_modules)
+            .expect("platform analysis should complete");
 
         let catalog = generator.collect_catalog(profile_id, &selected_modules);
         let fs_binding = &catalog["fs"]["destack.fs.xattr.listxattr"];
@@ -769,12 +809,16 @@ mod tests {
             .profiles
             .get_or_create(profile_key.clone());
         let platform_modules = generator.load_platform_modules(&profile_key);
-        let selected_modules = generator.select_modules(
-            &platform_modules,
-            Some(&BTreeSet::from(["crypto".to_string()])),
-        );
+        let selected_modules = generator
+            .select_modules(
+                &platform_modules,
+                Some(&BTreeSet::from(["crypto".to_string()])),
+            )
+            .expect("crypto domain should resolve");
 
-        generator.analyze_platform_modules(profile_id, &selected_modules);
+        generator
+            .analyze_platform_modules(profile_id, &selected_modules)
+            .expect("platform analysis should complete");
 
         let exported_types = collect_platform_types(
             &generator.compiler,
