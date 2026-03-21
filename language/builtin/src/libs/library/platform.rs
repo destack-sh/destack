@@ -308,6 +308,12 @@ builtin_lib_sources_targeted!(
             "backend.ds"
         ),
         (
+            LIB_PLATFORM_DISPLAY_DRAG_DS,
+            "library",
+            "platform/display",
+            "drag.ds"
+        ),
+        (
             LIB_PLATFORM_DISPLAY_FRAME_DS,
             "library",
             "platform/display",
@@ -492,12 +498,6 @@ builtin_lib_sources_targeted!(
             "library",
             "platform/input",
             "device.ds"
-        ),
-        (
-            LIB_PLATFORM_INPUT_DRAG_DS,
-            "library",
-            "platform/input",
-            "drag.ds"
         ),
         (
             LIB_PLATFORM_INPUT_EVENT_DS,
@@ -1210,6 +1210,7 @@ pub const LIB_PLATFORM: BuiltinLibrary = BuiltinLibrary::library(
         LIB_PLATFORM_DEVICE_SERIAL_DS,
         LIB_PLATFORM_DEVICE_USB_DS,
         LIB_PLATFORM_DISPLAY_BACKEND_DS,
+        LIB_PLATFORM_DISPLAY_DRAG_DS,
         LIB_PLATFORM_DISPLAY_FRAME_DS,
         LIB_PLATFORM_DISPLAY_INDEX_DS,
         LIB_PLATFORM_DISPLAY_MONITOR_DS,
@@ -1246,7 +1247,6 @@ pub const LIB_PLATFORM: BuiltinLibrary = BuiltinLibrary::library(
         LIB_PLATFORM_INDEX_DS,
         LIB_PLATFORM_INPUT_CLIPBOARD_DS,
         LIB_PLATFORM_INPUT_DEVICE_DS,
-        LIB_PLATFORM_INPUT_DRAG_DS,
         LIB_PLATFORM_INPUT_EVENT_DS,
         LIB_PLATFORM_INPUT_GAMEPAD_DS,
         LIB_PLATFORM_INPUT_HAPTICS_DS,

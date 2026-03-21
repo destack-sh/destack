@@ -1,11 +1,10 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { OsPath } from "../fs/path.ds";
-import { InputDragSessionHandle } from "../resource/index.ds";
-import { InputWindowTarget } from "./target.ds";
+import { DisplayDragSessionHandle, WindowHandle } from "../resource/index.ds";
 
 /// Drag operation selector.
-export enum InputDragOperation {
+export enum DisplayDragOperation {
     /// No accepted operation.
     None = 1,
     /// Copy the dragged payload.
@@ -17,22 +16,22 @@ export enum InputDragOperation {
 }
 
 /// Drag operation mask.
-export newtype InputDragOperationMask = uint32;
+export newtype DisplayDragOperationMask = uint32;
 
 /// No allowed operations.
-export const INPUT_DRAG_OPERATION_NONE: InputDragOperationMask = InputDragOperationMask(0x0);
+export const DISPLAY_DRAG_OPERATION_NONE: DisplayDragOperationMask = DisplayDragOperationMask(0x0);
 
 /// Copy operation.
-export const INPUT_DRAG_OPERATION_COPY: InputDragOperationMask = InputDragOperationMask(0x1);
+export const DISPLAY_DRAG_OPERATION_COPY: DisplayDragOperationMask = DisplayDragOperationMask(0x1);
 
 /// Move operation.
-export const INPUT_DRAG_OPERATION_MOVE: InputDragOperationMask = InputDragOperationMask(0x2);
+export const DISPLAY_DRAG_OPERATION_MOVE: DisplayDragOperationMask = DisplayDragOperationMask(0x2);
 
 /// Link operation.
-export const INPUT_DRAG_OPERATION_LINK: InputDragOperationMask = InputDragOperationMask(0x4);
+export const DISPLAY_DRAG_OPERATION_LINK: DisplayDragOperationMask = DisplayDragOperationMask(0x4);
 
 /// Item kind for one drag-transfer entry.
-export enum InputDragItemKind {
+export enum DisplayDragItemKind {
     /// One textual payload.
     String = 1,
     /// One filesystem payload.
@@ -42,7 +41,7 @@ export enum InputDragItemKind {
 }
 
 /// Drag position in window-local logical coordinates.
-export struct InputDragPosition {
+export struct DisplayDragPosition {
     /// Window-local logical x coordinate.
     x: int32;
     /// Window-local logical y coordinate.
@@ -50,9 +49,9 @@ export struct InputDragPosition {
 }
 
 /// One lazily readable drag-transfer item descriptor.
-export struct InputDragItemDescriptor {
+export struct DisplayDragItemDescriptor {
     /// Item kind.
-    kind: InputDragItemKind;
+    kind: DisplayDragItemKind;
     /// MIME type or platform-native type identifier when available.
     itemType: string | void;
     /// Suggested display name for file or binary payloads.
@@ -64,25 +63,25 @@ export struct InputDragItemDescriptor {
 }
 
 /// Shared drag-transfer metadata.
-export struct InputDragTransfer {
+export struct DisplayDragTransfer {
     /// Stable drag session handle.
-    session: InputDragSessionHandle;
+    session: DisplayDragSessionHandle;
     /// Whether the transfer originated outside the current runtime.
     isExternal: boolean;
     /// Operations offered by the drag source.
-    allowedOperations: InputDragOperationMask;
+    allowedOperations: DisplayDragOperationMask;
     /// Host-proposed operation from source state and gesture modifiers when known.
-    proposedOperation: InputDragOperation | void;
+    proposedOperation: DisplayDragOperation | void;
     /// Transfer position in window-local logical coordinates when available.
-    position: InputDragPosition | void;
+    position: DisplayDragPosition | void;
     /// Offered transfer items in source order.
-    items: Slice<InputDragItemDescriptor>;
+    items: Slice<DisplayDragItemDescriptor>;
 }
 
 /// One source-side drag item.
-export struct InputDragSourceItem {
+export struct DisplayDragSourceItem {
     /// Item kind.
-    kind: InputDragItemKind;
+    kind: DisplayDragItemKind;
     /// MIME type for this payload.
     itemType: string | void;
     /// Suggested display name for file or binary payloads.
@@ -96,7 +95,7 @@ export struct InputDragSourceItem {
 }
 
 /// One source-side drag preview image.
-export struct InputDragPreview {
+export struct DisplayDragPreview {
     /// Preview pixel format identifier.
     pixelFormat: uint32;
     /// Preview width in pixels.
@@ -112,21 +111,22 @@ export struct InputDragPreview {
 }
 
 /// Source-side drag options.
-export struct InputDragBeginOptions {
-    /// Source window target.
-    target: InputWindowTarget | void;
+export struct DisplayDragBeginOptions {
+    /// Source window when one explicit window scope is required.
+    /// When omitted, the active backend focus context is used.
+    window: WindowHandle | void;
     /// Operations offered to the drop destination.
-    allowedOperations: InputDragOperationMask;
+    allowedOperations: DisplayDragOperationMask;
     /// Drag items in source order.
-    items: Slice<InputDragSourceItem>;
+    items: Slice<DisplayDragSourceItem>;
     /// Suggested starting position in window-local logical coordinates.
-    position: InputDragPosition | void;
+    position: DisplayDragPosition | void;
     /// Optional preview image.
-    preview: InputDragPreview | void;
+    preview: DisplayDragPreview | void;
 }
 
 /// Drag bindings.
-declare namespace input {
+declare namespace display {
     /// Read one text item from one drag session.
     ///
     /// Read one text payload for the selected drag item.
@@ -138,14 +138,14 @@ declare namespace input {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `input.read`.
+    /// Requires `display.window.events`.
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.input.drag.sessionReadText", {
+    @binding("destack.display.drag.sessionReadText", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["input.read"],
+        capabilities: ["display.window.events"],
         platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
@@ -153,7 +153,7 @@ declare namespace input {
         affinity: "eventLoop",
     })
     export function dragSessionReadText(
-        session: InputDragSessionHandle,
+        session: DisplayDragSessionHandle,
         itemIndex: uint32,
     ): Result<string, PlatformError>;
 
@@ -168,14 +168,14 @@ declare namespace input {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `input.read`.
+    /// Requires `display.window.events`.
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.input.drag.sessionReadBytes", {
+    @binding("destack.display.drag.sessionReadBytes", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["input.read"],
+        capabilities: ["display.window.events"],
         platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
@@ -183,7 +183,7 @@ declare namespace input {
         affinity: "eventLoop",
     })
     export function dragSessionReadBytes(
-        session: InputDragSessionHandle,
+        session: DisplayDragSessionHandle,
         itemIndex: uint32,
     ): Result<Slice<uint8>, PlatformError>;
 
@@ -198,14 +198,14 @@ declare namespace input {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `input.read`.
+    /// Requires `display.window.events`.
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.input.drag.sessionReadPath", {
+    @binding("destack.display.drag.sessionReadPath", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["input.read"],
+        capabilities: ["display.window.events"],
         platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
@@ -213,7 +213,7 @@ declare namespace input {
         affinity: "eventLoop",
     })
     export function dragSessionReadPath(
-        session: InputDragSessionHandle,
+        session: DisplayDragSessionHandle,
         itemIndex: uint32,
     ): Result<OsPath, PlatformError>;
 
@@ -229,14 +229,14 @@ declare namespace input {
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `input.write`.
+    /// Requires `display.window.events`.
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding("destack.input.drag.sessionSetOperation", {
+    @binding("destack.display.drag.sessionSetOperation", {
         effect: "external",
         replay: "nonrecordable",
-        capabilities: ["input.write"],
+        capabilities: ["display.window.events"],
         platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
@@ -244,8 +244,8 @@ declare namespace input {
         affinity: "eventLoop",
     })
     export function dragSessionSetOperation(
-        session: InputDragSessionHandle,
-        operation: InputDragOperation,
+        session: DisplayDragSessionHandle,
+        operation: DisplayDragOperation,
     ): Result<void, PlatformError>;
 
     /// Close one drag session handle.
@@ -259,25 +259,25 @@ declare namespace input {
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `input.read`.
+    /// Requires `display.window.events`.
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.input.drag.sessionClose", {
+    @binding("destack.display.drag.sessionClose", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["input.read"],
+        capabilities: ["display.window.events"],
         platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "never",
         affinity: "eventLoop",
     })
-    export function dragSessionClose(session: InputDragSessionHandle): Result<void, PlatformError>;
+    export function dragSessionClose(session: DisplayDragSessionHandle): Result<void, PlatformError>;
 
     /// Begin one source-side drag session.
     ///
-    /// Start one host drag session from the selected window target.
+    /// Start one host drag session from the selected window.
     /// The call returns the operation chosen by the destination, or `None` when the session is cancelled or rejected.
     ///
     /// # Platform
@@ -287,14 +287,14 @@ declare namespace input {
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `input.write`.
+    /// Requires `display.window`.
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding("destack.input.drag.begin", {
+    @binding("destack.display.drag.begin", {
         effect: "external",
         replay: "nonrecordable",
-        capabilities: ["input.write"],
+        capabilities: ["display.window"],
         platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
@@ -302,6 +302,6 @@ declare namespace input {
         affinity: "eventLoop",
     })
     export function dragBegin(
-        options: InputDragBeginOptions,
-    ): Result<InputDragOperation, PlatformError>;
+        options: DisplayDragBeginOptions,
+    ): Result<DisplayDragOperation, PlatformError>;
 }

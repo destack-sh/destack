@@ -1,8 +1,8 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
+import { DisplayDragTransfer } from "../display/drag.ds";
 import { ClipboardItemDescriptor } from "./clipboard.ds";
 import { InputCompositionEvent, InputEventMetadata } from "./event.ds";
-import { InputDragTransfer } from "./drag.ds";
 import { InputDeviceHandle } from "../resource/index.ds";
 import { InputWindowTarget } from "./target.ds";
 
@@ -157,7 +157,7 @@ export struct InputEditIntentEvent {
     /// Clipboard item descriptors when this edit intent originated from paste or yank.
     clipboardItems: Slice<ClipboardItemDescriptor> | void;
     /// Drag transfer metadata when this edit intent originated from a drop session.
-    drag: InputDragTransfer | void;
+    drag: DisplayDragTransfer | void;
     /// Whether this edit intent belongs to one active composition session.
     isComposing: boolean;
 }
