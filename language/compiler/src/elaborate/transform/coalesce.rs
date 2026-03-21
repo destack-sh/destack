@@ -7,7 +7,7 @@ use dir::{
     TypeLiteral,
 };
 
-use crate::analyze::common::TypeContext;
+use crate::analyze::common::{AnalyzeIndex, TypeContext};
 use crate::elaborate::common::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
@@ -497,6 +497,7 @@ impl Compiler {
             state.tree,
             state.symbols,
             state.types,
+            AnalyzeIndex::default(),
         );
 
         let mut candidates = Vec::new();

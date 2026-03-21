@@ -1,4 +1,4 @@
-use crate::analyze::common::TypeContext;
+use crate::analyze::common::{AnalyzeIndex, TypeContext};
 use crate::timing::tags;
 use crate::{
     AnalyzeError, AnalyzeResult, ArtifactRequirementCollector, ArtifactRequirementError, Compiler,
@@ -35,8 +35,8 @@ impl Compiler {
                     .program
                     .artifacts
                     .module_graph(profile)
-                    .map(|graph| {
-                        let index = self.interface_component_graph_index(profile, &graph);
+                    .and_then(|_| self.interface_component_graph_index(profile))
+                    .map(|index| {
                         let current_component_id = index.component_id_for_module(current_module);
                         let target_component_id = index.component_id_for_module(module);
                         current_component_id.is_some()
@@ -123,6 +123,7 @@ impl Compiler {
                     tree.as_ref(),
                     symbols.as_ref(),
                     &mut types,
+                    AnalyzeIndex::default(),
                 );
 
                 {

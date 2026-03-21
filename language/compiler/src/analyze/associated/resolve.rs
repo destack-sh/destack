@@ -1,8 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::analyze::common::{
-    CanonicalSymbolMode, ModuleSymbolView, REWRITER_TAG_ASSOCIATED_ALIAS, TreeSymbolView,
-    TypeContext, TypeRewriteCache, TypeView, TypeWalkContext, TypeWalkKey, rewrite_type_with_cache,
+    AnalyzeIndex, CanonicalSymbolMode, ModuleSymbolView, REWRITER_TAG_ASSOCIATED_ALIAS,
+    TreeSymbolView, TypeContext, TypeRewriteCache, TypeView, TypeWalkContext, TypeWalkKey,
+    rewrite_type_with_cache,
 };
 use crate::{AnalyzeError, AnalyzeResult, Compiler, ResolveResult};
 use destack_core::StringId;
@@ -131,6 +132,7 @@ impl TypeRewriter for AssociatedAliasProjectionRewriter<'_> {
             self.tree,
             self.symbols,
             types,
+            AnalyzeIndex::default(),
         );
 
         // derive owner substitutions for associated aliases from the projection receiver

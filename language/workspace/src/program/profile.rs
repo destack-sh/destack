@@ -181,6 +181,11 @@ impl ProfileRegistry {
         self.profile_by_id.get(&id).map(|entry| entry.clone())
     }
 
+    /// Get the current version for one profile id.
+    pub fn version(&self, id: ProfileId) -> Option<ProfileVersion> {
+        self.profile_by_id.get(&id).map(|entry| entry.version)
+    }
+
     /// Bump the version for a profile id.
     ///
     /// # Panics

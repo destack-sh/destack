@@ -649,7 +649,15 @@ declare let value: Buffer<SIZE>;
         }
         let expression_id = expression_id.expect("expected SIZE reference");
         let options = test.compiler.analyze_context_options_for_module(module.id);
-        let mut ctx = TypeContext::new(module, profile, &options, tree, symbols, types);
+        let mut ctx = TypeContext::new(
+            module,
+            profile,
+            &options,
+            tree,
+            symbols,
+            types,
+            AnalyzeIndex::default(),
+        );
         let value = test
             .compiler
             .evaluate_static_expression_value(&mut ctx, expression_id, None)

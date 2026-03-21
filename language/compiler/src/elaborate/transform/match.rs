@@ -5,7 +5,7 @@ use dir::{
     PatternField, ScalarLiteral, StringId,
 };
 
-use crate::analyze::common::TypeContext;
+use crate::analyze::common::{AnalyzeIndex, TypeContext};
 use crate::elaborate::common::ElaborateState;
 use crate::{Compiler, ElaborateError, ElaborateResult};
 
@@ -1278,6 +1278,7 @@ impl Compiler {
             state.tree,
             state.symbols,
             state.types,
+            AnalyzeIndex::default(),
         );
         let runtime_check_kind = self.runtime_check_kind_for_relation(
             &mut ctx.reborrow(),

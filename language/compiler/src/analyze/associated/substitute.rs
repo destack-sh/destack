@@ -214,6 +214,7 @@ impl Compiler {
                             view.tree,
                             view.symbols,
                             ctx.types,
+                            ctx.index.clone(),
                         );
                         let expression_id = heritage_expression_id.local_id;
                         let expression = view.tree.get(expression_id);
@@ -499,6 +500,7 @@ impl Compiler {
                             view.tree,
                             view.symbols,
                             ctx.types,
+                            ctx.index.clone(),
                         );
                         self.interface_substitutions_for_owner_implements_types(
                             &mut ctx,
@@ -563,6 +565,7 @@ impl Compiler {
                     view.tree,
                     view.symbols,
                     ctx.types,
+                    ctx.index.clone(),
                 );
                 self.interface_substitutions_for_owner_implements_types(
                     &mut ctx,
@@ -1912,6 +1915,7 @@ impl Compiler {
                         view.tree,
                         view.symbols,
                         ctx.types,
+                        ctx.index.clone(),
                     );
                     self.apply_projection_substitutions_from_expression(
                         &mut ctx,

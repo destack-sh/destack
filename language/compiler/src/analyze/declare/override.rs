@@ -78,7 +78,7 @@ impl Compiler {
             Ok(arguments) => arguments.unwrap_or_default(),
             Err(_) => return HashMap::new(),
         };
-        let static_arguments = match self.resolve_type_reference_static_arguments(
+        let static_arguments = match self.resolve_declared_type_reference_static_arguments(
             &mut ctx.reborrow(),
             extends_type_id.into_any(),
             base_symbol,

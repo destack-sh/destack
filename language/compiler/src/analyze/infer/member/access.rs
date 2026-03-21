@@ -158,6 +158,7 @@ impl Compiler {
                 import_meta_symbol,
             )
             .or(self.import_instance_type_for_symbol(
+                &ctx.index,
                 ctx.profile,
                 receiver_id.into_any(),
                 import_meta_symbol,
@@ -373,6 +374,7 @@ impl Compiler {
                     import_meta_symbol,
                 )
                 .or(self.import_instance_type_for_symbol(
+                    &ctx.index,
                     ctx.profile,
                     receiver_id.into_any(),
                     import_meta_symbol,
@@ -512,6 +514,7 @@ impl Compiler {
                     import_meta_symbol,
                 )
                 .or(self.import_instance_type_for_symbol(
+                    &ctx.index,
                     ctx.profile,
                     receiver_id.into_any(),
                     import_meta_symbol,

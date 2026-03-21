@@ -481,6 +481,7 @@ impl Compiler {
                         &mut ctx.reborrow(),
                         declaration_id,
                         descriptor.symbol,
+                        symbol,
                         &shape,
                         false,
                     );
@@ -577,6 +578,7 @@ impl Compiler {
                     &mut ctx.reborrow(),
                     declaration_id,
                     descriptor.symbol,
+                    symbol,
                     &value_shape,
                     allow_merge,
                 );
@@ -677,6 +679,7 @@ impl Compiler {
                     &mut ctx.reborrow(),
                     declaration_id,
                     descriptor.symbol,
+                    symbol,
                     &value_shape,
                     allow_merge,
                 );
@@ -781,6 +784,7 @@ impl Compiler {
                     &mut ctx.reborrow(),
                     declaration_id,
                     descriptor.symbol,
+                    symbol,
                     &value_shape,
                     allow_merge,
                 );

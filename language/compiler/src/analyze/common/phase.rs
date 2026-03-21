@@ -1,4 +1,5 @@
 use crate::AnalyzeOptions;
+use crate::analyze::common::AnalyzeIndex;
 use destack_dir::{InferTable, NodeTree, SymbolTable, TypeTable};
 use destack_workspace::{Module, ProfileId};
 
@@ -35,7 +36,7 @@ impl<'a> TypeView<'a> {
         }
     }
 
-    /// Borrow this type-ctx view as an immutable symbol-and-type view.
+    /// Borrow this type view as an immutable symbol-and-type view.
     pub(crate) fn symbol_type_view(&self) -> SymbolTypeView<'_> {
         SymbolTypeView {
             module: self.module,
@@ -79,7 +80,7 @@ pub(crate) struct TreeSymbolView<'a> {
 }
 
 impl<'a> TreeSymbolView<'a> {
-    /// Construct an immutable module, tree, and symbol ctx view.
+    /// Construct an immutable module, tree, and symbol view.
     pub(crate) fn new(
         module: &'a Module,
         profile: ProfileId,
@@ -173,7 +174,7 @@ pub(crate) struct SymbolTypeView<'a> {
 }
 
 impl<'a> SymbolTypeView<'a> {
-    /// Construct an immutable symbol-and-type ctx view.
+    /// Construct an immutable symbol-and-type view.
     pub(crate) fn new(
         module: &'a Module,
         profile: ProfileId,
@@ -220,6 +221,8 @@ pub(crate) struct CommitContext<'a> {
     pub symbols: &'a SymbolTable,
     /// The active analysis options.
     pub options: &'a AnalyzeOptions,
+    /// The task-local analyze index.
+    pub index: AnalyzeIndex,
     /// The mutable committed type table.
     pub types: &'a mut TypeTable,
 }
@@ -233,6 +236,7 @@ impl<'a> CommitContext<'a> {
         tree: &'a NodeTree,
         symbols: &'a SymbolTable,
         types: &'a mut TypeTable,
+        index: AnalyzeIndex,
     ) -> Self {
         Self {
             module,
@@ -240,6 +244,7 @@ impl<'a> CommitContext<'a> {
             tree,
             symbols,
             options,
+            index,
             types,
         }
     }
@@ -252,6 +257,7 @@ impl<'a> CommitContext<'a> {
             options: self.options,
             tree: self.tree,
             symbols: self.symbols,
+            index: self.index.clone(),
             types: self.types,
         }
     }
@@ -268,6 +274,8 @@ pub(crate) struct AssignContext<'a> {
     pub tree: &'a NodeTree,
     /// The symbol table for relation checks.
     pub symbols: &'a SymbolTable,
+    /// The task-local analyze index.
+    pub index: AnalyzeIndex,
     /// The mutable type table for normalization and relation checks.
     pub types: &'a mut TypeTable,
     /// The active analysis options.
@@ -282,12 +290,13 @@ impl<'a> AssignContext<'a> {
             profile: self.profile,
             tree: self.tree,
             symbols: self.symbols,
+            index: self.index.clone(),
             types: self.types,
             options: self.options,
         }
     }
 
-    /// Reborrow this assign context as a type-ctx context.
+    /// Reborrow this assign context as a type-resolution context.
     pub(crate) fn type_context_reborrow(&mut self) -> TypeContext<'_> {
         TypeContext {
             module: self.module,
@@ -295,6 +304,7 @@ impl<'a> AssignContext<'a> {
             options: self.options,
             tree: self.tree,
             symbols: self.symbols,
+            index: self.index.clone(),
             types: self.types,
         }
     }
@@ -332,6 +342,8 @@ pub(crate) struct TypeContext<'a> {
     pub tree: &'a NodeTree,
     /// The symbol table for the active module.
     pub symbols: &'a SymbolTable,
+    /// The task-local analyze index.
+    pub index: AnalyzeIndex,
     /// The mutable type table for type-resolution operations.
     pub types: &'a mut TypeTable,
 }
@@ -345,6 +357,7 @@ impl<'a> TypeContext<'a> {
         tree: &'a NodeTree,
         symbols: &'a SymbolTable,
         types: &'a mut TypeTable,
+        index: AnalyzeIndex,
     ) -> Self {
         Self {
             module,
@@ -352,6 +365,7 @@ impl<'a> TypeContext<'a> {
             options,
             tree,
             symbols,
+            index,
             types,
         }
     }
@@ -380,6 +394,7 @@ impl<'a> TypeContext<'a> {
             options: self.options,
             tree: self.tree,
             symbols: self.symbols,
+            index: self.index.clone(),
             types: self.types,
         }
     }
@@ -434,7 +449,7 @@ impl<'a> TypeContext<'a> {
     }
 }
 
-/// Shared mutable infer context for tree, symbols, types, and infer ctx.
+/// Shared mutable infer context for tree, symbols, types, and infer state.
 #[derive(Debug)]
 pub(crate) struct InferContext<'a> {
     /// The module under analysis.
@@ -447,6 +462,8 @@ pub(crate) struct InferContext<'a> {
     pub tree: &'a NodeTree,
     /// The symbol table for the active module.
     pub symbols: &'a SymbolTable,
+    /// The task-local analyze index.
+    pub index: AnalyzeIndex,
     /// The mutable type table for infer operations.
     pub types: &'a mut TypeTable,
     /// The mutable infer table for infer operations.
@@ -463,6 +480,7 @@ impl<'a> InferContext<'a> {
         symbols: &'a SymbolTable,
         types: &'a mut TypeTable,
         infer: &'a mut InferTable,
+        index: AnalyzeIndex,
     ) -> Self {
         Self {
             module,
@@ -470,6 +488,7 @@ impl<'a> InferContext<'a> {
             options,
             tree,
             symbols,
+            index,
             types,
             infer,
         }
@@ -483,6 +502,7 @@ impl<'a> InferContext<'a> {
             options: self.options,
             tree: self.tree,
             symbols: self.symbols,
+            index: self.index.clone(),
             types: self.types,
             infer: self.infer,
         }
@@ -496,11 +516,12 @@ impl<'a> InferContext<'a> {
             options: self.options,
             tree: self.tree,
             symbols: self.symbols,
+            index: self.index.clone(),
             types: self.types,
         }
     }
 
-    /// Borrow this infer context as an immutable type-ctx view.
+    /// Borrow this infer context as an immutable type view.
     pub(crate) fn type_view(&self) -> TypeView<'_> {
         TypeView {
             module: self.module,
@@ -549,7 +570,7 @@ impl<'a> InferContext<'a> {
         }
     }
 
-    /// Split this infer context into type ctx and infer table borrows.
+    /// Split this infer context into type-context and infer-table borrows.
     pub(crate) fn split_type_context_and_infer(&mut self) -> (TypeContext<'_>, &mut InferTable) {
         (
             TypeContext {
@@ -558,6 +579,7 @@ impl<'a> InferContext<'a> {
                 options: self.options,
                 tree: self.tree,
                 symbols: self.symbols,
+                index: self.index.clone(),
                 types: self.types,
             },
             self.infer,

@@ -4,9 +4,10 @@ use destack_core::StringPool;
 use destack_dir::{Dumper, DumperOptions, NodeVisitor};
 use destack_source::{File, FileId, FileType, FileVersion, TemporaryPhysicalFileSystem, Uri};
 use destack_workspace::{
-    ArtifactImage, ArtifactImageHeader, ArtifactImageKey, ArtifactStore, Ast, AstImage, CacheStore,
-    Destack, DirPrepared, DirResolved, EnvSnapshot, LanguageEnvironment, MemoryCacheStore,
-    OutputFormat, Platform, ProfileFlags, ProfileKey, Program, Runtime, Session, Workspace,
+    ArtifactDependency, ArtifactImage, ArtifactImageHeader, ArtifactImageKey, ArtifactKey,
+    ArtifactStore, Ast, AstImage, CacheStore, Destack, DirPrepared, DirResolved, EnvSnapshot,
+    LanguageEnvironment, MemoryCacheStore, OutputFormat, Platform, ProfileFlags, ProfileKey,
+    Program, Runtime, Session, Workspace,
 };
 
 use crate::{Compiler, CompilerOptions};
@@ -229,7 +230,7 @@ fn test_compiler_reuses_language_environment_image_across_sessions() {
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
     let profile_id = program.default_profile_id_for_module(module_id);
     compiler
-        .drive(|compiler| compiler.process_language_environment(profile_id))
+        .run_to_completion(|compiler| compiler.process_language_environment(profile_id))
         .unwrap_or_else(|error| panic!("failed to persist language environment: {error:?}"));
     let expected = compiler
         .program
@@ -269,6 +270,80 @@ fn test_compiler_reuses_language_environment_image_across_sessions() {
         .unwrap_or_else(|error| panic!("failed to load language environment: {error:?}"));
     assert_eq!(resolved.items, expected.items);
     assert_eq!(resolved.symbols, expected.symbols);
+}
+
+/// Invalidate a resolved directory when its library environment dependency changes.
+#[test]
+fn test_resolved_dir_tracks_library_environment_requirements() {
+    let root =
+        TemporaryPhysicalFileSystem::new_with_prefix("resolved_dir_environment_requirements");
+    let (_session, program, compiler, module_path) = build_memory_cache_compiler(&root);
+
+    // build the resolved directory through the public requirement path
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
+    let profile_id = program.default_profile_id_for_module(module_id);
+    compiler
+        .run_to_completion(|compiler| compiler.require_dir_resolved(module_id, profile_id))
+        .unwrap_or_else(|error| panic!("failed to require resolved dir: {error:?}"));
+
+    let resolved_key = ArtifactKey::dir_resolved(module_id, profile_id);
+    assert!(compiler.artifact_key_is_available(&resolved_key));
+
+    // perturb the published library environment dependency
+    let environment_key = ArtifactKey::library_environment(profile_id);
+    let dependency = program
+        .artifacts
+        .dependency(&environment_key)
+        .unwrap_or_else(|| panic!("expected published library environment dependency"));
+    let bumped_dependency = ArtifactDependency::new(dependency.0.wrapping_add(1));
+    program
+        .artifacts
+        .set_dependency(environment_key, bumped_dependency);
+
+    // the resolved dir should now be considered stale
+    assert!(!compiler.artifact_key_is_available(&resolved_key));
+}
+
+/// Invalidate a library environment when one recorded exact requirement changes.
+#[test]
+fn test_library_environment_tracks_exact_requirements() {
+    let root = TemporaryPhysicalFileSystem::new_with_prefix("library_environment_requirements");
+    let (_session, program, compiler, module_path) = build_memory_cache_compiler(&root);
+
+    // build the library environment through the public requirement path
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
+    let profile_id = program.default_profile_id_for_module(module_id);
+    compiler
+        .run_to_completion(|compiler| compiler.require_library_environment(profile_id))
+        .unwrap_or_else(|error| panic!("failed to require library environment: {error:?}"));
+
+    let environment_key = ArtifactKey::library_environment(profile_id);
+    assert!(compiler.artifact_key_is_available(&environment_key));
+
+    // inspect the recorded exact requirements for the completed task
+    let handle = compiler
+        .task_handles()
+        .into_iter()
+        .find(|handle| handle.artifact_key == environment_key)
+        .unwrap_or_else(|| panic!("expected library environment task handle"));
+    let requirement = handle
+        .final_requirements
+        .first()
+        .cloned()
+        .unwrap_or_else(|| panic!("expected library environment exact requirements"));
+
+    // perturb one recorded requirement dependency
+    let bumped_dependency = ArtifactDependency::new(requirement.dependency.0.wrapping_add(1));
+    program
+        .artifacts
+        .set_dependency(requirement.key, bumped_dependency);
+
+    // the environment should now be considered stale
+    assert!(!compiler.artifact_key_is_available(&environment_key));
 }
 
 /// Persist and load one AST image through the artifact store.
@@ -325,7 +400,7 @@ fn test_compiler_reuses_ast_image_across_sessions() {
         .resolve_path_to_module(&module_path)
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
     compiler
-        .drive(|compiler| compiler.process_ast(module_id))
+        .run_to_completion(|compiler| compiler.process_ast(module_id))
         .unwrap_or_else(|error| panic!("failed to build ast: {error:?}"));
     let expected = compiler
         .program
@@ -389,7 +464,7 @@ fn test_compiler_reuses_ast_image_across_sessions() {
 
     // validate the public compiler path too
     compiler
-        .drive(|compiler| compiler.process_ast(module_id))
+        .run_to_completion(|compiler| compiler.process_ast(module_id))
         .unwrap_or_else(|error| panic!("failed to load ast: {error:?}"));
     let resolved = compiler
         .program
@@ -414,7 +489,7 @@ fn test_compiler_invalidates_ast_image_when_source_changes() {
         .resolve_path_to_module(&module_path)
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
     compiler
-        .drive(|compiler| compiler.process_ast(module_id))
+        .run_to_completion(|compiler| compiler.process_ast(module_id))
         .unwrap_or_else(|error| panic!("failed to build ast: {error:?}"));
     let expected = compiler
         .program
@@ -478,7 +553,7 @@ fn test_compiler_invalidates_ast_image_when_source_changes() {
 
     // rebuild and confirm the ast really changed
     compiler
-        .drive(|compiler| compiler.process_ast(module_id))
+        .run_to_completion(|compiler| compiler.process_ast(module_id))
         .unwrap_or_else(|error| panic!("failed to rebuild ast: {error:?}"));
     let rebuilt = compiler
         .program
@@ -504,7 +579,7 @@ fn test_compiler_reuses_dir_prepared_image_across_sessions() {
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
     let profile_id = program.default_profile_id_for_module(module_id);
     compiler
-        .drive(|compiler| compiler.process_dir_prepared(module_id, profile_id))
+        .run_to_completion(|compiler| compiler.process_dir_prepared(module_id, profile_id))
         .unwrap_or_else(|error| panic!("failed to build prepared dir: {error:?}"));
     let expected = compiler
         .program
@@ -543,7 +618,7 @@ fn test_compiler_reuses_dir_prepared_image_across_sessions() {
 
     // load current source state before attempting direct dir image reuse
     compiler
-        .drive(|compiler| compiler.process_dir_base(module_id))
+        .run_to_completion(|compiler| compiler.process_dir_base(module_id))
         .unwrap_or_else(|error| {
             panic!("failed to build dir base for prepared dir reuse: {error:?}")
         });
@@ -562,7 +637,7 @@ fn test_compiler_reuses_dir_prepared_image_across_sessions() {
 
     // validate the public compiler path too
     compiler
-        .drive(|compiler| compiler.process_dir_prepared(module_id, profile_id))
+        .run_to_completion(|compiler| compiler.process_dir_prepared(module_id, profile_id))
         .unwrap_or_else(|error| panic!("failed to load prepared dir: {error:?}"));
     let resolved = compiler
         .program
@@ -589,7 +664,7 @@ fn test_compiler_invalidates_dir_prepared_image_when_source_changes() {
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
     let profile_id = program.default_profile_id_for_module(module_id);
     compiler
-        .drive(|compiler| compiler.process_dir_prepared(module_id, profile_id))
+        .run_to_completion(|compiler| compiler.process_dir_prepared(module_id, profile_id))
         .unwrap_or_else(|error| panic!("failed to build prepared dir: {error:?}"));
     let expected = compiler
         .program
@@ -621,7 +696,7 @@ fn test_compiler_invalidates_dir_prepared_image_when_source_changes() {
 
     // load current source state before attempting direct dir image reuse
     compiler
-        .drive(|compiler| compiler.process_dir_base(module_id))
+        .run_to_completion(|compiler| compiler.process_dir_base(module_id))
         .unwrap_or_else(|error| {
             panic!("failed to build dir base for invalidation check: {error:?}")
         });
@@ -637,7 +712,7 @@ fn test_compiler_invalidates_dir_prepared_image_when_source_changes() {
 
     // rebuild through the public compiler path and confirm the prepared dir changed
     compiler
-        .drive(|compiler| compiler.process_dir_prepared(module_id, profile_id))
+        .run_to_completion(|compiler| compiler.process_dir_prepared(module_id, profile_id))
         .unwrap_or_else(|error| panic!("failed to rebuild prepared dir: {error:?}"));
     let rebuilt = compiler
         .program
@@ -664,7 +739,7 @@ fn test_compiler_invalidates_dir_prepared_image_when_workspace_strings_change() 
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
     let profile_id = program.default_profile_id_for_module(module_id);
     compiler
-        .drive(|compiler| compiler.process_dir_prepared(module_id, profile_id))
+        .run_to_completion(|compiler| compiler.process_dir_prepared(module_id, profile_id))
         .unwrap_or_else(|error| panic!("failed to build prepared dir: {error:?}"));
 
     // mutate the shared string universe after the image was produced
@@ -692,7 +767,7 @@ fn test_compiler_reuses_dir_resolved_image_across_sessions() {
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
     let profile_id = program.default_profile_id_for_module(module_id);
     compiler
-        .drive(|compiler| compiler.process_dir_resolved(module_id, profile_id))
+        .run_to_completion(|compiler| compiler.process_dir_resolved(module_id, profile_id))
         .unwrap_or_else(|error| panic!("failed to build resolved dir: {error:?}"));
     let expected = compiler
         .program
@@ -731,7 +806,7 @@ fn test_compiler_reuses_dir_resolved_image_across_sessions() {
 
     // load current source state before attempting direct dir image reuse
     compiler
-        .drive(|compiler| compiler.process_dir_base(module_id))
+        .run_to_completion(|compiler| compiler.process_dir_base(module_id))
         .unwrap_or_else(|error| {
             panic!("failed to build dir base for resolved dir reuse: {error:?}")
         });
@@ -750,7 +825,7 @@ fn test_compiler_reuses_dir_resolved_image_across_sessions() {
 
     // validate the public compiler path too
     compiler
-        .drive(|compiler| compiler.process_dir_resolved(module_id, profile_id))
+        .run_to_completion(|compiler| compiler.process_dir_resolved(module_id, profile_id))
         .unwrap_or_else(|error| panic!("failed to load resolved dir: {error:?}"));
     let resolved = compiler
         .program
@@ -777,7 +852,7 @@ fn test_compiler_invalidates_dir_resolved_image_when_source_changes() {
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
     let profile_id = program.default_profile_id_for_module(module_id);
     compiler
-        .drive(|compiler| compiler.process_dir_resolved(module_id, profile_id))
+        .run_to_completion(|compiler| compiler.process_dir_resolved(module_id, profile_id))
         .unwrap_or_else(|error| panic!("failed to build resolved dir: {error:?}"));
     let expected = compiler
         .program
@@ -809,7 +884,7 @@ fn test_compiler_invalidates_dir_resolved_image_when_source_changes() {
 
     // load current source state before attempting direct dir image reuse
     compiler
-        .drive(|compiler| compiler.process_dir_base(module_id))
+        .run_to_completion(|compiler| compiler.process_dir_base(module_id))
         .unwrap_or_else(|error| {
             panic!("failed to build dir base for invalidation check: {error:?}")
         });
@@ -825,7 +900,7 @@ fn test_compiler_invalidates_dir_resolved_image_when_source_changes() {
 
     // rebuild through the public compiler path and confirm the resolved dir changed
     compiler
-        .drive(|compiler| compiler.process_dir_resolved(module_id, profile_id))
+        .run_to_completion(|compiler| compiler.process_dir_resolved(module_id, profile_id))
         .unwrap_or_else(|error| panic!("failed to rebuild resolved dir: {error:?}"));
     let rebuilt = compiler
         .program
@@ -852,7 +927,7 @@ fn test_compiler_invalidates_dir_resolved_image_when_workspace_strings_change() 
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
     let profile_id = program.default_profile_id_for_module(module_id);
     compiler
-        .drive(|compiler| compiler.process_dir_resolved(module_id, profile_id))
+        .run_to_completion(|compiler| compiler.process_dir_resolved(module_id, profile_id))
         .unwrap_or_else(|error| panic!("failed to build resolved dir: {error:?}"));
 
     // mutate the shared string universe after the image was produced

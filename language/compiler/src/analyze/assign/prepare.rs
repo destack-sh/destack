@@ -28,7 +28,7 @@ impl Compiler {
 
         // remote declared types reuse local storage with owner syntax and symbols
         let dir = self
-            .require_artifact_dir_declared(module_id, ctx.profile)
+            .require_indexed_dir_declared(&ctx.index, module_id, ctx.profile)
             .map_err(AnalyzeError::from)?;
         let module = self.program.modules.get(module_id);
         let module = module.as_ref();
@@ -40,6 +40,7 @@ impl Compiler {
             &dir.tree,
             &dir.symbols,
             ctx.types,
+            ctx.index.clone(),
         );
 
         self.resolve_declared_type_or_report(&mut owner_ctx, type_id);

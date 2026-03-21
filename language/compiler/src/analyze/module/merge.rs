@@ -1,13 +1,15 @@
 use std::collections::HashSet;
 
-use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace};
+use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace, SymbolTable};
+use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 
-use crate::analyze::common::ModuleSymbolView;
-use crate::{ArtifactRequirementError, Compiler};
+use super::super::AnalyzeResult;
+use crate::Compiler;
+use crate::analyze::common::{AnalyzeIndex, GlobalMergeSourcesKey, ModuleSymbolView};
 
 /// Select merge source categories for global declaration merging.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, Hash, PartialEq)]
 pub(crate) enum GlobalMergeCategory {
     /// Merge instance side declarations, like interface and class instance members.
     Instance,
@@ -18,122 +20,193 @@ pub(crate) enum GlobalMergeCategory {
 }
 
 impl Compiler {
-    /// Normalize a merge source symbol to its declared symbol type.
-    fn normalize_merge_source_symbol_type(
+    /// Normalize one merge source symbol against declared symbol facts.
+    fn normalize_declared_merge_source_symbol(
         &self,
+        index: &AnalyzeIndex,
+        current_module_id: ModuleId,
+        current_symbols: &SymbolTable,
         profile: ProfileId,
         symbol: GlobalSymbolId,
-    ) -> GlobalSymbolId {
-        let owner_snapshot = match self.require_artifact_dir_declared(symbol.module_id, profile) {
-            Ok(snapshot) => snapshot,
-            Err(_) => return symbol,
-        };
-        let owner_symbol = owner_snapshot.symbols.get_symbol(symbol.local_id);
+    ) -> AnalyzeResult<GlobalSymbolId> {
+        // use local declared facts for the current module
+        if symbol.module_id == current_module_id {
+            let owner_symbol = current_symbols.get_symbol(symbol.local_id);
+            return Ok(GlobalSymbolId::new(
+                symbol.module_id,
+                symbol.local_id.with_type(owner_symbol.ty),
+            ));
+        }
 
-        // normalize to the owner-declared symbol type
-        GlobalSymbolId::new(symbol.module_id, symbol.local_id.with_type(owner_symbol.ty))
+        // otherwise read the published declared artifact once
+        let owner_dir = self.require_indexed_dir_declared(index, symbol.module_id, profile)?;
+
+        let owner_symbol = owner_dir.symbols.get_symbol(symbol.local_id);
+        Ok(GlobalSymbolId::new(
+            symbol.module_id,
+            symbol.local_id.with_type(owner_symbol.ty),
+        ))
+    }
+
+    /// Normalize one merge candidate group while preserving source order.
+    fn collect_normalized_merge_sources(
+        &self,
+        index: &AnalyzeIndex,
+        current_module_id: ModuleId,
+        current_symbols: &SymbolTable,
+        profile: ProfileId,
+        raw_symbols: impl IntoIterator<Item = GlobalSymbolId>,
+    ) -> AnalyzeResult<Vec<GlobalSymbolId>> {
+        // normalize and dedupe the source set
+        let mut normalized_symbols = Vec::new();
+        let mut seen = HashSet::new();
+        for symbol in raw_symbols {
+            let normalized_symbol = self.normalize_declared_merge_source_symbol(
+                index,
+                current_module_id,
+                current_symbols,
+                profile,
+                symbol,
+            )?;
+            if seen.insert(normalized_symbol) {
+                normalized_symbols.push(normalized_symbol);
+            }
+        }
+
+        Ok(normalized_symbols)
     }
 
     /// Collect global and ambient merge sources for a symbol key and category.
     pub(crate) fn collect_global_merge_sources_for_key(
         &self,
         module: &Module,
+        index: &AnalyzeIndex,
+        current_symbols: &SymbolTable,
         profile: ProfileId,
         key: StaticKey,
         anchor_space: SymbolSpace,
         category: GlobalMergeCategory,
-    ) -> Vec<GlobalSymbolId> {
-        // collect global symbols from compatible spaces
-        let mut symbols = Vec::new();
-        for space in self.global_merge_spaces_for_category(anchor_space, category) {
-            if let Some(group) = self.get_global_symbol_group(module.id, profile, key, *space) {
-                symbols.extend(group);
-            }
-        }
+    ) -> AnalyzeResult<Vec<GlobalSymbolId>> {
+        let cache_key = GlobalMergeSourcesKey {
+            module: module.id,
+            profile,
+            key,
+            anchor_space,
+            category,
+        };
 
-        // collect ambient symbols from compatible spaces for user modules
-        if !self.module_is_ambient_lib(module) {
+        // collect raw merge candidates from global and library facts
+        let raw_symbols = if let Some(raw_symbols) = index.global_merge_sources(cache_key) {
+            raw_symbols
+        } else {
+            let mut raw_symbols = Vec::new();
             for space in self.global_merge_spaces_for_category(anchor_space, category) {
-                if let Some(group) = self.get_library_symbol_sources_for_merge(profile, key, *space)
-                {
-                    symbols.extend(group);
+                if let Some(group) = self.get_global_symbol_group(module.id, profile, key, *space) {
+                    raw_symbols.extend(group);
                 }
             }
-        }
 
-        // normalize symbol typing before deduplication
-        let symbols = symbols
-            .into_iter()
-            .map(|symbol| self.normalize_merge_source_symbol_type(profile, symbol))
-            .collect::<Vec<_>>();
-
-        // keep stable order while deduplicating
-        let mut seen = HashSet::new();
-        let mut deduped = Vec::with_capacity(symbols.len());
-        for symbol in symbols {
-            if seen.insert(symbol) {
-                deduped.push(symbol);
+            // include library merge candidates for user modules
+            if !self.module_is_ambient_lib(module) {
+                for space in self.global_merge_spaces_for_category(anchor_space, category) {
+                    if let Some(group) =
+                        self.get_library_symbol_sources_for_merge(profile, key, *space)
+                    {
+                        raw_symbols.extend(group);
+                    }
+                }
             }
-        }
 
-        deduped
+            index.set_global_merge_sources(cache_key, raw_symbols.clone());
+            raw_symbols
+        };
+
+        self.collect_normalized_merge_sources(
+            index,
+            module.id,
+            current_symbols,
+            profile,
+            raw_symbols,
+        )
     }
 
-    /// Select one canonical type-space symbol for a merge key.
-    pub(crate) fn select_canonical_type_symbol(
+    /// Select one preferred type-space carrier symbol for a merge key.
+    pub(crate) fn select_preferred_type_carrier_symbol(
         &self,
         module: &Module,
+        index: &AnalyzeIndex,
+        current_symbols: &SymbolTable,
         profile: ProfileId,
         key: StaticKey,
-    ) -> Option<GlobalSymbolId> {
-        // collect type-space candidates from global and ambient sources
-        let mut candidates = Vec::new();
-        if let Some(group) =
-            self.get_global_symbol_group(module.id, profile, key, SymbolSpace::Type)
-        {
-            candidates.extend(group);
-        }
-        if let Some(group) =
-            self.get_library_symbol_sources_for_merge(profile, key, SymbolSpace::Type)
-        {
-            candidates.extend(group);
-        }
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
+        // normalize candidates before canonical ordering
+        let mut normalized_symbols = self.collect_global_merge_sources_for_key(
+            module,
+            index,
+            current_symbols,
+            profile,
+            key,
+            SymbolSpace::Type,
+            GlobalMergeCategory::Instance,
+        )?;
 
-        // normalize and dedupe candidates first
-        let mut normalized = candidates
-            .into_iter()
-            .map(|symbol| self.normalize_merge_source_symbol_type(profile, symbol))
-            .collect::<Vec<_>>();
-        normalized.sort_unstable();
-        normalized.dedup();
+        // keep value-only symbols out of the canonical type carrier search
+        normalized_symbols.retain(|symbol| {
+            if symbol.module_id == module.id {
+                let owner_symbol = current_symbols.get_symbol(symbol.local_id);
+                return owner_symbol.space == SymbolSpace::Type
+                    || owner_symbol.space == SymbolSpace::TypeValue;
+            }
+
+            if let Some(owner_dir) = index.declared_directory(symbol.module_id, profile) {
+                let owner_symbol = owner_dir.symbols.get_symbol(symbol.local_id);
+                return owner_symbol.space == SymbolSpace::Type
+                    || owner_symbol.space == SymbolSpace::TypeValue;
+            }
+
+            true
+        });
 
         // prefer local-module carriers, then canonical global order
-        normalized.sort_unstable_by_key(|symbol| (symbol.module_id != module.id, *symbol));
-        normalized.into_iter().next()
+        normalized_symbols.sort_unstable_by_key(|symbol| (symbol.module_id != module.id, *symbol));
+        Ok(normalized_symbols.into_iter().next())
     }
 
     /// Remap one symbol from typevalue space to canonical type-space carrier.
     pub(crate) fn remap_typevalue_symbol_to_type_space(
         &self,
         view: ModuleSymbolView<'_>,
+        index: &AnalyzeIndex,
         symbol: GlobalSymbolId,
-    ) -> Result<GlobalSymbolId, ArtifactRequirementError> {
+    ) -> AnalyzeResult<GlobalSymbolId> {
         let normalize_local_symbol =
             |candidate| self.normalize_reference_symbol_id(view, candidate);
         let symbol = normalize_local_symbol(symbol);
 
         // normalize symbol typing first
-
-        let owner_dir = self.require_artifact_dir_declared(symbol.module_id, view.profile)?;
-        let owner_symbol = owner_dir.symbols.get_symbol(symbol.local_id);
-        if owner_symbol.space != SymbolSpace::TypeValue {
+        let (owner_space, owner_key) = if symbol.module_id == view.module.id {
+            let owner_symbol = view.symbols.get_symbol(symbol.local_id);
+            (owner_symbol.space, owner_symbol.key)
+        } else {
+            let owner_dir =
+                self.require_indexed_dir_declared(index, symbol.module_id, view.profile)?;
+            let owner_symbol = owner_dir.symbols.get_symbol(symbol.local_id);
+            (owner_symbol.space, owner_symbol.key)
+        };
+        if owner_space != SymbolSpace::TypeValue {
             return Ok(symbol);
         }
 
-        let Some(key) = owner_symbol.key else {
+        let Some(key) = owner_key else {
             return Ok(symbol);
         };
-        if let Some(candidate) = self.select_canonical_type_symbol(view.module, view.profile, key) {
+        if let Some(candidate) = self.select_preferred_type_carrier_symbol(
+            view.module,
+            index,
+            view.symbols,
+            view.profile,
+            key,
+        )? {
             Ok(normalize_local_symbol(candidate))
         } else {
             Ok(symbol)

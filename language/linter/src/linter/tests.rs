@@ -260,14 +260,14 @@ impl TestProgram {
     /// Resolve the language environment for the current profile.
     pub(crate) fn resolve_language_environment(&self) {
         self.compiler
-            .drive(|compiler| compiler.require_language_environment(self.profile_id))
+            .run_to_completion(|compiler| compiler.require_language_environment(self.profile_id))
             .unwrap_or_else(|error| panic!("failed to resolve language environment: {error:?}"));
     }
 
     /// Resolve builtin libs for the current profile.
     pub(crate) fn resolve_libs(&self) {
         self.compiler
-            .drive(|compiler| compiler.require_library_environment(self.profile_id))
+            .run_to_completion(|compiler| compiler.require_library_environment(self.profile_id))
             .unwrap_or_else(|error| panic!("failed to resolve libs: {error:?}"));
     }
 

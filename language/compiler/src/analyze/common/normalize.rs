@@ -1405,7 +1405,11 @@ impl Compiler {
                         self.error(error);
                     }
                 } else {
-                    let dir = self.require_artifact_dir_declared(symbol.module_id, ctx.profile);
+                    let dir = self.require_indexed_dir_declared(
+                        &ctx.index,
+                        symbol.module_id,
+                        ctx.profile,
+                    );
                     match dir {
                         Ok(dir) => {
                             let module = self.program.modules.get(symbol.module_id);
@@ -1418,6 +1422,7 @@ impl Compiler {
                                 &dir.tree,
                                 &dir.symbols,
                                 ctx.types,
+                                ctx.index.clone(),
                             );
                             if let Err(error) =
                                 self.resolve_declared_type(&mut ctx.reborrow(), alias_target_id)
@@ -1564,7 +1569,7 @@ impl Compiler {
                 &mut materialize_cache,
             )
         } else {
-            let dir = self.require_artifact_dir_declared(symbol.module_id, ctx.profile);
+            let dir = self.require_indexed_dir_declared(&ctx.index, symbol.module_id, ctx.profile);
             let Ok(dir) = dir else {
                 return instance_type_id;
             };
@@ -1579,6 +1584,7 @@ impl Compiler {
                 &dir.tree,
                 &dir.symbols,
                 ctx.types,
+                ctx.index.clone(),
             );
 
             // skip materialization when the alias instance is already stable

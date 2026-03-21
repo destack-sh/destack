@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::analyze::common::{InferContext, NormalizationMode, TypeContext};
+use crate::analyze::common::{AnalyzeIndex, InferContext, NormalizationMode, TypeContext};
 use crate::analyze::r#type::json_value_to_type;
 use crate::timing::tags;
 use crate::{
@@ -62,7 +62,15 @@ impl Compiler {
             }
 
             let options = self.analyze_context_options_for_module(module.id);
-            let mut ctx = TypeContext::new(&module, profile, &options, tree, symbols, types);
+            let mut ctx = TypeContext::new(
+                &module,
+                profile,
+                &options,
+                tree,
+                symbols,
+                types,
+                AnalyzeIndex::default(),
+            );
 
             // infer enum backing types when declaration validation is enabled
             for root_id in roots.iter() {
@@ -105,7 +113,6 @@ impl Compiler {
 
         let mut collector = ArtifactRequirementCollector::new();
         let options = self.analyze_context_options_for_module(module.id);
-
         // initialize infer session state
         let mut session = InferSession::new(profile, options);
         let (infer_table, context) = session.parts_mut();
@@ -117,6 +124,7 @@ impl Compiler {
             symbols,
             types,
             infer_table,
+            AnalyzeIndex::default(),
         );
 
         // build a module level flow graph and flow table when needed

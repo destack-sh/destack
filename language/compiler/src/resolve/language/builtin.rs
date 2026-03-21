@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use destack_builtin::{LanguageSymbol, builtin_library};
@@ -11,6 +10,7 @@ use destack_workspace::{
     ArtifactKey, CanonicalStaticKey, LanguageEnvironment, LibraryEnvironment, ProfileId,
     WellKnownSymbols,
 };
+use std::collections::HashSet;
 
 use crate::timing::tags;
 use crate::{
@@ -290,6 +290,9 @@ impl Compiler {
     }
 
     /// Get one declared library symbol that must use the concrete runtime declaration.
+    ///
+    /// This only selects one symbol id from the cached library environment.
+    /// Callers that need declaration artifacts must require `DirDeclared` separately.
     pub fn get_declared_concrete_library_symbol_from(
         &self,
         profile_id: ProfileId,
@@ -418,7 +421,8 @@ impl Compiler {
         profile_id: ProfileId,
         symbol: WellKnownSymbol,
     ) -> Option<GlobalSymbolId> {
-        let well_known_symbols = self.get_well_known_symbols(profile_id)?;
+        let well_known_symbols = self.library_environment(profile_id)?;
+        let well_known_symbols = well_known_symbols.well_known_symbols();
         well_known_symbols.get_symbol(symbol)
     }
 
@@ -428,7 +432,8 @@ impl Compiler {
         profile_id: ProfileId,
         symbol: WellKnownSymbol,
     ) -> Option<GlobalSymbolId> {
-        let well_known_symbols = self.get_well_known_symbols(profile_id)?;
+        let well_known_symbols = self.library_environment(profile_id)?;
+        let well_known_symbols = well_known_symbols.well_known_symbols();
         well_known_symbols.get_type_symbol(symbol)
     }
 
@@ -444,6 +449,9 @@ impl Compiler {
     }
 
     /// Get one well-known symbol using the concrete runtime declaration.
+    ///
+    /// This only selects one symbol id from the cached library environment.
+    /// Callers that need declaration artifacts must require `DirDeclared` separately.
     pub fn get_well_known_concrete_symbol_from(
         &self,
         profile_id: ProfileId,

@@ -5,7 +5,6 @@ use crate::analyze::common::{
     CanonicalSymbolMode, ContextualTypingMode, InferContext, SymbolTypeView, TreeSymbolView,
     TypeContext, TypeView,
 };
-use crate::analyze::module::GlobalMergeCategory;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferState};
 use destack_dir::{
@@ -29,6 +28,22 @@ pub(crate) struct InheritedStaticArguments {
     pub(crate) substitutions: HashMap<GlobalSymbolId, LocalTypeId>,
 }
 
+/// The validation mode for resolving static type arguments.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum StaticArgumentValidationMode {
+    /// Full analyze-time validation against concrete apparent types.
+    Analyze,
+    /// Declare-time validation over declared structural facts only.
+    Declare,
+}
+
+impl StaticArgumentValidationMode {
+    /// Return true when validation should eagerly prepare concrete instance types.
+    fn uses_eager_instance_types(self) -> bool {
+        matches!(self, Self::Analyze)
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Run logic with one declared-owner type context for a remote module.
@@ -49,7 +64,7 @@ impl Compiler {
         let owner_options = self.analyze_context_options_for_module(owner_module.id);
 
         let owner_dir = self
-            .require_artifact_dir_declared(module_id, ctx.profile)
+            .require_indexed_dir_declared(&ctx.index, module_id, ctx.profile)
             .map_err(AnalyzeError::from)?;
         let mut owner_ctx = TypeContext::new(
             owner_module,
@@ -58,6 +73,7 @@ impl Compiler {
             &owner_dir.tree,
             &owner_dir.symbols,
             ctx.types,
+            ctx.index.clone(),
         );
         handle(&mut owner_ctx)
     }
@@ -199,6 +215,7 @@ impl Compiler {
             &argument_snapshot.tree,
             &argument_snapshot.symbols,
             ctx.types,
+            ctx.index.clone(),
         );
         f(&mut ctx, argument_id).map(Some)
     }
@@ -345,7 +362,11 @@ impl Compiler {
                     static_arguments,
                 }) => {
                     let symbol = self
-                        .remap_typevalue_symbol_to_type_space(ctx.module_symbol_view(), symbol)
+                        .remap_typevalue_symbol_to_type_space(
+                            ctx.module_symbol_view(),
+                            &ctx.index,
+                            symbol,
+                        )
                         .map_err(AnalyzeError::from)?;
                     Some((symbol, static_arguments))
                 }
@@ -876,6 +897,7 @@ impl Compiler {
                     call_site.tree,
                     call_site.symbols,
                     ctx.types,
+                    ctx.index.clone(),
                 );
 
                 // prefer value literals when type arguments stay unconverted
@@ -898,6 +920,7 @@ impl Compiler {
                     call_site.tree,
                     call_site.symbols,
                     ctx.types,
+                    ctx.index.clone(),
                 );
                 self.resolve_value_static_argument(&mut call_site_ctx.reborrow(), node)?
             }
@@ -1261,12 +1284,13 @@ impl Compiler {
     }
 
     /// Materialize a static type argument for validation.
-    pub(crate) fn materialize_static_type_argument(
+    pub(super) fn materialize_static_type_argument(
         &self,
         ctx: &mut TypeContext<'_>,
         error_node: GlobalNodeIdAny,
         static_parameter: &StaticParameter,
         resolved_static_argument: &StaticArgument,
+        validation_mode: StaticArgumentValidationMode,
     ) -> AnalyzeResult<LocalTypeId> {
         // pre-evaluate local type aliases used as bounds
         if let Type::Reference { symbol, .. } =
@@ -1299,16 +1323,29 @@ impl Compiler {
             self.convert_static_argument_type(&resolved_argument, error_node.local_id, ctx.types);
 
         // ensure referenced instance types are available for validation
-        self.ensure_reference_instance_types_for_type(
-            &mut ctx.reborrow(),
-            error_node.local_id,
-            static_parameter.declared_type_id,
-        )?;
-        self.ensure_reference_instance_types_for_type(
-            &mut ctx.reborrow(),
-            error_node.local_id,
-            substitution_ty_id,
-        )?;
+        if validation_mode.uses_eager_instance_types() {
+            self.ensure_reference_instance_types_for_type(
+                &mut ctx.reborrow(),
+                error_node.local_id,
+                static_parameter.declared_type_id,
+            )?;
+            self.ensure_reference_instance_types_for_type(
+                &mut ctx.reborrow(),
+                error_node.local_id,
+                substitution_ty_id,
+            )?;
+        } else {
+            self.ensure_local_reference_instance_types_for_type(
+                &mut ctx.reborrow(),
+                error_node.local_id,
+                static_parameter.declared_type_id,
+            )?;
+            self.ensure_local_reference_instance_types_for_type(
+                &mut ctx.reborrow(),
+                error_node.local_id,
+                substitution_ty_id,
+            )?;
+        }
 
         Ok(substitution_ty_id)
     }
@@ -1584,7 +1621,7 @@ impl Compiler {
     }
 
     /// Validate a static argument against its declared type.
-    pub(crate) fn validate_static_argument(
+    pub(super) fn validate_static_argument(
         &self,
         ctx: &mut TypeContext<'_>,
         error_node: GlobalNodeIdAny,
@@ -2136,13 +2173,64 @@ impl Compiler {
         );
         let symbol = self.merged_type_symbol_id(ctx.module_symbol_view(), symbol);
 
-        self.resolve_type_reference_static_arguments_with_bounds(
+        self.resolve_type_reference_static_arguments_with_validation_mode(
             ctx,
             node_id,
             symbol,
             static_arguments,
             validate_static_argument_bounds,
             None,
+            StaticArgumentValidationMode::Analyze,
+        )
+    }
+
+    /// Resolve static arguments for one declared type reference.
+    pub(crate) fn resolve_declared_type_reference_static_arguments(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        node_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        static_arguments: Option<&[StaticArgument]>,
+        validate_static_argument_bounds: bool,
+    ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
+        let _timing = self.timing_scope(tags::ANALYZE_INFER_STATIC_RESOLVE);
+        let symbol = self.canonical_symbol_id(
+            ctx.module_symbol_view(),
+            symbol,
+            CanonicalSymbolMode::PreserveAliases,
+        );
+        let symbol = self.merged_type_symbol_id(ctx.module_symbol_view(), symbol);
+
+        self.resolve_type_reference_static_arguments_with_validation_mode(
+            ctx,
+            node_id,
+            symbol,
+            static_arguments,
+            validate_static_argument_bounds,
+            None,
+            StaticArgumentValidationMode::Declare,
+        )
+    }
+
+    /// Resolve static arguments for a canonicalized type reference under one validation mode.
+    fn resolve_type_reference_static_arguments_with_validation_mode(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        node_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        static_arguments: Option<&[StaticArgument]>,
+        validate_static_argument_bounds: bool,
+        bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
+        validation_mode: StaticArgumentValidationMode,
+    ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
+        self.resolve_type_reference_static_arguments_with_bounds_and_validation_mode(
+            ctx,
+            node_id,
+            symbol,
+            static_arguments,
+            validate_static_argument_bounds,
+            bound_substitutions,
+            validation_mode,
         )
     }
 
@@ -2155,6 +2243,28 @@ impl Compiler {
         static_arguments: Option<&[StaticArgument]>,
         validate_static_argument_bounds: bool,
         bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
+    ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
+        self.resolve_type_reference_static_arguments_with_bounds_and_validation_mode(
+            ctx,
+            node_id,
+            symbol,
+            static_arguments,
+            validate_static_argument_bounds,
+            bound_substitutions,
+            StaticArgumentValidationMode::Analyze,
+        )
+    }
+
+    /// Resolve static arguments for a canonicalized type reference in one substitution environment.
+    fn resolve_type_reference_static_arguments_with_bounds_and_validation_mode(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        node_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        static_arguments: Option<&[StaticArgument]>,
+        validate_static_argument_bounds: bool,
+        bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
+        validation_mode: StaticArgumentValidationMode,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
         // treat type arguments as types for type references
         let treat_type_arguments_as_types = true;
@@ -2239,6 +2349,7 @@ impl Compiler {
             validate_static_argument_bounds,
             bound_substitutions,
             treat_type_arguments_as_types,
+            validation_mode,
         );
 
         // clear the in progress marker, resolve cached arguments when needed
@@ -2270,6 +2381,7 @@ impl Compiler {
         validate_static_argument_bounds: bool,
         bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         treat_type_arguments_as_types: bool,
+        validation_mode: StaticArgumentValidationMode,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
         // preserve caller module context for bound validation
         let call_site = TreeSymbolView::new(ctx.module, ctx.profile, ctx.tree, ctx.symbols);
@@ -2293,6 +2405,7 @@ impl Compiler {
                 validate_static_argument_bounds,
                 bound_substitutions,
                 treat_type_arguments_as_types,
+                validation_mode,
             );
         }
 
@@ -2307,6 +2420,7 @@ impl Compiler {
                 validate_static_argument_bounds,
                 bound_substitutions,
                 treat_type_arguments_as_types,
+                validation_mode,
             )
         })
     }
@@ -2323,6 +2437,7 @@ impl Compiler {
         validate_static_argument_bounds: bool,
         bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         treat_type_arguments_as_types: bool,
+        validation_mode: StaticArgumentValidationMode,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
         // collect parameter symbols for the declaration
         let parameter_symbols = self.collect_static_parameter_symbols(ctx.type_view(), symbol);
@@ -2490,6 +2605,7 @@ impl Compiler {
                     error_node,
                     static_parameter,
                     &resolved_argument,
+                    validation_mode,
                 )?)
             } else {
                 None
@@ -2512,6 +2628,7 @@ impl Compiler {
                     call_site.tree,
                     call_site.symbols,
                     ctx.types,
+                    ctx.index.clone(),
                 );
                 self.validate_static_argument(
                     &mut ctx,
@@ -2638,58 +2755,6 @@ impl Compiler {
                 ctx.types,
             );
             substitutions.insert(static_parameter.symbol, ty_id);
-        }
-
-        let symbol_info = self
-            .with_module_symbols_or_local_for_artifact(
-                ctx.module,
-                ctx.profile,
-                symbol.module_id,
-                ctx.symbols,
-                destack_workspace::ArtifactKey::dir_declared,
-                |_, owner_symbols| {
-                    let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
-                    (symbol_entry.key, symbol_entry.space)
-                },
-            )
-            .ok();
-        if let Some((symbol_key, symbol_space)) = symbol_info
-            && let Some(symbol_key) = symbol_key
-        {
-            let resolved_parameter_types = parameter_symbols
-                .iter()
-                .map(|symbol| substitutions.get(symbol).copied())
-                .collect::<Vec<_>>();
-
-            if resolved_parameter_types.iter().any(|ty| ty.is_some()) {
-                // propagate substitutions across all merge peers by position
-                let merge_symbols = self.collect_global_merge_sources_for_key(
-                    ctx.module,
-                    ctx.profile,
-                    symbol_key,
-                    symbol_space,
-                    GlobalMergeCategory::Instance,
-                );
-
-                for merge_symbol in merge_symbols {
-                    if merge_symbol == symbol {
-                        continue;
-                    }
-
-                    let Some(other_parameters) =
-                        self.collect_static_parameter_symbols(ctx.type_view(), merge_symbol)
-                    else {
-                        continue;
-                    };
-
-                    for (index, parameter_symbol) in other_parameters.iter().enumerate() {
-                        let Some(Some(mapped)) = resolved_parameter_types.get(index) else {
-                            continue;
-                        };
-                        substitutions.entry(*parameter_symbol).or_insert(*mapped);
-                    }
-                }
-            }
         }
 
         substitutions

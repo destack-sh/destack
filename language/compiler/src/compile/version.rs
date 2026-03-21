@@ -24,11 +24,11 @@ impl Compiler {
 
     /// Get the current profile version.
     pub fn profile_version(&self, profile_id: ProfileId) -> ProfileVersion {
-        let Some(profile) = self.program.profiles.get(profile_id) else {
+        let Some(profile_version) = self.program.profiles.version(profile_id) else {
             self.error(InternalError::MissingProfile { profile_id });
             return ProfileVersion::INITIAL;
         };
-        profile.version
+        profile_version
     }
 
     /// Get the current profile stamp.
@@ -144,11 +144,11 @@ impl Compiler {
         expected: ProfileVersion,
     ) -> bool {
         // compare current profile version
-        let Some(profile) = self.program.profiles.get(profile_id) else {
+        let Some(profile_version) = self.program.profiles.version(profile_id) else {
             self.error(InternalError::MissingProfile { profile_id });
             return false;
         };
-        profile.version == expected
+        profile_version == expected
     }
 
     /// Check whether a package version is current.

@@ -777,7 +777,7 @@ impl Compiler {
         // resolve static arguments for the referenced span
         let static_arguments =
             self.evaluate_static_arguments(&mut ctx.reborrow(), static_arguments)?;
-        let resolved_arguments = self.resolve_type_reference_static_arguments(
+        let resolved_arguments = self.resolve_declared_type_reference_static_arguments(
             &mut ctx.reborrow(),
             span_id.into_any(),
             target_symbol,

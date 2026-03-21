@@ -65,6 +65,7 @@ impl Compiler {
             profile: ctx.profile,
             tree: ctx.tree,
             symbols: ctx.symbols,
+            index: ctx.index.clone(),
             types: ctx.types,
             options: ctx.options,
         };
@@ -89,6 +90,16 @@ impl Compiler {
         }
 
         self.is_type_assignable_inner(&mut ctx, target_id, source_id)
+    }
+
+    /// Check one type assignment while preserving the current assign context.
+    pub(super) fn is_type_assignable_in_context(
+        &self,
+        ctx: &mut AssignContext<'_>,
+        target_id: LocalTypeId,
+        source_id: LocalTypeId,
+    ) -> Assignability {
+        self.is_type_assignable(&mut ctx.type_context_reborrow(), target_id, source_id)
     }
 
     /// Inner assignability check on Type values.
@@ -117,11 +128,7 @@ impl Compiler {
                 NormalizationMode::Assign,
             );
             if normalized_target != target_id {
-                return self.is_type_assignable(
-                    &mut ctx.type_context_reborrow(),
-                    normalized_target,
-                    source_id,
-                );
+                return self.is_type_assignable_in_context(ctx, normalized_target, source_id);
             }
         }
 
@@ -471,11 +478,7 @@ impl Compiler {
                 Type::Value {
                     value: source_value,
                 },
-            ) => self.is_type_assignable(
-                &mut ctx.type_context_reborrow(),
-                target_value,
-                source_value,
-            ),
+            ) => self.is_type_assignable_in_context(ctx, target_value, source_value),
 
             // error types: always assignable (to suppress cascading errors)
             (Type::Error, _) | (_, Type::Error) => Assignability::Assignable,
@@ -496,22 +499,14 @@ impl Compiler {
         if let Some(normalized_target) = self
             .normalize_conditional_for_assignability(&mut ctx.type_context_reborrow(), target_id)
         {
-            return Some(self.is_type_assignable(
-                &mut ctx.type_context_reborrow(),
-                normalized_target,
-                source_id,
-            ));
+            return Some(self.is_type_assignable_in_context(ctx, normalized_target, source_id));
         }
 
         // normalize source conditionals that can collapse in flow mode
         if let Some(normalized_source) = self
             .normalize_conditional_for_assignability(&mut ctx.type_context_reborrow(), source_id)
         {
-            return Some(self.is_type_assignable(
-                &mut ctx.type_context_reborrow(),
-                target_id,
-                normalized_source,
-            ));
+            return Some(self.is_type_assignable_in_context(ctx, target_id, normalized_source));
         }
 
         None
@@ -529,11 +524,7 @@ impl Compiler {
         // infer targets: treat as wildcard with optional constraints
         if let Type::Infer { constraint, .. } = target {
             if let Some(constraint_id) = *constraint {
-                return Some(self.is_type_assignable(
-                    &mut ctx.type_context_reborrow(),
-                    constraint_id,
-                    source_id,
-                ));
+                return Some(self.is_type_assignable_in_context(ctx, constraint_id, source_id));
             }
 
             return Some(Assignability::Assignable);
@@ -542,11 +533,7 @@ impl Compiler {
         // infer sources: treat as wildcard with optional constraints
         if let Type::Infer { constraint, .. } = source {
             if let Some(constraint_id) = *constraint {
-                return Some(self.is_type_assignable(
-                    &mut ctx.type_context_reborrow(),
-                    target_id,
-                    constraint_id,
-                ));
+                return Some(self.is_type_assignable_in_context(ctx, target_id, constraint_id));
             }
 
             return Some(Assignability::Assignable);
@@ -863,11 +850,8 @@ impl Compiler {
                     return Some(Assignability::NotAssignable);
                 }
 
-                let assignability = self.is_type_assignable(
-                    &mut ctx.type_context_reborrow(),
-                    *target_element,
-                    *source_element,
-                );
+                let assignability =
+                    self.is_type_assignable_in_context(ctx, *target_element, *source_element);
 
                 if assignability.is_assignable() {
                     let anchor = ctx.types.get_type_source(target_id);
@@ -903,11 +887,8 @@ impl Compiler {
                     return Some(Assignability::NotAssignable);
                 }
 
-                let assignability = self.is_type_assignable(
-                    &mut ctx.type_context_reborrow(),
-                    *target_element,
-                    *source_element,
-                );
+                let assignability =
+                    self.is_type_assignable_in_context(ctx, *target_element, *source_element);
 
                 if assignability.is_assignable() {
                     self.check_unsound_array_variance(
@@ -996,11 +977,8 @@ impl Compiler {
 
                 for element in source_elements {
                     if element.is_rest
-                        || self.is_type_assignable(
-                            &mut ctx.type_context_reborrow(),
-                            *target_element,
-                            element.ty,
-                        ) == Assignability::NotAssignable
+                        || self.is_type_assignable_in_context(ctx, *target_element, element.ty)
+                            == Assignability::NotAssignable
                     {
                         return Some(Assignability::NotAssignable);
                     }
@@ -1026,11 +1004,8 @@ impl Compiler {
                     return Some(Assignability::NotAssignable);
                 }
 
-                let assignability = self.is_type_assignable(
-                    &mut ctx.type_context_reborrow(),
-                    *target_element,
-                    *source_element,
-                );
+                let assignability =
+                    self.is_type_assignable_in_context(ctx, *target_element, *source_element);
                 if !assignability.is_assignable() {
                     return Some(Assignability::NotAssignable);
                 }
@@ -1576,8 +1551,8 @@ impl Compiler {
                 }
 
                 if prepared_alias_target_id != target_id {
-                    return Some(self.is_type_assignable(
-                        &mut ctx.type_context_reborrow(),
+                    return Some(self.is_type_assignable_in_context(
+                        ctx,
                         prepared_alias_target_id,
                         source_id,
                     ));
@@ -1596,8 +1571,8 @@ impl Compiler {
                 let prepared_alias_target_id = self
                     .prepare_assignability_type(&mut ctx.type_context_reborrow(), alias_target_id);
                 if prepared_alias_target_id != source_id {
-                    return Some(self.is_type_assignable(
-                        &mut ctx.type_context_reborrow(),
+                    return Some(self.is_type_assignable_in_context(
+                        ctx,
                         target_id,
                         prepared_alias_target_id,
                     ));
@@ -1766,10 +1741,8 @@ impl Compiler {
         target_inner: LocalTypeId,
         source_inner: LocalTypeId,
     ) -> Assignability {
-        let target_assignable =
-            self.is_type_assignable(&mut ctx.type_context_reborrow(), target_inner, source_inner);
-        let source_assignable =
-            self.is_type_assignable(&mut ctx.type_context_reborrow(), source_inner, target_inner);
+        let target_assignable = self.is_type_assignable_in_context(ctx, target_inner, source_inner);
+        let source_assignable = self.is_type_assignable_in_context(ctx, source_inner, target_inner);
 
         if target_assignable.is_assignable() && source_assignable.is_assignable() {
             Assignability::Assignable

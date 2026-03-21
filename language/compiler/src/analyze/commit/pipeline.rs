@@ -1,4 +1,4 @@
-use crate::analyze::common::CommitContext;
+use crate::analyze::common::{AnalyzeIndex, CommitContext};
 use crate::{AnalyzeResult, Compiler};
 use destack_dir::{InferTable, NodeTree, SymbolTable, TypeTable};
 use destack_workspace::{Module, ProfileId};
@@ -16,7 +16,15 @@ impl Compiler {
     ) -> AnalyzeResult<()> {
         // commit solved infer state in one deterministic pass
         let options = self.analyze_context_options_for_module(module.id);
-        let mut ctx = CommitContext::new(module, profile, &options, tree, symbols, types);
+        let mut ctx = CommitContext::new(
+            module,
+            profile,
+            &options,
+            tree,
+            symbols,
+            types,
+            AnalyzeIndex::default(),
+        );
 
         // commit direct type writes that depend on solved type substitutions
         self.commit_provisional_resolutions_and_instances(&mut ctx, infer);

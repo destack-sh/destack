@@ -1,8 +1,8 @@
 use super::*;
 use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::{
-    CanonicalSymbolMode, InferContext, ModuleSymbolView, ModuleTypeView, SymbolTypeView,
-    TypeContext, TypeView,
+    AnalyzeIndex, CanonicalSymbolMode, InferContext, ModuleSymbolView, ModuleTypeView,
+    SymbolTypeView, TypeContext, TypeView,
 };
 use crate::analyze::infer::RemoteValueTypeReadDomain;
 use crate::analyze::module::GlobalMergeCategory;
@@ -322,6 +322,7 @@ impl Compiler {
                         &remote_dir.tree,
                         &remote_dir.symbols,
                         &mut remote_snapshot,
+                        ctx.index.clone(),
                     );
                     let evaluated_type_id =
                         self.resolve_declared_type_expression(&mut view, *member_type, true, true)?;
@@ -363,6 +364,7 @@ impl Compiler {
                     ctx.module,
                     ctx.module.id,
                     ctx.profile,
+                    &ctx.index,
                     ctx.tree,
                     ctx.symbols,
                     &*ctx.types,
@@ -384,6 +386,7 @@ impl Compiler {
                     ctx.module,
                     ctx.module.id,
                     ctx.profile,
+                    &ctx.index,
                     ctx.tree,
                     ctx.symbols,
                     &*ctx.types,
@@ -408,6 +411,7 @@ impl Compiler {
                         ctx.module,
                         ctx.module.id,
                         ctx.profile,
+                        &ctx.index,
                         ctx.tree,
                         ctx.symbols,
                         &*ctx.types,
@@ -425,6 +429,7 @@ impl Compiler {
                                 ctx.module,
                                 ctx.module.id,
                                 ctx.profile,
+                                &ctx.index,
                                 ctx.tree,
                                 ctx.symbols,
                                 &*ctx.types,
@@ -460,6 +465,7 @@ impl Compiler {
                     ctx.module,
                     ctx.module.id,
                     ctx.profile,
+                    &ctx.index,
                     ctx.tree,
                     ctx.symbols,
                     &*ctx.types,
@@ -520,6 +526,7 @@ impl Compiler {
                 ctx.module,
                 ctx.module.id,
                 ctx.profile,
+                &ctx.index,
                 ctx.tree,
                 ctx.symbols,
                 &*ctx.types,
@@ -594,6 +601,7 @@ impl Compiler {
             ctx.module,
             ctx.module.id,
             ctx.profile,
+            &ctx.index,
             ctx.tree,
             ctx.symbols,
             &*ctx.types,
@@ -864,6 +872,7 @@ impl Compiler {
         module: &Module,
         owner_module_id: ModuleId,
         profile: ProfileId,
+        index: &AnalyzeIndex,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
@@ -885,6 +894,7 @@ impl Compiler {
                     module,
                     owner_module_id,
                     profile,
+                    index,
                     tree,
                     symbols,
                     types,
@@ -903,6 +913,7 @@ impl Compiler {
                         module,
                         owner_module_id,
                         profile,
+                        index,
                         tree,
                         symbols,
                         types,
@@ -922,6 +933,7 @@ impl Compiler {
                     module,
                     owner_module_id,
                     profile,
+                    index,
                     tree,
                     symbols,
                     types,
@@ -952,6 +964,7 @@ impl Compiler {
                                 module,
                                 owner_module_id,
                                 profile,
+                                index,
                                 tree,
                                 symbols,
                                 types,
@@ -993,6 +1006,7 @@ impl Compiler {
         let symbol = self
             .remap_typevalue_symbol_to_type_space(
                 ModuleSymbolView::new(module, profile, symbols),
+                index,
                 symbol,
             )
             .map_err(AnalyzeError::from)?;
@@ -1000,6 +1014,7 @@ impl Compiler {
             module,
             owner_module_id,
             profile,
+            index,
             tree,
             symbols,
             types,
@@ -1016,6 +1031,7 @@ impl Compiler {
         module: &Module,
         owner_module_id: ModuleId,
         profile: ProfileId,
+        index: &AnalyzeIndex,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
@@ -1041,6 +1057,7 @@ impl Compiler {
                 module,
                 owner_module_id,
                 profile,
+                index,
                 tree,
                 symbols,
                 types,
@@ -1059,6 +1076,7 @@ impl Compiler {
             return self.resolve_member_symbol_in_extensions(
                 module,
                 profile,
+                index,
                 symbols,
                 types,
                 owner_module_id,
@@ -1074,7 +1092,7 @@ impl Compiler {
         }
 
         let owner_dir = self
-            .require_artifact_dir_declared(symbol.module_id, profile)
+            .require_indexed_dir_declared(index, symbol.module_id, profile)
             .map_err(AnalyzeError::from)?;
         let owner_symbol_entry = owner_dir.symbols.get_symbol(symbol.local_id);
         let remote_module = self.program.modules.get(symbol.module_id);
@@ -1087,6 +1105,7 @@ impl Compiler {
             module,
             symbol.module_id,
             profile,
+            index,
             &owner_dir.tree,
             &owner_dir.symbols,
             &owner_dir.types,
@@ -1105,6 +1124,7 @@ impl Compiler {
         self.resolve_member_symbol_in_extensions(
             module,
             profile,
+            index,
             symbols,
             types,
             owner_module_id,
@@ -1122,6 +1142,7 @@ impl Compiler {
         module: &Module,
         owner_module_id: ModuleId,
         profile: ProfileId,
+        index: &AnalyzeIndex,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
@@ -1161,6 +1182,7 @@ impl Compiler {
                         module,
                         owner_module_id,
                         profile,
+                        index,
                         tree,
                         symbols,
                         types,
@@ -1185,11 +1207,13 @@ impl Compiler {
                 };
                 let merge_symbols = self.collect_global_merge_sources_for_key(
                     module,
+                    index,
+                    symbols,
                     profile,
                     key,
                     symbol_entry.space,
                     merge_category,
-                );
+                )?;
 
                 if !merge_symbols.is_empty() {
                     let mut seen = HashSet::new();
@@ -1202,6 +1226,7 @@ impl Compiler {
                             module,
                             owner_module_id,
                             profile,
+                            index,
                             tree,
                             symbols,
                             types,
@@ -1226,6 +1251,7 @@ impl Compiler {
                     module,
                     owner_module_id,
                     profile,
+                    index,
                     tree,
                     symbols,
                     types,
@@ -1244,6 +1270,7 @@ impl Compiler {
                     module,
                     owner_module_id,
                     profile,
+                    index,
                     tree,
                     symbols,
                     types,
@@ -1264,6 +1291,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
+        index: &AnalyzeIndex,
         symbols: &SymbolTable,
         types: &TypeTable,
         owner_module_id: ModuleId,
@@ -1293,6 +1321,7 @@ impl Compiler {
                 module,
                 owner_module_id,
                 profile,
+                index,
                 tree,
                 symbols,
                 types,
@@ -1314,6 +1343,7 @@ impl Compiler {
         module: &Module,
         owner_module_id: ModuleId,
         profile: ProfileId,
+        index: &AnalyzeIndex,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
@@ -1356,7 +1386,7 @@ impl Compiler {
         )
         .map_err(AnalyzeError::from)?;
         let snapshot = self
-            .require_artifact_dir_declared(extension_symbol.module_id, profile)
+            .require_indexed_dir_declared(index, extension_symbol.module_id, profile)
             .map_err(AnalyzeError::from)?;
         Ok(self.find_member_symbol_in_declaration(
             extension_symbol.module_id,

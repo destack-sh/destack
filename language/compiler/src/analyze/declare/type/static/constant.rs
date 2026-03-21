@@ -1,5 +1,5 @@
 use super::{StaticEvaluationDiagnosticMode, StaticEvaluationMode};
-use crate::analyze::common::{RelationMode, TypeContext, TypeRewriteCache};
+use crate::analyze::common::{AnalyzeIndex, RelationMode, TypeContext, TypeRewriteCache};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     DependencyItem, Expression, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Member, Mutability,
@@ -384,6 +384,7 @@ impl Compiler {
                     remote_tree,
                     remote_symbols,
                     &mut remote_snapshot,
+                    AnalyzeIndex::default(),
                 );
                 self.resolve_static_constant_reference_with_previsited(
                     &mut view,
@@ -445,6 +446,24 @@ impl Compiler {
         previsited_symbol: Option<GlobalSymbolId>,
         cycle_diagnostic_mode: StaticCycleDiagnosticMode,
     ) -> AnalyzeResult<Option<StaticExpression>> {
+        // reuse published local values before walking the symbol graph again
+        if substitutions.is_none() && symbol.module_id == ctx.module.id {
+            if let Some(value) = ctx.types.query_artifact_static_constant_value(symbol) {
+                return Ok(Some(value));
+            }
+
+            let symbol_entry = ctx.symbols.get_symbol(symbol.local_id);
+            let normalized_symbol =
+                GlobalSymbolId::new(ctx.module.id, symbol.local_id.with_type(symbol_entry.ty));
+            if normalized_symbol != symbol
+                && let Some(value) = ctx
+                    .types
+                    .query_artifact_static_constant_value(normalized_symbol)
+            {
+                return Ok(Some(value));
+            }
+        }
+
         // avoid recursive constant evaluation
         let is_symbol_equivalent = |left: GlobalSymbolId, right: GlobalSymbolId| {
             left.module_id == right.module_id && left.local_id.id == right.local_id.id

@@ -2,7 +2,7 @@ use destack_dir::{GlobalSymbolId, Lineage, SymbolType, Type, TypeTable};
 use destack_source::ModuleId;
 use destack_workspace::{ArtifactKey, Module, ProfileId};
 
-use crate::analyze::common::TypeContext;
+use crate::analyze::common::{AnalyzeIndex, TypeContext};
 use crate::{ArtifactRequirementError, Compiler};
 
 impl Compiler {
@@ -99,6 +99,7 @@ impl Compiler {
                 &snapshot.tree,
                 &snapshot.symbols,
                 &mut remote_snapshot,
+                AnalyzeIndex::default(),
             );
 
             if let Err(error) = self.resolve_declared_type(&mut ctx, remote_target_id) {

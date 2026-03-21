@@ -4,7 +4,8 @@ use std::sync::Arc;
 
 pub(super) use crate::analyze::assign::Assignability;
 pub(super) use crate::analyze::common::{
-    CanonicalSymbolMode, ModuleSymbolView, ModuleTypeView, ObjectShape, SymbolTypeView, TypeContext,
+    AnalyzeIndex, CanonicalSymbolMode, ModuleSymbolView, ModuleTypeView, ObjectShape,
+    SymbolTypeView, TypeContext,
 };
 pub(super) use crate::{
     AnalyzeOptions, Compiler, InferState, TestProgram, assert_string, assert_type,
@@ -67,7 +68,15 @@ pub(super) fn is_type_assignable(
     types: &mut TypeTable,
     options: &AnalyzeOptions,
 ) -> Assignability {
-    let mut ctx = TypeContext::new(module, profile, options, tree, symbols, types);
+    let mut ctx = TypeContext::new(
+        module,
+        profile,
+        options,
+        tree,
+        symbols,
+        types,
+        AnalyzeIndex::default(),
+    );
     compiler.is_type_assignable(&mut ctx, target_id, source_id)
 }
 

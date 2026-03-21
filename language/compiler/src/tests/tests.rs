@@ -1166,7 +1166,7 @@ impl TestProgram {
     pub fn resolve_language_environment(&self) {
         let profile = self.default_profile_id_for_root();
         self.compiler
-            .drive(|compiler| compiler.require_language_environment(profile))
+            .run_to_completion(|compiler| compiler.require_language_environment(profile))
             .unwrap_or_else(|error| panic!("failed to resolve language environment: {error:?}"));
     }
 
@@ -1174,7 +1174,7 @@ impl TestProgram {
     pub fn resolve_libs(&self) {
         let profile = self.default_profile_id_for_root();
         self.compiler
-            .drive(|compiler| compiler.require_library_environment(profile))
+            .run_to_completion(|compiler| compiler.require_library_environment(profile))
             .unwrap_or_else(|error| panic!("failed to resolve libs: {error:?}"));
     }
 
@@ -1188,7 +1188,7 @@ impl TestProgram {
     pub fn declare_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
         self.compiler
-            .drive(|compiler| compiler.require_dir_declared(module, profile))
+            .run_to_completion(|compiler| compiler.require_dir_declared(module, profile))
             .unwrap_or_else(|error| panic!("failed to declare module {module:?}: {error:?}"));
     }
 

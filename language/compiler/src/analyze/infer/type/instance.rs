@@ -1,6 +1,15 @@
 use super::*;
-use crate::analyze::common::TypeContext;
+use crate::analyze::common::{AnalyzeIndex, TypeContext};
 use crate::analyze::module::GlobalMergeCategory;
+
+/// The scope for eager instance preparation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum InstancePreparationScope {
+    /// Prepare local and remote reference instance types.
+    All,
+    /// Prepare only references owned by the current type context module.
+    LocalOnly,
+}
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -78,6 +87,24 @@ impl Compiler {
             &mut ctx.reborrow(),
             node_id,
             ty_id,
+            InstancePreparationScope::All,
+            &mut visited,
+        )
+    }
+
+    /// Ensure local instance types for any reference types inside a type.
+    pub(crate) fn ensure_local_reference_instance_types_for_type(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        node_id: LocalNodeIdAny,
+        ty_id: LocalTypeId,
+    ) -> AnalyzeResult<()> {
+        let mut visited = HashSet::new();
+        self.ensure_reference_instance_types_for_type_inner(
+            &mut ctx.reborrow(),
+            node_id,
+            ty_id,
+            InstancePreparationScope::LocalOnly,
             &mut visited,
         )
     }
@@ -88,6 +115,7 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         ty_id: LocalTypeId,
+        preparation_scope: InstancePreparationScope,
         visited: &mut HashSet<LocalTypeId>,
     ) -> AnalyzeResult<()> {
         // skip types we have already visited
@@ -100,13 +128,21 @@ impl Compiler {
 
         // ensure reference symbols have instance types
         if let Type::Reference { symbol, .. } = ty {
-            let instance_id =
-                self.resolve_instance_type_for_symbol(&mut ctx.reborrow(), node_id, symbol)?;
+            let instance_id = match preparation_scope {
+                InstancePreparationScope::All => {
+                    self.resolve_instance_type_for_symbol(&mut ctx.reborrow(), node_id, symbol)?
+                }
+                InstancePreparationScope::LocalOnly if symbol.module_id == ctx.module.id => {
+                    self.resolve_instance_type_for_symbol(&mut ctx.reborrow(), node_id, symbol)?
+                }
+                InstancePreparationScope::LocalOnly => None,
+            };
             if let Some(instance_id) = instance_id {
                 self.ensure_reference_instance_types_for_type_inner(
                     &mut ctx.reborrow(),
                     node_id,
                     instance_id,
+                    preparation_scope,
                     visited,
                 )?;
             }
@@ -119,6 +155,7 @@ impl Compiler {
                 &mut ctx.reborrow(),
                 node_id,
                 value,
+                preparation_scope,
                 visited,
             ),
             Type::Conditional {
@@ -132,24 +169,28 @@ impl Compiler {
                     &mut ctx.reborrow(),
                     node_id,
                     left,
+                    preparation_scope,
                     visited,
                 )?;
                 self.ensure_reference_instance_types_for_type_inner(
                     &mut ctx.reborrow(),
                     node_id,
                     right,
+                    preparation_scope,
                     visited,
                 )?;
                 self.ensure_reference_instance_types_for_type_inner(
                     &mut ctx.reborrow(),
                     node_id,
                     then_type,
+                    preparation_scope,
                     visited,
                 )?;
                 self.ensure_reference_instance_types_for_type_inner(
                     &mut ctx.reborrow(),
                     node_id,
                     else_type,
+                    preparation_scope,
                     visited,
                 )?;
                 Ok(())
@@ -161,6 +202,7 @@ impl Compiler {
                     &mut ctx.reborrow(),
                     node_id,
                     parameter.constraint,
+                    preparation_scope,
                     visited,
                 )?;
 
@@ -169,6 +211,7 @@ impl Compiler {
                         &mut ctx.reborrow(),
                         node_id,
                         key_remap,
+                        preparation_scope,
                         visited,
                     )?;
                 }
@@ -177,6 +220,7 @@ impl Compiler {
                     &mut ctx.reborrow(),
                     node_id,
                     value,
+                    preparation_scope,
                     visited,
                 )
             }
@@ -185,12 +229,14 @@ impl Compiler {
                     &mut ctx.reborrow(),
                     node_id,
                     left,
+                    preparation_scope,
                     visited,
                 )?;
                 self.ensure_reference_instance_types_for_type_inner(
                     &mut ctx.reborrow(),
                     node_id,
                     index,
+                    preparation_scope,
                     visited,
                 )
             }
@@ -200,6 +246,7 @@ impl Compiler {
                         &mut ctx.reborrow(),
                         node_id,
                         span,
+                        preparation_scope,
                         visited,
                     )?;
                 }
@@ -211,6 +258,7 @@ impl Compiler {
                         &mut ctx.reborrow(),
                         node_id,
                         constraint,
+                        preparation_scope,
                         visited,
                     )?;
                 }
@@ -222,6 +270,7 @@ impl Compiler {
                         &mut ctx.reborrow(),
                         node_id,
                         target,
+                        preparation_scope,
                         visited,
                     )?;
                 }
@@ -234,6 +283,7 @@ impl Compiler {
                 &mut ctx.reborrow(),
                 node_id,
                 right,
+                preparation_scope,
                 visited,
             ),
             Type::Binary { left, right, .. } => {
@@ -241,12 +291,14 @@ impl Compiler {
                     &mut ctx.reborrow(),
                     node_id,
                     left,
+                    preparation_scope,
                     visited,
                 )?;
                 self.ensure_reference_instance_types_for_type_inner(
                     &mut ctx.reborrow(),
                     node_id,
                     right,
+                    preparation_scope,
                     visited,
                 )
             }
@@ -255,6 +307,7 @@ impl Compiler {
                     &mut ctx.reborrow(),
                     node_id,
                     element,
+                    preparation_scope,
                     visited,
                 ),
             Type::Array { element, .. } => {
@@ -263,6 +316,7 @@ impl Compiler {
                         &mut ctx.reborrow(),
                         node_id,
                         element,
+                        preparation_scope,
                         visited,
                     )?;
                 }
@@ -274,6 +328,7 @@ impl Compiler {
                         &mut ctx.reborrow(),
                         node_id,
                         element.ty,
+                        preparation_scope,
                         visited,
                     )?;
                 }
@@ -290,6 +345,7 @@ impl Compiler {
                         &mut ctx.reborrow(),
                         node_id,
                         field.ty,
+                        preparation_scope,
                         visited,
                     )?;
                 }
@@ -299,6 +355,7 @@ impl Compiler {
                         &mut ctx.reborrow(),
                         node_id,
                         signature,
+                        preparation_scope,
                         visited,
                     )?;
                 }
@@ -308,6 +365,7 @@ impl Compiler {
                         &mut ctx.reborrow(),
                         node_id,
                         signature,
+                        preparation_scope,
                         visited,
                     )?;
                 }
@@ -317,12 +375,14 @@ impl Compiler {
                         &mut ctx.reborrow(),
                         node_id,
                         signature.key_type,
+                        preparation_scope,
                         visited,
                     )?;
                     self.ensure_reference_instance_types_for_type_inner(
                         &mut ctx.reborrow(),
                         node_id,
                         signature.value_type,
+                        preparation_scope,
                         visited,
                     )?;
                 }
@@ -341,6 +401,7 @@ impl Compiler {
                         &mut ctx.reborrow(),
                         node_id,
                         parameter,
+                        preparation_scope,
                         visited,
                     )?;
                 }
@@ -350,6 +411,7 @@ impl Compiler {
                         &mut ctx.reborrow(),
                         node_id,
                         this_parameter,
+                        preparation_scope,
                         visited,
                     )?;
                 }
@@ -359,6 +421,7 @@ impl Compiler {
                         &mut ctx.reborrow(),
                         node_id,
                         parameter,
+                        preparation_scope,
                         visited,
                     )?;
                 }
@@ -368,6 +431,7 @@ impl Compiler {
                         &mut ctx.reborrow(),
                         node_id,
                         return_type,
+                        preparation_scope,
                         visited,
                     )?;
                 }
@@ -380,6 +444,7 @@ impl Compiler {
                         &mut ctx.reborrow(),
                         node_id,
                         element,
+                        preparation_scope,
                         visited,
                     )?;
                 }
@@ -437,6 +502,11 @@ impl Compiler {
             return Ok(None);
         }
 
+        // reuse any already imported or merged instance type first
+        if let Some(existing) = ctx.types.get_instance_type_id(symbol) {
+            return Ok(Some(existing));
+        }
+
         // ensure the defining module is declared before reading its types
         if symbol.module_id != ctx.module.id {
             self.require_dir_declared(symbol.module_id, ctx.profile)
@@ -452,11 +522,14 @@ impl Compiler {
             if let Some(key) = symbol_key {
                 self.collect_global_merge_sources_for_key(
                     ctx.module,
+                    &ctx.index,
+                    ctx.symbols,
                     ctx.profile,
                     key,
                     symbol_space,
                     GlobalMergeCategory::Instance,
                 )
+                .map_err(AnalyzeError::from)?
             } else {
                 Vec::new()
             }
@@ -489,13 +562,6 @@ impl Compiler {
             normalized_group_symbols.push(normalized);
         }
         let group_symbols = normalized_group_symbols;
-
-        // reuse cached instance types when no merge is needed
-        if group_symbols.len() == 1
-            && let Some(existing) = ctx.types.get_instance_type_id(symbol)
-        {
-            return Ok(Some(existing));
-        }
 
         // reuse an already merged instance type when available
         if group_symbols.len() > 1 {
@@ -535,6 +601,7 @@ impl Compiler {
                     existing
                 } else {
                     let Some(imported) = self.import_instance_type_for_symbol(
+                        &ctx.index,
                         ctx.profile,
                         node_id,
                         group_symbol,
@@ -545,6 +612,15 @@ impl Compiler {
                     };
                     imported
                 };
+
+            // rewrite peer instance surfaces into the queried carrier space
+            let local_instance_id = self.remap_merged_owner_parameters_in_type(
+                &mut ctx.reborrow(),
+                node_id,
+                group_symbol,
+                symbol,
+                local_instance_id,
+            );
 
             if group_symbol == symbol {
                 own_instance_id = Some(local_instance_id);
@@ -614,6 +690,7 @@ impl Compiler {
     /// Import a remote instance type into the local type table.
     pub(crate) fn import_instance_type_for_symbol(
         &self,
+        index: &AnalyzeIndex,
         profile: ProfileId,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
@@ -627,7 +704,7 @@ impl Compiler {
         // declared instance shapes are the earliest stable boundary for class, struct,
         // interface, and extension member access
         let snapshot = self
-            .require_artifact_dir_declared(symbol.module_id, profile)
+            .require_indexed_dir_declared(index, symbol.module_id, profile)
             .map_err(AnalyzeError::from)?;
         let remote_types = &snapshot.types;
         let Some(remote_instance_id) = remote_types.get_instance_type_id(symbol) else {

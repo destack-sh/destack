@@ -326,7 +326,7 @@ impl Compiler {
                 Assignability::Assignable
             }
             (Some(target_ret), Some(source_ret)) => {
-                self.is_type_assignable(&mut ctx.type_context_reborrow(), *target_ret, *source_ret)
+                self.is_type_assignable_in_context(ctx, *target_ret, *source_ret)
             }
             (None, _) => Assignability::Assignable,
             (Some(_), None) => Assignability::NotAssignable,

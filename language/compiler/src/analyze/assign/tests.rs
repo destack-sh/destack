@@ -9,7 +9,7 @@ use destack_dir::{
 use destack_source::{FileContent, Span};
 use destack_workspace::{Module, ProfileId};
 
-use crate::analyze::common::TypeContext;
+use crate::analyze::common::{AnalyzeIndex, TypeContext};
 use crate::{AnalyzeOptions, Assignability, Compiler, TestProgram};
 
 /// Insert a type with a shared source id.
@@ -47,7 +47,15 @@ fn is_type_assignable(
     types: &mut TypeTable,
     options: &AnalyzeOptions,
 ) -> Assignability {
-    let mut ctx = TypeContext::new(module, profile, options, tree, symbols, types);
+    let mut ctx = TypeContext::new(
+        module,
+        profile,
+        options,
+        tree,
+        symbols,
+        types,
+        AnalyzeIndex::default(),
+    );
     compiler.is_type_assignable(&mut ctx, target_id, source_id)
 }
 

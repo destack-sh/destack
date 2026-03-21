@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use indexmap::IndexMap;
 
@@ -26,6 +26,9 @@ impl Compiler {
         module_bindings: &[destack_dir::ModuleBinding],
         module_binding_exports: &IndexMap<LocalNodeIdAny, destack_dir::ModuleBindingExports>,
     ) -> AnalyzeResult<()> {
+        // collect namespace exports once per scope
+        let namespace_exports_by_scope = self.collect_namespace_exports_by_scope(ctx.tree);
+
         // register the module namespace value type
         let namespace_symbol = namespace_symbol.into_global(ctx.module.id);
         let namespace_ty_id = self.build_namespace_type_from_exports(
@@ -35,6 +38,7 @@ impl Compiler {
             module_source_id,
             module_bindings,
             module_binding_exports,
+            &namespace_exports_by_scope,
         )?;
         ctx.types.set_value_type(namespace_symbol, namespace_ty_id);
 
@@ -53,8 +57,10 @@ impl Compiler {
             let Declaration::Namespace { descriptor, .. } = ctx.tree.get(binding_id) else {
                 continue;
             };
-            let binding_namespace_exports =
-                self.collect_namespace_exports_in_scope(ctx.tree, binding_scope);
+            let binding_namespace_exports = namespace_exports_by_scope
+                .get(&binding_scope)
+                .map(Vec::as_slice)
+                .unwrap_or(&[]);
             let binding_symbol = descriptor.symbol.into_global(ctx.module.id);
             let binding_source_id = binding_id.into_any();
             let binding_ty_id = self.build_namespace_type_from_exports(
@@ -64,6 +70,7 @@ impl Compiler {
                 binding_source_id,
                 module_bindings,
                 module_binding_exports,
+                &namespace_exports_by_scope,
             )?;
             ctx.types.set_value_type(binding_symbol, binding_ty_id);
         }
@@ -80,6 +87,7 @@ impl Compiler {
         source_id: LocalNodeIdAny,
         module_bindings: &[destack_dir::ModuleBinding],
         module_binding_exports: &IndexMap<LocalNodeIdAny, destack_dir::ModuleBindingExports>,
+        namespace_exports_by_scope: &HashMap<LocalScopeId, Vec<NamespaceExport>>,
     ) -> AnalyzeResult<LocalTypeId> {
         // merge direct exports
         let mut shape = ObjectShape::default();
@@ -99,6 +107,7 @@ impl Compiler {
                 &mut shape,
                 module_bindings,
                 module_binding_exports,
+                namespace_exports_by_scope,
                 &mut visited,
             )?;
         }
@@ -176,6 +185,7 @@ impl Compiler {
         shape: &mut ObjectShape,
         module_bindings: &[destack_dir::ModuleBinding],
         module_binding_exports: &IndexMap<LocalNodeIdAny, destack_dir::ModuleBindingExports>,
+        namespace_exports_by_scope: &HashMap<LocalScopeId, Vec<NamespaceExport>>,
         visited: &mut HashSet<ModuleTarget>,
     ) -> AnalyzeResult<()> {
         // skip already visited targets
@@ -209,6 +219,7 @@ impl Compiler {
                         shape,
                         module_bindings,
                         module_binding_exports,
+                        namespace_exports_by_scope,
                         visited,
                     )?;
                 }
@@ -235,8 +246,10 @@ impl Compiler {
                     )?;
 
                     // merge namespace exports
-                    let namespace_exports =
-                        self.collect_namespace_exports_in_scope(ctx.tree, binding_scope);
+                    let namespace_exports = namespace_exports_by_scope
+                        .get(&binding_scope)
+                        .map(Vec::as_slice)
+                        .unwrap_or(&[]);
                     for export in namespace_exports {
                         if export.kind != DependencyKind::Value {
                             continue;
@@ -249,6 +262,7 @@ impl Compiler {
                             shape,
                             module_bindings,
                             module_binding_exports,
+                            namespace_exports_by_scope,
                             visited,
                         )?;
                     }
@@ -259,16 +273,15 @@ impl Compiler {
         Ok(())
     }
 
-    /// Collect namespace exports declared within a scope.
-    fn collect_namespace_exports_in_scope(
+    /// Build namespace exports grouped by local scope.
+    fn collect_namespace_exports_by_scope(
         &self,
         tree: &NodeTree,
-        scope_id: LocalScopeId,
-    ) -> Vec<NamespaceExport> {
-        // prepare the namespace export list
-        let mut exports = Vec::new();
+    ) -> HashMap<LocalScopeId, Vec<NamespaceExport>> {
+        // prepare the namespace export table
+        let mut exports_by_scope = HashMap::new();
 
-        // scan dependency items in the target scope
+        // scan dependency items once for all scopes
         for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
             let DependencyItem::Remote {
                 mode,
@@ -305,22 +318,20 @@ impl Compiler {
                 continue;
             }
 
-            // ensure the dependency is in the requested scope
+            // record the namespace export for its scope
             let (item_scope_id, _) = tree.get_scope(item_id);
-            if item_scope_id != scope_id {
-                continue;
-            }
-
-            // record the namespace export
             if let Some(target_module) = target_module.for_kind(*kind) {
-                exports.push(NamespaceExport {
-                    module_id: target_module,
-                    kind: *kind,
-                    item: item_id,
-                });
+                exports_by_scope
+                    .entry(item_scope_id)
+                    .or_insert_with(Vec::new)
+                    .push(NamespaceExport {
+                        module_id: target_module,
+                        kind: *kind,
+                        item: item_id,
+                    });
             }
         }
 
-        exports
+        exports_by_scope
     }
 }

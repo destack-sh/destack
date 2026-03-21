@@ -7,6 +7,7 @@ use destack_workspace::{
     DirPrepared, DirResolved, Module, ProfileId,
 };
 
+use crate::analyze::common::AnalyzeIndex;
 use crate::{
     ArtifactRequirement, ArtifactRequirementError, ArtifactRequirementSet, Compiler,
     DiagnosticAnchor,
@@ -19,7 +20,7 @@ impl Compiler {
     }
 
     /// Build one failed requirement set for one missing committed artifact.
-    fn missing_artifact_requirement(&self, key: ArtifactKey) -> ArtifactRequirementSet {
+    pub(crate) fn missing_artifact_requirement(&self, key: ArtifactKey) -> ArtifactRequirementSet {
         let anchor = match &key {
             ArtifactKey::DirBase { module }
             | ArtifactKey::DirDeclared { module, .. }
@@ -188,6 +189,23 @@ impl Compiler {
                     .missing_artifact_requirement(ArtifactKey::dir_declared(module_id, profile)),
             });
         };
+
+        Ok(dir)
+    }
+
+    /// Read one committed declared DIR artifact through the task-local analyze index.
+    pub(crate) fn require_indexed_dir_declared(
+        &self,
+        index: &AnalyzeIndex,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirDeclared>, ArtifactRequirementError> {
+        if let Some(dir) = index.declared_directory(module_id, profile) {
+            return Ok(dir);
+        }
+
+        let dir = self.require_artifact_dir_declared(module_id, profile)?;
+        index.set_declared_directory(module_id, profile, dir.clone());
 
         Ok(dir)
     }

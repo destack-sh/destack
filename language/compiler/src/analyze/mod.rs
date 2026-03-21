@@ -6,7 +6,7 @@ pub(crate) mod common;
 mod declare;
 mod error;
 mod infer;
-mod interface;
+pub(crate) mod interface;
 mod intrinsic;
 mod module;
 mod options;
