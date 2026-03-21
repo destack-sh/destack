@@ -2,75 +2,33 @@ use destack_vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::core::{
-    bytes_to_vm, call_out, map_native_array_to_vm, map_native_slice_to_vm,
+    VmAbiCodec, bytes_to_vm, call_out, map_native_array_to_vm, map_native_slice_to_vm,
     store_bytes_from_vm as bytes_from_vm, store_string_from_vm as string_from_vm,
     values_array_to_vm,
 };
+use crate::platform::fs::OsPathVm;
 use crate::platform::input::{
-    ClipboardBinaryFormat, InputCompositionEvent, InputCompositionEventPayloadVm,
-    InputCompositionEventVm, InputDeviceCapabilities, InputDeviceCapabilitiesVm,
-    InputDeviceDescriptor, InputDeviceDescriptorVm, InputDeviceEventVm, InputEvent,
-    InputEventMetadata, InputEventMetadataVm, InputEventVm, InputGamepadEventVm, InputGamepadState,
-    InputGamepadStateVm, InputHapticEffectParametersVm, InputHapticEffectType, InputHapticsResult,
-    InputKeyEventVm, InputKeyboardState, InputKeyboardStateVm, InputMonitorChangeEventVm,
-    InputMonitorConnectEventVm, InputMonitorDisconnectEventVm, InputMonitorEvent,
-    InputMonitorEventMetadata, InputMonitorEventMetadataVm, InputMonitorEventVm,
-    InputPointerButtonEventVm, InputPointerGrabMode, InputPointerMotionEventVm,
-    InputPointerStateVm, InputRawHidReport, InputRawHidReportVm, InputReadMode, InputScrollEventVm,
-    InputSensorConfigVm, InputSensorDescriptorVm, InputSensorEffectiveConfigVm, InputSensorEventVm,
-    InputSensorKind, InputSensorSampleVm, InputTextEventPayloadVm, InputTextEventVm,
-    InputTextInputAreaVm, InputTextInputType, InputTouchEventVm, InputTouchState,
-    InputTouchStateVm, InputWindowTargetVm, clipboard, host as host_input,
+    ClipboardItem, ClipboardItemDescriptorVm, InputClipboardCommandEventVm, InputCompositionEvent,
+    InputCompositionEventPayloadVm, InputCompositionEventVm, InputDeviceCapabilities,
+    InputDeviceCapabilitiesVm, InputDeviceDescriptor, InputDeviceDescriptorVm,
+    InputEditIntentEventVm, InputEvent, InputEventMetadata, InputEventMetadataVm, InputEventVm,
+    InputGamepadState, InputGamepadStateVm, InputHapticEffectParametersVm, InputHapticEffectType,
+    InputHapticsResult, InputKeyboardLayoutInfoVm, InputKeyboardState, InputKeyboardStateVm,
+    InputMonitorEvent, InputMonitorEventVm, InputPointerGrabMode, InputPointerStateVm,
+    InputRawHidReport, InputRawHidReportVm, InputReadMode, InputSensorConfigVm,
+    InputSensorDescriptorVm, InputSensorEffectiveConfigVm, InputSensorKind, InputSensorSampleVm,
+    InputTextInputAreaVm, InputTextInputType, InputTouchState, InputTouchStateVm,
+    InputWindowTargetVm, clipboard, host as host_input,
 };
-use crate::platform::{VmArray, VmSlice, resource};
-use crate::runtime::{BindingCallContext, NativeStringRef};
+use crate::platform::{NativeAbiCodec, VmArray, VmSlice, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 /// Convert one native device-info payload into its VM shape.
 fn device_info_to_vm(
     context: &mut destack_vm::ExternalCallContext<'_>,
     value: InputDeviceDescriptor,
 ) -> RuntimeResult<InputDeviceDescriptorVm> {
-    // decode borrowed native strings for vm interning
-    let id = unsafe { value.id.as_str()? };
-    let instance_id = unsafe { value.instance_id.as_str()? };
-    let hardware_id = unsafe { value.hardware_id.as_str()? };
-    let name = unsafe { value.name.as_str()? };
-    let transport = unsafe { value.transport.as_str()? };
-
-    // build one vm device-info record
-    Ok(InputDeviceDescriptorVm {
-        id: context
-            .string_handle(id)
-            .map_err(Box::<RuntimeError>::from)?,
-        instance_id: context
-            .string_handle(instance_id)
-            .map_err(Box::<RuntimeError>::from)?,
-        hardware_id: context
-            .string_handle(hardware_id)
-            .map_err(Box::<RuntimeError>::from)?,
-        name: context
-            .string_handle(name)
-            .map_err(Box::<RuntimeError>::from)?,
-        transport: context
-            .string_handle(transport)
-            .map_err(Box::<RuntimeError>::from)?,
-        kind: value.kind,
-        vendor_id: value.vendor_id,
-        product_id: value.product_id,
-        key_count: value.key_count,
-        button_count: value.button_count,
-        axis_count: value.axis_count,
-        connected: value.connected,
-        supports_exclusive_grab: value.supports_exclusive_grab,
-        supports_raw: value.supports_raw,
-        supports_text: value.supports_text,
-        supports_rumble: value.supports_rumble,
-        supports_battery: value.supports_battery,
-        supports_light: value.supports_light,
-        supports_raw_hid: value.supports_raw_hid,
-        is_virtual: value.is_virtual,
-        is_system: value.is_system,
-    })
+    vm_value_from_native(context, value)
 }
 
 /// Convert one native input event payload into its VM shape.
@@ -79,109 +37,36 @@ fn event_to_vm(
     value: InputEvent,
 ) -> RuntimeResult<InputEventVm> {
     match value {
-        InputEvent::InputCompositionEvent(value) => {
-            let kind = native_string_to_vm(context, value.kind)?;
-            let metadata = event_metadata_to_vm(context, value.metadata)?;
-            let text = native_string_to_vm(context, value.payload.text)?;
-            Ok(InputEventVm::InputCompositionEvent(
-                InputCompositionEventVm {
-                    kind,
-                    metadata,
-                    payload: InputCompositionEventPayloadVm {
-                        action: value.payload.action,
-                        text,
-                        selection_start: value.payload.selection_start,
-                        selection_end: value.payload.selection_end,
-                    },
-                },
-            ))
-        }
-        InputEvent::InputDeviceEvent(value) => {
-            let kind = native_string_to_vm(context, value.kind)?;
-            let metadata = event_metadata_to_vm(context, value.metadata)?;
-            Ok(InputEventVm::InputDeviceEvent(InputDeviceEventVm {
-                kind,
-                metadata,
-                payload: value.payload,
-            }))
-        }
-        InputEvent::InputGamepadEvent(value) => {
-            let kind = native_string_to_vm(context, value.kind)?;
-            let metadata = event_metadata_to_vm(context, value.metadata)?;
-            Ok(InputEventVm::InputGamepadEvent(InputGamepadEventVm {
-                kind,
-                metadata,
-                payload: value.payload,
-            }))
-        }
-        InputEvent::InputKeyEvent(value) => {
-            let kind = native_string_to_vm(context, value.kind)?;
-            let metadata = event_metadata_to_vm(context, value.metadata)?;
-            Ok(InputEventVm::InputKeyEvent(InputKeyEventVm {
-                kind,
-                metadata,
-                payload: value.payload,
-            }))
-        }
-        InputEvent::InputPointerButtonEvent(value) => {
-            let kind = native_string_to_vm(context, value.kind)?;
-            let metadata = event_metadata_to_vm(context, value.metadata)?;
-            Ok(InputEventVm::InputPointerButtonEvent(
-                InputPointerButtonEventVm {
-                    kind,
-                    metadata,
-                    payload: value.payload,
-                },
-            ))
-        }
-        InputEvent::InputPointerMotionEvent(value) => {
-            let kind = native_string_to_vm(context, value.kind)?;
-            let metadata = event_metadata_to_vm(context, value.metadata)?;
-            Ok(InputEventVm::InputPointerMotionEvent(
-                InputPointerMotionEventVm {
-                    kind,
-                    metadata,
-                    payload: value.payload,
-                },
-            ))
-        }
-        InputEvent::InputScrollEvent(value) => {
-            let kind = native_string_to_vm(context, value.kind)?;
-            let metadata = event_metadata_to_vm(context, value.metadata)?;
-            Ok(InputEventVm::InputScrollEvent(InputScrollEventVm {
-                kind,
-                metadata,
-                payload: value.payload,
-            }))
-        }
-        InputEvent::InputSensorEvent(value) => {
-            let kind = native_string_to_vm(context, value.kind)?;
-            let metadata = event_metadata_to_vm(context, value.metadata)?;
-            Ok(InputEventVm::InputSensorEvent(InputSensorEventVm {
-                kind,
-                metadata,
-                payload: value.payload,
-            }))
-        }
-        InputEvent::InputTextEvent(value) => {
-            let kind = native_string_to_vm(context, value.kind)?;
-            let metadata = event_metadata_to_vm(context, value.metadata)?;
-            let text = native_string_to_vm(context, value.payload.text)?;
-            Ok(InputEventVm::InputTextEvent(InputTextEventVm {
-                kind,
-                metadata,
-                payload: InputTextEventPayloadVm { text },
-            }))
-        }
-        InputEvent::InputTouchEvent(value) => {
-            let kind = native_string_to_vm(context, value.kind)?;
-            let metadata = event_metadata_to_vm(context, value.metadata)?;
-            Ok(InputEventVm::InputTouchEvent(InputTouchEventVm {
-                kind,
-                metadata,
-                payload: value.payload,
-            }))
-        }
+        InputEvent::InputCompositionEvent(value) => Ok(InputEventVm::InputCompositionEvent(
+            vm_value_from_native(context, value)?,
+        )),
+        InputEvent::InputDeviceEvent(value) => Ok(InputEventVm::InputDeviceEvent(
+            vm_value_from_native(context, value)?,
+        )),
+        InputEvent::InputGamepadEvent(value) => Ok(InputEventVm::InputGamepadEvent(
+            vm_value_from_native(context, value)?,
+        )),
+        InputEvent::InputKeyEvent(value) => Ok(InputEventVm::InputKeyEvent(vm_value_from_native(
+            context, value,
+        )?)),
+        InputEvent::InputPointerButtonEvent(value) => Ok(InputEventVm::InputPointerButtonEvent(
+            vm_value_from_native(context, value)?,
+        )),
+        InputEvent::InputPointerMotionEvent(value) => Ok(InputEventVm::InputPointerMotionEvent(
+            vm_value_from_native(context, value)?,
+        )),
+        InputEvent::InputScrollEvent(value) => Ok(InputEventVm::InputScrollEvent(
+            vm_value_from_native(context, value)?,
+        )),
+        InputEvent::InputSensorEvent(value) => Ok(InputEventVm::InputSensorEvent(
+            vm_value_from_native(context, value)?,
+        )),
+        InputEvent::InputTextEvent(value) => Ok(InputEventVm::InputTextEvent(
+            vm_value_from_native(context, value)?,
+        )),
+        InputEvent::InputTouchEvent(value) => Ok(InputEventVm::InputTouchEvent(
+            vm_value_from_native(context, value)?,
+        )),
     }
 }
 
@@ -191,27 +76,15 @@ fn monitor_event_to_vm(
     value: InputMonitorEvent,
 ) -> RuntimeResult<InputMonitorEventVm> {
     match value {
-        InputMonitorEvent::InputMonitorChangeEvent(value) => {
-            let kind = native_string_to_vm(context, value.kind)?;
-            let metadata = monitor_event_metadata_to_vm(context, value.metadata)?;
-            Ok(InputMonitorEventVm::InputMonitorChangeEvent(
-                InputMonitorChangeEventVm { kind, metadata },
-            ))
-        }
-        InputMonitorEvent::InputMonitorConnectEvent(value) => {
-            let kind = native_string_to_vm(context, value.kind)?;
-            let metadata = monitor_event_metadata_to_vm(context, value.metadata)?;
-            Ok(InputMonitorEventVm::InputMonitorConnectEvent(
-                InputMonitorConnectEventVm { kind, metadata },
-            ))
-        }
-        InputMonitorEvent::InputMonitorDisconnectEvent(value) => {
-            let kind = native_string_to_vm(context, value.kind)?;
-            let metadata = monitor_event_metadata_to_vm(context, value.metadata)?;
-            Ok(InputMonitorEventVm::InputMonitorDisconnectEvent(
-                InputMonitorDisconnectEventVm { kind, metadata },
-            ))
-        }
+        InputMonitorEvent::InputMonitorChangeEvent(value) => Ok(
+            InputMonitorEventVm::InputMonitorChangeEvent(vm_value_from_native(context, value)?),
+        ),
+        InputMonitorEvent::InputMonitorConnectEvent(value) => Ok(
+            InputMonitorEventVm::InputMonitorConnectEvent(vm_value_from_native(context, value)?),
+        ),
+        InputMonitorEvent::InputMonitorDisconnectEvent(value) => Ok(
+            InputMonitorEventVm::InputMonitorDisconnectEvent(vm_value_from_native(context, value)?),
+        ),
     }
 }
 
@@ -226,30 +99,41 @@ fn native_string_to_vm(
         .map_err(Box::<RuntimeError>::from)
 }
 
+/// Decode one VM binding payload into one native binding payload.
+fn native_value_from_vm<Native, Vm>(
+    binding: &BindingCallContext,
+    context: &destack_vm::ExternalCallContext<'_>,
+    value: Vm,
+) -> RuntimeResult<Native>
+where
+    Native: NativeAbiCodec<Value = Vm::Value>,
+    Vm: VmAbiCodec,
+{
+    let value = value.into_value(context)?;
+
+    Ok(Native::from_value(binding, value))
+}
+
+/// Encode one native binding payload into one VM binding payload.
+fn vm_value_from_native<Native, Vm>(
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    value: Native,
+) -> RuntimeResult<Vm>
+where
+    Native: NativeAbiCodec,
+    Vm: VmAbiCodec<Value = Native::Value>,
+{
+    let value = unsafe { value.into_value()? };
+
+    Vm::from_value(context, value)
+}
+
 /// Convert one native event metadata payload into its VM shape.
 fn event_metadata_to_vm(
     context: &mut destack_vm::ExternalCallContext<'_>,
     value: InputEventMetadata,
 ) -> RuntimeResult<InputEventMetadataVm> {
-    Ok(InputEventMetadataVm {
-        timestamp_ns: value.timestamp_ns,
-        sequence: value.sequence,
-        device_id: native_string_to_vm(context, value.device_id)?,
-    })
-}
-
-/// Convert one native monitor event metadata payload into its VM shape.
-fn monitor_event_metadata_to_vm(
-    context: &mut destack_vm::ExternalCallContext<'_>,
-    value: InputMonitorEventMetadata,
-) -> RuntimeResult<InputMonitorEventMetadataVm> {
-    Ok(InputMonitorEventMetadataVm {
-        timestamp_ns: value.timestamp_ns,
-        sequence: value.sequence,
-        device_id: native_string_to_vm(context, value.device_id)?,
-        device_kind: value.device_kind,
-        connected: value.connected,
-    })
+    vm_value_from_native(context, value)
 }
 
 /// Convert one native capabilities payload into its VM shape.
@@ -257,31 +141,7 @@ fn capabilities_to_vm(
     context: &mut destack_vm::ExternalCallContext<'_>,
     value: InputDeviceCapabilities,
 ) -> RuntimeResult<InputDeviceCapabilitiesVm> {
-    let kinds = unsafe { value.kinds.as_slice()? };
-    let axes = unsafe { value.axes.as_slice()? };
-    let buttons = unsafe { value.buttons.as_slice()? };
-
-    Ok(InputDeviceCapabilitiesVm {
-        kinds: VmArray::from_values(context, kinds)?,
-        axes: VmArray::from_values(context, axes)?,
-        buttons: VmArray::from_values(context, buttons)?,
-        metadata_origin: value.metadata_origin,
-        axis_metadata_fidelity: value.axis_metadata_fidelity,
-        button_metadata_fidelity: value.button_metadata_fidelity,
-        supports_relative_pointer: value.supports_relative_pointer,
-        supports_pointer_grab: value.supports_pointer_grab,
-        supports_pointer_capture: value.supports_pointer_capture,
-        supports_pointer_warp: value.supports_pointer_warp,
-        supports_text_input: value.supports_text_input,
-        supports_composition: value.supports_composition,
-        supports_rumble: value.supports_rumble,
-        supports_trigger_rumble: value.supports_trigger_rumble,
-        supports_sensors: value.supports_sensors,
-        supports_battery_state: value.supports_battery_state,
-        supports_light_control: value.supports_light_control,
-        supports_raw_hid: value.supports_raw_hid,
-        supports_player_index: value.supports_player_index,
-    })
+    vm_value_from_native(context, value)
 }
 
 /// Convert one native gamepad state snapshot into its VM shape.
@@ -289,25 +149,7 @@ fn gamepad_state_to_vm(
     context: &mut destack_vm::ExternalCallContext<'_>,
     value: InputGamepadState,
 ) -> RuntimeResult<InputGamepadStateVm> {
-    // convert variable-length gamepad arrays
-    let axes = values_array_to_vm(context, value.axes)?;
-    let buttons = values_array_to_vm(context, value.buttons)?;
-    let touches = values_array_to_vm(context, value.touches)?;
-
-    // build one VM snapshot
-    Ok(InputGamepadStateVm {
-        timestamp_ns: value.timestamp_ns,
-        connected: value.connected,
-        mapping: value.mapping,
-        connection_type: value.connection_type,
-        player_index: value.player_index,
-        battery: value.battery,
-        supports_rumble: value.supports_rumble,
-        supports_trigger_rumble: value.supports_trigger_rumble,
-        axes,
-        buttons,
-        touches,
-    })
+    vm_value_from_native(context, value)
 }
 
 /// Convert one native keyboard state snapshot into its VM shape.
@@ -315,24 +157,7 @@ fn keyboard_state_to_vm(
     context: &mut destack_vm::ExternalCallContext<'_>,
     value: InputKeyboardState,
 ) -> RuntimeResult<InputKeyboardStateVm> {
-    // decode borrowed native device id
-    let device_id = unsafe { value.device_id.as_str()? };
-
-    // convert variable-length key arrays
-    let pressed_codes = values_array_to_vm(context, value.pressed_codes)?;
-    let pressed_scan_codes = values_array_to_vm(context, value.pressed_scan_codes)?;
-
-    // build one VM snapshot
-    Ok(InputKeyboardStateVm {
-        timestamp_ns: value.timestamp_ns,
-        sequence: value.sequence,
-        device_id: context
-            .string_handle(device_id)
-            .map_err(Box::<RuntimeError>::from)?,
-        modifiers: value.modifiers,
-        pressed_codes,
-        pressed_scan_codes,
-    })
+    vm_value_from_native(context, value)
 }
 
 /// Convert one native raw-hid report into its VM shape.
@@ -375,21 +200,7 @@ fn touch_state_to_vm(
     context: &mut destack_vm::ExternalCallContext<'_>,
     value: InputTouchState,
 ) -> RuntimeResult<InputTouchStateVm> {
-    // decode borrowed native device id
-    let device_id = unsafe { value.device_id.as_str()? };
-
-    // convert variable-length contact array
-    let contacts = values_array_to_vm(context, value.contacts)?;
-
-    // build one VM touch snapshot
-    Ok(InputTouchStateVm {
-        timestamp_ns: value.timestamp_ns,
-        sequence: value.sequence,
-        device_id: context
-            .string_handle(device_id)
-            .map_err(Box::<RuntimeError>::from)?,
-        contacts,
-    })
+    vm_value_from_native(context, value)
 }
 
 /// Close one input device.
@@ -801,6 +612,34 @@ pub(crate) fn destack_input_gamepad_set_light(
     unsafe { host_input::destack_input_gamepad_set_light(binding, handle, red, green, blue) }
 }
 
+/// Set one gamepad motion sensor sample rate.
+pub(crate) fn destack_input_gamepad_set_motion_sensor_sample_rate(
+    binding: &BindingCallContext,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    handle: resource::InputDeviceHandle,
+    sampleratehz: f64,
+) -> RuntimeResult<()> {
+    unsafe {
+        host_input::destack_input_gamepad_set_motion_sensor_sample_rate(
+            binding,
+            handle,
+            sampleratehz,
+        )
+    }
+}
+
+/// Enable or disable one gamepad motion sensor stream.
+pub(crate) fn destack_input_gamepad_set_motion_sensors_enabled(
+    binding: &BindingCallContext,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    handle: resource::InputDeviceHandle,
+    enabled: bool,
+) -> RuntimeResult<()> {
+    unsafe {
+        host_input::destack_input_gamepad_set_motion_sensors_enabled(binding, handle, enabled)
+    }
+}
+
 /// Set one gamepad player index.
 ///
 /// Apply one player index hint for one opened gamepad-capable device.
@@ -960,6 +799,18 @@ pub(crate) fn destack_input_keyboard_state(
     keyboard_state_to_vm(context, value)
 }
 
+/// Read one keyboard layout snapshot.
+pub(crate) fn destack_input_keyboard_layout(
+    binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<InputKeyboardLayoutInfoVm> {
+    let value =
+        call_out(|out| unsafe { host_input::destack_input_keyboard_layout(binding, out, handle) })?;
+
+    vm_value_from_native(context, value)
+}
+
 /// Enable or disable pointer capture.
 ///
 /// Toggle pointer capture for one opened pointer-capable device and one optional window target.
@@ -1008,12 +859,14 @@ pub(crate) fn destack_input_pointer_capture(
 /// External, recordable.
 pub(crate) fn destack_input_pointer_relative_state(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<InputPointerStateVm> {
-    call_out(|out| unsafe {
+    let value = call_out(|out| unsafe {
         host_input::destack_input_pointer_relative_state(binding, out, handle)
-    })
+    })?;
+
+    vm_value_from_native(context, value)
 }
 
 /// Set pointer grab mode.
@@ -1090,10 +943,13 @@ pub(crate) fn destack_input_pointer_set_relative_mode(
 /// External, recordable.
 pub(crate) fn destack_input_pointer_state(
     binding: &BindingCallContext,
-    _context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<InputPointerStateVm> {
-    call_out(|out| unsafe { host_input::destack_input_pointer_state(binding, out, handle) })
+    let value =
+        call_out(|out| unsafe { host_input::destack_input_pointer_state(binding, out, handle) })?;
+
+    vm_value_from_native(context, value)
 }
 
 /// Warp pointer position.
@@ -1455,6 +1311,32 @@ pub(crate) fn destack_input_text_read_composition(
     composition_event_to_vm(context, value)
 }
 
+/// Read one clipboard command.
+pub(crate) fn destack_input_text_read_clipboard_command(
+    binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<InputClipboardCommandEventVm> {
+    let value = call_out(|out| unsafe {
+        host_input::destack_input_text_read_clipboard_command(binding, out, handle)
+    })?;
+
+    vm_value_from_native(context, value)
+}
+
+/// Read one edit intent.
+pub(crate) fn destack_input_text_read_edit_intent(
+    binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<InputEditIntentEventVm> {
+    let value = call_out(|out| unsafe {
+        host_input::destack_input_text_read_edit_intent(binding, out, handle)
+    })?;
+
+    vm_value_from_native(context, value)
+}
+
 /// Set text input area.
 ///
 /// Set one text input area and cursor position hint for one opened input device and one optional window target.
@@ -1565,6 +1447,32 @@ pub(crate) fn destack_input_text_try_read_composition(
     composition_event_to_vm(context, value)
 }
 
+/// Poll one clipboard command without blocking.
+pub(crate) fn destack_input_text_try_read_clipboard_command(
+    binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<InputClipboardCommandEventVm> {
+    let value = call_out(|out| unsafe {
+        host_input::destack_input_text_try_read_clipboard_command(binding, out, handle)
+    })?;
+
+    vm_value_from_native(context, value)
+}
+
+/// Poll one edit intent without blocking.
+pub(crate) fn destack_input_text_try_read_edit_intent(
+    binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<InputEditIntentEventVm> {
+    let value = call_out(|out| unsafe {
+        host_input::destack_input_text_try_read_edit_intent(binding, out, handle)
+    })?;
+
+    vm_value_from_native(context, value)
+}
+
 /// Read one touch state snapshot.
 ///
 /// Return one current touch-contact snapshot for one opened touch-capable device.
@@ -1609,15 +1517,72 @@ pub(crate) fn destack_input_clipboard_has_text(
     clipboard::has_text()
 }
 
-/// Read binary clipboard payload.
-pub(crate) fn destack_input_clipboard_read_bytes(
-    _binding: &BindingCallContext,
+/// List clipboard items.
+pub(crate) fn destack_input_clipboard_list_items(
+    binding: &BindingCallContext,
     context: &mut destack_vm::ExternalCallContext<'_>,
-    format: ClipboardBinaryFormat,
-) -> RuntimeResult<VmSlice<u8>> {
-    let value = clipboard::read_bytes(format)?;
+) -> RuntimeResult<VmSlice<ClipboardItemDescriptorVm>> {
+    let value =
+        call_out(|out| unsafe { clipboard::destack_input_clipboard_list_items(binding, out) })?;
 
-    VmSlice::from_bytes(context, &value)
+    vm_value_from_native(context, value)
+}
+
+/// Read one clipboard item as bytes.
+pub(crate) fn destack_input_clipboard_read_item_bytes(
+    binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    itemindex: u32,
+    representationindex: u32,
+) -> RuntimeResult<VmSlice<u8>> {
+    let value = call_out(|out| unsafe {
+        clipboard::destack_input_clipboard_read_item_bytes(
+            binding,
+            out,
+            itemindex,
+            representationindex,
+        )
+    })?;
+
+    VmSlice::from_bytes(context, &unsafe { value.as_slice()? })
+}
+
+/// Read one clipboard item as one path.
+pub(crate) fn destack_input_clipboard_read_item_path(
+    binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    itemindex: u32,
+    representationindex: u32,
+) -> RuntimeResult<OsPathVm> {
+    let value = call_out(|out| unsafe {
+        clipboard::destack_input_clipboard_read_item_path(
+            binding,
+            out,
+            itemindex,
+            representationindex,
+        )
+    })?;
+
+    vm_value_from_native(context, value)
+}
+
+/// Read one clipboard item as text.
+pub(crate) fn destack_input_clipboard_read_item_text(
+    binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    itemindex: u32,
+    representationindex: u32,
+) -> RuntimeResult<destack_vm::StringHandle> {
+    let value = call_out(|out| unsafe {
+        clipboard::destack_input_clipboard_read_item_text(
+            binding,
+            out,
+            itemindex,
+            representationindex,
+        )
+    })?;
+
+    native_string_to_vm(context, value)
 }
 
 /// Read text clipboard payload.
@@ -1640,18 +1605,6 @@ pub(crate) fn destack_input_clipboard_sequence(
     clipboard::sequence()
 }
 
-/// Write binary clipboard payload.
-pub(crate) fn destack_input_clipboard_write_bytes(
-    _binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
-    format: ClipboardBinaryFormat,
-    argument_bytes: VmSlice<u8>,
-) -> RuntimeResult<()> {
-    let bytes = argument_bytes.read_bytes(context)?;
-
-    clipboard::write_bytes(format, &bytes)
-}
-
 /// Write text clipboard payload.
 pub(crate) fn destack_input_clipboard_write_text(
     _binding: &BindingCallContext,
@@ -1663,4 +1616,15 @@ pub(crate) fn destack_input_clipboard_write_text(
         .map_err(|error| RuntimeError::from(error).boxed())?;
 
     clipboard::write_text(text.as_str())
+}
+
+/// Write clipboard items.
+pub(crate) fn destack_input_clipboard_write_items(
+    binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    items: VmSlice<crate::platform::input::ClipboardItemVm>,
+) -> RuntimeResult<()> {
+    let items: NativeSlice<ClipboardItem> = native_value_from_vm(binding, context, items)?;
+
+    unsafe { clipboard::destack_input_clipboard_write_items(binding, items) }
 }

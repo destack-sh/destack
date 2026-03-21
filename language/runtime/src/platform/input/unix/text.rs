@@ -3,8 +3,8 @@ use super::core as input_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputCompositionEvent, InputReadMode, InputTextInputArea, InputTextInputType,
-    InputWindowTarget, validation as input_validation,
+    InputClipboardCommandEvent, InputCompositionEvent, InputEditIntentEvent, InputReadMode,
+    InputTextInputArea, InputTextInputType, InputWindowTarget, validation as input_validation,
 };
 use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
@@ -392,4 +392,93 @@ pub(crate) unsafe fn destack_input_text_try_read_composition(
     }
 
     Ok(())
+}
+
+/// Read one clipboard command.
+pub(crate) unsafe fn destack_input_text_read_clipboard_command(
+    binding: &BindingCallContext,
+    out: *mut InputClipboardCommandEvent,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    // validate output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // validate one text-capable unix handle before reporting unsupported
+    let _binding =
+        resolve_text_binding(binding, handle, "destack.input.text.readClipboardCommand")?;
+    let _ = out;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.text.readClipboardCommand",
+    ))
+    .boxed())
+}
+
+/// Read one edit intent.
+pub(crate) unsafe fn destack_input_text_read_edit_intent(
+    binding: &BindingCallContext,
+    out: *mut InputEditIntentEvent,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    // validate output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // validate one text-capable unix handle before reporting unsupported
+    let _binding = resolve_text_binding(binding, handle, "destack.input.text.readEditIntent")?;
+    let _ = out;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.text.readEditIntent",
+    ))
+    .boxed())
+}
+
+/// Poll one clipboard command without blocking.
+pub(crate) unsafe fn destack_input_text_try_read_clipboard_command(
+    binding: &BindingCallContext,
+    out: *mut InputClipboardCommandEvent,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    // validate output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // validate one text-capable unix handle before reporting unsupported
+    let _binding = resolve_text_binding(
+        binding,
+        handle,
+        "destack.input.text.tryReadClipboardCommand",
+    )?;
+    let _ = out;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.text.tryReadClipboardCommand",
+    ))
+    .boxed())
+}
+
+/// Poll one edit intent without blocking.
+pub(crate) unsafe fn destack_input_text_try_read_edit_intent(
+    binding: &BindingCallContext,
+    out: *mut InputEditIntentEvent,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    // validate output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // validate one text-capable unix handle before reporting unsupported
+    let _binding = resolve_text_binding(binding, handle, "destack.input.text.tryReadEditIntent")?;
+    let _ = out;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.text.tryReadEditIntent",
+    ))
+    .boxed())
 }

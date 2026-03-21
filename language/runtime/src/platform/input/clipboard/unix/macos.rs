@@ -6,8 +6,8 @@ use crate::diagnostic::RuntimeResult;
 use crate::host::apple::execution::call_process_main_context_if_needed;
 use crate::platform::core::{invalid_argument, io_not_found, io_operation_error};
 use crate::platform::input::clipboard::core::{
-    CLIPBOARD_READ_BYTES_OPERATION, CLIPBOARD_READ_TEXT_OPERATION, CLIPBOARD_SEQUENCE_OPERATION,
-    CLIPBOARD_WRITE_BYTES_OPERATION, CLIPBOARD_WRITE_TEXT_OPERATION,
+    CLIPBOARD_READ_ITEM_BYTES_OPERATION, CLIPBOARD_READ_TEXT_OPERATION,
+    CLIPBOARD_SEQUENCE_OPERATION, CLIPBOARD_WRITE_ITEMS_OPERATION, CLIPBOARD_WRITE_TEXT_OPERATION,
 };
 
 fn with_general_pasteboard<R: Send>(
@@ -78,7 +78,7 @@ pub(crate) fn read_html_bytes() -> RuntimeResult<Vec<u8>> {
             .stringForType(unsafe { NSPasteboardTypeHTML })
             .ok_or_else(|| {
                 io_not_found(
-                    CLIPBOARD_READ_BYTES_OPERATION,
+                    CLIPBOARD_READ_ITEM_BYTES_OPERATION,
                     "clipboard html was not found",
                 )
             })?;
@@ -104,7 +104,7 @@ pub(crate) fn write_html_bytes(bytes: &[u8]) -> RuntimeResult<()> {
         }
 
         Err(io_operation_error(
-            CLIPBOARD_WRITE_BYTES_OPERATION,
+            CLIPBOARD_WRITE_ITEMS_OPERATION,
             None,
             "pasteboard rejected html payload",
         ))

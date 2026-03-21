@@ -1,10 +1,10 @@
 use super::tests::{
-    bytes_harness_value, decode_clipboard_bytes, decode_clipboard_text, restore_clipboard,
-    snapshot_clipboard, string_harness_value,
+    decode_clipboard_bytes, decode_clipboard_item_descriptors, decode_clipboard_text,
+    html_clipboard_items_value, restore_clipboard, snapshot_clipboard, string_harness_value,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::input::ClipboardBinaryFormat;
 use crate::platform::input::tests::with_harness_context;
+use crate::platform::input::{ClipboardItemRepresentationKind, ClipboardPresentationStyle};
 #[cfg(target_os = "macos")]
 use crate::tests::execution::run_execution_case_or_return;
 use crate::tests::platform::assert_runtime_error_code;
@@ -24,7 +24,7 @@ fn should_skip_clipboard_roundtrip(test_name: &str) -> bool {
     }
 }
 
-/// Verify clipboard text and `TextUtf8` bytes roundtrip on supported hosts.
+/// Verify clipboard text and item descriptors roundtrip on supported hosts.
 #[cfg_attr(test, test)]
 pub(crate) fn test_clipboard_text_roundtrip() {
     if should_skip_clipboard_roundtrip(concat!(
@@ -41,16 +41,28 @@ pub(crate) fn test_clipboard_text_roundtrip() {
         context.destack_input_clipboard_write_text(write_text)?;
 
         let has_text = context.destack_input_clipboard_has_text()?;
+        let items = context.destack_input_clipboard_list_items()?;
+        let items = decode_clipboard_item_descriptors(&mut context, items)?;
         let read_text = context.destack_input_clipboard_read_text()?;
         let read_text = decode_clipboard_text(&mut context, read_text)?;
-        let read_bytes =
-            context.destack_input_clipboard_read_bytes(ClipboardBinaryFormat::TextUtf8)?;
-        let read_bytes = decode_clipboard_bytes(&mut context, read_bytes)?;
+        let read_item_text = context.destack_input_clipboard_read_item_text(0, 0)?;
+        let read_item_text = decode_clipboard_text(&mut context, read_item_text)?;
         let updated_sequence = context.destack_input_clipboard_sequence()?;
 
         assert!(has_text);
+        assert_eq!(items.len(), 1);
+        assert_eq!(
+            items[0].presentation_style,
+            ClipboardPresentationStyle::Unspecified
+        );
+        assert_eq!(items[0].representations.len(), 1);
+        assert_eq!(
+            items[0].representations[0].kind,
+            ClipboardItemRepresentationKind::String
+        );
+        assert_eq!(items[0].representations[0].mime_type, "text/plain");
         assert_eq!(read_text, "destack clipboard roundtrip");
-        assert_eq!(read_bytes, b"destack clipboard roundtrip");
+        assert_eq!(read_item_text, "destack clipboard roundtrip");
         assert!(updated_sequence >= initial_sequence);
 
         restore_clipboard(&mut context, snapshot)?;
@@ -58,7 +70,7 @@ pub(crate) fn test_clipboard_text_roundtrip() {
     });
 }
 
-/// Verify clipboard html bytes roundtrip on supported hosts.
+/// Verify clipboard html item roundtrip on supported hosts.
 #[cfg_attr(test, test)]
 pub(crate) fn test_clipboard_html_roundtrip() {
     if should_skip_clipboard_roundtrip(concat!(
@@ -71,11 +83,25 @@ pub(crate) fn test_clipboard_html_roundtrip() {
     with_harness_context(|mut context| {
         let snapshot = snapshot_clipboard(&mut context)?;
         let html = b"<!doctype html><b>destack</b>";
-        let write_html = bytes_harness_value(&mut context, html)?;
-        context.destack_input_clipboard_write_bytes(ClipboardBinaryFormat::Html, write_html)?;
+        let items = html_clipboard_items_value(&mut context, html)?;
+        context.destack_input_clipboard_write_items(items)?;
 
-        let read_html = context.destack_input_clipboard_read_bytes(ClipboardBinaryFormat::Html)?;
+        let descriptors = context.destack_input_clipboard_list_items()?;
+        let descriptors = decode_clipboard_item_descriptors(&mut context, descriptors)?;
+        let read_html = context.destack_input_clipboard_read_item_bytes(0, 0)?;
         let read_html = decode_clipboard_bytes(&mut context, read_html)?;
+
+        assert_eq!(descriptors.len(), 1);
+        assert_eq!(
+            descriptors[0].presentation_style,
+            ClipboardPresentationStyle::Unspecified
+        );
+        assert_eq!(descriptors[0].representations.len(), 1);
+        assert_eq!(
+            descriptors[0].representations[0].kind,
+            ClipboardItemRepresentationKind::Binary
+        );
+        assert_eq!(descriptors[0].representations[0].mime_type, "text/html");
         assert_eq!(read_html, html);
 
         restore_clipboard(&mut context, snapshot)?;

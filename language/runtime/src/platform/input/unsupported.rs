@@ -10,19 +10,20 @@ use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::input::{
-    InputAxisMetadata, InputButtonMetadata, InputCompositionEvent, InputCompositionEventPayload,
-    InputDeviceCapabilities, InputDeviceCapabilityKind, InputDeviceDescriptor,
-    InputDeviceEventPayload, InputDeviceKind, InputEvent, InputEventAction, InputEventKind,
-    InputEventPayload, InputGamepadBatteryState, InputGamepadBatteryStatus,
-    InputGamepadButtonState, InputGamepadConnectionType, InputGamepadEventPayload,
-    InputGamepadMappingType, InputGamepadState, InputGamepadTouchState,
+    InputAxisMetadata, InputButtonMetadata, InputClipboardCommandEvent, InputCompositionEvent,
+    InputCompositionEventPayload, InputDeviceCapabilities, InputDeviceCapabilityKind,
+    InputDeviceDescriptor, InputDeviceEventPayload, InputDeviceKind, InputEditIntentEvent,
+    InputEvent, InputEventAction, InputEventKind, InputEventPayload, InputGamepadBatteryState,
+    InputGamepadBatteryStatus, InputGamepadButtonState, InputGamepadConnectionType,
+    InputGamepadEventPayload, InputGamepadMappingType, InputGamepadState, InputGamepadTouchState,
     InputHapticEffectParameters, InputHapticEffectType, InputHapticsResult, InputKeyEventPayload,
-    InputKeyboardState, InputMonitorEvent, InputMonitorEventKind, InputPointerButtonEventPayload,
-    InputPointerGrabMode, InputPointerMotionEventPayload, InputPointerState, InputRawHidReport,
-    InputReadMode, InputScrollEventPayload, InputSensorConfig, InputSensorDescriptor,
-    InputSensorEffectiveConfig, InputSensorEventPayload, InputSensorKind, InputSensorSample,
-    InputTextEventPayload, InputTextInputArea, InputTextInputType, InputTouchContactPhase,
-    InputTouchContactState, InputTouchEventPayload, InputTouchState, InputWindowTarget,
+    InputKeyboardLayoutInfo, InputKeyboardState, InputMonitorEvent, InputMonitorEventKind,
+    InputPointerButtonEventPayload, InputPointerGrabMode, InputPointerMotionEventPayload,
+    InputPointerState, InputRawHidReport, InputReadMode, InputScrollEventPayload,
+    InputSensorConfig, InputSensorDescriptor, InputSensorEffectiveConfig, InputSensorEventPayload,
+    InputSensorKind, InputSensorSample, InputTextEventPayload, InputTextInputArea,
+    InputTextInputType, InputTouchContactPhase, InputTouchContactState, InputTouchEventPayload,
+    InputTouchState, InputWindowTarget,
 };
 use crate::platform::resource;
 
@@ -488,6 +489,34 @@ pub(crate) unsafe fn destack_input_gamepad_set_light(
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.gamepad.setLight",
+    ))
+    .boxed())
+}
+
+/// Set one gamepad motion sensor sample rate.
+pub(crate) unsafe fn destack_input_gamepad_set_motion_sensor_sample_rate(
+    binding: &BindingCallContext,
+    handle: resource::InputDeviceHandle,
+    sampleratehz: f64,
+) -> RuntimeResult<()> {
+    let _ = (binding, handle, sampleratehz);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.gamepad.setMotionSensorSampleRate",
+    ))
+    .boxed())
+}
+
+/// Enable or disable one gamepad motion sensor stream.
+pub(crate) unsafe fn destack_input_gamepad_set_motion_sensors_enabled(
+    binding: &BindingCallContext,
+    handle: resource::InputDeviceHandle,
+    enabled: bool,
+) -> RuntimeResult<()> {
+    let _ = (binding, handle, enabled);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.gamepad.setMotionSensorsEnabled",
     ))
     .boxed())
 }
@@ -1356,6 +1385,74 @@ pub(crate) unsafe fn destack_input_text_try_read_composition(
     .boxed())
 }
 
+/// Read one clipboard command.
+pub(crate) unsafe fn destack_input_text_read_clipboard_command(
+    binding: &BindingCallContext,
+    out: *mut InputClipboardCommandEvent,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (binding, out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.text.readClipboardCommand",
+    ))
+    .boxed())
+}
+
+/// Read one edit intent.
+pub(crate) unsafe fn destack_input_text_read_edit_intent(
+    binding: &BindingCallContext,
+    out: *mut InputEditIntentEvent,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (binding, out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.text.readEditIntent",
+    ))
+    .boxed())
+}
+
+/// Poll one clipboard command without blocking.
+pub(crate) unsafe fn destack_input_text_try_read_clipboard_command(
+    binding: &BindingCallContext,
+    out: *mut InputClipboardCommandEvent,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (binding, out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.text.tryReadClipboardCommand",
+    ))
+    .boxed())
+}
+
+/// Poll one edit intent without blocking.
+pub(crate) unsafe fn destack_input_text_try_read_edit_intent(
+    binding: &BindingCallContext,
+    out: *mut InputEditIntentEvent,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (binding, out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.text.tryReadEditIntent",
+    ))
+    .boxed())
+}
+
 /// Read one touch state snapshot.
 ///
 /// Return one current touch-contact snapshot for one opened touch-capable device.
@@ -1385,4 +1482,21 @@ pub(crate) unsafe fn destack_input_touch_state(
     let _ = (binding, out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.touch.state")).boxed())
+}
+
+/// Read one keyboard layout snapshot.
+pub(crate) unsafe fn destack_input_keyboard_layout(
+    binding: &BindingCallContext,
+    out: *mut InputKeyboardLayoutInfo,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (binding, out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.keyboard.layout",
+    ))
+    .boxed())
 }

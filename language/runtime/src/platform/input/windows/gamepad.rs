@@ -74,6 +74,35 @@ pub(super) fn gamepad_set_player_index(
     input_core::set_xinput_player_index_override(binding, handle, player_index, operation)
 }
 
+/// Validate one gamepad motion-sensor operation for one opened Windows input handle.
+pub(super) fn gamepad_validate_motion_sensors(
+    binding: &BindingCallContext,
+    handle: resource::InputDeviceHandle,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    // resolve one backend binding before reporting unsupported motion sensors
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
+
+    // validate one routed gamepad endpoint shape
+    if resolved.backend == input_core::WindowsInputBackend::RawDevice {
+        let Some(raw_device) = resolved.raw_device.as_ref() else {
+            return Err(input_core::input_not_found(operation, handle));
+        };
+        let _ = raw_device;
+    } else {
+        let Some(user_index) = resolved.xinput_user_index else {
+            return Err(input_core::input_not_found(operation, handle));
+        };
+        let player_index = resolved
+            .xinput_player_index_override
+            .unwrap_or(user_index.saturating_add(1));
+        let _ =
+            xinput_input::gamepad_state_for_xinput(binding, user_index, player_index, operation)?;
+    }
+
+    Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
+}
+
 /// Set one gamepad light color.
 ///
 /// Apply one rgb light color for one opened gamepad-capable device when supported.
@@ -104,6 +133,36 @@ pub(crate) unsafe fn destack_input_gamepad_set_light(
         green,
         blue,
         "destack.input.gamepad.setLight",
+    )
+}
+
+/// Set one gamepad motion sensor sample rate.
+pub(crate) unsafe fn destack_input_gamepad_set_motion_sensor_sample_rate(
+    binding: &BindingCallContext,
+    handle: resource::InputDeviceHandle,
+    sampleratehz: f64,
+) -> RuntimeResult<()> {
+    let _ = sampleratehz;
+
+    gamepad_validate_motion_sensors(
+        binding,
+        handle,
+        "destack.input.gamepad.setMotionSensorSampleRate",
+    )
+}
+
+/// Enable or disable one gamepad motion sensor stream.
+pub(crate) unsafe fn destack_input_gamepad_set_motion_sensors_enabled(
+    binding: &BindingCallContext,
+    handle: resource::InputDeviceHandle,
+    enabled: bool,
+) -> RuntimeResult<()> {
+    let _ = enabled;
+
+    gamepad_validate_motion_sensors(
+        binding,
+        handle,
+        "destack.input.gamepad.setMotionSensorsEnabled",
     )
 }
 

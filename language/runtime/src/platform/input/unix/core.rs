@@ -10,14 +10,16 @@ use super::macos as input_macos;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputCompositionEvent, InputCompositionEventPayload, InputDeviceDescriptor, InputDeviceEvent,
-    InputDeviceEventPayload, InputDeviceKind, InputEvent, InputEventAction, InputEventKind,
-    InputEventMetadata, InputEventPayload, InputGamepadEvent, InputGamepadEventPayload,
-    InputKeyEvent, InputKeyEventPayload, InputPointerButtonEvent, InputPointerButtonEventPayload,
-    InputPointerMotionEvent, InputPointerMotionEventPayload, InputReadMode, InputScrollEvent,
-    InputScrollEventPayload, InputSensorEffectiveConfig, InputSensorEvent, InputSensorEventPayload,
-    InputSensorKind, InputTextEvent, InputTextEventPayload, InputTextInputArea, InputTextInputType,
-    InputTouchEvent, InputTouchEventPayload,
+    InputCompositionEvent, InputCompositionEventPayload, InputCoordinateSpace,
+    InputDeviceDescriptor, InputDeviceEvent, InputDeviceEventPayload, InputDeviceKind, InputEvent,
+    InputEventAction, InputEventKind, InputEventMetadata, InputEventPayload,
+    InputGamepadControlKind, InputGamepadEvent, InputGamepadEventPayload, InputKeyEvent,
+    InputKeyEventPayload, InputKeyLocation, InputModifierState, InputPointerButtonEvent,
+    InputPointerButtonEventPayload, InputPointerMotionEvent, InputPointerMotionEventPayload,
+    InputPointerType, InputReadMode, InputScrollEvent, InputScrollEventPayload,
+    InputSensorEffectiveConfig, InputSensorEvent, InputSensorEventPayload, InputSensorKind,
+    InputTextEvent, InputTextEventPayload, InputTextInputArea, InputTextInputType, InputTouchEvent,
+    InputTouchEventPayload, InputWheelDeltaMode,
 };
 use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind};
 use crate::platform::{PlatformError, core as core_platform, resource};
@@ -38,52 +40,114 @@ pub(super) const UNIX_INPUT_TTY_NAME: &str = "unix terminal input";
 /// Empty text payload for non-text events.
 pub(super) const UNIX_INPUT_EMPTY_TEXT: &str = "";
 
+/// Build one empty modifier-state payload.
+fn empty_modifier_state() -> InputModifierState {
+    InputModifierState {
+        is_alt: false,
+        is_alt_graph: false,
+        is_caps_lock: false,
+        is_control: false,
+        is_fn: false,
+        is_fn_lock: false,
+        is_meta: false,
+        is_num_lock: false,
+        is_scroll_lock: false,
+        is_shift: false,
+        is_symbol: false,
+        is_symbol_lock: false,
+    }
+}
+
 /// Build one zeroed payload shell for event-kind projection.
 pub(super) fn empty_unix_event_payload(binding: &BindingCallContext) -> InputEventPayload {
     let empty_text = binding.store_string(UNIX_INPUT_EMPTY_TEXT);
+    let empty_modifier_state = empty_modifier_state();
     InputEventPayload {
         key: InputKeyEventPayload {
             action: InputEventAction::Cancel,
+            key: None,
+            code: None,
+            location: InputKeyLocation::Standard,
             backend_code: 0,
             backend_scan_code: 0,
             backend_value: 0,
-            modifiers: 0,
+            backend_modifiers: 0,
+            modifier_state: empty_modifier_state,
             repeat: false,
+            is_composing: false,
         },
         pointer_motion: InputPointerMotionEventPayload {
-            x: 0.0,
-            y: 0.0,
+            pointer_id: 0,
+            pointer_type: InputPointerType::Unknown,
+            is_primary: false,
+            coordinate_space: InputCoordinateSpace::GlobalLogical,
+            position_x: 0.0,
+            position_y: 0.0,
+            delta_x: 0.0,
+            delta_y: 0.0,
             buttons: 0,
-            modifiers: 0,
+            backend_buttons: 0,
+            modifier_state: empty_modifier_state,
+            contact: None,
+            pen: None,
+            coalesced_samples: binding.store_slice(Vec::new()),
+            predicted_samples: binding.store_slice(Vec::new()),
         },
         pointer_button: InputPointerButtonEventPayload {
             action: InputEventAction::Cancel,
+            pointer_id: 0,
+            pointer_type: InputPointerType::Unknown,
+            is_primary: false,
+            button: 0,
+            buttons: 0,
             backend_code: 0,
             backend_value: 0,
-            x: 0.0,
-            y: 0.0,
-            modifiers: 0,
+            position_x: 0.0,
+            position_y: 0.0,
+            coordinate_space: InputCoordinateSpace::GlobalLogical,
+            modifier_state: empty_modifier_state,
+            contact: None,
+            pen: None,
         },
         scroll: InputScrollEventPayload {
-            wheel_x: 0.0,
-            wheel_y: 0.0,
-            x: 0.0,
-            y: 0.0,
-            modifiers: 0,
+            pointer_id: None,
+            pointer_type: None,
+            delta_mode: InputWheelDeltaMode::Pixel,
+            delta_x: 0.0,
+            delta_y: 0.0,
+            position_x: 0.0,
+            position_y: 0.0,
+            coordinate_space: InputCoordinateSpace::GlobalLogical,
+            buttons: 0,
+            modifier_state: empty_modifier_state,
         },
         touch: InputTouchEventPayload {
             action: InputEventAction::Cancel,
-            contact_id: 0,
-            x: 0.0,
-            y: 0.0,
+            pointer_id: 0,
+            is_primary: false,
+            position_x: 0.0,
+            position_y: 0.0,
+            coordinate_space: InputCoordinateSpace::GlobalLogical,
             pressure: 0.0,
+            contact: None,
+            tilt_x: 0.0,
+            tilt_y: 0.0,
+            twist: 0.0,
         },
         gamepad: InputGamepadEventPayload {
             action: InputEventAction::Cancel,
+            control_kind: InputGamepadControlKind::Button,
+            control_index: 0,
             backend_code: 0,
             backend_value: 0,
+            value: 0.0,
+            pressed: false,
+            touched: false,
         },
-        text: InputTextEventPayload { text: empty_text },
+        text: InputTextEventPayload {
+            text: empty_text,
+            is_composing: false,
+        },
         device: InputDeviceEventPayload {
             action: InputEventAction::Cancel,
             backend_code: 0,
@@ -96,6 +160,7 @@ pub(super) fn empty_unix_event_payload(binding: &BindingCallContext) -> InputEve
             x: 0.0,
             y: 0.0,
             z: 0.0,
+            w: 0.0,
         },
         composition: InputCompositionEventPayload {
             action: InputEventAction::Cancel,
@@ -119,6 +184,7 @@ pub(super) fn build_unix_input_event(
         timestamp_ns,
         sequence,
         device_id: binding.store_string(device_id),
+        target_window: None,
     };
 
     match kind {
@@ -1083,6 +1149,9 @@ fn list_platform_devices(
         id: binding.store_string(input_macos::MACOS_INPUT_SESSION_ID),
         instance_id: binding.store_string(input_macos::MACOS_INPUT_SESSION_ID),
         hardware_id: binding.store_string(input_macos::MACOS_INPUT_SESSION_ID),
+        serial_number: None,
+        location_id: None,
+        guid: None,
         name: binding.store_string(input_macos::MACOS_INPUT_SESSION_NAME),
         transport: binding.store_string("session"),
         kind: InputDeviceKind::Raw,
@@ -1290,6 +1359,9 @@ fn list_terminal_device(
         id: binding.store_string(UNIX_INPUT_TTY_ID),
         instance_id: binding.store_string(UNIX_INPUT_TTY_ID),
         hardware_id: binding.store_string(UNIX_INPUT_TTY_ID),
+        serial_number: None,
+        location_id: None,
+        guid: None,
         name: binding.store_string(UNIX_INPUT_TTY_NAME),
         transport: binding.store_string("tty"),
         kind: InputDeviceKind::Keyboard,
@@ -1413,18 +1485,26 @@ fn read_terminal_event(
     };
 
     let mut payload = empty_unix_event_payload(binding);
+
+    // project the tty byte into the active payload shape
     if kind == InputEventKind::Text {
         payload.text = InputTextEventPayload {
             text: binding.store_string(text.as_deref().unwrap_or(UNIX_INPUT_EMPTY_TEXT)),
+            is_composing: false,
         };
     } else {
         payload.key = InputKeyEventPayload {
             action: InputEventAction::Press,
+            key: None,
+            code: None,
+            location: InputKeyLocation::Standard,
             backend_code: byte as u32,
             backend_scan_code: byte as u32,
             backend_value: value,
-            modifiers: 0,
+            backend_modifiers: 0,
+            modifier_state: empty_modifier_state(),
             repeat: false,
+            is_composing: false,
         };
     }
 

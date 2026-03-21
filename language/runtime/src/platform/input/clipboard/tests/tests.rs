@@ -1,9 +1,14 @@
 use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::core::{NativeAbiCodec, VmAbiCodec};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::input::ClipboardBinaryFormat;
 use crate::platform::input::tests::{HarnessValue, InputHarnessContext as HarnessContext};
+use crate::platform::input::{
+    ClipboardItem, ClipboardItemDescriptor, ClipboardItemDescriptorValue,
+    ClipboardItemDescriptorVm, ClipboardItemRepresentation, ClipboardItemRepresentationKind,
+    ClipboardItemRepresentationValue, ClipboardItemVm, ClipboardPresentationStyle,
+};
 use crate::platform::{NativeSlice, NativeStringRef, VmSlice};
 use crate::tests::platform::error_code_from_runtime_error;
 
@@ -13,6 +18,22 @@ pub(super) struct ClipboardSnapshot {
     pub(super) text: Option<String>,
     /// Current html payload when one exists.
     pub(super) html: Option<Vec<u8>>,
+}
+
+/// One decoded clipboard item descriptor for tests.
+pub(super) struct ClipboardItemDescriptorRecord {
+    /// The item presentation style.
+    pub(super) presentation_style: ClipboardPresentationStyle,
+    /// The item representation descriptors.
+    pub(super) representations: Vec<ClipboardItemRepresentationRecord>,
+}
+
+/// One decoded clipboard item representation descriptor for tests.
+pub(super) struct ClipboardItemRepresentationRecord {
+    /// The representation mime type.
+    pub(super) mime_type: String,
+    /// The representation kind.
+    pub(super) kind: ClipboardItemRepresentationKind,
 }
 
 /// Build one harness string payload for the active binding lane.
@@ -32,25 +53,6 @@ pub(super) fn string_harness_value(
             HarnessValue::Vm(value)
         }
         None => HarnessValue::Native(context.call_context.store_string(value)),
-    }
-}
-
-/// Build one harness byte-slice payload for the active binding lane.
-pub(super) fn bytes_harness_value(
-    context: &mut HarnessContext<'_>,
-    value: &[u8],
-) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
-    match context.vm_context {
-        Some(vm_context) => {
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
-            let value = VmSlice::from_bytes(vm_context, value)
-                .expect("vm clipboard test bytes should encode");
-
-            Ok(HarnessValue::Vm(value))
-        }
-        None => Ok(HarnessValue::Native(
-            context.call_context.store_slice(value.to_vec()),
-        )),
     }
 }
 
@@ -97,6 +99,169 @@ pub(super) fn decode_clipboard_bytes(
     }
 }
 
+/// Decode one clipboard descriptor list into one owned record list.
+pub(super) fn decode_clipboard_item_descriptors(
+    context: &mut HarnessContext<'_>,
+    value: HarnessValue<NativeSlice<ClipboardItemDescriptor>, VmSlice<ClipboardItemDescriptorVm>>,
+) -> RuntimeResult<Vec<ClipboardItemDescriptorRecord>> {
+    match value {
+        HarnessValue::Native(value) => {
+            let values = unsafe { value.as_slice()? };
+            let mut records = Vec::with_capacity(values.len());
+
+            // decode each native descriptor into one owned record
+            for value in values {
+                let value =
+                    unsafe { <ClipboardItemDescriptor as NativeAbiCodec>::into_value(*value)? };
+                records.push(ClipboardItemDescriptorRecord {
+                    presentation_style: value.presentation_style,
+                    representations: value
+                        .representations
+                        .into_iter()
+                        .map(|representation| ClipboardItemRepresentationRecord {
+                            mime_type: representation.mime_type,
+                            kind: representation.kind,
+                        })
+                        .collect(),
+                });
+            }
+
+            Ok(records)
+        }
+        HarnessValue::Vm(value) => {
+            let vm_context = unsafe {
+                &mut *(context
+                    .vm_context
+                    .expect("vm context should exist for vm harness")
+                    as *mut vm::ExternalCallContext<'_>)
+            };
+            let values = value.read_values(vm_context)?;
+            let mut records = Vec::with_capacity(values.len());
+
+            // decode each vm descriptor into one owned record
+            for value in values {
+                let value =
+                    <ClipboardItemDescriptorVm as VmAbiCodec>::into_value(value, vm_context)?;
+                records.push(ClipboardItemDescriptorRecord {
+                    presentation_style: value.presentation_style,
+                    representations: value
+                        .representations
+                        .into_iter()
+                        .map(|representation| ClipboardItemRepresentationRecord {
+                            mime_type: representation.mime_type,
+                            kind: representation.kind,
+                        })
+                        .collect(),
+                });
+            }
+
+            Ok(records)
+        }
+    }
+}
+
+/// Build one single-item clipboard payload for one string representation.
+pub(super) fn string_clipboard_items_value(
+    context: &mut HarnessContext<'_>,
+    value: &str,
+) -> RuntimeResult<HarnessValue<NativeSlice<ClipboardItem>, VmSlice<ClipboardItemVm>>> {
+    match context.vm_context {
+        Some(vm_context) => {
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let item = ClipboardItemValue {
+                presentation_style: ClipboardPresentationStyle::Unspecified,
+                representations: vec![ClipboardItemRepresentationValue {
+                    mime_type: "text/plain".to_string(),
+                    kind: ClipboardItemRepresentationKind::String,
+                    name: None,
+                    text: Some(value.to_string()),
+                    path: None,
+                    bytes: None,
+                }],
+            };
+            let item = ClipboardItemVm::from_value(vm_context, item)?;
+            let items = VmSlice::from_values(vm_context, &[item])?;
+
+            Ok(HarnessValue::Vm(items))
+        }
+        None => {
+            let representation = ClipboardItemRepresentation {
+                mime_type: context.call_context.store_string("text/plain"),
+                kind: ClipboardItemRepresentationKind::String,
+                name: None,
+                text: Some(context.call_context.store_string(value)),
+                path: None,
+                bytes: None,
+            };
+            let item = ClipboardItem {
+                presentation_style: ClipboardPresentationStyle::Unspecified,
+                representations: context.call_context.store_slice(vec![representation]),
+            };
+            let items = context.call_context.store_slice(vec![item]);
+
+            Ok(HarnessValue::Native(items))
+        }
+    }
+}
+
+/// Build one single-item clipboard payload for one html representation.
+pub(super) fn html_clipboard_items_value(
+    context: &mut HarnessContext<'_>,
+    value: &[u8],
+) -> RuntimeResult<HarnessValue<NativeSlice<ClipboardItem>, VmSlice<ClipboardItemVm>>> {
+    match context.vm_context {
+        Some(vm_context) => {
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let item = ClipboardItemValue {
+                presentation_style: ClipboardPresentationStyle::Unspecified,
+                representations: vec![ClipboardItemRepresentationValue {
+                    mime_type: "text/html".to_string(),
+                    kind: ClipboardItemRepresentationKind::Binary,
+                    name: None,
+                    text: None,
+                    path: None,
+                    bytes: Some(value.to_vec()),
+                }],
+            };
+            let item = ClipboardItemVm::from_value(vm_context, item)?;
+            let items = VmSlice::from_values(vm_context, &[item])?;
+
+            Ok(HarnessValue::Vm(items))
+        }
+        None => {
+            let representation = ClipboardItemRepresentation {
+                mime_type: context.call_context.store_string("text/html"),
+                kind: ClipboardItemRepresentationKind::Binary,
+                name: None,
+                text: None,
+                path: None,
+                bytes: Some(context.call_context.store_slice(value.to_vec())),
+            };
+            let item = ClipboardItem {
+                presentation_style: ClipboardPresentationStyle::Unspecified,
+                representations: context.call_context.store_slice(vec![representation]),
+            };
+            let items = context.call_context.store_slice(vec![item]);
+
+            Ok(HarnessValue::Native(items))
+        }
+    }
+}
+
+/// Return the first html representation index from one decoded item list.
+fn html_representation_index(items: &[ClipboardItemDescriptorRecord]) -> Option<u32> {
+    let item = items.first()?;
+
+    item.representations
+        .iter()
+        .enumerate()
+        .find(|(_, representation)| {
+            representation.kind == ClipboardItemRepresentationKind::Binary
+                && representation.mime_type == "text/html"
+        })
+        .map(|(index, _)| index as u32)
+}
+
 /// Snapshot the clipboard text and html payloads when supported.
 pub(super) fn snapshot_clipboard(
     context: &mut HarnessContext<'_>,
@@ -108,8 +273,17 @@ pub(super) fn snapshot_clipboard(
         None
     };
 
-    let html = match context.destack_input_clipboard_read_bytes(ClipboardBinaryFormat::Html) {
-        Ok(value) => Some(decode_clipboard_bytes(context, value)?),
+    let html = match context.destack_input_clipboard_list_items() {
+        Ok(value) => {
+            let items = decode_clipboard_item_descriptors(context, value)?;
+
+            if let Some(index) = html_representation_index(&items) {
+                let value = context.destack_input_clipboard_read_item_bytes(0, index)?;
+                Some(decode_clipboard_bytes(context, value)?)
+            } else {
+                None
+            }
+        }
         Err(error) => {
             let error_code = error_code_from_runtime_error(&error);
             if error_code == Some(PlatformErrorCode::NotSupported)
@@ -130,14 +304,16 @@ pub(super) fn restore_clipboard(
     context: &mut HarnessContext<'_>,
     snapshot: ClipboardSnapshot,
 ) -> RuntimeResult<()> {
+    // prefer restoring html when it was present in the original snapshot
     if let Some(html) = snapshot.html {
-        let html = bytes_harness_value(context, &html)?;
-        return context.destack_input_clipboard_write_bytes(ClipboardBinaryFormat::Html, html);
+        let html = html_clipboard_items_value(context, &html)?;
+        return context.destack_input_clipboard_write_items(html);
     }
 
+    // otherwise restore text when it was present
     if let Some(text) = snapshot.text {
-        let text = string_harness_value(context, &text);
-        return context.destack_input_clipboard_write_text(text);
+        let text = string_clipboard_items_value(context, &text)?;
+        return context.destack_input_clipboard_write_items(text);
     }
 
     context.destack_input_clipboard_clear()
