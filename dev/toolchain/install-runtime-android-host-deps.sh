@@ -13,7 +13,7 @@ ensure_android_host_dependency() {
 	package_name="$2"
 	missing_message="$3"
 
-	runtime_require_or_auto_install_linux_command \
+	runtime_require_or_auto_install_command \
 		"${command_name}" \
 		"${package_name}" \
 		"${missing_message}" \
@@ -31,5 +31,9 @@ ensure_android_host_dependency \
 	"missing unzip: install unzip to extract android commandline tools" || exit 1
 ensure_android_host_dependency \
 	java \
-	openjdk-17-jre-headless \
+	openjdk@17 \
 	"missing java: install one jre or jdk to run sdkmanager" || exit 1
+ensure_android_host_dependency \
+	gradle \
+	gradle \
+	"missing gradle: install gradle or add language/runtime/android/gradlew" || exit 1

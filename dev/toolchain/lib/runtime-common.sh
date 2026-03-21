@@ -10,6 +10,34 @@ runtime_command_path() {
 	command -v "${command_name}" 2>/dev/null || true
 }
 
+runtime_brew_prefix() {
+	if ! command -v brew >/dev/null 2>&1; then
+		return 1
+	fi
+
+	brew --prefix "$1" 2>/dev/null
+}
+
+runtime_java_path() {
+	command_path="$(runtime_command_path java)"
+	if [ -n "${command_path}" ] && "${command_path}" -version >/dev/null 2>&1; then
+		printf '%s\n' "${command_path}"
+		return 0
+	fi
+
+	if [ "$(runtime_host_kernel)" != "Darwin" ]; then
+		return 1
+	fi
+
+	java_prefix="$(runtime_brew_prefix openjdk@17 || true)"
+	if [ -n "${java_prefix}" ] && [ -x "${java_prefix}/bin/java" ]; then
+		printf '%s\n' "${java_prefix}/bin/java"
+		return 0
+	fi
+
+	return 1
+}
+
 runtime_require_command() {
 	command_name="$1"
 	message="$2"
@@ -172,14 +200,35 @@ runtime_linux_install_package() {
 	sudo apt-get install -y "${package_name}"
 }
 
-runtime_require_or_auto_install_linux_command() {
+runtime_darwin_install_package() {
+	package_name="$1"
+
+	if [ "$(runtime_host_kernel)" != "Darwin" ]; then
+		return 1
+	fi
+
+	if ! command -v brew >/dev/null 2>&1; then
+		echo "cannot auto install ${package_name}: brew is not available"
+		return 1
+	fi
+
+	brew install "${package_name}"
+}
+
+runtime_require_or_auto_install_command() {
 	command_name="$1"
 	package_name="$2"
 	missing_message="$3"
 	auto_install_hint="$4"
 
-	if runtime_require_command "${command_name}" "${missing_message}" >/dev/null 2>&1; then
-		return 0
+	if [ "${command_name}" = "java" ]; then
+		if [ -n "$(runtime_java_path)" ]; then
+			return 0
+		fi
+	else
+		if runtime_require_command "${command_name}" "${missing_message}" >/dev/null 2>&1; then
+			return 0
+		fi
 	fi
 
 	if ! runtime_auto_install_toolchains_enabled; then
@@ -190,15 +239,28 @@ runtime_require_or_auto_install_linux_command() {
 		return 1
 	fi
 
-	if [ "$(runtime_host_kernel)" != "Linux" ]; then
+	host_kernel="$(runtime_host_kernel)"
+
+	if [ "${host_kernel}" = "Linux" ]; then
+		echo "auto install requested: installing ${package_name}"
+		if ! runtime_linux_install_package "${package_name}"; then
+			return 1
+		fi
+	elif [ "${host_kernel}" = "Darwin" ]; then
+		echo "auto install requested: installing ${package_name}"
+		if ! runtime_darwin_install_package "${package_name}"; then
+			return 1
+		fi
+	else
 		echo "${missing_message}"
-		echo "auto install is only supported on linux hosts for ${package_name}"
+		echo "auto install is not supported on ${host_kernel} hosts for ${package_name}"
 		return 1
 	fi
 
-	echo "auto install requested: installing ${package_name}"
-	if ! runtime_linux_install_package "${package_name}"; then
-		return 1
+	if [ "${command_name}" = "java" ]; then
+		[ -n "$(runtime_java_path)" ]
+	else
+		return 0
 	fi
 
 	runtime_require_command "${command_name}" "${missing_message}" >/dev/null 2>&1
