@@ -6,7 +6,7 @@ use crate::TestProgram;
 /// Verify module-level const declarations are lowered correctly.
 #[test]
 fn test_lower_module_constants() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -35,7 +35,7 @@ function getCircumference(radius: number): number {
 /// Verify let bindings and reassignments produce correct SSA form.
 #[test]
 fn test_lower_let_and_assign() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -80,7 +80,7 @@ block0(v0: f64):
 /// Verify borrowing a local produces a local addr instruction.
 #[test]
 fn test_lower_borrows_local_binding() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -113,7 +113,7 @@ block0(v0: i32):
 /// Verify borrowing an rvalue spills to a temporary local.
 #[test]
 fn test_lower_borrows_rvalue() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -147,7 +147,7 @@ block0(v0: i32):
 /// Verify borrowing a member emits a field address.
 #[test]
 fn test_lower_borrows_member_field() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -184,7 +184,7 @@ block0(v0: ref<borrowed @Point>):
 /// Verify borrowing an array element emits element addr without checks when disabled.
 #[test]
 fn test_lower_borrows_array_element() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -271,7 +271,7 @@ block2:
 /// Verify borrowing a reference array element skips local spilling.
 #[test]
 fn test_lower_borrows_array_reference_element() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -352,7 +352,7 @@ block2:
 /// Verify borrowing an interface value produces a local addr on the fat pointer.
 #[test]
 fn test_lower_borrows_interface_value() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -392,7 +392,7 @@ block0(v0: @Greeter):
 /// Verify borrowing a this field emits a field address.
 #[test]
 fn test_lower_borrows_this_field() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"

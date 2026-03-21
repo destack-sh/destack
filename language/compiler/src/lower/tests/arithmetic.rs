@@ -5,7 +5,7 @@ use crate::TestProgram;
 /// Lower and execute a simple add function.
 #[test]
 fn test_lower_adds_integers() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -42,7 +42,7 @@ block0(v0: i32, v1: i32):
 /// Verify all integer arithmetic operators: add, sub, mul, div, rem.
 #[test]
 fn test_lower_computes_integer_arithmetic() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -73,7 +73,7 @@ function arithmetic(a: int32, b: int32): int32 {
 /// Verify unary negation for integers and floats.
 #[test]
 fn test_lower_negates_values() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -110,7 +110,7 @@ function floatNegate(a: number): number {
 /// Verify int64 arithmetic operations.
 #[test]
 fn test_lower_computes_int64_arithmetic() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -148,7 +148,7 @@ function mulInt64(a: int64, b: int64): int64 {
 /// Verify float32 arithmetic operations.
 #[test]
 fn test_lower_computes_float32_arithmetic() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -185,7 +185,7 @@ function mulFloat32(a: float32, b: float32): float32 {
 /// Verify mixed integer widths with explicit casts.
 #[test]
 fn test_lower_widens_integer_values() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"

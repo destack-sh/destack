@@ -5,7 +5,7 @@ use crate::TestProgram;
 /// Verify all integer comparison operators.
 #[test]
 fn test_lower_compares_integers() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"

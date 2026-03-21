@@ -6,7 +6,7 @@ use crate::TestProgram;
 #[test]
 fn test_lower_union_layout() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -91,7 +91,7 @@ block0(v0: @takeShape#parameter:value#union):
 #[test]
 fn test_lower_union_layout_boxed() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -167,7 +167,7 @@ block0(v0: @takeFrame#parameter:value#union):
 #[test]
 fn test_lower_union_upcast() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -220,7 +220,7 @@ block0(v0: @Circle):
 #[test]
 fn test_lower_union_nullable_reference() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -531,7 +531,7 @@ block0(v0: @takeCircle#parameter:value#union):
 #[test]
 fn test_lower_union_tag_check() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -576,7 +576,7 @@ block3(v6: i32):
 #[test]
 fn test_lower_union_null_literal_comparison() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -617,7 +617,7 @@ block0(v0: @isNull#parameter:value#union):
 #[test]
 fn test_lower_union_undefined_literal_comparison() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -658,7 +658,7 @@ block0(v0: @isUndefined#parameter:value#union):
 #[test]
 fn test_lower_union_integer_literal_comparison() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -695,7 +695,7 @@ block0(v0: @isOne#parameter:value#union):
 #[test]
 fn test_lower_union_literal_comparison_mixed() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -732,7 +732,7 @@ block0(v0: @isReady#parameter:value#union):
 #[test]
 fn test_lower_union_integer_discriminant() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -812,7 +812,7 @@ block0(v0: @isA#parameter:value#union):
 #[test]
 fn test_lower_union_boolean_discriminant() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -849,7 +849,7 @@ block0(v0: @isReady#parameter:value#union):
 #[test]
 fn test_lower_union_float_discriminant() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"

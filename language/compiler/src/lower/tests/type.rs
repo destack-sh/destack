@@ -5,7 +5,7 @@ use crate::TestProgram;
 /// Lower `is` checks for tagged unions.
 #[test]
 fn test_lower_type_binary_union_checks() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -47,7 +47,7 @@ function useIsCircleNegative(): boolean {
 #[test]
 fn test_lower_union_type_binary_is() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"

@@ -5,7 +5,7 @@ use crate::TestProgram;
 /// Lower newtype declarations into MIR newtype wrappers.
 #[test]
 fn test_lower_newtype_user_id_signature() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -37,7 +37,7 @@ block0(v0: @UserId):
 /// Lower newtypes distinctly from type aliases.
 #[test]
 fn test_lower_newtype_distinct_from_alias() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -80,7 +80,7 @@ block0(v0: @UserId):
 /// Lower tuple newtypes to MIR newtype wrappers.
 #[test]
 fn test_lower_newtype_tuple_payload() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -114,7 +114,7 @@ block0(v0: @Range):
 /// Lower struct-backed newtypes to MIR newtype wrappers.
 #[test]
 fn test_lower_newtype_struct_payload() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -148,7 +148,7 @@ block0(v0: @Location):
 /// Lower scalar newtype constructors into a bitcast.
 #[test]
 fn test_lower_newtype_user_id_constructor() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -181,7 +181,7 @@ block0(v0: i32):
 /// Lower tuple newtype constructors into tuple payloads.
 #[test]
 fn test_lower_newtype_range_constructor() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -217,7 +217,7 @@ block0(v0: i32, v1: i32):
 /// Execute scalar newtype matches with literal patterns.
 #[test]
 fn test_lower_newtype_match_status_code() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -262,7 +262,7 @@ function classifyStatus(value: int32): int32 {
 /// Execute scalar newtype matches that bind inner values.
 #[test]
 fn test_lower_newtype_match_port_binding() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -300,7 +300,7 @@ function readPort(value: int32): int32 {
 /// Execute tuple newtype matches with bound fields.
 #[test]
 fn test_lower_newtype_match_range_tuple() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -338,7 +338,7 @@ function rangeWidth(start: int32, end: int32): int32 {
 /// Lower newtypes embedded in struct fields.
 #[test]
 fn test_lower_newtype_struct_field() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
