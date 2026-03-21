@@ -18,6 +18,7 @@ impl Parser<'_> {
             Struct(Vec<LocalNodeId<Field>>),
             Tuple(Vec<LocalNodeId<Type>>),
             Array(LocalNodeId<Type>, u64),
+            FunctionValue(LocalNodeId<Type>, LocalNodeId<Type>),
         }
 
         let target = match self.tree.get(type_id) {
@@ -26,6 +27,10 @@ impl Parser<'_> {
             Type::Array {
                 element, length, ..
             } => LayoutTarget::Array(*element, *length),
+            Type::FunctionValue {
+                signature,
+                environment,
+            } => LayoutTarget::FunctionValue(*signature, *environment),
             _ => return Ok(()),
         };
 
@@ -34,6 +39,9 @@ impl Parser<'_> {
             LayoutTarget::Tuple(elements) => self.record_tuple_layout(type_id, &elements),
             LayoutTarget::Array(element, length) => {
                 self.record_array_layout(type_id, element, length)
+            }
+            LayoutTarget::FunctionValue(signature, environment) => {
+                self.record_function_value_layout(type_id, signature, environment)
             }
         }
     }
@@ -172,6 +180,50 @@ impl Parser<'_> {
         };
 
         // record the layout entry on metadata
+        self.insert_layout_entry(type_id, layout_entry);
+
+        Ok(())
+    }
+
+    /// Record layout metadata for a function value type.
+    fn record_function_value_layout(
+        &mut self,
+        type_id: LocalNodeId<Type>,
+        signature: LocalNodeId<Type>,
+        environment: LocalNodeId<Type>,
+    ) -> ParseResult<()> {
+        let components = [signature, environment];
+        let mut layout_fields = Vec::with_capacity(components.len());
+        let mut offset = 0u32;
+        let mut max_alignment = 1u32;
+
+        // compute component layouts in semantic order
+        for (index, component_type) in components.into_iter().enumerate() {
+            let component_layout =
+                compute_type_layout(&self.tree, component_type, self.tree.pointer_bytes());
+            offset = component_layout.align_offset(offset);
+
+            layout_fields.push(LayoutField {
+                name: self.synthetic_tuple_name(index),
+                ty: component_type,
+                offset,
+                size: component_layout.size,
+                alignment: component_layout.alignment,
+                source_index: Some(index as u32),
+            });
+
+            offset += component_layout.size;
+            max_alignment = max_alignment.max(component_layout.alignment);
+        }
+
+        let layout = compute_type_layout(&self.tree, type_id, self.tree.pointer_bytes());
+        let layout_entry = Layout {
+            layout_type: LayoutType::FunctionValue,
+            size: layout.size,
+            alignment: max_alignment,
+            fields: layout_fields,
+        };
+
         self.insert_layout_entry(type_id, layout_entry);
 
         Ok(())
