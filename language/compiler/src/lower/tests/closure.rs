@@ -5,7 +5,7 @@ use crate::TestProgram;
 /// Verify non-capturing closures lower to function.addr + empty env.
 #[test]
 fn test_lower_closure_without_captures() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -68,7 +68,7 @@ block0(v0: i32):
 /// Verify by-value capture stores the value into the environment.
 #[test]
 fn test_lower_closure_capture_by_value() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -141,7 +141,7 @@ block0(v0: i32):
 /// Verify by-reference capture stores a pointer to the mutable binding.
 #[test]
 fn test_lower_closure_capture_by_reference() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -221,7 +221,7 @@ block0:
 /// Verify mixed captures with values, references, and aggregates.
 #[test]
 fn test_lower_closure_capture_multiple_bindings() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -263,7 +263,7 @@ function runMixer(): int32 {
 /// Verify closures mutate captured bindings while reading class fields.
 #[test]
 fn test_lower_closure_mutates_captured_binding_with_class() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -305,7 +305,7 @@ function runAccumulator(): int32 {
 /// Verify closures combine by-value and by-reference captures.
 #[test]
 fn test_lower_closure_mixes_value_and_reference_captures() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -337,7 +337,7 @@ function runStepper(): int32 {
 /// Verify closures can capture implicit `this` from member methods.
 #[test]
 fn test_lower_closure_captures_this() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -375,7 +375,7 @@ function run(): int32 {
 /// Verify captured closures can be passed as function arguments.
 #[test]
 fn test_lower_closure_passed_as_argument() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -404,7 +404,7 @@ function run(): int32 {
 /// Verify closures stored in class fields are invoked via call.indirect.
 #[test]
 fn test_lower_closure_stored_in_class_field() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -446,7 +446,7 @@ function run(): int32 {
 /// Verify named functions lower to closure values with empty environments.
 #[test]
 fn test_lower_named_function_as_value() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -479,7 +479,7 @@ function applyDouble(input: int32): int32 {
 #[ignore]
 // TODO #Broken: nested named function captures are not resolved yet
 fn test_lower_nested_named_function_captures() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"

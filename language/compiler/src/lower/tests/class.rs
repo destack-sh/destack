@@ -6,7 +6,7 @@ use crate::TestProgram;
 /// Lower class construction with `new`.
 #[test]
 fn test_lower_constructs_class_with_new() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -40,7 +40,7 @@ function sumFieldsClass(a: number, b: number): number {
 #[test]
 fn test_lower_allocates_class_with_new() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -95,7 +95,7 @@ block0(v0: i32):
 #[test]
 fn test_lower_class_vtable_header() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -151,7 +151,7 @@ block0(v0: ref<managed readonly { @vtable: ref<raw addrspace(global) readonly vo
 /// Lower explicit class constructors.
 #[test]
 fn test_lower_class_explicit_constructor() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -189,7 +189,7 @@ function sumFieldsClassExplicit(a: number, b: number): number {
 /// Lower class method that returns a field via `this`.
 #[test]
 fn test_lower_class_method_returning_field() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -224,7 +224,7 @@ function readValueClass(value: int32): int32 {
 /// Lower class method with parameters.
 #[test]
 fn test_lower_class_method_with_parameters() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -259,7 +259,7 @@ function computeClass(base: int32, delta: int32): int32 {
 /// Lower class vtable metadata with override reuse.
 #[test]
 fn test_lower_class_vtable_metadata() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -343,7 +343,7 @@ block0(v0: ref<managed readonly @Dog>):
 /// Lower vtable slot ordering across inheritance with multiple methods.
 #[test]
 fn test_lower_orders_class_vtable_slots() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -423,7 +423,7 @@ block0(v0: ref<managed readonly @Struct0>):
 #[test]
 fn test_lower_class_virtual_call_metadata() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -500,7 +500,7 @@ block0(v0: ref<managed readonly @FileLogger>):
 #[test]
 fn test_lower_class_virtual_call() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -558,7 +558,7 @@ block0(v0: ref<managed readonly @Struct0>):
 #[test]
 fn test_lower_executes_class_virtual_call() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -599,7 +599,7 @@ function callNotification(): int32 {
 /// Lower class lineage metadata for inheritance and interfaces.
 #[test]
 fn test_lower_class_lineage_metadata() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -648,7 +648,7 @@ class TaggedWidget extends WidgetBase implements Taggable {
 #[test]
 fn test_lower_class_layout_inheritance() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -695,7 +695,7 @@ class SavingsAccount extends Account {
 #[test]
 fn test_lower_propagates_class_vtable_header() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -741,7 +741,7 @@ function useHeader(value: TextureHeader): int32 {
 #[test]
 fn test_lower_omits_header_for_non_polymorphic_class() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"

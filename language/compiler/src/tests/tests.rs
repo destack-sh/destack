@@ -949,7 +949,7 @@ impl TestProgram {
             TestFileSystem::Memory {
                 fs: Arc::new(MemoryFileSystem::new()),
             },
-            default_workers(),
+            test_parallel_workers(),
             true,
             true,
         )
@@ -1376,10 +1376,12 @@ impl TestProgram {
 
     /// Run all queued tasks to completion with a custom timeout.
     pub fn compile_with_timeout(&self, timeout: Duration) {
-        // serialize compiler test runs so cargo test does not oversubscribe the compiler itself
-        let compile_guard = TEST_COMPILE_LOCK
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
+        // only serialize tests that also run a parallel compiler
+        let compile_guard = (self.compiler.options.workers > 1).then(|| {
+            TEST_COMPILE_LOCK
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+        });
 
         // spawn the compile thread
         let compiler = self.compiler.clone();

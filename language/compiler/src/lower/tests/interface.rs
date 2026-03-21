@@ -6,7 +6,7 @@ use crate::TestProgram;
 /// Lower interface itab metadata for structs.
 #[test]
 fn test_lower_struct_itab_metadata() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -71,7 +71,7 @@ block0(v0: @Circle):
 /// Lower interface reference layouts into fat pointer structs.
 #[test]
 fn test_lower_interface_reference_layout() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -133,7 +133,7 @@ block0(v0: @Circle):
 #[test]
 #[ignore]
 fn test_lower_structural_interface_parameter() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -169,7 +169,7 @@ function run(): int32 {
 #[test]
 #[ignore] // TODO #Incomplete: structural interfaces (see other structural interface tests here!)
 fn test_lower_structural_interface_fields() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -209,7 +209,7 @@ function run(): int32 {
 #[test]
 #[ignore]
 fn test_lower_structural_interface_mixed() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -249,7 +249,7 @@ function run(): int32 {
 /// Lower interface itab slots in declaration order for mixed members.
 #[test]
 fn test_lower_orders_interface_itab_slots() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -375,7 +375,7 @@ block0(v0: @Widget):
 /// Lower interface call metadata for interface dispatch.
 #[test]
 fn test_lower_interface_call_metadata() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -442,7 +442,7 @@ block0(v0: @Circle):
 /// Lower interface upcasts into fat pointer values in MIR.
 #[test]
 fn test_lower_interface_upcast() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -500,7 +500,7 @@ block0(v0: @Sprite):
 /// Execute an interface call through an interface-typed reference.
 #[test]
 fn test_lower_executes_interface_call() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"

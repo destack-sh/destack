@@ -5,7 +5,7 @@ use crate::{TaskPhase, TestProgram};
 /// Lower struct construction and field access.
 #[test]
 fn test_lower_constructs_struct_and_accesses_fields() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -34,7 +34,7 @@ function sumFields(a: number, b: number): number {
 /// Lower struct construction with `new`.
 #[test]
 fn test_lower_constructs_struct_with_new() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -64,7 +64,7 @@ function sumFieldsNew(a: number, b: number): number {
 #[test]
 fn test_lower_inlines_struct_new_value() {
     // set up the test program
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -111,7 +111,7 @@ block0(v0: i32, v1: i32):
 /// Lower explicit struct constructors.
 #[test]
 fn test_lower_struct_explicit_constructor() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -149,7 +149,7 @@ function sumFieldsExplicit(a: number, b: number): number {
 /// Constructor return values should be rejected.
 #[test]
 fn test_lower_rejects_struct_constructor_return_value() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -180,7 +180,7 @@ function makePoint(a: number, b: number): Point {
 /// Constructors must initialize all fields before returning.
 #[test]
 fn test_lower_rejects_struct_constructor_missing_field() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -209,7 +209,7 @@ function makePoint(a: number): Point {
 /// Constructors cannot read fields before initialization.
 #[test]
 fn test_lower_rejects_struct_constructor_read_before_init() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -240,7 +240,7 @@ function makePoint(a: number, b: number): Point {
 /// Lower struct field map metadata for nominal layouts.
 #[test]
 fn test_lower_struct_field_map_metadata() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -304,7 +304,7 @@ block0(v0: @FieldMapBox):
 /// Lower struct method that returns a field via `this`.
 #[test]
 fn test_lower_struct_method_returning_field() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -360,7 +360,7 @@ block0(v0: @Box):
 /// Lower struct with multiple field accesses.
 #[test]
 fn test_lower_multiple_struct_field_access() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -397,7 +397,7 @@ function accessAll(x: number, y: number, z: number): number {
 /// Lower struct with fields initialized in different order than declaration.
 #[test]
 fn test_lower_struct_field_order_independence() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -427,7 +427,7 @@ function makeReversed(a: number, b: number): number {
 /// Lower nested struct construction and field access.
 #[test]
 fn test_lower_nested_struct_access() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -458,7 +458,7 @@ function getScaledValue(v: number, s: number): number {
 /// Lower struct with multiple nested levels.
 #[test]
 fn test_lower_deeply_nested_struct() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -491,7 +491,7 @@ function deepAccess(val: number): number {
 /// Lower struct with a simple method call.
 #[test]
 fn test_lower_struct_method_call() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -527,7 +527,7 @@ function getSum(a: int32, b: int32): int32 {
 /// Lower struct method that returns a new instance of the same type.
 #[test]
 fn test_lower_struct_method_returning_self() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -563,7 +563,7 @@ function bump(n: int32): int32 {
 /// Lower struct method with parameters.
 #[test]
 fn test_lower_struct_method_with_parameters() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -598,7 +598,7 @@ function compute(base: int32, delta: int32): int32 {
 /// Lower chained method calls.
 #[test]
 fn test_lower_struct_chained_method_calls() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"

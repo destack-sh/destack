@@ -5,7 +5,7 @@ use crate::TestProgram;
 /// Lower integer enum member values into constants.
 #[test]
 fn test_lower_lowers_enum_integer_members() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -43,7 +43,7 @@ block0:
 /// Lower enum equality using the backing integer type.
 #[test]
 fn test_lower_compares_enum_integer_values() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -104,7 +104,7 @@ function flavorValue(): string {
 /// Lower static enum method calls.
 #[test]
 fn test_lower_calls_enum_static_method() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -153,7 +153,7 @@ block0(v0: i32):
 /// Lower enum instance method calls.
 #[test]
 fn test_lower_calls_enum_instance_method() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -202,7 +202,7 @@ block0(v0: i32):
 /// Lower static enum fields to globals.
 #[test]
 fn test_lower_lowers_enum_static_field() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
         r#"
