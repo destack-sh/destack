@@ -1099,6 +1099,7 @@ fn build_unix_monitor_event(
         timestamp_ns,
         sequence,
         device_id: binding.store_string(device_id),
+        instance_id: None,
         device_kind,
         connected,
     };

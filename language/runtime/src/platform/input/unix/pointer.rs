@@ -75,7 +75,7 @@ fn pointer_state(
 
             #[cfg(target_os = "macos")]
             {
-                input_macos::pointer_state_snapshot(operation)?
+                input_macos::pointer_state_snapshot(binding, operation)?
             }
 
             #[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
@@ -124,7 +124,7 @@ fn set_relative_mode_macos(
     enabled: bool,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let snapshot = input_macos::pointer_state_snapshot(operation)?;
+    let snapshot = input_macos::pointer_state_snapshot(binding, operation)?;
     input_core::set_pointer_snapshot(binding, handle, snapshot.x, snapshot.y, operation)?;
     input_core::set_relative_mode_flag(binding, handle, enabled, operation)?;
     Ok(())

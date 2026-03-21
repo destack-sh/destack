@@ -5,17 +5,17 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{NativeArray, PlatformError};
 use crate::runtime::{NativeSlice, NativeStringRef};
 
-use crate::runtime::BindingCallContext;
-
 use crate::platform::input::{
-    ClipboardBinaryFormat, InputCompositionEvent, InputDeviceCapabilities, InputDeviceDescriptor,
-    InputEvent, InputGamepadState, InputHapticEffectParameters, InputHapticEffectType,
-    InputHapticsResult, InputKeyboardState, InputMonitorEvent, InputPointerGrabMode,
+    ClipboardItem, ClipboardItemDescriptor, InputClipboardCommandEvent, InputCompositionEvent,
+    InputDeviceCapabilities, InputDeviceDescriptor, InputEditIntentEvent, InputEvent,
+    InputGamepadState, InputHapticEffectParameters, InputHapticEffectType, InputHapticsResult,
+    InputKeyboardLayoutInfo, InputKeyboardState, InputMonitorEvent, InputPointerGrabMode,
     InputPointerState, InputRawHidReport, InputReadMode, InputSensorConfig, InputSensorDescriptor,
     InputSensorEffectiveConfig, InputSensorKind, InputSensorSample, InputTextInputArea,
     InputTextInputType, InputTouchState, InputWindowTarget,
 };
 use crate::platform::resource;
+use crate::runtime::BindingCallContext;
 
 /// Query capabilities for one opened input device.
 ///
@@ -452,6 +452,34 @@ pub(crate) unsafe fn destack_input_gamepad_set_light(
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.gamepad.setLight",
+    ))
+    .boxed())
+}
+
+/// Set one gamepad motion sensor sample rate.
+pub(crate) unsafe fn destack_input_gamepad_set_motion_sensor_sample_rate(
+    _binding: &BindingCallContext,
+    handle: resource::InputDeviceHandle,
+    sampleratehz: f64,
+) -> RuntimeResult<()> {
+    let _ = (handle, sampleratehz);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.gamepad.setMotionSensorSampleRate",
+    ))
+    .boxed())
+}
+
+/// Enable or disable one gamepad motion sensor stream.
+pub(crate) unsafe fn destack_input_gamepad_set_motion_sensors_enabled(
+    _binding: &BindingCallContext,
+    handle: resource::InputDeviceHandle,
+    enabled: bool,
+) -> RuntimeResult<()> {
+    let _ = (handle, enabled);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.gamepad.setMotionSensorsEnabled",
     ))
     .boxed())
 }
@@ -1151,6 +1179,34 @@ pub(crate) unsafe fn destack_input_text_read_composition(
     .boxed())
 }
 
+/// Read one clipboard command.
+pub(crate) unsafe fn destack_input_text_read_clipboard_command(
+    _binding: &BindingCallContext,
+    out: *mut InputClipboardCommandEvent,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.text.readClipboardCommand",
+    ))
+    .boxed())
+}
+
+/// Read one edit intent.
+pub(crate) unsafe fn destack_input_text_read_edit_intent(
+    _binding: &BindingCallContext,
+    out: *mut InputEditIntentEvent,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.text.readEditIntent",
+    ))
+    .boxed())
+}
+
 /// Set text input area.
 ///
 /// Set one text input area and cursor position hint for one opened input device and one optional window target.
@@ -1266,6 +1322,34 @@ pub(crate) unsafe fn destack_input_text_try_read_composition(
     .boxed())
 }
 
+/// Poll one clipboard command without blocking.
+pub(crate) unsafe fn destack_input_text_try_read_clipboard_command(
+    _binding: &BindingCallContext,
+    out: *mut InputClipboardCommandEvent,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.text.tryReadClipboardCommand",
+    ))
+    .boxed())
+}
+
+/// Poll one edit intent without blocking.
+pub(crate) unsafe fn destack_input_text_try_read_edit_intent(
+    _binding: &BindingCallContext,
+    out: *mut InputEditIntentEvent,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.text.tryReadEditIntent",
+    ))
+    .boxed())
+}
+
 /// Read one touch state snapshot.
 ///
 /// Return one current touch-contact snapshot for one opened touch-capable device.
@@ -1294,6 +1378,20 @@ pub(crate) unsafe fn destack_input_touch_state(
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.touch.state")).boxed())
 }
 
+/// Read one keyboard layout snapshot.
+pub(crate) unsafe fn destack_input_keyboard_layout(
+    _binding: &BindingCallContext,
+    out: *mut InputKeyboardLayoutInfo,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.keyboard.layout",
+    ))
+    .boxed())
+}
+
 /// Clear clipboard payload.
 pub(crate) unsafe fn destack_input_clipboard_clear(
     _binding: &BindingCallContext,
@@ -1317,24 +1415,6 @@ pub(crate) unsafe fn destack_input_clipboard_has_text(
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.clipboard.hasText",
-    ))
-    .boxed())
-}
-
-/// Read binary clipboard payload.
-pub(crate) unsafe fn destack_input_clipboard_read_bytes(
-    _binding: &BindingCallContext,
-    out: *mut NativeSlice<u8>,
-    format: ClipboardBinaryFormat,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-
-    let _ = (out, format);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.input.clipboard.readBytes",
     ))
     .boxed())
 }
@@ -1373,16 +1453,60 @@ pub(crate) unsafe fn destack_input_clipboard_sequence(
     .boxed())
 }
 
-/// Write binary clipboard payload.
-pub(crate) unsafe fn destack_input_clipboard_write_bytes(
+/// List clipboard items.
+pub(crate) unsafe fn destack_input_clipboard_list_items(
     _binding: &BindingCallContext,
-    format: ClipboardBinaryFormat,
-    argument_bytes: NativeSlice<u8>,
+    out: *mut NativeSlice<ClipboardItemDescriptor>,
 ) -> RuntimeResult<()> {
-    let _ = (format, argument_bytes);
+    let _ = out;
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.input.clipboard.writeBytes",
+        "destack.input.clipboard.listItems",
+    ))
+    .boxed())
+}
+
+/// Read one clipboard item as bytes.
+pub(crate) unsafe fn destack_input_clipboard_read_item_bytes(
+    _binding: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    itemindex: u32,
+    representationindex: u32,
+) -> RuntimeResult<()> {
+    let _ = (out, itemindex, representationindex);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.clipboard.readItemBytes",
+    ))
+    .boxed())
+}
+
+/// Read one clipboard item as one path.
+pub(crate) unsafe fn destack_input_clipboard_read_item_path(
+    _binding: &BindingCallContext,
+    out: *mut crate::platform::fs::OsPath,
+    itemindex: u32,
+    representationindex: u32,
+) -> RuntimeResult<()> {
+    let _ = (out, itemindex, representationindex);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.clipboard.readItemPath",
+    ))
+    .boxed())
+}
+
+/// Read one clipboard item as text.
+pub(crate) unsafe fn destack_input_clipboard_read_item_text(
+    _binding: &BindingCallContext,
+    out: *mut NativeStringRef,
+    itemindex: u32,
+    representationindex: u32,
+) -> RuntimeResult<()> {
+    let _ = (out, itemindex, representationindex);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.clipboard.readItemText",
     ))
     .boxed())
 }
@@ -1396,6 +1520,19 @@ pub(crate) unsafe fn destack_input_clipboard_write_text(
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.input.clipboard.writeText",
+    ))
+    .boxed())
+}
+
+/// Write clipboard items.
+pub(crate) unsafe fn destack_input_clipboard_write_items(
+    _binding: &BindingCallContext,
+    items: NativeSlice<ClipboardItem>,
+) -> RuntimeResult<()> {
+    let _ = items;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.clipboard.writeItems",
     ))
     .boxed())
 }

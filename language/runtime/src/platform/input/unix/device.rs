@@ -82,6 +82,7 @@ fn derive_capabilities_from_device_summary(
         supports_pointer_warp: false,
         supports_text_input: device.supports_text,
         supports_composition: false,
+        supports_edit_intents: false,
         supports_rumble: device.supports_rumble,
         supports_trigger_rumble: false,
         supports_sensors: false,
@@ -89,6 +90,10 @@ fn derive_capabilities_from_device_summary(
         supports_light_control: device.supports_light,
         supports_raw_hid: device.supports_raw_hid,
         supports_player_index: matches!(device.kind, InputDeviceKind::Gamepad),
+        supports_pointer_coalescing: false,
+        supports_pointer_prediction: false,
+        supports_pen_hover_distance: false,
+        supports_pen_orientation_angles: false,
     }
 }
 
@@ -361,6 +366,9 @@ pub(crate) unsafe fn destack_input_capabilities(
                 id: binding.store_string(&resolved_binding.device_id),
                 instance_id: binding.store_string(&resolved_binding.device_id),
                 hardware_id: binding.store_string(&resolved_binding.device_id),
+                serial_number: None,
+                location_id: None,
+                guid: None,
                 name: binding.store_string(&resolved_binding.device_id),
                 transport: binding.store_string(transport),
                 kind: resolved_binding.device_kind,

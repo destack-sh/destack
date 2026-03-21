@@ -9,10 +9,11 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
     InputAxisMetadata, InputButtonMetadata, InputCapabilityMetadataFidelity,
-    InputCapabilityMetadataOrigin, InputDeviceCapabilities, InputDeviceCapabilityKind, InputEvent,
-    InputEventAction, InputEventKind, InputKeyEventPayload, InputKeyboardState,
-    InputPointerButtonEventPayload, InputPointerMotionEventPayload, InputPointerState,
-    InputReadMode, InputScrollEventPayload,
+    InputCapabilityMetadataOrigin, InputCoordinateSpace, InputDeviceCapabilities,
+    InputDeviceCapabilityKind, InputEvent, InputEventAction, InputEventKind, InputKeyEventPayload,
+    InputKeyLocation, InputKeyboardState, InputModifierState, InputPointerButtonEventPayload,
+    InputPointerMotionEventPayload, InputPointerState, InputPointerType, InputReadMode,
+    InputScrollEventPayload, InputWheelDeltaMode,
 };
 use crate::platform::resource::ResourceKind;
 use crate::platform::{PlatformError, resource};
@@ -530,38 +531,67 @@ fn packet_to_input_event(binding: &BindingCallContext, packet: MacosTapPacket) -
         InputEventKind::Key => {
             payload.key = InputKeyEventPayload {
                 action: packet.action,
+                key: None,
+                code: None,
+                location: InputKeyLocation::Standard,
                 backend_code: packet.code,
                 backend_scan_code: packet.scan_code,
                 backend_value: packet.value,
-                modifiers: packet.modifiers,
+                backend_modifiers: packet.modifiers,
+                modifier_state: modifier_state_from_runtime_modifiers(packet.modifiers),
                 repeat: packet.repeat,
+                is_composing: false,
             };
         }
         InputEventKind::PointerMotion => {
             payload.pointer_motion = InputPointerMotionEventPayload {
-                x: packet.x,
-                y: packet.y,
+                pointer_id: 0,
+                pointer_type: InputPointerType::Mouse,
+                is_primary: true,
+                coordinate_space: InputCoordinateSpace::GlobalLogical,
+                position_x: packet.x,
+                position_y: packet.y,
+                delta_x: 0.0,
+                delta_y: 0.0,
                 buttons: packet.buttons,
-                modifiers: packet.modifiers,
+                backend_buttons: packet.buttons,
+                modifier_state: modifier_state_from_runtime_modifiers(packet.modifiers),
+                contact: None,
+                pen: None,
+                coalesced_samples: binding.store_slice(Vec::new()),
+                predicted_samples: binding.store_slice(Vec::new()),
             };
         }
         InputEventKind::PointerButton => {
             payload.pointer_button = InputPointerButtonEventPayload {
                 action: packet.action,
+                pointer_id: 0,
+                pointer_type: InputPointerType::Mouse,
+                is_primary: true,
+                button: packet.code as i16,
+                buttons: packet.buttons,
                 backend_code: packet.code,
                 backend_value: packet.value,
-                x: packet.x,
-                y: packet.y,
-                modifiers: packet.modifiers,
+                position_x: packet.x,
+                position_y: packet.y,
+                coordinate_space: InputCoordinateSpace::GlobalLogical,
+                modifier_state: modifier_state_from_runtime_modifiers(packet.modifiers),
+                contact: None,
+                pen: None,
             };
         }
         InputEventKind::Scroll => {
             payload.scroll = InputScrollEventPayload {
-                wheel_x: packet.wheel_x,
-                wheel_y: packet.wheel_y,
-                x: packet.x,
-                y: packet.y,
-                modifiers: packet.modifiers,
+                pointer_id: Some(0),
+                pointer_type: Some(InputPointerType::Mouse),
+                delta_mode: InputWheelDeltaMode::Pixel,
+                delta_x: packet.wheel_x,
+                delta_y: packet.wheel_y,
+                position_x: packet.x,
+                position_y: packet.y,
+                coordinate_space: InputCoordinateSpace::GlobalLogical,
+                buttons: packet.buttons,
+                modifier_state: modifier_state_from_runtime_modifiers(packet.modifiers),
             };
         }
         _ => {}
@@ -686,6 +716,7 @@ pub(super) fn query_macos_session_capabilities(
         supports_pointer_warp: true,
         supports_text_input: false,
         supports_composition: false,
+        supports_edit_intents: false,
         supports_rumble: false,
         supports_trigger_rumble: false,
         supports_sensors: false,
@@ -693,6 +724,10 @@ pub(super) fn query_macos_session_capabilities(
         supports_light_control: false,
         supports_raw_hid: false,
         supports_player_index: false,
+        supports_pointer_coalescing: false,
+        supports_pointer_prediction: false,
+        supports_pen_hover_distance: false,
+        supports_pen_orientation_angles: false,
     }
 }
 
@@ -716,6 +751,24 @@ fn runtime_modifiers_from_cg_flags(flags: u64) -> u32 {
     }
 
     modifiers
+}
+
+/// Build one normalized modifier-state payload from runtime modifier bits.
+fn modifier_state_from_runtime_modifiers(modifiers: u32) -> InputModifierState {
+    InputModifierState {
+        is_alt: (modifiers & MODIFIER_ALT) != 0,
+        is_alt_graph: false,
+        is_caps_lock: (modifiers & MODIFIER_CAPS_LOCK) != 0,
+        is_control: (modifiers & MODIFIER_CONTROL) != 0,
+        is_fn: false,
+        is_fn_lock: false,
+        is_meta: (modifiers & MODIFIER_META) != 0,
+        is_num_lock: false,
+        is_scroll_lock: false,
+        is_shift: (modifiers & MODIFIER_SHIFT) != 0,
+        is_symbol: false,
+        is_symbol_lock: false,
+    }
 }
 
 /// Build one stable pointer-button bitset from CoreGraphics button state.
@@ -783,25 +836,43 @@ pub(super) fn keyboard_state_snapshot(
         timestamp_ns: input_core::monotonic_timestamp_ns(),
         sequence,
         device_id: binding.store_string(device_id),
-        modifiers,
-        pressed_codes: binding.store_array(pressed_codes.clone()),
+        backend_modifiers: modifiers,
+        modifier_state: modifier_state_from_runtime_modifiers(modifiers),
+        pressed_codes: binding.store_array(Vec::new()),
+        pressed_keys: binding.store_array(Vec::new()),
+        pressed_backend_codes: binding.store_array(pressed_codes.clone()),
         pressed_scan_codes: binding.store_array(pressed_codes),
+        layout: None,
+        is_composing: false,
     })
 }
 
 /// Read one host pointer snapshot from macOS global event-source state.
-pub(super) fn pointer_state_snapshot(operation: &'static str) -> RuntimeResult<InputPointerState> {
+pub(super) fn pointer_state_snapshot(
+    binding: &BindingCallContext,
+    operation: &'static str,
+) -> RuntimeResult<InputPointerState> {
     let (x, y) = current_pointer_position(operation)?;
     let flags = unsafe { CGEventSourceFlagsState(KCG_EVENT_SOURCE_STATE_COMBINED_SESSION_STATE) };
     let modifiers = runtime_modifiers_from_cg_flags(flags);
     let buttons = pointer_buttons_from_event_source_state();
 
     Ok(InputPointerState {
+        timestamp_ns: input_core::monotonic_timestamp_ns(),
+        sequence: 0,
+        device_id: binding.store_string(MACOS_INPUT_SESSION_ID),
+        pointer_id: 0,
+        pointer_type: InputPointerType::Mouse,
+        is_primary: true,
+        coordinate_space: InputCoordinateSpace::GlobalLogical,
         x,
         y,
+        delta_x: 0.0,
+        delta_y: 0.0,
         buttons,
-        modifiers,
+        modifier_state: modifier_state_from_runtime_modifiers(modifiers),
         pen: None,
+        contact: None,
     })
 }
 

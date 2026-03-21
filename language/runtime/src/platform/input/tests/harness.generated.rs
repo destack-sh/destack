@@ -7,42 +7,52 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::tests::InputHarnessContext;
 use crate::platform::input::{
-    ClipboardBinaryFormat, InputAxisMetadata, InputAxisMetadataVm, InputButtonMetadata,
+    ClipboardItem, ClipboardItemDescriptor, ClipboardItemDescriptorVm, ClipboardItemRepresentation,
+    ClipboardItemRepresentationDescriptor, ClipboardItemRepresentationDescriptorVm,
+    ClipboardItemRepresentationKind, ClipboardItemRepresentationVm, ClipboardItemVm,
+    ClipboardPresentationStyle, InputAxisMetadata, InputAxisMetadataVm, InputButtonMetadata,
     InputButtonMetadataVm, InputCapabilityMetadataFidelity, InputCapabilityMetadataOrigin,
+    InputClipboardCommandEvent, InputClipboardCommandEventVm, InputClipboardCommandType,
     InputCompositionEvent, InputCompositionEventPayload, InputCompositionEventPayloadVm,
-    InputCompositionEventVm, InputDeviceCapabilities, InputDeviceCapabilitiesVm,
-    InputDeviceCapabilityKind, InputDeviceDescriptor, InputDeviceDescriptorVm, InputDeviceEvent,
-    InputDeviceEventPayload, InputDeviceEventPayloadVm, InputDeviceEventVm, InputDeviceKind,
-    InputEvent, InputEventAction, InputEventMetadata, InputEventMetadataVm, InputEventVm,
-    InputGamepadBatteryState, InputGamepadBatteryStatus, InputGamepadBatteryStatusVm,
+    InputCompositionEventVm, InputCoordinateSpace, InputDeviceCapabilities,
+    InputDeviceCapabilitiesVm, InputDeviceCapabilityKind, InputDeviceDescriptor,
+    InputDeviceDescriptorVm, InputDeviceEvent, InputDeviceEventPayload, InputDeviceEventPayloadVm,
+    InputDeviceEventVm, InputDeviceKind, InputEditIntentEvent, InputEditIntentEventVm,
+    InputEditIntentType, InputEvent, InputEventAction, InputEventMetadata, InputEventMetadataVm,
+    InputEventVm, InputGamepadBatteryState, InputGamepadBatteryStatus, InputGamepadBatteryStatusVm,
     InputGamepadButtonState, InputGamepadButtonStateVm, InputGamepadConnectionType,
-    InputGamepadEvent, InputGamepadEventPayload, InputGamepadEventPayloadVm, InputGamepadEventVm,
-    InputGamepadMappingType, InputGamepadState, InputGamepadStateVm, InputGamepadTouchState,
-    InputGamepadTouchStateVm, InputHapticEffectParameters, InputHapticEffectParametersVm,
-    InputHapticEffectType, InputHapticsResult, InputKeyEvent, InputKeyEventPayload,
-    InputKeyEventPayloadVm, InputKeyEventVm, InputKeyboardState, InputKeyboardStateVm,
-    InputMonitorChangeEvent, InputMonitorChangeEventVm, InputMonitorConnectEvent,
-    InputMonitorConnectEventVm, InputMonitorDisconnectEvent, InputMonitorDisconnectEventVm,
-    InputMonitorEvent, InputMonitorEventMetadata, InputMonitorEventMetadataVm, InputMonitorEventVm,
-    InputPenState, InputPenStateVm, InputPointerButtonEvent, InputPointerButtonEventPayload,
-    InputPointerButtonEventPayloadVm, InputPointerButtonEventVm, InputPointerGrabMode,
-    InputPointerMotionEvent, InputPointerMotionEventPayload, InputPointerMotionEventPayloadVm,
-    InputPointerMotionEventVm, InputPointerState, InputPointerStateVm, InputRawHidReport,
-    InputRawHidReportVm, InputReadMode, InputScrollEvent, InputScrollEventPayload,
-    InputScrollEventPayloadVm, InputScrollEventVm, InputSensorConfig, InputSensorConfigVm,
-    InputSensorDescriptor, InputSensorDescriptorVm, InputSensorEffectiveConfig,
-    InputSensorEffectiveConfigVm, InputSensorEvent, InputSensorEventPayload,
-    InputSensorEventPayloadVm, InputSensorEventVm, InputSensorKind, InputSensorSample,
-    InputSensorSampleVm, InputTextEvent, InputTextEventPayload, InputTextEventPayloadVm,
-    InputTextEventVm, InputTextInputArea, InputTextInputAreaVm, InputTextInputType,
-    InputTouchContactPhase, InputTouchContactState, InputTouchContactStateVm, InputTouchEvent,
-    InputTouchEventPayload, InputTouchEventPayloadVm, InputTouchEventVm, InputTouchState,
-    InputTouchStateVm, InputWindowTarget, InputWindowTargetVm, native as input_native,
+    InputGamepadControlKind, InputGamepadEvent, InputGamepadEventPayload,
+    InputGamepadEventPayloadVm, InputGamepadEventVm, InputGamepadMappingType,
+    InputGamepadMotionState, InputGamepadMotionStateVm, InputGamepadState, InputGamepadStateVm,
+    InputGamepadTouchState, InputGamepadTouchStateVm, InputHapticEffectParameters,
+    InputHapticEffectParametersVm, InputHapticEffectType, InputHapticsResult, InputKeyEvent,
+    InputKeyEventPayload, InputKeyEventPayloadVm, InputKeyEventVm, InputKeyLocation,
+    InputKeyboardLayoutInfo, InputKeyboardLayoutInfoVm, InputKeyboardState, InputKeyboardStateVm,
+    InputModifierState, InputModifierStateVm, InputMonitorChangeEvent, InputMonitorChangeEventVm,
+    InputMonitorConnectEvent, InputMonitorConnectEventVm, InputMonitorDisconnectEvent,
+    InputMonitorDisconnectEventVm, InputMonitorEvent, InputMonitorEventMetadata,
+    InputMonitorEventMetadataVm, InputMonitorEventVm, InputPenState, InputPenStateVm,
+    InputPenToolKind, InputPointerButtonEvent, InputPointerButtonEventPayload,
+    InputPointerButtonEventPayloadVm, InputPointerButtonEventVm, InputPointerContactGeometry,
+    InputPointerContactGeometryVm, InputPointerGrabMode, InputPointerMotionEvent,
+    InputPointerMotionEventPayload, InputPointerMotionEventPayloadVm, InputPointerMotionEventVm,
+    InputPointerMotionSample, InputPointerMotionSampleVm, InputPointerState, InputPointerStateVm,
+    InputPointerType, InputRawHidReport, InputRawHidReportVm, InputReadMode, InputScrollEvent,
+    InputScrollEventPayload, InputScrollEventPayloadVm, InputScrollEventVm, InputSensorConfig,
+    InputSensorConfigVm, InputSensorDescriptor, InputSensorDescriptorVm,
+    InputSensorEffectiveConfig, InputSensorEffectiveConfigVm, InputSensorEvent,
+    InputSensorEventPayload, InputSensorEventPayloadVm, InputSensorEventVm, InputSensorKind,
+    InputSensorSample, InputSensorSampleVm, InputTextEvent, InputTextEventPayload,
+    InputTextEventPayloadVm, InputTextEventVm, InputTextInputArea, InputTextInputAreaVm,
+    InputTextInputType, InputTextRange, InputTextRangeVm, InputTouchContactPhase,
+    InputTouchContactState, InputTouchContactStateVm, InputTouchEvent, InputTouchEventPayload,
+    InputTouchEventPayloadVm, InputTouchEventVm, InputTouchState, InputTouchStateVm,
+    InputWheelDeltaMode, InputWindowTarget, InputWindowTargetVm, native as input_native,
     vm as input_vm,
 };
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as HarnessPlatformError, VmAbiCodec, VmArray, VmSlice, fs, resource,
+    PlatformError as HarnessPlatformError, VmAbiCodec, VmArray, VmSlice, display, fs, resource,
 };
 use destack_vm as vm;
 
@@ -166,9 +176,49 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Read binary clipboard payload.
+    /// List clipboard items.
     ///
-    /// Read one binary payload in one selected clipboard format.
+    /// Return the itemized clipboard payload in provider order.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.clipboard.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_clipboard_list_items(
+        &mut self,
+    ) -> RuntimeResult<
+        HarnessValue<NativeSlice<ClipboardItemDescriptor>, VmSlice<ClipboardItemDescriptorVm>>,
+    > {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_clipboard_list_items(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out =
+                    std::mem::MaybeUninit::<NativeSlice<ClipboardItemDescriptor>>::uninit();
+                unsafe {
+                    input_native::destack_input_clipboard_list_items(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read one binary clipboard item representation.
+    ///
+    /// Read one selected clipboard representation identified by item and representation index.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -181,26 +231,29 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_input_clipboard_read_bytes(
+    pub(crate) fn destack_input_clipboard_read_item_bytes(
         &mut self,
-        format: ClipboardBinaryFormat,
+        itemindex: u32,
+        representationindex: u32,
     ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = input_vm::destack_input_clipboard_read_bytes(
+                let out = input_vm::destack_input_clipboard_read_item_bytes(
                     self.call_context,
                     context,
-                    format,
+                    itemindex,
+                    representationindex,
                 )?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
                 unsafe {
-                    input_native::destack_input_clipboard_read_bytes(
+                    input_native::destack_input_clipboard_read_item_bytes(
                         self.call_context,
                         out.as_mut_ptr(),
-                        format,
+                        itemindex,
+                        representationindex,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
@@ -209,9 +262,101 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Read text clipboard payload.
+    /// Read one filesystem clipboard item representation.
     ///
-    /// Read one text payload from the host clipboard.
+    /// Read one local filesystem representation from one clipboard item when the host exposes one path-based item.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.clipboard.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_clipboard_read_item_path(
+        &mut self,
+        itemindex: u32,
+        representationindex: u32,
+    ) -> RuntimeResult<HarnessValue<fs::OsPath, fs::OsPathVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_clipboard_read_item_path(
+                    self.call_context,
+                    context,
+                    itemindex,
+                    representationindex,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<fs::OsPath>::uninit();
+                unsafe {
+                    input_native::destack_input_clipboard_read_item_path(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        itemindex,
+                        representationindex,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read one text clipboard item representation.
+    ///
+    /// Read one textual representation from one clipboard item.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.clipboard.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_clipboard_read_item_text(
+        &mut self,
+        itemindex: u32,
+        representationindex: u32,
+    ) -> RuntimeResult<HarnessValue<NativeStringRef, vm::StringHandle>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_clipboard_read_item_text(
+                    self.call_context,
+                    context,
+                    itemindex,
+                    representationindex,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeStringRef>::uninit();
+                unsafe {
+                    input_native::destack_input_clipboard_read_item_text(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        itemindex,
+                        representationindex,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read one text clipboard payload.
+    ///
+    /// Read the preferred `text/plain` payload from the host clipboard.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -281,9 +426,9 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Write binary clipboard payload.
+    /// Write clipboard items.
     ///
-    /// Write one binary payload in one selected clipboard format.
+    /// Replace the host clipboard contents with the supplied items and representations.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -296,35 +441,25 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Replay
     /// External, nonrecordable.
-    pub(crate) fn destack_input_clipboard_write_bytes(
+    pub(crate) fn destack_input_clipboard_write_items(
         &mut self,
-        format: ClipboardBinaryFormat,
-        argument_bytes: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+        items: HarnessValue<NativeSlice<ClipboardItem>, VmSlice<ClipboardItemVm>>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let argument_bytes = argument_bytes.into_vm("argument_bytes")?;
-                input_vm::destack_input_clipboard_write_bytes(
-                    self.call_context,
-                    context,
-                    format,
-                    argument_bytes,
-                )
+                let items = items.into_vm("items")?;
+                input_vm::destack_input_clipboard_write_items(self.call_context, context, items)
             }
             None => unsafe {
-                let argument_bytes = argument_bytes.into_native("argument_bytes")?;
-                input_native::destack_input_clipboard_write_bytes(
-                    self.call_context,
-                    format,
-                    argument_bytes,
-                )
+                let items = items.into_native("items")?;
+                input_native::destack_input_clipboard_write_items(self.call_context, items)
             },
         }
     }
 
-    /// Write text clipboard payload.
+    /// Write one text clipboard payload.
     ///
-    /// Write one text payload into the host clipboard.
+    /// Write one preferred `text/plain` payload into the host clipboard.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -670,7 +805,6 @@ impl<'call> InputHarnessContext<'call> {
     /// Read one pending input event from one opened device stream.
     /// Per-device streams report control and motion events for that device and exclude global device topology events.
     /// Backend framing packets are filtered from this semantic stream.
-    /// Queue pressure can report one device cancel packet through the typed payload.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
@@ -712,7 +846,6 @@ impl<'call> InputHarnessContext<'call> {
     /// Read up to `maxEvents` events from one opened device stream in one call.
     /// Batch ordering matches backend delivery order and excludes global device topology events.
     /// Backend framing packets are filtered from this semantic stream.
-    /// Queue pressure can report one device cancel packet through the typed payload.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
@@ -761,7 +894,6 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// Toggle exclusive-grab mode for one input device when the host backend supports it.
     /// This is one device-wide exclusivity control and is distinct from pointer confinement or locking modes.
-    /// Grabs can prevent event delivery to other clients.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` where exclusive grab is not defined by host policy.
@@ -834,7 +966,6 @@ impl<'call> InputHarnessContext<'call> {
     /// Poll one pending input event from one opened device stream and return immediately when no event is queued.
     /// Empty queue state is reported through ioWouldBlock.
     /// Backend framing packets are filtered from this semantic stream.
-    /// Queue pressure can report one device cancel packet through the typed payload.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
@@ -919,6 +1050,80 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
+    /// Set the gamepad motion sensor sample rate.
+    ///
+    /// Apply one motion sensor sample rate hint in hertz for one opened gamepad-capable device when supported.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where configurable motion sensors are unavailable.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_gamepad_set_motion_sensor_sample_rate(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        sampleratehz: f64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => input_vm::destack_input_gamepad_set_motion_sensor_sample_rate(
+                self.call_context,
+                context,
+                handle,
+                sampleratehz,
+            ),
+            None => unsafe {
+                input_native::destack_input_gamepad_set_motion_sensor_sample_rate(
+                    self.call_context,
+                    handle,
+                    sampleratehz,
+                )
+            },
+        }
+    }
+
+    /// Enable or disable gamepad motion sensors.
+    ///
+    /// Toggle motion sensor delivery for one opened gamepad-capable device when supported.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where motion sensors are unavailable.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_gamepad_set_motion_sensors_enabled(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+        enabled: bool,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => input_vm::destack_input_gamepad_set_motion_sensors_enabled(
+                self.call_context,
+                context,
+                handle,
+                enabled,
+            ),
+            None => unsafe {
+                input_native::destack_input_gamepad_set_motion_sensors_enabled(
+                    self.call_context,
+                    handle,
+                    enabled,
+                )
+            },
+        }
+    }
+
     /// Set one gamepad player index.
     ///
     /// Apply one player index hint for one opened gamepad-capable device.
@@ -960,11 +1165,11 @@ impl<'call> InputHarnessContext<'call> {
     /// Read one gamepad state snapshot.
     ///
     /// Return one full gamepad state snapshot for one opened gamepad-capable device.
-    /// Snapshot fields mirror backend-standardized gamepad semantics for axes, buttons, touches, and battery metadata.
+    /// Snapshot fields mirror backend-standardized gamepad semantics for axes, buttons, touches, battery, and motion metadata.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` where gamepad snapshots are unavailable.
-    /// Uses backend-specific gamepad state APIs with normalized axes, buttons, touch contacts, and battery metadata.
+    /// Uses backend-specific gamepad state APIs with normalized axes, buttons, touch contacts, battery metadata, and motion sensors when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1123,6 +1328,46 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
+    /// Query keyboard layout metadata.
+    ///
+    /// Return the active layout metadata for one opened keyboard-capable device when the backend exposes it.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where layout metadata is unavailable.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_keyboard_layout(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+    ) -> RuntimeResult<HarnessValue<InputKeyboardLayoutInfo, InputKeyboardLayoutInfoVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    input_vm::destack_input_keyboard_layout(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<InputKeyboardLayoutInfo>::uninit();
+                unsafe {
+                    input_native::destack_input_keyboard_layout(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
     /// Read one keyboard state snapshot.
     ///
     /// Return one current keyboard key and modifier snapshot for one opened keyboard-capable device.
@@ -1215,13 +1460,11 @@ impl<'call> InputHarnessContext<'call> {
     /// Read one relative pointer state snapshot.
     ///
     /// Return one relative motion and button state snapshot for one opened pointer-capable device.
-    /// Delta values are projected from the current snapshot and the last stored pointer baseline while relative mode is active.
-    /// Pen-capable devices can populate pressure and tilt metadata.
+    /// Relative mode must be enabled before this lane becomes readable.
     ///
     /// # Platform
     /// Unix and Windows.
     /// Uses backend pointer snapshots plus runtime-managed relative baselines.
-    /// Relative mode must be enabled before this lane becomes readable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1347,8 +1590,7 @@ impl<'call> InputHarnessContext<'call> {
     /// Read one absolute pointer state snapshot.
     ///
     /// Return one current pointer position and button state snapshot for one opened pointer-capable device.
-    /// Position values follow backend coordinate space for that device.
-    /// Pen-capable devices can populate pressure and tilt metadata.
+    /// Position values follow the coordinate space reported in the snapshot.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1392,8 +1634,6 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// Set one pointer position for one opened pointer-capable device and one optional window target.
     /// Warped coordinates are interpreted in backend-native window or surface space for the selected target scope.
-    /// This is the canonical lane for device-target scoped pointer warping.
-    /// Use `display.windowSetCursorPosition` for window-scoped UI convenience operations.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` where pointer warping or one window scope is unavailable.
@@ -1962,6 +2202,50 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
+    /// Read one clipboard command event.
+    ///
+    /// Read one pending clipboard or selection command for one opened text-capable input device.
+    /// This lane aligns with web `copy`, `cut`, `paste`, and selection command semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where clipboard command events are unavailable.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.text`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_text_read_clipboard_command(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+    ) -> RuntimeResult<HarnessValue<InputClipboardCommandEvent, InputClipboardCommandEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_text_read_clipboard_command(
+                    self.call_context,
+                    context,
+                    handle,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<InputClipboardCommandEvent>::uninit();
+                unsafe {
+                    input_native::destack_input_text_read_clipboard_command(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
     /// Read one composition event.
     ///
     /// Read one pending composition lifecycle event for one opened input device.
@@ -1996,6 +2280,50 @@ impl<'call> InputHarnessContext<'call> {
                 let mut out = std::mem::MaybeUninit::<InputCompositionEvent>::uninit();
                 unsafe {
                     input_native::destack_input_text_read_composition(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read one edit intent event.
+    ///
+    /// Read one pending edit intent for one opened text-capable input device.
+    /// Edit intents align with web `beforeinput` semantics for text insertion, deletion, formatting, paste, and drop operations.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where edit intents are unavailable.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.text`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_text_read_edit_intent(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+    ) -> RuntimeResult<HarnessValue<InputEditIntentEvent, InputEditIntentEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_text_read_edit_intent(
+                    self.call_context,
+                    context,
+                    handle,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<InputEditIntentEvent>::uninit();
+                unsafe {
+                    input_native::destack_input_text_read_edit_intent(
                         self.call_context,
                         out.as_mut_ptr(),
                         handle,
@@ -2129,6 +2457,50 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
+    /// Poll one clipboard command event without blocking.
+    ///
+    /// Poll one pending clipboard command event and return immediately when no event is queued.
+    /// Empty queue state is reported through ioWouldBlock.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where clipboard command events are unavailable.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.text`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_text_try_read_clipboard_command(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+    ) -> RuntimeResult<HarnessValue<InputClipboardCommandEvent, InputClipboardCommandEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_text_try_read_clipboard_command(
+                    self.call_context,
+                    context,
+                    handle,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<InputClipboardCommandEvent>::uninit();
+                unsafe {
+                    input_native::destack_input_text_try_read_clipboard_command(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
     /// Poll one composition event without blocking.
     ///
     /// Poll one pending composition lifecycle event and return immediately when no event is queued.
@@ -2163,6 +2535,50 @@ impl<'call> InputHarnessContext<'call> {
                 let mut out = std::mem::MaybeUninit::<InputCompositionEvent>::uninit();
                 unsafe {
                     input_native::destack_input_text_try_read_composition(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Poll one edit intent event without blocking.
+    ///
+    /// Poll one pending edit intent event and return immediately when no event is queued.
+    /// Empty queue state is reported through ioWouldBlock.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` where edit intents are unavailable.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.text`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_input_text_try_read_edit_intent(
+        &mut self,
+        handle: resource::InputDeviceHandle,
+    ) -> RuntimeResult<HarnessValue<InputEditIntentEvent, InputEditIntentEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = input_vm::destack_input_text_try_read_edit_intent(
+                    self.call_context,
+                    context,
+                    handle,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<InputEditIntentEvent>::uninit();
+                unsafe {
+                    input_native::destack_input_text_try_read_edit_intent(
                         self.call_context,
                         out.as_mut_ptr(),
                         handle,

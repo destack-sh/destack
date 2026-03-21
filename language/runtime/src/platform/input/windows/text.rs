@@ -2,7 +2,8 @@ use super::core as input_core;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
-    InputCompositionEvent, InputTextInputArea, InputTextInputType, InputWindowTarget,
+    InputClipboardCommandEvent, InputCompositionEvent, InputEditIntentEvent, InputTextInputArea,
+    InputTextInputType, InputWindowTarget,
 };
 use crate::platform::{PlatformError, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
@@ -151,6 +152,20 @@ pub(super) fn text_read_composition(
     // windows console input exposes committed text, not a real IME composition lifecycle
     let _ = (binding, handle, nonblocking);
     Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
+}
+
+/// Validate one text-capable Windows handle before reporting unsupported.
+fn validate_text_read(
+    binding: &BindingCallContext,
+    handle: resource::InputDeviceHandle,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
+    if !is_text_capable_backend(&resolved) {
+        return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
+    }
+
+    Ok(())
 }
 
 /// Get text input area.
@@ -397,4 +412,92 @@ pub(crate) unsafe fn destack_input_text_try_read_composition(
     }
 
     Ok(())
+}
+
+/// Read one clipboard command.
+pub(crate) unsafe fn destack_input_text_read_clipboard_command(
+    binding: &BindingCallContext,
+    out: *mut InputClipboardCommandEvent,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    // validate output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // validate one text-capable windows handle before reporting unsupported
+    validate_text_read(binding, handle, "destack.input.text.readClipboardCommand")?;
+    let _ = out;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.text.readClipboardCommand",
+    ))
+    .boxed())
+}
+
+/// Read one edit intent.
+pub(crate) unsafe fn destack_input_text_read_edit_intent(
+    binding: &BindingCallContext,
+    out: *mut InputEditIntentEvent,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    // validate output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // validate one text-capable windows handle before reporting unsupported
+    validate_text_read(binding, handle, "destack.input.text.readEditIntent")?;
+    let _ = out;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.text.readEditIntent",
+    ))
+    .boxed())
+}
+
+/// Poll one clipboard command without blocking.
+pub(crate) unsafe fn destack_input_text_try_read_clipboard_command(
+    binding: &BindingCallContext,
+    out: *mut InputClipboardCommandEvent,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    // validate output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // validate one text-capable windows handle before reporting unsupported
+    validate_text_read(
+        binding,
+        handle,
+        "destack.input.text.tryReadClipboardCommand",
+    )?;
+    let _ = out;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.text.tryReadClipboardCommand",
+    ))
+    .boxed())
+}
+
+/// Poll one edit intent without blocking.
+pub(crate) unsafe fn destack_input_text_try_read_edit_intent(
+    binding: &BindingCallContext,
+    out: *mut InputEditIntentEvent,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    // validate output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // validate one text-capable windows handle before reporting unsupported
+    validate_text_read(binding, handle, "destack.input.text.tryReadEditIntent")?;
+    let _ = out;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.text.tryReadEditIntent",
+    ))
+    .boxed())
 }

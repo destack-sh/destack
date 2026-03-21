@@ -1,7 +1,7 @@
 use super::{core as input_core, xinput as xinput_input};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::input::InputKeyboardState;
+use crate::platform::input::{InputKeyboardLayoutInfo, InputKeyboardState};
 use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
 
@@ -68,6 +68,21 @@ pub(super) fn keyboard_state(
     })
 }
 
+/// Read one keyboard-layout snapshot for one opened Windows input handle.
+fn keyboard_layout(
+    binding: &BindingCallContext,
+    handle: resource::InputDeviceHandle,
+    operation: &'static str,
+) -> RuntimeResult<InputKeyboardLayoutInfo> {
+    // resolve one backend binding and validate keyboard capability
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
+    if !is_keyboard_capable_backend(&resolved) {
+        return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
+    }
+
+    Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
+}
+
 /// Read one keyboard state snapshot.
 ///
 /// Return one current keyboard key and modifier snapshot for one opened keyboard-capable device.
@@ -102,6 +117,28 @@ pub(crate) unsafe fn destack_input_keyboard_state(
     // write snapshot output
     unsafe {
         *out = snapshot;
+    }
+
+    Ok(())
+}
+
+/// Read one keyboard layout snapshot.
+pub(crate) unsafe fn destack_input_keyboard_layout(
+    binding: &BindingCallContext,
+    out: *mut InputKeyboardLayoutInfo,
+    handle: resource::InputDeviceHandle,
+) -> RuntimeResult<()> {
+    // validate output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // read one keyboard-layout snapshot from the selected backend
+    let layout = keyboard_layout(binding, handle, "destack.input.keyboard.layout")?;
+
+    // write output payload
+    unsafe {
+        *out = layout;
     }
 
     Ok(())

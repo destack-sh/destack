@@ -12,12 +12,122 @@ use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
     PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
-    VmSlice, VmValueCodec, fs, fs as platform_fs, input as platform_input, resource,
-    resource as platform_resource,
+    VmSlice, VmValueCodec, display, display as platform_display, fs, fs as platform_fs,
+    input as platform_input, resource, resource as platform_resource,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+
+/// ABI newtype for DisplayDragOperationMask.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DisplayDragOperationMask(
+    /// Inner value.
+    pub u32,
+);
+
+pub type DisplayDragOperationMaskVm = DisplayDragOperationMask;
+
+impl VmValueCodec for DisplayDragOperationMask {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl VmCollectionElement for DisplayDragOperationMask {}
+
+/// Value type for DisplayDragOperationMask.
+pub type DisplayDragOperationMaskValue = DisplayDragOperationMask;
+
+impl NativeAbiCodec for DisplayDragOperationMask {
+    type Value = DisplayDragOperationMaskValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for DisplayDragOperationMask {
+    type Value = DisplayDragOperationMaskValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for DisplayDragSessionHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DisplayDragSessionHandle(
+    /// Inner value.
+    pub resource::ResourceId,
+);
+
+pub type DisplayDragSessionHandleVm = DisplayDragSessionHandle;
+
+impl VmValueCodec for DisplayDragSessionHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<resource::ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <resource::ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl VmCollectionElement for DisplayDragSessionHandle {}
+
+/// Value type for DisplayDragSessionHandle.
+pub type DisplayDragSessionHandleValue = DisplayDragSessionHandle;
+
+impl NativeAbiCodec for DisplayDragSessionHandle {
+    type Value = DisplayDragSessionHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for DisplayDragSessionHandle {
+    type Value = DisplayDragSessionHandleValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
 
 /// ABI newtype for PathBytes.
 #[repr(C)]
@@ -283,29 +393,29 @@ impl VmAbiCodec for WindowHandle {
     }
 }
 
-/// ABI enum for ClipboardBinaryFormat.
+/// ABI enum for ClipboardItemRepresentationKind.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ClipboardBinaryFormat {
-    /// TextUtf8.
-    TextUtf8 = 1,
-    /// Html.
-    Html = 2,
+pub enum ClipboardItemRepresentationKind {
+    /// String.
+    String = 1,
+    /// File.
+    File = 2,
     /// Binary.
     Binary = 3,
 }
 
-impl VmValueCodec for ClipboardBinaryFormat {
+impl VmValueCodec for ClipboardItemRepresentationKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1i32 => Self::TextUtf8,
-            2i32 => Self::Html,
+            1i32 => Self::String,
+            2i32 => Self::File,
             3i32 => Self::Binary,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
-                    "unknown ClipboardBinaryFormat value",
+                    "unknown ClipboardItemRepresentationKind value",
                 ))
                 .boxed());
             }
@@ -318,13 +428,13 @@ impl VmValueCodec for ClipboardBinaryFormat {
     }
 }
 
-impl VmCollectionElement for ClipboardBinaryFormat {}
+impl VmCollectionElement for ClipboardItemRepresentationKind {}
 
-/// Value type for ClipboardBinaryFormat.
-pub type ClipboardBinaryFormatValue = ClipboardBinaryFormat;
+/// Value type for ClipboardItemRepresentationKind.
+pub type ClipboardItemRepresentationKindValue = ClipboardItemRepresentationKind;
 
-impl NativeAbiCodec for ClipboardBinaryFormat {
-    type Value = ClipboardBinaryFormatValue;
+impl NativeAbiCodec for ClipboardItemRepresentationKind {
+    type Value = ClipboardItemRepresentationKindValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(self)
@@ -335,8 +445,221 @@ impl NativeAbiCodec for ClipboardBinaryFormat {
     }
 }
 
-impl VmAbiCodec for ClipboardBinaryFormat {
-    type Value = ClipboardBinaryFormatValue;
+impl VmAbiCodec for ClipboardItemRepresentationKind {
+    type Value = ClipboardItemRepresentationKindValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for ClipboardPresentationStyle.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ClipboardPresentationStyle {
+    /// Unspecified.
+    Unspecified = 0,
+    /// Inline.
+    Inline = 1,
+    /// Attachment.
+    Attachment = 2,
+}
+
+impl VmValueCodec for ClipboardPresentationStyle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            0i32 => Self::Unspecified,
+            1i32 => Self::Inline,
+            2i32 => Self::Attachment,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown ClipboardPresentationStyle value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for ClipboardPresentationStyle {}
+
+/// Value type for ClipboardPresentationStyle.
+pub type ClipboardPresentationStyleValue = ClipboardPresentationStyle;
+
+impl NativeAbiCodec for ClipboardPresentationStyle {
+    type Value = ClipboardPresentationStyleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ClipboardPresentationStyle {
+    type Value = ClipboardPresentationStyleValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for DisplayDragItemKind.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DisplayDragItemKind {
+    /// String.
+    String = 1,
+    /// File.
+    File = 2,
+    /// Binary.
+    Binary = 3,
+}
+
+impl VmValueCodec for DisplayDragItemKind {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::String,
+            2i32 => Self::File,
+            3i32 => Self::Binary,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown DisplayDragItemKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for DisplayDragItemKind {}
+
+/// Value type for DisplayDragItemKind.
+pub type DisplayDragItemKindValue = DisplayDragItemKind;
+
+impl NativeAbiCodec for DisplayDragItemKind {
+    type Value = DisplayDragItemKindValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for DisplayDragItemKind {
+    type Value = DisplayDragItemKindValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for DisplayDragOperation.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DisplayDragOperation {
+    /// None.
+    None = 1,
+    /// Copy.
+    Copy = 2,
+    /// Move.
+    Move = 3,
+    /// Link.
+    Link = 4,
+}
+
+impl VmValueCodec for DisplayDragOperation {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::None,
+            2i32 => Self::Copy,
+            3i32 => Self::Move,
+            4i32 => Self::Link,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown DisplayDragOperation value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for DisplayDragOperation {}
+
+/// Value type for DisplayDragOperation.
+pub type DisplayDragOperationValue = DisplayDragOperation;
+
+impl NativeAbiCodec for DisplayDragOperation {
+    type Value = DisplayDragOperationValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for DisplayDragOperation {
+    type Value = DisplayDragOperationValue;
 
     fn into_value(
         self,
@@ -480,6 +803,152 @@ impl NativeAbiCodec for InputCapabilityMetadataOrigin {
 
 impl VmAbiCodec for InputCapabilityMetadataOrigin {
     type Value = InputCapabilityMetadataOriginValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for InputClipboardCommandType.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum InputClipboardCommandType {
+    /// Copy.
+    Copy = 1,
+    /// Cut.
+    Cut = 2,
+    /// Paste.
+    Paste = 3,
+}
+
+impl VmValueCodec for InputClipboardCommandType {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::Copy,
+            2i32 => Self::Cut,
+            3i32 => Self::Paste,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown InputClipboardCommandType value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for InputClipboardCommandType {}
+
+/// Value type for InputClipboardCommandType.
+pub type InputClipboardCommandTypeValue = InputClipboardCommandType;
+
+impl NativeAbiCodec for InputClipboardCommandType {
+    type Value = InputClipboardCommandTypeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for InputClipboardCommandType {
+    type Value = InputClipboardCommandTypeValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for InputCoordinateSpace.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum InputCoordinateSpace {
+    /// WindowLogical.
+    WindowLogical = 1,
+    /// WindowPhysical.
+    WindowPhysical = 2,
+    /// GlobalLogical.
+    GlobalLogical = 3,
+    /// GlobalPhysical.
+    GlobalPhysical = 4,
+    /// Relative.
+    Relative = 5,
+}
+
+impl VmValueCodec for InputCoordinateSpace {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::WindowLogical,
+            2i32 => Self::WindowPhysical,
+            3i32 => Self::GlobalLogical,
+            4i32 => Self::GlobalPhysical,
+            5i32 => Self::Relative,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown InputCoordinateSpace value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for InputCoordinateSpace {}
+
+/// Value type for InputCoordinateSpace.
+pub type InputCoordinateSpaceValue = InputCoordinateSpace;
+
+impl NativeAbiCodec for InputCoordinateSpace {
+    type Value = InputCoordinateSpaceValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for InputCoordinateSpace {
+    type Value = InputCoordinateSpaceValue;
 
     fn into_value(
         self,
@@ -660,32 +1129,158 @@ impl VmAbiCodec for InputDeviceKind {
     }
 }
 
-/// ABI enum for InputDragDropOperation.
+/// ABI enum for InputEditIntentType.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum InputDragDropOperation {
-    /// None.
-    None = 1,
-    /// Copy.
-    Copy = 2,
-    /// Move.
-    Move = 3,
-    /// Link.
-    Link = 4,
+pub enum InputEditIntentType {
+    /// InsertText.
+    InsertText = 1,
+    /// InsertReplacementText.
+    InsertReplacementText = 2,
+    /// InsertLineBreak.
+    InsertLineBreak = 3,
+    /// InsertParagraph.
+    InsertParagraph = 4,
+    /// InsertOrderedList.
+    InsertOrderedList = 5,
+    /// InsertUnorderedList.
+    InsertUnorderedList = 6,
+    /// InsertHorizontalRule.
+    InsertHorizontalRule = 7,
+    /// InsertLink.
+    InsertLink = 8,
+    /// InsertFromYank.
+    InsertFromYank = 9,
+    /// InsertFromDrop.
+    InsertFromDrop = 10,
+    /// InsertFromPaste.
+    InsertFromPaste = 11,
+    /// InsertFromPasteAsQuotation.
+    InsertFromPasteAsQuotation = 12,
+    /// InsertTranspose.
+    InsertTranspose = 13,
+    /// InsertCompositionText.
+    InsertCompositionText = 14,
+    /// DeleteWordBackward.
+    DeleteWordBackward = 15,
+    /// DeleteWordForward.
+    DeleteWordForward = 16,
+    /// DeleteSoftLineBackward.
+    DeleteSoftLineBackward = 17,
+    /// DeleteSoftLineForward.
+    DeleteSoftLineForward = 18,
+    /// DeleteEntireSoftLine.
+    DeleteEntireSoftLine = 19,
+    /// DeleteHardLineBackward.
+    DeleteHardLineBackward = 20,
+    /// DeleteHardLineForward.
+    DeleteHardLineForward = 21,
+    /// DeleteByDrag.
+    DeleteByDrag = 22,
+    /// DeleteByCut.
+    DeleteByCut = 23,
+    /// DeleteContent.
+    DeleteContent = 24,
+    /// DeleteContentBackward.
+    DeleteContentBackward = 25,
+    /// DeleteContentForward.
+    DeleteContentForward = 26,
+    /// HistoryUndo.
+    HistoryUndo = 27,
+    /// HistoryRedo.
+    HistoryRedo = 28,
+    /// FormatBold.
+    FormatBold = 29,
+    /// FormatItalic.
+    FormatItalic = 30,
+    /// FormatUnderline.
+    FormatUnderline = 31,
+    /// FormatStrikeThrough.
+    FormatStrikeThrough = 32,
+    /// FormatSuperscript.
+    FormatSuperscript = 33,
+    /// FormatSubscript.
+    FormatSubscript = 34,
+    /// FormatJustifyCenter.
+    FormatJustifyCenter = 35,
+    /// FormatJustifyFull.
+    FormatJustifyFull = 36,
+    /// FormatJustifyLeft.
+    FormatJustifyLeft = 37,
+    /// FormatJustifyRight.
+    FormatJustifyRight = 38,
+    /// FormatIndent.
+    FormatIndent = 39,
+    /// FormatOutdent.
+    FormatOutdent = 40,
+    /// FormatRemove.
+    FormatRemove = 41,
+    /// FormatSetBlockTextDirection.
+    FormatSetBlockTextDirection = 42,
+    /// FormatSetInlineTextDirection.
+    FormatSetInlineTextDirection = 43,
+    /// FormatBackColor.
+    FormatBackColor = 44,
+    /// FormatFontColor.
+    FormatFontColor = 45,
+    /// FormatFontName.
+    FormatFontName = 46,
 }
 
-impl VmValueCodec for InputDragDropOperation {
+impl VmValueCodec for InputEditIntentType {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1i32 => Self::None,
-            2i32 => Self::Copy,
-            3i32 => Self::Move,
-            4i32 => Self::Link,
+            1i32 => Self::InsertText,
+            2i32 => Self::InsertReplacementText,
+            3i32 => Self::InsertLineBreak,
+            4i32 => Self::InsertParagraph,
+            5i32 => Self::InsertOrderedList,
+            6i32 => Self::InsertUnorderedList,
+            7i32 => Self::InsertHorizontalRule,
+            8i32 => Self::InsertLink,
+            9i32 => Self::InsertFromYank,
+            10i32 => Self::InsertFromDrop,
+            11i32 => Self::InsertFromPaste,
+            12i32 => Self::InsertFromPasteAsQuotation,
+            13i32 => Self::InsertTranspose,
+            14i32 => Self::InsertCompositionText,
+            15i32 => Self::DeleteWordBackward,
+            16i32 => Self::DeleteWordForward,
+            17i32 => Self::DeleteSoftLineBackward,
+            18i32 => Self::DeleteSoftLineForward,
+            19i32 => Self::DeleteEntireSoftLine,
+            20i32 => Self::DeleteHardLineBackward,
+            21i32 => Self::DeleteHardLineForward,
+            22i32 => Self::DeleteByDrag,
+            23i32 => Self::DeleteByCut,
+            24i32 => Self::DeleteContent,
+            25i32 => Self::DeleteContentBackward,
+            26i32 => Self::DeleteContentForward,
+            27i32 => Self::HistoryUndo,
+            28i32 => Self::HistoryRedo,
+            29i32 => Self::FormatBold,
+            30i32 => Self::FormatItalic,
+            31i32 => Self::FormatUnderline,
+            32i32 => Self::FormatStrikeThrough,
+            33i32 => Self::FormatSuperscript,
+            34i32 => Self::FormatSubscript,
+            35i32 => Self::FormatJustifyCenter,
+            36i32 => Self::FormatJustifyFull,
+            37i32 => Self::FormatJustifyLeft,
+            38i32 => Self::FormatJustifyRight,
+            39i32 => Self::FormatIndent,
+            40i32 => Self::FormatOutdent,
+            41i32 => Self::FormatRemove,
+            42i32 => Self::FormatSetBlockTextDirection,
+            43i32 => Self::FormatSetInlineTextDirection,
+            44i32 => Self::FormatBackColor,
+            45i32 => Self::FormatFontColor,
+            46i32 => Self::FormatFontName,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
-                    "unknown InputDragDropOperation value",
+                    "unknown InputEditIntentType value",
                 ))
                 .boxed());
             }
@@ -698,13 +1293,13 @@ impl VmValueCodec for InputDragDropOperation {
     }
 }
 
-impl VmCollectionElement for InputDragDropOperation {}
+impl VmCollectionElement for InputEditIntentType {}
 
-/// Value type for InputDragDropOperation.
-pub type InputDragDropOperationValue = InputDragDropOperation;
+/// Value type for InputEditIntentType.
+pub type InputEditIntentTypeValue = InputEditIntentType;
 
-impl NativeAbiCodec for InputDragDropOperation {
-    type Value = InputDragDropOperationValue;
+impl NativeAbiCodec for InputEditIntentType {
+    type Value = InputEditIntentTypeValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(self)
@@ -715,8 +1310,8 @@ impl NativeAbiCodec for InputDragDropOperation {
     }
 }
 
-impl VmAbiCodec for InputDragDropOperation {
-    type Value = InputDragDropOperationValue;
+impl VmAbiCodec for InputEditIntentType {
+    type Value = InputEditIntentTypeValue;
 
     fn into_value(
         self,
@@ -985,6 +1580,76 @@ impl VmAbiCodec for InputGamepadConnectionType {
     }
 }
 
+/// ABI enum for InputGamepadControlKind.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum InputGamepadControlKind {
+    /// Button.
+    Button = 1,
+    /// Axis.
+    Axis = 2,
+    /// Touch.
+    Touch = 3,
+}
+
+impl VmValueCodec for InputGamepadControlKind {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::Button,
+            2i32 => Self::Axis,
+            3i32 => Self::Touch,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown InputGamepadControlKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for InputGamepadControlKind {}
+
+/// Value type for InputGamepadControlKind.
+pub type InputGamepadControlKindValue = InputGamepadControlKind;
+
+impl NativeAbiCodec for InputGamepadControlKind {
+    type Value = InputGamepadControlKindValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for InputGamepadControlKind {
+    type Value = InputGamepadControlKindValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI enum for InputGamepadMappingType.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1189,6 +1854,149 @@ impl VmAbiCodec for InputHapticsResult {
     }
 }
 
+/// ABI enum for InputKeyLocation.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum InputKeyLocation {
+    /// Standard.
+    Standard = 0,
+    /// Left.
+    Left = 1,
+    /// Right.
+    Right = 2,
+    /// Numpad.
+    Numpad = 3,
+}
+
+impl VmValueCodec for InputKeyLocation {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            0i32 => Self::Standard,
+            1i32 => Self::Left,
+            2i32 => Self::Right,
+            3i32 => Self::Numpad,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown InputKeyLocation value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for InputKeyLocation {}
+
+/// Value type for InputKeyLocation.
+pub type InputKeyLocationValue = InputKeyLocation;
+
+impl NativeAbiCodec for InputKeyLocation {
+    type Value = InputKeyLocationValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for InputKeyLocation {
+    type Value = InputKeyLocationValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for InputPenToolKind.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum InputPenToolKind {
+    /// Stylus.
+    Stylus = 1,
+    /// Eraser.
+    Eraser = 2,
+    /// Unknown.
+    Unknown = 255,
+}
+
+impl VmValueCodec for InputPenToolKind {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::Stylus,
+            2i32 => Self::Eraser,
+            255i32 => Self::Unknown,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown InputPenToolKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for InputPenToolKind {}
+
+/// Value type for InputPenToolKind.
+pub type InputPenToolKindValue = InputPenToolKind;
+
+impl NativeAbiCodec for InputPenToolKind {
+    type Value = InputPenToolKindValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for InputPenToolKind {
+    type Value = InputPenToolKindValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI enum for InputPointerGrabMode.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1243,6 +2051,79 @@ impl NativeAbiCodec for InputPointerGrabMode {
 
 impl VmAbiCodec for InputPointerGrabMode {
     type Value = InputPointerGrabModeValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for InputPointerType.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum InputPointerType {
+    /// Mouse.
+    Mouse = 1,
+    /// Pen.
+    Pen = 2,
+    /// Touch.
+    Touch = 3,
+    /// Unknown.
+    Unknown = 255,
+}
+
+impl VmValueCodec for InputPointerType {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::Mouse,
+            2i32 => Self::Pen,
+            3i32 => Self::Touch,
+            255i32 => Self::Unknown,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown InputPointerType value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for InputPointerType {}
+
+/// Value type for InputPointerType.
+pub type InputPointerTypeValue = InputPointerType;
+
+impl NativeAbiCodec for InputPointerType {
+    type Value = InputPointerTypeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for InputPointerType {
+    type Value = InputPointerTypeValue;
 
     fn into_value(
         self,
@@ -1433,6 +2314,8 @@ pub enum InputTextInputType {
     Password = 4,
     /// Phone.
     Phone = 5,
+    /// Search.
+    Search = 6,
 }
 
 impl VmValueCodec for InputTextInputType {
@@ -1445,6 +2328,7 @@ impl VmValueCodec for InputTextInputType {
             3i32 => Self::Url,
             4i32 => Self::Password,
             5i32 => Self::Phone,
+            6i32 => Self::Search,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1553,6 +2437,76 @@ impl NativeAbiCodec for InputTouchContactPhase {
 
 impl VmAbiCodec for InputTouchContactPhase {
     type Value = InputTouchContactPhaseValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for InputWheelDeltaMode.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum InputWheelDeltaMode {
+    /// Pixel.
+    Pixel = 1,
+    /// Line.
+    Line = 2,
+    /// Page.
+    Page = 3,
+}
+
+impl VmValueCodec for InputWheelDeltaMode {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::Pixel,
+            2i32 => Self::Line,
+            3i32 => Self::Page,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown InputWheelDeltaMode value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+impl VmCollectionElement for InputWheelDeltaMode {}
+
+/// Value type for InputWheelDeltaMode.
+pub type InputWheelDeltaModeValue = InputWheelDeltaMode;
+
+impl NativeAbiCodec for InputWheelDeltaMode {
+    type Value = InputWheelDeltaModeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for InputWheelDeltaMode {
+    type Value = InputWheelDeltaModeValue;
 
     fn into_value(
         self,
@@ -2358,6 +3312,1231 @@ impl VmAbiCodec for OsPathAbi<VmAbi> {
     }
 }
 
+/// ABI struct for ClipboardItem.
+#[repr(C)]
+pub struct ClipboardItemAbi<A: BindingAbi> {
+    /// Item presentation style.
+    pub presentation_style: ClipboardPresentationStyle,
+    /// Item representations in provider order.
+    pub representations: A::Slice<platform_input::ClipboardItemRepresentationAbi<A>>,
+}
+
+pub type ClipboardItem = ClipboardItemAbi<NativeAbi>;
+pub type ClipboardItemVm = ClipboardItemAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for ClipboardItemAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ClipboardItemAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for ClipboardItemAbi<NativeAbi> {}
+impl Clone for ClipboardItemAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for ClipboardItemAbi<VmAbi> {}
+impl Clone for ClipboardItemAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for ClipboardItemAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "ClipboardItem",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_presentation_style =
+            <ClipboardPresentationStyle as VmAggregateCodec>::decode_with_context(
+                context, slots[0],
+            )?;
+        let field_representations =
+            <VmSlice<ClipboardItemRepresentationVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        Ok(Self {
+            presentation_style: field_presentation_style,
+            representations: field_representations,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <ClipboardPresentationStyle as VmAggregateCodec>::encode_with_context(
+                self.presentation_style,
+                context,
+            )?,
+            <VmSlice<ClipboardItemRepresentationVm> as VmAggregateCodec>::encode_with_context(
+                self.representations,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for ClipboardItemAbi<VmAbi> {}
+
+/// Value type for ClipboardItem.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ClipboardItemValue {
+    /// Item presentation style.
+    pub presentation_style: ClipboardPresentationStyle,
+    /// Item representations in provider order.
+    pub representations: Vec<ClipboardItemRepresentationValue>,
+}
+
+impl NativeAbiCodec for ClipboardItemAbi<NativeAbi> {
+    type Value = ClipboardItemValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(ClipboardItemValue {
+            presentation_style: unsafe {
+                <ClipboardPresentationStyle as NativeAbiCodec>::into_value(self.presentation_style)?
+            },
+            representations: unsafe {
+                <NativeSlice<ClipboardItemRepresentation> as NativeAbiCodec>::into_value(
+                    self.representations,
+                )?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            presentation_style: <ClipboardPresentationStyle as NativeAbiCodec>::from_value(
+                binding,
+                value.presentation_style,
+            ),
+            representations:
+                <NativeSlice<ClipboardItemRepresentation> as NativeAbiCodec>::from_value(
+                    binding,
+                    value.representations,
+                ),
+        }
+    }
+}
+
+impl VmAbiCodec for ClipboardItemAbi<VmAbi> {
+    type Value = ClipboardItemValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(ClipboardItemValue {
+            presentation_style: <ClipboardPresentationStyle as VmAbiCodec>::into_value(
+                self.presentation_style,
+                context,
+            )?,
+            representations: <VmSlice<ClipboardItemRepresentationVm> as VmAbiCodec>::into_value(
+                self.representations,
+                context,
+            )?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            presentation_style: <ClipboardPresentationStyle as VmAbiCodec>::from_value(
+                context,
+                value.presentation_style,
+            )?,
+            representations: <VmSlice<ClipboardItemRepresentationVm> as VmAbiCodec>::from_value(
+                context,
+                value.representations,
+            )?,
+        })
+    }
+}
+
+/// ABI struct for ClipboardItemDescriptor.
+#[repr(C)]
+pub struct ClipboardItemDescriptorAbi<A: BindingAbi> {
+    /// Item presentation style.
+    pub presentation_style: ClipboardPresentationStyle,
+    /// Item representations in provider order.
+    pub representations: A::Slice<platform_input::ClipboardItemRepresentationDescriptorAbi<A>>,
+}
+
+pub type ClipboardItemDescriptor = ClipboardItemDescriptorAbi<NativeAbi>;
+pub type ClipboardItemDescriptorVm = ClipboardItemDescriptorAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for ClipboardItemDescriptorAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ClipboardItemDescriptorAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for ClipboardItemDescriptorAbi<NativeAbi> {}
+impl Clone for ClipboardItemDescriptorAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for ClipboardItemDescriptorAbi<VmAbi> {}
+impl Clone for ClipboardItemDescriptorAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for ClipboardItemDescriptorAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "ClipboardItemDescriptor",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_presentation_style =
+            <ClipboardPresentationStyle as VmAggregateCodec>::decode_with_context(
+                context, slots[0],
+            )?;
+        let field_representations = <VmSlice<ClipboardItemRepresentationDescriptorVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            presentation_style: field_presentation_style,
+            representations: field_representations,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <ClipboardPresentationStyle as VmAggregateCodec>::encode_with_context(self.presentation_style, context)?,
+            <VmSlice<ClipboardItemRepresentationDescriptorVm> as VmAggregateCodec>::encode_with_context(self.representations, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for ClipboardItemDescriptorAbi<VmAbi> {}
+
+/// Value type for ClipboardItemDescriptor.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ClipboardItemDescriptorValue {
+    /// Item presentation style.
+    pub presentation_style: ClipboardPresentationStyle,
+    /// Item representations in provider order.
+    pub representations: Vec<ClipboardItemRepresentationDescriptorValue>,
+}
+
+impl NativeAbiCodec for ClipboardItemDescriptorAbi<NativeAbi> {
+    type Value = ClipboardItemDescriptorValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(ClipboardItemDescriptorValue {
+            presentation_style: unsafe {
+                <ClipboardPresentationStyle as NativeAbiCodec>::into_value(self.presentation_style)?
+            },
+            representations: unsafe {
+                <NativeSlice<ClipboardItemRepresentationDescriptor> as NativeAbiCodec>::into_value(
+                    self.representations,
+                )?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            presentation_style: <ClipboardPresentationStyle as NativeAbiCodec>::from_value(
+                binding,
+                value.presentation_style,
+            ),
+            representations:
+                <NativeSlice<ClipboardItemRepresentationDescriptor> as NativeAbiCodec>::from_value(
+                    binding,
+                    value.representations,
+                ),
+        }
+    }
+}
+
+impl VmAbiCodec for ClipboardItemDescriptorAbi<VmAbi> {
+    type Value = ClipboardItemDescriptorValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(ClipboardItemDescriptorValue {
+            presentation_style: <ClipboardPresentationStyle as VmAbiCodec>::into_value(
+                self.presentation_style,
+                context,
+            )?,
+            representations:
+                <VmSlice<ClipboardItemRepresentationDescriptorVm> as VmAbiCodec>::into_value(
+                    self.representations,
+                    context,
+                )?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            presentation_style: <ClipboardPresentationStyle as VmAbiCodec>::from_value(
+                context,
+                value.presentation_style,
+            )?,
+            representations:
+                <VmSlice<ClipboardItemRepresentationDescriptorVm> as VmAbiCodec>::from_value(
+                    context,
+                    value.representations,
+                )?,
+        })
+    }
+}
+
+/// ABI struct for ClipboardItemRepresentation.
+#[repr(C)]
+pub struct ClipboardItemRepresentationAbi<A: BindingAbi> {
+    /// MIME type or platform-native format identifier.
+    pub mime_type: A::String,
+    /// Representation kind.
+    pub kind: ClipboardItemRepresentationKind,
+    /// Suggested representation name when available.
+    pub name: Option<A::String>,
+    /// Text payload for string representations.
+    pub text: Option<A::String>,
+    /// Filesystem payload for file representations.
+    pub path: Option<platform_fs::OsPathAbi<A>>,
+    /// Binary payload for binary representations.
+    pub bytes: Option<A::Slice<u8>>,
+}
+
+pub type ClipboardItemRepresentation = ClipboardItemRepresentationAbi<NativeAbi>;
+pub type ClipboardItemRepresentationVm = ClipboardItemRepresentationAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for ClipboardItemRepresentationAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ClipboardItemRepresentationAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for ClipboardItemRepresentationAbi<NativeAbi> {}
+impl Clone for ClipboardItemRepresentationAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for ClipboardItemRepresentationAbi<VmAbi> {}
+impl Clone for ClipboardItemRepresentationAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for ClipboardItemRepresentationAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "ClipboardItemRepresentation",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 6 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 6 fields",
+            ))
+            .boxed());
+        }
+        let field_mime_type =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind =
+            <ClipboardItemRepresentationKind as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_name =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_text =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_path =
+            <Option<fs::OsPathVm> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_bytes =
+            <Option<VmSlice<u8>> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        Ok(Self {
+            mime_type: field_mime_type,
+            kind: field_kind,
+            name: field_name,
+            text: field_text,
+            path: field_path,
+            bytes: field_bytes,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.mime_type, context)?,
+            <ClipboardItemRepresentationKind as VmAggregateCodec>::encode_with_context(
+                self.kind, context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.name, context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.text, context,
+            )?,
+            <Option<fs::OsPathVm> as VmAggregateCodec>::encode_with_context(self.path, context)?,
+            <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for ClipboardItemRepresentationAbi<VmAbi> {}
+
+/// Value type for ClipboardItemRepresentation.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ClipboardItemRepresentationValue {
+    /// MIME type or platform-native format identifier.
+    pub mime_type: String,
+    /// Representation kind.
+    pub kind: ClipboardItemRepresentationKind,
+    /// Suggested representation name when available.
+    pub name: Option<String>,
+    /// Text payload for string representations.
+    pub text: Option<String>,
+    /// Filesystem payload for file representations.
+    pub path: Option<platform_fs::abi_generated::OsPathValue>,
+    /// Binary payload for binary representations.
+    pub bytes: Option<Vec<u8>>,
+}
+
+impl NativeAbiCodec for ClipboardItemRepresentationAbi<NativeAbi> {
+    type Value = ClipboardItemRepresentationValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(ClipboardItemRepresentationValue {
+            mime_type: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.mime_type)? },
+            kind: unsafe {
+                <ClipboardItemRepresentationKind as NativeAbiCodec>::into_value(self.kind)?
+            },
+            name: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.name)? },
+            text: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.text)? },
+            path: unsafe { <Option<fs::OsPath> as NativeAbiCodec>::into_value(self.path)? },
+            bytes: unsafe { <Option<NativeSlice<u8>> as NativeAbiCodec>::into_value(self.bytes)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            mime_type: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.mime_type),
+            kind: <ClipboardItemRepresentationKind as NativeAbiCodec>::from_value(
+                binding, value.kind,
+            ),
+            name: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.name),
+            text: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.text),
+            path: <Option<fs::OsPath> as NativeAbiCodec>::from_value(binding, value.path),
+            bytes: <Option<NativeSlice<u8>> as NativeAbiCodec>::from_value(binding, value.bytes),
+        }
+    }
+}
+
+impl VmAbiCodec for ClipboardItemRepresentationAbi<VmAbi> {
+    type Value = ClipboardItemRepresentationValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(ClipboardItemRepresentationValue {
+            mime_type: <vm::StringHandle as VmAbiCodec>::into_value(self.mime_type, context)?,
+            kind: <ClipboardItemRepresentationKind as VmAbiCodec>::into_value(self.kind, context)?,
+            name: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.name, context)?,
+            text: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.text, context)?,
+            path: <Option<fs::OsPathVm> as VmAbiCodec>::into_value(self.path, context)?,
+            bytes: <Option<VmSlice<u8>> as VmAbiCodec>::into_value(self.bytes, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            mime_type: <vm::StringHandle as VmAbiCodec>::from_value(context, value.mime_type)?,
+            kind: <ClipboardItemRepresentationKind as VmAbiCodec>::from_value(context, value.kind)?,
+            name: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.name)?,
+            text: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.text)?,
+            path: <Option<fs::OsPathVm> as VmAbiCodec>::from_value(context, value.path)?,
+            bytes: <Option<VmSlice<u8>> as VmAbiCodec>::from_value(context, value.bytes)?,
+        })
+    }
+}
+
+/// ABI struct for ClipboardItemRepresentationDescriptor.
+#[repr(C)]
+pub struct ClipboardItemRepresentationDescriptorAbi<A: BindingAbi> {
+    /// MIME type or platform-native format identifier.
+    pub mime_type: A::String,
+    /// Representation kind.
+    pub kind: ClipboardItemRepresentationKind,
+    /// Suggested representation name when available.
+    pub name: Option<A::String>,
+    /// Whether one filesystem representation refers to one directory.
+    pub is_directory: bool,
+    /// Representation length in bytes when available.
+    pub byte_length: Option<u64>,
+}
+
+pub type ClipboardItemRepresentationDescriptor =
+    ClipboardItemRepresentationDescriptorAbi<NativeAbi>;
+pub type ClipboardItemRepresentationDescriptorVm = ClipboardItemRepresentationDescriptorAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for ClipboardItemRepresentationDescriptorAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ClipboardItemRepresentationDescriptorAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for ClipboardItemRepresentationDescriptorAbi<NativeAbi> {}
+impl Clone for ClipboardItemRepresentationDescriptorAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for ClipboardItemRepresentationDescriptorAbi<VmAbi> {}
+impl Clone for ClipboardItemRepresentationDescriptorAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for ClipboardItemRepresentationDescriptorAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "ClipboardItemRepresentationDescriptor",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_mime_type =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind =
+            <ClipboardItemRepresentationKind as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_name =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_is_directory =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_byte_length =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        Ok(Self {
+            mime_type: field_mime_type,
+            kind: field_kind,
+            name: field_name,
+            is_directory: field_is_directory,
+            byte_length: field_byte_length,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.mime_type, context)?,
+            <ClipboardItemRepresentationKind as VmAggregateCodec>::encode_with_context(
+                self.kind, context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.name, context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_directory, context)?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(self.byte_length, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for ClipboardItemRepresentationDescriptorAbi<VmAbi> {}
+
+/// Value type for ClipboardItemRepresentationDescriptor.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ClipboardItemRepresentationDescriptorValue {
+    /// MIME type or platform-native format identifier.
+    pub mime_type: String,
+    /// Representation kind.
+    pub kind: ClipboardItemRepresentationKind,
+    /// Suggested representation name when available.
+    pub name: Option<String>,
+    /// Whether one filesystem representation refers to one directory.
+    pub is_directory: bool,
+    /// Representation length in bytes when available.
+    pub byte_length: Option<u64>,
+}
+
+impl NativeAbiCodec for ClipboardItemRepresentationDescriptorAbi<NativeAbi> {
+    type Value = ClipboardItemRepresentationDescriptorValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(ClipboardItemRepresentationDescriptorValue {
+            mime_type: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.mime_type)? },
+            kind: unsafe {
+                <ClipboardItemRepresentationKind as NativeAbiCodec>::into_value(self.kind)?
+            },
+            name: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.name)? },
+            is_directory: unsafe { <bool as NativeAbiCodec>::into_value(self.is_directory)? },
+            byte_length: unsafe { <Option<u64> as NativeAbiCodec>::into_value(self.byte_length)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            mime_type: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.mime_type),
+            kind: <ClipboardItemRepresentationKind as NativeAbiCodec>::from_value(
+                binding, value.kind,
+            ),
+            name: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.name),
+            is_directory: <bool as NativeAbiCodec>::from_value(binding, value.is_directory),
+            byte_length: <Option<u64> as NativeAbiCodec>::from_value(binding, value.byte_length),
+        }
+    }
+}
+
+impl VmAbiCodec for ClipboardItemRepresentationDescriptorAbi<VmAbi> {
+    type Value = ClipboardItemRepresentationDescriptorValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(ClipboardItemRepresentationDescriptorValue {
+            mime_type: <vm::StringHandle as VmAbiCodec>::into_value(self.mime_type, context)?,
+            kind: <ClipboardItemRepresentationKind as VmAbiCodec>::into_value(self.kind, context)?,
+            name: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.name, context)?,
+            is_directory: <bool as VmAbiCodec>::into_value(self.is_directory, context)?,
+            byte_length: <Option<u64> as VmAbiCodec>::into_value(self.byte_length, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            mime_type: <vm::StringHandle as VmAbiCodec>::from_value(context, value.mime_type)?,
+            kind: <ClipboardItemRepresentationKind as VmAbiCodec>::from_value(context, value.kind)?,
+            name: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.name)?,
+            is_directory: <bool as VmAbiCodec>::from_value(context, value.is_directory)?,
+            byte_length: <Option<u64> as VmAbiCodec>::from_value(context, value.byte_length)?,
+        })
+    }
+}
+
+/// ABI struct for DisplayDragItemDescriptor.
+#[repr(C)]
+pub struct DisplayDragItemDescriptorAbi<A: BindingAbi> {
+    /// Item kind.
+    pub kind: display::DisplayDragItemKind,
+    /// MIME type or platform-native type identifier when available.
+    pub item_type: Option<A::String>,
+    /// Suggested display name for file or binary payloads.
+    pub name: Option<A::String>,
+    /// Whether one file payload refers to one directory.
+    pub is_directory: bool,
+    /// Payload length in bytes when available.
+    pub byte_length: Option<u64>,
+}
+
+pub type DisplayDragItemDescriptor = DisplayDragItemDescriptorAbi<NativeAbi>;
+pub type DisplayDragItemDescriptorVm = DisplayDragItemDescriptorAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for DisplayDragItemDescriptorAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DisplayDragItemDescriptorAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for DisplayDragItemDescriptorAbi<NativeAbi> {}
+impl Clone for DisplayDragItemDescriptorAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for DisplayDragItemDescriptorAbi<VmAbi> {}
+impl Clone for DisplayDragItemDescriptorAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for DisplayDragItemDescriptorAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayDragItemDescriptor",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_kind = <display::DisplayDragItemKind as VmAggregateCodec>::decode_with_context(
+            context, slots[0],
+        )?;
+        let field_item_type =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_name =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_is_directory =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_byte_length =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        Ok(Self {
+            kind: field_kind,
+            item_type: field_item_type,
+            name: field_name,
+            is_directory: field_is_directory,
+            byte_length: field_byte_length,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <display::DisplayDragItemKind as VmAggregateCodec>::encode_with_context(
+                self.kind, context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.item_type,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.name, context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_directory, context)?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(self.byte_length, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for DisplayDragItemDescriptorAbi<VmAbi> {}
+
+/// Value type for DisplayDragItemDescriptor.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DisplayDragItemDescriptorValue {
+    /// Item kind.
+    pub kind: display::DisplayDragItemKind,
+    /// MIME type or platform-native type identifier when available.
+    pub item_type: Option<String>,
+    /// Suggested display name for file or binary payloads.
+    pub name: Option<String>,
+    /// Whether one file payload refers to one directory.
+    pub is_directory: bool,
+    /// Payload length in bytes when available.
+    pub byte_length: Option<u64>,
+}
+
+impl NativeAbiCodec for DisplayDragItemDescriptorAbi<NativeAbi> {
+    type Value = DisplayDragItemDescriptorValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(DisplayDragItemDescriptorValue {
+            kind: unsafe {
+                <display::DisplayDragItemKind as NativeAbiCodec>::into_value(self.kind)?
+            },
+            item_type: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.item_type)?
+            },
+            name: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.name)? },
+            is_directory: unsafe { <bool as NativeAbiCodec>::into_value(self.is_directory)? },
+            byte_length: unsafe { <Option<u64> as NativeAbiCodec>::into_value(self.byte_length)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <display::DisplayDragItemKind as NativeAbiCodec>::from_value(binding, value.kind),
+            item_type: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.item_type,
+            ),
+            name: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.name),
+            is_directory: <bool as NativeAbiCodec>::from_value(binding, value.is_directory),
+            byte_length: <Option<u64> as NativeAbiCodec>::from_value(binding, value.byte_length),
+        }
+    }
+}
+
+impl VmAbiCodec for DisplayDragItemDescriptorAbi<VmAbi> {
+    type Value = DisplayDragItemDescriptorValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(DisplayDragItemDescriptorValue {
+            kind: <display::DisplayDragItemKind as VmAbiCodec>::into_value(self.kind, context)?,
+            item_type: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.item_type,
+                context,
+            )?,
+            name: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.name, context)?,
+            is_directory: <bool as VmAbiCodec>::into_value(self.is_directory, context)?,
+            byte_length: <Option<u64> as VmAbiCodec>::into_value(self.byte_length, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <display::DisplayDragItemKind as VmAbiCodec>::from_value(context, value.kind)?,
+            item_type: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.item_type,
+            )?,
+            name: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.name)?,
+            is_directory: <bool as VmAbiCodec>::from_value(context, value.is_directory)?,
+            byte_length: <Option<u64> as VmAbiCodec>::from_value(context, value.byte_length)?,
+        })
+    }
+}
+
+/// ABI struct for DisplayDragPosition.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct DisplayDragPosition {
+    /// Window-local logical x coordinate.
+    pub x: i32,
+    /// Window-local logical y coordinate.
+    pub y: i32,
+}
+
+pub type DisplayDragPositionVm = DisplayDragPosition;
+
+impl VmAggregateCodec for DisplayDragPosition {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayDragPosition",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_x = <i32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_y = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            x: field_x,
+            y: field_y,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <i32 as VmAggregateCodec>::encode_with_context(self.x, context)?,
+            <i32 as VmAggregateCodec>::encode_with_context(self.y, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for DisplayDragPosition.
+pub type DisplayDragPositionValue = DisplayDragPosition;
+
+impl NativeAbiCodec for DisplayDragPosition {
+    type Value = DisplayDragPositionValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for DisplayDragPosition {
+    type Value = DisplayDragPositionValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for DisplayDragPosition {}
+
+/// ABI struct for DisplayDragTransfer.
+#[repr(C)]
+pub struct DisplayDragTransferAbi<A: BindingAbi> {
+    /// Stable drag session handle.
+    pub session: resource::DisplayDragSessionHandle,
+    /// Whether the transfer originated outside the current runtime.
+    pub is_external: bool,
+    /// Operations offered by the drag source.
+    pub allowed_operations: display::DisplayDragOperationMask,
+    /// Host-proposed operation from source state and gesture modifiers when known.
+    pub proposed_operation: Option<display::DisplayDragOperation>,
+    /// Transfer position in window-local logical coordinates when available.
+    pub position: Option<display::DisplayDragPosition>,
+    /// Offered transfer items in source order.
+    pub items: A::Slice<platform_display::DisplayDragItemDescriptorAbi<A>>,
+}
+
+pub type DisplayDragTransfer = DisplayDragTransferAbi<NativeAbi>;
+pub type DisplayDragTransferVm = DisplayDragTransferAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for DisplayDragTransferAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DisplayDragTransferAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for DisplayDragTransferAbi<NativeAbi> {}
+impl Clone for DisplayDragTransferAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for DisplayDragTransferAbi<VmAbi> {}
+impl Clone for DisplayDragTransferAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for DisplayDragTransferAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayDragTransfer",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 6 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 6 fields",
+            ))
+            .boxed());
+        }
+        let field_session =
+            <resource::DisplayDragSessionHandle as VmAggregateCodec>::decode_with_context(
+                context, slots[0],
+            )?;
+        let field_is_external = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_allowed_operations =
+            <display::DisplayDragOperationMask as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
+        let field_proposed_operation =
+            <Option<display::DisplayDragOperation> as VmAggregateCodec>::decode_with_context(
+                context, slots[3],
+            )?;
+        let field_position =
+            <Option<display::DisplayDragPositionVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[4],
+            )?;
+        let field_items = <VmSlice<display::DisplayDragItemDescriptorVm> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        Ok(Self {
+            session: field_session,
+            is_external: field_is_external,
+            allowed_operations: field_allowed_operations,
+            proposed_operation: field_proposed_operation,
+            position: field_position,
+            items: field_items,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <resource::DisplayDragSessionHandle as VmAggregateCodec>::encode_with_context(self.session, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_external, context)?,
+            <display::DisplayDragOperationMask as VmAggregateCodec>::encode_with_context(self.allowed_operations, context)?,
+            <Option<display::DisplayDragOperation> as VmAggregateCodec>::encode_with_context(self.proposed_operation, context)?,
+            <Option<display::DisplayDragPositionVm> as VmAggregateCodec>::encode_with_context(self.position, context)?,
+            <VmSlice<display::DisplayDragItemDescriptorVm> as VmAggregateCodec>::encode_with_context(self.items, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for DisplayDragTransferAbi<VmAbi> {}
+
+/// Value type for DisplayDragTransfer.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DisplayDragTransferValue {
+    /// Stable drag session handle.
+    pub session: resource::DisplayDragSessionHandle,
+    /// Whether the transfer originated outside the current runtime.
+    pub is_external: bool,
+    /// Operations offered by the drag source.
+    pub allowed_operations: display::DisplayDragOperationMask,
+    /// Host-proposed operation from source state and gesture modifiers when known.
+    pub proposed_operation: Option<display::DisplayDragOperation>,
+    /// Transfer position in window-local logical coordinates when available.
+    pub position: Option<display::DisplayDragPosition>,
+    /// Offered transfer items in source order.
+    pub items: Vec<platform_display::abi_generated::DisplayDragItemDescriptorValue>,
+}
+
+impl NativeAbiCodec for DisplayDragTransferAbi<NativeAbi> {
+    type Value = DisplayDragTransferValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(DisplayDragTransferValue {
+            session: unsafe {
+                <resource::DisplayDragSessionHandle as NativeAbiCodec>::into_value(self.session)?
+            },
+            is_external: unsafe { <bool as NativeAbiCodec>::into_value(self.is_external)? },
+            allowed_operations: unsafe {
+                <display::DisplayDragOperationMask as NativeAbiCodec>::into_value(
+                    self.allowed_operations,
+                )?
+            },
+            proposed_operation: unsafe {
+                <Option<display::DisplayDragOperation> as NativeAbiCodec>::into_value(
+                    self.proposed_operation,
+                )?
+            },
+            position: unsafe {
+                <Option<display::DisplayDragPosition> as NativeAbiCodec>::into_value(self.position)?
+            },
+            items: unsafe {
+                <NativeSlice<display::DisplayDragItemDescriptor> as NativeAbiCodec>::into_value(
+                    self.items,
+                )?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            session: <resource::DisplayDragSessionHandle as NativeAbiCodec>::from_value(
+                binding,
+                value.session,
+            ),
+            is_external: <bool as NativeAbiCodec>::from_value(binding, value.is_external),
+            allowed_operations: <display::DisplayDragOperationMask as NativeAbiCodec>::from_value(
+                binding,
+                value.allowed_operations,
+            ),
+            proposed_operation:
+                <Option<display::DisplayDragOperation> as NativeAbiCodec>::from_value(
+                    binding,
+                    value.proposed_operation,
+                ),
+            position: <Option<display::DisplayDragPosition> as NativeAbiCodec>::from_value(
+                binding,
+                value.position,
+            ),
+            items: <NativeSlice<display::DisplayDragItemDescriptor> as NativeAbiCodec>::from_value(
+                binding,
+                value.items,
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for DisplayDragTransferAbi<VmAbi> {
+    type Value = DisplayDragTransferValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(DisplayDragTransferValue {
+            session: <resource::DisplayDragSessionHandle as VmAbiCodec>::into_value(
+                self.session,
+                context,
+            )?,
+            is_external: <bool as VmAbiCodec>::into_value(self.is_external, context)?,
+            allowed_operations: <display::DisplayDragOperationMask as VmAbiCodec>::into_value(
+                self.allowed_operations,
+                context,
+            )?,
+            proposed_operation: <Option<display::DisplayDragOperation> as VmAbiCodec>::into_value(
+                self.proposed_operation,
+                context,
+            )?,
+            position: <Option<display::DisplayDragPositionVm> as VmAbiCodec>::into_value(
+                self.position,
+                context,
+            )?,
+            items: <VmSlice<display::DisplayDragItemDescriptorVm> as VmAbiCodec>::into_value(
+                self.items, context,
+            )?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            session: <resource::DisplayDragSessionHandle as VmAbiCodec>::from_value(
+                context,
+                value.session,
+            )?,
+            is_external: <bool as VmAbiCodec>::from_value(context, value.is_external)?,
+            allowed_operations: <display::DisplayDragOperationMask as VmAbiCodec>::from_value(
+                context,
+                value.allowed_operations,
+            )?,
+            proposed_operation: <Option<display::DisplayDragOperation> as VmAbiCodec>::from_value(
+                context,
+                value.proposed_operation,
+            )?,
+            position: <Option<display::DisplayDragPositionVm> as VmAbiCodec>::from_value(
+                context,
+                value.position,
+            )?,
+            items: <VmSlice<display::DisplayDragItemDescriptorVm> as VmAbiCodec>::from_value(
+                context,
+                value.items,
+            )?,
+        })
+    }
+}
+
 /// ABI struct for InputAxisMetadata.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -2559,6 +4738,207 @@ impl VmAbiCodec for InputButtonMetadata {
 }
 
 impl VmCollectionElement for InputButtonMetadata {}
+
+/// ABI struct for InputClipboardCommandEvent.
+#[repr(C)]
+pub struct InputClipboardCommandEventAbi<A: BindingAbi> {
+    /// Discriminator for this text event variant.
+    pub kind: A::String,
+    /// Shared event metadata.
+    pub metadata: platform_input::InputEventMetadataAbi<A>,
+    /// Clipboard command kind.
+    pub command: InputClipboardCommandType,
+    /// Clipboard item descriptors when the command carries readable clipboard data.
+    pub clipboard_items: Option<A::Slice<platform_input::ClipboardItemDescriptorAbi<A>>>,
+    /// Whether this command belongs to one active composition session.
+    pub is_composing: bool,
+}
+
+pub type InputClipboardCommandEvent = InputClipboardCommandEventAbi<NativeAbi>;
+pub type InputClipboardCommandEventVm = InputClipboardCommandEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputClipboardCommandEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputClipboardCommandEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputClipboardCommandEventAbi<NativeAbi> {}
+impl Clone for InputClipboardCommandEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputClipboardCommandEventAbi<VmAbi> {}
+impl Clone for InputClipboardCommandEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputClipboardCommandEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputClipboardCommandEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_command = <InputClipboardCommandType as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
+        let field_clipboard_items =
+            <Option<VmSlice<ClipboardItemDescriptorVm>> as VmAggregateCodec>::decode_with_context(
+                context, slots[3],
+            )?;
+        let field_is_composing =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            command: field_command,
+            clipboard_items: field_clipboard_items,
+            is_composing: field_is_composing,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <InputClipboardCommandType as VmAggregateCodec>::encode_with_context(
+                self.command,
+                context,
+            )?,
+            <Option<VmSlice<ClipboardItemDescriptorVm>> as VmAggregateCodec>::encode_with_context(
+                self.clipboard_items,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_composing, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for InputClipboardCommandEventAbi<VmAbi> {}
+
+/// Value type for InputClipboardCommandEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputClipboardCommandEventValue {
+    /// Discriminator for this text event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: InputEventMetadataValue,
+    /// Clipboard command kind.
+    pub command: InputClipboardCommandType,
+    /// Clipboard item descriptors when the command carries readable clipboard data.
+    pub clipboard_items: Option<Vec<ClipboardItemDescriptorValue>>,
+    /// Whether this command belongs to one active composition session.
+    pub is_composing: bool,
+}
+
+impl NativeAbiCodec for InputClipboardCommandEventAbi<NativeAbi> {
+    type Value = InputClipboardCommandEventValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(InputClipboardCommandEventValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            metadata: unsafe { <InputEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            command: unsafe {
+                <InputClipboardCommandType as NativeAbiCodec>::into_value(self.command)?
+            },
+            clipboard_items: unsafe {
+                <Option<NativeSlice<ClipboardItemDescriptor>> as NativeAbiCodec>::into_value(
+                    self.clipboard_items,
+                )?
+            },
+            is_composing: unsafe { <bool as NativeAbiCodec>::into_value(self.is_composing)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            metadata: <InputEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
+            command: <InputClipboardCommandType as NativeAbiCodec>::from_value(
+                binding,
+                value.command,
+            ),
+            clipboard_items:
+                <Option<NativeSlice<ClipboardItemDescriptor>> as NativeAbiCodec>::from_value(
+                    binding,
+                    value.clipboard_items,
+                ),
+            is_composing: <bool as NativeAbiCodec>::from_value(binding, value.is_composing),
+        }
+    }
+}
+
+impl VmAbiCodec for InputClipboardCommandEventAbi<VmAbi> {
+    type Value = InputClipboardCommandEventValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(InputClipboardCommandEventValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            metadata: <InputEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
+            command: <InputClipboardCommandType as VmAbiCodec>::into_value(self.command, context)?,
+            clipboard_items:
+                <Option<VmSlice<ClipboardItemDescriptorVm>> as VmAbiCodec>::into_value(
+                    self.clipboard_items,
+                    context,
+                )?,
+            is_composing: <bool as VmAbiCodec>::into_value(self.is_composing, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <InputEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
+            command: <InputClipboardCommandType as VmAbiCodec>::from_value(context, value.command)?,
+            clipboard_items:
+                <Option<VmSlice<ClipboardItemDescriptorVm>> as VmAbiCodec>::from_value(
+                    context,
+                    value.clipboard_items,
+                )?,
+            is_composing: <bool as VmAbiCodec>::from_value(context, value.is_composing)?,
+        })
+    }
+}
 
 /// ABI struct for InputCompositionEvent.
 #[repr(C)]
@@ -2906,6 +5286,8 @@ pub struct InputDeviceCapabilitiesAbi<A: BindingAbi> {
     pub supports_text_input: bool,
     /// Whether composition events are supported.
     pub supports_composition: bool,
+    /// Whether edit-intent events are supported.
+    pub supports_edit_intents: bool,
     /// Whether whole-device rumble is supported.
     pub supports_rumble: bool,
     /// Whether trigger rumble is supported.
@@ -2920,6 +5302,14 @@ pub struct InputDeviceCapabilitiesAbi<A: BindingAbi> {
     pub supports_raw_hid: bool,
     /// Whether player-index assignment is supported.
     pub supports_player_index: bool,
+    /// Whether pointer-event coalescing metadata is supported.
+    pub supports_pointer_coalescing: bool,
+    /// Whether predicted pointer updates are supported.
+    pub supports_pointer_prediction: bool,
+    /// Whether stylus hover distance is supported.
+    pub supports_pen_hover_distance: bool,
+    /// Whether stylus azimuth and altitude angles are supported.
+    pub supports_pen_orientation_angles: bool,
 }
 
 pub type InputDeviceCapabilities = InputDeviceCapabilitiesAbi<NativeAbi>;
@@ -2961,10 +5351,10 @@ impl VmAggregateCodec for InputDeviceCapabilitiesAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 19 {
+        if slots.len() != 24 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 19 fields",
+                "expected 24 fields",
             ))
             .boxed());
         }
@@ -3003,20 +5393,30 @@ impl VmAggregateCodec for InputDeviceCapabilitiesAbi<VmAbi> {
             <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
         let field_supports_composition =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[11])?;
-        let field_supports_rumble =
+        let field_supports_edit_intents =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[12])?;
-        let field_supports_trigger_rumble =
+        let field_supports_rumble =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[13])?;
-        let field_supports_sensors =
+        let field_supports_trigger_rumble =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[14])?;
-        let field_supports_battery_state =
+        let field_supports_sensors =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[15])?;
-        let field_supports_light_control =
+        let field_supports_battery_state =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[16])?;
-        let field_supports_raw_hid =
+        let field_supports_light_control =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[17])?;
-        let field_supports_player_index =
+        let field_supports_raw_hid =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[18])?;
+        let field_supports_player_index =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[19])?;
+        let field_supports_pointer_coalescing =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[20])?;
+        let field_supports_pointer_prediction =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[21])?;
+        let field_supports_pen_hover_distance =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[22])?;
+        let field_supports_pen_orientation_angles =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[23])?;
         Ok(Self {
             kinds: field_kinds,
             axes: field_axes,
@@ -3030,6 +5430,7 @@ impl VmAggregateCodec for InputDeviceCapabilitiesAbi<VmAbi> {
             supports_pointer_warp: field_supports_pointer_warp,
             supports_text_input: field_supports_text_input,
             supports_composition: field_supports_composition,
+            supports_edit_intents: field_supports_edit_intents,
             supports_rumble: field_supports_rumble,
             supports_trigger_rumble: field_supports_trigger_rumble,
             supports_sensors: field_supports_sensors,
@@ -3037,6 +5438,10 @@ impl VmAggregateCodec for InputDeviceCapabilitiesAbi<VmAbi> {
             supports_light_control: field_supports_light_control,
             supports_raw_hid: field_supports_raw_hid,
             supports_player_index: field_supports_player_index,
+            supports_pointer_coalescing: field_supports_pointer_coalescing,
+            supports_pointer_prediction: field_supports_pointer_prediction,
+            supports_pen_hover_distance: field_supports_pen_hover_distance,
+            supports_pen_orientation_angles: field_supports_pen_orientation_angles,
         })
     }
 
@@ -3079,6 +5484,7 @@ impl VmAggregateCodec for InputDeviceCapabilitiesAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.supports_pointer_warp, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.supports_text_input, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.supports_composition, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_edit_intents, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.supports_rumble, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.supports_trigger_rumble, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.supports_sensors, context)?,
@@ -3086,6 +5492,22 @@ impl VmAggregateCodec for InputDeviceCapabilitiesAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.supports_light_control, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.supports_raw_hid, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.supports_player_index, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.supports_pointer_coalescing,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.supports_pointer_prediction,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.supports_pen_hover_distance,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.supports_pen_orientation_angles,
+                context,
+            )?,
         ];
         context
             .allocate_aggregate(slots)
@@ -3122,6 +5544,8 @@ pub struct InputDeviceCapabilitiesValue {
     pub supports_text_input: bool,
     /// Whether composition events are supported.
     pub supports_composition: bool,
+    /// Whether edit-intent events are supported.
+    pub supports_edit_intents: bool,
     /// Whether whole-device rumble is supported.
     pub supports_rumble: bool,
     /// Whether trigger rumble is supported.
@@ -3136,6 +5560,14 @@ pub struct InputDeviceCapabilitiesValue {
     pub supports_raw_hid: bool,
     /// Whether player-index assignment is supported.
     pub supports_player_index: bool,
+    /// Whether pointer-event coalescing metadata is supported.
+    pub supports_pointer_coalescing: bool,
+    /// Whether predicted pointer updates are supported.
+    pub supports_pointer_prediction: bool,
+    /// Whether stylus hover distance is supported.
+    pub supports_pen_hover_distance: bool,
+    /// Whether stylus azimuth and altitude angles are supported.
+    pub supports_pen_orientation_angles: bool,
 }
 
 impl NativeAbiCodec for InputDeviceCapabilitiesAbi<NativeAbi> {
@@ -3183,6 +5615,9 @@ impl NativeAbiCodec for InputDeviceCapabilitiesAbi<NativeAbi> {
             supports_composition: unsafe {
                 <bool as NativeAbiCodec>::into_value(self.supports_composition)?
             },
+            supports_edit_intents: unsafe {
+                <bool as NativeAbiCodec>::into_value(self.supports_edit_intents)?
+            },
             supports_rumble: unsafe { <bool as NativeAbiCodec>::into_value(self.supports_rumble)? },
             supports_trigger_rumble: unsafe {
                 <bool as NativeAbiCodec>::into_value(self.supports_trigger_rumble)?
@@ -3201,6 +5636,18 @@ impl NativeAbiCodec for InputDeviceCapabilitiesAbi<NativeAbi> {
             },
             supports_player_index: unsafe {
                 <bool as NativeAbiCodec>::into_value(self.supports_player_index)?
+            },
+            supports_pointer_coalescing: unsafe {
+                <bool as NativeAbiCodec>::into_value(self.supports_pointer_coalescing)?
+            },
+            supports_pointer_prediction: unsafe {
+                <bool as NativeAbiCodec>::into_value(self.supports_pointer_prediction)?
+            },
+            supports_pen_hover_distance: unsafe {
+                <bool as NativeAbiCodec>::into_value(self.supports_pen_hover_distance)?
+            },
+            supports_pen_orientation_angles: unsafe {
+                <bool as NativeAbiCodec>::into_value(self.supports_pen_orientation_angles)?
             },
         })
     }
@@ -3255,6 +5702,10 @@ impl NativeAbiCodec for InputDeviceCapabilitiesAbi<NativeAbi> {
                 binding,
                 value.supports_composition,
             ),
+            supports_edit_intents: <bool as NativeAbiCodec>::from_value(
+                binding,
+                value.supports_edit_intents,
+            ),
             supports_rumble: <bool as NativeAbiCodec>::from_value(binding, value.supports_rumble),
             supports_trigger_rumble: <bool as NativeAbiCodec>::from_value(
                 binding,
@@ -3273,6 +5724,22 @@ impl NativeAbiCodec for InputDeviceCapabilitiesAbi<NativeAbi> {
             supports_player_index: <bool as NativeAbiCodec>::from_value(
                 binding,
                 value.supports_player_index,
+            ),
+            supports_pointer_coalescing: <bool as NativeAbiCodec>::from_value(
+                binding,
+                value.supports_pointer_coalescing,
+            ),
+            supports_pointer_prediction: <bool as NativeAbiCodec>::from_value(
+                binding,
+                value.supports_pointer_prediction,
+            ),
+            supports_pen_hover_distance: <bool as NativeAbiCodec>::from_value(
+                binding,
+                value.supports_pen_hover_distance,
+            ),
+            supports_pen_orientation_angles: <bool as NativeAbiCodec>::from_value(
+                binding,
+                value.supports_pen_orientation_angles,
             ),
         }
     }
@@ -3330,6 +5797,10 @@ impl VmAbiCodec for InputDeviceCapabilitiesAbi<VmAbi> {
                 self.supports_composition,
                 context,
             )?,
+            supports_edit_intents: <bool as VmAbiCodec>::into_value(
+                self.supports_edit_intents,
+                context,
+            )?,
             supports_rumble: <bool as VmAbiCodec>::into_value(self.supports_rumble, context)?,
             supports_trigger_rumble: <bool as VmAbiCodec>::into_value(
                 self.supports_trigger_rumble,
@@ -3347,6 +5818,22 @@ impl VmAbiCodec for InputDeviceCapabilitiesAbi<VmAbi> {
             supports_raw_hid: <bool as VmAbiCodec>::into_value(self.supports_raw_hid, context)?,
             supports_player_index: <bool as VmAbiCodec>::into_value(
                 self.supports_player_index,
+                context,
+            )?,
+            supports_pointer_coalescing: <bool as VmAbiCodec>::into_value(
+                self.supports_pointer_coalescing,
+                context,
+            )?,
+            supports_pointer_prediction: <bool as VmAbiCodec>::into_value(
+                self.supports_pointer_prediction,
+                context,
+            )?,
+            supports_pen_hover_distance: <bool as VmAbiCodec>::into_value(
+                self.supports_pen_hover_distance,
+                context,
+            )?,
+            supports_pen_orientation_angles: <bool as VmAbiCodec>::into_value(
+                self.supports_pen_orientation_angles,
                 context,
             )?,
         })
@@ -3402,6 +5889,10 @@ impl VmAbiCodec for InputDeviceCapabilitiesAbi<VmAbi> {
                 context,
                 value.supports_composition,
             )?,
+            supports_edit_intents: <bool as VmAbiCodec>::from_value(
+                context,
+                value.supports_edit_intents,
+            )?,
             supports_rumble: <bool as VmAbiCodec>::from_value(context, value.supports_rumble)?,
             supports_trigger_rumble: <bool as VmAbiCodec>::from_value(
                 context,
@@ -3421,6 +5912,22 @@ impl VmAbiCodec for InputDeviceCapabilitiesAbi<VmAbi> {
                 context,
                 value.supports_player_index,
             )?,
+            supports_pointer_coalescing: <bool as VmAbiCodec>::from_value(
+                context,
+                value.supports_pointer_coalescing,
+            )?,
+            supports_pointer_prediction: <bool as VmAbiCodec>::from_value(
+                context,
+                value.supports_pointer_prediction,
+            )?,
+            supports_pen_hover_distance: <bool as VmAbiCodec>::from_value(
+                context,
+                value.supports_pen_hover_distance,
+            )?,
+            supports_pen_orientation_angles: <bool as VmAbiCodec>::from_value(
+                context,
+                value.supports_pen_orientation_angles,
+            )?,
         })
     }
 }
@@ -3434,6 +5941,12 @@ pub struct InputDeviceDescriptorAbi<A: BindingAbi> {
     pub instance_id: A::String,
     /// Stable backend hardware identifier when available.
     pub hardware_id: A::String,
+    /// Stable backend serial number when available.
+    pub serial_number: Option<A::String>,
+    /// Stable backend location identifier when available.
+    pub location_id: Option<A::String>,
+    /// Stable gamepad-style guid when available.
+    pub guid: Option<A::String>,
     /// Host device name.
     pub name: A::String,
     /// Backend transport name when available.
@@ -3516,10 +6029,10 @@ impl VmAggregateCodec for InputDeviceDescriptorAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 21 {
+        if slots.len() != 24 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 21 fields",
+                "expected 24 fields",
             ))
             .boxed());
         }
@@ -3529,38 +6042,48 @@ impl VmAggregateCodec for InputDeviceDescriptorAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_hardware_id =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_serial_number =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_location_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_guid =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_name =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         let field_transport =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         let field_kind =
-            <InputDeviceKind as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_vendor_id = <u16 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_product_id = <u16 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_key_count = <u16 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_button_count = <u16 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_axis_count = <u16 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let field_connected = <bool as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+            <InputDeviceKind as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_vendor_id = <u16 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_product_id = <u16 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_key_count = <u16 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+        let field_button_count =
+            <u16 as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+        let field_axis_count = <u16 as VmAggregateCodec>::decode_with_context(context, slots[13])?;
+        let field_connected = <bool as VmAggregateCodec>::decode_with_context(context, slots[14])?;
         let field_supports_exclusive_grab =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[12])?;
-        let field_supports_raw =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[13])?;
-        let field_supports_text =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[14])?;
-        let field_supports_rumble =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[15])?;
-        let field_supports_battery =
+        let field_supports_raw =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[16])?;
-        let field_supports_light =
+        let field_supports_text =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[17])?;
-        let field_supports_raw_hid =
+        let field_supports_rumble =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[18])?;
-        let field_is_virtual = <bool as VmAggregateCodec>::decode_with_context(context, slots[19])?;
-        let field_is_system = <bool as VmAggregateCodec>::decode_with_context(context, slots[20])?;
+        let field_supports_battery =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[19])?;
+        let field_supports_light =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[20])?;
+        let field_supports_raw_hid =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[21])?;
+        let field_is_virtual = <bool as VmAggregateCodec>::decode_with_context(context, slots[22])?;
+        let field_is_system = <bool as VmAggregateCodec>::decode_with_context(context, slots[23])?;
         Ok(Self {
             id: field_id,
             instance_id: field_instance_id,
             hardware_id: field_hardware_id,
+            serial_number: field_serial_number,
+            location_id: field_location_id,
+            guid: field_guid,
             name: field_name,
             transport: field_transport,
             kind: field_kind,
@@ -3590,6 +6113,17 @@ impl VmAggregateCodec for InputDeviceDescriptorAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.instance_id, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.hardware_id, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.serial_number,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.location_id,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.guid, context,
+            )?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.transport, context)?,
             <InputDeviceKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
@@ -3626,6 +6160,12 @@ pub struct InputDeviceDescriptorValue {
     pub instance_id: String,
     /// Stable backend hardware identifier when available.
     pub hardware_id: String,
+    /// Stable backend serial number when available.
+    pub serial_number: Option<String>,
+    /// Stable backend location identifier when available.
+    pub location_id: Option<String>,
+    /// Stable gamepad-style guid when available.
+    pub guid: Option<String>,
     /// Host device name.
     pub name: String,
     /// Backend transport name when available.
@@ -3681,6 +6221,13 @@ impl NativeAbiCodec for InputDeviceDescriptorAbi<NativeAbi> {
             hardware_id: unsafe {
                 <NativeStringRef as NativeAbiCodec>::into_value(self.hardware_id)?
             },
+            serial_number: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.serial_number)?
+            },
+            location_id: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.location_id)?
+            },
+            guid: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.guid)? },
             name: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.name)? },
             transport: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.transport)? },
             kind: unsafe { <InputDeviceKind as NativeAbiCodec>::into_value(self.kind)? },
@@ -3719,6 +6266,15 @@ impl NativeAbiCodec for InputDeviceDescriptorAbi<NativeAbi> {
                 binding,
                 value.hardware_id,
             ),
+            serial_number: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.serial_number,
+            ),
+            location_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.location_id,
+            ),
+            guid: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.guid),
             name: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.name),
             transport: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.transport),
             kind: <InputDeviceKind as NativeAbiCodec>::from_value(binding, value.kind),
@@ -3755,6 +6311,15 @@ impl VmAbiCodec for InputDeviceDescriptorAbi<VmAbi> {
             id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
             instance_id: <vm::StringHandle as VmAbiCodec>::into_value(self.instance_id, context)?,
             hardware_id: <vm::StringHandle as VmAbiCodec>::into_value(self.hardware_id, context)?,
+            serial_number: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.serial_number,
+                context,
+            )?,
+            location_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.location_id,
+                context,
+            )?,
+            guid: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.guid, context)?,
             name: <vm::StringHandle as VmAbiCodec>::into_value(self.name, context)?,
             transport: <vm::StringHandle as VmAbiCodec>::into_value(self.transport, context)?,
             kind: <InputDeviceKind as VmAbiCodec>::into_value(self.kind, context)?,
@@ -3787,6 +6352,15 @@ impl VmAbiCodec for InputDeviceDescriptorAbi<VmAbi> {
             id: <vm::StringHandle as VmAbiCodec>::from_value(context, value.id)?,
             instance_id: <vm::StringHandle as VmAbiCodec>::from_value(context, value.instance_id)?,
             hardware_id: <vm::StringHandle as VmAbiCodec>::from_value(context, value.hardware_id)?,
+            serial_number: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.serial_number,
+            )?,
+            location_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.location_id,
+            )?,
+            guid: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.guid)?,
             name: <vm::StringHandle as VmAbiCodec>::from_value(context, value.name)?,
             transport: <vm::StringHandle as VmAbiCodec>::from_value(context, value.transport)?,
             kind: <InputDeviceKind as VmAbiCodec>::from_value(context, value.kind)?,
@@ -4066,42 +6640,52 @@ impl VmAbiCodec for InputDeviceEventPayload {
 
 impl VmCollectionElement for InputDeviceEventPayload {}
 
-/// ABI struct for InputDragDropFilePayload.
+/// ABI struct for InputEditIntentEvent.
 #[repr(C)]
-pub struct InputDragDropFilePayloadAbi<A: BindingAbi> {
-    /// Dragged path payload.
-    pub path: Option<platform_fs::OsPathAbi<A>>,
-    /// Drop position in desktop coordinates when provided by the backend.
-    pub position: Option<InputDragDropPosition>,
-    /// Effective operation when the backend reports it.
-    pub operation: Option<InputDragDropOperation>,
+pub struct InputEditIntentEventAbi<A: BindingAbi> {
+    /// Discriminator for this text event variant.
+    pub kind: A::String,
+    /// Shared event metadata.
+    pub metadata: platform_input::InputEventMetadataAbi<A>,
+    /// Edit intent kind.
+    pub input_type: InputEditIntentType,
+    /// Text payload when the edit intent carries one direct string.
+    pub data: Option<A::String>,
+    /// Target text ranges in source order when the backend exposes them.
+    pub target_ranges: A::Slice<InputTextRange>,
+    /// Clipboard item descriptors when this edit intent originated from paste or yank.
+    pub clipboard_items: Option<A::Slice<platform_input::ClipboardItemDescriptorAbi<A>>>,
+    /// Drag transfer metadata when this edit intent originated from a drop session.
+    pub drag: Option<platform_display::DisplayDragTransferAbi<A>>,
+    /// Whether this edit intent belongs to one active composition session.
+    pub is_composing: bool,
 }
 
-pub type InputDragDropFilePayload = InputDragDropFilePayloadAbi<NativeAbi>;
-pub type InputDragDropFilePayloadVm = InputDragDropFilePayloadAbi<VmAbi>;
+pub type InputEditIntentEvent = InputEditIntentEventAbi<NativeAbi>;
+pub type InputEditIntentEventVm = InputEditIntentEventAbi<VmAbi>;
 
-impl<A: BindingAbi> std::fmt::Debug for InputDragDropFilePayloadAbi<A> {
+impl<A: BindingAbi> std::fmt::Debug for InputEditIntentEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("InputDragDropFilePayloadAbi")
+            .debug_struct("InputEditIntentEventAbi")
             .finish_non_exhaustive()
     }
 }
 
-impl Copy for InputDragDropFilePayloadAbi<NativeAbi> {}
-impl Clone for InputDragDropFilePayloadAbi<NativeAbi> {
+impl Copy for InputEditIntentEventAbi<NativeAbi> {}
+impl Clone for InputEditIntentEventAbi<NativeAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl Copy for InputDragDropFilePayloadAbi<VmAbi> {}
-impl Clone for InputDragDropFilePayloadAbi<VmAbi> {
+impl Copy for InputEditIntentEventAbi<VmAbi> {}
+impl Clone for InputEditIntentEventAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl VmAggregateCodec for InputDragDropFilePayloadAbi<VmAbi> {
+impl VmAggregateCodec for InputEditIntentEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -4109,667 +6693,51 @@ impl VmAggregateCodec for InputDragDropFilePayloadAbi<VmAbi> {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "InputDragDropFilePayload",
+                "InputEditIntentEvent",
             ))
             .boxed());
         }
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 8 fields",
             ))
             .boxed());
         }
-        let field_path =
-            <Option<fs::OsPathVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_position =
-            <Option<InputDragDropPositionVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[1],
-            )?;
-        let field_operation =
-            <Option<InputDragDropOperation> as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
-            )?;
-        Ok(Self {
-            path: field_path,
-            position: field_position,
-            operation: field_operation,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <Option<fs::OsPathVm> as VmAggregateCodec>::encode_with_context(self.path, context)?,
-            <Option<InputDragDropPositionVm> as VmAggregateCodec>::encode_with_context(
-                self.position,
-                context,
-            )?,
-            <Option<InputDragDropOperation> as VmAggregateCodec>::encode_with_context(
-                self.operation,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-impl VmCollectionElement for InputDragDropFilePayloadAbi<VmAbi> {}
-
-/// Value type for InputDragDropFilePayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct InputDragDropFilePayloadValue {
-    /// Dragged path payload.
-    pub path: Option<platform_fs::abi_generated::OsPathValue>,
-    /// Drop position in desktop coordinates when provided by the backend.
-    pub position: Option<InputDragDropPosition>,
-    /// Effective operation when the backend reports it.
-    pub operation: Option<InputDragDropOperation>,
-}
-
-impl NativeAbiCodec for InputDragDropFilePayloadAbi<NativeAbi> {
-    type Value = InputDragDropFilePayloadValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(InputDragDropFilePayloadValue {
-            path: unsafe { <Option<fs::OsPath> as NativeAbiCodec>::into_value(self.path)? },
-            position: unsafe {
-                <Option<InputDragDropPosition> as NativeAbiCodec>::into_value(self.position)?
-            },
-            operation: unsafe {
-                <Option<InputDragDropOperation> as NativeAbiCodec>::into_value(self.operation)?
-            },
-        })
-    }
-
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self {
-            path: <Option<fs::OsPath> as NativeAbiCodec>::from_value(binding, value.path),
-            position: <Option<InputDragDropPosition> as NativeAbiCodec>::from_value(
-                binding,
-                value.position,
-            ),
-            operation: <Option<InputDragDropOperation> as NativeAbiCodec>::from_value(
-                binding,
-                value.operation,
-            ),
-        }
-    }
-}
-
-impl VmAbiCodec for InputDragDropFilePayloadAbi<VmAbi> {
-    type Value = InputDragDropFilePayloadValue;
-
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(InputDragDropFilePayloadValue {
-            path: <Option<fs::OsPathVm> as VmAbiCodec>::into_value(self.path, context)?,
-            position: <Option<InputDragDropPositionVm> as VmAbiCodec>::into_value(
-                self.position,
-                context,
-            )?,
-            operation: <Option<InputDragDropOperation> as VmAbiCodec>::into_value(
-                self.operation,
-                context,
-            )?,
-        })
-    }
-
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self {
-            path: <Option<fs::OsPathVm> as VmAbiCodec>::from_value(context, value.path)?,
-            position: <Option<InputDragDropPositionVm> as VmAbiCodec>::from_value(
-                context,
-                value.position,
-            )?,
-            operation: <Option<InputDragDropOperation> as VmAbiCodec>::from_value(
-                context,
-                value.operation,
-            )?,
-        })
-    }
-}
-
-/// ABI struct for InputDragDropHoverLeavePayload.
-#[repr(C)]
-pub struct InputDragDropHoverLeavePayloadAbi<A: BindingAbi> {
-    /// Last hovered path payload when available.
-    pub previous_path: Option<platform_fs::OsPathAbi<A>>,
-    /// Last hover position in desktop coordinates when provided by the backend.
-    pub position: Option<InputDragDropPosition>,
-    /// Last effective operation when the backend reports it.
-    pub operation: Option<InputDragDropOperation>,
-}
-
-pub type InputDragDropHoverLeavePayload = InputDragDropHoverLeavePayloadAbi<NativeAbi>;
-pub type InputDragDropHoverLeavePayloadVm = InputDragDropHoverLeavePayloadAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for InputDragDropHoverLeavePayloadAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("InputDragDropHoverLeavePayloadAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for InputDragDropHoverLeavePayloadAbi<NativeAbi> {}
-impl Clone for InputDragDropHoverLeavePayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for InputDragDropHoverLeavePayloadAbi<VmAbi> {}
-impl Clone for InputDragDropHoverLeavePayloadAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for InputDragDropHoverLeavePayloadAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputDragDropHoverLeavePayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let field_previous_path =
-            <Option<fs::OsPathVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_position =
-            <Option<InputDragDropPositionVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[1],
-            )?;
-        let field_operation =
-            <Option<InputDragDropOperation> as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
-            )?;
-        Ok(Self {
-            previous_path: field_previous_path,
-            position: field_position,
-            operation: field_operation,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <Option<fs::OsPathVm> as VmAggregateCodec>::encode_with_context(
-                self.previous_path,
-                context,
-            )?,
-            <Option<InputDragDropPositionVm> as VmAggregateCodec>::encode_with_context(
-                self.position,
-                context,
-            )?,
-            <Option<InputDragDropOperation> as VmAggregateCodec>::encode_with_context(
-                self.operation,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-impl VmCollectionElement for InputDragDropHoverLeavePayloadAbi<VmAbi> {}
-
-/// Value type for InputDragDropHoverLeavePayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct InputDragDropHoverLeavePayloadValue {
-    /// Last hovered path payload when available.
-    pub previous_path: Option<platform_fs::abi_generated::OsPathValue>,
-    /// Last hover position in desktop coordinates when provided by the backend.
-    pub position: Option<InputDragDropPosition>,
-    /// Last effective operation when the backend reports it.
-    pub operation: Option<InputDragDropOperation>,
-}
-
-impl NativeAbiCodec for InputDragDropHoverLeavePayloadAbi<NativeAbi> {
-    type Value = InputDragDropHoverLeavePayloadValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(InputDragDropHoverLeavePayloadValue {
-            previous_path: unsafe {
-                <Option<fs::OsPath> as NativeAbiCodec>::into_value(self.previous_path)?
-            },
-            position: unsafe {
-                <Option<InputDragDropPosition> as NativeAbiCodec>::into_value(self.position)?
-            },
-            operation: unsafe {
-                <Option<InputDragDropOperation> as NativeAbiCodec>::into_value(self.operation)?
-            },
-        })
-    }
-
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self {
-            previous_path: <Option<fs::OsPath> as NativeAbiCodec>::from_value(
-                binding,
-                value.previous_path,
-            ),
-            position: <Option<InputDragDropPosition> as NativeAbiCodec>::from_value(
-                binding,
-                value.position,
-            ),
-            operation: <Option<InputDragDropOperation> as NativeAbiCodec>::from_value(
-                binding,
-                value.operation,
-            ),
-        }
-    }
-}
-
-impl VmAbiCodec for InputDragDropHoverLeavePayloadAbi<VmAbi> {
-    type Value = InputDragDropHoverLeavePayloadValue;
-
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(InputDragDropHoverLeavePayloadValue {
-            previous_path: <Option<fs::OsPathVm> as VmAbiCodec>::into_value(
-                self.previous_path,
-                context,
-            )?,
-            position: <Option<InputDragDropPositionVm> as VmAbiCodec>::into_value(
-                self.position,
-                context,
-            )?,
-            operation: <Option<InputDragDropOperation> as VmAbiCodec>::into_value(
-                self.operation,
-                context,
-            )?,
-        })
-    }
-
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self {
-            previous_path: <Option<fs::OsPathVm> as VmAbiCodec>::from_value(
-                context,
-                value.previous_path,
-            )?,
-            position: <Option<InputDragDropPositionVm> as VmAbiCodec>::from_value(
-                context,
-                value.position,
-            )?,
-            operation: <Option<InputDragDropOperation> as VmAbiCodec>::from_value(
-                context,
-                value.operation,
-            )?,
-        })
-    }
-}
-
-/// ABI struct for InputDragDropHoverPayload.
-#[repr(C)]
-pub struct InputDragDropHoverPayloadAbi<A: BindingAbi> {
-    /// Hovered path payload when available.
-    pub path: Option<platform_fs::OsPathAbi<A>>,
-    /// Hover position in desktop coordinates when provided by the backend.
-    pub position: Option<InputDragDropPosition>,
-    /// Effective operation when the backend reports it.
-    pub operation: Option<InputDragDropOperation>,
-}
-
-pub type InputDragDropHoverPayload = InputDragDropHoverPayloadAbi<NativeAbi>;
-pub type InputDragDropHoverPayloadVm = InputDragDropHoverPayloadAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for InputDragDropHoverPayloadAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("InputDragDropHoverPayloadAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for InputDragDropHoverPayloadAbi<NativeAbi> {}
-impl Clone for InputDragDropHoverPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for InputDragDropHoverPayloadAbi<VmAbi> {}
-impl Clone for InputDragDropHoverPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for InputDragDropHoverPayloadAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputDragDropHoverPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let field_path =
-            <Option<fs::OsPathVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_position =
-            <Option<InputDragDropPositionVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[1],
-            )?;
-        let field_operation =
-            <Option<InputDragDropOperation> as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
-            )?;
-        Ok(Self {
-            path: field_path,
-            position: field_position,
-            operation: field_operation,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <Option<fs::OsPathVm> as VmAggregateCodec>::encode_with_context(self.path, context)?,
-            <Option<InputDragDropPositionVm> as VmAggregateCodec>::encode_with_context(
-                self.position,
-                context,
-            )?,
-            <Option<InputDragDropOperation> as VmAggregateCodec>::encode_with_context(
-                self.operation,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-impl VmCollectionElement for InputDragDropHoverPayloadAbi<VmAbi> {}
-
-/// Value type for InputDragDropHoverPayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct InputDragDropHoverPayloadValue {
-    /// Hovered path payload when available.
-    pub path: Option<platform_fs::abi_generated::OsPathValue>,
-    /// Hover position in desktop coordinates when provided by the backend.
-    pub position: Option<InputDragDropPosition>,
-    /// Effective operation when the backend reports it.
-    pub operation: Option<InputDragDropOperation>,
-}
-
-impl NativeAbiCodec for InputDragDropHoverPayloadAbi<NativeAbi> {
-    type Value = InputDragDropHoverPayloadValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(InputDragDropHoverPayloadValue {
-            path: unsafe { <Option<fs::OsPath> as NativeAbiCodec>::into_value(self.path)? },
-            position: unsafe {
-                <Option<InputDragDropPosition> as NativeAbiCodec>::into_value(self.position)?
-            },
-            operation: unsafe {
-                <Option<InputDragDropOperation> as NativeAbiCodec>::into_value(self.operation)?
-            },
-        })
-    }
-
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self {
-            path: <Option<fs::OsPath> as NativeAbiCodec>::from_value(binding, value.path),
-            position: <Option<InputDragDropPosition> as NativeAbiCodec>::from_value(
-                binding,
-                value.position,
-            ),
-            operation: <Option<InputDragDropOperation> as NativeAbiCodec>::from_value(
-                binding,
-                value.operation,
-            ),
-        }
-    }
-}
-
-impl VmAbiCodec for InputDragDropHoverPayloadAbi<VmAbi> {
-    type Value = InputDragDropHoverPayloadValue;
-
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(InputDragDropHoverPayloadValue {
-            path: <Option<fs::OsPathVm> as VmAbiCodec>::into_value(self.path, context)?,
-            position: <Option<InputDragDropPositionVm> as VmAbiCodec>::into_value(
-                self.position,
-                context,
-            )?,
-            operation: <Option<InputDragDropOperation> as VmAbiCodec>::into_value(
-                self.operation,
-                context,
-            )?,
-        })
-    }
-
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self {
-            path: <Option<fs::OsPathVm> as VmAbiCodec>::from_value(context, value.path)?,
-            position: <Option<InputDragDropPositionVm> as VmAbiCodec>::from_value(
-                context,
-                value.position,
-            )?,
-            operation: <Option<InputDragDropOperation> as VmAbiCodec>::from_value(
-                context,
-                value.operation,
-            )?,
-        })
-    }
-}
-
-/// ABI struct for InputDragDropPosition.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct InputDragDropPosition {
-    /// Desktop x coordinate.
-    pub x: i32,
-    /// Desktop y coordinate.
-    pub y: i32,
-}
-
-pub type InputDragDropPositionVm = InputDragDropPosition;
-
-impl VmAggregateCodec for InputDragDropPosition {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputDragDropPosition",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let field_x = <i32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_y = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        Ok(Self {
-            x: field_x,
-            y: field_y,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <i32 as VmAggregateCodec>::encode_with_context(self.x, context)?,
-            <i32 as VmAggregateCodec>::encode_with_context(self.y, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-/// Value type for InputDragDropPosition.
-pub type InputDragDropPositionValue = InputDragDropPosition;
-
-impl NativeAbiCodec for InputDragDropPosition {
-    type Value = InputDragDropPositionValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
-    }
-}
-
-impl VmAbiCodec for InputDragDropPosition {
-    type Value = InputDragDropPositionValue;
-
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(value)
-    }
-}
-
-impl VmCollectionElement for InputDragDropPosition {}
-
-/// ABI struct for InputDragDropTextPayload.
-#[repr(C)]
-pub struct InputDragDropTextPayloadAbi<A: BindingAbi> {
-    /// Dragged text payload.
-    pub text: A::String,
-    /// Drop position in desktop coordinates when provided by the backend.
-    pub position: Option<InputDragDropPosition>,
-    /// Effective operation when the backend reports it.
-    pub operation: Option<InputDragDropOperation>,
-}
-
-pub type InputDragDropTextPayload = InputDragDropTextPayloadAbi<NativeAbi>;
-pub type InputDragDropTextPayloadVm = InputDragDropTextPayloadAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for InputDragDropTextPayloadAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("InputDragDropTextPayloadAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for InputDragDropTextPayloadAbi<NativeAbi> {}
-impl Clone for InputDragDropTextPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for InputDragDropTextPayloadAbi<VmAbi> {}
-impl Clone for InputDragDropTextPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for InputDragDropTextPayloadAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputDragDropTextPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let field_text =
+        let field_kind =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_position =
-            <Option<InputDragDropPositionVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[1],
+        let field_metadata =
+            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_input_type =
+            <InputEditIntentType as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_data =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_target_ranges =
+            <VmSlice<InputTextRangeVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[4],
             )?;
-        let field_operation =
-            <Option<InputDragDropOperation> as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
+        let field_clipboard_items =
+            <Option<VmSlice<ClipboardItemDescriptorVm>> as VmAggregateCodec>::decode_with_context(
+                context, slots[5],
             )?;
+        let field_drag =
+            <Option<display::DisplayDragTransferVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[6],
+            )?;
+        let field_is_composing =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         Ok(Self {
-            text: field_text,
-            position: field_position,
-            operation: field_operation,
+            kind: field_kind,
+            metadata: field_metadata,
+            input_type: field_input_type,
+            data: field_data,
+            target_ranges: field_target_ranges,
+            clipboard_items: field_clipboard_items,
+            drag: field_drag,
+            is_composing: field_is_composing,
         })
     }
 
@@ -4778,15 +6746,30 @@ impl VmAggregateCodec for InputDragDropTextPayloadAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.text, context)?,
-            <Option<InputDragDropPositionVm> as VmAggregateCodec>::encode_with_context(
-                self.position,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
                 context,
             )?,
-            <Option<InputDragDropOperation> as VmAggregateCodec>::encode_with_context(
-                self.operation,
+            <InputEditIntentType as VmAggregateCodec>::encode_with_context(
+                self.input_type,
                 context,
             )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.data, context,
+            )?,
+            <VmSlice<InputTextRangeVm> as VmAggregateCodec>::encode_with_context(
+                self.target_ranges,
+                context,
+            )?,
+            <Option<VmSlice<ClipboardItemDescriptorVm>> as VmAggregateCodec>::encode_with_context(
+                self.clipboard_items,
+                context,
+            )?,
+            <Option<display::DisplayDragTransferVm> as VmAggregateCodec>::encode_with_context(
+                self.drag, context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_composing, context)?,
         ];
         context
             .allocate_aggregate(slots)
@@ -4794,66 +6777,106 @@ impl VmAggregateCodec for InputDragDropTextPayloadAbi<VmAbi> {
     }
 }
 
-impl VmCollectionElement for InputDragDropTextPayloadAbi<VmAbi> {}
+impl VmCollectionElement for InputEditIntentEventAbi<VmAbi> {}
 
-/// Value type for InputDragDropTextPayload.
+/// Value type for InputEditIntentEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct InputDragDropTextPayloadValue {
-    /// Dragged text payload.
-    pub text: String,
-    /// Drop position in desktop coordinates when provided by the backend.
-    pub position: Option<InputDragDropPosition>,
-    /// Effective operation when the backend reports it.
-    pub operation: Option<InputDragDropOperation>,
+pub struct InputEditIntentEventValue {
+    /// Discriminator for this text event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: InputEventMetadataValue,
+    /// Edit intent kind.
+    pub input_type: InputEditIntentType,
+    /// Text payload when the edit intent carries one direct string.
+    pub data: Option<String>,
+    /// Target text ranges in source order when the backend exposes them.
+    pub target_ranges: Vec<InputTextRange>,
+    /// Clipboard item descriptors when this edit intent originated from paste or yank.
+    pub clipboard_items: Option<Vec<ClipboardItemDescriptorValue>>,
+    /// Drag transfer metadata when this edit intent originated from a drop session.
+    pub drag: Option<platform_display::abi_generated::DisplayDragTransferValue>,
+    /// Whether this edit intent belongs to one active composition session.
+    pub is_composing: bool,
 }
 
-impl NativeAbiCodec for InputDragDropTextPayloadAbi<NativeAbi> {
-    type Value = InputDragDropTextPayloadValue;
+impl NativeAbiCodec for InputEditIntentEventAbi<NativeAbi> {
+    type Value = InputEditIntentEventValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(InputDragDropTextPayloadValue {
-            text: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.text)? },
-            position: unsafe {
-                <Option<InputDragDropPosition> as NativeAbiCodec>::into_value(self.position)?
+        Ok(InputEditIntentEventValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            metadata: unsafe { <InputEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            input_type: unsafe {
+                <InputEditIntentType as NativeAbiCodec>::into_value(self.input_type)?
             },
-            operation: unsafe {
-                <Option<InputDragDropOperation> as NativeAbiCodec>::into_value(self.operation)?
+            data: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.data)? },
+            target_ranges: unsafe {
+                <NativeSlice<InputTextRange> as NativeAbiCodec>::into_value(self.target_ranges)?
             },
+            clipboard_items: unsafe {
+                <Option<NativeSlice<ClipboardItemDescriptor>> as NativeAbiCodec>::into_value(
+                    self.clipboard_items,
+                )?
+            },
+            drag: unsafe {
+                <Option<display::DisplayDragTransfer> as NativeAbiCodec>::into_value(self.drag)?
+            },
+            is_composing: unsafe { <bool as NativeAbiCodec>::into_value(self.is_composing)? },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
-            text: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.text),
-            position: <Option<InputDragDropPosition> as NativeAbiCodec>::from_value(
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            metadata: <InputEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
+            input_type: <InputEditIntentType as NativeAbiCodec>::from_value(
                 binding,
-                value.position,
+                value.input_type,
             ),
-            operation: <Option<InputDragDropOperation> as NativeAbiCodec>::from_value(
+            data: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.data),
+            target_ranges: <NativeSlice<InputTextRange> as NativeAbiCodec>::from_value(
                 binding,
-                value.operation,
+                value.target_ranges,
             ),
+            clipboard_items:
+                <Option<NativeSlice<ClipboardItemDescriptor>> as NativeAbiCodec>::from_value(
+                    binding,
+                    value.clipboard_items,
+                ),
+            drag: <Option<display::DisplayDragTransfer> as NativeAbiCodec>::from_value(
+                binding, value.drag,
+            ),
+            is_composing: <bool as NativeAbiCodec>::from_value(binding, value.is_composing),
         }
     }
 }
 
-impl VmAbiCodec for InputDragDropTextPayloadAbi<VmAbi> {
-    type Value = InputDragDropTextPayloadValue;
+impl VmAbiCodec for InputEditIntentEventAbi<VmAbi> {
+    type Value = InputEditIntentEventValue;
 
     fn into_value(
         self,
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(InputDragDropTextPayloadValue {
-            text: <vm::StringHandle as VmAbiCodec>::into_value(self.text, context)?,
-            position: <Option<InputDragDropPositionVm> as VmAbiCodec>::into_value(
-                self.position,
+        Ok(InputEditIntentEventValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            metadata: <InputEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
+            input_type: <InputEditIntentType as VmAbiCodec>::into_value(self.input_type, context)?,
+            data: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.data, context)?,
+            target_ranges: <VmSlice<InputTextRangeVm> as VmAbiCodec>::into_value(
+                self.target_ranges,
                 context,
             )?,
-            operation: <Option<InputDragDropOperation> as VmAbiCodec>::into_value(
-                self.operation,
-                context,
+            clipboard_items:
+                <Option<VmSlice<ClipboardItemDescriptorVm>> as VmAbiCodec>::into_value(
+                    self.clipboard_items,
+                    context,
+                )?,
+            drag: <Option<display::DisplayDragTransferVm> as VmAbiCodec>::into_value(
+                self.drag, context,
             )?,
+            is_composing: <bool as VmAbiCodec>::into_value(self.is_composing, context)?,
         })
     }
 
@@ -4862,15 +6885,23 @@ impl VmAbiCodec for InputDragDropTextPayloadAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
-            text: <vm::StringHandle as VmAbiCodec>::from_value(context, value.text)?,
-            position: <Option<InputDragDropPositionVm> as VmAbiCodec>::from_value(
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <InputEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
+            input_type: <InputEditIntentType as VmAbiCodec>::from_value(context, value.input_type)?,
+            data: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.data)?,
+            target_ranges: <VmSlice<InputTextRangeVm> as VmAbiCodec>::from_value(
                 context,
-                value.position,
+                value.target_ranges,
             )?,
-            operation: <Option<InputDragDropOperation> as VmAbiCodec>::from_value(
-                context,
-                value.operation,
+            clipboard_items:
+                <Option<VmSlice<ClipboardItemDescriptorVm>> as VmAbiCodec>::from_value(
+                    context,
+                    value.clipboard_items,
+                )?,
+            drag: <Option<display::DisplayDragTransferVm> as VmAbiCodec>::from_value(
+                context, value.drag,
             )?,
+            is_composing: <bool as VmAbiCodec>::from_value(context, value.is_composing)?,
         })
     }
 }
@@ -4884,6 +6915,8 @@ pub struct InputEventMetadataAbi<A: BindingAbi> {
     pub sequence: u64,
     /// Stable source device identifier.
     pub device_id: A::String,
+    /// Target window when this input event is routed to one concrete window.
+    pub target_window: Option<resource::WindowHandle>,
 }
 
 pub type InputEventMetadata = InputEventMetadataAbi<NativeAbi>;
@@ -4925,10 +6958,10 @@ impl VmAggregateCodec for InputEventMetadataAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 4 fields",
             ))
             .boxed());
         }
@@ -4936,10 +6969,15 @@ impl VmAggregateCodec for InputEventMetadataAbi<VmAbi> {
         let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_device_id =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_target_window =
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[3],
+            )?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
             device_id: field_device_id,
+            target_window: field_target_window,
         })
     }
 
@@ -4951,6 +6989,10 @@ impl VmAggregateCodec for InputEventMetadataAbi<VmAbi> {
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?,
+            <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
+                self.target_window,
+                context,
+            )?,
         ];
         context
             .allocate_aggregate(slots)
@@ -4969,6 +7011,8 @@ pub struct InputEventMetadataValue {
     pub sequence: u64,
     /// Stable source device identifier.
     pub device_id: String,
+    /// Target window when this input event is routed to one concrete window.
+    pub target_window: Option<resource::WindowHandle>,
 }
 
 impl NativeAbiCodec for InputEventMetadataAbi<NativeAbi> {
@@ -4979,6 +7023,9 @@ impl NativeAbiCodec for InputEventMetadataAbi<NativeAbi> {
             timestamp_ns: unsafe { <u64 as NativeAbiCodec>::into_value(self.timestamp_ns)? },
             sequence: unsafe { <u64 as NativeAbiCodec>::into_value(self.sequence)? },
             device_id: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.device_id)? },
+            target_window: unsafe {
+                <Option<resource::WindowHandle> as NativeAbiCodec>::into_value(self.target_window)?
+            },
         })
     }
 
@@ -4987,6 +7034,10 @@ impl NativeAbiCodec for InputEventMetadataAbi<NativeAbi> {
             timestamp_ns: <u64 as NativeAbiCodec>::from_value(binding, value.timestamp_ns),
             sequence: <u64 as NativeAbiCodec>::from_value(binding, value.sequence),
             device_id: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.device_id),
+            target_window: <Option<resource::WindowHandle> as NativeAbiCodec>::from_value(
+                binding,
+                value.target_window,
+            ),
         }
     }
 }
@@ -5002,6 +7053,10 @@ impl VmAbiCodec for InputEventMetadataAbi<VmAbi> {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
             sequence: <u64 as VmAbiCodec>::into_value(self.sequence, context)?,
             device_id: <vm::StringHandle as VmAbiCodec>::into_value(self.device_id, context)?,
+            target_window: <Option<resource::WindowHandle> as VmAbiCodec>::into_value(
+                self.target_window,
+                context,
+            )?,
         })
     }
 
@@ -5013,6 +7068,10 @@ impl VmAbiCodec for InputEventMetadataAbi<VmAbi> {
             timestamp_ns: <u64 as VmAbiCodec>::from_value(context, value.timestamp_ns)?,
             sequence: <u64 as VmAbiCodec>::from_value(context, value.sequence)?,
             device_id: <vm::StringHandle as VmAbiCodec>::from_value(context, value.device_id)?,
+            target_window: <Option<resource::WindowHandle> as VmAbiCodec>::from_value(
+                context,
+                value.target_window,
+            )?,
         })
     }
 }
@@ -5372,10 +7431,20 @@ impl VmAbiCodec for InputGamepadEventAbi<VmAbi> {
 pub struct InputGamepadEventPayload {
     /// Gamepad action.
     pub action: InputEventAction,
+    /// Control kind.
+    pub control_kind: InputGamepadControlKind,
+    /// Canonical control index when available.
+    pub control_index: u32,
     /// Backend-native control code.
     pub backend_code: u32,
     /// Backend-native control value.
     pub backend_value: i64,
+    /// Normalized control value.
+    pub value: f64,
+    /// Whether the control is pressed after this event when applicable.
+    pub pressed: bool,
+    /// Whether the control is touched after this event when applicable.
+    pub touched: bool,
 }
 
 pub type InputGamepadEventPayloadVm = InputGamepadEventPayload;
@@ -5395,22 +7464,34 @@ impl VmAggregateCodec for InputGamepadEventPayload {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 8 fields",
             ))
             .boxed());
         }
         let field_action =
             <InputEventAction as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_backend_code = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_control_kind =
+            <InputGamepadControlKind as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_control_index =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_backend_code = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_backend_value =
-            <i64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <i64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_value = <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_pressed = <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_touched = <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         Ok(Self {
             action: field_action,
+            control_kind: field_control_kind,
+            control_index: field_control_index,
             backend_code: field_backend_code,
             backend_value: field_backend_value,
+            value: field_value,
+            pressed: field_pressed,
+            touched: field_touched,
         })
     }
 
@@ -5420,8 +7501,16 @@ impl VmAggregateCodec for InputGamepadEventPayload {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <InputEventAction as VmAggregateCodec>::encode_with_context(self.action, context)?,
+            <InputGamepadControlKind as VmAggregateCodec>::encode_with_context(
+                self.control_kind,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.control_index, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.backend_code, context)?,
             <i64 as VmAggregateCodec>::encode_with_context(self.backend_value, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.value, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.pressed, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.touched, context)?,
         ];
         context
             .allocate_aggregate(slots)
@@ -5464,6 +7553,140 @@ impl VmAbiCodec for InputGamepadEventPayload {
 
 impl VmCollectionElement for InputGamepadEventPayload {}
 
+/// ABI struct for InputGamepadMotionState.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct InputGamepadMotionState {
+    /// Monotonic update timestamp in nanoseconds.
+    pub timestamp_ns: u64,
+    /// Linear acceleration x component in meters per second squared.
+    pub acceleration_x: f64,
+    /// Linear acceleration y component in meters per second squared.
+    pub acceleration_y: f64,
+    /// Linear acceleration z component in meters per second squared.
+    pub acceleration_z: f64,
+    /// Gravity x component in meters per second squared when available.
+    pub gravity_x: f64,
+    /// Gravity y component in meters per second squared when available.
+    pub gravity_y: f64,
+    /// Gravity z component in meters per second squared when available.
+    pub gravity_z: f64,
+    /// Rotation rate around x in radians per second.
+    pub gyroscope_x: f64,
+    /// Rotation rate around y in radians per second.
+    pub gyroscope_y: f64,
+    /// Rotation rate around z in radians per second.
+    pub gyroscope_z: f64,
+}
+
+pub type InputGamepadMotionStateVm = InputGamepadMotionState;
+
+impl VmAggregateCodec for InputGamepadMotionState {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputGamepadMotionState",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 10 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 10 fields",
+            ))
+            .boxed());
+        }
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_acceleration_x =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_acceleration_y =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_acceleration_z =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_gravity_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_gravity_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_gravity_z = <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_gyroscope_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_gyroscope_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_gyroscope_z = <f64 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        Ok(Self {
+            timestamp_ns: field_timestamp_ns,
+            acceleration_x: field_acceleration_x,
+            acceleration_y: field_acceleration_y,
+            acceleration_z: field_acceleration_z,
+            gravity_x: field_gravity_x,
+            gravity_y: field_gravity_y,
+            gravity_z: field_gravity_z,
+            gyroscope_x: field_gyroscope_x,
+            gyroscope_y: field_gyroscope_y,
+            gyroscope_z: field_gyroscope_z,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.acceleration_x, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.acceleration_y, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.acceleration_z, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.gravity_x, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.gravity_y, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.gravity_z, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.gyroscope_x, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.gyroscope_y, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.gyroscope_z, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for InputGamepadMotionState.
+pub type InputGamepadMotionStateValue = InputGamepadMotionState;
+
+impl NativeAbiCodec for InputGamepadMotionState {
+    type Value = InputGamepadMotionStateValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for InputGamepadMotionState {
+    type Value = InputGamepadMotionStateValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for InputGamepadMotionState {}
+
 /// ABI struct for InputGamepadState.
 #[repr(C)]
 pub struct InputGamepadStateAbi<A: BindingAbi> {
@@ -5471,24 +7694,48 @@ pub struct InputGamepadStateAbi<A: BindingAbi> {
     pub timestamp_ns: u64,
     /// Whether the gamepad is currently connected.
     pub connected: bool,
+    /// Stable source device identifier.
+    pub device_id: A::String,
+    /// Stable instance identifier when available.
+    pub instance_id: Option<A::String>,
+    /// Stable gamepad guid when available.
+    pub guid: Option<A::String>,
+    /// Raw backend device name when available.
+    pub raw_name: Option<A::String>,
+    /// Active mapping display name when available.
+    pub mapping_name: Option<A::String>,
     /// Active gamepad mapping type.
     pub mapping: InputGamepadMappingType,
     /// Connection type when available.
     pub connection_type: InputGamepadConnectionType,
-    /// Player index in the range [0, 15] when available, otherwise 255.
-    pub player_index: u8,
+    /// Player index in the range [0, 15] when available.
+    pub player_index: Option<u8>,
+    /// Stable web-style slot index when the backend or runtime assigns one.
+    pub slot_index: Option<u8>,
     /// Battery information snapshot.
     pub battery: InputGamepadBatteryStatus,
     /// Whether this device supports whole-device rumble.
     pub supports_rumble: bool,
     /// Whether this device supports trigger rumble.
     pub supports_trigger_rumble: bool,
+    /// Whether this device exposes motion sensors.
+    pub supports_motion_sensors: bool,
+    /// Whether this device exposes touch surfaces.
+    pub supports_touch: bool,
+    /// Whether this device supports light control.
+    pub supports_light: bool,
+    /// Whether motion sensors are currently enabled.
+    pub motion_sensors_enabled: bool,
+    /// Effective motion sensor sample rate in hertz when available.
+    pub motion_sample_rate_hz: Option<f64>,
     /// Axis values in normalized backend order.
     pub axes: A::Array<f64>,
     /// Button values in normalized backend order.
     pub buttons: A::Array<InputGamepadButtonState>,
     /// Touch contacts when the device exposes touch surfaces.
     pub touches: A::Array<InputGamepadTouchState>,
+    /// Motion state when sensors are enabled and data is available.
+    pub motion: Option<InputGamepadMotionState>,
 }
 
 pub type InputGamepadState = InputGamepadStateAbi<NativeAbi>;
@@ -5530,51 +7777,90 @@ impl VmAggregateCodec for InputGamepadStateAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 11 {
+        if slots.len() != 23 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 11 fields",
+                "expected 23 fields",
             ))
             .boxed());
         }
         let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_connected = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_device_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_instance_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_guid =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_raw_name =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_mapping_name =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         let field_mapping =
-            <InputGamepadMappingType as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <InputGamepadMappingType as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         let field_connection_type =
             <InputGamepadConnectionType as VmAggregateCodec>::decode_with_context(
-                context, slots[3],
+                context, slots[8],
             )?;
-        let field_player_index = <u8 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_player_index =
+            <Option<u8> as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_slot_index =
+            <Option<u8> as VmAggregateCodec>::decode_with_context(context, slots[10])?;
         let field_battery = <InputGamepadBatteryStatusVm as VmAggregateCodec>::decode_with_context(
-            context, slots[5],
+            context, slots[11],
         )?;
         let field_supports_rumble =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[12])?;
         let field_supports_trigger_rumble =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[13])?;
+        let field_supports_motion_sensors =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[14])?;
+        let field_supports_touch =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[15])?;
+        let field_supports_light =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[16])?;
+        let field_motion_sensors_enabled =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[17])?;
+        let field_motion_sample_rate_hz =
+            <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[18])?;
         let field_axes =
-            <VmArray<f64> as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+            <VmArray<f64> as VmAggregateCodec>::decode_with_context(context, slots[19])?;
         let field_buttons =
             <VmArray<InputGamepadButtonStateVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[9],
+                context, slots[20],
             )?;
         let field_touches =
             <VmArray<InputGamepadTouchStateVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[10],
+                context, slots[21],
+            )?;
+        let field_motion =
+            <Option<InputGamepadMotionStateVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[22],
             )?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
             connected: field_connected,
+            device_id: field_device_id,
+            instance_id: field_instance_id,
+            guid: field_guid,
+            raw_name: field_raw_name,
+            mapping_name: field_mapping_name,
             mapping: field_mapping,
             connection_type: field_connection_type,
             player_index: field_player_index,
+            slot_index: field_slot_index,
             battery: field_battery,
             supports_rumble: field_supports_rumble,
             supports_trigger_rumble: field_supports_trigger_rumble,
+            supports_motion_sensors: field_supports_motion_sensors,
+            supports_touch: field_supports_touch,
+            supports_light: field_supports_light,
+            motion_sensors_enabled: field_motion_sensors_enabled,
+            motion_sample_rate_hz: field_motion_sample_rate_hz,
             axes: field_axes,
             buttons: field_buttons,
             touches: field_touches,
+            motion: field_motion,
         })
     }
 
@@ -5585,6 +7871,22 @@ impl VmAggregateCodec for InputGamepadStateAbi<VmAbi> {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.connected, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.instance_id,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.guid, context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.raw_name,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.mapping_name,
+                context,
+            )?,
             <InputGamepadMappingType as VmAggregateCodec>::encode_with_context(
                 self.mapping,
                 context,
@@ -5593,13 +7895,22 @@ impl VmAggregateCodec for InputGamepadStateAbi<VmAbi> {
                 self.connection_type,
                 context,
             )?,
-            <u8 as VmAggregateCodec>::encode_with_context(self.player_index, context)?,
+            <Option<u8> as VmAggregateCodec>::encode_with_context(self.player_index, context)?,
+            <Option<u8> as VmAggregateCodec>::encode_with_context(self.slot_index, context)?,
             <InputGamepadBatteryStatusVm as VmAggregateCodec>::encode_with_context(
                 self.battery,
                 context,
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.supports_rumble, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.supports_trigger_rumble, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_motion_sensors, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_touch, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_light, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.motion_sensors_enabled, context)?,
+            <Option<f64> as VmAggregateCodec>::encode_with_context(
+                self.motion_sample_rate_hz,
+                context,
+            )?,
             <VmArray<f64> as VmAggregateCodec>::encode_with_context(self.axes, context)?,
             <VmArray<InputGamepadButtonStateVm> as VmAggregateCodec>::encode_with_context(
                 self.buttons,
@@ -5607,6 +7918,10 @@ impl VmAggregateCodec for InputGamepadStateAbi<VmAbi> {
             )?,
             <VmArray<InputGamepadTouchStateVm> as VmAggregateCodec>::encode_with_context(
                 self.touches,
+                context,
+            )?,
+            <Option<InputGamepadMotionStateVm> as VmAggregateCodec>::encode_with_context(
+                self.motion,
                 context,
             )?,
         ];
@@ -5625,24 +7940,48 @@ pub struct InputGamepadStateValue {
     pub timestamp_ns: u64,
     /// Whether the gamepad is currently connected.
     pub connected: bool,
+    /// Stable source device identifier.
+    pub device_id: String,
+    /// Stable instance identifier when available.
+    pub instance_id: Option<String>,
+    /// Stable gamepad guid when available.
+    pub guid: Option<String>,
+    /// Raw backend device name when available.
+    pub raw_name: Option<String>,
+    /// Active mapping display name when available.
+    pub mapping_name: Option<String>,
     /// Active gamepad mapping type.
     pub mapping: InputGamepadMappingType,
     /// Connection type when available.
     pub connection_type: InputGamepadConnectionType,
-    /// Player index in the range [0, 15] when available, otherwise 255.
-    pub player_index: u8,
+    /// Player index in the range [0, 15] when available.
+    pub player_index: Option<u8>,
+    /// Stable web-style slot index when the backend or runtime assigns one.
+    pub slot_index: Option<u8>,
     /// Battery information snapshot.
     pub battery: InputGamepadBatteryStatus,
     /// Whether this device supports whole-device rumble.
     pub supports_rumble: bool,
     /// Whether this device supports trigger rumble.
     pub supports_trigger_rumble: bool,
+    /// Whether this device exposes motion sensors.
+    pub supports_motion_sensors: bool,
+    /// Whether this device exposes touch surfaces.
+    pub supports_touch: bool,
+    /// Whether this device supports light control.
+    pub supports_light: bool,
+    /// Whether motion sensors are currently enabled.
+    pub motion_sensors_enabled: bool,
+    /// Effective motion sensor sample rate in hertz when available.
+    pub motion_sample_rate_hz: Option<f64>,
     /// Axis values in normalized backend order.
     pub axes: Vec<f64>,
     /// Button values in normalized backend order.
     pub buttons: Vec<InputGamepadButtonState>,
     /// Touch contacts when the device exposes touch surfaces.
     pub touches: Vec<InputGamepadTouchState>,
+    /// Motion state when sensors are enabled and data is available.
+    pub motion: Option<InputGamepadMotionState>,
 }
 
 impl NativeAbiCodec for InputGamepadStateAbi<NativeAbi> {
@@ -5652,19 +7991,42 @@ impl NativeAbiCodec for InputGamepadStateAbi<NativeAbi> {
         Ok(InputGamepadStateValue {
             timestamp_ns: unsafe { <u64 as NativeAbiCodec>::into_value(self.timestamp_ns)? },
             connected: unsafe { <bool as NativeAbiCodec>::into_value(self.connected)? },
+            device_id: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.device_id)? },
+            instance_id: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.instance_id)?
+            },
+            guid: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.guid)? },
+            raw_name: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.raw_name)?
+            },
+            mapping_name: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.mapping_name)?
+            },
             mapping: unsafe {
                 <InputGamepadMappingType as NativeAbiCodec>::into_value(self.mapping)?
             },
             connection_type: unsafe {
                 <InputGamepadConnectionType as NativeAbiCodec>::into_value(self.connection_type)?
             },
-            player_index: unsafe { <u8 as NativeAbiCodec>::into_value(self.player_index)? },
+            player_index: unsafe { <Option<u8> as NativeAbiCodec>::into_value(self.player_index)? },
+            slot_index: unsafe { <Option<u8> as NativeAbiCodec>::into_value(self.slot_index)? },
             battery: unsafe {
                 <InputGamepadBatteryStatus as NativeAbiCodec>::into_value(self.battery)?
             },
             supports_rumble: unsafe { <bool as NativeAbiCodec>::into_value(self.supports_rumble)? },
             supports_trigger_rumble: unsafe {
                 <bool as NativeAbiCodec>::into_value(self.supports_trigger_rumble)?
+            },
+            supports_motion_sensors: unsafe {
+                <bool as NativeAbiCodec>::into_value(self.supports_motion_sensors)?
+            },
+            supports_touch: unsafe { <bool as NativeAbiCodec>::into_value(self.supports_touch)? },
+            supports_light: unsafe { <bool as NativeAbiCodec>::into_value(self.supports_light)? },
+            motion_sensors_enabled: unsafe {
+                <bool as NativeAbiCodec>::into_value(self.motion_sensors_enabled)?
+            },
+            motion_sample_rate_hz: unsafe {
+                <Option<f64> as NativeAbiCodec>::into_value(self.motion_sample_rate_hz)?
             },
             axes: unsafe { <NativeArray<f64> as NativeAbiCodec>::into_value(self.axes)? },
             buttons: unsafe {
@@ -5673,6 +8035,9 @@ impl NativeAbiCodec for InputGamepadStateAbi<NativeAbi> {
             touches: unsafe {
                 <NativeArray<InputGamepadTouchState> as NativeAbiCodec>::into_value(self.touches)?
             },
+            motion: unsafe {
+                <Option<InputGamepadMotionState> as NativeAbiCodec>::into_value(self.motion)?
+            },
         })
     }
 
@@ -5680,6 +8045,20 @@ impl NativeAbiCodec for InputGamepadStateAbi<NativeAbi> {
         Self {
             timestamp_ns: <u64 as NativeAbiCodec>::from_value(binding, value.timestamp_ns),
             connected: <bool as NativeAbiCodec>::from_value(binding, value.connected),
+            device_id: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.device_id),
+            instance_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.instance_id,
+            ),
+            guid: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.guid),
+            raw_name: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.raw_name,
+            ),
+            mapping_name: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.mapping_name,
+            ),
             mapping: <InputGamepadMappingType as NativeAbiCodec>::from_value(
                 binding,
                 value.mapping,
@@ -5688,7 +8067,8 @@ impl NativeAbiCodec for InputGamepadStateAbi<NativeAbi> {
                 binding,
                 value.connection_type,
             ),
-            player_index: <u8 as NativeAbiCodec>::from_value(binding, value.player_index),
+            player_index: <Option<u8> as NativeAbiCodec>::from_value(binding, value.player_index),
+            slot_index: <Option<u8> as NativeAbiCodec>::from_value(binding, value.slot_index),
             battery: <InputGamepadBatteryStatus as NativeAbiCodec>::from_value(
                 binding,
                 value.battery,
@@ -5698,6 +8078,20 @@ impl NativeAbiCodec for InputGamepadStateAbi<NativeAbi> {
                 binding,
                 value.supports_trigger_rumble,
             ),
+            supports_motion_sensors: <bool as NativeAbiCodec>::from_value(
+                binding,
+                value.supports_motion_sensors,
+            ),
+            supports_touch: <bool as NativeAbiCodec>::from_value(binding, value.supports_touch),
+            supports_light: <bool as NativeAbiCodec>::from_value(binding, value.supports_light),
+            motion_sensors_enabled: <bool as NativeAbiCodec>::from_value(
+                binding,
+                value.motion_sensors_enabled,
+            ),
+            motion_sample_rate_hz: <Option<f64> as NativeAbiCodec>::from_value(
+                binding,
+                value.motion_sample_rate_hz,
+            ),
             axes: <NativeArray<f64> as NativeAbiCodec>::from_value(binding, value.axes),
             buttons: <NativeArray<InputGamepadButtonState> as NativeAbiCodec>::from_value(
                 binding,
@@ -5706,6 +8100,10 @@ impl NativeAbiCodec for InputGamepadStateAbi<NativeAbi> {
             touches: <NativeArray<InputGamepadTouchState> as NativeAbiCodec>::from_value(
                 binding,
                 value.touches,
+            ),
+            motion: <Option<InputGamepadMotionState> as NativeAbiCodec>::from_value(
+                binding,
+                value.motion,
             ),
         }
     }
@@ -5721,12 +8119,24 @@ impl VmAbiCodec for InputGamepadStateAbi<VmAbi> {
         Ok(InputGamepadStateValue {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
             connected: <bool as VmAbiCodec>::into_value(self.connected, context)?,
+            device_id: <vm::StringHandle as VmAbiCodec>::into_value(self.device_id, context)?,
+            instance_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.instance_id,
+                context,
+            )?,
+            guid: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.guid, context)?,
+            raw_name: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.raw_name, context)?,
+            mapping_name: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.mapping_name,
+                context,
+            )?,
             mapping: <InputGamepadMappingType as VmAbiCodec>::into_value(self.mapping, context)?,
             connection_type: <InputGamepadConnectionType as VmAbiCodec>::into_value(
                 self.connection_type,
                 context,
             )?,
-            player_index: <u8 as VmAbiCodec>::into_value(self.player_index, context)?,
+            player_index: <Option<u8> as VmAbiCodec>::into_value(self.player_index, context)?,
+            slot_index: <Option<u8> as VmAbiCodec>::into_value(self.slot_index, context)?,
             battery: <InputGamepadBatteryStatusVm as VmAbiCodec>::into_value(
                 self.battery,
                 context,
@@ -5736,6 +8146,20 @@ impl VmAbiCodec for InputGamepadStateAbi<VmAbi> {
                 self.supports_trigger_rumble,
                 context,
             )?,
+            supports_motion_sensors: <bool as VmAbiCodec>::into_value(
+                self.supports_motion_sensors,
+                context,
+            )?,
+            supports_touch: <bool as VmAbiCodec>::into_value(self.supports_touch, context)?,
+            supports_light: <bool as VmAbiCodec>::into_value(self.supports_light, context)?,
+            motion_sensors_enabled: <bool as VmAbiCodec>::into_value(
+                self.motion_sensors_enabled,
+                context,
+            )?,
+            motion_sample_rate_hz: <Option<f64> as VmAbiCodec>::into_value(
+                self.motion_sample_rate_hz,
+                context,
+            )?,
             axes: <VmArray<f64> as VmAbiCodec>::into_value(self.axes, context)?,
             buttons: <VmArray<InputGamepadButtonStateVm> as VmAbiCodec>::into_value(
                 self.buttons,
@@ -5743,6 +8167,10 @@ impl VmAbiCodec for InputGamepadStateAbi<VmAbi> {
             )?,
             touches: <VmArray<InputGamepadTouchStateVm> as VmAbiCodec>::into_value(
                 self.touches,
+                context,
+            )?,
+            motion: <Option<InputGamepadMotionStateVm> as VmAbiCodec>::into_value(
+                self.motion,
                 context,
             )?,
         })
@@ -5755,12 +8183,27 @@ impl VmAbiCodec for InputGamepadStateAbi<VmAbi> {
         Ok(Self {
             timestamp_ns: <u64 as VmAbiCodec>::from_value(context, value.timestamp_ns)?,
             connected: <bool as VmAbiCodec>::from_value(context, value.connected)?,
+            device_id: <vm::StringHandle as VmAbiCodec>::from_value(context, value.device_id)?,
+            instance_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.instance_id,
+            )?,
+            guid: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.guid)?,
+            raw_name: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.raw_name,
+            )?,
+            mapping_name: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.mapping_name,
+            )?,
             mapping: <InputGamepadMappingType as VmAbiCodec>::from_value(context, value.mapping)?,
             connection_type: <InputGamepadConnectionType as VmAbiCodec>::from_value(
                 context,
                 value.connection_type,
             )?,
-            player_index: <u8 as VmAbiCodec>::from_value(context, value.player_index)?,
+            player_index: <Option<u8> as VmAbiCodec>::from_value(context, value.player_index)?,
+            slot_index: <Option<u8> as VmAbiCodec>::from_value(context, value.slot_index)?,
             battery: <InputGamepadBatteryStatusVm as VmAbiCodec>::from_value(
                 context,
                 value.battery,
@@ -5770,6 +8213,20 @@ impl VmAbiCodec for InputGamepadStateAbi<VmAbi> {
                 context,
                 value.supports_trigger_rumble,
             )?,
+            supports_motion_sensors: <bool as VmAbiCodec>::from_value(
+                context,
+                value.supports_motion_sensors,
+            )?,
+            supports_touch: <bool as VmAbiCodec>::from_value(context, value.supports_touch)?,
+            supports_light: <bool as VmAbiCodec>::from_value(context, value.supports_light)?,
+            motion_sensors_enabled: <bool as VmAbiCodec>::from_value(
+                context,
+                value.motion_sensors_enabled,
+            )?,
+            motion_sample_rate_hz: <Option<f64> as VmAbiCodec>::from_value(
+                context,
+                value.motion_sample_rate_hz,
+            )?,
             axes: <VmArray<f64> as VmAbiCodec>::from_value(context, value.axes)?,
             buttons: <VmArray<InputGamepadButtonStateVm> as VmAbiCodec>::from_value(
                 context,
@@ -5778,6 +8235,10 @@ impl VmAbiCodec for InputGamepadStateAbi<VmAbi> {
             touches: <VmArray<InputGamepadTouchStateVm> as VmAbiCodec>::from_value(
                 context,
                 value.touches,
+            )?,
+            motion: <Option<InputGamepadMotionStateVm> as VmAbiCodec>::from_value(
+                context,
+                value.motion,
             )?,
         })
     }
@@ -6012,7 +8473,7 @@ pub struct InputKeyEventAbi<A: BindingAbi> {
     /// Shared event metadata.
     pub metadata: platform_input::InputEventMetadataAbi<A>,
     /// Key payload.
-    pub payload: InputKeyEventPayload,
+    pub payload: platform_input::InputKeyEventPayloadAbi<A>,
 }
 
 pub type InputKeyEvent = InputKeyEventAbi<NativeAbi>;
@@ -6105,7 +8566,7 @@ pub struct InputKeyEventValue {
     /// Shared event metadata.
     pub metadata: InputEventMetadataValue,
     /// Key payload.
-    pub payload: InputKeyEventPayload,
+    pub payload: InputKeyEventPayloadValue,
 }
 
 impl NativeAbiCodec for InputKeyEventAbi<NativeAbi> {
@@ -6156,10 +8617,15 @@ impl VmAbiCodec for InputKeyEventAbi<VmAbi> {
 
 /// ABI struct for InputKeyEventPayload.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct InputKeyEventPayload {
+pub struct InputKeyEventPayloadAbi<A: BindingAbi> {
     /// Key action.
     pub action: InputEventAction,
+    /// Normalized logical key value when available.
+    pub key: Option<A::String>,
+    /// Normalized physical code value when available.
+    pub code: Option<A::String>,
+    /// Physical key location.
+    pub location: InputKeyLocation,
     /// Backend-native key code.
     pub backend_code: u32,
     /// Backend-native scan code when available.
@@ -6167,14 +8633,40 @@ pub struct InputKeyEventPayload {
     /// Backend-native key value.
     pub backend_value: i64,
     /// Backend modifier bitset.
-    pub modifiers: u32,
+    pub backend_modifiers: u32,
+    /// Normalized modifier and lock state.
+    pub modifier_state: InputModifierState,
     /// Whether this key event is a repeat.
     pub repeat: bool,
+    /// Whether this key event belongs to one active composition session.
+    pub is_composing: bool,
 }
 
-pub type InputKeyEventPayloadVm = InputKeyEventPayload;
+pub type InputKeyEventPayload = InputKeyEventPayloadAbi<NativeAbi>;
+pub type InputKeyEventPayloadVm = InputKeyEventPayloadAbi<VmAbi>;
 
-impl VmAggregateCodec for InputKeyEventPayload {
+impl<A: BindingAbi> std::fmt::Debug for InputKeyEventPayloadAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputKeyEventPayloadAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputKeyEventPayloadAbi<NativeAbi> {}
+impl Clone for InputKeyEventPayloadAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputKeyEventPayloadAbi<VmAbi> {}
+impl Clone for InputKeyEventPayloadAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputKeyEventPayloadAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -6189,29 +8681,45 @@ impl VmAggregateCodec for InputKeyEventPayload {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
+        if slots.len() != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 6 fields",
+                "expected 11 fields",
             ))
             .boxed());
         }
         let field_action =
             <InputEventAction as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_backend_code = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_key =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_code =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_location =
+            <InputKeyLocation as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_backend_code = <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_backend_scan_code =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_backend_value =
-            <i64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_modifiers = <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_repeat = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <i64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_backend_modifiers =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_modifier_state =
+            <InputModifierStateVm as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_repeat = <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_is_composing =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
         Ok(Self {
             action: field_action,
+            key: field_key,
+            code: field_code,
+            location: field_location,
             backend_code: field_backend_code,
             backend_scan_code: field_backend_scan_code,
             backend_value: field_backend_value,
-            modifiers: field_modifiers,
+            backend_modifiers: field_backend_modifiers,
+            modifier_state: field_modifier_state,
             repeat: field_repeat,
+            is_composing: field_is_composing,
         })
     }
 
@@ -6221,11 +8729,21 @@ impl VmAggregateCodec for InputKeyEventPayload {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <InputEventAction as VmAggregateCodec>::encode_with_context(self.action, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.key, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.code, context,
+            )?,
+            <InputKeyLocation as VmAggregateCodec>::encode_with_context(self.location, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.backend_code, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.backend_scan_code, context)?,
             <i64 as VmAggregateCodec>::encode_with_context(self.backend_value, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.modifiers, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.backend_modifiers, context)?,
+            <InputModifierStateVm as VmAggregateCodec>::encode_with_context(
+                self.modifier_state,
+                context,
+            )?,
             <bool as VmAggregateCodec>::encode_with_context(self.repeat, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_composing, context)?,
         ];
         context
             .allocate_aggregate(slots)
@@ -6233,40 +8751,318 @@ impl VmAggregateCodec for InputKeyEventPayload {
     }
 }
 
-/// Value type for InputKeyEventPayload.
-pub type InputKeyEventPayloadValue = InputKeyEventPayload;
+impl VmCollectionElement for InputKeyEventPayloadAbi<VmAbi> {}
 
-impl NativeAbiCodec for InputKeyEventPayload {
+/// Value type for InputKeyEventPayload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputKeyEventPayloadValue {
+    /// Key action.
+    pub action: InputEventAction,
+    /// Normalized logical key value when available.
+    pub key: Option<String>,
+    /// Normalized physical code value when available.
+    pub code: Option<String>,
+    /// Physical key location.
+    pub location: InputKeyLocation,
+    /// Backend-native key code.
+    pub backend_code: u32,
+    /// Backend-native scan code when available.
+    pub backend_scan_code: u32,
+    /// Backend-native key value.
+    pub backend_value: i64,
+    /// Backend modifier bitset.
+    pub backend_modifiers: u32,
+    /// Normalized modifier and lock state.
+    pub modifier_state: InputModifierState,
+    /// Whether this key event is a repeat.
+    pub repeat: bool,
+    /// Whether this key event belongs to one active composition session.
+    pub is_composing: bool,
+}
+
+impl NativeAbiCodec for InputKeyEventPayloadAbi<NativeAbi> {
     type Value = InputKeyEventPayloadValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
+        Ok(InputKeyEventPayloadValue {
+            action: unsafe { <InputEventAction as NativeAbiCodec>::into_value(self.action)? },
+            key: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.key)? },
+            code: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.code)? },
+            location: unsafe { <InputKeyLocation as NativeAbiCodec>::into_value(self.location)? },
+            backend_code: unsafe { <u32 as NativeAbiCodec>::into_value(self.backend_code)? },
+            backend_scan_code: unsafe {
+                <u32 as NativeAbiCodec>::into_value(self.backend_scan_code)?
+            },
+            backend_value: unsafe { <i64 as NativeAbiCodec>::into_value(self.backend_value)? },
+            backend_modifiers: unsafe {
+                <u32 as NativeAbiCodec>::into_value(self.backend_modifiers)?
+            },
+            modifier_state: unsafe {
+                <InputModifierState as NativeAbiCodec>::into_value(self.modifier_state)?
+            },
+            repeat: unsafe { <bool as NativeAbiCodec>::into_value(self.repeat)? },
+            is_composing: unsafe { <bool as NativeAbiCodec>::into_value(self.is_composing)? },
+        })
     }
 
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            action: <InputEventAction as NativeAbiCodec>::from_value(binding, value.action),
+            key: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.key),
+            code: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.code),
+            location: <InputKeyLocation as NativeAbiCodec>::from_value(binding, value.location),
+            backend_code: <u32 as NativeAbiCodec>::from_value(binding, value.backend_code),
+            backend_scan_code: <u32 as NativeAbiCodec>::from_value(
+                binding,
+                value.backend_scan_code,
+            ),
+            backend_value: <i64 as NativeAbiCodec>::from_value(binding, value.backend_value),
+            backend_modifiers: <u32 as NativeAbiCodec>::from_value(
+                binding,
+                value.backend_modifiers,
+            ),
+            modifier_state: <InputModifierState as NativeAbiCodec>::from_value(
+                binding,
+                value.modifier_state,
+            ),
+            repeat: <bool as NativeAbiCodec>::from_value(binding, value.repeat),
+            is_composing: <bool as NativeAbiCodec>::from_value(binding, value.is_composing),
+        }
     }
 }
 
-impl VmAbiCodec for InputKeyEventPayload {
+impl VmAbiCodec for InputKeyEventPayloadAbi<VmAbi> {
     type Value = InputKeyEventPayloadValue;
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
+        Ok(InputKeyEventPayloadValue {
+            action: <InputEventAction as VmAbiCodec>::into_value(self.action, context)?,
+            key: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.key, context)?,
+            code: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.code, context)?,
+            location: <InputKeyLocation as VmAbiCodec>::into_value(self.location, context)?,
+            backend_code: <u32 as VmAbiCodec>::into_value(self.backend_code, context)?,
+            backend_scan_code: <u32 as VmAbiCodec>::into_value(self.backend_scan_code, context)?,
+            backend_value: <i64 as VmAbiCodec>::into_value(self.backend_value, context)?,
+            backend_modifiers: <u32 as VmAbiCodec>::into_value(self.backend_modifiers, context)?,
+            modifier_state: <InputModifierStateVm as VmAbiCodec>::into_value(
+                self.modifier_state,
+                context,
+            )?,
+            repeat: <bool as VmAbiCodec>::into_value(self.repeat, context)?,
+            is_composing: <bool as VmAbiCodec>::into_value(self.is_composing, context)?,
+        })
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalCallContext<'_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
-        Ok(value)
+        Ok(Self {
+            action: <InputEventAction as VmAbiCodec>::from_value(context, value.action)?,
+            key: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.key)?,
+            code: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.code)?,
+            location: <InputKeyLocation as VmAbiCodec>::from_value(context, value.location)?,
+            backend_code: <u32 as VmAbiCodec>::from_value(context, value.backend_code)?,
+            backend_scan_code: <u32 as VmAbiCodec>::from_value(context, value.backend_scan_code)?,
+            backend_value: <i64 as VmAbiCodec>::from_value(context, value.backend_value)?,
+            backend_modifiers: <u32 as VmAbiCodec>::from_value(context, value.backend_modifiers)?,
+            modifier_state: <InputModifierStateVm as VmAbiCodec>::from_value(
+                context,
+                value.modifier_state,
+            )?,
+            repeat: <bool as VmAbiCodec>::from_value(context, value.repeat)?,
+            is_composing: <bool as VmAbiCodec>::from_value(context, value.is_composing)?,
+        })
     }
 }
 
-impl VmCollectionElement for InputKeyEventPayload {}
+/// ABI struct for InputKeyboardLayoutInfo.
+#[repr(C)]
+pub struct InputKeyboardLayoutInfoAbi<A: BindingAbi> {
+    /// Stable backend layout identifier when available.
+    pub layout_id: Option<A::String>,
+    /// Display name for the active layout when available.
+    pub name: Option<A::String>,
+    /// BCP 47 locale tag when available.
+    pub locale: Option<A::String>,
+    /// Backend variant identifier when available.
+    pub variant: Option<A::String>,
+}
+
+pub type InputKeyboardLayoutInfo = InputKeyboardLayoutInfoAbi<NativeAbi>;
+pub type InputKeyboardLayoutInfoVm = InputKeyboardLayoutInfoAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputKeyboardLayoutInfoAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputKeyboardLayoutInfoAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputKeyboardLayoutInfoAbi<NativeAbi> {}
+impl Clone for InputKeyboardLayoutInfoAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputKeyboardLayoutInfoAbi<VmAbi> {}
+impl Clone for InputKeyboardLayoutInfoAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputKeyboardLayoutInfoAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputKeyboardLayoutInfo",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_layout_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_name =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_locale =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_variant =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            layout_id: field_layout_id,
+            name: field_name,
+            locale: field_locale,
+            variant: field_variant,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.layout_id,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.name, context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.locale,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.variant,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+impl VmCollectionElement for InputKeyboardLayoutInfoAbi<VmAbi> {}
+
+/// Value type for InputKeyboardLayoutInfo.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputKeyboardLayoutInfoValue {
+    /// Stable backend layout identifier when available.
+    pub layout_id: Option<String>,
+    /// Display name for the active layout when available.
+    pub name: Option<String>,
+    /// BCP 47 locale tag when available.
+    pub locale: Option<String>,
+    /// Backend variant identifier when available.
+    pub variant: Option<String>,
+}
+
+impl NativeAbiCodec for InputKeyboardLayoutInfoAbi<NativeAbi> {
+    type Value = InputKeyboardLayoutInfoValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(InputKeyboardLayoutInfoValue {
+            layout_id: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.layout_id)?
+            },
+            name: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.name)? },
+            locale: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.locale)?
+            },
+            variant: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.variant)?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            layout_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.layout_id,
+            ),
+            name: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.name),
+            locale: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.locale),
+            variant: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.variant,
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for InputKeyboardLayoutInfoAbi<VmAbi> {
+    type Value = InputKeyboardLayoutInfoValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(InputKeyboardLayoutInfoValue {
+            layout_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.layout_id,
+                context,
+            )?,
+            name: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.name, context)?,
+            locale: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.locale, context)?,
+            variant: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.variant, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            layout_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.layout_id,
+            )?,
+            name: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.name)?,
+            locale: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.locale)?,
+            variant: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.variant)?,
+        })
+    }
+}
 
 /// ABI struct for InputKeyboardState.
 #[repr(C)]
@@ -6278,11 +9074,21 @@ pub struct InputKeyboardStateAbi<A: BindingAbi> {
     /// Stable source device identifier.
     pub device_id: A::String,
     /// Backend modifier bitset for active modifiers.
-    pub modifiers: u32,
+    pub backend_modifiers: u32,
+    /// Normalized modifier and lock state.
+    pub modifier_state: InputModifierState,
+    /// Normalized physical codes currently pressed.
+    pub pressed_codes: A::Array<A::String>,
+    /// Normalized logical keys currently pressed.
+    pub pressed_keys: A::Array<A::String>,
     /// Backend key codes currently pressed.
-    pub pressed_codes: A::Array<u32>,
+    pub pressed_backend_codes: A::Array<u32>,
     /// Backend hardware scan codes currently pressed when available.
     pub pressed_scan_codes: A::Array<u32>,
+    /// Active layout metadata when available.
+    pub layout: Option<platform_input::InputKeyboardLayoutInfoAbi<A>>,
+    /// Whether the keyboard is currently within one active composition session.
+    pub is_composing: bool,
 }
 
 pub type InputKeyboardState = InputKeyboardStateAbi<NativeAbi>;
@@ -6324,10 +9130,10 @@ impl VmAggregateCodec for InputKeyboardStateAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
+        if slots.len() != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 6 fields",
+                "expected 11 fields",
             ))
             .boxed());
         }
@@ -6335,18 +9141,40 @@ impl VmAggregateCodec for InputKeyboardStateAbi<VmAbi> {
         let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_device_id =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_modifiers = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_backend_modifiers =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_modifier_state =
+            <InputModifierStateVm as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_pressed_codes =
-            <VmArray<u32> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[5],
+            )?;
+        let field_pressed_keys =
+            <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[6],
+            )?;
+        let field_pressed_backend_codes =
+            <VmArray<u32> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         let field_pressed_scan_codes =
-            <VmArray<u32> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <VmArray<u32> as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_layout =
+            <Option<InputKeyboardLayoutInfoVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[9],
+            )?;
+        let field_is_composing =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
             device_id: field_device_id,
-            modifiers: field_modifiers,
+            backend_modifiers: field_backend_modifiers,
+            modifier_state: field_modifier_state,
             pressed_codes: field_pressed_codes,
+            pressed_keys: field_pressed_keys,
+            pressed_backend_codes: field_pressed_backend_codes,
             pressed_scan_codes: field_pressed_scan_codes,
+            layout: field_layout,
+            is_composing: field_is_composing,
         })
     }
 
@@ -6358,12 +9186,32 @@ impl VmAggregateCodec for InputKeyboardStateAbi<VmAbi> {
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.modifiers, context)?,
-            <VmArray<u32> as VmAggregateCodec>::encode_with_context(self.pressed_codes, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.backend_modifiers, context)?,
+            <InputModifierStateVm as VmAggregateCodec>::encode_with_context(
+                self.modifier_state,
+                context,
+            )?,
+            <VmArray<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.pressed_codes,
+                context,
+            )?,
+            <VmArray<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.pressed_keys,
+                context,
+            )?,
+            <VmArray<u32> as VmAggregateCodec>::encode_with_context(
+                self.pressed_backend_codes,
+                context,
+            )?,
             <VmArray<u32> as VmAggregateCodec>::encode_with_context(
                 self.pressed_scan_codes,
                 context,
             )?,
+            <Option<InputKeyboardLayoutInfoVm> as VmAggregateCodec>::encode_with_context(
+                self.layout,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_composing, context)?,
         ];
         context
             .allocate_aggregate(slots)
@@ -6383,11 +9231,21 @@ pub struct InputKeyboardStateValue {
     /// Stable source device identifier.
     pub device_id: String,
     /// Backend modifier bitset for active modifiers.
-    pub modifiers: u32,
+    pub backend_modifiers: u32,
+    /// Normalized modifier and lock state.
+    pub modifier_state: InputModifierState,
+    /// Normalized physical codes currently pressed.
+    pub pressed_codes: Vec<String>,
+    /// Normalized logical keys currently pressed.
+    pub pressed_keys: Vec<String>,
     /// Backend key codes currently pressed.
-    pub pressed_codes: Vec<u32>,
+    pub pressed_backend_codes: Vec<u32>,
     /// Backend hardware scan codes currently pressed when available.
     pub pressed_scan_codes: Vec<u32>,
+    /// Active layout metadata when available.
+    pub layout: Option<InputKeyboardLayoutInfoValue>,
+    /// Whether the keyboard is currently within one active composition session.
+    pub is_composing: bool,
 }
 
 impl NativeAbiCodec for InputKeyboardStateAbi<NativeAbi> {
@@ -6398,13 +9256,28 @@ impl NativeAbiCodec for InputKeyboardStateAbi<NativeAbi> {
             timestamp_ns: unsafe { <u64 as NativeAbiCodec>::into_value(self.timestamp_ns)? },
             sequence: unsafe { <u64 as NativeAbiCodec>::into_value(self.sequence)? },
             device_id: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.device_id)? },
-            modifiers: unsafe { <u32 as NativeAbiCodec>::into_value(self.modifiers)? },
+            backend_modifiers: unsafe {
+                <u32 as NativeAbiCodec>::into_value(self.backend_modifiers)?
+            },
+            modifier_state: unsafe {
+                <InputModifierState as NativeAbiCodec>::into_value(self.modifier_state)?
+            },
             pressed_codes: unsafe {
-                <NativeArray<u32> as NativeAbiCodec>::into_value(self.pressed_codes)?
+                <NativeArray<NativeStringRef> as NativeAbiCodec>::into_value(self.pressed_codes)?
+            },
+            pressed_keys: unsafe {
+                <NativeArray<NativeStringRef> as NativeAbiCodec>::into_value(self.pressed_keys)?
+            },
+            pressed_backend_codes: unsafe {
+                <NativeArray<u32> as NativeAbiCodec>::into_value(self.pressed_backend_codes)?
             },
             pressed_scan_codes: unsafe {
                 <NativeArray<u32> as NativeAbiCodec>::into_value(self.pressed_scan_codes)?
             },
+            layout: unsafe {
+                <Option<InputKeyboardLayoutInfo> as NativeAbiCodec>::into_value(self.layout)?
+            },
+            is_composing: unsafe { <bool as NativeAbiCodec>::into_value(self.is_composing)? },
         })
     }
 
@@ -6413,15 +9286,35 @@ impl NativeAbiCodec for InputKeyboardStateAbi<NativeAbi> {
             timestamp_ns: <u64 as NativeAbiCodec>::from_value(binding, value.timestamp_ns),
             sequence: <u64 as NativeAbiCodec>::from_value(binding, value.sequence),
             device_id: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.device_id),
-            modifiers: <u32 as NativeAbiCodec>::from_value(binding, value.modifiers),
-            pressed_codes: <NativeArray<u32> as NativeAbiCodec>::from_value(
+            backend_modifiers: <u32 as NativeAbiCodec>::from_value(
+                binding,
+                value.backend_modifiers,
+            ),
+            modifier_state: <InputModifierState as NativeAbiCodec>::from_value(
+                binding,
+                value.modifier_state,
+            ),
+            pressed_codes: <NativeArray<NativeStringRef> as NativeAbiCodec>::from_value(
                 binding,
                 value.pressed_codes,
+            ),
+            pressed_keys: <NativeArray<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.pressed_keys,
+            ),
+            pressed_backend_codes: <NativeArray<u32> as NativeAbiCodec>::from_value(
+                binding,
+                value.pressed_backend_codes,
             ),
             pressed_scan_codes: <NativeArray<u32> as NativeAbiCodec>::from_value(
                 binding,
                 value.pressed_scan_codes,
             ),
+            layout: <Option<InputKeyboardLayoutInfo> as NativeAbiCodec>::from_value(
+                binding,
+                value.layout,
+            ),
+            is_composing: <bool as NativeAbiCodec>::from_value(binding, value.is_composing),
         }
     }
 }
@@ -6437,12 +9330,32 @@ impl VmAbiCodec for InputKeyboardStateAbi<VmAbi> {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
             sequence: <u64 as VmAbiCodec>::into_value(self.sequence, context)?,
             device_id: <vm::StringHandle as VmAbiCodec>::into_value(self.device_id, context)?,
-            modifiers: <u32 as VmAbiCodec>::into_value(self.modifiers, context)?,
-            pressed_codes: <VmArray<u32> as VmAbiCodec>::into_value(self.pressed_codes, context)?,
+            backend_modifiers: <u32 as VmAbiCodec>::into_value(self.backend_modifiers, context)?,
+            modifier_state: <InputModifierStateVm as VmAbiCodec>::into_value(
+                self.modifier_state,
+                context,
+            )?,
+            pressed_codes: <VmArray<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.pressed_codes,
+                context,
+            )?,
+            pressed_keys: <VmArray<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.pressed_keys,
+                context,
+            )?,
+            pressed_backend_codes: <VmArray<u32> as VmAbiCodec>::into_value(
+                self.pressed_backend_codes,
+                context,
+            )?,
             pressed_scan_codes: <VmArray<u32> as VmAbiCodec>::into_value(
                 self.pressed_scan_codes,
                 context,
             )?,
+            layout: <Option<InputKeyboardLayoutInfoVm> as VmAbiCodec>::into_value(
+                self.layout,
+                context,
+            )?,
+            is_composing: <bool as VmAbiCodec>::into_value(self.is_composing, context)?,
         })
     }
 
@@ -6454,15 +9367,180 @@ impl VmAbiCodec for InputKeyboardStateAbi<VmAbi> {
             timestamp_ns: <u64 as VmAbiCodec>::from_value(context, value.timestamp_ns)?,
             sequence: <u64 as VmAbiCodec>::from_value(context, value.sequence)?,
             device_id: <vm::StringHandle as VmAbiCodec>::from_value(context, value.device_id)?,
-            modifiers: <u32 as VmAbiCodec>::from_value(context, value.modifiers)?,
-            pressed_codes: <VmArray<u32> as VmAbiCodec>::from_value(context, value.pressed_codes)?,
+            backend_modifiers: <u32 as VmAbiCodec>::from_value(context, value.backend_modifiers)?,
+            modifier_state: <InputModifierStateVm as VmAbiCodec>::from_value(
+                context,
+                value.modifier_state,
+            )?,
+            pressed_codes: <VmArray<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.pressed_codes,
+            )?,
+            pressed_keys: <VmArray<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.pressed_keys,
+            )?,
+            pressed_backend_codes: <VmArray<u32> as VmAbiCodec>::from_value(
+                context,
+                value.pressed_backend_codes,
+            )?,
             pressed_scan_codes: <VmArray<u32> as VmAbiCodec>::from_value(
                 context,
                 value.pressed_scan_codes,
             )?,
+            layout: <Option<InputKeyboardLayoutInfoVm> as VmAbiCodec>::from_value(
+                context,
+                value.layout,
+            )?,
+            is_composing: <bool as VmAbiCodec>::from_value(context, value.is_composing)?,
         })
     }
 }
+
+/// ABI struct for InputModifierState.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct InputModifierState {
+    /// Whether Alt is active.
+    pub is_alt: bool,
+    /// Whether AltGraph is active.
+    pub is_alt_graph: bool,
+    /// Whether Caps Lock is active.
+    pub is_caps_lock: bool,
+    /// Whether Control is active.
+    pub is_control: bool,
+    /// Whether Fn is active.
+    pub is_fn: bool,
+    /// Whether one Fn lock is active.
+    pub is_fn_lock: bool,
+    /// Whether Meta is active.
+    pub is_meta: bool,
+    /// Whether Num Lock is active.
+    pub is_num_lock: bool,
+    /// Whether Scroll Lock is active.
+    pub is_scroll_lock: bool,
+    /// Whether Shift is active.
+    pub is_shift: bool,
+    /// Whether Symbol is active.
+    pub is_symbol: bool,
+    /// Whether one Symbol lock is active.
+    pub is_symbol_lock: bool,
+}
+
+pub type InputModifierStateVm = InputModifierState;
+
+impl VmAggregateCodec for InputModifierState {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputModifierState",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 12 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 12 fields",
+            ))
+            .boxed());
+        }
+        let field_is_alt = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_is_alt_graph =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_is_caps_lock =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_is_control = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_is_fn = <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_is_fn_lock = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_is_meta = <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_is_num_lock = <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_is_scroll_lock =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_is_shift = <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_is_symbol = <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_is_symbol_lock =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+        Ok(Self {
+            is_alt: field_is_alt,
+            is_alt_graph: field_is_alt_graph,
+            is_caps_lock: field_is_caps_lock,
+            is_control: field_is_control,
+            is_fn: field_is_fn,
+            is_fn_lock: field_is_fn_lock,
+            is_meta: field_is_meta,
+            is_num_lock: field_is_num_lock,
+            is_scroll_lock: field_is_scroll_lock,
+            is_shift: field_is_shift,
+            is_symbol: field_is_symbol,
+            is_symbol_lock: field_is_symbol_lock,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <bool as VmAggregateCodec>::encode_with_context(self.is_alt, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_alt_graph, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_caps_lock, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_control, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_fn, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_fn_lock, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_meta, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_num_lock, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_scroll_lock, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_shift, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_symbol, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_symbol_lock, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for InputModifierState.
+pub type InputModifierStateValue = InputModifierState;
+
+impl NativeAbiCodec for InputModifierState {
+    type Value = InputModifierStateValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for InputModifierState {
+    type Value = InputModifierStateValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for InputModifierState {}
 
 /// ABI struct for InputMonitorChangeEvent.
 #[repr(C)]
@@ -6917,6 +9995,8 @@ pub struct InputMonitorEventMetadataAbi<A: BindingAbi> {
     pub sequence: u64,
     /// Stable source device identifier.
     pub device_id: A::String,
+    /// Stable source instance identifier when available.
+    pub instance_id: Option<A::String>,
     /// Device kind when available.
     pub device_kind: InputDeviceKind,
     /// Whether the device is connected after this event.
@@ -6962,10 +10042,10 @@ impl VmAggregateCodec for InputMonitorEventMetadataAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        if slots.len() != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 5 fields",
+                "expected 6 fields",
             ))
             .boxed());
         }
@@ -6973,13 +10053,16 @@ impl VmAggregateCodec for InputMonitorEventMetadataAbi<VmAbi> {
         let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_device_id =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_instance_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_device_kind =
-            <InputDeviceKind as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_connected = <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <InputDeviceKind as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_connected = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
             device_id: field_device_id,
+            instance_id: field_instance_id,
             device_kind: field_device_kind,
             connected: field_connected,
         })
@@ -6993,6 +10076,10 @@ impl VmAggregateCodec for InputMonitorEventMetadataAbi<VmAbi> {
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.instance_id,
+                context,
+            )?,
             <InputDeviceKind as VmAggregateCodec>::encode_with_context(self.device_kind, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.connected, context)?,
         ];
@@ -7013,6 +10100,8 @@ pub struct InputMonitorEventMetadataValue {
     pub sequence: u64,
     /// Stable source device identifier.
     pub device_id: String,
+    /// Stable source instance identifier when available.
+    pub instance_id: Option<String>,
     /// Device kind when available.
     pub device_kind: InputDeviceKind,
     /// Whether the device is connected after this event.
@@ -7027,6 +10116,9 @@ impl NativeAbiCodec for InputMonitorEventMetadataAbi<NativeAbi> {
             timestamp_ns: unsafe { <u64 as NativeAbiCodec>::into_value(self.timestamp_ns)? },
             sequence: unsafe { <u64 as NativeAbiCodec>::into_value(self.sequence)? },
             device_id: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.device_id)? },
+            instance_id: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.instance_id)?
+            },
             device_kind: unsafe {
                 <InputDeviceKind as NativeAbiCodec>::into_value(self.device_kind)?
             },
@@ -7039,6 +10131,10 @@ impl NativeAbiCodec for InputMonitorEventMetadataAbi<NativeAbi> {
             timestamp_ns: <u64 as NativeAbiCodec>::from_value(binding, value.timestamp_ns),
             sequence: <u64 as NativeAbiCodec>::from_value(binding, value.sequence),
             device_id: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.device_id),
+            instance_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.instance_id,
+            ),
             device_kind: <InputDeviceKind as NativeAbiCodec>::from_value(
                 binding,
                 value.device_kind,
@@ -7059,6 +10155,10 @@ impl VmAbiCodec for InputMonitorEventMetadataAbi<VmAbi> {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
             sequence: <u64 as VmAbiCodec>::into_value(self.sequence, context)?,
             device_id: <vm::StringHandle as VmAbiCodec>::into_value(self.device_id, context)?,
+            instance_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.instance_id,
+                context,
+            )?,
             device_kind: <InputDeviceKind as VmAbiCodec>::into_value(self.device_kind, context)?,
             connected: <bool as VmAbiCodec>::into_value(self.connected, context)?,
         })
@@ -7072,6 +10172,10 @@ impl VmAbiCodec for InputMonitorEventMetadataAbi<VmAbi> {
             timestamp_ns: <u64 as VmAbiCodec>::from_value(context, value.timestamp_ns)?,
             sequence: <u64 as VmAbiCodec>::from_value(context, value.sequence)?,
             device_id: <vm::StringHandle as VmAbiCodec>::from_value(context, value.device_id)?,
+            instance_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.instance_id,
+            )?,
             device_kind: <InputDeviceKind as VmAbiCodec>::from_value(context, value.device_kind)?,
             connected: <bool as VmAbiCodec>::from_value(context, value.connected)?,
         })
@@ -7082,6 +10186,8 @@ impl VmAbiCodec for InputMonitorEventMetadataAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputPenState {
+    /// Pen tool kind.
+    pub tool_kind: InputPenToolKind,
     /// Pen pressure in the normalized range [0, 1] when available.
     pub pressure: f64,
     /// Pen tangential pressure in the normalized range [-1, 1] when available.
@@ -7090,6 +10196,12 @@ pub struct InputPenState {
     pub tilt_x: f64,
     /// Pen tilt around y axis in degrees when available.
     pub tilt_y: f64,
+    /// Pen altitude angle in radians when available.
+    pub altitude_angle_radians: Option<f64>,
+    /// Pen azimuth angle in radians when available.
+    pub azimuth_angle_radians: Option<f64>,
+    /// Hover distance from the surface when available.
+    pub hover_distance: Option<f64>,
     /// Pen barrel rotation in degrees when available.
     pub twist: f64,
     /// Whether the pen tip is currently in contact with the surface.
@@ -7115,26 +10227,38 @@ impl VmAggregateCodec for InputPenState {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
+        if slots.len() != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 7 fields",
+                "expected 11 fields",
             ))
             .boxed());
         }
-        let field_pressure = <f64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_tool_kind =
+            <InputPenToolKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_pressure = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_tangential_pressure =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_tilt_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_tilt_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_twist = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_in_contact = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_in_range = <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_tilt_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_tilt_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_altitude_angle_radians =
+            <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_azimuth_angle_radians =
+            <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_hover_distance =
+            <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_twist = <f64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_in_contact = <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_in_range = <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
         Ok(Self {
+            tool_kind: field_tool_kind,
             pressure: field_pressure,
             tangential_pressure: field_tangential_pressure,
             tilt_x: field_tilt_x,
             tilt_y: field_tilt_y,
+            altitude_angle_radians: field_altitude_angle_radians,
+            azimuth_angle_radians: field_azimuth_angle_radians,
+            hover_distance: field_hover_distance,
             twist: field_twist,
             in_contact: field_in_contact,
             in_range: field_in_range,
@@ -7146,10 +10270,20 @@ impl VmAggregateCodec for InputPenState {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
+            <InputPenToolKind as VmAggregateCodec>::encode_with_context(self.tool_kind, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.pressure, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.tangential_pressure, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.tilt_x, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.tilt_y, context)?,
+            <Option<f64> as VmAggregateCodec>::encode_with_context(
+                self.altitude_angle_radians,
+                context,
+            )?,
+            <Option<f64> as VmAggregateCodec>::encode_with_context(
+                self.azimuth_angle_radians,
+                context,
+            )?,
+            <Option<f64> as VmAggregateCodec>::encode_with_context(self.hover_distance, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.twist, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.in_contact, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.in_range, context)?,
@@ -7364,16 +10498,32 @@ impl VmAbiCodec for InputPointerButtonEventAbi<VmAbi> {
 pub struct InputPointerButtonEventPayload {
     /// Button action.
     pub action: InputEventAction,
+    /// Stable pointer identifier.
+    pub pointer_id: u64,
+    /// Pointer device family.
+    pub pointer_type: InputPointerType,
+    /// Whether this is the primary pointer for its type.
+    pub is_primary: bool,
+    /// Canonical button index when available.
+    pub button: i16,
+    /// Canonical pressed-button bitset after this event.
+    pub buttons: u32,
     /// Backend-native button code.
     pub backend_code: u32,
     /// Backend-native button value.
     pub backend_value: i64,
     /// Pointer x coordinate.
-    pub x: f64,
+    pub position_x: f64,
     /// Pointer y coordinate.
-    pub y: f64,
-    /// Backend modifier bitset.
-    pub modifiers: u32,
+    pub position_y: f64,
+    /// Coordinate space for the reported position.
+    pub coordinate_space: InputCoordinateSpace,
+    /// Normalized modifier and lock state.
+    pub modifier_state: InputModifierState,
+    /// Contact geometry when available.
+    pub contact: Option<InputPointerContactGeometry>,
+    /// Pen-specific state when available.
+    pub pen: Option<InputPenState>,
 }
 
 pub type InputPointerButtonEventPayloadVm = InputPointerButtonEventPayload;
@@ -7393,28 +10543,51 @@ impl VmAggregateCodec for InputPointerButtonEventPayload {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
+        if slots.len() != 14 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 6 fields",
+                "expected 14 fields",
             ))
             .boxed());
         }
         let field_action =
             <InputEventAction as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_backend_code = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_pointer_id = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_pointer_type =
+            <InputPointerType as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_is_primary = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_button = <i16 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_buttons = <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_backend_code = <u32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         let field_backend_value =
-            <i64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_modifiers = <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <i64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_position_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_position_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_coordinate_space =
+            <InputCoordinateSpace as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_modifier_state =
+            <InputModifierStateVm as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+        let field_contact =
+            <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[12],
+            )?;
+        let field_pen =
+            <Option<InputPenStateVm> as VmAggregateCodec>::decode_with_context(context, slots[13])?;
         Ok(Self {
             action: field_action,
+            pointer_id: field_pointer_id,
+            pointer_type: field_pointer_type,
+            is_primary: field_is_primary,
+            button: field_button,
+            buttons: field_buttons,
             backend_code: field_backend_code,
             backend_value: field_backend_value,
-            x: field_x,
-            y: field_y,
-            modifiers: field_modifiers,
+            position_x: field_position_x,
+            position_y: field_position_y,
+            coordinate_space: field_coordinate_space,
+            modifier_state: field_modifier_state,
+            contact: field_contact,
+            pen: field_pen,
         })
     }
 
@@ -7424,11 +10597,31 @@ impl VmAggregateCodec for InputPointerButtonEventPayload {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <InputEventAction as VmAggregateCodec>::encode_with_context(self.action, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.pointer_id, context)?,
+            <InputPointerType as VmAggregateCodec>::encode_with_context(
+                self.pointer_type,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_primary, context)?,
+            <i16 as VmAggregateCodec>::encode_with_context(self.button, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.buttons, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.backend_code, context)?,
             <i64 as VmAggregateCodec>::encode_with_context(self.backend_value, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.modifiers, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.position_x, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.position_y, context)?,
+            <InputCoordinateSpace as VmAggregateCodec>::encode_with_context(
+                self.coordinate_space,
+                context,
+            )?,
+            <InputModifierStateVm as VmAggregateCodec>::encode_with_context(
+                self.modifier_state,
+                context,
+            )?,
+            <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::encode_with_context(
+                self.contact,
+                context,
+            )?,
+            <Option<InputPenStateVm> as VmAggregateCodec>::encode_with_context(self.pen, context)?,
         ];
         context
             .allocate_aggregate(slots)
@@ -7471,6 +10664,97 @@ impl VmAbiCodec for InputPointerButtonEventPayload {
 
 impl VmCollectionElement for InputPointerButtonEventPayload {}
 
+/// ABI struct for InputPointerContactGeometry.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct InputPointerContactGeometry {
+    /// Contact width in the reported coordinate space.
+    pub width: f64,
+    /// Contact height in the reported coordinate space.
+    pub height: f64,
+}
+
+pub type InputPointerContactGeometryVm = InputPointerContactGeometry;
+
+impl VmAggregateCodec for InputPointerContactGeometry {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputPointerContactGeometry",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_width = <f64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_height = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            width: field_width,
+            height: field_height,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <f64 as VmAggregateCodec>::encode_with_context(self.width, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.height, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for InputPointerContactGeometry.
+pub type InputPointerContactGeometryValue = InputPointerContactGeometry;
+
+impl NativeAbiCodec for InputPointerContactGeometry {
+    type Value = InputPointerContactGeometryValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for InputPointerContactGeometry {
+    type Value = InputPointerContactGeometryValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for InputPointerContactGeometry {}
+
 /// ABI struct for InputPointerMotionEvent.
 #[repr(C)]
 pub struct InputPointerMotionEventAbi<A: BindingAbi> {
@@ -7479,7 +10763,7 @@ pub struct InputPointerMotionEventAbi<A: BindingAbi> {
     /// Shared event metadata.
     pub metadata: platform_input::InputEventMetadataAbi<A>,
     /// Pointer-motion payload.
-    pub payload: InputPointerMotionEventPayload,
+    pub payload: platform_input::InputPointerMotionEventPayloadAbi<A>,
 }
 
 pub type InputPointerMotionEvent = InputPointerMotionEventAbi<NativeAbi>;
@@ -7574,7 +10858,7 @@ pub struct InputPointerMotionEventValue {
     /// Shared event metadata.
     pub metadata: InputEventMetadataValue,
     /// Pointer-motion payload.
-    pub payload: InputPointerMotionEventPayload,
+    pub payload: InputPointerMotionEventPayloadValue,
 }
 
 impl NativeAbiCodec for InputPointerMotionEventAbi<NativeAbi> {
@@ -7636,21 +10920,64 @@ impl VmAbiCodec for InputPointerMotionEventAbi<VmAbi> {
 
 /// ABI struct for InputPointerMotionEventPayload.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct InputPointerMotionEventPayload {
-    /// Pointer x coordinate or delta.
-    pub x: f64,
-    /// Pointer y coordinate or delta.
-    pub y: f64,
-    /// Backend button bitset.
+pub struct InputPointerMotionEventPayloadAbi<A: BindingAbi> {
+    /// Stable pointer identifier.
+    pub pointer_id: u64,
+    /// Pointer device family.
+    pub pointer_type: InputPointerType,
+    /// Whether this is the primary pointer for its type.
+    pub is_primary: bool,
+    /// Coordinate space for the reported position.
+    pub coordinate_space: InputCoordinateSpace,
+    /// Absolute x coordinate when available.
+    pub position_x: f64,
+    /// Absolute y coordinate when available.
+    pub position_y: f64,
+    /// Relative x delta when available.
+    pub delta_x: f64,
+    /// Relative y delta when available.
+    pub delta_y: f64,
+    /// Canonical pressed-button bitset.
     pub buttons: u32,
-    /// Backend modifier bitset.
-    pub modifiers: u32,
+    /// Backend button bitset.
+    pub backend_buttons: u32,
+    /// Normalized modifier and lock state.
+    pub modifier_state: InputModifierState,
+    /// Contact geometry when available.
+    pub contact: Option<InputPointerContactGeometry>,
+    /// Pen-specific state when available.
+    pub pen: Option<InputPenState>,
+    /// Coalesced motion samples represented by this update.
+    pub coalesced_samples: A::Slice<InputPointerMotionSample>,
+    /// Predicted motion samples when the backend exposes them.
+    pub predicted_samples: A::Slice<InputPointerMotionSample>,
 }
 
-pub type InputPointerMotionEventPayloadVm = InputPointerMotionEventPayload;
+pub type InputPointerMotionEventPayload = InputPointerMotionEventPayloadAbi<NativeAbi>;
+pub type InputPointerMotionEventPayloadVm = InputPointerMotionEventPayloadAbi<VmAbi>;
 
-impl VmAggregateCodec for InputPointerMotionEventPayload {
+impl<A: BindingAbi> std::fmt::Debug for InputPointerMotionEventPayloadAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputPointerMotionEventPayloadAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputPointerMotionEventPayloadAbi<NativeAbi> {}
+impl Clone for InputPointerMotionEventPayloadAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputPointerMotionEventPayloadAbi<VmAbi> {}
+impl Clone for InputPointerMotionEventPayloadAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputPointerMotionEventPayloadAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -7665,22 +10992,58 @@ impl VmAggregateCodec for InputPointerMotionEventPayload {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 15 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 15 fields",
             ))
             .boxed());
         }
-        let field_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_buttons = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_modifiers = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_pointer_id = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_pointer_type =
+            <InputPointerType as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_is_primary = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_coordinate_space =
+            <InputCoordinateSpace as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_position_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_position_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_delta_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_delta_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_buttons = <u32 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_backend_buttons =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_modifier_state =
+            <InputModifierStateVm as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_contact =
+            <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[11],
+            )?;
+        let field_pen =
+            <Option<InputPenStateVm> as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+        let field_coalesced_samples =
+            <VmSlice<InputPointerMotionSampleVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[13],
+            )?;
+        let field_predicted_samples =
+            <VmSlice<InputPointerMotionSampleVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[14],
+            )?;
         Ok(Self {
-            x: field_x,
-            y: field_y,
+            pointer_id: field_pointer_id,
+            pointer_type: field_pointer_type,
+            is_primary: field_is_primary,
+            coordinate_space: field_coordinate_space,
+            position_x: field_position_x,
+            position_y: field_position_y,
+            delta_x: field_delta_x,
+            delta_y: field_delta_y,
             buttons: field_buttons,
-            modifiers: field_modifiers,
+            backend_buttons: field_backend_buttons,
+            modifier_state: field_modifier_state,
+            contact: field_contact,
+            pen: field_pen,
+            coalesced_samples: field_coalesced_samples,
+            predicted_samples: field_predicted_samples,
         })
     }
 
@@ -7689,10 +11052,39 @@ impl VmAggregateCodec for InputPointerMotionEventPayload {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.pointer_id, context)?,
+            <InputPointerType as VmAggregateCodec>::encode_with_context(
+                self.pointer_type,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_primary, context)?,
+            <InputCoordinateSpace as VmAggregateCodec>::encode_with_context(
+                self.coordinate_space,
+                context,
+            )?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.position_x, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.position_y, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.delta_x, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.delta_y, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.buttons, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.modifiers, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.backend_buttons, context)?,
+            <InputModifierStateVm as VmAggregateCodec>::encode_with_context(
+                self.modifier_state,
+                context,
+            )?,
+            <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::encode_with_context(
+                self.contact,
+                context,
+            )?,
+            <Option<InputPenStateVm> as VmAggregateCodec>::encode_with_context(self.pen, context)?,
+            <VmSlice<InputPointerMotionSampleVm> as VmAggregateCodec>::encode_with_context(
+                self.coalesced_samples,
+                context,
+            )?,
+            <VmSlice<InputPointerMotionSampleVm> as VmAggregateCodec>::encode_with_context(
+                self.predicted_samples,
+                context,
+            )?,
         ];
         context
             .allocate_aggregate(slots)
@@ -7700,11 +11092,308 @@ impl VmAggregateCodec for InputPointerMotionEventPayload {
     }
 }
 
-/// Value type for InputPointerMotionEventPayload.
-pub type InputPointerMotionEventPayloadValue = InputPointerMotionEventPayload;
+impl VmCollectionElement for InputPointerMotionEventPayloadAbi<VmAbi> {}
 
-impl NativeAbiCodec for InputPointerMotionEventPayload {
+/// Value type for InputPointerMotionEventPayload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputPointerMotionEventPayloadValue {
+    /// Stable pointer identifier.
+    pub pointer_id: u64,
+    /// Pointer device family.
+    pub pointer_type: InputPointerType,
+    /// Whether this is the primary pointer for its type.
+    pub is_primary: bool,
+    /// Coordinate space for the reported position.
+    pub coordinate_space: InputCoordinateSpace,
+    /// Absolute x coordinate when available.
+    pub position_x: f64,
+    /// Absolute y coordinate when available.
+    pub position_y: f64,
+    /// Relative x delta when available.
+    pub delta_x: f64,
+    /// Relative y delta when available.
+    pub delta_y: f64,
+    /// Canonical pressed-button bitset.
+    pub buttons: u32,
+    /// Backend button bitset.
+    pub backend_buttons: u32,
+    /// Normalized modifier and lock state.
+    pub modifier_state: InputModifierState,
+    /// Contact geometry when available.
+    pub contact: Option<InputPointerContactGeometry>,
+    /// Pen-specific state when available.
+    pub pen: Option<InputPenState>,
+    /// Coalesced motion samples represented by this update.
+    pub coalesced_samples: Vec<InputPointerMotionSample>,
+    /// Predicted motion samples when the backend exposes them.
+    pub predicted_samples: Vec<InputPointerMotionSample>,
+}
+
+impl NativeAbiCodec for InputPointerMotionEventPayloadAbi<NativeAbi> {
     type Value = InputPointerMotionEventPayloadValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(InputPointerMotionEventPayloadValue {
+            pointer_id: unsafe { <u64 as NativeAbiCodec>::into_value(self.pointer_id)? },
+            pointer_type: unsafe {
+                <InputPointerType as NativeAbiCodec>::into_value(self.pointer_type)?
+            },
+            is_primary: unsafe { <bool as NativeAbiCodec>::into_value(self.is_primary)? },
+            coordinate_space: unsafe {
+                <InputCoordinateSpace as NativeAbiCodec>::into_value(self.coordinate_space)?
+            },
+            position_x: unsafe { <f64 as NativeAbiCodec>::into_value(self.position_x)? },
+            position_y: unsafe { <f64 as NativeAbiCodec>::into_value(self.position_y)? },
+            delta_x: unsafe { <f64 as NativeAbiCodec>::into_value(self.delta_x)? },
+            delta_y: unsafe { <f64 as NativeAbiCodec>::into_value(self.delta_y)? },
+            buttons: unsafe { <u32 as NativeAbiCodec>::into_value(self.buttons)? },
+            backend_buttons: unsafe { <u32 as NativeAbiCodec>::into_value(self.backend_buttons)? },
+            modifier_state: unsafe {
+                <InputModifierState as NativeAbiCodec>::into_value(self.modifier_state)?
+            },
+            contact: unsafe {
+                <Option<InputPointerContactGeometry> as NativeAbiCodec>::into_value(self.contact)?
+            },
+            pen: unsafe { <Option<InputPenState> as NativeAbiCodec>::into_value(self.pen)? },
+            coalesced_samples: unsafe {
+                <NativeSlice<InputPointerMotionSample> as NativeAbiCodec>::into_value(
+                    self.coalesced_samples,
+                )?
+            },
+            predicted_samples: unsafe {
+                <NativeSlice<InputPointerMotionSample> as NativeAbiCodec>::into_value(
+                    self.predicted_samples,
+                )?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            pointer_id: <u64 as NativeAbiCodec>::from_value(binding, value.pointer_id),
+            pointer_type: <InputPointerType as NativeAbiCodec>::from_value(
+                binding,
+                value.pointer_type,
+            ),
+            is_primary: <bool as NativeAbiCodec>::from_value(binding, value.is_primary),
+            coordinate_space: <InputCoordinateSpace as NativeAbiCodec>::from_value(
+                binding,
+                value.coordinate_space,
+            ),
+            position_x: <f64 as NativeAbiCodec>::from_value(binding, value.position_x),
+            position_y: <f64 as NativeAbiCodec>::from_value(binding, value.position_y),
+            delta_x: <f64 as NativeAbiCodec>::from_value(binding, value.delta_x),
+            delta_y: <f64 as NativeAbiCodec>::from_value(binding, value.delta_y),
+            buttons: <u32 as NativeAbiCodec>::from_value(binding, value.buttons),
+            backend_buttons: <u32 as NativeAbiCodec>::from_value(binding, value.backend_buttons),
+            modifier_state: <InputModifierState as NativeAbiCodec>::from_value(
+                binding,
+                value.modifier_state,
+            ),
+            contact: <Option<InputPointerContactGeometry> as NativeAbiCodec>::from_value(
+                binding,
+                value.contact,
+            ),
+            pen: <Option<InputPenState> as NativeAbiCodec>::from_value(binding, value.pen),
+            coalesced_samples:
+                <NativeSlice<InputPointerMotionSample> as NativeAbiCodec>::from_value(
+                    binding,
+                    value.coalesced_samples,
+                ),
+            predicted_samples:
+                <NativeSlice<InputPointerMotionSample> as NativeAbiCodec>::from_value(
+                    binding,
+                    value.predicted_samples,
+                ),
+        }
+    }
+}
+
+impl VmAbiCodec for InputPointerMotionEventPayloadAbi<VmAbi> {
+    type Value = InputPointerMotionEventPayloadValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(InputPointerMotionEventPayloadValue {
+            pointer_id: <u64 as VmAbiCodec>::into_value(self.pointer_id, context)?,
+            pointer_type: <InputPointerType as VmAbiCodec>::into_value(self.pointer_type, context)?,
+            is_primary: <bool as VmAbiCodec>::into_value(self.is_primary, context)?,
+            coordinate_space: <InputCoordinateSpace as VmAbiCodec>::into_value(
+                self.coordinate_space,
+                context,
+            )?,
+            position_x: <f64 as VmAbiCodec>::into_value(self.position_x, context)?,
+            position_y: <f64 as VmAbiCodec>::into_value(self.position_y, context)?,
+            delta_x: <f64 as VmAbiCodec>::into_value(self.delta_x, context)?,
+            delta_y: <f64 as VmAbiCodec>::into_value(self.delta_y, context)?,
+            buttons: <u32 as VmAbiCodec>::into_value(self.buttons, context)?,
+            backend_buttons: <u32 as VmAbiCodec>::into_value(self.backend_buttons, context)?,
+            modifier_state: <InputModifierStateVm as VmAbiCodec>::into_value(
+                self.modifier_state,
+                context,
+            )?,
+            contact: <Option<InputPointerContactGeometryVm> as VmAbiCodec>::into_value(
+                self.contact,
+                context,
+            )?,
+            pen: <Option<InputPenStateVm> as VmAbiCodec>::into_value(self.pen, context)?,
+            coalesced_samples: <VmSlice<InputPointerMotionSampleVm> as VmAbiCodec>::into_value(
+                self.coalesced_samples,
+                context,
+            )?,
+            predicted_samples: <VmSlice<InputPointerMotionSampleVm> as VmAbiCodec>::into_value(
+                self.predicted_samples,
+                context,
+            )?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            pointer_id: <u64 as VmAbiCodec>::from_value(context, value.pointer_id)?,
+            pointer_type: <InputPointerType as VmAbiCodec>::from_value(
+                context,
+                value.pointer_type,
+            )?,
+            is_primary: <bool as VmAbiCodec>::from_value(context, value.is_primary)?,
+            coordinate_space: <InputCoordinateSpace as VmAbiCodec>::from_value(
+                context,
+                value.coordinate_space,
+            )?,
+            position_x: <f64 as VmAbiCodec>::from_value(context, value.position_x)?,
+            position_y: <f64 as VmAbiCodec>::from_value(context, value.position_y)?,
+            delta_x: <f64 as VmAbiCodec>::from_value(context, value.delta_x)?,
+            delta_y: <f64 as VmAbiCodec>::from_value(context, value.delta_y)?,
+            buttons: <u32 as VmAbiCodec>::from_value(context, value.buttons)?,
+            backend_buttons: <u32 as VmAbiCodec>::from_value(context, value.backend_buttons)?,
+            modifier_state: <InputModifierStateVm as VmAbiCodec>::from_value(
+                context,
+                value.modifier_state,
+            )?,
+            contact: <Option<InputPointerContactGeometryVm> as VmAbiCodec>::from_value(
+                context,
+                value.contact,
+            )?,
+            pen: <Option<InputPenStateVm> as VmAbiCodec>::from_value(context, value.pen)?,
+            coalesced_samples: <VmSlice<InputPointerMotionSampleVm> as VmAbiCodec>::from_value(
+                context,
+                value.coalesced_samples,
+            )?,
+            predicted_samples: <VmSlice<InputPointerMotionSampleVm> as VmAbiCodec>::from_value(
+                context,
+                value.predicted_samples,
+            )?,
+        })
+    }
+}
+
+/// ABI struct for InputPointerMotionSample.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct InputPointerMotionSample {
+    /// Coordinate space for the reported position.
+    pub coordinate_space: InputCoordinateSpace,
+    /// Absolute x coordinate when available.
+    pub position_x: f64,
+    /// Absolute y coordinate when available.
+    pub position_y: f64,
+    /// Relative x delta when available.
+    pub delta_x: f64,
+    /// Relative y delta when available.
+    pub delta_y: f64,
+    /// Contact geometry for this sample when available.
+    pub contact: Option<InputPointerContactGeometry>,
+    /// Pen-specific state for this sample when available.
+    pub pen: Option<InputPenState>,
+    /// Monotonic sample timestamp in nanoseconds.
+    pub timestamp_ns: u64,
+}
+
+pub type InputPointerMotionSampleVm = InputPointerMotionSample;
+
+impl VmAggregateCodec for InputPointerMotionSample {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputPointerMotionSample",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 8 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 8 fields",
+            ))
+            .boxed());
+        }
+        let field_coordinate_space =
+            <InputCoordinateSpace as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_position_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_position_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_delta_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_delta_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_contact =
+            <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[5],
+            )?;
+        let field_pen =
+            <Option<InputPenStateVm> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        Ok(Self {
+            coordinate_space: field_coordinate_space,
+            position_x: field_position_x,
+            position_y: field_position_y,
+            delta_x: field_delta_x,
+            delta_y: field_delta_y,
+            contact: field_contact,
+            pen: field_pen,
+            timestamp_ns: field_timestamp_ns,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <InputCoordinateSpace as VmAggregateCodec>::encode_with_context(
+                self.coordinate_space,
+                context,
+            )?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.position_x, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.position_y, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.delta_x, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.delta_y, context)?,
+            <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::encode_with_context(
+                self.contact,
+                context,
+            )?,
+            <Option<InputPenStateVm> as VmAggregateCodec>::encode_with_context(self.pen, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for InputPointerMotionSample.
+pub type InputPointerMotionSampleValue = InputPointerMotionSample;
+
+impl NativeAbiCodec for InputPointerMotionSample {
+    type Value = InputPointerMotionSampleValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(self)
@@ -7715,8 +11404,8 @@ impl NativeAbiCodec for InputPointerMotionEventPayload {
     }
 }
 
-impl VmAbiCodec for InputPointerMotionEventPayload {
-    type Value = InputPointerMotionEventPayloadValue;
+impl VmAbiCodec for InputPointerMotionSample {
+    type Value = InputPointerMotionSampleValue;
 
     fn into_value(
         self,
@@ -7733,27 +11422,68 @@ impl VmAbiCodec for InputPointerMotionEventPayload {
     }
 }
 
-impl VmCollectionElement for InputPointerMotionEventPayload {}
+impl VmCollectionElement for InputPointerMotionSample {}
 
 /// ABI struct for InputPointerState.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct InputPointerState {
-    /// Pointer position or delta x value.
+pub struct InputPointerStateAbi<A: BindingAbi> {
+    /// Monotonic update timestamp in nanoseconds.
+    pub timestamp_ns: u64,
+    /// Monotonic sequence number generated by the backend stream.
+    pub sequence: u64,
+    /// Stable source device identifier.
+    pub device_id: A::String,
+    /// Stable pointer identifier for this active pointer.
+    pub pointer_id: u64,
+    /// Pointer device family.
+    pub pointer_type: InputPointerType,
+    /// Whether this is the primary pointer for its type.
+    pub is_primary: bool,
+    /// Position coordinate space.
+    pub coordinate_space: InputCoordinateSpace,
+    /// Pointer x position.
     pub x: f64,
-    /// Pointer position or delta y value.
+    /// Pointer y position.
     pub y: f64,
-    /// Backend button bitset for currently pressed buttons.
+    /// Relative x delta since the previous snapshot when available.
+    pub delta_x: f64,
+    /// Relative y delta since the previous snapshot when available.
+    pub delta_y: f64,
+    /// Canonical pressed-button bitset.
     pub buttons: u32,
-    /// Backend modifier bitset.
-    pub modifiers: u32,
+    /// Normalized modifier and lock state.
+    pub modifier_state: InputModifierState,
     /// Pen-specific state when available.
     pub pen: Option<InputPenState>,
+    /// Contact geometry when available.
+    pub contact: Option<InputPointerContactGeometry>,
 }
 
-pub type InputPointerStateVm = InputPointerState;
+pub type InputPointerState = InputPointerStateAbi<NativeAbi>;
+pub type InputPointerStateVm = InputPointerStateAbi<VmAbi>;
 
-impl VmAggregateCodec for InputPointerState {
+impl<A: BindingAbi> std::fmt::Debug for InputPointerStateAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputPointerStateAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputPointerStateAbi<NativeAbi> {}
+impl Clone for InputPointerStateAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputPointerStateAbi<VmAbi> {}
+impl Clone for InputPointerStateAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputPointerStateAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -7768,25 +11498,52 @@ impl VmAggregateCodec for InputPointerState {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        if slots.len() != 15 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 5 fields",
+                "expected 15 fields",
             ))
             .boxed());
         }
-        let field_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_buttons = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_modifiers = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_device_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_pointer_id = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_pointer_type =
+            <InputPointerType as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_is_primary = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_coordinate_space =
+            <InputCoordinateSpace as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_delta_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_delta_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_buttons = <u32 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+        let field_modifier_state =
+            <InputModifierStateVm as VmAggregateCodec>::decode_with_context(context, slots[12])?;
         let field_pen =
-            <Option<InputPenStateVm> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <Option<InputPenStateVm> as VmAggregateCodec>::decode_with_context(context, slots[13])?;
+        let field_contact =
+            <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[14],
+            )?;
         Ok(Self {
+            timestamp_ns: field_timestamp_ns,
+            sequence: field_sequence,
+            device_id: field_device_id,
+            pointer_id: field_pointer_id,
+            pointer_type: field_pointer_type,
+            is_primary: field_is_primary,
+            coordinate_space: field_coordinate_space,
             x: field_x,
             y: field_y,
+            delta_x: field_delta_x,
+            delta_y: field_delta_y,
             buttons: field_buttons,
-            modifiers: field_modifiers,
+            modifier_state: field_modifier_state,
             pen: field_pen,
+            contact: field_contact,
         })
     }
 
@@ -7795,11 +11552,33 @@ impl VmAggregateCodec for InputPointerState {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.pointer_id, context)?,
+            <InputPointerType as VmAggregateCodec>::encode_with_context(
+                self.pointer_type,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_primary, context)?,
+            <InputCoordinateSpace as VmAggregateCodec>::encode_with_context(
+                self.coordinate_space,
+                context,
+            )?,
             <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.delta_x, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.delta_y, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.buttons, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.modifiers, context)?,
+            <InputModifierStateVm as VmAggregateCodec>::encode_with_context(
+                self.modifier_state,
+                context,
+            )?,
             <Option<InputPenStateVm> as VmAggregateCodec>::encode_with_context(self.pen, context)?,
+            <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::encode_with_context(
+                self.contact,
+                context,
+            )?,
         ];
         context
             .allocate_aggregate(slots)
@@ -7807,40 +11586,177 @@ impl VmAggregateCodec for InputPointerState {
     }
 }
 
-/// Value type for InputPointerState.
-pub type InputPointerStateValue = InputPointerState;
+impl VmCollectionElement for InputPointerStateAbi<VmAbi> {}
 
-impl NativeAbiCodec for InputPointerState {
+/// Value type for InputPointerState.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputPointerStateValue {
+    /// Monotonic update timestamp in nanoseconds.
+    pub timestamp_ns: u64,
+    /// Monotonic sequence number generated by the backend stream.
+    pub sequence: u64,
+    /// Stable source device identifier.
+    pub device_id: String,
+    /// Stable pointer identifier for this active pointer.
+    pub pointer_id: u64,
+    /// Pointer device family.
+    pub pointer_type: InputPointerType,
+    /// Whether this is the primary pointer for its type.
+    pub is_primary: bool,
+    /// Position coordinate space.
+    pub coordinate_space: InputCoordinateSpace,
+    /// Pointer x position.
+    pub x: f64,
+    /// Pointer y position.
+    pub y: f64,
+    /// Relative x delta since the previous snapshot when available.
+    pub delta_x: f64,
+    /// Relative y delta since the previous snapshot when available.
+    pub delta_y: f64,
+    /// Canonical pressed-button bitset.
+    pub buttons: u32,
+    /// Normalized modifier and lock state.
+    pub modifier_state: InputModifierState,
+    /// Pen-specific state when available.
+    pub pen: Option<InputPenState>,
+    /// Contact geometry when available.
+    pub contact: Option<InputPointerContactGeometry>,
+}
+
+impl NativeAbiCodec for InputPointerStateAbi<NativeAbi> {
     type Value = InputPointerStateValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
+        Ok(InputPointerStateValue {
+            timestamp_ns: unsafe { <u64 as NativeAbiCodec>::into_value(self.timestamp_ns)? },
+            sequence: unsafe { <u64 as NativeAbiCodec>::into_value(self.sequence)? },
+            device_id: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.device_id)? },
+            pointer_id: unsafe { <u64 as NativeAbiCodec>::into_value(self.pointer_id)? },
+            pointer_type: unsafe {
+                <InputPointerType as NativeAbiCodec>::into_value(self.pointer_type)?
+            },
+            is_primary: unsafe { <bool as NativeAbiCodec>::into_value(self.is_primary)? },
+            coordinate_space: unsafe {
+                <InputCoordinateSpace as NativeAbiCodec>::into_value(self.coordinate_space)?
+            },
+            x: unsafe { <f64 as NativeAbiCodec>::into_value(self.x)? },
+            y: unsafe { <f64 as NativeAbiCodec>::into_value(self.y)? },
+            delta_x: unsafe { <f64 as NativeAbiCodec>::into_value(self.delta_x)? },
+            delta_y: unsafe { <f64 as NativeAbiCodec>::into_value(self.delta_y)? },
+            buttons: unsafe { <u32 as NativeAbiCodec>::into_value(self.buttons)? },
+            modifier_state: unsafe {
+                <InputModifierState as NativeAbiCodec>::into_value(self.modifier_state)?
+            },
+            pen: unsafe { <Option<InputPenState> as NativeAbiCodec>::into_value(self.pen)? },
+            contact: unsafe {
+                <Option<InputPointerContactGeometry> as NativeAbiCodec>::into_value(self.contact)?
+            },
+        })
     }
 
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            timestamp_ns: <u64 as NativeAbiCodec>::from_value(binding, value.timestamp_ns),
+            sequence: <u64 as NativeAbiCodec>::from_value(binding, value.sequence),
+            device_id: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.device_id),
+            pointer_id: <u64 as NativeAbiCodec>::from_value(binding, value.pointer_id),
+            pointer_type: <InputPointerType as NativeAbiCodec>::from_value(
+                binding,
+                value.pointer_type,
+            ),
+            is_primary: <bool as NativeAbiCodec>::from_value(binding, value.is_primary),
+            coordinate_space: <InputCoordinateSpace as NativeAbiCodec>::from_value(
+                binding,
+                value.coordinate_space,
+            ),
+            x: <f64 as NativeAbiCodec>::from_value(binding, value.x),
+            y: <f64 as NativeAbiCodec>::from_value(binding, value.y),
+            delta_x: <f64 as NativeAbiCodec>::from_value(binding, value.delta_x),
+            delta_y: <f64 as NativeAbiCodec>::from_value(binding, value.delta_y),
+            buttons: <u32 as NativeAbiCodec>::from_value(binding, value.buttons),
+            modifier_state: <InputModifierState as NativeAbiCodec>::from_value(
+                binding,
+                value.modifier_state,
+            ),
+            pen: <Option<InputPenState> as NativeAbiCodec>::from_value(binding, value.pen),
+            contact: <Option<InputPointerContactGeometry> as NativeAbiCodec>::from_value(
+                binding,
+                value.contact,
+            ),
+        }
     }
 }
 
-impl VmAbiCodec for InputPointerState {
+impl VmAbiCodec for InputPointerStateAbi<VmAbi> {
     type Value = InputPointerStateValue;
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
+        Ok(InputPointerStateValue {
+            timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
+            sequence: <u64 as VmAbiCodec>::into_value(self.sequence, context)?,
+            device_id: <vm::StringHandle as VmAbiCodec>::into_value(self.device_id, context)?,
+            pointer_id: <u64 as VmAbiCodec>::into_value(self.pointer_id, context)?,
+            pointer_type: <InputPointerType as VmAbiCodec>::into_value(self.pointer_type, context)?,
+            is_primary: <bool as VmAbiCodec>::into_value(self.is_primary, context)?,
+            coordinate_space: <InputCoordinateSpace as VmAbiCodec>::into_value(
+                self.coordinate_space,
+                context,
+            )?,
+            x: <f64 as VmAbiCodec>::into_value(self.x, context)?,
+            y: <f64 as VmAbiCodec>::into_value(self.y, context)?,
+            delta_x: <f64 as VmAbiCodec>::into_value(self.delta_x, context)?,
+            delta_y: <f64 as VmAbiCodec>::into_value(self.delta_y, context)?,
+            buttons: <u32 as VmAbiCodec>::into_value(self.buttons, context)?,
+            modifier_state: <InputModifierStateVm as VmAbiCodec>::into_value(
+                self.modifier_state,
+                context,
+            )?,
+            pen: <Option<InputPenStateVm> as VmAbiCodec>::into_value(self.pen, context)?,
+            contact: <Option<InputPointerContactGeometryVm> as VmAbiCodec>::into_value(
+                self.contact,
+                context,
+            )?,
+        })
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalCallContext<'_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
-        Ok(value)
+        Ok(Self {
+            timestamp_ns: <u64 as VmAbiCodec>::from_value(context, value.timestamp_ns)?,
+            sequence: <u64 as VmAbiCodec>::from_value(context, value.sequence)?,
+            device_id: <vm::StringHandle as VmAbiCodec>::from_value(context, value.device_id)?,
+            pointer_id: <u64 as VmAbiCodec>::from_value(context, value.pointer_id)?,
+            pointer_type: <InputPointerType as VmAbiCodec>::from_value(
+                context,
+                value.pointer_type,
+            )?,
+            is_primary: <bool as VmAbiCodec>::from_value(context, value.is_primary)?,
+            coordinate_space: <InputCoordinateSpace as VmAbiCodec>::from_value(
+                context,
+                value.coordinate_space,
+            )?,
+            x: <f64 as VmAbiCodec>::from_value(context, value.x)?,
+            y: <f64 as VmAbiCodec>::from_value(context, value.y)?,
+            delta_x: <f64 as VmAbiCodec>::from_value(context, value.delta_x)?,
+            delta_y: <f64 as VmAbiCodec>::from_value(context, value.delta_y)?,
+            buttons: <u32 as VmAbiCodec>::from_value(context, value.buttons)?,
+            modifier_state: <InputModifierStateVm as VmAbiCodec>::from_value(
+                context,
+                value.modifier_state,
+            )?,
+            pen: <Option<InputPenStateVm> as VmAbiCodec>::from_value(context, value.pen)?,
+            contact: <Option<InputPointerContactGeometryVm> as VmAbiCodec>::from_value(
+                context,
+                value.contact,
+            )?,
+        })
     }
 }
-
-impl VmCollectionElement for InputPointerState {}
 
 /// ABI struct for InputRawHidReport.
 #[repr(C)]
@@ -8154,16 +12070,26 @@ impl VmAbiCodec for InputScrollEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputScrollEventPayload {
+    /// Stable pointer identifier when available.
+    pub pointer_id: Option<u64>,
+    /// Pointer device family when available.
+    pub pointer_type: Option<InputPointerType>,
+    /// Scroll delta unit.
+    pub delta_mode: InputWheelDeltaMode,
     /// Horizontal wheel delta.
-    pub wheel_x: f64,
+    pub delta_x: f64,
     /// Vertical wheel delta.
-    pub wheel_y: f64,
+    pub delta_y: f64,
     /// Pointer x coordinate.
-    pub x: f64,
+    pub position_x: f64,
     /// Pointer y coordinate.
-    pub y: f64,
-    /// Backend modifier bitset.
-    pub modifiers: u32,
+    pub position_y: f64,
+    /// Coordinate space for the reported position.
+    pub coordinate_space: InputCoordinateSpace,
+    /// Canonical pressed-button bitset.
+    pub buttons: u32,
+    /// Normalized modifier and lock state.
+    pub modifier_state: InputModifierState,
 }
 
 pub type InputScrollEventPayloadVm = InputScrollEventPayload;
@@ -8183,24 +12109,39 @@ impl VmAggregateCodec for InputScrollEventPayload {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        if slots.len() != 10 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 5 fields",
+                "expected 10 fields",
             ))
             .boxed());
         }
-        let field_wheel_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_wheel_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_modifiers = <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_pointer_id =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_pointer_type =
+            <Option<InputPointerType> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_delta_mode =
+            <InputWheelDeltaMode as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_delta_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_delta_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_position_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_position_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_coordinate_space =
+            <InputCoordinateSpace as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_buttons = <u32 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_modifier_state =
+            <InputModifierStateVm as VmAggregateCodec>::decode_with_context(context, slots[9])?;
         Ok(Self {
-            wheel_x: field_wheel_x,
-            wheel_y: field_wheel_y,
-            x: field_x,
-            y: field_y,
-            modifiers: field_modifiers,
+            pointer_id: field_pointer_id,
+            pointer_type: field_pointer_type,
+            delta_mode: field_delta_mode,
+            delta_x: field_delta_x,
+            delta_y: field_delta_y,
+            position_x: field_position_x,
+            position_y: field_position_y,
+            coordinate_space: field_coordinate_space,
+            buttons: field_buttons,
+            modifier_state: field_modifier_state,
         })
     }
 
@@ -8209,11 +12150,28 @@ impl VmAggregateCodec for InputScrollEventPayload {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <f64 as VmAggregateCodec>::encode_with_context(self.wheel_x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.wheel_y, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.modifiers, context)?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(self.pointer_id, context)?,
+            <Option<InputPointerType> as VmAggregateCodec>::encode_with_context(
+                self.pointer_type,
+                context,
+            )?,
+            <InputWheelDeltaMode as VmAggregateCodec>::encode_with_context(
+                self.delta_mode,
+                context,
+            )?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.delta_x, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.delta_y, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.position_x, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.position_y, context)?,
+            <InputCoordinateSpace as VmAggregateCodec>::encode_with_context(
+                self.coordinate_space,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.buttons, context)?,
+            <InputModifierStateVm as VmAggregateCodec>::encode_with_context(
+                self.modifier_state,
+                context,
+            )?,
         ];
         context
             .allocate_aggregate(slots)
@@ -8744,6 +12702,8 @@ pub struct InputSensorEventPayload {
     pub y: f64,
     /// Sensor z component when available.
     pub z: f64,
+    /// Sensor w component when available.
+    pub w: f64,
 }
 
 pub type InputSensorEventPayloadVm = InputSensorEventPayload;
@@ -8763,10 +12723,10 @@ impl VmAggregateCodec for InputSensorEventPayload {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
+        if slots.len() != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 6 fields",
+                "expected 7 fields",
             ))
             .boxed());
         }
@@ -8778,6 +12738,7 @@ impl VmAggregateCodec for InputSensorEventPayload {
         let field_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_z = <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_w = <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         Ok(Self {
             action: field_action,
             backend_code: field_backend_code,
@@ -8785,6 +12746,7 @@ impl VmAggregateCodec for InputSensorEventPayload {
             x: field_x,
             y: field_y,
             z: field_z,
+            w: field_w,
         })
     }
 
@@ -8799,6 +12761,7 @@ impl VmAggregateCodec for InputSensorEventPayload {
             <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.z, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.w, context)?,
         ];
         context
             .allocate_aggregate(slots)
@@ -9115,6 +13078,8 @@ impl VmAbiCodec for InputTextEventAbi<VmAbi> {
 pub struct InputTextEventPayloadAbi<A: BindingAbi> {
     /// UTF-8 text payload.
     pub text: A::String,
+    /// Whether this text emission belongs to one active composition session.
+    pub is_composing: bool,
 }
 
 pub type InputTextEventPayload = InputTextEventPayloadAbi<NativeAbi>;
@@ -9156,25 +13121,31 @@ impl VmAggregateCodec for InputTextEventPayloadAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 1 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
         let field_text =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        Ok(Self { text: field_text })
+        let field_is_composing =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            text: field_text,
+            is_composing: field_is_composing,
+        })
     }
 
     fn encode_with_context(
         self,
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
-            self.text, context,
-        )?];
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.text, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_composing, context)?,
+        ];
         context
             .allocate_aggregate(slots)
             .map_err(Box::<RuntimeError>::from)
@@ -9188,6 +13159,8 @@ impl VmCollectionElement for InputTextEventPayloadAbi<VmAbi> {}
 pub struct InputTextEventPayloadValue {
     /// UTF-8 text payload.
     pub text: String,
+    /// Whether this text emission belongs to one active composition session.
+    pub is_composing: bool,
 }
 
 impl NativeAbiCodec for InputTextEventPayloadAbi<NativeAbi> {
@@ -9196,12 +13169,14 @@ impl NativeAbiCodec for InputTextEventPayloadAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(InputTextEventPayloadValue {
             text: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.text)? },
+            is_composing: unsafe { <bool as NativeAbiCodec>::into_value(self.is_composing)? },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             text: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.text),
+            is_composing: <bool as NativeAbiCodec>::from_value(binding, value.is_composing),
         }
     }
 }
@@ -9215,6 +13190,7 @@ impl VmAbiCodec for InputTextEventPayloadAbi<VmAbi> {
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputTextEventPayloadValue {
             text: <vm::StringHandle as VmAbiCodec>::into_value(self.text, context)?,
+            is_composing: <bool as VmAbiCodec>::into_value(self.is_composing, context)?,
         })
     }
 
@@ -9224,6 +13200,7 @@ impl VmAbiCodec for InputTextEventPayloadAbi<VmAbi> {
     ) -> RuntimeResult<Self> {
         Ok(Self {
             text: <vm::StringHandle as VmAbiCodec>::from_value(context, value.text)?,
+            is_composing: <bool as VmAbiCodec>::from_value(context, value.is_composing)?,
         })
     }
 }
@@ -9333,6 +13310,97 @@ impl VmAbiCodec for InputTextInputArea {
 }
 
 impl VmCollectionElement for InputTextInputArea {}
+
+/// ABI struct for InputTextRange.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct InputTextRange {
+    /// Inclusive start offset.
+    pub start_offset: u32,
+    /// Exclusive end offset.
+    pub end_offset: u32,
+}
+
+pub type InputTextRangeVm = InputTextRange;
+
+impl VmAggregateCodec for InputTextRange {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputTextRange",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_start_offset = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_end_offset = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            start_offset: field_start_offset,
+            end_offset: field_end_offset,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u32 as VmAggregateCodec>::encode_with_context(self.start_offset, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.end_offset, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for InputTextRange.
+pub type InputTextRangeValue = InputTextRange;
+
+impl NativeAbiCodec for InputTextRange {
+    type Value = InputTextRangeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for InputTextRange {
+    type Value = InputTextRangeValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+impl VmCollectionElement for InputTextRange {}
 
 /// ABI struct for InputTouchContactState.
 #[repr(C)]
@@ -9619,14 +13687,26 @@ impl VmAbiCodec for InputTouchEventAbi<VmAbi> {
 pub struct InputTouchEventPayload {
     /// Touch action.
     pub action: InputEventAction,
-    /// Backend contact identifier.
-    pub contact_id: u32,
+    /// Stable pointer identifier for this contact.
+    pub pointer_id: u64,
+    /// Whether this is the primary touch contact.
+    pub is_primary: bool,
     /// Contact x coordinate.
-    pub x: f64,
+    pub position_x: f64,
     /// Contact y coordinate.
-    pub y: f64,
+    pub position_y: f64,
+    /// Coordinate space for the reported position.
+    pub coordinate_space: InputCoordinateSpace,
     /// Contact pressure when available.
     pub pressure: f64,
+    /// Contact geometry when available.
+    pub contact: Option<InputPointerContactGeometry>,
+    /// Contact tilt around x axis in degrees when available.
+    pub tilt_x: f64,
+    /// Contact tilt around y axis in degrees when available.
+    pub tilt_y: f64,
+    /// Contact twist in degrees when available.
+    pub twist: f64,
 }
 
 pub type InputTouchEventPayloadVm = InputTouchEventPayload;
@@ -9646,25 +13726,41 @@ impl VmAggregateCodec for InputTouchEventPayload {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        if slots.len() != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 5 fields",
+                "expected 11 fields",
             ))
             .boxed());
         }
         let field_action =
             <InputEventAction as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_contact_id = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_pressure = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_pointer_id = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_is_primary = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_position_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_position_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_coordinate_space =
+            <InputCoordinateSpace as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_pressure = <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_contact =
+            <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[7],
+            )?;
+        let field_tilt_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_tilt_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_twist = <f64 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
         Ok(Self {
             action: field_action,
-            contact_id: field_contact_id,
-            x: field_x,
-            y: field_y,
+            pointer_id: field_pointer_id,
+            is_primary: field_is_primary,
+            position_x: field_position_x,
+            position_y: field_position_y,
+            coordinate_space: field_coordinate_space,
             pressure: field_pressure,
+            contact: field_contact,
+            tilt_x: field_tilt_x,
+            tilt_y: field_tilt_y,
+            twist: field_twist,
         })
     }
 
@@ -9674,10 +13770,22 @@ impl VmAggregateCodec for InputTouchEventPayload {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <InputEventAction as VmAggregateCodec>::encode_with_context(self.action, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.contact_id, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.pointer_id, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_primary, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.position_x, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.position_y, context)?,
+            <InputCoordinateSpace as VmAggregateCodec>::encode_with_context(
+                self.coordinate_space,
+                context,
+            )?,
             <f64 as VmAggregateCodec>::encode_with_context(self.pressure, context)?,
+            <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::encode_with_context(
+                self.contact,
+                context,
+            )?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.tilt_x, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.tilt_y, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.twist, context)?,
         ];
         context
             .allocate_aggregate(slots)
@@ -10247,6 +14355,103 @@ impl VmAbiCodec for OsPathUtf16Abi<VmAbi> {
     }
 }
 
+/// Replay struct for ClipboardItem.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ClipboarditemReplayRecord {
+    /// Item presentation style.
+    pub presentation_style: ClipboardPresentationStyle,
+    /// Item representations in provider order.
+    pub representations: Vec<ClipboarditemrepresentationReplayRecord>,
+}
+
+/// Replay struct for ClipboardItemDescriptor.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ClipboarditemdescriptorReplayRecord {
+    /// Item presentation style.
+    pub presentation_style: ClipboardPresentationStyle,
+    /// Item representations in provider order.
+    pub representations: Vec<ClipboarditemrepresentationdescriptorReplayRecord>,
+}
+
+/// Replay struct for ClipboardItemRepresentation.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ClipboarditemrepresentationReplayRecord {
+    /// MIME type or platform-native format identifier.
+    pub mime_type: String,
+    /// Representation kind.
+    pub kind: ClipboardItemRepresentationKind,
+    /// Suggested representation name when available.
+    pub name: Option<String>,
+    /// Text payload for string representations.
+    pub text: Option<String>,
+    /// Filesystem payload for file representations.
+    pub path: Option<fs::OspathReplayRecord>,
+    /// Binary payload for binary representations.
+    pub bytes: Option<Vec<u8>>,
+}
+
+/// Replay struct for ClipboardItemRepresentationDescriptor.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ClipboarditemrepresentationdescriptorReplayRecord {
+    /// MIME type or platform-native format identifier.
+    pub mime_type: String,
+    /// Representation kind.
+    pub kind: ClipboardItemRepresentationKind,
+    /// Suggested representation name when available.
+    pub name: Option<String>,
+    /// Whether one filesystem representation refers to one directory.
+    pub is_directory: bool,
+    /// Representation length in bytes when available.
+    pub byte_length: Option<u64>,
+}
+
+/// Replay struct for DisplayDragItemDescriptor.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DisplaydragitemdescriptorReplayRecord {
+    /// Item kind.
+    pub kind: display::DisplayDragItemKind,
+    /// MIME type or platform-native type identifier when available.
+    pub item_type: Option<String>,
+    /// Suggested display name for file or binary payloads.
+    pub name: Option<String>,
+    /// Whether one file payload refers to one directory.
+    pub is_directory: bool,
+    /// Payload length in bytes when available.
+    pub byte_length: Option<u64>,
+}
+
+/// Replay struct for DisplayDragTransfer.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DisplaydragtransferReplayRecord {
+    /// Stable drag session handle.
+    pub session: resource::DisplayDragSessionHandle,
+    /// Whether the transfer originated outside the current runtime.
+    pub is_external: bool,
+    /// Operations offered by the drag source.
+    pub allowed_operations: display::DisplayDragOperationMask,
+    /// Host-proposed operation from source state and gesture modifiers when known.
+    pub proposed_operation: Option<display::DisplayDragOperation>,
+    /// Transfer position in window-local logical coordinates when available.
+    pub position: Option<display::DisplayDragPosition>,
+    /// Offered transfer items in source order.
+    pub items: Vec<display::DisplaydragitemdescriptorReplayRecord>,
+}
+
+/// Replay struct for InputClipboardCommandEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputclipboardcommandeventReplayRecord {
+    /// Discriminator for this text event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: InputeventmetadataReplayRecord,
+    /// Clipboard command kind.
+    pub command: InputClipboardCommandType,
+    /// Clipboard item descriptors when the command carries readable clipboard data.
+    pub clipboard_items: Option<Vec<ClipboarditemdescriptorReplayRecord>>,
+    /// Whether this command belongs to one active composition session.
+    pub is_composing: bool,
+}
+
 /// Replay struct for InputCompositionEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputcompositioneventReplayRecord {
@@ -10298,6 +14503,8 @@ pub struct InputdevicecapabilitiesReplayRecord {
     pub supports_text_input: bool,
     /// Whether composition events are supported.
     pub supports_composition: bool,
+    /// Whether edit-intent events are supported.
+    pub supports_edit_intents: bool,
     /// Whether whole-device rumble is supported.
     pub supports_rumble: bool,
     /// Whether trigger rumble is supported.
@@ -10312,6 +14519,14 @@ pub struct InputdevicecapabilitiesReplayRecord {
     pub supports_raw_hid: bool,
     /// Whether player-index assignment is supported.
     pub supports_player_index: bool,
+    /// Whether pointer-event coalescing metadata is supported.
+    pub supports_pointer_coalescing: bool,
+    /// Whether predicted pointer updates are supported.
+    pub supports_pointer_prediction: bool,
+    /// Whether stylus hover distance is supported.
+    pub supports_pen_hover_distance: bool,
+    /// Whether stylus azimuth and altitude angles are supported.
+    pub supports_pen_orientation_angles: bool,
 }
 
 /// Replay struct for InputDeviceDescriptor.
@@ -10323,6 +14538,12 @@ pub struct InputdevicedescriptorReplayRecord {
     pub instance_id: String,
     /// Stable backend hardware identifier when available.
     pub hardware_id: String,
+    /// Stable backend serial number when available.
+    pub serial_number: Option<String>,
+    /// Stable backend location identifier when available.
+    pub location_id: Option<String>,
+    /// Stable gamepad-style guid when available.
+    pub guid: Option<String>,
     /// Host device name.
     pub name: String,
     /// Backend transport name when available.
@@ -10377,48 +14598,25 @@ pub struct InputdeviceeventReplayRecord {
     pub payload: InputDeviceEventPayload,
 }
 
-/// Replay struct for InputDragDropFilePayload.
+/// Replay struct for InputEditIntentEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct InputdragdropfilepayloadReplayRecord {
-    /// Dragged path payload.
-    pub path: Option<fs::OspathReplayRecord>,
-    /// Drop position in desktop coordinates when provided by the backend.
-    pub position: Option<InputDragDropPosition>,
-    /// Effective operation when the backend reports it.
-    pub operation: Option<InputDragDropOperation>,
-}
-
-/// Replay struct for InputDragDropHoverLeavePayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct InputdragdrophoverleavepayloadReplayRecord {
-    /// Last hovered path payload when available.
-    pub previous_path: Option<fs::OspathReplayRecord>,
-    /// Last hover position in desktop coordinates when provided by the backend.
-    pub position: Option<InputDragDropPosition>,
-    /// Last effective operation when the backend reports it.
-    pub operation: Option<InputDragDropOperation>,
-}
-
-/// Replay struct for InputDragDropHoverPayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct InputdragdrophoverpayloadReplayRecord {
-    /// Hovered path payload when available.
-    pub path: Option<fs::OspathReplayRecord>,
-    /// Hover position in desktop coordinates when provided by the backend.
-    pub position: Option<InputDragDropPosition>,
-    /// Effective operation when the backend reports it.
-    pub operation: Option<InputDragDropOperation>,
-}
-
-/// Replay struct for InputDragDropTextPayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct InputdragdroptextpayloadReplayRecord {
-    /// Dragged text payload.
-    pub text: String,
-    /// Drop position in desktop coordinates when provided by the backend.
-    pub position: Option<InputDragDropPosition>,
-    /// Effective operation when the backend reports it.
-    pub operation: Option<InputDragDropOperation>,
+pub struct InputeditintenteventReplayRecord {
+    /// Discriminator for this text event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: InputeventmetadataReplayRecord,
+    /// Edit intent kind.
+    pub input_type: InputEditIntentType,
+    /// Text payload when the edit intent carries one direct string.
+    pub data: Option<String>,
+    /// Target text ranges in source order when the backend exposes them.
+    pub target_ranges: Vec<InputTextRange>,
+    /// Clipboard item descriptors when this edit intent originated from paste or yank.
+    pub clipboard_items: Option<Vec<ClipboarditemdescriptorReplayRecord>>,
+    /// Drag transfer metadata when this edit intent originated from a drop session.
+    pub drag: Option<display::DisplaydragtransferReplayRecord>,
+    /// Whether this edit intent belongs to one active composition session.
+    pub is_composing: bool,
 }
 
 /// Replay struct for InputEventMetadata.
@@ -10430,6 +14628,8 @@ pub struct InputeventmetadataReplayRecord {
     pub sequence: u64,
     /// Stable source device identifier.
     pub device_id: String,
+    /// Target window when this input event is routed to one concrete window.
+    pub target_window: Option<resource::WindowHandle>,
 }
 
 /// Replay struct for InputGamepadEvent.
@@ -10450,24 +14650,48 @@ pub struct InputgamepadstateReplayRecord {
     pub timestamp_ns: u64,
     /// Whether the gamepad is currently connected.
     pub connected: bool,
+    /// Stable source device identifier.
+    pub device_id: String,
+    /// Stable instance identifier when available.
+    pub instance_id: Option<String>,
+    /// Stable gamepad guid when available.
+    pub guid: Option<String>,
+    /// Raw backend device name when available.
+    pub raw_name: Option<String>,
+    /// Active mapping display name when available.
+    pub mapping_name: Option<String>,
     /// Active gamepad mapping type.
     pub mapping: InputGamepadMappingType,
     /// Connection type when available.
     pub connection_type: InputGamepadConnectionType,
-    /// Player index in the range [0, 15] when available, otherwise 255.
-    pub player_index: u8,
+    /// Player index in the range [0, 15] when available.
+    pub player_index: Option<u8>,
+    /// Stable web-style slot index when the backend or runtime assigns one.
+    pub slot_index: Option<u8>,
     /// Battery information snapshot.
     pub battery: InputGamepadBatteryStatus,
     /// Whether this device supports whole-device rumble.
     pub supports_rumble: bool,
     /// Whether this device supports trigger rumble.
     pub supports_trigger_rumble: bool,
+    /// Whether this device exposes motion sensors.
+    pub supports_motion_sensors: bool,
+    /// Whether this device exposes touch surfaces.
+    pub supports_touch: bool,
+    /// Whether this device supports light control.
+    pub supports_light: bool,
+    /// Whether motion sensors are currently enabled.
+    pub motion_sensors_enabled: bool,
+    /// Effective motion sensor sample rate in hertz when available.
+    pub motion_sample_rate_hz: Option<f64>,
     /// Axis values in normalized backend order.
     pub axes: Vec<f64>,
     /// Button values in normalized backend order.
     pub buttons: Vec<InputGamepadButtonState>,
     /// Touch contacts when the device exposes touch surfaces.
     pub touches: Vec<InputGamepadTouchState>,
+    /// Motion state when sensors are enabled and data is available.
+    pub motion: Option<InputGamepadMotionState>,
 }
 
 /// Replay struct for InputKeyEvent.
@@ -10478,7 +14702,47 @@ pub struct InputkeyeventReplayRecord {
     /// Shared event metadata.
     pub metadata: InputeventmetadataReplayRecord,
     /// Key payload.
-    pub payload: InputKeyEventPayload,
+    pub payload: InputkeyeventpayloadReplayRecord,
+}
+
+/// Replay struct for InputKeyEventPayload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputkeyeventpayloadReplayRecord {
+    /// Key action.
+    pub action: InputEventAction,
+    /// Normalized logical key value when available.
+    pub key: Option<String>,
+    /// Normalized physical code value when available.
+    pub code: Option<String>,
+    /// Physical key location.
+    pub location: InputKeyLocation,
+    /// Backend-native key code.
+    pub backend_code: u32,
+    /// Backend-native scan code when available.
+    pub backend_scan_code: u32,
+    /// Backend-native key value.
+    pub backend_value: i64,
+    /// Backend modifier bitset.
+    pub backend_modifiers: u32,
+    /// Normalized modifier and lock state.
+    pub modifier_state: InputModifierState,
+    /// Whether this key event is a repeat.
+    pub repeat: bool,
+    /// Whether this key event belongs to one active composition session.
+    pub is_composing: bool,
+}
+
+/// Replay struct for InputKeyboardLayoutInfo.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputkeyboardlayoutinfoReplayRecord {
+    /// Stable backend layout identifier when available.
+    pub layout_id: Option<String>,
+    /// Display name for the active layout when available.
+    pub name: Option<String>,
+    /// BCP 47 locale tag when available.
+    pub locale: Option<String>,
+    /// Backend variant identifier when available.
+    pub variant: Option<String>,
 }
 
 /// Replay struct for InputKeyboardState.
@@ -10491,11 +14755,21 @@ pub struct InputkeyboardstateReplayRecord {
     /// Stable source device identifier.
     pub device_id: String,
     /// Backend modifier bitset for active modifiers.
-    pub modifiers: u32,
+    pub backend_modifiers: u32,
+    /// Normalized modifier and lock state.
+    pub modifier_state: InputModifierState,
+    /// Normalized physical codes currently pressed.
+    pub pressed_codes: Vec<String>,
+    /// Normalized logical keys currently pressed.
+    pub pressed_keys: Vec<String>,
     /// Backend key codes currently pressed.
-    pub pressed_codes: Vec<u32>,
+    pub pressed_backend_codes: Vec<u32>,
     /// Backend hardware scan codes currently pressed when available.
     pub pressed_scan_codes: Vec<u32>,
+    /// Active layout metadata when available.
+    pub layout: Option<InputkeyboardlayoutinfoReplayRecord>,
+    /// Whether the keyboard is currently within one active composition session.
+    pub is_composing: bool,
 }
 
 /// Replay struct for InputMonitorChangeEvent.
@@ -10534,6 +14808,8 @@ pub struct InputmonitoreventmetadataReplayRecord {
     pub sequence: u64,
     /// Stable source device identifier.
     pub device_id: String,
+    /// Stable source instance identifier when available.
+    pub instance_id: Option<String>,
     /// Device kind when available.
     pub device_kind: InputDeviceKind,
     /// Whether the device is connected after this event.
@@ -10559,7 +14835,77 @@ pub struct InputpointermotioneventReplayRecord {
     /// Shared event metadata.
     pub metadata: InputeventmetadataReplayRecord,
     /// Pointer-motion payload.
-    pub payload: InputPointerMotionEventPayload,
+    pub payload: InputpointermotioneventpayloadReplayRecord,
+}
+
+/// Replay struct for InputPointerMotionEventPayload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputpointermotioneventpayloadReplayRecord {
+    /// Stable pointer identifier.
+    pub pointer_id: u64,
+    /// Pointer device family.
+    pub pointer_type: InputPointerType,
+    /// Whether this is the primary pointer for its type.
+    pub is_primary: bool,
+    /// Coordinate space for the reported position.
+    pub coordinate_space: InputCoordinateSpace,
+    /// Absolute x coordinate when available.
+    pub position_x: f64,
+    /// Absolute y coordinate when available.
+    pub position_y: f64,
+    /// Relative x delta when available.
+    pub delta_x: f64,
+    /// Relative y delta when available.
+    pub delta_y: f64,
+    /// Canonical pressed-button bitset.
+    pub buttons: u32,
+    /// Backend button bitset.
+    pub backend_buttons: u32,
+    /// Normalized modifier and lock state.
+    pub modifier_state: InputModifierState,
+    /// Contact geometry when available.
+    pub contact: Option<InputPointerContactGeometry>,
+    /// Pen-specific state when available.
+    pub pen: Option<InputPenState>,
+    /// Coalesced motion samples represented by this update.
+    pub coalesced_samples: Vec<InputPointerMotionSample>,
+    /// Predicted motion samples when the backend exposes them.
+    pub predicted_samples: Vec<InputPointerMotionSample>,
+}
+
+/// Replay struct for InputPointerState.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputpointerstateReplayRecord {
+    /// Monotonic update timestamp in nanoseconds.
+    pub timestamp_ns: u64,
+    /// Monotonic sequence number generated by the backend stream.
+    pub sequence: u64,
+    /// Stable source device identifier.
+    pub device_id: String,
+    /// Stable pointer identifier for this active pointer.
+    pub pointer_id: u64,
+    /// Pointer device family.
+    pub pointer_type: InputPointerType,
+    /// Whether this is the primary pointer for its type.
+    pub is_primary: bool,
+    /// Position coordinate space.
+    pub coordinate_space: InputCoordinateSpace,
+    /// Pointer x position.
+    pub x: f64,
+    /// Pointer y position.
+    pub y: f64,
+    /// Relative x delta since the previous snapshot when available.
+    pub delta_x: f64,
+    /// Relative y delta since the previous snapshot when available.
+    pub delta_y: f64,
+    /// Canonical pressed-button bitset.
+    pub buttons: u32,
+    /// Normalized modifier and lock state.
+    pub modifier_state: InputModifierState,
+    /// Pen-specific state when available.
+    pub pen: Option<InputPenState>,
+    /// Contact geometry when available.
+    pub contact: Option<InputPointerContactGeometry>,
 }
 
 /// Replay struct for InputRawHidReport.
@@ -10613,6 +14959,8 @@ pub struct InputtexteventReplayRecord {
 pub struct InputtexteventpayloadReplayRecord {
     /// UTF-8 text payload.
     pub text: String,
+    /// Whether this text emission belongs to one active composition session.
+    pub is_composing: bool,
 }
 
 /// Replay struct for InputTouchEvent.
