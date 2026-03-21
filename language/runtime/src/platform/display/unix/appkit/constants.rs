@@ -111,27 +111,17 @@ pub(crate) const WINDOW_EVENT_KIND_MODE_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_MODE_CHANGED.0;
 /// Window-event kind bit for `refreshRequested`.
 pub(crate) const WINDOW_EVENT_KIND_REFRESH_REQUESTED: u64 = 0;
-/// Window-event kind bit for `dropStarted`.
-pub(crate) const WINDOW_EVENT_KIND_DROP_STARTED: u64 =
-    display_platform::WINDOW_EVENT_KIND_DROP_STARTED.0;
-/// Window-event kind bit for `fileHovered`.
-pub(crate) const WINDOW_EVENT_KIND_FILE_HOVERED: u64 =
-    display_platform::WINDOW_EVENT_KIND_FILE_HOVERED.0;
-/// Window-event kind bit for `dropCancelled`.
-pub(crate) const WINDOW_EVENT_KIND_DROP_CANCELLED: u64 =
-    display_platform::WINDOW_EVENT_KIND_DROP_CANCELLED.0;
-/// Window-event kind bit for `dropCompleted`.
-pub(crate) const WINDOW_EVENT_KIND_DROP_COMPLETED: u64 =
-    display_platform::WINDOW_EVENT_KIND_DROP_COMPLETED.0;
-/// Window-event kind bit for `fileHoverLeft`.
-pub(crate) const WINDOW_EVENT_KIND_FILE_HOVER_LEFT: u64 =
-    display_platform::WINDOW_EVENT_KIND_FILE_HOVER_LEFT.0;
-/// Window-event kind bit for `fileDropped`.
-pub(crate) const WINDOW_EVENT_KIND_FILE_DROPPED: u64 =
-    display_platform::WINDOW_EVENT_KIND_FILE_DROPPED.0;
-/// Window-event kind bit for `textDropped`.
-pub(crate) const WINDOW_EVENT_KIND_TEXT_DROPPED: u64 =
-    display_platform::WINDOW_EVENT_KIND_TEXT_DROPPED.0;
+/// Window-event kind bit for `dragEntered`.
+pub(crate) const WINDOW_EVENT_KIND_DRAG_ENTERED: u64 =
+    display_platform::WINDOW_EVENT_KIND_DRAG_ENTERED.0;
+/// Window-event kind bit for `dragUpdated`.
+pub(crate) const WINDOW_EVENT_KIND_DRAG_UPDATED: u64 =
+    display_platform::WINDOW_EVENT_KIND_DRAG_UPDATED.0;
+/// Window-event kind bit for `dragExited`.
+pub(crate) const WINDOW_EVENT_KIND_DRAG_EXITED: u64 =
+    display_platform::WINDOW_EVENT_KIND_DRAG_EXITED.0;
+/// Window-event kind bit for `dropped`.
+pub(crate) const WINDOW_EVENT_KIND_DROPPED: u64 = display_platform::WINDOW_EVENT_KIND_DROPPED.0;
 /// Window-event bit mask for all window variants.
 pub(crate) const WINDOW_EVENT_KIND_MASK_ALL: u64 = WINDOW_EVENT_KIND_CREATED
     | WINDOW_EVENT_KIND_CLOSE_REQUESTED
@@ -155,10 +145,7 @@ pub(crate) const WINDOW_EVENT_KIND_MASK_ALL: u64 = WINDOW_EVENT_KIND_CREATED
     | WINDOW_EVENT_KIND_ASPECT_RATIO_CHANGED
     | WINDOW_EVENT_KIND_MODE_CHANGED
     | WINDOW_EVENT_KIND_REFRESH_REQUESTED
-    | WINDOW_EVENT_KIND_DROP_STARTED
-    | WINDOW_EVENT_KIND_FILE_HOVERED
-    | WINDOW_EVENT_KIND_DROP_CANCELLED
-    | WINDOW_EVENT_KIND_DROP_COMPLETED
-    | WINDOW_EVENT_KIND_FILE_HOVER_LEFT
-    | WINDOW_EVENT_KIND_FILE_DROPPED
-    | WINDOW_EVENT_KIND_TEXT_DROPPED;
+    | WINDOW_EVENT_KIND_DRAG_ENTERED
+    | WINDOW_EVENT_KIND_DRAG_UPDATED
+    | WINDOW_EVENT_KIND_DRAG_EXITED
+    | WINDOW_EVENT_KIND_DROPPED;

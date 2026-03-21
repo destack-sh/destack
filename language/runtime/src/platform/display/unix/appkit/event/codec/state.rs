@@ -374,13 +374,10 @@ pub(crate) fn window_state_event_from_record(
             },
         }),
 
-        // drop events are routed through the drop codec
-        WindowEventRecordKind::DropStarted { .. }
-        | WindowEventRecordKind::FileHovered { .. }
-        | WindowEventRecordKind::DropCancelled { .. }
-        | WindowEventRecordKind::DropCompleted { .. }
-        | WindowEventRecordKind::FileHoverLeft { .. }
-        | WindowEventRecordKind::FileDropped { .. }
-        | WindowEventRecordKind::TextDropped { .. } => unreachable!(),
+        // drag events are routed through the drag codec
+        WindowEventRecordKind::DragEntered { .. }
+        | WindowEventRecordKind::DragUpdated { .. }
+        | WindowEventRecordKind::DragExited { .. }
+        | WindowEventRecordKind::Dropped { .. } => unreachable!(),
     }
 }

@@ -14,37 +14,37 @@ use crate::platform::display::{
     DisplayBeginFrameOpenOptions, DisplayBeginFrameOpenOptionsVm, DisplayColorSpace,
     DisplayColorState, DisplayColorStateVm, DisplayDescriptor, DisplayDescriptorChangedEvent,
     DisplayDescriptorChangedEventVm, DisplayDescriptorChangedPayload,
-    DisplayDescriptorChangedPayloadVm, DisplayDescriptorVm, DisplayEventOverflowPolicy,
-    DisplayEventQueueOptions, DisplayEventQueueOptionsVm, DisplayGammaRamp, DisplayGammaRampVm,
-    DisplayHdrMode, DisplayMetricChangedMask, DisplayMode, DisplayModeChangedEvent,
-    DisplayModeChangedEventVm, DisplayModeChangedPayload, DisplayModeChangedPayloadVm,
-    DisplayModeVm, DisplayMonitorEvent, DisplayMonitorEventFilter, DisplayMonitorEventFilterVm,
-    DisplayMonitorEventKindMask, DisplayMonitorEventMetadata, DisplayMonitorEventMetadataVm,
-    DisplayMonitorEventOpenOptions, DisplayMonitorEventOpenOptionsVm, DisplayMonitorEventVm,
-    DisplayMonitorListRequest, DisplayMonitorListRequestVm, DisplayMonitorOpenOptions,
-    DisplayMonitorOpenOptionsVm, DisplayOrientation, DisplayPixelFormat,
-    DisplayPrimaryChangedEvent, DisplayPrimaryChangedEventVm, DisplayPrimaryPayload,
-    DisplayPrimaryPayloadVm, DisplayRemovedEvent, DisplayRemovedEventVm, DisplayRemovedPayload,
-    DisplayRemovedPayloadVm, DisplaySupportStatus, WindowAspectRatio,
-    WindowAspectRatioChangedEvent, WindowAspectRatioChangedEventVm, WindowAspectRatioPayload,
-    WindowAspectRatioPayloadVm, WindowAspectRatioVm, WindowAttentionLevel,
-    WindowBorderlessModeOptions, WindowBorderlessModeOptionsVm, WindowChromeChangedEvent,
-    WindowChromeChangedEventVm, WindowChromeKind, WindowChromePayload, WindowChromePayloadVm,
-    WindowCloseRequestedEvent, WindowCloseRequestedEventVm, WindowContentRectChangedEvent,
-    WindowContentRectChangedEventVm, WindowContentRectPayload, WindowContentRectPayloadVm,
-    WindowCreatedEvent, WindowCreatedEventVm, WindowCursorIcon, WindowCursorMode, WindowDescriptor,
-    WindowDescriptorVm, WindowDestroyedEvent, WindowDestroyedEventVm, WindowDisplayChangedEvent,
-    WindowDisplayChangedEventVm, WindowDisplayPayload, WindowDisplayPayloadVm,
-    WindowDropCancelledEvent, WindowDropCancelledEventVm, WindowDropCompletedEvent,
-    WindowDropCompletedEventVm, WindowDropFilePayload, WindowDropFilePayloadVm,
-    WindowDropHoverLeavePayload, WindowDropHoverLeavePayloadVm, WindowDropHoverPayload,
-    WindowDropHoverPayloadVm, WindowDropStartedEvent, WindowDropStartedEventVm,
-    WindowDropTextPayload, WindowDropTextPayloadVm, WindowEvent, WindowEventFilter,
-    WindowEventFilterVm, WindowEventKindMask, WindowEventMetadata, WindowEventMetadataVm,
-    WindowEventOpenOptions, WindowEventOpenOptionsVm, WindowEventVm,
+    DisplayDescriptorChangedPayloadVm, DisplayDescriptorVm, DisplayDragBeginOptions,
+    DisplayDragBeginOptionsVm, DisplayDragItemDescriptor, DisplayDragItemDescriptorVm,
+    DisplayDragItemKind, DisplayDragOperation, DisplayDragOperationMask, DisplayDragPosition,
+    DisplayDragPositionVm, DisplayDragPreview, DisplayDragPreviewVm, DisplayDragSourceItem,
+    DisplayDragSourceItemVm, DisplayDragTransfer, DisplayDragTransferVm,
+    DisplayEventOverflowPolicy, DisplayEventQueueOptions, DisplayEventQueueOptionsVm,
+    DisplayGammaRamp, DisplayGammaRampVm, DisplayHdrMode, DisplayMetricChangedMask, DisplayMode,
+    DisplayModeChangedEvent, DisplayModeChangedEventVm, DisplayModeChangedPayload,
+    DisplayModeChangedPayloadVm, DisplayModeVm, DisplayMonitorEvent, DisplayMonitorEventFilter,
+    DisplayMonitorEventFilterVm, DisplayMonitorEventKindMask, DisplayMonitorEventMetadata,
+    DisplayMonitorEventMetadataVm, DisplayMonitorEventOpenOptions,
+    DisplayMonitorEventOpenOptionsVm, DisplayMonitorEventVm, DisplayMonitorListRequest,
+    DisplayMonitorListRequestVm, DisplayMonitorOpenOptions, DisplayMonitorOpenOptionsVm,
+    DisplayOrientation, DisplayPixelFormat, DisplayPrimaryChangedEvent,
+    DisplayPrimaryChangedEventVm, DisplayPrimaryPayload, DisplayPrimaryPayloadVm,
+    DisplayRemovedEvent, DisplayRemovedEventVm, DisplayRemovedPayload, DisplayRemovedPayloadVm,
+    DisplaySupportStatus, WindowAspectRatio, WindowAspectRatioChangedEvent,
+    WindowAspectRatioChangedEventVm, WindowAspectRatioPayload, WindowAspectRatioPayloadVm,
+    WindowAspectRatioVm, WindowAttentionLevel, WindowBorderlessModeOptions,
+    WindowBorderlessModeOptionsVm, WindowChromeChangedEvent, WindowChromeChangedEventVm,
+    WindowChromeKind, WindowChromePayload, WindowChromePayloadVm, WindowCloseRequestedEvent,
+    WindowCloseRequestedEventVm, WindowContentRectChangedEvent, WindowContentRectChangedEventVm,
+    WindowContentRectPayload, WindowContentRectPayloadVm, WindowCreatedEvent, WindowCreatedEventVm,
+    WindowCursorIcon, WindowCursorMode, WindowDescriptor, WindowDescriptorVm, WindowDestroyedEvent,
+    WindowDestroyedEventVm, WindowDisplayChangedEvent, WindowDisplayChangedEventVm,
+    WindowDisplayPayload, WindowDisplayPayloadVm, WindowDragEnteredEvent, WindowDragEnteredEventVm,
+    WindowDragExitedEvent, WindowDragExitedEventVm, WindowDragUpdatedEvent,
+    WindowDragUpdatedEventVm, WindowDroppedEvent, WindowDroppedEventVm, WindowEvent,
+    WindowEventFilter, WindowEventFilterVm, WindowEventKindMask, WindowEventMetadata,
+    WindowEventMetadataVm, WindowEventOpenOptions, WindowEventOpenOptionsVm, WindowEventVm,
     WindowExclusiveFullscreenModeOptions, WindowExclusiveFullscreenModeOptionsVm,
-    WindowFileDroppedEvent, WindowFileDroppedEventVm, WindowFileHoverLeftEvent,
-    WindowFileHoverLeftEventVm, WindowFileHoveredEvent, WindowFileHoveredEventVm,
     WindowFocusChangedEvent, WindowFocusChangedEventVm, WindowFocusPayload, WindowFocusPayloadVm,
     WindowFramebufferSizeChangedEvent, WindowFramebufferSizeChangedEventVm,
     WindowFramebufferSizePayload, WindowFramebufferSizePayloadVm, WindowIconImage,
@@ -69,13 +69,13 @@ use crate::platform::display::{
     WindowSizeConstraints, WindowSizeConstraintsVm, WindowSizePayload, WindowSizePayloadVm,
     WindowState, WindowStateVm, WindowTaskbarVisibilityChangedEvent,
     WindowTaskbarVisibilityChangedEventVm, WindowTaskbarVisibilityPayload,
-    WindowTaskbarVisibilityPayloadVm, WindowTextDroppedEvent, WindowTextDroppedEventVm,
-    WindowTheme, WindowThemeChangedEvent, WindowThemeChangedEventVm, WindowThemePayload,
-    WindowThemePayloadVm, WindowTransientChangedEvent, WindowTransientChangedEventVm,
-    WindowTransientPayload, WindowTransientPayloadVm, WindowVisibility,
-    WindowVisibilityChangedEvent, WindowVisibilityChangedEventVm, WindowVisibilityPayload,
-    WindowVisibilityPayloadVm, WindowWindowedModeOptions, WindowWindowedModeOptionsVm,
-    native as display_native, vm as display_vm,
+    WindowTaskbarVisibilityPayloadVm, WindowTheme, WindowThemeChangedEvent,
+    WindowThemeChangedEventVm, WindowThemePayload, WindowThemePayloadVm,
+    WindowTransientChangedEvent, WindowTransientChangedEventVm, WindowTransientPayload,
+    WindowTransientPayloadVm, WindowVisibility, WindowVisibilityChangedEvent,
+    WindowVisibilityChangedEventVm, WindowVisibilityPayload, WindowVisibilityPayloadVm,
+    WindowWindowedModeOptions, WindowWindowedModeOptionsVm, native as display_native,
+    vm as display_vm,
 };
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
@@ -183,6 +183,254 @@ impl<'call> DisplayHarnessContext<'call> {
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
             }
+        }
+    }
+
+    /// Begin one source-side drag session.
+    ///
+    /// Start one host drag session from the selected window.
+    /// The call returns the operation chosen by the destination, or `None` when the session is cancelled or rejected.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_display_drag_begin(
+        &mut self,
+        options: HarnessValue<DisplayDragBeginOptions, DisplayDragBeginOptionsVm>,
+    ) -> RuntimeResult<DisplayDragOperation> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                let out =
+                    display_vm::destack_display_drag_begin(self.call_context, context, options)?;
+                Ok(out)
+            }
+            None => {
+                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<DisplayDragOperation>::uninit();
+                unsafe {
+                    display_native::destack_display_drag_begin(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        options,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Close one drag session handle.
+    ///
+    /// Release one drag session and any cached transfer payloads that were materialized for it.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window.events`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_drag_session_close(
+        &mut self,
+        session: resource::DisplayDragSessionHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                display_vm::destack_display_drag_session_close(self.call_context, context, session)
+            }
+            None => unsafe {
+                display_native::destack_display_drag_session_close(self.call_context, session)
+            },
+        }
+    }
+
+    /// Read one binary item from one drag session.
+    ///
+    /// Read one binary payload for the selected drag item.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window.events`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_drag_session_read_bytes(
+        &mut self,
+        session: resource::DisplayDragSessionHandle,
+        itemindex: u32,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_drag_session_read_bytes(
+                    self.call_context,
+                    context,
+                    session,
+                    itemindex,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    display_native::destack_display_drag_session_read_bytes(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        session,
+                        itemindex,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read one filesystem item from one drag session.
+    ///
+    /// Read one filesystem payload for the selected drag item when the backend exposes one local path.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window.events`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_drag_session_read_path(
+        &mut self,
+        session: resource::DisplayDragSessionHandle,
+        itemindex: u32,
+    ) -> RuntimeResult<HarnessValue<fs::OsPath, fs::OsPathVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_drag_session_read_path(
+                    self.call_context,
+                    context,
+                    session,
+                    itemindex,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<fs::OsPath>::uninit();
+                unsafe {
+                    display_native::destack_display_drag_session_read_path(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        session,
+                        itemindex,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read one text item from one drag session.
+    ///
+    /// Read one text payload for the selected drag item.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window.events`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_drag_session_read_text(
+        &mut self,
+        session: resource::DisplayDragSessionHandle,
+        itemindex: u32,
+    ) -> RuntimeResult<HarnessValue<NativeStringRef, vm::StringHandle>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_drag_session_read_text(
+                    self.call_context,
+                    context,
+                    session,
+                    itemindex,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeStringRef>::uninit();
+                unsafe {
+                    display_native::destack_display_drag_session_read_text(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        session,
+                        itemindex,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Select one accepted operation for one drag session.
+    ///
+    /// Update the destination-selected operation for the current drag session.
+    /// `None` rejects the current drop target.
+    ///
+    /// # Platform
+    /// Android, Unix, and Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window.events`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_display_drag_session_set_operation(
+        &mut self,
+        session: resource::DisplayDragSessionHandle,
+        operation: DisplayDragOperation,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => display_vm::destack_display_drag_session_set_operation(
+                self.call_context,
+                context,
+                session,
+                operation,
+            ),
+            None => unsafe {
+                display_native::destack_display_drag_session_set_operation(
+                    self.call_context,
+                    session,
+                    operation,
+                )
+            },
         }
     }
 

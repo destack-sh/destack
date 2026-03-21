@@ -5,11 +5,21 @@ use objc2::runtime::ProtocolObject;
 use objc2_app_kit::{NSDragOperation, NSDraggingInfo, NSPasteboard, NSPasteboardTypeString};
 use objc2_foundation::{NSArray, NSPoint, NSURL};
 
-use crate::platform::display::WindowPosition;
-use crate::platform::resource::WindowHandle;
-
+use crate::platform::ResourceTable;
+use crate::platform::display::core::{
+    DisplayDragSession, DisplayDragSessionItem, DisplayDragSessionItemValue,
+    display_drag_operation_mask, open_external_drag_session,
+};
 use crate::platform::display::unix::appkit::core::{self as appkit_core, AppKitWindowHost};
 use crate::platform::display::unix::appkit::event;
+use crate::platform::display::{
+    DisplayDragItemDescriptorValue, DisplayDragItemKind, DisplayDragOperation,
+    DisplayDragOperationMask, DisplayDragPosition,
+};
+use crate::platform::resource::{DisplayDragSessionHandle, ResourceKind, WindowHandle};
+
+const APPKIT_DRAG_TEXT_ITEM_TYPE: &str = "text/plain";
+const APPKIT_DRAG_FILE_URL_ITEM_TYPE: &str = "public.file-url";
 
 /// Parsed drag payload for one AppKit pasteboard snapshot.
 enum AppKitDropPayload {
@@ -19,32 +29,42 @@ enum AppKitDropPayload {
     Text(String),
 }
 
-/// Convert one AppKit point into one runtime window position.
-fn position_from_point(point: NSPoint) -> WindowPosition {
-    WindowPosition {
+/// Convert one AppKit point into one runtime drag position.
+fn position_from_point(point: NSPoint) -> DisplayDragPosition {
+    DisplayDragPosition {
         x: point.x.round().clamp(i32::MIN as f64, i32::MAX as f64) as i32,
         y: point.y.round().clamp(i32::MIN as f64, i32::MAX as f64) as i32,
     }
 }
 
-/// Resolve one effective drag operation from one source operation mask.
-fn accepted_drag_operation(mask: NSDragOperation) -> NSDragOperation {
+/// Resolve one preferred drag operation from one source operation mask.
+fn preferred_drag_operation(mask: NSDragOperation) -> Option<DisplayDragOperation> {
     // prefer copy over move over link
     if mask.contains(NSDragOperation::Copy) {
-        return NSDragOperation::Copy;
+        return Some(DisplayDragOperation::Copy);
     }
 
     // prefer move operations when the source offers them
     if mask.contains(NSDragOperation::Move) {
-        return NSDragOperation::Move;
+        return Some(DisplayDragOperation::Move);
     }
 
     // otherwise prefer link operations
     if mask.contains(NSDragOperation::Link) {
-        return NSDragOperation::Link;
+        return Some(DisplayDragOperation::Link);
     }
 
-    NSDragOperation::None
+    None
+}
+
+/// Convert one runtime drag operation into one AppKit drag operation.
+fn appkit_drag_operation(operation: DisplayDragOperation) -> NSDragOperation {
+    match operation {
+        DisplayDragOperation::None => NSDragOperation::None,
+        DisplayDragOperation::Copy => NSDragOperation::Copy,
+        DisplayDragOperation::Move => NSDragOperation::Move,
+        DisplayDragOperation::Link => NSDragOperation::Link,
+    }
 }
 
 /// Decode one file-path payload list from one drag pasteboard.
@@ -89,81 +109,137 @@ fn drop_payload_from_pasteboard(pasteboard: &NSPasteboard) -> Option<AppKitDropP
 }
 
 /// Resolve one drag payload and current position from one dragging info object.
-fn drop_payload_from_info(
+fn drag_payload_from_info(
     sender: &ProtocolObject<dyn NSDraggingInfo>,
-) -> Option<(AppKitDropPayload, WindowPosition)> {
+) -> Option<(Vec<DisplayDragSessionItem>, DisplayDragPosition)> {
     let pasteboard = sender.draggingPasteboard();
     let payload = drop_payload_from_pasteboard(&pasteboard)?;
     let position = position_from_point(sender.draggingLocation());
-    Some((payload, position))
+    let items = drag_items_from_payload(payload);
+
+    Some((items, position))
 }
 
-/// Publish one hover transition and update one active drop session.
-fn publish_hover_transition(
-    runtime_state: &Arc<appkit_core::AppKitRuntimeState>,
-    window_handle: WindowHandle,
-    host: &AppKitWindowHost,
-    path: Option<String>,
-    position: WindowPosition,
-) {
-    let mut session = host.drop_session.borrow_mut();
-
-    // publish the session start once for the first accepted drag payload
-    if !session.started {
-        session.started = true;
-        session.completed = false;
-        event::publish_window_drop_started(runtime_state, window_handle);
+/// Convert one parsed AppKit payload into canonical drag-session items.
+fn drag_items_from_payload(payload: AppKitDropPayload) -> Vec<DisplayDragSessionItem> {
+    match payload {
+        AppKitDropPayload::Files(paths) => paths.into_iter().map(appkit_path_drag_item).collect(),
+        AppKitDropPayload::Text(text) => vec![appkit_text_drag_item(text)],
     }
-
-    // publish one hover-leave transition before changing the hovered file path
-    if session.last_hovered_path != path && session.last_hovered_path.is_some() {
-        event::publish_window_file_hover_left(
-            runtime_state,
-            window_handle,
-            session.last_hovered_path.clone(),
-            Some(position),
-        );
-    }
-
-    session.last_hovered_path = path.clone();
-    session.position = Some(position);
-
-    event::publish_window_file_hovered(runtime_state, window_handle, path, Some(position));
 }
 
-/// Publish one drop completion or cancellation event and clear session state.
-fn finalize_drop_session(
+/// Build one text drag item from one AppKit pasteboard payload.
+fn appkit_text_drag_item(text: String) -> DisplayDragSessionItem {
+    let byte_length = u64::try_from(text.len()).ok();
+
+    DisplayDragSessionItem {
+        descriptor: DisplayDragItemDescriptorValue {
+            kind: DisplayDragItemKind::String,
+            item_type: Some(APPKIT_DRAG_TEXT_ITEM_TYPE.to_string()),
+            name: None,
+            is_directory: false,
+            byte_length,
+        },
+        value: DisplayDragSessionItemValue::Text(text),
+    }
+}
+
+/// Build one file drag item from one AppKit file-url payload.
+fn appkit_path_drag_item(path: String) -> DisplayDragSessionItem {
+    let metadata = std::fs::metadata(&path).ok();
+    let is_directory = metadata.as_ref().is_some_and(|metadata| metadata.is_dir());
+    let byte_length = metadata
+        .as_ref()
+        .filter(|metadata| metadata.is_file())
+        .map(|metadata| metadata.len());
+    let name = std::path::Path::new(&path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .map(ToString::to_string);
+
+    DisplayDragSessionItem {
+        descriptor: DisplayDragItemDescriptorValue {
+            kind: DisplayDragItemKind::File,
+            item_type: Some(APPKIT_DRAG_FILE_URL_ITEM_TYPE.to_string()),
+            name,
+            is_directory,
+            byte_length,
+        },
+        value: DisplayDragSessionItemValue::Path(path),
+    }
+}
+
+/// Ensure one active drag session exists and update it with the latest payload.
+fn ensure_drag_session(
     runtime_state: &Arc<appkit_core::AppKitRuntimeState>,
-    window_handle: WindowHandle,
     host: &AppKitWindowHost,
-    accepted: bool,
-) {
-    let mut session = host.drop_session.borrow_mut();
+    allowed_operation: DisplayDragOperation,
+    position: DisplayDragPosition,
+    items: Vec<DisplayDragSessionItem>,
+) -> DisplayDragSessionHandle {
+    // derive the canonical session payload from the current host snapshot
+    let mut drop_session = host.drop_session.borrow_mut();
+    let allowed_operations = display_drag_operation_mask(allowed_operation);
+    let proposed_operation = Some(allowed_operation);
 
-    // skip when this window has no active drop session
-    if !session.started {
-        return;
+    // update the active session in place when one already exists
+    if let Some(session) = drop_session.session {
+        if replace_drag_session(
+            runtime_state.resource_table(),
+            session,
+            allowed_operations,
+            proposed_operation,
+            position,
+            items.clone(),
+        ) {
+            return session;
+        }
     }
 
-    // publish one final hover-leave event before closing the session
-    if let Some(previous_path) = session.last_hovered_path.take() {
-        event::publish_window_file_hover_left(
-            runtime_state,
-            window_handle,
-            Some(previous_path),
-            session.position,
-        );
-    }
+    // otherwise open a new external drag session for this window
+    let session = open_external_drag_session(
+        runtime_state.resource_table(),
+        runtime_state.world(),
+        allowed_operations,
+        proposed_operation,
+        Some(position),
+        items,
+    );
 
-    if accepted {
-        event::publish_window_drop_completed(runtime_state, window_handle);
-    } else {
-        event::publish_window_drop_cancelled(runtime_state, window_handle);
-    }
+    drop_session.session = Some(session);
+    session
+}
 
-    session.started = false;
-    session.completed = accepted;
-    session.position = None;
+/// Replace one active drag-session payload in place.
+fn replace_drag_session(
+    resource_table: &ResourceTable,
+    session: DisplayDragSessionHandle,
+    allowed_operations: DisplayDragOperationMask,
+    proposed_operation: Option<DisplayDragOperation>,
+    position: DisplayDragPosition,
+    items: Vec<DisplayDragSessionItem>,
+) -> bool {
+    // update only display drag-session resources
+    resource_table.with_entry_mut(session.0, |entry| {
+        if entry.kind != ResourceKind::DisplayDragSession {
+            return false;
+        }
+
+        let Some(payload) = entry.payload_mut::<DisplayDragSession>() else {
+            return false;
+        };
+
+        payload.allowed_operations = allowed_operations;
+        payload.proposed_operation = proposed_operation;
+        payload.position = Some(position);
+        payload.items = items;
+        true
+    }) == Some(true)
+}
+
+/// Take the current active drag session for one window.
+fn take_drag_session(host: &AppKitWindowHost) -> Option<DisplayDragSessionHandle> {
+    host.drop_session.borrow_mut().session.take()
 }
 
 /// Handle one `draggingEntered:` callback.
@@ -172,18 +248,12 @@ pub(crate) fn handle_dragging_entered(
     window_handle: WindowHandle,
     sender: &ProtocolObject<dyn NSDraggingInfo>,
 ) -> NSDragOperation {
-    let accepted_operation = accepted_drag_operation(sender.draggingSourceOperationMask());
-    // reject drags that do not advertise a supported operation
-    if accepted_operation == NSDragOperation::None {
-        return NSDragOperation::None;
-    }
-
-    let Some((payload, position)) = drop_payload_from_info(sender) else {
+    let Some(allowed_operation) = preferred_drag_operation(sender.draggingSourceOperationMask())
+    else {
         return NSDragOperation::None;
     };
-    let hover_path = match payload {
-        AppKitDropPayload::Files(paths) => paths.first().cloned(),
-        AppKitDropPayload::Text(_) => None,
+    let Some((items, position)) = drag_payload_from_info(sender) else {
+        return NSDragOperation::None;
     };
 
     let publish_result = appkit_core::with_window_host(
@@ -191,10 +261,13 @@ pub(crate) fn handle_dragging_entered(
         window_handle,
         "destack.display.window.draggingEntered",
         |host| {
-            publish_hover_transition(runtime_state, window_handle, host, hover_path, position);
+            let session =
+                ensure_drag_session(runtime_state, host, allowed_operation, position, items);
+            event::publish_window_drag_entered(runtime_state, window_handle, session);
             Ok(())
         },
     );
+
     // log callback failures without aborting the host callback
     if let Err(error) = publish_result {
         appkit_core::warn_callback_error(
@@ -205,7 +278,7 @@ pub(crate) fn handle_dragging_entered(
         return NSDragOperation::None;
     }
 
-    accepted_operation
+    appkit_drag_operation(allowed_operation)
 }
 
 /// Handle one `draggingUpdated:` callback.
@@ -214,18 +287,12 @@ pub(crate) fn handle_dragging_updated(
     window_handle: WindowHandle,
     sender: &ProtocolObject<dyn NSDraggingInfo>,
 ) -> NSDragOperation {
-    let accepted_operation = accepted_drag_operation(sender.draggingSourceOperationMask());
-    // reject drags that do not advertise a supported operation
-    if accepted_operation == NSDragOperation::None {
-        return NSDragOperation::None;
-    }
-
-    let Some((payload, position)) = drop_payload_from_info(sender) else {
+    let Some(allowed_operation) = preferred_drag_operation(sender.draggingSourceOperationMask())
+    else {
         return NSDragOperation::None;
     };
-    let hover_path = match payload {
-        AppKitDropPayload::Files(paths) => paths.first().cloned(),
-        AppKitDropPayload::Text(_) => None,
+    let Some((items, position)) = drag_payload_from_info(sender) else {
+        return NSDragOperation::None;
     };
 
     let publish_result = appkit_core::with_window_host(
@@ -233,10 +300,13 @@ pub(crate) fn handle_dragging_updated(
         window_handle,
         "destack.display.window.draggingUpdated",
         |host| {
-            publish_hover_transition(runtime_state, window_handle, host, hover_path, position);
+            let session =
+                ensure_drag_session(runtime_state, host, allowed_operation, position, items);
+            event::publish_window_drag_updated(runtime_state, window_handle, session);
             Ok(())
         },
     );
+
     // log callback failures without aborting the host callback
     if let Err(error) = publish_result {
         appkit_core::warn_callback_error(
@@ -247,7 +317,7 @@ pub(crate) fn handle_dragging_updated(
         return NSDragOperation::None;
     }
 
-    accepted_operation
+    appkit_drag_operation(allowed_operation)
 }
 
 /// Handle one `draggingExited:` callback.
@@ -260,7 +330,9 @@ pub(crate) fn handle_dragging_exited(
         window_handle,
         "destack.display.window.draggingExited",
         |host| {
-            finalize_drop_session(runtime_state, window_handle, host, false);
+            if let Some(session) = take_drag_session(host) {
+                event::publish_window_drag_exited(runtime_state, window_handle, session);
+            }
             Ok(())
         },
     ) {
@@ -276,7 +348,7 @@ pub(crate) fn handle_dragging_exited(
 pub(crate) fn handle_prepare_for_drag_operation(
     sender: &ProtocolObject<dyn NSDraggingInfo>,
 ) -> bool {
-    drop_payload_from_info(sender).is_some()
+    drag_payload_from_info(sender).is_some()
 }
 
 /// Handle one `performDragOperation:` callback.
@@ -285,7 +357,12 @@ pub(crate) fn handle_perform_drag_operation(
     window_handle: WindowHandle,
     sender: &ProtocolObject<dyn NSDraggingInfo>,
 ) -> bool {
-    let Some((payload, position)) = drop_payload_from_info(sender) else {
+    let Some(allowed_operation) = preferred_drag_operation(sender.draggingSourceOperationMask())
+    else {
+        handle_dragging_exited(runtime_state, window_handle);
+        return false;
+    };
+    let Some((items, position)) = drag_payload_from_info(sender) else {
         handle_dragging_exited(runtime_state, window_handle);
         return false;
     };
@@ -295,28 +372,10 @@ pub(crate) fn handle_perform_drag_operation(
         window_handle,
         "destack.display.window.performDragOperation",
         |host| {
-            match payload {
-                AppKitDropPayload::Files(paths) => {
-                    for path in paths {
-                        event::publish_window_file_dropped(
-                            runtime_state,
-                            window_handle,
-                            Some(path),
-                            Some(position),
-                        );
-                    }
-                }
-                AppKitDropPayload::Text(text) => {
-                    event::publish_window_text_dropped(
-                        runtime_state,
-                        window_handle,
-                        text,
-                        Some(position),
-                    );
-                }
-            }
-
-            finalize_drop_session(runtime_state, window_handle, host, true);
+            let session =
+                ensure_drag_session(runtime_state, host, allowed_operation, position, items);
+            event::publish_window_dropped(runtime_state, window_handle, session);
+            let _ = take_drag_session(host);
             Ok(())
         },
     );
@@ -333,11 +392,11 @@ pub(crate) fn handle_perform_drag_operation(
     true
 }
 
-/// Cancel one active drop session while closing one host window.
+/// Clear one active drag session while closing one host window.
 pub(crate) fn cancel_active_drop_session(
-    runtime_state: &Arc<appkit_core::AppKitRuntimeState>,
-    window_handle: WindowHandle,
+    _runtime_state: &Arc<appkit_core::AppKitRuntimeState>,
+    _window_handle: WindowHandle,
     host: &AppKitWindowHost,
 ) {
-    finalize_drop_session(runtime_state, window_handle, host, false);
+    let _ = take_drag_session(host);
 }

@@ -6,12 +6,12 @@ use super::delegate::AppKitWindowDelegate;
 use crate::diagnostic::{DiagnosticStore, RuntimeResult};
 use crate::host::apple::execution::with_process_main_context_marker_if_needed;
 use crate::host::core::{HostRuntimeId, HostRuntimeRegistry, RuntimeIngressHandler};
+use crate::platform::display::WindowTheme;
 use crate::platform::display::unix::appkit::event::{
     DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
 };
 use crate::platform::display::unix::appkit::model::{AppKitWindowHostState, MonitorSnapshot};
 use crate::platform::display::unix::appkit::window;
-use crate::platform::display::{WindowPosition, WindowTheme};
 use crate::platform::{ResourceTable, core as core_platform, resource};
 use crate::runtime::world::World;
 use crate::runtime::{
@@ -20,17 +20,11 @@ use crate::runtime::{
 use dispatch2::MainThreadBound;
 use objc2_app_kit::{NSApplication, NSApplicationActivationPolicy, NSImage, NSWindow};
 
-/// Transient drag and drop state for one native AppKit window.
+/// Transient drag-session state for one native AppKit window.
 #[derive(Debug, Default)]
 pub(crate) struct AppKitDropSessionState {
-    /// Whether one drag session has started for this window.
-    pub(crate) started: bool,
-    /// Whether one drop operation completed successfully for this session.
-    pub(crate) completed: bool,
-    /// The last hovered file path when one file payload is active.
-    pub(crate) last_hovered_path: Option<String>,
-    /// The last known drag position in window coordinates.
-    pub(crate) position: Option<WindowPosition>,
+    /// The current active drag session handle for this window.
+    pub(crate) session: Option<resource::DisplayDragSessionHandle>,
 }
 
 /// Main-thread AppKit host payload for one opened runtime window.
