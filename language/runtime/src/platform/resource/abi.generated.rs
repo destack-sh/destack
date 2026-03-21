@@ -73,6 +73,61 @@ impl VmAbiCodec for AccessibilityActionHandle {
     }
 }
 
+/// ABI newtype for AccessibilityDocumentHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AccessibilityDocumentHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type AccessibilityDocumentHandleVm = AccessibilityDocumentHandle;
+
+impl VmValueCodec for AccessibilityDocumentHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl VmCollectionElement for AccessibilityDocumentHandle {}
+
+/// Value type for AccessibilityDocumentHandle.
+pub type AccessibilityDocumentHandleValue = AccessibilityDocumentHandle;
+
+impl NativeAbiCodec for AccessibilityDocumentHandle {
+    type Value = AccessibilityDocumentHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for AccessibilityDocumentHandle {
+    type Value = AccessibilityDocumentHandleValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
 /// ABI newtype for AudioDeviceHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1212,6 +1267,61 @@ impl NativeAbiCodec for DisplayBeginFrameHandle {
 
 impl VmAbiCodec for DisplayBeginFrameHandle {
     type Value = DisplayBeginFrameHandleValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for DisplayDragSessionHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DisplayDragSessionHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type DisplayDragSessionHandleVm = DisplayDragSessionHandle;
+
+impl VmValueCodec for DisplayDragSessionHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+impl VmCollectionElement for DisplayDragSessionHandle {}
+
+/// Value type for DisplayDragSessionHandle.
+pub type DisplayDragSessionHandleValue = DisplayDragSessionHandle;
+
+impl NativeAbiCodec for DisplayDragSessionHandle {
+    type Value = DisplayDragSessionHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for DisplayDragSessionHandle {
+    type Value = DisplayDragSessionHandleValue;
 
     fn into_value(
         self,

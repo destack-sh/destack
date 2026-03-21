@@ -4,26 +4,136 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform;
 use crate::platform::core::{
     call_out, intern_string_to_vm as string_to_vm, map_native_array_to_vm, map_native_slice_to_vm,
-    optional_intern_string_to_vm as optional_string_to_vm, os_path_to_vm as path_to_vm,
-    store_string_from_vm as string_from_vm,
+    optional_intern_string_to_vm as optional_string_to_vm, store_string_from_vm as string_from_vm,
 };
 use crate::platform::display::{
     DisplayBackendCapabilityFlags, DisplayBackendDescriptor, DisplayBackendDescriptorVm,
     DisplayBeginFrameEvent, DisplayBeginFrameEventVm, DisplayBeginFrameOpenOptionsVm,
-    DisplayDescriptor, DisplayDescriptorVm, DisplayGammaRamp, DisplayGammaRampVm, DisplayModeVm,
-    DisplayMonitorEvent, DisplayMonitorEventFilter, DisplayMonitorEventFilterVm,
-    DisplayMonitorEventOpenOptions, DisplayMonitorEventOpenOptionsVm, DisplayMonitorEventVm,
-    DisplayMonitorListRequestVm, DisplayMonitorOpenOptionsVm, WindowDescriptor, WindowDescriptorVm,
-    WindowDropFilePayload, WindowDropFilePayloadVm, WindowDropHoverLeavePayload,
-    WindowDropHoverLeavePayloadVm, WindowDropHoverPayload, WindowDropHoverPayloadVm,
-    WindowDropTextPayload, WindowDropTextPayloadVm, WindowEvent, WindowEventOpenOptionsVm,
-    WindowEventVm, WindowIconImage, WindowIconImageVm, WindowIconSet, WindowIconSetVm,
-    WindowLogicalRectVm, WindowModeOptions, WindowModeOptionsVm, WindowModePayload,
-    WindowModePayloadVm, WindowOptions, WindowOptionsVm, WindowPhysicalSizeVm, WindowRenderState,
-    native as host_display,
+    DisplayDescriptor, DisplayDescriptorVm, DisplayDragBeginOptions, DisplayDragBeginOptionsVm,
+    DisplayDragOperation, DisplayGammaRamp, DisplayGammaRampVm, DisplayModeVm, DisplayMonitorEvent,
+    DisplayMonitorEventFilter, DisplayMonitorEventFilterVm, DisplayMonitorEventOpenOptions,
+    DisplayMonitorEventOpenOptionsVm, DisplayMonitorEventVm, DisplayMonitorListRequestVm,
+    DisplayMonitorOpenOptionsVm, WindowDescriptor, WindowDescriptorVm, WindowEvent,
+    WindowEventOpenOptionsVm, WindowEventVm, WindowIconImage, WindowIconImageVm, WindowIconSet,
+    WindowIconSetVm, WindowLogicalRectVm, WindowModeOptions, WindowModeOptionsVm,
+    WindowModePayload, WindowModePayloadVm, WindowOptions, WindowOptionsVm, WindowPhysicalSizeVm,
+    WindowRenderState, native as host_display,
 };
+use crate::platform::fs::OsPathVm;
 use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice, resource};
-use crate::runtime::{BindingCallContext, NativeSlice};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+
+/// Encode one native binding payload into one VM binding payload.
+fn vm_value_from_native<Native, Vm>(
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    value: Native,
+) -> RuntimeResult<Vm>
+where
+    Native: platform::NativeAbiCodec,
+    Vm: platform::VmAbiCodec<Value = Native::Value>,
+{
+    let value = unsafe { value.into_value()? };
+
+    Vm::from_value(context, value)
+}
+
+/// Convert one native runtime string into one VM string handle.
+fn native_string_to_vm(
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    value: NativeStringRef,
+) -> RuntimeResult<destack_vm::StringHandle> {
+    let value = unsafe { value.as_str()? };
+    context
+        .string_handle(value)
+        .map_err(Box::<RuntimeError>::from)
+}
+
+/// Decode one VM binding payload into one native binding payload.
+fn native_value_from_vm<Native, Vm>(
+    binding: &BindingCallContext,
+    context: &destack_vm::ExternalCallContext<'_>,
+    value: Vm,
+) -> RuntimeResult<Native>
+where
+    Native: platform::NativeAbiCodec<Value = Vm::Value>,
+    Vm: platform::VmAbiCodec,
+{
+    let value = value.into_value(context)?;
+
+    Ok(Native::from_value(binding, value))
+}
+
+/// Begin one drag session.
+pub(crate) fn destack_display_drag_begin(
+    binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    options: DisplayDragBeginOptionsVm,
+) -> RuntimeResult<DisplayDragOperation> {
+    let options: DisplayDragBeginOptions = native_value_from_vm(binding, context, options)?;
+
+    call_out(|out| unsafe { host_display::destack_display_drag_begin(binding, out, options) })
+}
+
+/// Set one drag session operation.
+pub(crate) fn destack_display_drag_session_set_operation(
+    binding: &BindingCallContext,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    session: resource::DisplayDragSessionHandle,
+    operation: DisplayDragOperation,
+) -> RuntimeResult<()> {
+    unsafe { host_display::destack_display_drag_session_set_operation(binding, session, operation) }
+}
+
+/// Close one drag session.
+pub(crate) fn destack_display_drag_session_close(
+    binding: &BindingCallContext,
+    _context: &mut destack_vm::ExternalCallContext<'_>,
+    session: resource::DisplayDragSessionHandle,
+) -> RuntimeResult<()> {
+    unsafe { host_display::destack_display_drag_session_close(binding, session) }
+}
+
+/// Read one drag session item as bytes.
+pub(crate) fn destack_display_drag_session_read_bytes(
+    binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    session: resource::DisplayDragSessionHandle,
+    itemindex: u32,
+) -> RuntimeResult<VmSlice<u8>> {
+    let value = call_out(|out| unsafe {
+        host_display::destack_display_drag_session_read_bytes(binding, out, session, itemindex)
+    })?;
+
+    VmSlice::from_bytes(context, &unsafe { value.as_slice()? })
+}
+
+/// Read one drag session item as one path.
+pub(crate) fn destack_display_drag_session_read_path(
+    binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    session: resource::DisplayDragSessionHandle,
+    itemindex: u32,
+) -> RuntimeResult<OsPathVm> {
+    let value = call_out(|out| unsafe {
+        host_display::destack_display_drag_session_read_path(binding, out, session, itemindex)
+    })?;
+
+    vm_value_from_native(context, value)
+}
+
+/// Read one drag session item as text.
+pub(crate) fn destack_display_drag_session_read_text(
+    binding: &BindingCallContext,
+    context: &mut destack_vm::ExternalCallContext<'_>,
+    session: resource::DisplayDragSessionHandle,
+    itemindex: u32,
+) -> RuntimeResult<destack_vm::StringHandle> {
+    let value = call_out(|out| unsafe {
+        host_display::destack_display_drag_session_read_text(binding, out, session, itemindex)
+    })?;
+
+    native_string_to_vm(context, value)
+}
 
 /// Convert one native window-mode payload to VM.
 fn window_mode_options_to_vm(
@@ -428,62 +538,6 @@ fn window_mode_payload_to_vm(
     })
 }
 
-/// Convert one native file-drop payload to VM.
-fn window_drop_file_payload_to_vm(
-    context: &mut destack_vm::ExternalCallContext<'_>,
-    payload: WindowDropFilePayload,
-) -> RuntimeResult<WindowDropFilePayloadVm> {
-    let path = payload
-        .path
-        .map(|path| path_to_vm(context, path))
-        .transpose()?;
-    Ok(WindowDropFilePayloadVm {
-        path,
-        position: payload.position,
-    })
-}
-
-/// Convert one native file-hover payload to VM.
-fn window_drop_hover_payload_to_vm(
-    context: &mut destack_vm::ExternalCallContext<'_>,
-    payload: WindowDropHoverPayload,
-) -> RuntimeResult<WindowDropHoverPayloadVm> {
-    let path = payload
-        .path
-        .map(|path| path_to_vm(context, path))
-        .transpose()?;
-    Ok(WindowDropHoverPayloadVm {
-        path,
-        position: payload.position,
-    })
-}
-
-/// Convert one native file-hover-leave payload to VM.
-fn window_drop_hover_leave_payload_to_vm(
-    context: &mut destack_vm::ExternalCallContext<'_>,
-    payload: WindowDropHoverLeavePayload,
-) -> RuntimeResult<WindowDropHoverLeavePayloadVm> {
-    let previous_path = payload
-        .previous_path
-        .map(|path| path_to_vm(context, path))
-        .transpose()?;
-    Ok(WindowDropHoverLeavePayloadVm {
-        previous_path,
-        position: payload.position,
-    })
-}
-
-/// Convert one native text-drop payload to VM.
-fn window_drop_text_payload_to_vm(
-    context: &mut destack_vm::ExternalCallContext<'_>,
-    payload: WindowDropTextPayload,
-) -> RuntimeResult<WindowDropTextPayloadVm> {
-    Ok(WindowDropTextPayloadVm {
-        text: string_to_vm(context, payload.text)?,
-        position: payload.position,
-    })
-}
-
 /// Convert one native window event into its VM representation.
 fn window_event_to_vm(
     context: &mut destack_vm::ExternalCallContext<'_>,
@@ -571,72 +625,51 @@ fn window_event_to_vm(
                 },
             ))
         }
-        WindowEvent::WindowDropCancelledEvent(event) => {
+        WindowEvent::WindowDragEnteredEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
-            Ok(WindowEventVm::WindowDropCancelledEvent(
-                platform::display::WindowDropCancelledEventVm {
+            Ok(WindowEventVm::WindowDragEnteredEvent(
+                platform::display::WindowDragEnteredEventVm {
                     kind: context
                         .string_handle(kind)
                         .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
+                    payload: vm_value_from_native(context, event.payload)?,
                 },
             ))
         }
-        WindowEvent::WindowDropCompletedEvent(event) => {
+        WindowEvent::WindowDragExitedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
-            Ok(WindowEventVm::WindowDropCompletedEvent(
-                platform::display::WindowDropCompletedEventVm {
+            Ok(WindowEventVm::WindowDragExitedEvent(
+                platform::display::WindowDragExitedEventVm {
                     kind: context
                         .string_handle(kind)
                         .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
+                    payload: vm_value_from_native(context, event.payload)?,
                 },
             ))
         }
-        WindowEvent::WindowDropStartedEvent(event) => {
+        WindowEvent::WindowDragUpdatedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
-            Ok(WindowEventVm::WindowDropStartedEvent(
-                platform::display::WindowDropStartedEventVm {
+            Ok(WindowEventVm::WindowDragUpdatedEvent(
+                platform::display::WindowDragUpdatedEventVm {
                     kind: context
                         .string_handle(kind)
                         .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
+                    payload: vm_value_from_native(context, event.payload)?,
                 },
             ))
         }
-        WindowEvent::WindowFileDroppedEvent(event) => {
+        WindowEvent::WindowDroppedEvent(event) => {
             let kind = unsafe { event.kind.as_str()? };
-            Ok(WindowEventVm::WindowFileDroppedEvent(
-                platform::display::WindowFileDroppedEventVm {
+            Ok(WindowEventVm::WindowDroppedEvent(
+                platform::display::WindowDroppedEventVm {
                     kind: context
                         .string_handle(kind)
                         .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
-                    payload: window_drop_file_payload_to_vm(context, event.payload)?,
-                },
-            ))
-        }
-        WindowEvent::WindowFileHoverLeftEvent(event) => {
-            let kind = unsafe { event.kind.as_str()? };
-            Ok(WindowEventVm::WindowFileHoverLeftEvent(
-                platform::display::WindowFileHoverLeftEventVm {
-                    kind: context
-                        .string_handle(kind)
-                        .map_err(Box::<RuntimeError>::from)?,
-                    metadata: event.metadata,
-                    payload: window_drop_hover_leave_payload_to_vm(context, event.payload)?,
-                },
-            ))
-        }
-        WindowEvent::WindowFileHoveredEvent(event) => {
-            let kind = unsafe { event.kind.as_str()? };
-            Ok(WindowEventVm::WindowFileHoveredEvent(
-                platform::display::WindowFileHoveredEventVm {
-                    kind: context
-                        .string_handle(kind)
-                        .map_err(Box::<RuntimeError>::from)?,
-                    metadata: event.metadata,
-                    payload: window_drop_hover_payload_to_vm(context, event.payload)?,
+                    payload: vm_value_from_native(context, event.payload)?,
                 },
             ))
         }
@@ -805,18 +838,6 @@ fn window_event_to_vm(
                         .map_err(Box::<RuntimeError>::from)?,
                     metadata: event.metadata,
                     payload: event.payload,
-                },
-            ))
-        }
-        WindowEvent::WindowTextDroppedEvent(event) => {
-            let kind = unsafe { event.kind.as_str()? };
-            Ok(WindowEventVm::WindowTextDroppedEvent(
-                platform::display::WindowTextDroppedEventVm {
-                    kind: context
-                        .string_handle(kind)
-                        .map_err(Box::<RuntimeError>::from)?,
-                    metadata: event.metadata,
-                    payload: window_drop_text_payload_to_vm(context, event.payload)?,
                 },
             ))
         }

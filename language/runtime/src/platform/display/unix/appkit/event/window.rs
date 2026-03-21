@@ -213,56 +213,33 @@ pub(crate) enum WindowEventRecordKind {
         /// Aspect-ratio payload after this event.
         current_aspect_ratio: Option<WindowAspectRatio>,
     },
-    /// Drop-started payload.
-    DropStarted {
+    /// Drag-entered payload.
+    DragEntered {
         /// Associated runtime window handle.
         window: resource::WindowHandle,
+        /// Stable drag session handle.
+        session: resource::DisplayDragSessionHandle,
     },
-    /// File-hovered payload.
-    FileHovered {
+    /// Drag-updated payload.
+    DragUpdated {
         /// Associated runtime window handle.
         window: resource::WindowHandle,
-        /// Hovered path payload.
-        path: Option<String>,
-        /// Hover position payload.
-        position: Option<WindowPosition>,
+        /// Stable drag session handle.
+        session: resource::DisplayDragSessionHandle,
     },
-    /// Drop-cancelled payload.
-    DropCancelled {
+    /// Drag-exited payload.
+    DragExited {
         /// Associated runtime window handle.
         window: resource::WindowHandle,
+        /// Stable drag session handle.
+        session: resource::DisplayDragSessionHandle,
     },
-    /// Drop-completed payload.
-    DropCompleted {
+    /// Dropped payload.
+    Dropped {
         /// Associated runtime window handle.
         window: resource::WindowHandle,
-    },
-    /// File-hover-left payload.
-    FileHoverLeft {
-        /// Associated runtime window handle.
-        window: resource::WindowHandle,
-        /// Previous hovered path payload.
-        previous_path: Option<String>,
-        /// Last hover position payload.
-        position: Option<WindowPosition>,
-    },
-    /// File-dropped payload.
-    FileDropped {
-        /// Associated runtime window handle.
-        window: resource::WindowHandle,
-        /// Dropped path payload.
-        path: Option<String>,
-        /// Drop position payload.
-        position: Option<WindowPosition>,
-    },
-    /// Text-dropped payload.
-    TextDropped {
-        /// Associated runtime window handle.
-        window: resource::WindowHandle,
-        /// Dropped text payload.
-        text: String,
-        /// Drop position payload.
-        position: Option<WindowPosition>,
+        /// Stable drag session handle.
+        session: resource::DisplayDragSessionHandle,
     },
 }
 
@@ -333,27 +310,14 @@ impl WindowEventRecordKind {
             WindowEventRecordKind::AspectRatioChanged { .. } => {
                 appkit_core::WINDOW_EVENT_KIND_ASPECT_RATIO_CHANGED
             }
-            WindowEventRecordKind::DropStarted { .. } => {
-                appkit_core::WINDOW_EVENT_KIND_DROP_STARTED
+            WindowEventRecordKind::DragEntered { .. } => {
+                appkit_core::WINDOW_EVENT_KIND_DRAG_ENTERED
             }
-            WindowEventRecordKind::FileHovered { .. } => {
-                appkit_core::WINDOW_EVENT_KIND_FILE_HOVERED
+            WindowEventRecordKind::DragUpdated { .. } => {
+                appkit_core::WINDOW_EVENT_KIND_DRAG_UPDATED
             }
-            WindowEventRecordKind::DropCancelled { .. } => {
-                appkit_core::WINDOW_EVENT_KIND_DROP_CANCELLED
-            }
-            WindowEventRecordKind::DropCompleted { .. } => {
-                appkit_core::WINDOW_EVENT_KIND_DROP_COMPLETED
-            }
-            WindowEventRecordKind::FileHoverLeft { .. } => {
-                appkit_core::WINDOW_EVENT_KIND_FILE_HOVER_LEFT
-            }
-            WindowEventRecordKind::FileDropped { .. } => {
-                appkit_core::WINDOW_EVENT_KIND_FILE_DROPPED
-            }
-            WindowEventRecordKind::TextDropped { .. } => {
-                appkit_core::WINDOW_EVENT_KIND_TEXT_DROPPED
-            }
+            WindowEventRecordKind::DragExited { .. } => appkit_core::WINDOW_EVENT_KIND_DRAG_EXITED,
+            WindowEventRecordKind::Dropped { .. } => appkit_core::WINDOW_EVENT_KIND_DROPPED,
         }
     }
 
@@ -383,13 +347,10 @@ impl WindowEventRecordKind {
             | WindowEventRecordKind::ModalChanged { window, .. }
             | WindowEventRecordKind::MousePassthroughChanged { window, .. }
             | WindowEventRecordKind::AspectRatioChanged { window, .. }
-            | WindowEventRecordKind::DropStarted { window }
-            | WindowEventRecordKind::FileHovered { window, .. }
-            | WindowEventRecordKind::DropCancelled { window }
-            | WindowEventRecordKind::DropCompleted { window }
-            | WindowEventRecordKind::FileHoverLeft { window, .. }
-            | WindowEventRecordKind::FileDropped { window, .. }
-            | WindowEventRecordKind::TextDropped { window, .. } => *window,
+            | WindowEventRecordKind::DragEntered { window, .. }
+            | WindowEventRecordKind::DragUpdated { window, .. }
+            | WindowEventRecordKind::DragExited { window, .. }
+            | WindowEventRecordKind::Dropped { window, .. } => *window,
         }
     }
 }

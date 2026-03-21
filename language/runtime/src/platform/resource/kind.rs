@@ -71,7 +71,7 @@ macro_rules! for_each_resource_handle_kind {
             (AccessibilityDocumentHandle, AccessibilityDocument, "resource.accessibility.document", "accessibility_document", "The handle for one accessibility document query stream."),
             (InputDeviceHandle, InputDevice, "resource.input.device", "input_device", "The handle for one input device."),
             (InputMonitorHandle, InputMonitor, "resource.input.monitor", "input_monitor", "The handle for one global input monitor stream."),
-            (InputDragSessionHandle, InputDragSession, "resource.input.drag.session", "input_drag_session", "The handle for one input drag-transfer session."),
+            (DisplayDragSessionHandle, DisplayDragSession, "resource.display.drag.session", "display_drag_session", "The handle for one display drag-transfer session."),
             (GpuAdapterHandle, GpuAdapter, "resource.gpu.adapter", "gpu_adapter", "The handle for one gpu adapter."),
             (GpuDeviceHandle, GpuDevice, "resource.gpu.device", "gpu_device", "The handle for one gpu device."),
             (GpuQueueHandle, GpuQueue, "resource.gpu.queue", "gpu_queue", "The handle for one gpu queue."),
@@ -230,7 +230,7 @@ macro_rules! define_resource_kind {
                     | Self::Display
                     | Self::Window
                     | Self::InputDevice
-                    | Self::InputDragSession
+                    | Self::DisplayDragSession
                     | Self::GpuAdapter
                     | Self::GpuDevice
                     | Self::GpuQueue

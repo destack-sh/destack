@@ -3,14 +3,15 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::display::{
     DisplayBackendCapabilityFlags, DisplayBackendDescriptorVm, DisplayColorState,
-    DisplayDescriptorVm, DisplayGammaRampVm, DisplayHdrMode, DisplayModeVm,
-    DisplayMonitorEventOpenOptionsVm, DisplayMonitorEventVm, DisplayMonitorListRequestVm,
-    DisplayMonitorOpenOptionsVm, WindowAspectRatio, WindowAttentionLevel, WindowChromeKind,
-    WindowCursorIcon, WindowCursorMode, WindowDescriptorVm, WindowEventOpenOptionsVm,
-    WindowEventVm, WindowIconSetVm, WindowLogicalSizeVm, WindowModeOptionsVm, WindowOptionsVm,
-    WindowPhysicalSizeVm, WindowPositionVm, WindowResizeEdge, WindowSizeConstraintsVm,
-    WindowStateVm, WindowVisibility,
+    DisplayDescriptorVm, DisplayDragBeginOptionsVm, DisplayDragOperation, DisplayGammaRampVm,
+    DisplayHdrMode, DisplayModeVm, DisplayMonitorEventOpenOptionsVm, DisplayMonitorEventVm,
+    DisplayMonitorListRequestVm, DisplayMonitorOpenOptionsVm, WindowAspectRatio,
+    WindowAttentionLevel, WindowChromeKind, WindowCursorIcon, WindowCursorMode, WindowDescriptorVm,
+    WindowEventOpenOptionsVm, WindowEventVm, WindowIconSetVm, WindowLogicalSizeVm,
+    WindowModeOptionsVm, WindowOptionsVm, WindowPhysicalSizeVm, WindowPositionVm, WindowResizeEdge,
+    WindowSizeConstraintsVm, WindowStateVm, WindowVisibility,
 };
+use crate::platform::fs::OsPathVm;
 use crate::platform::{PlatformError, VmArray, VmSlice, resource};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -21,6 +22,85 @@ pub(crate) fn destack_display_backend_list(
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<DisplayBackendDescriptorVm>> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.display.backend.list")).boxed())
+}
+
+/// Begin one drag session.
+pub(crate) fn destack_display_drag_begin(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    options: DisplayDragBeginOptionsVm,
+) -> RuntimeResult<DisplayDragOperation> {
+    let _ = options;
+    Err(RuntimeError::from(PlatformError::not_supported("destack.display.drag.begin")).boxed())
+}
+
+/// Set one drag session operation.
+pub(crate) fn destack_display_drag_session_set_operation(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    session: resource::DisplayDragSessionHandle,
+    operation: DisplayDragOperation,
+) -> RuntimeResult<()> {
+    let _ = (session, operation);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.drag.sessionSetOperation",
+    ))
+    .boxed())
+}
+
+/// Close one drag session.
+pub(crate) fn destack_display_drag_session_close(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    session: resource::DisplayDragSessionHandle,
+) -> RuntimeResult<()> {
+    let _ = session;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.drag.sessionClose",
+    ))
+    .boxed())
+}
+
+/// Read one drag session item as bytes.
+pub(crate) fn destack_display_drag_session_read_bytes(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    session: resource::DisplayDragSessionHandle,
+    itemindex: u32,
+) -> RuntimeResult<VmSlice<u8>> {
+    let _ = (session, itemindex);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.drag.sessionReadBytes",
+    ))
+    .boxed())
+}
+
+/// Read one drag session item as one path.
+pub(crate) fn destack_display_drag_session_read_path(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    session: resource::DisplayDragSessionHandle,
+    itemindex: u32,
+) -> RuntimeResult<OsPathVm> {
+    let _ = (session, itemindex);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.drag.sessionReadPath",
+    ))
+    .boxed())
+}
+
+/// Read one drag session item as text.
+pub(crate) fn destack_display_drag_session_read_text(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    session: resource::DisplayDragSessionHandle,
+    itemindex: u32,
+) -> RuntimeResult<vm::StringHandle> {
+    let _ = (session, itemindex);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.drag.sessionReadText",
+    ))
+    .boxed())
 }
 
 pub(crate) use crate::platform::display::vm::{
