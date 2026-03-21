@@ -1,0 +1,5 @@
+__pycache__/
+
+# raw origin checkouts
+web/checkouts/
+node/checkouts/

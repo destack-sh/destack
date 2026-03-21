@@ -4,7 +4,8 @@ use destack_source::FileType;
 
 use super::parse::{ParseOptions, ParseOutcome, TestArea, parse_file};
 use super::runner::{ConformanceSuite, SuiteResult, Test, TestOutcome, run_conformance_suite};
-use crate::harness::{TestOptions, fixtures_dir};
+use crate::conformance::ecma;
+use crate::harness::TestOptions;
 
 // pinned version of babel parser tests
 const BABEL_VERSION: &str = "7.26";
@@ -14,7 +15,7 @@ const BABEL_COMMIT: &str = "b8ef443"; // short sha
 #[derive(Debug, Clone)]
 pub struct BabelSuite {
     root: PathBuf,
-    conformance_dir: PathBuf,
+    suite_dir: PathBuf,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -105,12 +106,9 @@ impl BabelOptions {
 
 impl BabelSuite {
     pub fn new() -> Self {
-        let conformance_dir = fixtures_dir().join("parser").join("conformance");
-        let root = conformance_dir.join("babel");
-        Self {
-            root,
-            conformance_dir,
-        }
+        let suite_dir = ecma::suite_dir("babel");
+        let root = ecma::suite_tests_dir("babel");
+        Self { root, suite_dir }
     }
 
     fn discover_recursive(&self, directory: &Path, prefix: &str) -> Vec<Test> {
@@ -287,12 +285,12 @@ impl ConformanceSuite for BabelSuite {
         "babel"
     }
 
-    fn root(&self) -> &Path {
-        &self.root
+    fn suite_dir(&self) -> &Path {
+        &self.suite_dir
     }
 
-    fn known_failures_path(&self) -> PathBuf {
-        self.conformance_dir.join("babel-known-failures.txt")
+    fn root(&self) -> &Path {
+        &self.root
     }
 
     fn discover(&self) -> Vec<Test> {
@@ -353,7 +351,7 @@ impl ConformanceSuite for BabelSuite {
                just language/install-fixtures\n\
              \n\
              Or manually:\n\
-               ./language/test/fixtures/parser/conformance/babel-fetch.sh\n"
+               ./language/test/fixtures/conformance/ecma/babel/fetch.sh\n"
         )
     }
 

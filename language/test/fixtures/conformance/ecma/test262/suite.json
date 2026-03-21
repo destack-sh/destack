@@ -1,0 +1,27 @@
+{
+  "id": "ecma.test262",
+  "domain": "ecma",
+  "suite": "test262",
+  "title": "ECMA Test262",
+  "origin": {
+    "repo": "https://github.com/tc39/test262",
+    "ref": "main",
+    "kind": "git"
+  },
+  "fetch": {
+    "entries": [
+      {
+        "kind": "source",
+        "label": "test262 parser",
+        "version": "2026-01-29",
+        "layout": "preserve",
+        "paths": [
+          "pass",
+          "pass-explicit",
+          "fail",
+          "early"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,54 @@
+---
+source: crates/oxc_formatter/tests/fixtures/mod.rs
+---
+==================== Input ====================
+Promise.all(writeIconFiles)
+  // TO DO -- END
+  .then(() => writeRegistry())
+
+Promise.all(writeIconFiles)
+
+  // TO DO -- END
+  .then(() => writeRegistry())
+
+Promise.all(writeIconFiles)
+  // TO DO -- END
+
+  .then(() => writeRegistry())
+
+==================== Output ====================
+------------------
+{ printWidth: 80 }
+------------------
+Promise.all(writeIconFiles)
+  // TO DO -- END
+  .then(() => writeRegistry());
+
+Promise.all(writeIconFiles)
+
+  // TO DO -- END
+  .then(() => writeRegistry());
+
+Promise.all(writeIconFiles)
+  // TO DO -- END
+
+  .then(() => writeRegistry());
+
+-------------------
+{ printWidth: 100 }
+-------------------
+Promise.all(writeIconFiles)
+  // TO DO -- END
+  .then(() => writeRegistry());
+
+Promise.all(writeIconFiles)
+
+  // TO DO -- END
+  .then(() => writeRegistry());
+
+Promise.all(writeIconFiles)
+  // TO DO -- END
+
+  .then(() => writeRegistry());
+
+===================== End =====================

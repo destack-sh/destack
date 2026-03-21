@@ -1,0 +1,72 @@
+{
+  "entries": [
+    {
+      "patterns": [
+        "ok/ts_type_assertion.ts",
+        "ok/ts_type_assertion_expression.ts",
+        "ok/type_assertion_primary_expression.ts",
+        "ok/ts_as_assignment.ts"
+      ],
+      "status": "ignore",
+      "reason": "assertion",
+      "note": "legacy type assertions: <T>expr (not supported)"
+    },
+    {
+      "pattern": "ok/ts_as_assignment.ts",
+      "status": "ignore",
+      "reason": "assertion",
+      "note": "legacy <T> type assertions are not supported"
+    },
+    {
+      "patterns": [
+        "error/decorator_async_function_export_default_declaration_clause.ts",
+        "error/decorator_class_declaration.js",
+        "error/decorator_class_declaration_top_level.js",
+        "error/decorator_export.js",
+        "error/decorator_export_class_clause.js",
+        "error/decorator_export_default_expression_clause.ts",
+        "error/decorator_function_export_default_declaration_clause.ts",
+        "error/decorator_interface_export_default_declaration_clause.ts",
+        "error/ts_decorator_object.ts",
+        "error/ts_decorator_on_class_method.ts",
+        "error/ts_decorator_on_class_setter.ts",
+        "error/ts_decorator_on_function_declaration.ts",
+        "error/ts_decorator_this_parameter.ts",
+        "error/ts_decorator_this_parameter_option.ts",
+        "error/ts_formal_parameter_decorator.ts",
+        "error/ts_formal_parameter_decorator_option.ts",
+        "error/ts_static_initialization_block_member_with_decorators.ts"
+      ],
+      "status": "ignore",
+      "reason": "permissive",
+      "note": "decorators are more permissive than TS in Destack"
+    },
+    {
+      "patterns": [
+        "ok/import_defer.js",
+        "ok/import_source.js"
+      ],
+      "status": "ignore",
+      "reason": "proposal",
+      "note": "proposal syntax: import defer/source"
+    },
+    {
+      "pattern": "ok/metavar.tsx",
+      "status": "ignore",
+      "reason": "meta",
+      "note": "Biome metavariables are not part of JS/TS syntax"
+    },
+    {
+      "pattern": "ok/ts_type_parameters.ts",
+      "status": "ignore",
+      "reason": "syntax",
+      "note": "empty type parameter lists are invalid in TS"
+    },
+    {
+      "pattern": "ok/export_named*.js",
+      "status": "ignore",
+      "reason": "syntax",
+      "note": "export specifiers do not allow string literal names"
+    }
+  ]
+}

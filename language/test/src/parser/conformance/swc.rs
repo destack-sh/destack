@@ -4,7 +4,8 @@ use destack_source::FileType;
 
 use super::parse::{ParseOptions, ParseOutcome, TestArea, parse_file};
 use super::runner::{ConformanceSuite, SuiteResult, Test, TestOutcome, run_conformance_suite};
-use crate::harness::{TestOptions, fixtures_dir};
+use crate::conformance::ecma;
+use crate::harness::TestOptions;
 
 // pinned version of SWC parser tests
 const SWC_VERSION: &str = "1.x";
@@ -14,17 +15,14 @@ const SWC_COMMIT: &str = "5b9d77c"; // short sha
 #[derive(Debug, Clone)]
 pub struct SwcSuite {
     root: PathBuf,
-    conformance_dir: PathBuf,
+    suite_dir: PathBuf,
 }
 
 impl SwcSuite {
     pub fn new() -> Self {
-        let conformance_dir = fixtures_dir().join("parser").join("conformance");
-        let root = conformance_dir.join("swc");
-        Self {
-            root,
-            conformance_dir,
-        }
+        let suite_dir = ecma::suite_dir("swc");
+        let root = ecma::suite_tests_dir("swc");
+        Self { root, suite_dir }
     }
 
     fn should_skip_test_by_name(name: &str) -> bool {
@@ -119,12 +117,12 @@ impl ConformanceSuite for SwcSuite {
         "swc"
     }
 
-    fn root(&self) -> &Path {
-        &self.root
+    fn suite_dir(&self) -> &Path {
+        &self.suite_dir
     }
 
-    fn known_failures_path(&self) -> PathBuf {
-        self.conformance_dir.join("swc-known-failures.txt")
+    fn root(&self) -> &Path {
+        &self.root
     }
 
     fn discover(&self) -> Vec<Test> {
@@ -179,7 +177,7 @@ impl ConformanceSuite for SwcSuite {
                just language/install-fixtures\n\
              \n\
              Or manually:\n\
-               ./language/test/fixtures/parser/conformance/swc-fetch.sh\n"
+               ./language/test/fixtures/conformance/ecma/swc/fetch.sh\n"
         )
     }
 

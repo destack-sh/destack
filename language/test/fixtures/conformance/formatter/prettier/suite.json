@@ -1,0 +1,24 @@
+{
+  "id": "formatter.prettier",
+  "domain": "formatter",
+  "suite": "prettier",
+  "title": "Formatter Prettier",
+  "origin": {
+    "repo": "https://github.com/prettier/prettier.git",
+    "ref": "456d14dbc2639d5a6b3eb2d8836b30f63597e1d6",
+    "kind": "git"
+  },
+  "fetch": {
+    "entries": [
+      {
+        "kind": "source",
+        "label": "prettier formatter",
+        "version": "3.x",
+        "layout": "strip",
+        "paths": [
+          "tests/format"
+        ]
+      }
+    ]
+  }
+}

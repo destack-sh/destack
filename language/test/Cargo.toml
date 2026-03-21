@@ -11,6 +11,18 @@ rust-version.workspace = true
 path = "src/lib.rs"
 doctest = false
 
+[[bin]]
+name = "update_conformance_catalog"
+path = "src/conformance/bin/update_catalog.rs"
+
+[[bin]]
+name = "print_conformance_translation_diffs"
+path = "src/conformance/bin/translation_diff.rs"
+
+[[bin]]
+name = "refresh_conformance_translation_metadata"
+path = "src/conformance/bin/refresh_translation_metadata.rs"
+
 [[test]]
 name = "smoke"
 path = "src/smoke/main.rs"

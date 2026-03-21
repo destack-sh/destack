@@ -1,43 +1,20 @@
 use std::fmt::Write;
 
+use super::{CaseStatus, ConformanceCatalog};
+
 /// One generated conformance catalog row.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConformanceCatalogRow {
     /// The domain label.
     pub domain: String,
-    /// The corpus label.
-    pub corpus: String,
-    /// The capability label.
-    pub capability: String,
-    /// The environment label.
-    pub environment: String,
-    /// The gate label.
-    pub gate: String,
-    /// The number of passed cases.
-    pub passed: usize,
-    /// The number of failed cases.
-    pub failed: usize,
-    /// The number of skipped cases.
-    pub skipped: usize,
-    /// The upstream reference string.
-    pub upstream_ref: String,
-}
-
-impl ConformanceCatalogRow {
-    /// Return the total number of accounted cases.
-    pub fn total(&self) -> usize {
-        self.passed + self.failed + self.skipped
-    }
-
-    /// Return the pass rate percentage.
-    pub fn rate(&self) -> f64 {
-        let total = self.total();
-        if total == 0 {
-            100.0
-        } else {
-            self.passed as f64 / total as f64 * 100.0
-        }
-    }
+    /// The suite label.
+    pub suite: String,
+    /// The human readable suite title.
+    pub title: String,
+    /// The joined status counts.
+    pub statuses: String,
+    /// The origin reference string.
+    pub origin_ref: String,
 }
 
 /// Render one conformance catalog markdown table.
@@ -45,31 +22,39 @@ pub fn render_conformance_catalog_table(rows: &[ConformanceCatalogRow]) -> Strin
     let mut output = String::new();
 
     // write the header
-    output.push_str(
-        "| Domain | Corpus | Capability | Env | Gate | Passed | Failed | Skipped | Total | Rate | Upstream Ref |\n",
-    );
-    output.push_str("| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |\n");
+    output.push_str("| Domain | Suite | Title | Status | Origin Ref |\n");
+    output.push_str("| --- | --- | --- | --- | --- |\n");
 
     // write each row
     for row in rows {
         let _ = writeln!(
             output,
-            "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {:.2}% | {} |",
-            row.domain,
-            row.corpus,
-            row.capability,
-            row.environment,
-            row.gate,
-            row.passed,
-            row.failed,
-            row.skipped,
-            row.total(),
-            row.rate(),
-            row.upstream_ref
+            "| {} | {} | {} | {} | {} |",
+            row.domain, row.suite, row.title, row.statuses, row.origin_ref
         );
     }
 
     output
+}
+
+/// Build report rows from one catalog.
+pub fn build_conformance_catalog_rows(catalog: &ConformanceCatalog) -> Vec<ConformanceCatalogRow> {
+    let mut rows = Vec::with_capacity(catalog.suites.len());
+
+    // flatten each suite into one rendered row
+    for suite in &catalog.suites {
+        let statuses = render_status_counts(&suite.statuses.status_counts());
+
+        rows.push(ConformanceCatalogRow {
+            domain: suite.suite.domain.to_string(),
+            suite: suite.suite.suite.clone(),
+            title: suite.suite.title.clone(),
+            statuses,
+            origin_ref: suite.suite.origin.ref_.clone(),
+        });
+    }
+
+    rows
 }
 
 /// Replace one generated markdown section in a document.
@@ -119,19 +104,17 @@ mod tests {
     #[test]
     fn test_render_conformance_catalog_table() {
         let rows = vec![ConformanceCatalogRow {
-            domain: "ecmascript".to_string(),
-            corpus: "test262".to_string(),
-            capability: "run".to_string(),
-            environment: "hostless".to_string(),
-            gate: "quick".to_string(),
-            passed: 10,
-            failed: 2,
-            skipped: 1,
-            upstream_ref: "deadbeef".to_string(),
+            domain: "ecma".to_string(),
+            suite: "test262".to_string(),
+            title: "ECMA Test262".to_string(),
+            statuses: "known-fail 2, ignore 1".to_string(),
+            origin_ref: "deadbeef".to_string(),
         }];
 
         let table = render_conformance_catalog_table(&rows);
-        assert!(table.contains("| ecmascript | test262 | run | hostless | quick | 10 | 2 | 1 | 13 | 76.92% | deadbeef |"));
+        assert!(
+            table.contains("| ecma | test262 | ECMA Test262 | known-fail 2, ignore 1 | deadbeef |")
+        );
     }
 
     #[test]
@@ -155,4 +138,18 @@ after
 
         assert_eq!(updated, expected);
     }
+}
+
+/// Render one compact case status summary.
+fn render_status_counts(counts: &std::collections::BTreeMap<CaseStatus, usize>) -> String {
+    if counts.is_empty() {
+        return "none".to_string();
+    }
+
+    let labels = counts
+        .iter()
+        .map(|(status, count)| format!("{status} {count}"))
+        .collect::<Vec<_>>();
+
+    labels.join(", ")
 }

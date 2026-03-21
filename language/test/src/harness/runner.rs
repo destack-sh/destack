@@ -101,13 +101,17 @@ impl Runner {
             options,
             timeout: suite.timeout(),
         };
+        let case_noun = suite.case_noun();
 
         let cases = suite.discover(options);
         let expected_failures = suite.expected_failures(options);
-        let (exit_code, results, raw_results, expected_summary) =
-            Self::run_cases_and_collect(cases, expected_failures, &context, |case, ctx| {
-                suite.run(case, ctx)
-            });
+        let (exit_code, results, raw_results, expected_summary) = Self::run_cases_and_collect(
+            cases,
+            expected_failures,
+            &context,
+            case_noun,
+            |case, ctx| suite.run(case, ctx),
+        );
 
         let report_results = if context.options.update_known_failures {
             &raw_results
@@ -127,7 +131,7 @@ impl Runner {
         F: Fn(&TestCase, &RunContext<'_>) -> TestResult + Send + Sync,
     {
         let (exit_code, _results, _raw_results, _summary) =
-            Self::run_cases_and_collect(cases, None, context, run);
+            Self::run_cases_and_collect(cases, None, context, "tests", run);
         exit_code
     }
 
@@ -135,6 +139,7 @@ impl Runner {
         cases: Vec<TestCase>,
         expected_failures: Option<&HashSet<String>>,
         context: &RunContext<'_>,
+        case_noun: &str,
         run: F,
     ) -> RunCasesResult
     where
@@ -153,7 +158,7 @@ impl Runner {
         }
 
         println!();
-        println!("running {} tests", filtered.len());
+        println!("running {} {case_noun}", filtered.len());
 
         let mut summary = TestSummary::new();
         let start = Instant::now();

@@ -10,8 +10,12 @@ use rayon::prelude::*;
 
 use destack_source::FileType;
 
+use crate::conformance::{
+    CaseStatus, ConformanceCapability, ConformanceEnvironment, StatusEntry, StatusSet,
+    compress_exact_selectors, status_json_path_for_dir,
+};
+use crate::harness::TestOptions;
 use crate::harness::print::color;
-use crate::harness::{TestOptions, load_expected_failures, save_expected_failures};
 
 /// Result of running a single conformance test.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -49,6 +53,13 @@ pub enum ExpectedOutput {
     None,
     /// Compare output against a plain text file.
     PlainFile(PathBuf),
+    /// Compare output against one prettier jest snapshot case.
+    PrettierSnapshot {
+        /// The snapshot fixture path relative to suite root.
+        path: PathBuf,
+        /// The snapshot export key to extract.
+        key: String,
+    },
     /// Compare output against oxfmt style snapshot file sections.
     OxfmtSnapshot(PathBuf),
 }
@@ -99,22 +110,25 @@ pub trait ConformanceSuite: Send + Sync + Clone {
     /// Name of the suite (for display).
     fn name(&self) -> &str;
 
+    /// Metadata directory of the suite.
+    fn suite_dir(&self) -> &Path;
+
     /// Root directory of the suite.
     fn root(&self) -> &Path;
 
-    /// Path to known-failures file (tests that fail but we want to fix).
-    fn known_failures_path(&self) -> PathBuf;
+    /// Path to the structured status file.
+    fn status_path(&self) -> PathBuf {
+        status_json_path_for_dir(self.suite_dir())
+    }
 
-    /// Path to ignored tests file (intentional language differences).
-    fn ignored_failures_path(&self) -> PathBuf {
-        // Default: same directory as known-failures, with -ignored.txt suffix
-        let known = self.known_failures_path();
-        let stem = known
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("unknown");
-        let name = stem.strip_suffix("-known-failures").unwrap_or(stem);
-        known.with_file_name(format!("{name}-ignored.txt"))
+    /// Return the suite capability tag.
+    fn capability(&self) -> ConformanceCapability {
+        ConformanceCapability::Format
+    }
+
+    /// Return the suite environment tag.
+    fn environment(&self) -> ConformanceEnvironment {
+        ConformanceEnvironment::Hostless
     }
 
     /// Return true when ignored tests should still be considered failures if they pass.
@@ -150,6 +164,138 @@ pub trait ConformanceSuite: Send + Sync + Clone {
         };
         Duration::from_millis(base_ms.saturating_mul(scale).max(1))
     }
+}
+
+/// Return the first matching case status for one test.
+fn status_for_test<S: ConformanceSuite>(
+    suite: &S,
+    statuses: &StatusSet,
+    test_name: &str,
+) -> Option<CaseStatus> {
+    statuses
+        .match_entry(
+            test_name,
+            Some(suite.capability()),
+            Some(suite.environment()),
+        )
+        .map(|entry| entry.status)
+}
+
+/// Return whether one case status should skip execution by default.
+fn is_skipped_status(status: CaseStatus) -> bool {
+    matches!(
+        status,
+        CaseStatus::Ignore | CaseStatus::EnvBlocked | CaseStatus::Manual
+    )
+}
+
+/// Return whether one case status should count as a known failure.
+fn is_known_failure_status(status: CaseStatus) -> bool {
+    matches!(status, CaseStatus::KnownFail | CaseStatus::Flaky)
+}
+
+/// Return the exact selectors declared by one status entry.
+fn exact_selectors(entry: &StatusEntry) -> Vec<String> {
+    entry
+        .selectors()
+        .into_iter()
+        .filter(|selector| !selector.contains('*'))
+        .collect()
+}
+
+/// Load one suite status set.
+fn load_suite_statuses<S: ConformanceSuite>(suite: &S) -> Result<StatusSet, String> {
+    let status_path = suite.status_path();
+    StatusSet::load(&status_path)
+}
+
+/// Return stale skipped status patterns that no longer map to discovered tests.
+fn stale_skipped_patterns<S: ConformanceSuite>(
+    suite: &S,
+    statuses: &StatusSet,
+    discovered_names: &HashSet<String>,
+) -> Vec<String> {
+    let mut stale = Vec::new();
+
+    for entry in &statuses.entries {
+        if !is_skipped_status(entry.status) {
+            continue;
+        }
+
+        // track only exact skipped selectors
+        for selector in exact_selectors(entry) {
+            let status_matches = status_for_test(suite, statuses, &selector);
+            if status_matches.is_some() && !discovered_names.contains(&selector) {
+                stale.push(selector);
+            }
+        }
+    }
+
+    stale.sort();
+    stale
+}
+
+/// Save known failure statuses while preserving non known-fail entries.
+fn save_known_failure_statuses<S: ConformanceSuite>(
+    suite: &S,
+    statuses: &StatusSet,
+    current_failures: &HashSet<String>,
+    discovered_names: &HashSet<String>,
+) -> Result<(), String> {
+    let status_path = suite.status_path();
+
+    // preserve non known-fail entries exactly
+    let mut entries = statuses
+        .entries
+        .iter()
+        .filter(|entry| !matches!(entry.status, CaseStatus::KnownFail))
+        .cloned()
+        .collect::<Vec<_>>();
+
+    let failures = compress_exact_selectors(current_failures, discovered_names);
+    let mut grouped_failures = BTreeMap::<String, Vec<String>>::new();
+
+    // group auto-updated failures by suite category
+    for selector in failures {
+        let category = suite.category_for_test(&selector);
+        grouped_failures.entry(category).or_default().push(selector);
+    }
+
+    // regenerate known-fail entries deterministically
+    for selectors in grouped_failures.into_values() {
+        let (pattern, patterns) = if selectors.len() == 1 {
+            (selectors[0].clone(), Vec::new())
+        } else {
+            (String::new(), selectors)
+        };
+
+        entries.push(StatusEntry {
+            pattern,
+            patterns,
+            file: String::new(),
+            subcase: String::new(),
+            ordinal: None,
+            source_file: String::new(),
+            source_kind: None,
+            source_key: String::new(),
+            source_hash: String::new(),
+            source_subcase: String::new(),
+            source_ordinal: None,
+            source_line: None,
+            source_end_line: None,
+            target_file: String::new(),
+            target_subcase: String::new(),
+            target_ordinal: None,
+            status: CaseStatus::KnownFail,
+            reason: format!("auto-updated {} known failure", suite.name()),
+            note: String::new(),
+            capabilities: Vec::new(),
+            environments: Vec::new(),
+        });
+    }
+
+    let updated = StatusSet { entries }.normalized();
+    updated.save(&status_path)
 }
 
 /// Build one category key from the first two path segments of one test name.
@@ -267,9 +413,9 @@ pub struct ConformanceResult {
     pub read_failed: usize,
     /// tests counted as failures for the conformance gate
     pub regressions: Vec<String>,
-    /// tests that passed but were in known-failures (progress!)
+    /// tests that passed but were in known-fail statuses
     pub fixed: Vec<String>,
-    /// tests in ignored list that now pass (remove from ignored list!)
+    /// tests in skipped statuses that now pass
     pub unskipped: Vec<String>,
     /// tests that timed out (likely infinite loops)
     pub timeouts: Vec<String>,
@@ -352,6 +498,8 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
 
     // discover tests
     let all_tests = suite.discover();
+    let discovered_names: HashSet<String> =
+        all_tests.iter().map(|test| test.name.clone()).collect();
     let total_discovered = all_tests.len();
     let tests: Vec<_> = if let Some(filter) = &options.filter {
         all_tests
@@ -377,20 +525,42 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
         return None; // list mode doesn't return results
     }
 
-    // load known failures and ignored tests
-    let known_failures_path = suite.known_failures_path();
-    let known_failures = load_expected_failures(&known_failures_path);
-
-    let ignored_failures_path = suite.ignored_failures_path();
-    let ignored_failures = load_expected_failures(&ignored_failures_path);
+    // load known failures and skipped cases
+    let status_path = suite.status_path();
+    let statuses = match load_suite_statuses(suite) {
+        Ok(statuses) => statuses,
+        Err(error) => {
+            eprintln!("{}: {error}", color::red("error"));
+            return None;
+        }
+    };
     let include_known_failures = options.include_known_failures_effective();
     let include_ignored = options.include_ignored_effective();
+    let stale_ignored = stale_skipped_patterns(suite, &statuses, &discovered_names);
 
-    // count how many tests are in ignored list (for display)
-    let skipped_count = tests
+    let known_failure_count = tests
         .iter()
-        .filter(|t| ignored_failures.contains(&t.name) && !include_ignored)
+        .filter(|test| {
+            status_for_test(suite, &statuses, &test.name).is_some_and(is_known_failure_status)
+        })
         .count();
+
+    // count how many tests are covered by skipped statuses
+    let skipped_tests = tests
+        .iter()
+        .filter(|test| {
+            status_for_test(suite, &statuses, &test.name).is_some_and(is_skipped_status)
+                && !include_ignored
+        })
+        .collect::<Vec<_>>();
+    let skipped_count = skipped_tests.len();
+    let runnable_tests = tests
+        .iter()
+        .filter(|test| {
+            !status_for_test(suite, &statuses, &test.name).is_some_and(is_skipped_status)
+                || include_ignored
+        })
+        .collect::<Vec<_>>();
 
     println!();
     println!(
@@ -398,19 +568,33 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
         color::bold(&tests.len().to_string()),
         color::cyan(suite.name())
     );
-    if !known_failures.is_empty() {
+    if known_failure_count > 0 {
         println!(
             "  {} known failures loaded from {}",
-            color::yellow(&known_failures.len().to_string()),
-            known_failures_path.display()
+            color::yellow(&known_failure_count.to_string()),
+            status_path.display()
         );
     }
     if skipped_count > 0 {
         println!(
-            "  {} ignored tests loaded from {}",
+            "  {} skipped cases loaded from {}",
             color::dim(&skipped_count.to_string()),
-            ignored_failures_path.display()
+            status_path.display()
         );
+    }
+    if !stale_ignored.is_empty() {
+        println!(
+            "  {} stale skipped entries in {}",
+            color::yellow(&stale_ignored.len().to_string()),
+            status_path.display()
+        );
+        let show_count = stale_ignored.len().min(20);
+        for name in stale_ignored.iter().take(show_count) {
+            println!("    - {name}");
+        }
+        if stale_ignored.len() > show_count {
+            println!("    ... and {} more", stale_ignored.len() - show_count);
+        }
     }
     println!();
 
@@ -418,7 +602,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     let start = Instant::now();
     // atomic counters for progress reporting
     let progress_counter = AtomicUsize::new(0);
-    let total_tests = tests.len();
+    let total_tests = runnable_tests.len();
     let verbose = options.verbose;
 
     // run tests in parallel and collect results
@@ -433,7 +617,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
             .expect("failed to build rayon thread pool");
 
         thread_pool.install(|| {
-            tests
+            runnable_tests
                 .par_iter()
                 .map(|test| {
                     let timeout = suite.timeout_for_test(test, options);
@@ -458,7 +642,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
                 .collect()
         })
     } else {
-        tests
+        runnable_tests
             .iter()
             .map(|test| {
                 let timeout = suite.timeout_for_test(test, options);
@@ -488,9 +672,19 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
 
     let ignored_failures_are_strict = suite.ignored_failures_are_strict();
 
+    // count skipped tests up front so they are not executed
+    for test in skipped_tests {
+        let category = suite.category_for_test(&test.name);
+        let cat_stats = categories.entry(category).or_default();
+        skipped += 1;
+        cat_stats.skipped += 1;
+    }
+
     for (name, outcome) in results {
-        let is_skipped = ignored_failures.contains(&name) && !include_ignored;
-        let is_known_failure = known_failures.contains(&name) && !include_known_failures;
+        let status = status_for_test(suite, &statuses, &name);
+        let is_skipped = status.is_some_and(is_skipped_status) && !include_ignored;
+        let is_known_failure =
+            status.is_some_and(is_known_failure_status) && !include_known_failures;
 
         // extract category from test name (suite-specific)
         let category = suite.category_for_test(&name);
@@ -505,7 +699,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
         match outcome {
             TestResult::Completed(TestOutcome::Passed) => {
                 if is_skipped {
-                    // ignored test now passes: report so we can remove from ignored list
+                    // skipped test now passes: report so we can remove the status entry
                     unskipped.push(name);
                     skipped += 1;
                     cat_stats.skipped += 1;
@@ -568,15 +762,14 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
 
     // update known-failures if requested
     if update_known_failures {
-        if let Err(err) = save_expected_failures(&known_failures_path, &current_failures) {
-            eprintln!(
-                "{}: failed to update known-failures: {err}",
-                color::red("error")
-            );
+        if let Err(err) =
+            save_known_failure_statuses(suite, &statuses, &current_failures, &discovered_names)
+        {
+            eprintln!("{}: failed to update status: {err}", color::red("error"));
         } else {
             println!(
-                "  {} updated with {} failures",
-                known_failures_path.display(),
+                "  {} updated with {} known failures",
+                status_path.display(),
                 current_failures.len()
             );
         }
@@ -1024,10 +1217,10 @@ fn print_conformance_result(
         println!();
     }
 
-    // fixed tests (were in known-failures, now pass)
+    // fixed tests
     if !result.fixed.is_empty() {
         println!(
-            "{} ({} tests now passing, remove from known-failures.txt):",
+            "{} ({} tests now passing, remove from status.json known-fail entries):",
             color::green("FIXED"),
             result.fixed.len()
         );
@@ -1045,10 +1238,10 @@ fn print_conformance_result(
         println!();
     }
 
-    // unskipped tests (were in ignored list, now pass)
+    // unskipped tests
     if !result.unskipped.is_empty() {
         println!(
-            "{} ({} ignored tests now passing, remove from ignored list):",
+            "{} ({} skipped tests now passing, remove from status.json skip entries):",
             color::green("UNSKIPPED"),
             result.unskipped.len()
         );
