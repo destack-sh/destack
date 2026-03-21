@@ -1,6 +1,9 @@
 import { Array } from "native";
 import type { PlatformError } from "../error/index.ds";
-import { NotificationEventHandle } from "../resource/index.ds";
+import {
+    NotificationEventHandle,
+    NotificationPermissionRequestHandle,
+} from "../resource/index.ds";
 
 /// Host notification permission state.
 export enum NotificationPermissionState {
@@ -238,9 +241,9 @@ declare namespace os {
     })
     export function notificationPermissionState(): Result<NotificationPermissionState, PlatformError>;
 
-    /// Request host notification permission.
+    /// Open one notification-permission request transaction.
     ///
-    /// Request notification permission through host authorization flow and return resulting permission state.
+    /// Start one host notification authorization request and return one transaction handle.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -254,7 +257,7 @@ declare namespace os {
     ///
     /// # Replay
     /// External, nonrecordable.
-    @binding("destack.os.notification.requestPermission", {
+    @binding("destack.os.notification.requestPermissionOpen", {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["os.notification.permission"],
@@ -264,7 +267,98 @@ declare namespace os {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function notificationRequestPermission(): Result<NotificationPermissionState, PlatformError>;
+    export function notificationRequestPermissionOpen(): Result<NotificationPermissionRequestHandle, PlatformError>;
+
+    /// Close one notification-permission request transaction.
+    ///
+    /// Close one notification-permission request transaction handle and release host routing state.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host notification callback unregistration and runtime resource cleanup.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.permission`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.notification.requestPermissionClose", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.notification.permission"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function notificationRequestPermissionClose(
+        handle: NotificationPermissionRequestHandle,
+    ): Result<void, PlatformError>;
+
+    /// Wait for one notification-permission result.
+    ///
+    /// Wait for the completion of one earlier notification-permission transaction.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host notification permission completion queues and runtime transaction state.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.permission`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.notification.requestPermissionRead", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.notification.permission"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function notificationRequestPermissionRead(
+        handle: NotificationPermissionRequestHandle,
+        timeoutNs: uint64,
+    ): Result<NotificationPermissionState, PlatformError>;
+
+    /// Poll one notification-permission result without blocking.
+    ///
+    /// Poll the completion of one earlier notification-permission transaction without waiting.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses nonblocking host notification permission completion queue reads.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.permission`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.notification.requestPermissionTryRead", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.notification.permission"],
+        platforms: ["windows", "unix"],
+        simulation: "model",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
+    export function notificationRequestPermissionTryRead(
+        handle: NotificationPermissionRequestHandle,
+    ): Result<NotificationPermissionState, PlatformError>;
 
     /// Post host notification.
     ///
