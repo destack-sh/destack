@@ -139,7 +139,13 @@ impl ModuleLowerer<'_> {
             )
         } else if symbol.ty() == dir::SymbolType::Class && has_vtable_header {
             let vtable_name = self.vtable_field_name;
-            let vtable_type = self.builder.type_raw_pointer(self.type_lowerer.ty_void);
+            let vtable_type = self.builder.type_reference(
+                mir::ReferenceKind::Raw,
+                self.type_lowerer.ty_void,
+                mir::Mutability::Immutable,
+                mir::AddressSpace::Global,
+                false,
+            );
             let (size, alignment) = self
                 .type_lowerer
                 .size_and_align_of_type(self.builder.tree().get(vtable_type), self.builder.tree());

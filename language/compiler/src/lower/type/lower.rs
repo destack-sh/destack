@@ -249,7 +249,7 @@ impl TypeLowerer {
     ) -> mir::LocalNodeId<mir::Type> {
         let mut mir_fields = Vec::with_capacity(layout.fields.len());
 
-        // populate field nodes in declaration order
+        // populate field nodes in layout order
         for field in &layout.fields {
             let mir_field = builder.field(Some(field.name), field.ty);
             mir_fields.push(mir_field);

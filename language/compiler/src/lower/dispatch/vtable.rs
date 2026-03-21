@@ -207,7 +207,7 @@ impl ModuleLowerer<'_> {
             mir::ReferenceKind::Raw,
             self.type_lowerer.ty_void,
             mir::Mutability::Immutable,
-            mir::AddressSpace::Generic,
+            mir::AddressSpace::Global,
             true,
         );
         let vtable_type = self
@@ -216,7 +216,13 @@ impl ModuleLowerer<'_> {
         let global_id =
             self.builder
                 .global_constant(&name, vtable_type, mir::GlobalInitializer::zero());
-        let address_type = self.builder.type_raw_pointer(vtable_type);
+        let address_type = self.builder.type_reference(
+            mir::ReferenceKind::Raw,
+            vtable_type,
+            mir::Mutability::Immutable,
+            mir::AddressSpace::Global,
+            false,
+        );
 
         Ok(VtableGlobal {
             global_id,
