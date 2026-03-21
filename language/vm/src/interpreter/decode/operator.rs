@@ -1,7 +1,8 @@
 use destack_mir as mir;
 
+use super::super::execute::instruction;
 use crate::diagnostic::Error;
-use destack_heap::{RawPointer, Value, ValueTag};
+use destack_heap::{Value, ValueTag};
 
 /// Execute a binary operation.
 #[inline(always)]
@@ -809,22 +810,32 @@ pub(crate) fn execute_cast(
                 None => 64,
             };
             match argument.tag() {
-                ValueTag::RawPointer | ValueTag::ManagedReference => {
-                    Value::uint(argument.raw_data(), target_width)
-                }
+                ValueTag::RawPointer
+                | ValueTag::ManagedReference
+                | ValueTag::SharedPointer
+                | ValueTag::StackPointer
+                | ValueTag::LocalPointer
+                | ValueTag::GlobalPointer
+                | ValueTag::FunctionPointer => Value::uint(argument.raw_data(), target_width),
                 _ => argument,
             }
         }
 
         mir::CastOperator::IntToPointer => match argument.tag() {
             ValueTag::UInt | ValueTag::Int => {
-                Value::raw_pointer(RawPointer::new(argument.raw_data()))
+                let raw = argument.raw_data();
+                cast_integer_to_pointer(raw, target_type)
             }
             _ => argument,
         },
     };
 
     Ok(result)
+}
+
+/// Cast one integer bit pattern into the requested pointer-shaped target type.
+fn cast_integer_to_pointer(raw: u64, target_type: &mir::Type) -> Value {
+    instruction::decode_pointer_bits(raw, target_type)
 }
 
 /// Truncate a signed integer to a target bit width.

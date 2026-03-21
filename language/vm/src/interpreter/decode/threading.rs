@@ -1712,6 +1712,7 @@ fn thread_instruction(
                 data: ThreadedInstructionData::CallVirtual {
                     dest: pack_optional_value(*destination),
                     receiver: *receiver,
+                    managed_pointee: managed_pointee_type_for_value(tree, value_types, *receiver),
                     slot_id: slot_id.0,
                     arguments: args_range,
                 },
@@ -1732,6 +1733,7 @@ fn thread_instruction(
                 data: ThreadedInstructionData::CallInterface {
                     dest: pack_optional_value(*destination),
                     receiver: *receiver,
+                    managed_pointee: managed_pointee_type_for_value(tree, value_types, *receiver),
                     slot_id: slot_id.0,
                     arguments: args_range,
                 },
@@ -2755,7 +2757,13 @@ fn build_value_kinds(
         let block = tree.get(*block_id);
         for param in &block.parameters {
             let kind = kind_from_type(tree, param.ty);
-            value_kinds.set(param.value, kind_for_block_param(kind));
+            let block_kind = kind_for_block_param(kind);
+            let next_kind = match value_kinds.get(param.value) {
+                Some(existing) => merge_block_param_kind(existing, block_kind),
+                None => block_kind,
+            };
+
+            value_kinds.set(param.value, next_kind);
         }
     }
 
@@ -4293,6 +4301,7 @@ fn thread_terminator(
                 handler: dispatch::handle_tail_call_virtual,
                 data: ThreadedInstructionData::TailCallVirtual {
                     receiver: *receiver,
+                    managed_pointee: managed_pointee_type_for_value_kind(value_kinds, *receiver),
                     slot_id: slot_id.0,
                     arguments: args,
                 },
@@ -4310,6 +4319,7 @@ fn thread_terminator(
                 handler: dispatch::handle_tail_call_interface,
                 data: ThreadedInstructionData::TailCallInterface {
                     receiver: *receiver,
+                    managed_pointee: managed_pointee_type_for_value_kind(value_kinds, *receiver),
                     slot_id: slot_id.0,
                     arguments: args,
                 },

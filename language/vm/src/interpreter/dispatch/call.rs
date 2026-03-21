@@ -4,13 +4,24 @@ use super::*;
 fn load_receiver_field(
     state: &mut ThreadedState<'_, '_>,
     receiver: Value,
+    managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
     field_index: u32,
 ) -> Result<Value, Error> {
     // resolve based on receiver storage
     match receiver.tag() {
         ValueTag::ManagedReference => {
-            let aggregate = instruction::load_from_managed_reference(state, receiver)?;
-            instruction::get_field(state, aggregate, field_index)
+            let Some(managed_pointee) = managed_pointee else {
+                return Err(Error::InvalidManagedReference);
+            };
+
+            let handle = receiver.as_managed_reference().unwrap();
+            instruction::load_field_managed(
+                state,
+                handle,
+                managed_pointee,
+                field_index,
+                UNKNOWN_FIELD_COUNT,
+            )
         }
         ValueTag::Aggregate | ValueTag::String => {
             instruction::get_field(state, receiver, field_index)
@@ -26,10 +37,11 @@ fn load_receiver_field(
 fn resolve_virtual_dispatch_target(
     state: &mut ThreadedState<'_, '_>,
     receiver: Value,
+    managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
     slot_id: u32,
 ) -> Result<mir::LocalNodeId<mir::Function>, Error> {
     // load the vtable pointer from the receiver
-    let vtable_value = load_receiver_field(state, receiver, VTABLE_FIELD_INDEX)?;
+    let vtable_value = load_receiver_field(state, receiver, managed_pointee, VTABLE_FIELD_INDEX)?;
 
     // require a global pointer for the vtable
     let vtable_pointer = vtable_value
@@ -71,10 +83,12 @@ fn resolve_virtual_dispatch_target(
 fn resolve_interface_dispatch_target(
     state: &mut ThreadedState<'_, '_>,
     receiver: Value,
+    managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
     slot_id: u32,
 ) -> Result<mir::LocalNodeId<mir::Function>, Error> {
     // load the itab id from the interface reference
-    let itab_value = load_receiver_field(state, receiver, INTERFACE_ITAB_FIELD_INDEX)?;
+    let itab_value =
+        load_receiver_field(state, receiver, managed_pointee, INTERFACE_ITAB_FIELD_INDEX)?;
 
     // decode the itab id
     let raw_id = match itab_value.as_uint_with_width() {
@@ -357,6 +371,7 @@ pub(crate) fn handle_call_virtual(
     let ThreadedInstructionData::CallVirtual {
         dest,
         receiver,
+        managed_pointee,
         slot_id,
         arguments,
     } = &block[pc].data
@@ -366,10 +381,11 @@ pub(crate) fn handle_call_virtual(
 
     // resolve dynamic target
     let receiver_value = state.get(*receiver);
-    let function_id = match resolve_virtual_dispatch_target(state, receiver_value, *slot_id) {
-        Ok(function_id) => function_id,
-        Err(error) => return ControlFlow::Error(error),
-    };
+    let function_id =
+        match resolve_virtual_dispatch_target(state, receiver_value, *managed_pointee, *slot_id) {
+            Ok(function_id) => function_id,
+            Err(error) => return ControlFlow::Error(error),
+        };
 
     // skip fast path when stats or step limits are active
     let allow_direct = !state.collect_stats
@@ -407,6 +423,7 @@ pub(crate) fn handle_call_interface(
     let ThreadedInstructionData::CallInterface {
         dest,
         receiver,
+        managed_pointee,
         slot_id,
         arguments,
     } = &block[pc].data
@@ -416,7 +433,12 @@ pub(crate) fn handle_call_interface(
 
     // resolve dynamic target
     let receiver_value = state.get(*receiver);
-    let function_id = match resolve_interface_dispatch_target(state, receiver_value, *slot_id) {
+    let function_id = match resolve_interface_dispatch_target(
+        state,
+        receiver_value,
+        *managed_pointee,
+        *slot_id,
+    ) {
         Ok(function_id) => function_id,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -764,6 +786,7 @@ pub(crate) fn handle_tail_call_virtual(
     // decode instruction data
     let ThreadedInstructionData::TailCallVirtual {
         receiver,
+        managed_pointee,
         slot_id,
         arguments,
     } = &block[pc].data
@@ -773,10 +796,11 @@ pub(crate) fn handle_tail_call_virtual(
 
     // resolve dynamic target
     let receiver_value = state.get(*receiver);
-    let function_id = match resolve_virtual_dispatch_target(state, receiver_value, *slot_id) {
-        Ok(function_id) => function_id,
-        Err(error) => return ControlFlow::Error(error),
-    };
+    let function_id =
+        match resolve_virtual_dispatch_target(state, receiver_value, *managed_pointee, *slot_id) {
+            Ok(function_id) => function_id,
+            Err(error) => return ControlFlow::Error(error),
+        };
 
     ControlFlow::TailCall {
         function: function_id.id,
@@ -798,6 +822,7 @@ pub(crate) fn handle_tail_call_interface(
     // decode instruction data
     let ThreadedInstructionData::TailCallInterface {
         receiver,
+        managed_pointee,
         slot_id,
         arguments,
     } = &block[pc].data
@@ -807,7 +832,12 @@ pub(crate) fn handle_tail_call_interface(
 
     // resolve dynamic target
     let receiver_value = state.get(*receiver);
-    let function_id = match resolve_interface_dispatch_target(state, receiver_value, *slot_id) {
+    let function_id = match resolve_interface_dispatch_target(
+        state,
+        receiver_value,
+        *managed_pointee,
+        *slot_id,
+    ) {
         Ok(function_id) => function_id,
         Err(error) => return ControlFlow::Error(error),
     };

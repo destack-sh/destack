@@ -347,6 +347,7 @@ pub enum ThreadedInstructionData {
     CallVirtual {
         dest: mir::Value,
         receiver: mir::Value,
+        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
         slot_id: u32,
         arguments: ArgumentRange,
     },
@@ -355,6 +356,7 @@ pub enum ThreadedInstructionData {
     CallInterface {
         dest: mir::Value,
         receiver: mir::Value,
+        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
         slot_id: u32,
         arguments: ArgumentRange,
     },
@@ -976,6 +978,7 @@ pub enum ThreadedInstructionData {
     /// Virtual tail call (call + return).
     TailCallVirtual {
         receiver: mir::Value,
+        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
         slot_id: u32,
         arguments: ArgumentRange,
     },
@@ -983,6 +986,7 @@ pub enum ThreadedInstructionData {
     /// Interface tail call (call + return).
     TailCallInterface {
         receiver: mir::Value,
+        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
         slot_id: u32,
         arguments: ArgumentRange,
     },

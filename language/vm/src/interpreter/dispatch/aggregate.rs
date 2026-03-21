@@ -66,7 +66,10 @@ pub(crate) fn handle_field_get_inline(
 
     // fast path: directly access the managed value
     let heap = state.heap_ref();
-    let slot_index = handle.byte_offset() / Value::BYTE_LEN + *index as usize;
+    let slot_index = match instruction::managed_packed_slot_index(handle, *index as usize) {
+        Ok(slot_index) => slot_index,
+        Err(error) => return ControlFlow::Error(error),
+    };
     let value = match heap.packed_value_at(handle, slot_index) {
         Some(value) => value,
         None => return ControlFlow::Error(Error::InvalidManagedReference),
@@ -122,7 +125,10 @@ pub(crate) fn handle_field_store_inline(
 
     // fast path: directly access the managed value
     let heap = state.heap();
-    let slot_index = handle.byte_offset() / Value::BYTE_LEN + *index as usize;
+    let slot_index = match instruction::managed_packed_slot_index(handle, *index as usize) {
+        Ok(slot_index) => slot_index,
+        Err(error) => return ControlFlow::Error(error),
+    };
     if !heap.set_packed_value(handle, slot_index, val) {
         return ControlFlow::Error(Error::InvalidManagedReference);
     }
