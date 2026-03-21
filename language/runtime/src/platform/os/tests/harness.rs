@@ -13,14 +13,17 @@ mod generated;
 pub(crate) use generated::HarnessValue;
 
 /// Test harness context.
-pub(crate) struct HarnessContext<'call> {
+pub(crate) struct OsHarnessContext<'call> {
     /// Runtime call context active for this operation.
     pub(crate) call_context: &'call BindingCallContext,
     /// VM context when running VM bindings.
     pub(crate) vm_context: Option<*mut ()>,
 }
 
-impl HarnessContext<'_> {
+/// The local alias used by handwritten tests.
+pub(crate) type HarnessContext<'call> = OsHarnessContext<'call>;
+
+impl OsHarnessContext<'_> {
     /// Return the host runtime id for this harness context.
     pub(crate) fn runtime_id(&self) -> u64 {
         self.call_context.host().host_runtime_id().0
@@ -46,7 +49,7 @@ impl Harness {
     {
         match self {
             Harness::Native(runtime) => runtime.with_native_call_context(|call_context| {
-                callback(HarnessContext {
+                callback(OsHarnessContext {
                     call_context,
                     vm_context: None,
                 })
@@ -54,7 +57,7 @@ impl Harness {
             Harness::Vm(runtime) => runtime.with_vm_call_context(|call_context, vm_context| {
                 let vm_context = vm_context as *mut vm::ExternalCallContext<'_> as *mut ();
 
-                callback(HarnessContext {
+                callback(OsHarnessContext {
                     call_context,
                     vm_context: Some(vm_context),
                 })

@@ -6435,7 +6435,7 @@ pub(crate) const FS_WATCH_OPENAT: BindingDescriptor = BindingDescriptor::externa
 /// Binding descriptor for destack.fs.xattr.fgetxattr.
 pub(crate) const FS_XATTR_FGETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.fgetxattr",
-    "export function fgetxattr(handle: FileHandle, name: string): Result<Array<uint8>, PlatformError>",
+    "export function fgetxattr(handle: FileHandle, name: string): Result<uint8[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["fs.xattr"],
@@ -6449,7 +6449,7 @@ pub(crate) const FS_XATTR_FGETXATTR: BindingDescriptor = BindingDescriptor::exte
 /// Binding descriptor for destack.fs.xattr.fgetxattrBytes.
 pub(crate) const FS_XATTR_FGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.fgetxattrBytes",
-    "export function fgetxattrBytes(handle: FileHandle, name: Slice<uint8>): Result<Array<uint8>, PlatformError>",
+    "export function fgetxattrBytes(handle: FileHandle, name: Slice<uint8>): Result<uint8[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["fs.xattr"],
@@ -6464,7 +6464,7 @@ pub(crate) const FS_XATTR_FGETXATTR_BYTES: BindingDescriptor = BindingDescriptor
 pub(crate) const FS_XATTR_FLISTXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.flistxattr",
-        "export function flistxattr(handle: FileHandle): Result<Array<string>, PlatformError>",
+        "export function flistxattr(handle: FileHandle): Result<string[], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["fs.xattr"],
@@ -6489,18 +6489,32 @@ pub(crate) const FS_XATTR_FLISTXATTR: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.xattr.flistxattrBytes.
-pub(crate) const FS_XATTR_FLISTXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.xattr.flistxattrBytes",
-    "export function flistxattrBytes(handle: FileHandle): Result<Array<uint8[]>, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["fs.xattr"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
+pub(crate) const FS_XATTR_FLISTXATTR_BYTES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.flistxattrBytes",
+        "export function flistxattrBytes(handle: FileHandle): Result<uint8[][], PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::BindingCall,
+        &["fs.xattr"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+        BindingAffinity::Any,
+    )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.xattr.fremovexattr.
 pub(crate) const FS_XATTR_FREMOVEXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6562,7 +6576,7 @@ pub(crate) const FS_XATTR_FSETXATTR_BYTES: BindingDescriptor = BindingDescriptor
 pub(crate) const FS_XATTR_GETXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.getxattr",
-        "export function getxattr(path: OsPath, name: string): Result<Array<uint8>, PlatformError>",
+        "export function getxattr(path: OsPath, name: string): Result<uint8[], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["fs.xattr"],
@@ -6589,7 +6603,7 @@ pub(crate) const FS_XATTR_GETXATTR: BindingDescriptor =
 /// Binding descriptor for destack.fs.xattr.getxattrBytes.
 pub(crate) const FS_XATTR_GETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.getxattrBytes",
-    "export function getxattrBytes(path: OsPath, name: Slice<uint8>): Result<Array<uint8>, PlatformError>",
+    "export function getxattrBytes(path: OsPath, name: Slice<uint8>): Result<uint8[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["fs.xattr"],
@@ -6601,23 +6615,37 @@ pub(crate) const FS_XATTR_GETXATTR_BYTES: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lgetxattr.
-pub(crate) const FS_XATTR_LGETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.xattr.lgetxattr",
-    "export function lgetxattr(path: OsPath, name: string): Result<Array<uint8>, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["fs.xattr"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
+pub(crate) const FS_XATTR_LGETXATTR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.xattr.lgetxattr",
+        "export function lgetxattr(path: OsPath, name: string): Result<uint8[], PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::BindingCall,
+        &["fs.xattr"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+        BindingAffinity::Any,
+    )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.xattr.lgetxattrBytes.
 pub(crate) const FS_XATTR_LGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.lgetxattrBytes",
-    "export function lgetxattrBytes(path: OsPath, name: Slice<uint8>): Result<Array<uint8>, PlatformError>",
+    "export function lgetxattrBytes(path: OsPath, name: Slice<uint8>): Result<uint8[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["fs.xattr"],
@@ -6632,7 +6660,7 @@ pub(crate) const FS_XATTR_LGETXATTR_BYTES: BindingDescriptor = BindingDescriptor
 pub(crate) const FS_XATTR_LISTXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.listxattr",
-        "export function listxattr(path: OsPath): Result<Array<string>, PlatformError>",
+        "export function listxattr(path: OsPath): Result<string[], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["fs.xattr"],
@@ -6660,7 +6688,7 @@ pub(crate) const FS_XATTR_LISTXATTR: BindingDescriptor =
 pub(crate) const FS_XATTR_LISTXATTR_BYTES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.listxattrBytes",
-        "export function listxattrBytes(path: OsPath): Result<Array<uint8[]>, PlatformError>",
+        "export function listxattrBytes(path: OsPath): Result<uint8[][], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["fs.xattr"],
@@ -6688,7 +6716,7 @@ pub(crate) const FS_XATTR_LISTXATTR_BYTES: BindingDescriptor =
 pub(crate) const FS_XATTR_LLISTXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.llistxattr",
-        "export function llistxattr(path: OsPath): Result<Array<string>, PlatformError>",
+        "export function llistxattr(path: OsPath): Result<string[], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["fs.xattr"],
@@ -6716,7 +6744,7 @@ pub(crate) const FS_XATTR_LLISTXATTR: BindingDescriptor =
 pub(crate) const FS_XATTR_LLISTXATTR_BYTES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.llistxattrBytes",
-        "export function llistxattrBytes(path: OsPath): Result<Array<uint8[]>, PlatformError>",
+        "export function llistxattrBytes(path: OsPath): Result<uint8[][], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["fs.xattr"],

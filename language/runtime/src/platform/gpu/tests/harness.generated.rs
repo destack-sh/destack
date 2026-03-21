@@ -7,8 +7,8 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::gpu::tests::GpuHarnessContext;
 use crate::platform::{{NativeAbiCodec, VmAbiCodec}};
-use crate::platform::gpu::{GpuAdapterFormatCapabilities, GpuAdapterFormatCapabilitiesVm, GpuAdapterInfo, GpuAdapterInfoVm, GpuAdapterLimits, GpuAdapterLimitsVm, GpuAdapterRequest, GpuAdapterRequestVm, GpuAdapterType, GpuBackend, GpuBindGroupBufferResource, GpuBindGroupBufferResourceVm, GpuBindGroupEntry, GpuBindGroupEntryVm, GpuBindGroupLayoutBufferResource, GpuBindGroupLayoutBufferResourceVm, GpuBindGroupLayoutEntry, GpuBindGroupLayoutEntryVm, GpuBindGroupLayoutResource, GpuBindGroupLayoutResourceVm, GpuBindGroupLayoutSampledTextureResource, GpuBindGroupLayoutSampledTextureResourceVm, GpuBindGroupLayoutSamplerResource, GpuBindGroupLayoutSamplerResourceVm, GpuBindGroupLayoutStorageTextureResource, GpuBindGroupLayoutStorageTextureResourceVm, GpuBindGroupResource, GpuBindGroupResourceVm, GpuBindGroupSamplerResource, GpuBindGroupSamplerResourceVm, GpuBindGroupTextureResource, GpuBindGroupTextureResourceVm, GpuBlendComponent, GpuBlendComponentVm, GpuBlendFactor, GpuBlendOperation, GpuBlendState, GpuBlendStateVm, GpuBufferBindingType, GpuBufferCopy, GpuBufferCopyLayout, GpuBufferCopyLayoutVm, GpuBufferCopyVm, GpuBufferInfo, GpuBufferInfoVm, GpuBufferMapState, GpuBufferOptions, GpuBufferOptionsVm, GpuCapturedError, GpuCapturedErrorVm, GpuColorTargetState, GpuColorTargetStateVm, GpuColorWriteMask, GpuCommandEncoderOptions, GpuCommandEncoderOptionsVm, GpuCompareFunction, GpuCompilationInfo, GpuCompilationInfoVm, GpuCompilationMessage, GpuCompilationMessageKind, GpuCompilationMessageVm, GpuComputePassOptions, GpuComputePassOptionsVm, GpuComputePipelineOptions, GpuComputePipelineOptionsVm, GpuComputeState, GpuComputeStateVm, GpuCullMode, GpuDepthStencilState, GpuDepthStencilStateVm, GpuDeviceInfo, GpuDeviceInfoVm, GpuDeviceLossReason, GpuDeviceOptions, GpuDeviceOptionsVm, GpuDeviceStatus, GpuDeviceStatusVm, GpuErrorFilter, GpuExtent3D, GpuExtent3DVm, GpuFeatureId, GpuFenceMode, GpuFenceOptions, GpuFenceOptionsVm, GpuFragmentState, GpuFragmentStateVm, GpuFrontFace, GpuIndexFormat, GpuLoadOp, GpuMapMode, GpuMappedBufferRange, GpuMappedBufferRangeVm, GpuMultisampleState, GpuMultisampleStateVm, GpuPassTimestampWrites, GpuPassTimestampWritesVm, GpuPipelineConstant, GpuPipelineConstantVm, GpuPipelineLayoutOptions, GpuPipelineLayoutOptionsVm, GpuPipelineMetadata, GpuPipelineMetadataVm, GpuPipelineStatisticsMask, GpuPowerPreference, GpuPresentMode, GpuPresentOptions, GpuPresentOptionsVm, GpuPrimitiveState, GpuPrimitiveStateVm, GpuPrimitiveTopology, GpuQuerySetInfo, GpuQuerySetInfoVm, GpuQuerySetOptions, GpuQuerySetOptionsVm, GpuQueryType, GpuRenderBundleEncoderOptions, GpuRenderBundleEncoderOptionsVm, GpuRenderPassColorAttachment, GpuRenderPassColorAttachmentVm, GpuRenderPassDepthStencilAttachment, GpuRenderPassDepthStencilAttachmentVm, GpuRenderPassOptions, GpuRenderPassOptionsVm, GpuRenderPipelineOptions, GpuRenderPipelineOptionsVm, GpuRenderState, GpuRenderStateVm, GpuSamplerBindingType, GpuSamplerOptions, GpuSamplerOptionsVm, GpuShaderFormat, GpuShaderOptions, GpuShaderOptionsVm, GpuShaderVisibilityMask, GpuStencilFaceState, GpuStencilFaceStateVm, GpuStencilOperation, GpuStorageTextureAccess, GpuStoreOp, GpuSubmitOptions, GpuSubmitOptionsVm, GpuSurfaceAcquireStatus, GpuSurfaceAlphaMode, GpuSurfaceCapabilities, GpuSurfaceCapabilitiesVm, GpuSurfaceFrame, GpuSurfaceFrameVm, GpuSurfaceOptions, GpuSurfaceOptionsVm, GpuTextureCopy, GpuTextureCopyVm, GpuTextureDimension, GpuTextureInfo, GpuTextureInfoVm, GpuTextureOptions, GpuTextureOptionsVm, GpuTextureSampleType, GpuTextureViewDimension, GpuTextureViewOptions, GpuTextureViewOptionsVm, GpuVertexAttribute, GpuVertexAttributeVm, GpuVertexBufferLayout, GpuVertexBufferLayoutVm, GpuVertexState, GpuVertexStateVm, GpuVertexStepMode, native as gpu_native, vm as gpu_vm};
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource};
+use crate::platform::gpu::{GpuAdapterFormatCapabilities, GpuAdapterFormatCapabilitiesVm, GpuAdapterInfo, GpuAdapterInfoVm, GpuAdapterLimits, GpuAdapterLimitsVm, GpuAdapterRequest, GpuAdapterRequestVm, GpuAdapterType, GpuAddressMode, GpuBackend, GpuBindGroupBufferResource, GpuBindGroupBufferResourceVm, GpuBindGroupEntry, GpuBindGroupEntryVm, GpuBindGroupExternalTextureResource, GpuBindGroupExternalTextureResourceVm, GpuBindGroupLayoutBufferResource, GpuBindGroupLayoutBufferResourceVm, GpuBindGroupLayoutEntry, GpuBindGroupLayoutEntryVm, GpuBindGroupLayoutExternalTextureResource, GpuBindGroupLayoutExternalTextureResourceVm, GpuBindGroupLayoutOptions, GpuBindGroupLayoutOptionsVm, GpuBindGroupLayoutResource, GpuBindGroupLayoutResourceVm, GpuBindGroupLayoutSampledTextureResource, GpuBindGroupLayoutSampledTextureResourceVm, GpuBindGroupLayoutSamplerResource, GpuBindGroupLayoutSamplerResourceVm, GpuBindGroupLayoutStorageTextureResource, GpuBindGroupLayoutStorageTextureResourceVm, GpuBindGroupOptions, GpuBindGroupOptionsVm, GpuBindGroupResource, GpuBindGroupResourceVm, GpuBindGroupSamplerResource, GpuBindGroupSamplerResourceVm, GpuBindGroupTextureResource, GpuBindGroupTextureResourceVm, GpuBlendComponent, GpuBlendComponentVm, GpuBlendFactor, GpuBlendOperation, GpuBlendState, GpuBlendStateVm, GpuBufferBindingType, GpuBufferCopy, GpuBufferCopyLayout, GpuBufferCopyLayoutVm, GpuBufferCopyVm, GpuBufferInfo, GpuBufferInfoVm, GpuBufferMapState, GpuBufferOptions, GpuBufferOptionsVm, GpuBufferTransition, GpuBufferTransitionVm, GpuBufferUsageMask, GpuBufferUseMask, GpuCapturedError, GpuCapturedErrorVm, GpuColor, GpuColorTargetState, GpuColorTargetStateVm, GpuColorVm, GpuColorWriteMask, GpuCommandBufferOptions, GpuCommandBufferOptionsVm, GpuCommandEncoderOptions, GpuCommandEncoderOptionsVm, GpuCompareFunction, GpuCompilationInfo, GpuCompilationInfoVm, GpuCompilationMessage, GpuCompilationMessageKind, GpuCompilationMessageVm, GpuCompositeAlphaMode, GpuComputePassOptions, GpuComputePassOptionsVm, GpuComputePipelineOptions, GpuComputePipelineOptionsVm, GpuComputeState, GpuComputeStateVm, GpuCullMode, GpuDepthStencilState, GpuDepthStencilStateVm, GpuDeviceInfo, GpuDeviceInfoVm, GpuDeviceLossReason, GpuDeviceOptions, GpuDeviceOptionsVm, GpuDeviceStatus, GpuDeviceStatusVm, GpuErrorFilter, GpuExtent3D, GpuExtent3DVm, GpuExternalTextureFormat, GpuExternalTextureOptions, GpuExternalTextureOptionsVm, GpuExternalTextureTransferFunction, GpuExternalTextureTransferFunctionVm, GpuFeatureId, GpuFenceMode, GpuFenceOptions, GpuFenceOptionsVm, GpuFilterMode, GpuFragmentState, GpuFragmentStateVm, GpuFrontFace, GpuIndexFormat, GpuLoadOp, GpuManualMemoryHint, GpuManualMemoryHintVm, GpuMapMode, GpuMappedBufferRange, GpuMappedBufferRangeVm, GpuMemoryHint, GpuMipmapFilterMode, GpuMultisampleState, GpuMultisampleStateVm, GpuOcclusionQueryType, GpuOcclusionQueryTypeVm, GpuPassTimestampWrites, GpuPassTimestampWritesVm, GpuPipelineConstant, GpuPipelineConstantVm, GpuPipelineLayoutOptions, GpuPipelineLayoutOptionsVm, GpuPipelineStatisticsMask, GpuPipelineStatisticsQueryType, GpuPipelineStatisticsQueryTypeVm, GpuPolygonMode, GpuPowerPreference, GpuPresentMode, GpuPresentationOptions, GpuPresentationOptionsVm, GpuPresentationOverflowPolicy, GpuPresentationResult, GpuPrimitiveState, GpuPrimitiveStateVm, GpuPrimitiveTopology, GpuQuerySetInfo, GpuQuerySetInfoVm, GpuQuerySetOptions, GpuQuerySetOptionsVm, GpuQuerySetType, GpuQuerySetTypeVm, GpuRenderBundleEncoderOptions, GpuRenderBundleEncoderOptionsVm, GpuRenderBundleOptions, GpuRenderBundleOptionsVm, GpuRenderPassColorAttachment, GpuRenderPassColorAttachmentVm, GpuRenderPassDepthStencilAttachment, GpuRenderPassDepthStencilAttachmentVm, GpuRenderPassOptions, GpuRenderPassOptionsVm, GpuRenderPipelineOptions, GpuRenderPipelineOptionsVm, GpuRenderState, GpuRenderStateVm, GpuSamplerBindingType, GpuSamplerBorderColor, GpuSamplerOptions, GpuSamplerOptionsVm, GpuShaderFormat, GpuShaderOptions, GpuShaderOptionsVm, GpuShaderRuntimeChecks, GpuShaderRuntimeChecksVm, GpuShaderVisibilityMask, GpuStencilFaceState, GpuStencilFaceStateVm, GpuStencilOperation, GpuStorageTextureAccess, GpuStoreOp, GpuSubmitOptions, GpuSubmitOptionsVm, GpuSurfaceAcquireStatus, GpuSurfaceCapabilities, GpuSurfaceCapabilitiesVm, GpuSurfaceConfiguration, GpuSurfaceConfigurationVm, GpuSurfaceFrame, GpuSurfaceFrameVm, GpuSurfaceHdrMetadata, GpuSurfaceHdrMetadataVm, GpuSurfacePresentationEvent, GpuSurfacePresentationEventVm, GpuSurfacePresentationOpenOptions, GpuSurfacePresentationOpenOptionsVm, GpuSurfaceStatus, GpuSurfaceStatusInfo, GpuSurfaceStatusInfoVm, GpuSurfaceTimingCapabilityFlags, GpuTextureAspect, GpuTextureCopy, GpuTextureCopyVm, GpuTextureDimension, GpuTextureFormat, GpuTextureFormatFeatureFlags, GpuTextureInfo, GpuTextureInfoVm, GpuTextureOptions, GpuTextureOptionsVm, GpuTextureSampleType, GpuTextureSubresourceRange, GpuTextureSubresourceRangeVm, GpuTextureTransition, GpuTextureTransitionVm, GpuTextureUsageMask, GpuTextureUseMask, GpuTextureViewDimension, GpuTextureViewOptions, GpuTextureViewOptionsVm, GpuTimestampQueryType, GpuTimestampQueryTypeVm, GpuTraceMode, GpuVertexAttribute, GpuVertexAttributeVm, GpuVertexBufferLayout, GpuVertexBufferLayoutVm, GpuVertexFormat, GpuVertexState, GpuVertexStateVm, GpuVertexStepMode, native as gpu_native, vm as gpu_vm};
+use crate::platform::{NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError as HarnessPlatformError, VmArray, VmSlice, display, fs, resource};
 use destack_vm as vm;
 
 impl<'call> GpuHarnessContext<'call> {
@@ -74,9 +74,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Close one GPU adapter.
+    /// Close a GPU adapter.
     ///
-    /// Close one opened adapter endpoint and release host backend references.
+    /// Close an adapter and release host backend references.
     /// The adapter handle becomes invalid after close.
     ///
     /// # Platform
@@ -105,10 +105,10 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Read one adapter feature snapshot.
+    /// Read an adapter feature snapshot.
     ///
-    /// Read one feature identifier snapshot from one opened adapter.
-    /// Feature identifiers follow runtime GPU feature contracts.
+    /// Read the enabled feature identifiers for an adapter.
+    /// Feature identifiers follow the runtime GPU feature registry.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -142,10 +142,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Query one adapter texture-format capability snapshot.
+    /// Query texture-format capabilities for an adapter.
     ///
-    /// Query one texture format on one adapter and return normalized format capability data.
-    /// Capabilities can vary by backend and device generation.
+    /// Query one texture format on an adapter and return normalized capability data.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -162,7 +161,7 @@ impl<'call> GpuHarnessContext<'call> {
     pub(crate) fn destack_gpu_adapter_format_capabilities(
         &mut self,
         handle: resource::GpuAdapterHandle,
-        format: u32,
+        format: GpuTextureFormat,
     ) -> RuntimeResult<HarnessValue<GpuAdapterFormatCapabilities, GpuAdapterFormatCapabilitiesVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -180,10 +179,10 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Check whether one adapter supports one feature.
+    /// Check whether an adapter supports a feature.
     ///
-    /// Check one feature identifier against one opened adapter feature set.
-    /// Feature identifiers follow runtime GPU feature contracts.
+    /// Check one feature identifier against the adapter feature set.
+    /// Feature identifiers follow the runtime GPU feature registry.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -218,10 +217,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Read metadata for one opened adapter.
+    /// Read adapter metadata.
     ///
-    /// Query the current normalized adapter metadata through an opened adapter handle.
-    /// Returned values reflect host backend limits and feature reporting.
+    /// Read the current normalized adapter metadata.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -255,9 +253,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Read one adapter limits snapshot.
+    /// Read an adapter limits snapshot.
     ///
-    /// Read one normalized limits snapshot from one opened adapter.
+    /// Read the normalized limits for an adapter.
     /// Limits remain stable for the adapter lifetime.
     ///
     /// # Platform
@@ -294,8 +292,7 @@ impl<'call> GpuHarnessContext<'call> {
 
     /// List available GPU adapters.
     ///
-    /// Enumerate host GPU adapters and return stable identifiers with normalized capability metadata.
-    /// Adapter visibility and ordering follow host graphics API enumeration behavior.
+    /// List host GPU adapters with stable identifiers and normalized capability metadata.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -331,10 +328,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Open one GPU adapter.
+    /// Open a GPU adapter.
     ///
-    /// Open one host GPU adapter endpoint for device creation and capability queries.
-    /// Handle lifetime follows host backend object ownership semantics.
+    /// Open a GPU adapter for device creation and capability queries.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -370,9 +366,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Create one bind group.
+    /// Create a bind group.
     ///
-    /// Create one bind group from one layout and explicit resource entries.
+    /// Create a bind group from a layout and explicit resource entries.
     /// Resource compatibility is validated against the target layout.
     ///
     /// # Platform
@@ -392,19 +388,21 @@ impl<'call> GpuHarnessContext<'call> {
         device: resource::GpuDeviceHandle,
         layout: resource::GpuBindGroupLayoutHandle,
         entries: HarnessValue<NativeSlice<GpuBindGroupEntry>, VmSlice<GpuBindGroupEntryVm>>,
-        flags: u32,
+        options: HarnessValue<GpuBindGroupOptions, GpuBindGroupOptionsVm>,
     ) -> RuntimeResult<resource::GpuBindGroupHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let entries = entries.into_vm("entries")?;
-                let out = gpu_vm::destack_gpu_bind_group_create(self.call_context, context, device, layout, entries, flags)?;
+                let options = options.into_vm("options")?;
+                let out = gpu_vm::destack_gpu_bind_group_create(self.call_context, context, device, layout, entries, options)?;
                 Ok(out)
             }
             None => {
                 let entries = entries.into_native("entries")?;
+                let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::GpuBindGroupHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_bind_group_create(self.call_context, out.as_mut_ptr(), device, layout, entries, flags)?;
+                    gpu_native::destack_gpu_bind_group_create(self.call_context, out.as_mut_ptr(), device, layout, entries, options)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
@@ -412,9 +410,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Destroy one bind group.
+    /// Destroy a bind group.
     ///
-    /// Destroy one bind group and release backend descriptor allocation resources.
+    /// Destroy a bind group and release backend descriptor allocation resources.
     /// The bind group handle becomes invalid after destroy.
     ///
     /// # Platform
@@ -443,9 +441,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Create one bind group layout.
+    /// Create a bind group layout.
     ///
-    /// Create one bind group layout descriptor from ordered binding entries.
+    /// Create a bind group layout from ordered binding entries.
     /// Validation rules follow backend pipeline-layout contracts.
     ///
     /// # Platform
@@ -464,19 +462,21 @@ impl<'call> GpuHarnessContext<'call> {
         &mut self,
         device: resource::GpuDeviceHandle,
         entries: HarnessValue<NativeSlice<GpuBindGroupLayoutEntry>, VmSlice<GpuBindGroupLayoutEntryVm>>,
-        flags: u32,
+        options: HarnessValue<GpuBindGroupLayoutOptions, GpuBindGroupLayoutOptionsVm>,
     ) -> RuntimeResult<resource::GpuBindGroupLayoutHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let entries = entries.into_vm("entries")?;
-                let out = gpu_vm::destack_gpu_bind_group_layout_create(self.call_context, context, device, entries, flags)?;
+                let options = options.into_vm("options")?;
+                let out = gpu_vm::destack_gpu_bind_group_layout_create(self.call_context, context, device, entries, options)?;
                 Ok(out)
             }
             None => {
                 let entries = entries.into_native("entries")?;
+                let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::GpuBindGroupLayoutHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_bind_group_layout_create(self.call_context, out.as_mut_ptr(), device, entries, flags)?;
+                    gpu_native::destack_gpu_bind_group_layout_create(self.call_context, out.as_mut_ptr(), device, entries, options)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
@@ -484,9 +484,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Destroy one bind group layout.
+    /// Destroy a bind group layout.
     ///
-    /// Destroy one bind group layout and release backend descriptor-layout resources.
+    /// Destroy a bind group layout and release backend descriptor-layout resources.
     /// The layout handle becomes invalid after destroy.
     ///
     /// # Platform
@@ -515,9 +515,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Create one pipeline layout.
+    /// Create a pipeline layout.
     ///
-    /// Create one pipeline layout from ordered bind group layouts.
+    /// Create a pipeline layout from ordered bind group layouts.
     /// Backend layout compatibility checks occur during creation.
     ///
     /// # Platform
@@ -555,9 +555,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Destroy one pipeline layout.
+    /// Destroy a pipeline layout.
     ///
-    /// Destroy one pipeline layout and release backend layout resources.
+    /// Destroy a pipeline layout and release backend layout resources.
     /// The layout handle becomes invalid after destroy.
     ///
     /// # Platform
@@ -650,6 +650,37 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
+    /// Destroy one command buffer.
+    ///
+    /// Destroy a finished command buffer without submitting it.
+    /// Submitted command buffers are consumed by `queueSubmit(...)` and do not need one separate destroy call.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses command-buffer destroy or release operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.queue`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_buffer_destroy(
+        &mut self,
+        handle: resource::GpuCommandBufferHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                gpu_vm::destack_gpu_command_buffer_destroy(self.call_context, context, handle)
+            }
+            None => unsafe {
+                gpu_native::destack_gpu_command_buffer_destroy(self.call_context, handle)
+            },
+        }
+    }
+
     /// Clear one buffer range.
     ///
     /// Encode one clear operation that writes zero to one buffer range.
@@ -669,7 +700,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_clear_buffer(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuCommandEncoderHandle,
         buffer: resource::GpuBufferHandle,
         offset: u64,
         size: u64,
@@ -684,10 +715,10 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Begin one compute pass.
+    /// Begin a compute pass.
     ///
-    /// Begin compute-pass encoding on one command encoder with optional timestamp writes.
-    /// Returns one compute-pass handle for pass-scoped commands.
+    /// Begin compute-pass encoding on a command encoder with optional timestamp writes.
+    /// Returns a compute-pass handle for pass-scoped commands.
     /// Nested pass semantics follow backend command recording rules.
     ///
     /// # Platform
@@ -704,7 +735,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_compute_pass_begin(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuCommandEncoderHandle,
         options: HarnessValue<GpuComputePassOptions, GpuComputePassOptionsVm>,
     ) -> RuntimeResult<resource::GpuComputePassHandle> {
         match self.generated_vm_context_mut() {
@@ -725,9 +756,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// End one compute pass.
+    /// End a compute pass.
     ///
-    /// End compute-pass encoding for one active compute-pass handle.
+    /// End compute-pass encoding for an active compute-pass handle.
     /// Pass finalization follows backend validation behavior.
     ///
     /// # Platform
@@ -874,7 +905,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_copy_buffer(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuCommandEncoderHandle,
         src: resource::GpuBufferHandle,
         srcoffset: u64,
         dst: resource::GpuBufferHandle,
@@ -910,7 +941,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_copy_buffer_to_texture(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuCommandEncoderHandle,
         source: HarnessValue<GpuBufferCopy, GpuBufferCopyVm>,
         destination: HarnessValue<GpuTextureCopy, GpuTextureCopyVm>,
         size: HarnessValue<GpuExtent3D, GpuExtent3DVm>,
@@ -950,7 +981,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_copy_texture_to_buffer(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuCommandEncoderHandle,
         source: HarnessValue<GpuTextureCopy, GpuTextureCopyVm>,
         destination: HarnessValue<GpuBufferCopy, GpuBufferCopyVm>,
         size: HarnessValue<GpuExtent3D, GpuExtent3DVm>,
@@ -990,7 +1021,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_copy_texture_to_texture(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuCommandEncoderHandle,
         source: HarnessValue<GpuTextureCopy, GpuTextureCopyVm>,
         destination: HarnessValue<GpuTextureCopy, GpuTextureCopyVm>,
         size: HarnessValue<GpuExtent3D, GpuExtent3DVm>,
@@ -1219,9 +1250,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Close one command encoder.
+    /// Close a command encoder.
     ///
-    /// Close one command encoder object and release backend recording resources.
+    /// Close a command encoder and release backend recording resources.
     /// The encoder handle becomes invalid after close.
     ///
     /// # Platform
@@ -1238,7 +1269,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_encoder_close(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuCommandEncoderHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -1252,8 +1283,8 @@ impl<'call> GpuHarnessContext<'call> {
 
     /// Finish one command encoder.
     ///
-    /// Finalize recording for one command encoder and make it ready for queue submission.
-    /// Finalization semantics follow backend validation rules.
+    /// Finish one command encoder and produce one command buffer.
+    /// The encoder handle becomes invalid after a successful finish.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1269,26 +1300,35 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_encoder_finish(
         &mut self,
-        handle: resource::GpuCommandListHandle,
-    ) -> RuntimeResult<()> {
+        handle: resource::GpuCommandEncoderHandle,
+        options: HarnessValue<GpuCommandBufferOptions, GpuCommandBufferOptionsVm>,
+    ) -> RuntimeResult<resource::GpuCommandBufferHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                gpu_vm::destack_gpu_command_encoder_finish(self.call_context, context, handle)
+                let options = options.into_vm("options")?;
+                let out = gpu_vm::destack_gpu_command_encoder_finish(self.call_context, context, handle, options)?;
+                Ok(out)
             }
-            None => unsafe {
-                gpu_native::destack_gpu_command_encoder_finish(self.call_context, handle)
+            None => {
+                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<resource::GpuCommandBufferHandle>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_command_encoder_finish(self.call_context, out.as_mut_ptr(), handle, options)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
             },
         }
     }
 
-    /// Open one command encoder.
+    /// Open a command encoder.
     ///
-    /// Open one command encoder object for recording backend commands.
+    /// Open a command encoder for recording backend commands.
     /// Encoder lifecycle follows backend recording and submission semantics.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses WebGPU-style command encoder or command buffer creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    /// Uses WebGPU-style command-encoder creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1302,7 +1342,7 @@ impl<'call> GpuHarnessContext<'call> {
         &mut self,
         device: resource::GpuDeviceHandle,
         options: HarnessValue<GpuCommandEncoderOptions, GpuCommandEncoderOptionsVm>,
-    ) -> RuntimeResult<resource::GpuCommandListHandle> {
+    ) -> RuntimeResult<resource::GpuCommandEncoderHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let options = options.into_vm("options")?;
@@ -1311,7 +1351,7 @@ impl<'call> GpuHarnessContext<'call> {
             }
             None => {
                 let options = options.into_native("options")?;
-                let mut out = std::mem::MaybeUninit::<resource::GpuCommandListHandle>::uninit();
+                let mut out = std::mem::MaybeUninit::<resource::GpuCommandEncoderHandle>::uninit();
                 unsafe {
                     gpu_native::destack_gpu_command_encoder_open(self.call_context, out.as_mut_ptr(), device, options)?;
                 }
@@ -1323,7 +1363,7 @@ impl<'call> GpuHarnessContext<'call> {
 
     /// Execute one batch of render bundles in the active render pass.
     ///
-    /// Execute recorded render bundles in-order within one active render pass.
+    /// Execute recorded render bundles in-order within an active render pass.
     /// Bundle compatibility is validated against current render-pass configuration.
     ///
     /// # Platform
@@ -1374,7 +1414,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_insert_debug_marker(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuCommandEncoderHandle,
         marker: HarnessValue<NativeStringRef, vm::StringHandle>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
@@ -1425,7 +1465,7 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Draw multiple indirect indexed command ranges with one host-visible count buffer.
+    /// Draw multiple indirect indexed command ranges with a host-visible count buffer.
     ///
     /// Encode multiple indexed draws loaded from one argument buffer with draw count read from one count buffer.
     /// This operation requires one backend feature lane that enables indirect-count draws.
@@ -1498,7 +1538,7 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Draw multiple indirect non-indexed command ranges with one host-visible count buffer.
+    /// Draw multiple indirect non-indexed command ranges with a host-visible count buffer.
     ///
     /// Encode multiple non-indexed draws loaded from one argument buffer with draw count read from one count buffer.
     /// This operation requires one backend feature lane that enables indirect-count draws.
@@ -1554,7 +1594,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_pop_debug_group(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuCommandEncoderHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -1585,7 +1625,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_push_debug_group(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuCommandEncoderHandle,
         label: HarnessValue<NativeStringRef, vm::StringHandle>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
@@ -1600,10 +1640,10 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Submit one command encoder batch to one queue.
+    /// Submit one command-buffer batch to one queue.
     ///
-    /// Submit one batch of finalized command encoders to one queue with explicit submit options.
-    /// Queue ordering and dependency behavior follow backend queue semantics.
+    /// Submit one batch of finished command buffers to one queue with explicit submit options.
+    /// Submitted command buffers are consumed by this call.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1620,24 +1660,24 @@ impl<'call> GpuHarnessContext<'call> {
     pub(crate) fn destack_gpu_queue_submit(
         &mut self,
         queue: resource::GpuQueueHandle,
-        commandlists: HarnessValue<NativeSlice<resource::GpuCommandListHandle>, VmSlice<resource::GpuCommandListHandle>>,
+        commandbuffers: HarnessValue<NativeSlice<resource::GpuCommandBufferHandle>, VmSlice<resource::GpuCommandBufferHandle>>,
         options: HarnessValue<GpuSubmitOptions, GpuSubmitOptionsVm>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let commandlists = commandlists.into_vm("commandlists")?;
+                let commandbuffers = commandbuffers.into_vm("commandbuffers")?;
                 let options = options.into_vm("options")?;
-                gpu_vm::destack_gpu_queue_submit(self.call_context, context, queue, commandlists, options)
+                gpu_vm::destack_gpu_queue_submit(self.call_context, context, queue, commandbuffers, options)
             }
             None => unsafe {
-                let commandlists = commandlists.into_native("commandlists")?;
+                let commandbuffers = commandbuffers.into_native("commandbuffers")?;
                 let options = options.into_native("options")?;
-                gpu_native::destack_gpu_queue_submit(self.call_context, queue, commandlists, options)
+                gpu_native::destack_gpu_queue_submit(self.call_context, queue, commandbuffers, options)
             },
         }
     }
 
-    /// Wait for one queue to become idle.
+    /// Wait for a queue to become idle.
     ///
     /// Wait until one queue has no remaining submitted work.
     /// Wait semantics follow backend queue fence and idle behavior.
@@ -1750,9 +1790,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Destroy one render bundle.
+    /// Destroy a render bundle.
     ///
-    /// Destroy one render-bundle object and release backend command storage.
+    /// Destroy a render-bundle object and release backend command storage.
     /// The bundle handle becomes invalid after destroy.
     ///
     /// # Platform
@@ -1922,9 +1962,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Close one render-bundle encoder without producing a bundle.
+    /// Close a render-bundle encoder without producing a bundle.
     ///
-    /// Close one opened bundle encoder and release recording resources.
+    /// Close a bundle encoder and release recording resources.
     /// Any recorded commands are discarded.
     ///
     /// # Platform
@@ -1955,7 +1995,7 @@ impl<'call> GpuHarnessContext<'call> {
 
     /// Finish one render-bundle encoder.
     ///
-    /// Finalize one render-bundle encoder and produce one reusable render bundle.
+    /// Finalize a render-bundle encoder and produce a reusable render bundle.
     /// The encoder handle becomes invalid after successful finish.
     ///
     /// # Platform
@@ -1973,16 +2013,19 @@ impl<'call> GpuHarnessContext<'call> {
     pub(crate) fn destack_gpu_render_bundle_encoder_finish(
         &mut self,
         handle: resource::GpuRenderBundleEncoderHandle,
+        options: HarnessValue<GpuRenderBundleOptions, GpuRenderBundleOptionsVm>,
     ) -> RuntimeResult<resource::GpuRenderBundleHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = gpu_vm::destack_gpu_render_bundle_encoder_finish(self.call_context, context, handle)?;
+                let options = options.into_vm("options")?;
+                let out = gpu_vm::destack_gpu_render_bundle_encoder_finish(self.call_context, context, handle, options)?;
                 Ok(out)
             }
             None => {
+                let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::GpuRenderBundleHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_render_bundle_encoder_finish(self.call_context, out.as_mut_ptr(), handle)?;
+                    gpu_native::destack_gpu_render_bundle_encoder_finish(self.call_context, out.as_mut_ptr(), handle, options)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
@@ -1990,9 +2033,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Open one render-bundle encoder.
+    /// Open a render-bundle encoder.
     ///
-    /// Open one render-bundle encoder object for pre-recording reusable draw commands.
+    /// Open a render-bundle encoder for pre-recording reusable draw commands.
     /// Bundle-encoder configuration defines attachment compatibility requirements.
     ///
     /// # Platform
@@ -2267,11 +2310,11 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Begin one render pass.
+    /// Begin a render pass.
     ///
-    /// Begin render-pass encoding on one command encoder with explicit attachments and optional query wiring.
+    /// Begin render-pass encoding on a command encoder with explicit attachments and optional query wiring.
     /// Attachment load, clear, timestamp, and occlusion behavior follow backend render pass semantics.
-    /// Returns one render-pass handle for pass-scoped commands.
+    /// Returns a render-pass handle for pass-scoped commands.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2287,7 +2330,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_render_pass_begin(
         &mut self,
-        handle: resource::GpuCommandListHandle,
+        handle: resource::GpuCommandEncoderHandle,
         options: HarnessValue<GpuRenderPassOptions, GpuRenderPassOptionsVm>,
     ) -> RuntimeResult<resource::GpuRenderPassHandle> {
         match self.generated_vm_context_mut() {
@@ -2308,9 +2351,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// End one render pass.
+    /// End a render pass.
     ///
-    /// End render-pass encoding for one active render-pass handle.
+    /// End render-pass encoding for an active render-pass handle.
     /// Pass finalization follows backend validation behavior.
     ///
     /// # Platform
@@ -2438,9 +2481,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Set one blend constant for the active render pass.
+    /// Set a blend constant for the active render pass.
     ///
-    /// Set one blend constant used by blend factors that reference constant color.
+    /// Set a blend constant used by blend factors that reference constant color.
     /// Constant color remains active until changed or render pass ends.
     ///
     /// # Platform
@@ -2580,9 +2623,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Set one scissor rectangle for the active render pass.
+    /// Set a scissor rectangle for the active render pass.
     ///
-    /// Set one scissor rectangle that clips subsequent draw calls.
+    /// Set a scissor rectangle that clips subsequent draw calls.
     /// Rectangle coordinates are expressed in framebuffer pixels.
     ///
     /// # Platform
@@ -2615,9 +2658,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Set one stencil-reference value for the active render pass.
+    /// Set a stencil-reference value for the active render pass.
     ///
-    /// Set one stencil-reference value consumed by stencil compare operations.
+    /// Set a stencil-reference value consumed by stencil compare operations.
     /// The reference value remains active until changed or render pass ends.
     ///
     /// # Platform
@@ -2682,9 +2725,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Set one viewport state for the active render pass.
+    /// Set viewport state for the active render pass.
     ///
-    /// Set one viewport rectangle and depth range for subsequent draw calls.
+    /// Set a viewport rectangle and depth range for subsequent draw calls.
     /// Coordinate interpretation follows backend clip-space conventions.
     ///
     /// # Platform
@@ -2719,9 +2762,46 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Set one debug label on one GPU resource object.
+    /// Insert explicit resource transitions.
     ///
-    /// Set one human-readable label on one GPU resource or pipeline object.
+    /// Insert explicit buffer and texture transitions into a command encoder.
+    /// Transition ordering and hazard tracking follow backend resource-state rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses wgpu-style explicit transition commands on Vulkan, Metal, D3D12, and OpenGL-class backends when supported.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.queue`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_transition_resources(
+        &mut self,
+        handle: resource::GpuCommandEncoderHandle,
+        buffers: HarnessValue<NativeSlice<GpuBufferTransition>, VmSlice<GpuBufferTransitionVm>>,
+        textures: HarnessValue<NativeSlice<GpuTextureTransition>, VmSlice<GpuTextureTransitionVm>>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let buffers = buffers.into_vm("buffers")?;
+                let textures = textures.into_vm("textures")?;
+                gpu_vm::destack_gpu_command_transition_resources(self.call_context, context, handle, buffers, textures)
+            }
+            None => unsafe {
+                let buffers = buffers.into_native("buffers")?;
+                let textures = textures.into_native("textures")?;
+                gpu_native::destack_gpu_command_transition_resources(self.call_context, handle, buffers, textures)
+            },
+        }
+    }
+
+    /// Set a debug label on a GPU resource object.
+    ///
+    /// Set a human-readable label on a GPU resource or pipeline object.
     /// Label visibility and truncation behavior are backend-defined.
     ///
     /// # Platform
@@ -2753,9 +2833,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Close one logical GPU device.
+    /// Close a logical GPU device.
     ///
-    /// Close one logical device and release backend device resources.
+    /// Close a logical device and release backend device resources.
     /// Outstanding queue work behavior follows host backend teardown guarantees.
     ///
     /// # Platform
@@ -2784,9 +2864,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Read one device feature snapshot.
+    /// Read a device feature snapshot.
     ///
-    /// Read one enabled feature identifier snapshot from one logical device.
+    /// Read the enabled feature identifiers for a logical device.
     /// Feature identifiers follow runtime GPU feature contracts.
     ///
     /// # Platform
@@ -2823,7 +2903,7 @@ impl<'call> GpuHarnessContext<'call> {
 
     /// Check whether one device supports one feature.
     ///
-    /// Check one feature identifier against one logical device enabled feature set.
+    /// Check one feature identifier against a logical device enabled feature set.
     /// Feature identifiers follow runtime GPU feature contracts.
     ///
     /// # Platform
@@ -2859,10 +2939,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Read metadata for one logical device.
+    /// Read device metadata.
     ///
-    /// Query effective features and limits for one created logical device.
-    /// Results reflect backend feature enablement and negotiation outcomes.
+    /// Read the effective features and limits for a logical device.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2896,9 +2975,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Read one device limits snapshot.
+    /// Read a device limits snapshot.
     ///
-    /// Read one effective limits snapshot from one logical device.
+    /// Read the effective limits for a logical device.
     /// Limits remain stable for the device lifetime.
     ///
     /// # Platform
@@ -2933,9 +3012,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Open one logical GPU device.
+    /// Open a logical GPU device.
     ///
-    /// Create one logical device from one adapter using required features and limits.
+    /// Create a logical device from an adapter using required features and limits.
     /// Device creation fails when the backend cannot satisfy the requested contract.
     ///
     /// # Platform
@@ -2973,9 +3052,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Poll one logical device for completion progress.
+    /// Poll a logical device for completion progress.
     ///
-    /// Poll one device and optionally wait for work completion until the timeout expires.
+    /// Poll a device and optionally wait for work completion until the timeout expires.
     /// Returned value is a backend-defined count of completed submission units.
     ///
     /// # Platform
@@ -3014,7 +3093,7 @@ impl<'call> GpuHarnessContext<'call> {
 
     /// Pop one device error scope.
     ///
-    /// Pop one previously pushed error scope and return captured error details.
+    /// Pop a previously pushed error scope and return captured error details.
     /// Pop fails when no scope exists on the device scope stack.
     ///
     /// # Platform
@@ -3052,7 +3131,7 @@ impl<'call> GpuHarnessContext<'call> {
 
     /// Push one device error scope.
     ///
-    /// Push one error scope to capture asynchronous validation and runtime errors.
+    /// Push an error scope to capture asynchronous validation and runtime errors.
     /// Scopes are popped in last-in-first-out order.
     ///
     /// # Platform
@@ -3082,9 +3161,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Resolve one default queue for one logical device.
+    /// Resolve the default queue for a logical device.
     ///
-    /// Resolve one queue endpoint for command submission from one logical device.
+    /// Resolve the default queue for a logical device.
     /// Queue identity follows backend default-queue semantics.
     ///
     /// # Platform
@@ -3119,9 +3198,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Read health status for one logical device.
+    /// Read device health status.
     ///
-    /// Return one snapshot of device-loss and backend health state.
+    /// Return the current device-loss and backend health state.
     /// Status can transition asynchronously as backend work progresses.
     ///
     /// # Platform
@@ -3158,7 +3237,7 @@ impl<'call> GpuHarnessContext<'call> {
 
     /// Resolve one bind-group layout from one pipeline.
     ///
-    /// Resolve one bind-group layout at the requested group index from one pipeline object.
+    /// Resolve a bind-group layout at the requested group index from a pipeline.
     /// This follows pipeline-layout reflection rules of the selected backend.
     ///
     /// # Platform
@@ -3194,9 +3273,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Create one compute pipeline.
+    /// Create a compute pipeline.
     ///
-    /// Create one compute pipeline from one compute stage descriptor and one explicit or inferred layout.
+    /// Create a compute pipeline from a compute stage descriptor and an explicit or inferred layout.
     /// Pipeline compilation and cache behavior follow host backend semantics.
     ///
     /// # Platform
@@ -3234,10 +3313,10 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Destroy one pipeline object.
+    /// Destroy a pipeline object.
     ///
-    /// Destroy one pipeline object and release backend compiled state.
-    /// Outstanding command lists referencing the pipeline must be synchronized by callers.
+    /// Destroy a pipeline object and release backend compiled state.
+    /// Outstanding command buffers, render bundles, and active passes referencing the pipeline must be synchronized by callers.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -3265,9 +3344,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Create one render pipeline.
+    /// Create a render pipeline.
     ///
-    /// Create one render pipeline with explicit shader stages, one explicit or inferred layout, and render-state descriptors.
+    /// Create a render pipeline with explicit shader stages, an explicit or inferred layout, and render-state descriptors.
     /// Pipeline compilation and backend render-state linkage follow host API semantics.
     ///
     /// # Platform
@@ -3305,9 +3384,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Read one shader-compilation diagnostics snapshot.
+    /// Read a shader-compilation diagnostics snapshot.
     ///
-    /// Read one snapshot of compilation diagnostics for one shader module.
+    /// Read compilation diagnostics for a shader module.
     /// Diagnostics are backend-defined and can include warnings and informational messages.
     ///
     /// # Platform
@@ -3343,9 +3422,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Create one shader module.
+    /// Create a shader module.
     ///
-    /// Create one shader module from one source or binary payload and module metadata.
+    /// Create a shader module from source or binary payload bytes and module metadata.
     /// Stage and entry-point selection are defined by pipeline stage descriptors, not by shader-module creation.
     ///
     /// # Platform
@@ -3386,9 +3465,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Destroy one shader module.
+    /// Destroy a shader module.
     ///
-    /// Destroy one shader module and release backend compiler or cache resources.
+    /// Destroy a shader module and release backend compiler or cache resources.
     /// The shader handle becomes invalid after destroy.
     ///
     /// # Platform
@@ -3419,9 +3498,11 @@ impl<'call> GpuHarnessContext<'call> {
 
     /// Acquire one presentable surface texture.
     ///
-    /// Acquire one surface texture for rendering the next frame.
-    /// Returned status indicates whether presentation can proceed or whether reconfiguration is required.
-    /// When no texture is present, `texture` and `frameId` are void.
+    /// Acquire a surface texture for rendering the next frame.
+    /// The returned status indicates whether presentation can proceed or whether reconfiguration is required.
+    /// When no texture is present, `texture` and `surfaceFrameId` are void.
+    /// `Outdated` means reconfigure this surface, while `Lost` means close and reopen it.
+    /// Begin-frame scheduling itself is owned by `display.frame`, not surface acquisition.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -3456,10 +3537,10 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Read surface capabilities for one adapter.
+    /// Read surface capabilities for an adapter.
     ///
-    /// Query one surface and adapter pair for compatible formats and present modes.
-    /// Capabilities can change when the window or monitor configuration changes.
+    /// Query a surface and adapter pair for compatible formats and present modes.
+    /// Color-space, HDR, timing, and frame-latency results are part of the same negotiation snapshot.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -3494,9 +3575,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Close one present surface.
+    /// Close a present surface.
     ///
-    /// Close one present surface and release host compositor resources.
+    /// Close a present surface and release host compositor resources.
     /// Surface handle becomes invalid after close.
     ///
     /// # Platform
@@ -3525,11 +3606,10 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Configure one present surface.
+    /// Configure a present surface.
     ///
-    /// Configure one present surface with explicit dimensions and swap behavior.
-    /// Surface configuration must precede frame acquisition and presentation.
-    /// Present mode selection in this API defines frame pacing and v-sync behavior.
+    /// Configure a present surface with explicit dimensions and presentation behavior.
+    /// Color space, HDR policy, HDR metadata, and `desiredMaximumFrameLatency` are negotiated here when supported.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -3547,23 +3627,23 @@ impl<'call> GpuHarnessContext<'call> {
         &mut self,
         device: resource::GpuDeviceHandle,
         surface: resource::GpuSurfaceHandle,
-        options: HarnessValue<GpuSurfaceOptions, GpuSurfaceOptionsVm>,
+        configuration: HarnessValue<GpuSurfaceConfiguration, GpuSurfaceConfigurationVm>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let options = options.into_vm("options")?;
-                gpu_vm::destack_gpu_surface_configure(self.call_context, context, device, surface, options)
+                let configuration = configuration.into_vm("configuration")?;
+                gpu_vm::destack_gpu_surface_configure(self.call_context, context, device, surface, configuration)
             }
             None => unsafe {
-                let options = options.into_native("options")?;
-                gpu_native::destack_gpu_surface_configure(self.call_context, device, surface, options)
+                let configuration = configuration.into_native("configuration")?;
+                gpu_native::destack_gpu_surface_configure(self.call_context, device, surface, configuration)
             },
         }
     }
 
-    /// Open one present surface.
+    /// Open a present surface.
     ///
-    /// Open one present surface bound to one window host object.
+    /// Open a present surface bound to a window.
     /// Surface lifetime is independent from device lifetime.
     ///
     /// # Platform
@@ -3600,10 +3680,9 @@ impl<'call> GpuHarnessContext<'call> {
 
     /// Present one acquired frame to one surface.
     ///
-    /// Present one previously acquired frame on one configured surface.
-    /// The `frameId` must match one outstanding successful `surfaceAcquire` result.
-    /// Presentation timing and tearing behavior follow compositor and backend contracts.
-    /// This is the authoritative frame-pacing lane for rendered output.
+    /// Present a previously acquired frame on a configured surface.
+    /// The `surfaceFrameId` must match an outstanding successful `surfaceAcquire(...)` result.
+    /// Pass `beginFrameId` for cross-thread correlation and `desiredPresentationTimestampNs` when timed presentation is supported.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -3620,7 +3699,7 @@ impl<'call> GpuHarnessContext<'call> {
     pub(crate) fn destack_gpu_surface_present(
         &mut self,
         surface: resource::GpuSurfaceHandle,
-        options: HarnessValue<GpuPresentOptions, GpuPresentOptionsVm>,
+        options: HarnessValue<GpuPresentationOptions, GpuPresentationOptionsVm>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -3634,9 +3713,272 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Remove active configuration from one present surface.
+    /// Close a presentation stream.
     ///
-    /// Remove swapchain configuration from one surface and release configured present resources.
+    /// Close a presentation stream and release host routing resources.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses DXGI statistics teardown, Metal drawable handler release, and Vulkan timing-stream cleanup.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.present`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_gpu_surface_presentation_close(
+        &mut self,
+        handle: resource::GpuSurfacePresentationHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                gpu_vm::destack_gpu_surface_presentation_close(self.call_context, context, handle)
+            }
+            None => unsafe {
+                gpu_native::destack_gpu_surface_presentation_close(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Open a presentation stream for a surface.
+    ///
+    /// Open a presentation stream for a present surface.
+    /// Presentation events report results and timing data when the surface exposes presentation telemetry.
+    /// Backends can collapse `Superseded` into `Dropped` when they do not expose that distinction.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses DXGI frame statistics, Metal drawable presentation handlers, and Vulkan presentation timing extensions where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.present`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_gpu_surface_presentation_open(
+        &mut self,
+        surface: resource::GpuSurfaceHandle,
+        options: HarnessValue<GpuSurfacePresentationOpenOptions, GpuSurfacePresentationOpenOptionsVm>,
+    ) -> RuntimeResult<resource::GpuSurfacePresentationHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                let out = gpu_vm::destack_gpu_surface_presentation_open(self.call_context, context, surface, options)?;
+                Ok(out)
+            }
+            None => {
+                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<resource::GpuSurfacePresentationHandle>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_surface_presentation_open(self.call_context, out.as_mut_ptr(), surface, options)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            },
+        }
+    }
+
+    /// Wait for a presentation event.
+    ///
+    /// Wait for the next event from a presentation stream.
+    /// Use `surfaceFrameId` to match each event to an earlier `surfaceAcquire(...)` result.
+    /// When `beginFrameId` is present, it can also be matched to a scheduled begin frame.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses DXGI frame statistics waits, Metal drawable presentation callbacks, and Vulkan presentation timing waits.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.present`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_gpu_surface_presentation_read(
+        &mut self,
+        handle: resource::GpuSurfacePresentationHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<GpuSurfacePresentationEvent, GpuSurfacePresentationEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_surface_presentation_read(self.call_context, context, handle, timeoutns)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<GpuSurfacePresentationEvent>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_surface_presentation_read(self.call_context, out.as_mut_ptr(), handle, timeoutns)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
+    /// Wait for a batch of presentation events.
+    ///
+    /// Wait for pending events from a presentation stream and return up to `maxEvents` events.
+    /// Use `surfaceFrameId` to match each event to an earlier `surfaceAcquire(...)` result.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses DXGI frame statistics waits, Metal drawable callback queues, and Vulkan presentation timing waits.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.present`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_gpu_surface_presentation_read_batch(
+        &mut self,
+        handle: resource::GpuSurfacePresentationHandle,
+        maxevents: u32,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<NativeArray<GpuSurfacePresentationEvent>, VmArray<GpuSurfacePresentationEventVm>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_surface_presentation_read_batch(self.call_context, context, handle, maxevents, timeoutns)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeArray<GpuSurfacePresentationEvent>>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_surface_presentation_read_batch(self.call_context, out.as_mut_ptr(), handle, maxevents, timeoutns)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
+    /// Poll a presentation event without blocking.
+    ///
+    /// Poll a pending event from a presentation stream without waiting.
+    /// Empty queue state is reported through ioWouldBlock.
+    /// Use `surfaceFrameId` to match each event to an earlier `surfaceAcquire(...)` result.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses nonblocking DXGI frame statistics, Metal drawable callbacks, and Vulkan presentation timing polling.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.present`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_gpu_surface_presentation_try_read(
+        &mut self,
+        handle: resource::GpuSurfacePresentationHandle,
+    ) -> RuntimeResult<HarnessValue<GpuSurfacePresentationEvent, GpuSurfacePresentationEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_surface_presentation_try_read(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<GpuSurfacePresentationEvent>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_surface_presentation_try_read(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
+    /// Poll a batch of presentation events without blocking.
+    ///
+    /// Poll pending events from a presentation stream and return up to `maxEvents` events.
+    /// Use `surfaceFrameId` to match each event to an earlier `surfaceAcquire(...)` result.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses nonblocking DXGI frame statistics, Metal drawable callback queues, and Vulkan presentation timing polling.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.present`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_gpu_surface_presentation_try_read_batch(
+        &mut self,
+        handle: resource::GpuSurfacePresentationHandle,
+        maxevents: u32,
+    ) -> RuntimeResult<HarnessValue<NativeArray<GpuSurfacePresentationEvent>, VmArray<GpuSurfacePresentationEventVm>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_surface_presentation_try_read_batch(self.call_context, context, handle, maxevents)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeArray<GpuSurfacePresentationEvent>>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_surface_presentation_try_read_batch(self.call_context, out.as_mut_ptr(), handle, maxevents)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
+    /// Read a present surface status snapshot.
+    ///
+    /// Read the current surface configuration and lifecycle state.
+    /// After `display.windowRenderState(...)` or `renderStateChanged` reports `SurfaceLost`, use this result to choose recovery.
+    /// `Unconfigured` or `Outdated` means reconfigure the current surface, while `Lost` means reopen it.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU surface configuration state, DXGI swapchain state, CAMetalLayer drawable state, and Vulkan WSI surface state queries.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.present`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_gpu_surface_status(
+        &mut self,
+        surface: resource::GpuSurfaceHandle,
+    ) -> RuntimeResult<HarnessValue<GpuSurfaceStatusInfo, GpuSurfaceStatusInfoVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_surface_status(self.call_context, context, surface)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<GpuSurfaceStatusInfo>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_surface_status(self.call_context, out.as_mut_ptr(), surface)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
+    /// Remove the active configuration from a present surface.
+    ///
+    /// Remove the active configuration from a present surface and release configured resources.
     /// Surface must be configured again before the next frame acquisition.
     ///
     /// # Platform
@@ -3665,9 +4007,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Create one GPU buffer.
+    /// Create a GPU buffer.
     ///
-    /// Create one buffer resource on one logical device with explicit size and usage flags.
+    /// Create a buffer resource on a logical device with explicit size and usage flags.
     /// Allocation placement and memory domain are host backend decisions.
     ///
     /// # Platform
@@ -3705,9 +4047,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Destroy one GPU buffer.
+    /// Destroy a GPU buffer.
     ///
-    /// Destroy one buffer resource and release host backend memory references.
+    /// Destroy a buffer resource and release host backend memory references.
     /// Outstanding use of the buffer is host-undefined and must be synchronized by callers.
     ///
     /// # Platform
@@ -3736,9 +4078,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Read one buffer metadata snapshot.
+    /// Read a buffer metadata snapshot.
     ///
-    /// Read one metadata snapshot for one buffer resource.
+    /// Read the current metadata snapshot for a buffer resource.
     /// Snapshot values remain stable except map state, which can change asynchronously.
     ///
     /// # Platform
@@ -3773,9 +4115,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Map one buffer range.
+    /// Map a buffer range.
     ///
-    /// Map one host-visible byte range for direct CPU access.
+    /// Map a host-visible byte range for direct CPU access.
     /// Mapping coherence and cache behavior follow host backend memory rules.
     ///
     /// # Platform
@@ -3813,9 +4155,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Read one byte range from one GPU buffer.
+    /// Read a byte range from a GPU buffer.
     ///
-    /// Read one byte range from one buffer resource into host-visible memory.
+    /// Read a byte range from a buffer resource into host-visible memory.
     /// Readback can stall based on backend synchronization and transfer state.
     ///
     /// # Platform
@@ -3852,9 +4194,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Unmap one mapped buffer.
+    /// Unmap a mapped buffer.
     ///
-    /// Unmap one previously mapped buffer range and flush host synchronization as required.
+    /// Unmap a previously mapped buffer range and flush host synchronization as required.
     /// Visibility of writes follows backend memory model semantics.
     ///
     /// # Platform
@@ -3883,9 +4225,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Write one byte range to one GPU buffer.
+    /// Write a byte range to a GPU buffer.
     ///
-    /// Write one byte range into one buffer resource from host memory.
+    /// Write a byte range into a buffer resource from host memory.
     /// Host staging and synchronization behavior follow backend upload semantics.
     ///
     /// # Platform
@@ -3918,9 +4260,83 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Create one sampler resource.
+    /// Create an external texture resource.
     ///
-    /// Create one sampler resource with explicit filter and address mode selections.
+    /// Create an external texture from one or more texture views and explicit color-conversion metadata.
+    /// Plane count and plane formats must match the selected external-texture format.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU or Dawn-style external-texture creation paths on supported backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_external_texture_create(
+        &mut self,
+        device: resource::GpuDeviceHandle,
+        planeviews: HarnessValue<NativeSlice<resource::GpuTextureViewHandle>, VmSlice<resource::GpuTextureViewHandle>>,
+        options: HarnessValue<GpuExternalTextureOptions, GpuExternalTextureOptionsVm>,
+    ) -> RuntimeResult<resource::GpuExternalTextureHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let planeviews = planeviews.into_vm("planeviews")?;
+                let options = options.into_vm("options")?;
+                let out = gpu_vm::destack_gpu_external_texture_create(self.call_context, context, device, planeviews, options)?;
+                Ok(out)
+            }
+            None => {
+                let planeviews = planeviews.into_native("planeviews")?;
+                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<resource::GpuExternalTextureHandle>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_external_texture_create(self.call_context, out.as_mut_ptr(), device, planeviews, options)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            },
+        }
+    }
+
+    /// Destroy an external texture resource.
+    ///
+    /// Destroy an external texture and release backend conversion and view state.
+    /// The external-texture handle becomes invalid after destroy.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU or Dawn-style external-texture destroy operations on supported backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_external_texture_destroy(
+        &mut self,
+        handle: resource::GpuExternalTextureHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                gpu_vm::destack_gpu_external_texture_destroy(self.call_context, context, handle)
+            }
+            None => unsafe {
+                gpu_native::destack_gpu_external_texture_destroy(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Create a sampler resource.
+    ///
+    /// Create a sampler resource with explicit filter and address mode selections.
     /// Sampler state maps to host backend sampler descriptors.
     ///
     /// # Platform
@@ -3958,9 +4374,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Destroy one sampler resource.
+    /// Destroy a sampler resource.
     ///
-    /// Destroy one sampler resource and release host backend references.
+    /// Destroy a sampler resource and release host backend references.
     /// The sampler handle becomes invalid after destroy.
     ///
     /// # Platform
@@ -3989,9 +4405,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Create one texture resource.
+    /// Create a texture resource.
     ///
-    /// Create one texture resource with explicit dimensions, format, and usage flags.
+    /// Create a texture resource with explicit dimensions, format, and usage flags.
     /// Allocation placement and tiling are host backend decisions.
     ///
     /// # Platform
@@ -4029,9 +4445,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Destroy one texture resource.
+    /// Destroy a texture resource.
     ///
-    /// Destroy one texture resource and release host backend memory references.
+    /// Destroy a texture resource and release host backend memory references.
     /// Outstanding use of the texture must be synchronized by callers.
     ///
     /// # Platform
@@ -4060,9 +4476,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Read one texture metadata snapshot.
+    /// Read a texture metadata snapshot.
     ///
-    /// Read one metadata snapshot for one texture resource.
+    /// Read the current metadata snapshot for a texture resource.
     /// Snapshot values remain stable for the texture lifetime.
     ///
     /// # Platform
@@ -4097,9 +4513,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Create one texture view.
+    /// Create a texture view.
     ///
-    /// Create one view of one texture resource for bindings and render attachments.
+    /// Create a view of a texture resource for bindings and render attachments.
     /// View range and dimension are validated against the source texture descriptor.
     ///
     /// # Platform
@@ -4137,9 +4553,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Destroy one texture view.
+    /// Destroy a texture view.
     ///
-    /// Destroy one texture-view endpoint and release backend view resources.
+    /// Destroy a texture view and release backend view resources.
     /// The texture-view handle becomes invalid after destroy.
     ///
     /// # Platform
@@ -4168,10 +4584,10 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Begin one pipeline-statistics query in one compute pass.
+    /// Begin a pipeline-statistics query in a compute pass.
     ///
-    /// Begin one pipeline-statistics query in one active compute pass.
-    /// Pipeline-statistics queries cannot be nested and require one matching end call.
+    /// Begin a pipeline-statistics query in an active compute pass.
+    /// Pipeline-statistics queries cannot be nested and require a matching end call.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -4201,9 +4617,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Begin one occlusion query.
+    /// Begin an occlusion query.
     ///
-    /// Begin one occlusion query in the active render pass.
+    /// Begin an occlusion query in the active render pass.
     /// Query nesting and pass compatibility follow backend semantics.
     ///
     /// # Platform
@@ -4234,10 +4650,10 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Begin one pipeline-statistics query in one render pass.
+    /// Begin a pipeline-statistics query in a render pass.
     ///
-    /// Begin one pipeline-statistics query in one active render pass.
-    /// Pipeline-statistics queries cannot be nested and require one matching end call.
+    /// Begin a pipeline-statistics query in an active render pass.
+    /// Pipeline-statistics queries cannot be nested and require a matching end call.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -4267,9 +4683,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// End one pipeline-statistics query in one compute pass.
+    /// End a pipeline-statistics query in a compute pass.
     ///
-    /// End one active pipeline-statistics query in one compute pass.
+    /// End an active pipeline-statistics query in a compute pass.
     /// The active query must match the most recent begin call.
     ///
     /// # Platform
@@ -4298,9 +4714,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// End one occlusion query.
+    /// End an occlusion query.
     ///
-    /// End one occlusion query in the active render pass.
+    /// End an occlusion query in the active render pass.
     /// The current query must match the last begin call for this pass.
     ///
     /// # Platform
@@ -4329,9 +4745,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// End one pipeline-statistics query in one render pass.
+    /// End a pipeline-statistics query in a render pass.
     ///
-    /// End one active pipeline-statistics query in one render pass.
+    /// End an active pipeline-statistics query in a render pass.
     /// The active query must match the most recent begin call.
     ///
     /// # Platform
@@ -4362,7 +4778,7 @@ impl<'call> GpuHarnessContext<'call> {
 
     /// Resolve one query range into one destination buffer.
     ///
-    /// Resolve one query range and write results into one destination buffer.
+    /// Resolve a query range and write results into a destination buffer.
     /// Destination alignment and encoding follow backend query-result rules.
     ///
     /// # Platform
@@ -4379,7 +4795,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_resolve_queries(
         &mut self,
-        commandlist: resource::GpuCommandListHandle,
+        commandencoder: resource::GpuCommandEncoderHandle,
         queryset: resource::GpuQuerySetHandle,
         firstquery: u32,
         querycount: u32,
@@ -4388,17 +4804,17 @@ impl<'call> GpuHarnessContext<'call> {
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                gpu_vm::destack_gpu_command_resolve_queries(self.call_context, context, commandlist, queryset, firstquery, querycount, destination, destinationoffset)
+                gpu_vm::destack_gpu_command_resolve_queries(self.call_context, context, commandencoder, queryset, firstquery, querycount, destination, destinationoffset)
             }
             None => unsafe {
-                gpu_native::destack_gpu_command_resolve_queries(self.call_context, commandlist, queryset, firstquery, querycount, destination, destinationoffset)
+                gpu_native::destack_gpu_command_resolve_queries(self.call_context, commandencoder, queryset, firstquery, querycount, destination, destinationoffset)
             },
         }
     }
 
-    /// Write one timestamp query from one command list.
+    /// Write a timestamp query from a command encoder.
     ///
-    /// Emit one timestamp query at the current command-list position.
+    /// Emit a timestamp query at the current command-list position.
     /// Query availability and timestamp period follow backend semantics.
     ///
     /// # Platform
@@ -4415,23 +4831,23 @@ impl<'call> GpuHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_gpu_command_write_timestamp(
         &mut self,
-        commandlist: resource::GpuCommandListHandle,
+        commandencoder: resource::GpuCommandEncoderHandle,
         queryset: resource::GpuQuerySetHandle,
         queryindex: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                gpu_vm::destack_gpu_command_write_timestamp(self.call_context, context, commandlist, queryset, queryindex)
+                gpu_vm::destack_gpu_command_write_timestamp(self.call_context, context, commandencoder, queryset, queryindex)
             }
             None => unsafe {
-                gpu_native::destack_gpu_command_write_timestamp(self.call_context, commandlist, queryset, queryindex)
+                gpu_native::destack_gpu_command_write_timestamp(self.call_context, commandencoder, queryset, queryindex)
             },
         }
     }
 
-    /// Create one synchronization fence.
+    /// Create a synchronization fence.
     ///
-    /// Create one fence object for queue wait and signal coordination.
+    /// Create a fence object for queue wait and signal coordination.
     /// Timeline mode availability depends on backend feature support.
     ///
     /// # Platform
@@ -4469,9 +4885,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Destroy one synchronization fence.
+    /// Destroy a synchronization fence.
     ///
-    /// Destroy one fence object and release backend synchronization resources.
+    /// Destroy a fence object and release backend synchronization resources.
     /// The fence handle becomes invalid after destroy.
     ///
     /// # Platform
@@ -4500,11 +4916,11 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Create one query set.
+    /// Create a query set.
     ///
-    /// Create one query set for timestamp, occlusion, or pipeline-statistics queries.
+    /// Create a query set for timestamp, occlusion, or pipeline-statistics queries.
     /// Query set size and type are fixed for the object lifetime.
-    /// Pipeline-statistics queries are one optional lane and require feature support.
+    /// Pipeline-statistics queries are optional and require feature support.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -4541,9 +4957,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Destroy one query set.
+    /// Destroy a query set.
     ///
-    /// Destroy one query set and release backend query resources.
+    /// Destroy a query set and release backend query resources.
     /// The query set handle becomes invalid after destroy.
     ///
     /// # Platform
@@ -4572,9 +4988,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Read one query-set metadata snapshot.
+    /// Read a query-set metadata snapshot.
     ///
-    /// Read one query-set type and count snapshot from one query-set handle.
+    /// Read the current query-set type and count snapshot.
     /// Values remain stable for the query-set lifetime.
     ///
     /// # Platform
@@ -4609,9 +5025,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Signal one fence value from one queue.
+    /// Signal a fence value from a queue.
     ///
-    /// Signal one fence from one queue after prior submissions complete.
+    /// Signal a fence from a queue after prior submissions complete.
     /// Value handling follows backend binary or timeline semantics.
     ///
     /// # Platform
@@ -4642,7 +5058,7 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Read one queue timestamp period.
+    /// Read a queue timestamp period.
     ///
     /// Read the queue timestamp period in nanoseconds per hardware timestamp tick.
     /// Multiply timestamp query deltas by this value to convert to nanoseconds.
@@ -4679,9 +5095,9 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Wait for one fence value.
+    /// Wait for a fence value.
     ///
-    /// Wait for one fence to reach or exceed one requested value.
+    /// Wait for a fence to reach or exceed a requested value.
     /// Timeout uses nanoseconds in the runtime monotonic domain.
     ///
     /// # Platform
@@ -4715,7 +5131,7 @@ impl<'call> GpuHarnessContext<'call> {
 
     /// Wait for all previously submitted queue work.
     ///
-    /// Wait for one queue to complete all prior submissions.
+    /// Wait for a queue to complete all prior submissions.
     /// Timeout uses nanoseconds in the runtime monotonic domain.
     ///
     /// # Platform

@@ -1993,7 +1993,7 @@ fn decode_destack_runtime_lineage_checkpoint_create_args(
         let name_inner = decode_string(name_value, "name_inner", "string")?;
         Some(name_inner)
     };
-    let labels_value = arg_value(args, 2, "labels", "Array<RuntimeLabel>")?;
+    let labels_value = arg_value(args, 2, "labels", "RuntimeLabel[]")?;
     let labels = if labels_value.tag() == vm::ValueTag::Void {
         None
     } else {
@@ -2001,7 +2001,7 @@ fn decode_destack_runtime_lineage_checkpoint_create_args(
             context,
             labels_value,
             "labels_inner",
-            "Array<RuntimeLabel>",
+            "RuntimeLabel[]",
         )?;
         Some(labels_inner)
     };
@@ -2519,7 +2519,7 @@ fn decode_destack_runtime_lineage_world_fork_args(
         let name_inner = decode_string(name_value, "name_inner", "string")?;
         Some(name_inner)
     };
-    let labels_value = arg_value(args, 3, "labels", "Array<RuntimeLabel>")?;
+    let labels_value = arg_value(args, 3, "labels", "RuntimeLabel[]")?;
     let labels = if labels_value.tag() == vm::ValueTag::Void {
         None
     } else {
@@ -2527,7 +2527,7 @@ fn decode_destack_runtime_lineage_world_fork_args(
             context,
             labels_value,
             "labels_inner",
-            "Array<RuntimeLabel>",
+            "RuntimeLabel[]",
         )?;
         Some(labels_inner)
     };
@@ -2891,12 +2891,12 @@ fn decode_destack_runtime_snapshot_import_args(
     )?;
     let argument_world_inner = resource::ResourceId(argument_world_inner_inner);
     let argument_world = WorldHandle(argument_world_inner);
-    let argument_payload_value = arg_value(args, 1, "argument_payload", "Array<uint8>")?;
+    let argument_payload_value = arg_value(args, 1, "argument_payload", "uint8[]")?;
     let argument_payload = decode_array::<u8>(
         context,
         argument_payload_value,
         "argument_payload",
-        "Array<uint8>",
+        "uint8[]",
     )?;
     Ok((argument_world, argument_payload))
 }
@@ -3548,7 +3548,7 @@ pub(crate) const RUNTIME_CORE_WORLD_TICK: BindingDescriptor =
 /// Binding descriptor for destack.runtime.inspect.agentList.
 pub(crate) const RUNTIME_INSPECT_AGENT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.agentList",
-    "export function agentList(view: WorldViewHandle, filter: AgentFilter, after: AgentId, limit: uint32): Result<Array<AgentDescriptor>, PlatformError>",
+    "export function agentList(view: WorldViewHandle, filter: AgentFilter, after: AgentId, limit: uint32): Result<AgentDescriptor[], PlatformError>",
     &["runtime.inspect.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3572,7 +3572,7 @@ pub(crate) const RUNTIME_INSPECT_AGENT_VIEW: BindingDescriptor = BindingDescript
 /// Binding descriptor for destack.runtime.inspect.edgeList.
 pub(crate) const RUNTIME_INSPECT_EDGE_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.edgeList",
-    "export function edgeList(view: WorldViewHandle, filter: TopologyEdgeFilter, after: TopologyEdgeId, limit: uint32): Result<Array<TopologyEdge>, PlatformError>",
+    "export function edgeList(view: WorldViewHandle, filter: TopologyEdgeFilter, after: TopologyEdgeId, limit: uint32): Result<TopologyEdge[], PlatformError>",
     &["runtime.inspect.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3608,7 +3608,7 @@ pub(crate) const RUNTIME_INSPECT_ENGINE_VIEW: BindingDescriptor = BindingDescrip
 /// Binding descriptor for destack.runtime.inspect.entityList.
 pub(crate) const RUNTIME_INSPECT_ENTITY_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.entityList",
-    "export function entityList(view: WorldViewHandle, filter: TopologyEntityFilter, after: TopologyEntityId, limit: uint32): Result<Array<TopologyEntity>, PlatformError>",
+    "export function entityList(view: WorldViewHandle, filter: TopologyEntityFilter, after: TopologyEntityId, limit: uint32): Result<TopologyEntity[], PlatformError>",
     &["runtime.inspect.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3683,7 +3683,7 @@ pub(crate) const RUNTIME_INSPECT_IMAGE_VIEW: BindingDescriptor =
 /// Binding descriptor for destack.runtime.inspect.resourceList.
 pub(crate) const RUNTIME_INSPECT_RESOURCE_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.resourceList",
-    "export function resourceList(view: WorldViewHandle, filter: ResourceFilter, after: WorldResourceId, limit: uint32): Result<Array<ResourceDescriptor>, PlatformError>",
+    "export function resourceList(view: WorldViewHandle, filter: ResourceFilter, after: WorldResourceId, limit: uint32): Result<ResourceDescriptor[], PlatformError>",
     &["runtime.inspect.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3719,7 +3719,7 @@ pub(crate) const RUNTIME_INSPECT_REVISION_VIEW: BindingDescriptor = BindingDescr
 /// Binding descriptor for destack.runtime.inspect.runtimeList.
 pub(crate) const RUNTIME_INSPECT_RUNTIME_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.runtimeList",
-    "export function runtimeList(view: WorldViewHandle, filter: RuntimeFilter, after: RuntimeId, limit: uint32): Result<Array<RuntimeDescriptor>, PlatformError>",
+    "export function runtimeList(view: WorldViewHandle, filter: RuntimeFilter, after: RuntimeId, limit: uint32): Result<RuntimeDescriptor[], PlatformError>",
     &["runtime.inspect.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3848,7 +3848,7 @@ pub(crate) const RUNTIME_LINEAGE_BRANCH_DESCRIBE: BindingDescriptor = BindingDes
 /// Binding descriptor for destack.runtime.lineage.branchList.
 pub(crate) const RUNTIME_LINEAGE_BRANCH_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.branchList",
-    "export function branchList(world: WorldHandle, filter: BranchFilter, after: BranchId, limit: uint32): Result<Array<BranchDescriptor>, PlatformError>",
+    "export function branchList(world: WorldHandle, filter: BranchFilter, after: BranchId, limit: uint32): Result<BranchDescriptor[], PlatformError>",
     &["runtime.lineage.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3860,7 +3860,7 @@ pub(crate) const RUNTIME_LINEAGE_BRANCH_LIST: BindingDescriptor = BindingDescrip
 /// Binding descriptor for destack.runtime.lineage.checkpointCreate.
 pub(crate) const RUNTIME_LINEAGE_CHECKPOINT_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.checkpointCreate",
-    "export function checkpointCreate(world: WorldHandle, name: string, labels: Array<RuntimeLabel>): Result<CheckpointId, PlatformError>",
+    "export function checkpointCreate(world: WorldHandle, name: string, labels: RuntimeLabel[]): Result<CheckpointId, PlatformError>",
     &["runtime.lineage.control"],
     BindingScope::Runtime,
     BindingBlocking::Sometimes,
@@ -3884,7 +3884,7 @@ pub(crate) const RUNTIME_LINEAGE_CHECKPOINT_DESCRIBE: BindingDescriptor = Bindin
 /// Binding descriptor for destack.runtime.lineage.checkpointList.
 pub(crate) const RUNTIME_LINEAGE_CHECKPOINT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.checkpointList",
-    "export function checkpointList(world: WorldHandle, filter: CheckpointFilter, after: CheckpointId, limit: uint32): Result<Array<CheckpointDescriptor>, PlatformError>",
+    "export function checkpointList(world: WorldHandle, filter: CheckpointFilter, after: CheckpointId, limit: uint32): Result<CheckpointDescriptor[], PlatformError>",
     &["runtime.lineage.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3935,7 +3935,7 @@ pub(crate) const RUNTIME_LINEAGE_IMAGE_DESCRIBE: BindingDescriptor = BindingDesc
 /// Binding descriptor for destack.runtime.lineage.imageList.
 pub(crate) const RUNTIME_LINEAGE_IMAGE_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.imageList",
-    "export function imageList(world: WorldHandle, filter: ImageFilter, after: ImageId, limit: uint32): Result<Array<ImageDescriptor>, PlatformError>",
+    "export function imageList(world: WorldHandle, filter: ImageFilter, after: ImageId, limit: uint32): Result<ImageDescriptor[], PlatformError>",
     &["runtime.snapshot.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3959,7 +3959,7 @@ pub(crate) const RUNTIME_LINEAGE_REVISION_DESCRIBE: BindingDescriptor = BindingD
 /// Binding descriptor for destack.runtime.lineage.revisionList.
 pub(crate) const RUNTIME_LINEAGE_REVISION_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.revisionList",
-    "export function revisionList(world: WorldHandle, filter: RevisionFilter, after: RevisionId, limit: uint32): Result<Array<RevisionDescriptor>, PlatformError>",
+    "export function revisionList(world: WorldHandle, filter: RevisionFilter, after: RevisionId, limit: uint32): Result<RevisionDescriptor[], PlatformError>",
     &["runtime.lineage.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3998,7 +3998,7 @@ pub(crate) const RUNTIME_LINEAGE_WORLD_BRANCH: BindingDescriptor =
 /// Binding descriptor for destack.runtime.lineage.worldFork.
 pub(crate) const RUNTIME_LINEAGE_WORLD_FORK: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.worldFork",
-    "export function worldFork(world: WorldHandle, revisionId: RevisionId, name: string, labels: Array<RuntimeLabel>): Result<WorldHandle, PlatformError>",
+    "export function worldFork(world: WorldHandle, revisionId: RevisionId, name: string, labels: RuntimeLabel[]): Result<WorldHandle, PlatformError>",
     &["runtime.world.create"],
     BindingScope::Runtime,
     BindingBlocking::Sometimes,
@@ -4088,7 +4088,7 @@ pub(crate) const RUNTIME_OBSERVATION_CLOSE: BindingDescriptor =
 /// Binding descriptor for destack.runtime.observation.next.
 pub(crate) const RUNTIME_OBSERVATION_NEXT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.observation.next",
-    "export function observationNext(handle: ObservationHandle, limit: uint32): Result<Array<ObservationRecord>, PlatformError>",
+    "export function observationNext(handle: ObservationHandle, limit: uint32): Result<ObservationRecord[], PlatformError>",
     &["runtime.observation.read"],
     BindingScope::Runtime,
     BindingBlocking::Sometimes,
@@ -4136,7 +4136,7 @@ pub(crate) const RUNTIME_SNAPSHOT_DESCRIBE: BindingDescriptor = BindingDescripto
 /// Binding descriptor for destack.runtime.snapshot.import.
 pub(crate) const RUNTIME_SNAPSHOT_IMPORT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.snapshot.import",
-    "export function snapshotImport(world: WorldHandle, payload: Array<uint8>): Result<SnapshotId, PlatformError>",
+    "export function snapshotImport(world: WorldHandle, payload: uint8[]): Result<SnapshotId, PlatformError>",
     &["runtime.snapshot.create"],
     BindingScope::Runtime,
     BindingBlocking::Sometimes,
@@ -4148,7 +4148,7 @@ pub(crate) const RUNTIME_SNAPSHOT_IMPORT: BindingDescriptor = BindingDescriptor:
 /// Binding descriptor for destack.runtime.snapshot.list.
 pub(crate) const RUNTIME_SNAPSHOT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.snapshot.list",
-    "export function snapshotList(world: WorldHandle, after: SnapshotId, limit: uint32): Result<Array<SnapshotDescriptor>, PlatformError>",
+    "export function snapshotList(world: WorldHandle, after: SnapshotId, limit: uint32): Result<SnapshotDescriptor[], PlatformError>",
     &["runtime.snapshot.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -4160,7 +4160,7 @@ pub(crate) const RUNTIME_SNAPSHOT_LIST: BindingDescriptor = BindingDescriptor::d
 /// Binding descriptor for destack.runtime.snapshot.read.
 pub(crate) const RUNTIME_SNAPSHOT_READ: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.snapshot.read",
-    "export function snapshotRead(world: WorldHandle, snapshotId: SnapshotId): Result<Array<uint8>, PlatformError>",
+    "export function snapshotRead(world: WorldHandle, snapshotId: SnapshotId): Result<uint8[], PlatformError>",
     &["runtime.snapshot.read"],
     BindingScope::Runtime,
     BindingBlocking::Sometimes,
@@ -4262,7 +4262,7 @@ pub(crate) const RUNTIME_TRACE_MARK: BindingDescriptor = BindingDescriptor::dete
 /// Binding descriptor for destack.runtime.trace.next.
 pub(crate) const RUNTIME_TRACE_NEXT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.trace.next",
-    "export function traceNext(cursor: TraceCursorHandle, limit: uint32): Result<Array<TraceRecord>, PlatformError>",
+    "export function traceNext(cursor: TraceCursorHandle, limit: uint32): Result<TraceRecord[], PlatformError>",
     &["runtime.trace.read"],
     BindingScope::Runtime,
     BindingBlocking::Sometimes,

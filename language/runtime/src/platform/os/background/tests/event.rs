@@ -2,7 +2,7 @@ use std::mem::ManuallyDrop;
 
 use destack_vm::{ExternalCallContext, StringHandle};
 
-use super::{enable_background_declaration, with_background_test_environment};
+use super::core::{enable_background_declaration, with_background_test_environment};
 use crate::diagnostic::RuntimeResult;
 use crate::platform::os::abi_generated::{
     BackgroundEventMetadataValue, BackgroundEventValue, BackgroundTaskExpiredEventValue,

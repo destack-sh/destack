@@ -16,7 +16,7 @@ use crate::platform::input::{
     InputSensorSample, InputSensorSampleVm, InputTextInputArea, InputTextInputAreaVm,
     InputTouchState, InputTouchStateVm, InputWindowTarget, InputWindowTargetVm,
 };
-use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice};
+use crate::platform::{NativeAbiCodec, NativeArray, PlatformError, VmAbiCodec, VmArray, VmSlice};
 use crate::runtime::{NativeSlice, NativeStringRef};
 use crate::tests::platform::vm_test_string;
 
@@ -208,7 +208,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
             kind: InputEventKind::Scroll,
             action: InputEventAction::Scroll,
             code: 0,
-            value: value.payload.wheel_y as i64,
+            value: value.payload.delta_y as i64,
             sequence: value.metadata.sequence,
         }),
         InputEvent::InputTouchEvent(value) => Ok(InputEventRecord {
@@ -216,7 +216,7 @@ fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
             timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::Touch,
             action: value.payload.action,
-            code: value.payload.contact_id,
+            code: value.payload.pointer_id as u32,
             value: value.payload.pressure as i64,
             sequence: value.metadata.sequence,
         }),
@@ -323,7 +323,7 @@ fn decode_vm_event(
             kind: InputEventKind::Scroll,
             action: InputEventAction::Scroll,
             code: 0,
-            value: value.payload.wheel_y as i64,
+            value: value.payload.delta_y as i64,
             sequence: value.metadata.sequence,
         }),
         InputEventVm::InputTouchEvent(value) => Ok(InputEventRecord {
@@ -335,7 +335,7 @@ fn decode_vm_event(
             timestamp_ns: value.metadata.timestamp_ns,
             kind: InputEventKind::Touch,
             action: value.payload.action,
-            code: value.payload.contact_id,
+            code: value.payload.pointer_id as u32,
             value: value.payload.pressure as i64,
             sequence: value.metadata.sequence,
         }),
@@ -900,7 +900,7 @@ impl<'call> InputHarnessContext<'call> {
                     device_id,
                     timestamp_ns: value.timestamp_ns,
                     sequence: value.sequence,
-                    modifiers: value.modifiers,
+                    modifiers: value.backend_modifiers,
                     pressed_code_count: pressed_codes.len(),
                     pressed_scan_code_count: pressed_scan_codes.len(),
                 })
@@ -925,7 +925,7 @@ impl<'call> InputHarnessContext<'call> {
                     device_id,
                     timestamp_ns: value.timestamp_ns,
                     sequence: value.sequence,
-                    modifiers: value.modifiers,
+                    modifiers: value.backend_modifiers,
                     pressed_code_count: pressed_codes.len(),
                     pressed_scan_code_count: pressed_scan_codes.len(),
                 })
@@ -940,7 +940,15 @@ impl<'call> InputHarnessContext<'call> {
     ) -> InputPointerState {
         match value {
             HarnessValue::Native(value) => value,
-            HarnessValue::Vm(value) => value,
+            HarnessValue::Vm(value) => {
+                let context = self
+                    .vm_context_mut()
+                    .expect("vm context should exist for vm pointer-state values");
+                let value = <InputPointerStateVm as VmAbiCodec>::into_value(value, context)
+                    .expect("vm pointer state should decode");
+
+                InputPointerState::from_value(self.call_context, value)
+            }
         }
     }
 

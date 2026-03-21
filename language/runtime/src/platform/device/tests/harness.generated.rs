@@ -2641,7 +2641,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Enumerate backend selectors, support state, and backend-level feature flags.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns ioNotFound, ioInvalidData, notSupported.
@@ -2681,7 +2681,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Pending events are discarded.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -2711,7 +2711,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Subscription routing and queue depth follow host backend behavior.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -2754,7 +2754,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Timeout uses nanoseconds in the runtime monotonic domain.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
@@ -2801,7 +2801,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Timeout uses nanoseconds in the runtime monotonic domain.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
@@ -2851,7 +2851,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Empty queue state is reported through ioWouldBlock.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -2895,7 +2895,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Empty queue state is reported through ioWouldBlock.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -2941,7 +2941,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Close one opened MIDI input session and release host resources.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -2971,7 +2971,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// This returns the runtime-stable identity surface for the opened endpoint even when the original list row is no longer cached locally.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -3015,7 +3015,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Endpoint visibility and ordering follow host MIDI subsystem behavior.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -3062,7 +3062,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Endpoint open behavior follows host MIDI session policy and sharing semantics.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3115,7 +3115,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -3164,7 +3164,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -3216,7 +3216,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -3262,7 +3262,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -3308,7 +3308,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Create one host-visible virtual MIDI input endpoint and return one opened input handle for reads.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3353,7 +3353,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Close one opened MIDI output session and release host resources.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -3383,7 +3383,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// This returns the runtime-stable identity surface for the opened endpoint even when the original list row is no longer cached locally.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -3427,7 +3427,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Endpoint visibility and ordering follow host MIDI subsystem behavior.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -3474,7 +3474,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Endpoint open behavior follows host MIDI session policy and sharing semantics.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3524,7 +3524,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Create one host-visible virtual MIDI output endpoint and return one opened output handle for writes.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -3571,7 +3571,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// Record framing and payload encoding must match the selected transport data format.
     ///
     /// # Platform
-    /// Android, Unix, and Windows.
+    /// Android, Unix, Windows, and iOS.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.

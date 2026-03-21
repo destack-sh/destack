@@ -8410,7 +8410,7 @@ pub const AUDIO_BACKEND_CAP_HOTPLUG_EVENTS: AudioBackendCapabilityFlags =
 pub const AUDIO_BACKEND_CAP_LOOPBACK: AudioBackendCapabilityFlags =
     AudioBackendCapabilityFlags(32u64);
 
-/// Backend supports native event feed instead of synthesized polling.
+/// Backend supports native device-event ingress in addition to synthesized polling.
 pub const AUDIO_BACKEND_CAP_NATIVE_EVENT_FEED: AudioBackendCapabilityFlags =
     AudioBackendCapabilityFlags(512u64);
 

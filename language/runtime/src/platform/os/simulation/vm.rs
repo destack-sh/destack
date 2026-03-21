@@ -24,9 +24,8 @@ use destack_vm as vm;
 /// Submit final execution status for one scheduled task execution token.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
-/// Uses host background scheduler completion APIs on mobile and runtime-owned execution
-/// bookkeeping on current desktop hosts.
+/// Unix and Windows.
+/// Uses host background scheduler completion APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -54,7 +53,7 @@ pub(crate) fn destack_os_background_complete(
 /// Close one opened event stream and release host callback routing resources.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host callback unregistration APIs.
 ///
 /// # Errors
@@ -82,9 +81,8 @@ pub(crate) fn destack_os_background_event_close(
 /// Open one event stream for task-ready and expiration callbacks.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
-/// Uses host background scheduler callback bridges on mobile and runtime-owned ingress for the
-/// current desktop scheduler bridges.
+/// Unix and Windows.
+/// Uses host background scheduler callback bridges.
 ///
 /// # Errors
 /// Returns ioWouldBlock, notSupported.
@@ -111,7 +109,7 @@ pub(crate) fn destack_os_background_event_open(
 /// Wait for one queued background-task event from one opened event stream.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host background event queues.
 ///
 /// # Errors
@@ -140,7 +138,7 @@ pub(crate) fn destack_os_background_event_read(
 /// Poll one queued background-task event from one opened event stream without waiting.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host nonblocking background event queue reads.
 ///
 /// # Errors
@@ -168,9 +166,8 @@ pub(crate) fn destack_os_background_event_try_read(
 /// Enumerate background-task registrations for this runtime identity.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
-/// Uses host background scheduler registration queries on mobile and persisted scheduler
-/// records on current desktop hosts.
+/// Unix and Windows.
+/// Uses host background scheduler registration queries.
 ///
 /// # Errors
 /// Returns ioWouldBlock, ioInvalidData, notSupported.
@@ -190,12 +187,10 @@ pub(crate) fn destack_os_background_list(
 /// Register one background task.
 ///
 /// Create or replace one background-task registration for this runtime identity.
-/// Registrations are host persisted by definition.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
-/// Uses host background scheduler registration APIs on mobile and the current desktop
-/// scheduler bridges on desktop hosts.
+/// Unix and Windows.
+/// Uses host background scheduler registration APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -222,9 +217,8 @@ pub(crate) fn destack_os_background_register(
 /// Read the current background-task scheduler status for this host runtime.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
-/// Uses BGTaskScheduler on Apple platforms, WorkManager or JobScheduler on Android, and the
-/// current desktop scheduler bridges plus persisted task records on desktop hosts.
+/// Unix and Windows.
+/// Uses BGTaskScheduler on Apple platforms, WorkManager or JobScheduler on Android, and host scheduler bridges on desktop platforms.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.
@@ -246,9 +240,8 @@ pub(crate) fn destack_os_background_status(
 /// Ask the host scheduler to trigger one registered task immediately for development validation where supported.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
-/// Uses host developer test hooks where available and runtime-controlled desktop scheduler
-/// trigger flows on current desktop hosts.
+/// Unix and Windows.
+/// Uses host developer test hooks where available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -275,9 +268,8 @@ pub(crate) fn destack_os_background_trigger_test(
 /// Remove one background-task registration by identifier.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
-/// Uses host background scheduler unregistration APIs on mobile and the current desktop
-/// scheduler bridges plus persisted task cleanup on desktop hosts.
+/// Unix and Windows.
+/// Uses host background scheduler unregistration APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -304,7 +296,7 @@ pub(crate) fn destack_os_background_unregister(
 /// Create one host calendar event and return its stable identifier.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host calendar-write APIs where available.
 ///
 /// # Errors
@@ -332,7 +324,7 @@ pub(crate) fn destack_os_calendar_event_create(
 /// Delete one existing host calendar event by identifier.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host calendar-delete APIs where available.
 ///
 /// # Errors
@@ -360,7 +352,7 @@ pub(crate) fn destack_os_calendar_event_delete(
 /// Enumerate host calendar events over one selected UTC time range.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host calendar query APIs.
 ///
 /// # Errors
@@ -388,7 +380,7 @@ pub(crate) fn destack_os_calendar_event_list(
 /// Read one host calendar event payload by stable identifier.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host calendar read APIs.
 ///
 /// # Errors
@@ -416,7 +408,7 @@ pub(crate) fn destack_os_calendar_event_read(
 /// Update one existing host calendar event by identifier.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host calendar-write APIs where available.
 ///
 /// # Errors
@@ -445,7 +437,7 @@ pub(crate) fn destack_os_calendar_event_update(
 /// Enumerate readable host calendars and return descriptor metadata.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses EventKit on Apple platforms, CalendarContract on Android, and calendar provider APIs on desktop hosts.
 ///
 /// # Errors
@@ -468,7 +460,7 @@ pub(crate) fn destack_os_calendar_list(
 /// Create one host contact record and return its stable identifier.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host contact-write APIs where available.
 ///
 /// # Errors
@@ -493,7 +485,7 @@ pub(crate) fn destack_os_contact_create(
 /// Delete one existing host contact by identifier.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host contact-delete APIs where available.
 ///
 /// # Errors
@@ -518,7 +510,7 @@ pub(crate) fn destack_os_contact_delete(
 /// Return one page of host contacts with one selected field set.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses Contacts framework on Apple platforms, ContactsContract on Android, and address-book provider APIs on desktop hosts.
 ///
 /// # Errors
@@ -543,7 +535,7 @@ pub(crate) fn destack_os_contact_list(
 /// Read one host contact payload by stable identifier.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host contact read APIs.
 ///
 /// # Errors
@@ -568,7 +560,7 @@ pub(crate) fn destack_os_contact_read(
 /// Return one page of host contacts matching one backend query string.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host contact search APIs where available.
 ///
 /// # Errors
@@ -594,7 +586,7 @@ pub(crate) fn destack_os_contact_search(
 /// Update one existing host contact by identifier.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host contact-write APIs where available.
 ///
 /// # Errors
@@ -761,81 +753,13 @@ pub(crate) fn destack_os_credentials_write(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.credentials.write")).boxed())
 }
 
-/// List persisted document-access grants.
-///
-/// Return all persisted document-access grants for the active runtime identity.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host document-grant persistence state.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.document.control`.
-///
-/// # Replay
-/// External, recordable.
-///
-/// Open one persisted document-access grant.
-///
-/// Open one persisted external-access grant by identifier with one selected access mode.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses persisted runtime document-access state on the current host backend.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.document.control`.
-///
-/// # Replay
-/// External, nonrecordable.
-///
-/// Persist external document access for later reopen.
-///
-/// Persist host-granted access for selected external documents and return durable grant descriptors.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses persisted runtime document-access state on the current host backend.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.document.control`.
-///
-/// # Replay
-/// External, nonrecordable.
-///
-/// Revoke persisted document-access grants.
-///
-/// Revoke persisted document-access grants by identifier and return revoked grant count.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host document-grant persistence state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.document.control`.
-///
-/// # Replay
-/// External, nonrecordable.
-///
 /// Close one opened document handle.
 ///
-/// Close one opened document handle and release host resources.
+/// Close one opened document-provider handle and release host resources.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses local host file-handle close semantics on current desktop hosts.
+/// Uses host descriptor close APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -860,7 +784,7 @@ pub(crate) fn destack_os_document_close(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses local host file flush semantics on current desktop hosts.
+/// Uses host document-provider flush APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -879,21 +803,13 @@ pub(crate) fn destack_os_document_flush(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.document.flush")).boxed())
 }
 
-/// Import selected documents into app-owned storage.
-///
-/// Copy selected external documents into app-owned storage and return imported document descriptors.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host-local filesystem import after one prior picker or provider selection.
-///
 /// Open one document URI.
 ///
-/// Open one document URI with one selected access mode.
+/// Open one host document-provider URI from one prior picker result with one selected access mode.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Opens document URIs that the current host backend can resolve directly.
+/// Uses host document-provider open APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -944,7 +860,7 @@ pub(crate) fn destack_os_document_pick(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses local host file reads on current desktop hosts.
+/// Uses host document-provider read APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -971,7 +887,7 @@ pub(crate) fn destack_os_document_read(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses local host file reads on current desktop hosts.
+/// Uses host nonblocking document-provider read APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -997,7 +913,7 @@ pub(crate) fn destack_os_document_try_read(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses local host file writes on current desktop hosts.
+/// Uses host document-provider write APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1315,9 +1231,9 @@ pub(crate) fn destack_os_intent_share_paths(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     paths: VmArray<fs::OsPathVm>,
-    contenttype: Option<vm::StringHandle>,
+    mimetype: Option<vm::StringHandle>,
 ) -> RuntimeResult<()> {
-    let _ = (paths, contenttype);
+    let _ = (paths, mimetype);
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.sharePaths")).boxed())
 }
 
@@ -1341,9 +1257,9 @@ pub(crate) fn destack_os_intent_share_text(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     text: vm::StringHandle,
-    contenttype: Option<vm::StringHandle>,
+    mimetype: Option<vm::StringHandle>,
 ) -> RuntimeResult<()> {
-    let _ = (text, contenttype);
+    let _ = (text, mimetype);
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.shareText")).boxed())
 }
 
@@ -1496,10 +1412,10 @@ pub(crate) fn destack_os_lifecycle_try_read(
 
 /// Read last known location sample.
 ///
-/// Read the most recent location sample from the host location service.
+/// Read one cached location sample from the host location service.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses CoreLocation on Apple platforms, FusedLocationProvider or LocationManager on Android, and Geolocator on Windows.
 ///
 /// # Errors
@@ -1525,7 +1441,7 @@ pub(crate) fn destack_os_location_last_known(
 /// Read global host location-service availability before per-runtime authorization checks.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host location service-status APIs.
 ///
 /// # Errors
@@ -1551,7 +1467,7 @@ pub(crate) fn destack_os_location_services_enabled(
 /// Close one location watch stream and release host subscription resources.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host location unsubscription APIs.
 ///
 /// # Errors
@@ -1579,7 +1495,7 @@ pub(crate) fn destack_os_location_watch_close(
 /// Open one location watch stream with one selected update policy.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host location subscription APIs.
 ///
 /// # Errors
@@ -1607,7 +1523,7 @@ pub(crate) fn destack_os_location_watch_open(
 /// Wait for one location sample from one opened location watch stream.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host location update queues.
 ///
 /// # Errors
@@ -1636,7 +1552,7 @@ pub(crate) fn destack_os_location_watch_read(
 /// Poll one location sample from one opened location watch stream without waiting.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses nonblocking host location update queue reads.
 ///
 /// # Errors
@@ -1664,9 +1580,8 @@ pub(crate) fn destack_os_location_watch_try_read(
 /// Delete host media assets and return deleted asset count.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
-/// Uses host media-library delete APIs on mobile and filesystem-backed media-root deletion on
-/// current desktop hosts.
+/// Unix and Windows.
+/// Uses host media-library delete APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1685,40 +1600,13 @@ pub(crate) fn destack_os_media_delete(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.media.delete")).boxed())
 }
 
-/// Describe one media asset.
-///
-/// Return one richer host media asset descriptor by stable identifier.
-///
-/// # Platform
-/// Android, Unix, and Windows.
-/// Uses host media-library detail APIs on mobile and filesystem-backed media descriptors on
-/// current desktop hosts.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.media.read`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) fn destack_os_media_read(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    id: vm::StringHandle,
-) -> RuntimeResult<MediaAssetDescriptorVm> {
-    let _ = id;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.os.media.read")).boxed())
-}
-
 /// Import one file path into host media library.
 ///
 /// Import one file from one runtime-visible path and return one created media identifier.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
-/// Uses host media-library write APIs on mobile and current desktop media-root import flows on
-/// desktop hosts.
+/// Unix and Windows.
+/// Uses host media-library write APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1743,9 +1631,8 @@ pub(crate) fn destack_os_media_import_path(
 /// Return one page of host media assets for one query.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
-/// Uses Photos or related media providers on Apple platforms, MediaStore on Android, and the
-/// current desktop media roots plus filesystem enumeration on desktop hosts.
+/// Unix and Windows.
+/// Uses Photos framework on Apple platforms, MediaStore on Android, and host media-library bridges on desktop hosts.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1764,75 +1651,31 @@ pub(crate) fn destack_os_media_list(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.media.list")).boxed())
 }
 
-/// Close media watch stream.
+/// Read one media asset descriptor.
 ///
-/// Close one media watch stream and release runtime watch state.
+/// Read one host media asset descriptor by stable identifier.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
-/// Uses runtime watch state cleanup.
+/// Unix and Windows.
+/// Uses host media-library read APIs.
 ///
 /// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
 ///
 /// # Security
 /// Requires `os.media.read`.
 ///
 /// # Replay
-/// External, recordable.
-///
-/// Open media watch stream.
-///
-/// Open one runtime-owned media watch stream and track add or update or remove events for one filtered asset set.
-///
-/// # Platform
-/// Android, Unix, and Windows.
-/// Uses host media-list queries on mobile and filesystem-backed directory watchers plus
-/// runtime watch state on current desktop hosts.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.media.read`.
-///
-/// # Replay
-/// External, recordable.
-///
-/// Wait for one media watch event.
-///
-/// Wait for one queued media watch event from one opened watch stream.
-///
-/// # Platform
-/// Android, Unix, and Windows.
-/// Uses runtime media watch state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `os.media.read`.
-///
-/// # Replay
-/// External, recordable.
-///
-/// Poll one media watch event without blocking.
-///
-/// Poll one queued media watch event from one opened watch stream without waiting.
-///
-/// # Platform
-/// Android, Unix, and Windows.
-/// Uses runtime media watch state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.media.read`.
-///
-/// # Replay
-/// External, recordable.
-///
+/// External, nonrecordable.
+pub(crate) fn destack_os_media_read(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    id: vm::StringHandle,
+) -> RuntimeResult<MediaAssetDescriptorVm> {
+    let _ = id;
+    Err(RuntimeError::from(PlatformError::not_supported("destack.os.media.read")).boxed())
+}
+
 /// Enumerate mount table entries.
 ///
 /// Return one snapshot of the current host mount table.
@@ -1990,7 +1833,7 @@ pub(crate) fn destack_os_network_watch_try_read(
 /// Cancel one previously posted host notification by identifier.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host notification cancellation APIs.
 ///
 /// # Errors
@@ -2018,7 +1861,7 @@ pub(crate) fn destack_os_notification_cancel(
 /// Cancel all currently posted host notifications owned by this runtime context.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host notification cancellation APIs.
 ///
 /// # Errors
@@ -2044,7 +1887,7 @@ pub(crate) fn destack_os_notification_cancel_all(
 /// Enumerate registered host notification categories for this runtime context.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host notification category query APIs where available.
 ///
 /// # Errors
@@ -2070,9 +1913,8 @@ pub(crate) fn destack_os_notification_category_list(
 /// Register host notification categories and actions for this runtime context.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
-/// Uses Android category registration, macOS notification categories, Windows toast action
-/// metadata, and Unix freedesktop action validation where the host supports actions.
+/// Unix and Windows.
+/// Uses host notification category registration APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -2099,7 +1941,7 @@ pub(crate) fn destack_os_notification_category_set(
 /// Close one opened event stream and release host callback routing resources.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host callback unregistration APIs.
 ///
 /// # Errors
@@ -2127,7 +1969,7 @@ pub(crate) fn destack_os_notification_event_close(
 /// Open one event stream for delivered, interacted, and dismissed notification events.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host notification callback bridges.
 ///
 /// # Errors
@@ -2155,7 +1997,7 @@ pub(crate) fn destack_os_notification_event_open(
 /// Wait for one queued notification event from one opened event stream.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host notification event queues.
 ///
 /// # Errors
@@ -2184,7 +2026,7 @@ pub(crate) fn destack_os_notification_event_read(
 /// Poll one queued notification event from one opened event stream without waiting.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host nonblocking notification event queue reads.
 ///
 /// # Errors
@@ -2212,10 +2054,8 @@ pub(crate) fn destack_os_notification_event_try_read(
 /// Cancel one pending scheduled host notification by identifier.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
-/// Uses Android pending-notification cancellation, macOS UserNotifications, Windows scheduled
-/// toast cancellation, and Linux scheduler removal.
-/// Other Unix hosts may return notSupported when they do not expose one defensible scheduler.
+/// Unix and Windows.
+/// Uses host scheduled-notification cancellation APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -2242,10 +2082,8 @@ pub(crate) fn destack_os_notification_pending_cancel(
 /// Cancel all pending scheduled notifications owned by this runtime context.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
-/// Uses Android pending-notification cancellation, macOS UserNotifications, Windows scheduled
-/// toast cancellation, and Linux scheduler removal.
-/// Other Unix hosts may return notSupported when they do not expose one defensible scheduler.
+/// Unix and Windows.
+/// Uses host scheduled-notification cancellation APIs.
 ///
 /// # Errors
 /// Returns ioPermissionDenied, notSupported.
@@ -2270,10 +2108,8 @@ pub(crate) fn destack_os_notification_pending_cancel_all(
 /// Enumerate pending notification requests owned by this runtime context.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
-/// Uses Android pending-notification queries, macOS UserNotifications, Windows scheduled toast
-/// queries, and Linux persisted scheduler state.
-/// Other Unix hosts may return notSupported when they do not expose one defensible scheduler.
+/// Unix and Windows.
+/// Uses host pending-notification query APIs.
 ///
 /// # Errors
 /// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -2298,7 +2134,7 @@ pub(crate) fn destack_os_notification_pending_list(
 /// Return current host notification permission state for this runtime context.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host notification authorization APIs.
 ///
 /// # Errors
@@ -2324,7 +2160,7 @@ pub(crate) fn destack_os_notification_permission_state(
 /// Submit one host notification request and return one host notification identifier.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host notification center APIs on each platform.
 ///
 /// # Errors
@@ -2349,7 +2185,7 @@ pub(crate) fn destack_os_notification_post(
 /// Request notification permission through host authorization flow and return resulting permission state.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
+/// Unix and Windows.
 /// Uses host notification permission request APIs where supported.
 ///
 /// # Errors
@@ -2375,10 +2211,8 @@ pub(crate) fn destack_os_notification_request_permission(
 /// Schedule one host notification request for deferred delivery according to trigger policy.
 ///
 /// # Platform
-/// Android, Unix, and Windows.
-/// Uses Android notification scheduling, macOS UserNotifications, Windows toast scheduling,
-/// and Linux systemd user timers where available.
-/// Other Unix hosts may return notSupported when they do not expose one defensible scheduler.
+/// Unix and Windows.
+/// Uses host notification scheduling APIs on each platform.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.

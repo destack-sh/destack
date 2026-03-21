@@ -2,7 +2,9 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::accessibility::{
-    AccessibilityActionOpenOptionsVm, AccessibilityActionVm, AccessibilityTreeUpdateVm,
+    AccessibilityActionOpenOptionsVm, AccessibilityActionVm, AccessibilityDocumentOpenOptionsVm,
+    AccessibilityDocumentQueryVm, AccessibilityDocumentResponseVm, AccessibilityNodeId,
+    AccessibilityNotificationVm, AccessibilityTextDocumentVm, AccessibilityTreeUpdateVm,
 };
 use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
@@ -120,6 +122,232 @@ pub(crate) fn destack_accessibility_action_try_read(
     .boxed())
 }
 
+/// Clear the advanced text-document snapshot for one node.
+///
+/// Remove previously published rich document text structure for the node.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `accessibility.publish`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_accessibility_document_clear(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+    nodeid: AccessibilityNodeId,
+) -> RuntimeResult<()> {
+    let _ = (window, nodeid);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.accessibility.document.clear",
+    ))
+    .boxed())
+}
+
+/// Close one inbound document-query stream.
+///
+/// Close the query stream and discard queued requests.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `accessibility.publish`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_accessibility_document_close(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::AccessibilityDocumentHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.accessibility.document.close",
+    ))
+    .boxed())
+}
+
+/// Open one inbound document-query stream for one window.
+///
+/// Deliver assistive-technology text and range queries for published document nodes in the window.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `accessibility.publish`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_accessibility_document_open(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+    options: AccessibilityDocumentOpenOptionsVm,
+) -> RuntimeResult<resource::AccessibilityDocumentHandle> {
+    let _ = (window, options);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.accessibility.document.open",
+    ))
+    .boxed())
+}
+
+/// Wait for one document query.
+///
+/// Wait for one pending document query.
+/// Timeout uses nanoseconds in the runtime monotonic domain.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `accessibility.publish`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_accessibility_document_read(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::AccessibilityDocumentHandle,
+    timeoutns: u64,
+) -> RuntimeResult<AccessibilityDocumentQueryVm> {
+    let _ = (handle, timeoutns);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.accessibility.document.read",
+    ))
+    .boxed())
+}
+
+/// Respond to one document query.
+///
+/// Send one response for one earlier document query on the same stream.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `accessibility.publish`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_accessibility_document_respond(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::AccessibilityDocumentHandle,
+    response: AccessibilityDocumentResponseVm,
+) -> RuntimeResult<()> {
+    let _ = (handle, response);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.accessibility.document.respond",
+    ))
+    .boxed())
+}
+
+/// Publish one advanced text-document snapshot for one node.
+///
+/// Publish rich document text structure for one node that needs more than the base accessibility text state.
+/// This extension covers large editors, document viewers, and other nodes that must expose text runs and boundaries to assistive technologies.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `accessibility.publish`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_accessibility_document_set(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+    nodeid: AccessibilityNodeId,
+    document: AccessibilityTextDocumentVm,
+) -> RuntimeResult<()> {
+    let _ = (window, nodeid, document);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.accessibility.document.set",
+    ))
+    .boxed())
+}
+
+/// Poll one document query without blocking.
+///
+/// Poll one pending document query and return immediately when the queue is empty.
+/// Empty queue state is reported through ioWouldBlock.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `accessibility.publish`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_accessibility_document_try_read(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::AccessibilityDocumentHandle,
+) -> RuntimeResult<AccessibilityDocumentQueryVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.accessibility.document.tryRead",
+    ))
+    .boxed())
+}
+
+/// Post one accessibility notification for one window.
+///
+/// Deliver one semantic notification that is not fully implied by the published tree update alone.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `accessibility.notify`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_accessibility_notification_post(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+    notification: AccessibilityNotificationVm,
+) -> RuntimeResult<()> {
+    let _ = (window, notification);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.accessibility.notification.post",
+    ))
+    .boxed())
+}
+
 /// Apply one accessibility-tree update for one window.
 ///
 /// Publish one accessibility-tree diff for the window's current semantic root.
@@ -172,6 +400,35 @@ pub(crate) fn destack_accessibility_tree_clear(
     let _ = window;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.accessibility.tree.clear",
+    ))
+    .boxed())
+}
+
+/// Resolve one accessibility node at one window-local point.
+///
+/// Return the deepest published node that currently owns the given window-local logical point.
+///
+/// # Platform
+/// Android, Unix, and Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `accessibility.publish`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_accessibility_tree_hit_test(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+    x: f64,
+    y: f64,
+) -> RuntimeResult<Option<AccessibilityNodeId>> {
+    let _ = (window, x, y);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.accessibility.tree.hitTest",
     ))
     .boxed())
 }
