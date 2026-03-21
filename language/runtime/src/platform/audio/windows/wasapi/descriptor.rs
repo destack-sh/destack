@@ -7,11 +7,10 @@ use super::constants::{
     DEFAULT_MAX_PERIOD_FRAMES, DEFAULT_MAX_SAMPLE_RATE, DEFAULT_MIN_SAMPLE_RATE,
     DEFAULT_PREFERRED_PERIOD_FRAMES, WASAPI_MAX_PROBED_CHANNELS,
 };
-use super::core::{EndpointFlow, WasapiEndpointProfile};
-use super::host::{
-    collection_count, collection_item, create_device_enumerator, default_endpoint_id,
-    endpoint_display_name, endpoint_id, enum_audio_endpoints, initialize_com,
-    probe_endpoint_profile,
+use super::core::{
+    EndpointFlow, WasapiEndpointProfile, collection_count, collection_item,
+    create_device_enumerator, default_endpoint_id, endpoint_display_name, endpoint_id,
+    enum_audio_endpoints, initialize_com, probe_endpoint_profile,
 };
 use super::ids::{duplex_stable_id, endpoint_stable_id};
 

@@ -16,7 +16,7 @@ use windows_sys::Win32::Networking::WinSock::{
 use super::util::{ensure_winsock, net_error_with_code, socket_descriptor};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::net::host::select_packet_backend_for_open;
+use crate::platform::net::core::select_packet_backend_for_open;
 use crate::platform::net::*;
 use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceKind, SocketHandle};
 use crate::platform::{NativeSlice, PlatformError, ResourceId};

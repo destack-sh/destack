@@ -9,10 +9,9 @@ use super::abi::{
 };
 use super::constants::{MAX_EVENT_WAIT_HANDLES, MIN_WAIT_TIMEOUT_MILLISECONDS};
 use super::core::{
-    WasapiCaptureClient, WasapiRenderClient, WasapiStreamRuntime, qpc_hundred_nanos_to_mono_ns,
-    qpc_now_mono_ns,
+    WasapiCaptureClient, WasapiRenderClient, WasapiStreamRuntime, failed, hresult_error,
+    initialize_com, qpc_hundred_nanos_to_mono_ns, qpc_now_mono_ns,
 };
-use super::host::{failed, hresult_error, initialize_com};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::audio::{AudioStreamStateKind, core as audio_core};

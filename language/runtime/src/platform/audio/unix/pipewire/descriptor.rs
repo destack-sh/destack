@@ -6,8 +6,9 @@ use super::constants::{
     PIPEWIRE_MIN_PERIOD_FRAMES, PIPEWIRE_MIN_SAMPLE_RATE, PIPEWIRE_PREFERRED_PERIOD_FRAMES,
     PIPEWIRE_PREFERRED_SAMPLE_RATE,
 };
-use super::core::{channel_layout, channel_mask, pipewire_format_mask, require_pipewire_library};
-use super::host::probe_endpoints;
+use super::core::{
+    channel_layout, channel_mask, pipewire_format_mask, probe_endpoints, require_pipewire_library,
+};
 use super::ids::{capture_stable_id, duplex_stable_id, loopback_stable_id, playback_stable_id};
 use crate::platform::audio as audio_types;
 

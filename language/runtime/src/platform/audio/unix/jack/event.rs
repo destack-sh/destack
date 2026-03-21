@@ -3,7 +3,7 @@ use super::abi::JackClient;
 #[cfg(target_os = "linux")]
 use super::core::{JackLibrary, jack_error, jack_succeeded, require_jack_library};
 #[cfg(target_os = "linux")]
-use super::host::{close_jack_client, open_jack_client};
+use super::core::{close_jack_client, open_jack_client};
 use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "linux")]
 use crate::platform::audio as audio_types;

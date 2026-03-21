@@ -7,9 +7,8 @@ use crate::platform::audio::{AudioStreamStateKind, AudioStreamStatusFlags, core 
 use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
 
 use super::abi::{AlsaPcm, AlsaSignedFrames, AlsaUnsignedFrames};
-use super::core::{AlsaLibrary, AlsaStreamRuntime};
+use super::core::{AlsaLibrary, AlsaStreamRuntime, recover_pcm, wait_for_pcm_ready};
 use super::ffi::alsa_library;
-use super::host::{recover_pcm, wait_for_pcm_ready};
 
 /// Spawn one ALSA transfer worker thread.
 pub(super) fn spawn_worker(

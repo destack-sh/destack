@@ -6,8 +6,9 @@ use super::abi::{
     imm_device_enumerator_unregister_endpoint_notification_callback,
 };
 use super::constants::{HRESULT_OK, IID_IMM_NOTIFICATION_CLIENT};
-use super::core::{ComApartment, ComPointer};
-use super::host::{create_device_enumerator, failed, hresult_error, initialize_com};
+use super::core::{
+    ComApartment, ComPointer, create_device_enumerator, failed, hresult_error, initialize_com,
+};
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
 use crate::platform::audio::core::monitor::AudioMonitorHandle;

@@ -1,76 +1,7 @@
+mod core;
 #[cfg(any(unix, windows))]
 mod event;
 #[cfg(any(unix, windows))]
 mod registration;
 
-use std::path::PathBuf;
-use std::sync::OnceLock;
-use std::sync::atomic::{AtomicU64, Ordering};
-
-use destack_workspace::{RuntimeAppBackgroundMode, RuntimeOptions};
-use parking_lot::Mutex;
-
-use crate::host::app::background::with_background_test_mode;
-
-/// Shared desktop background test state root override.
-static DESKTOP_BACKGROUND_TEST_STATE_DIRECTORY: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
-/// Monotonic nonce for desktop background test directories.
-static DESKTOP_BACKGROUND_TEST_NONCE: AtomicU64 = AtomicU64::new(1);
-
-/// Run one background callback with deterministic scheduler state.
-fn with_background_test_environment<T>(label: &str, callback: impl FnOnce() -> T) -> T {
-    let _guard = install_desktop_background_test_state_directory(label);
-
-    with_background_test_mode(callback)
-}
-
-/// Enable one background declaration and deterministic state root for tests.
-fn enable_background_declaration(options: &mut RuntimeOptions) {
-    options
-        .app
-        .background
-        .modes
-        .insert(RuntimeAppBackgroundMode::Processing);
-    options.os.state_directory = active_desktop_background_test_state_directory();
-}
-
-/// Return the active desktop background test state directory override.
-fn active_desktop_background_test_state_directory() -> Option<PathBuf> {
-    let slot = DESKTOP_BACKGROUND_TEST_STATE_DIRECTORY.get_or_init(|| Mutex::new(None));
-
-    slot.lock().clone()
-}
-
-/// Install one deterministic desktop background state root for one test case.
-fn install_desktop_background_test_state_directory(
-    label: &str,
-) -> DesktopBackgroundStateDirectoryGuard {
-    let nonce = DESKTOP_BACKGROUND_TEST_NONCE.fetch_add(1, Ordering::Relaxed);
-    let process_id = std::process::id();
-    let base_directory = std::env::temp_dir().join(format!(
-        "destack-os-background-{label}-{process_id}-{nonce}"
-    ));
-
-    std::fs::create_dir_all(&base_directory)
-        .expect("desktop background state directory should create");
-
-    let slot = DESKTOP_BACKGROUND_TEST_STATE_DIRECTORY.get_or_init(|| Mutex::new(None));
-    *slot.lock() = Some(base_directory.clone());
-
-    DesktopBackgroundStateDirectoryGuard { base_directory }
-}
-
-/// One scoped desktop background state-directory installation.
-struct DesktopBackgroundStateDirectoryGuard {
-    /// The temporary state root for this test case.
-    base_directory: PathBuf,
-}
-
-impl Drop for DesktopBackgroundStateDirectoryGuard {
-    /// Clear the active desktop background state root after one test.
-    fn drop(&mut self) {
-        let slot = DESKTOP_BACKGROUND_TEST_STATE_DIRECTORY.get_or_init(|| Mutex::new(None));
-        *slot.lock() = None;
-        let _ = std::fs::remove_dir_all(&self.base_directory);
-    }
-}
+pub(super) use core::*;

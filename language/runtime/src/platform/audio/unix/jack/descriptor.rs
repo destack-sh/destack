@@ -3,8 +3,7 @@ use crate::platform::audio::core as audio_core;
 use crate::platform::audio::core::codec::sample_format_bit;
 use crate::platform::core as core_platform;
 
-use super::core::{channel_layout, channel_mask};
-use super::host::{JackEndpointSnapshot, probe_jack_endpoints};
+use super::core::{JackEndpointSnapshot, channel_layout, channel_mask, probe_jack_endpoints};
 use super::ids::{capture_stable_id, duplex_stable_id, playback_stable_id};
 use crate::platform::audio as audio_types;
 

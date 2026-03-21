@@ -2,9 +2,9 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
 
 use super::core::{
-    AlsaDeviceProfile, AlsaHintRow, channel_layout, channel_mask, transport_from_device_name,
+    AlsaDeviceProfile, AlsaHintRow, channel_layout, channel_mask, enumerate_hint_rows,
+    probe_row_profiles, transport_from_device_name,
 };
-use super::host::{enumerate_hint_rows, probe_row_profiles};
 use super::ids::{capture_stable_id, duplex_stable_id, playback_stable_id};
 use crate::platform::audio as audio_types;
 

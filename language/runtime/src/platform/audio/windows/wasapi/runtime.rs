@@ -5,12 +5,9 @@ use super::abi::{
 };
 use super::core::{
     EndpointFlow, OpenedWasapiEndpoint, SelectedEndpoint, WasapiAudioClient, WasapiCaptureClient,
-    WasapiHostStreamOps, WasapiRenderClient, WasapiStreamRuntime,
-};
-use super::host::{
-    activate_audio_client, build_wave_format, create_device_enumerator, create_stream_event_handle,
-    failed, get_capture_client, get_endpoint_by_id, get_render_client, hresult_error,
-    initialize_com,
+    WasapiHostStreamOps, WasapiRenderClient, WasapiStreamRuntime, activate_audio_client,
+    build_wave_format, create_device_enumerator, create_stream_event_handle, failed,
+    get_capture_client, get_endpoint_by_id, get_render_client, hresult_error, initialize_com,
 };
 use super::ids::{parse_duplex_stable_id, parse_endpoint_stable_id};
 use super::transfer::spawn_worker;

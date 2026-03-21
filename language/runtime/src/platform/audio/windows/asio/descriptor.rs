@@ -3,7 +3,7 @@ use crate::platform::audio::core as audio_core;
 use crate::platform::core as core_platform;
 
 use super::constants::ASIO_MAX_PROBED_CHANNELS;
-use super::host::{
+use super::core::{
     channel_layout, channel_mask, enumerate_registered_drivers, probe_device_profile,
 };
 use super::ids::{capture_stable_id, duplex_stable_id, playback_stable_id};
