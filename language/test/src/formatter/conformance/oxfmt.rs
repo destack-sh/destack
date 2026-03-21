@@ -11,7 +11,8 @@ use super::format::{default_conformance_formatter_options, run_formatter_case};
 use super::runner::{
     ConformanceSuite, ExpectedOutput, SuiteResult, Test, TestOutcome, run_conformance_suite,
 };
-use crate::harness::{TestOptions, fixtures_dir};
+use crate::conformance::formatter;
+use crate::harness::TestOptions;
 
 // pinned version of oxfmt fixtures
 const OXFMT_VERSION: &str = "oxc-main";
@@ -21,23 +22,14 @@ const OXFMT_REF: &str = "main";
 #[derive(Debug, Clone)]
 pub struct OxfmtSuite {
     root: PathBuf,
-    conformance_dir: PathBuf,
+    suite_dir: PathBuf,
 }
 
 impl OxfmtSuite {
     pub fn new() -> Self {
-        let conformance_dir = fixtures_dir().join("formatter").join("conformance");
-        let root = conformance_dir
-            .join("staging")
-            .join("oxfmt")
-            .join("crates")
-            .join("oxc_formatter")
-            .join("tests")
-            .join("fixtures");
-        Self {
-            root,
-            conformance_dir,
-        }
+        let suite_dir = formatter::suite_dir("oxfmt");
+        let root = formatter::suite_tests_dir("oxfmt");
+        Self { root, suite_dir }
     }
 
     fn discover_in_dir(&self, dir: &Path, tests: &mut Vec<Test>) {
@@ -104,12 +96,12 @@ impl ConformanceSuite for OxfmtSuite {
         "oxfmt"
     }
 
-    fn root(&self) -> &Path {
-        &self.root
+    fn suite_dir(&self) -> &Path {
+        &self.suite_dir
     }
 
-    fn known_failures_path(&self) -> PathBuf {
-        self.conformance_dir.join("oxfmt-known-failures.txt")
+    fn root(&self) -> &Path {
+        &self.root
     }
 
     fn discover(&self) -> Vec<Test> {
@@ -152,7 +144,7 @@ impl ConformanceSuite for OxfmtSuite {
                just language/install-formatter-conformance\n\
              \n\
              Or manually:\n\
-               ./language/test/fixtures/formatter/conformance/oxfmt-fetch.sh\n"
+               ./language/test/fixtures/conformance/formatter/oxfmt/fetch.sh\n"
         )
     }
 }

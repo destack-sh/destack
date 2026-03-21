@@ -4,7 +4,8 @@ use destack_source::FileType;
 
 use super::parse::{ParseOptions, ParseOutcome, TestArea, parse_file};
 use super::runner::{ConformanceSuite, SuiteResult, Test, TestOutcome, run_conformance_suite};
-use crate::harness::{TestOptions, fixtures_dir};
+use crate::conformance::ecma;
+use crate::harness::TestOptions;
 
 // pinned version of test262-parser-tests
 // update this when upgrading the test suite
@@ -15,28 +16,22 @@ const TEST262_COMMIT: &str = "0e808c7"; // short sha
 #[derive(Debug, Clone)]
 pub struct Test262Suite {
     root: PathBuf,
-    conformance_dir: PathBuf,
+    suite_dir: PathBuf,
 }
 
 impl Test262Suite {
     /// Create suite with default paths.
     pub fn new() -> Self {
-        let conformance_dir = fixtures_dir().join("parser").join("conformance");
-        let root = conformance_dir.join("test262");
-        Self {
-            root,
-            conformance_dir,
-        }
+        let suite_dir = ecma::suite_dir("test262");
+        let root = ecma::suite_tests_dir("test262");
+        Self { root, suite_dir }
     }
 
     /// Create suite with custom root.
     pub fn with_root(root: impl Into<PathBuf>) -> Self {
         let root = root.into();
-        let conformance_dir = root.parent().unwrap_or(Path::new(".")).to_path_buf();
-        Self {
-            root,
-            conformance_dir,
-        }
+        let suite_dir = ecma::suite_dir("test262");
+        Self { root, suite_dir }
     }
 
     fn discover_in_dir(&self, dir: &Path, prefix: &str, expect_error: bool) -> Vec<Test> {
@@ -74,12 +69,12 @@ impl ConformanceSuite for Test262Suite {
         "test262"
     }
 
-    fn root(&self) -> &Path {
-        &self.root
+    fn suite_dir(&self) -> &Path {
+        &self.suite_dir
     }
 
-    fn known_failures_path(&self) -> PathBuf {
-        self.conformance_dir.join("test262-known-failures.txt")
+    fn root(&self) -> &Path {
+        &self.root
     }
 
     fn discover(&self) -> Vec<Test> {
@@ -161,7 +156,7 @@ impl ConformanceSuite for Test262Suite {
                just language/install-fixtures\n\
              \n\
              Or manually:\n\
-               ./language/test/fixtures/parser/conformance/test262-fetch.sh\n"
+               ./language/test/fixtures/conformance/ecma/test262/fetch.sh\n"
         )
     }
 }

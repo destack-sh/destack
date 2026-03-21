@@ -8,6 +8,11 @@ pub trait Suite: Send + Sync {
     /// The suite name used for display and test naming.
     fn name(&self) -> &'static str;
 
+    /// The plural noun for one discovered case in this suite.
+    fn case_noun(&self) -> &'static str {
+        "tests"
+    }
+
     /// Discover all cases in this suite.
     fn discover(&self, options: &TestOptions) -> Vec<TestCase>;
 

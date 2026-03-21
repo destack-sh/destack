@@ -2,7 +2,8 @@ use std::path::{Path, PathBuf};
 
 use super::parse::{ParseOptions, ParseOutcome, TestArea, parse_file};
 use super::runner::{ConformanceSuite, SuiteResult, Test, TestOutcome, run_conformance_suite};
-use crate::harness::{TestOptions, fixtures_dir};
+use crate::conformance::ecma;
+use crate::harness::TestOptions;
 
 // pinned version of Biome parser tests
 const BIOME_VERSION: &str = "1.x";
@@ -12,17 +13,14 @@ const BIOME_COMMIT: &str = "9f1b3b0"; // short sha
 #[derive(Debug, Clone)]
 pub struct BiomeSuite {
     root: PathBuf,
-    conformance_dir: PathBuf,
+    suite_dir: PathBuf,
 }
 
 impl BiomeSuite {
     pub fn new() -> Self {
-        let conformance_dir = fixtures_dir().join("parser").join("conformance");
-        let root = conformance_dir.join("biome");
-        Self {
-            root,
-            conformance_dir,
-        }
+        let suite_dir = ecma::suite_dir("biome");
+        let root = ecma::suite_tests_dir("biome");
+        Self { root, suite_dir }
     }
 
     fn discover_in_dir(&self, dir: &Path, prefix: &str, expect_error: bool) -> Vec<Test> {
@@ -68,12 +66,12 @@ impl ConformanceSuite for BiomeSuite {
         "biome"
     }
 
-    fn root(&self) -> &Path {
-        &self.root
+    fn suite_dir(&self) -> &Path {
+        &self.suite_dir
     }
 
-    fn known_failures_path(&self) -> PathBuf {
-        self.conformance_dir.join("biome-known-failures.txt")
+    fn root(&self) -> &Path {
+        &self.root
     }
 
     fn discover(&self) -> Vec<Test> {
@@ -131,7 +129,7 @@ impl ConformanceSuite for BiomeSuite {
                just language/install-fixtures\n\
              \n\
              Or manually:\n\
-               ./language/test/fixtures/parser/conformance/biome-fetch.sh\n"
+               ./language/test/fixtures/conformance/ecma/biome/fetch.sh\n"
         )
     }
 }

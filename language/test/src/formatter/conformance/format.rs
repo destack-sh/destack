@@ -52,18 +52,16 @@ pub(super) fn run_formatter_case(
     if let Some(expected_output) = expected_output {
         let expected_output = normalize_output(expected_output);
         let first_pass = normalize_output(&first_pass);
-        return if first_pass == expected_output {
-            TestOutcome::Passed
-        } else {
+        if first_pass != expected_output {
             if show_diff {
                 println!("diff for {}", path.display());
                 print_diff(&expected_output, &first_pass, &DiffOptions::new());
             }
-            TestOutcome::FailedOutput
-        };
+            return TestOutcome::FailedOutput;
+        }
     }
 
-    // otherwise require idempotence
+    // require idempotence after parity or when no oracle output exists
     let second_pass = match format_once(path, &first_pass, file_type, formatter_options, show_diff)
     {
         Ok(formatted) => formatted,

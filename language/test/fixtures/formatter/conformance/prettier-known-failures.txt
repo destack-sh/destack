@@ -1,2 +1,0 @@
-# known formatter idempotence bugs: oxfmt and fixture output are stable
-# (none)

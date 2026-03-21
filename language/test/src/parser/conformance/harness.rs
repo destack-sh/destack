@@ -1,11 +1,9 @@
 use std::sync::Mutex;
 
+use crate::conformance::update_catalog_report_targets;
 use crate::harness::{RunContext, Suite, TestCase, TestOptions, TestResult};
 
-use super::{
-    SuiteResult, load_readme_baseline, print_summary, run_babel, run_biome, run_swc, run_test262,
-    update_readme,
-};
+use super::{SuiteResult, print_summary, run_babel, run_biome, run_swc, run_test262};
 
 /// Selection of parser conformance suites to run.
 #[derive(Debug, Clone, Copy, Default)]
@@ -60,6 +58,10 @@ impl Suite for ParserConformanceHarnessSuite {
         "parser-conformance"
     }
 
+    fn case_noun(&self) -> &'static str {
+        "suites"
+    }
+
     fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
         let run_all = self.selection.is_all_disabled();
 
@@ -69,7 +71,7 @@ impl Suite for ParserConformanceHarnessSuite {
         if run_all || self.selection.test262 {
             cases.push(TestCase::directory(
                 "test262",
-                "fixtures/parser/conformance/test262",
+                "fixtures/conformance/ecma/test262",
                 "destack_test::parser::conformance",
             ));
         }
@@ -78,7 +80,7 @@ impl Suite for ParserConformanceHarnessSuite {
         if run_all || self.selection.babel {
             cases.push(TestCase::directory(
                 "babel",
-                "fixtures/parser/conformance/babel",
+                "fixtures/conformance/ecma/babel",
                 "destack_test::parser::conformance",
             ));
         }
@@ -87,7 +89,7 @@ impl Suite for ParserConformanceHarnessSuite {
         if run_all || self.selection.swc {
             cases.push(TestCase::directory(
                 "swc",
-                "fixtures/parser/conformance/swc",
+                "fixtures/conformance/ecma/swc",
                 "destack_test::parser::conformance",
             ));
         }
@@ -96,7 +98,7 @@ impl Suite for ParserConformanceHarnessSuite {
         if run_all || self.selection.biome {
             cases.push(TestCase::directory(
                 "biome",
-                "fixtures/parser/conformance/biome",
+                "fixtures/conformance/ecma/biome",
                 "destack_test::parser::conformance",
             ));
         }
@@ -152,16 +154,10 @@ impl Suite for ParserConformanceHarnessSuite {
             return;
         };
 
-        // load baseline for delta display
-        let baseline = load_readme_baseline();
-        print_summary(&results, baseline.as_ref());
+        print_summary(&results, None);
 
-        let has_filtered_suites = results.iter().any(|suite| suite.result.is_filtered());
-
-        // determine if this is a partial run (not all suites or filtered suites)
-        let run_all = self.selection.is_all_disabled();
-        let is_partial = !run_all || has_filtered_suites;
-
-        update_readme(&results, is_partial);
+        if let Err(error) = update_catalog_report_targets() {
+            eprintln!("failed to update conformance catalog: {error}");
+        }
     }
 }

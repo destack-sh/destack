@@ -1,0 +1,44 @@
+---
+source: crates/oxc_formatter/tests/fixtures/mod.rs
+---
+==================== Input ====================
+// prettier-ignore
+Object.defineProperties    (    exports    , {
+})
+
+/* prettier-ignore */
+(() => 
+  c +
+    b +
+  d
+)
+==================== Output ====================
+------------------
+{ printWidth: 80 }
+------------------
+// prettier-ignore
+Object.defineProperties    (    exports    , {
+})
+
+/* prettier-ignore */
+(() => 
+  c +
+    b +
+  d
+)
+
+-------------------
+{ printWidth: 100 }
+-------------------
+// prettier-ignore
+Object.defineProperties    (    exports    , {
+})
+
+/* prettier-ignore */
+(() => 
+  c +
+    b +
+  d
+)
+
+===================== End =====================

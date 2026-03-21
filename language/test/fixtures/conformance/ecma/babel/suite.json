@@ -1,0 +1,24 @@
+{
+  "id": "ecma.babel",
+  "domain": "ecma",
+  "suite": "babel",
+  "title": "ECMA Babel",
+  "origin": {
+    "repo": "https://github.com/babel/babel.git",
+    "ref": "b8ef443e0a3ee202264fb40edc1cbce8f2352aaa",
+    "kind": "git"
+  },
+  "fetch": {
+    "entries": [
+      {
+        "kind": "source",
+        "label": "babel parser",
+        "version": "7.26",
+        "layout": "strip",
+        "paths": [
+          "packages/babel-parser/test/fixtures"
+        ]
+      }
+    ]
+  }
+}

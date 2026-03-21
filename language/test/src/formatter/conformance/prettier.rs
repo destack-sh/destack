@@ -2,13 +2,17 @@ use std::path::{Path, PathBuf};
 
 use destack_source::FileType;
 
+use super::expected::{load_expected_output, load_prettier_expected_case};
 use super::fixtures::{
     expect_error_from_path, is_formattable_file_type, should_skip_directory,
     should_skip_fixture_file,
 };
 use super::format::{default_conformance_formatter_options, run_formatter_case};
-use super::runner::{ConformanceSuite, SuiteResult, Test, TestOutcome, run_conformance_suite};
-use crate::harness::{TestOptions, fixtures_dir};
+use super::runner::{
+    ConformanceSuite, ExpectedOutput, SuiteResult, Test, TestOutcome, run_conformance_suite,
+};
+use crate::conformance::formatter;
+use crate::harness::TestOptions;
 
 // pinned version of Prettier formatter fixtures
 const PRETTIER_VERSION: &str = "3.x";
@@ -18,21 +22,14 @@ const PRETTIER_REF: &str = "main";
 #[derive(Debug, Clone)]
 pub struct PrettierSuite {
     root: PathBuf,
-    conformance_dir: PathBuf,
+    suite_dir: PathBuf,
 }
 
 impl PrettierSuite {
     pub fn new() -> Self {
-        let conformance_dir = fixtures_dir().join("formatter").join("conformance");
-        let root = conformance_dir
-            .join("staging")
-            .join("prettier")
-            .join("tests")
-            .join("format");
-        Self {
-            root,
-            conformance_dir,
-        }
+        let suite_dir = formatter::suite_dir("prettier");
+        let root = formatter::suite_tests_dir("prettier");
+        Self { root, suite_dir }
     }
 
     fn discover_in_dir(&self, dir: &Path, tests: &mut Vec<Test>) {
@@ -75,6 +72,22 @@ impl PrettierSuite {
                 Test::pass(test_name, file_type)
             };
 
+            let snapshot_path = path
+                .parent()
+                .map(|directory| directory.join("__snapshots__").join("format.test.js.snap"));
+            let test = if let Some(snapshot_path) = snapshot_path
+                && snapshot_path.is_file()
+                && let Some(file_name) = path.file_name().and_then(|value| value.to_str())
+                && let Ok(relative_snapshot) = snapshot_path.strip_prefix(&self.root)
+            {
+                test.with_expected_output(ExpectedOutput::PrettierSnapshot {
+                    path: relative_snapshot.to_path_buf(),
+                    key: format!("{file_name} format 1"),
+                })
+            } else {
+                test
+            };
+
             tests.push(test);
         }
     }
@@ -105,12 +118,12 @@ impl ConformanceSuite for PrettierSuite {
         "prettier"
     }
 
-    fn root(&self) -> &Path {
-        &self.root
+    fn suite_dir(&self) -> &Path {
+        &self.suite_dir
     }
 
-    fn known_failures_path(&self) -> PathBuf {
-        self.conformance_dir.join("prettier-known-failures.txt")
+    fn root(&self) -> &Path {
+        &self.root
     }
 
     fn discover(&self) -> Vec<Test> {
@@ -121,12 +134,26 @@ impl ConformanceSuite for PrettierSuite {
 
     fn run(&self, test: &Test, show_diff: bool) -> TestOutcome {
         let path = self.root.join(&test.name);
+        let mut formatter_options = default_conformance_formatter_options();
+        let expected_output = match &test.expected_output {
+            ExpectedOutput::PrettierSnapshot { path, key } => {
+                if let Some(expected_case) =
+                    load_prettier_expected_case(self.root(), path, key, formatter_options)
+                {
+                    formatter_options = expected_case.formatter_options;
+                    Some(expected_case.output)
+                } else {
+                    None
+                }
+            }
+            _ => load_expected_output(self.root(), &test.expected_output),
+        };
 
         run_formatter_case(
             &path,
             test.file_type,
-            None,
-            default_conformance_formatter_options(),
+            expected_output.as_deref(),
+            formatter_options,
             test.expect_error,
             show_diff,
         )
@@ -139,7 +166,7 @@ impl ConformanceSuite for PrettierSuite {
                just language/install-formatter-conformance\n\
              \n\
              Or manually:\n\
-               ./language/test/fixtures/formatter/conformance/prettier-fetch.sh\n"
+               ./language/test/fixtures/conformance/formatter/prettier/fetch.sh\n"
         )
     }
 }

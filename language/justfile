@@ -36,25 +36,18 @@ _run-destack-test test_binary *args:
 
 # install language test fixtures
 install:
-    bash ./test/fixtures/parser/conformance/test262-fetch.sh
-    bash ./test/fixtures/parser/conformance/babel-fetch.sh
-    bash ./test/fixtures/parser/conformance/swc-fetch.sh
-    bash ./test/fixtures/parser/conformance/biome-fetch.sh
+    just install-parser-conformance
     just install-formatter-conformance
     just fetch-ecosystem
     just install-resolver
 
 # install conformance suites
 install-parser-conformance:
-    bash ./test/fixtures/parser/conformance/test262-fetch.sh
-    bash ./test/fixtures/parser/conformance/babel-fetch.sh
-    bash ./test/fixtures/parser/conformance/swc-fetch.sh
-    bash ./test/fixtures/parser/conformance/biome-fetch.sh
+    bash ./test/fixtures/conformance/ecma/fetch.sh
 
 # install formatter conformance sources
 install-formatter-conformance:
-    bash ./test/fixtures/formatter/conformance/prettier-fetch.sh
-    bash ./test/fixtures/formatter/conformance/oxfmt-fetch.sh
+    bash ./test/fixtures/conformance/formatter/fetch.sh
 
 # install resolver fixture dependencies
 install-resolver:
@@ -275,8 +268,12 @@ test-formatter-conformance:
 test-formatter-conformance-update:
     just _run-destack-test formatter-conformance --update-known-failures
 
-# snapshot formatter output for a corpus
-snapshot-formatter-corpus root="test/fixtures/formatter/conformance/staging/oxfmt" out="/tmp/destack-snapshot-formatter-corpus":
+# regenerate shared conformance catalog sections
+update-conformance-catalog:
+    cargo run -p destack_test --bin update_conformance_catalog
+
+# snapshot formatter output for a cases tree
+snapshot-formatter-corpus root="test/fixtures/conformance/formatter/oxfmt/cases" out="/tmp/destack-snapshot-formatter-corpus":
     bash ./formatter/scripts/corpus_snapshot.sh "{{root}}" "{{out}}"
 
 # bench formatter parse and print throughput on a corpus
