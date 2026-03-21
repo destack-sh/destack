@@ -183,8 +183,8 @@ export newtype InputDeviceHandle = ResourceId;
 /// Handle for one global input monitor stream.
 export newtype InputMonitorHandle = ResourceId;
 
-/// Handle for one drag-transfer session.
-export newtype InputDragSessionHandle = ResourceId;
+/// Handle for one display drag-transfer session.
+export newtype DisplayDragSessionHandle = ResourceId;
 
 /// Handle for one GPU adapter endpoint.
 export newtype GpuAdapterHandle = ResourceId;

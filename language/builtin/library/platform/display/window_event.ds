@@ -1,8 +1,8 @@
 import { Array } from "native";
 import type { PlatformError } from "../error/index.ds";
 import {
-    InputDragTransfer,
-} from "../input/drag.ds";
+    DisplayDragTransfer,
+} from "./drag.ds";
 import { DisplayHandle, WindowEventHandle, WindowHandle } from "../resource/index.ds";
 import {
     DisplayBackend,
@@ -451,7 +451,7 @@ export struct WindowDragEnteredEvent {
     /// Shared event metadata.
     metadata: WindowEventMetadata;
     /// Drag-transfer payload.
-    payload: InputDragTransfer;
+    payload: DisplayDragTransfer;
 }
 
 /// Window drag-updated event.
@@ -461,7 +461,7 @@ export struct WindowDragUpdatedEvent {
     /// Shared event metadata.
     metadata: WindowEventMetadata;
     /// Drag-transfer payload.
-    payload: InputDragTransfer;
+    payload: DisplayDragTransfer;
 }
 
 /// Window drag-exited event.
@@ -471,7 +471,7 @@ export struct WindowDragExitedEvent {
     /// Shared event metadata.
     metadata: WindowEventMetadata;
     /// Drag-transfer payload.
-    payload: InputDragTransfer;
+    payload: DisplayDragTransfer;
 }
 
 /// Window dropped event.
@@ -481,7 +481,7 @@ export struct WindowDroppedEvent {
     /// Shared event metadata.
     metadata: WindowEventMetadata;
     /// Drag-transfer payload.
-    payload: InputDragTransfer;
+    payload: DisplayDragTransfer;
 }
 
 /// Window event payload.
