@@ -7,8 +7,8 @@ use super::abi::AlsaPcm;
 use super::constants::{ALSA_FALSE, ALSA_STREAM_CAPTURE, ALSA_STREAM_PLAYBACK, ALSA_TRUE};
 use super::core::{
     AlsaDirectionLane, AlsaHostStreamOps, AlsaStreamRuntime, alsa_error, alsa_succeeded,
+    open_configured_pcm, recover_pcm, require_alsa_library,
 };
-use super::host::{open_configured_pcm, recover_pcm, require_alsa_library};
 use super::ids::{parse_stable_id, validate_stable_id_direction};
 use super::transfer::spawn_worker;
 use crate::platform::audio as audio_types;

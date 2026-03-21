@@ -1,7 +1,7 @@
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 use super::core::*;
 #[cfg(any(target_os = "linux", target_os = "macos"))]
-use crate::platform::net::host::select_packet_backend_for_open;
+use crate::platform::net::core::select_packet_backend_for_open;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;

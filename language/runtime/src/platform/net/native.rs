@@ -1249,7 +1249,7 @@ pub(crate) unsafe fn destack_net_packet_backend_list(
     binding: &BindingCallContext,
     out: *mut NativeSlice<PacketBackendDescriptor>,
 ) -> RuntimeResult<()> {
-    unsafe { host::destack_net_packet_backend_list(binding, out) }
+    unsafe { super::core::destack_net_packet_backend_list(binding, out) }
 }
 
 /// Open a packet capture or inject endpoint.

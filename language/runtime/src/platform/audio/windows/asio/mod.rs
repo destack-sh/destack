@@ -6,7 +6,6 @@ mod core;
 mod descriptor;
 mod device;
 mod event;
-mod host;
 mod ids;
 mod runtime;
 mod stream;

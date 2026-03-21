@@ -2793,7 +2793,7 @@ pub(super) fn destack_net_packet_backend_list(
     context: &mut destack_vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<PacketBackendDescriptorVm>> {
     let values =
-        call_out(|out| unsafe { host_net::destack_net_packet_backend_list(binding, out) })?;
+        call_out(|out| unsafe { super::core::destack_net_packet_backend_list(binding, out) })?;
     packet_backend_descriptor_slice_to_vm(context, values)
 }
 

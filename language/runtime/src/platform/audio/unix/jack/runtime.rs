@@ -10,10 +10,10 @@ use crate::platform::core as core_platform;
 use super::abi::{JackClient, JackPort};
 use super::core::{
     JackLibrary, c_str_to_string, c_string, capture_source_flags, client_input_port_flags,
-    client_output_port_flags, jack_audio_type_pointer, jack_error, jack_not_supported,
-    jack_succeeded, playback_sink_flags, require_jack_library, stream_client_name,
+    client_output_port_flags, close_jack_client, jack_audio_type_pointer, jack_error,
+    jack_not_supported, jack_succeeded, list_ports, open_jack_client, playback_sink_flags,
+    require_jack_library, stream_client_name,
 };
-use super::host::{close_jack_client, list_ports, open_jack_client};
 use super::ids::{parse_jack_stable_id, validate_jack_stable_id_direction};
 use crate::platform::audio as audio_types;
 

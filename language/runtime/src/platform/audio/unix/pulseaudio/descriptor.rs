@@ -7,9 +7,9 @@ use super::constants::{
     PULSEAUDIO_PREFERRED_SAMPLE_RATE,
 };
 use super::core::{
-    channel_layout, channel_mask, pulseaudio_format_mask, require_pulseaudio_library,
+    channel_layout, channel_mask, probe_endpoints, pulseaudio_format_mask,
+    require_pulseaudio_library,
 };
-use super::host::probe_endpoints;
 use super::ids::{capture_stable_id, duplex_stable_id, loopback_stable_id, playback_stable_id};
 use crate::platform::audio as audio_types;
 
