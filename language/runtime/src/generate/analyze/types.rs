@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use destack_builtin::LanguageSymbol;
-use destack_compiler::{Compiler, TaskOutcome};
+use destack_compiler::Compiler;
 use destack_core::{StringPool, fnv1a_64};
 use destack_dir::{
     self as dir, Annotation, Argument, Declaration, DependencyItem, Expression, GlobalSymbolId,
@@ -10,9 +10,7 @@ use destack_dir::{
 };
 use destack_query::format::{format_local_type, format_type_literal};
 use destack_source::ModuleId;
-use destack_workspace::{
-    ArtifactKey, ArtifactRegistry, DirPatched, Module, ModuleRegistry, ProfileId, Program,
-};
+use destack_workspace::{ArtifactRegistry, DirPatched, Module, ModuleRegistry, ProfileId, Program};
 
 use super::{
     BindingEnumValue, BindingEnumVariant, BindingField, BindingParameter, BindingReturn,
@@ -162,28 +160,17 @@ fn patched_dir_artifact(
     module_id: ModuleId,
     profile_id: ProfileId,
 ) -> Arc<DirPatched> {
+    // reuse the live artifact when it is already available
     if let Some(dir) = program.artifacts.dir_patched(module_id, profile_id) {
         return dir;
     }
 
-    let outcome = compiler.run_task(ArtifactKey::dir_patched(module_id, profile_id));
-    match outcome {
-        TaskOutcome::Complete => {}
-        TaskOutcome::Skipped => {
-            panic!("binding generation task DirPatched({module_id:?}) was skipped");
-        }
-        TaskOutcome::Error { error } => {
-            panic!(
-                "binding generation task DirPatched({module_id:?}) failed: {} ({error:?})",
-                error.message(program),
-            );
-        }
-        TaskOutcome::Yield { requirement } => {
-            panic!(
-                "binding generation task DirPatched({module_id:?}) yielded unexpectedly: {requirement:?}"
-            );
-        }
-    }
+    // otherwise drive the artifact requirement to completion
+    compiler
+        .run_to_completion(|compiler| compiler.require_dir_patched(module_id, profile_id))
+        .unwrap_or_else(|error| {
+            panic!("failed to build patched dir for module {module_id:?}: {error:?}")
+        });
 
     program
         .artifacts
