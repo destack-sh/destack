@@ -5,7 +5,7 @@ use clap::Parser;
 
 use destack_compiler::OptimizationLevel;
 
-use destack_test::harness::{Runner, TestOptions};
+use destack_test::core::{RunOptions, Runner};
 use destack_test::optimize::{
     OptimizeBaselineSuite, OptimizeExecuteSuite, OptimizePerfSuite, OptimizeRunOptions,
     OptimizeValidateSuite, PerfOutputFormat,
@@ -94,7 +94,7 @@ struct OptimizeOptions {
 
     /// Common test options.
     #[command(flatten)]
-    test: TestOptions,
+    test: RunOptions,
 }
 
 /// Run optimizer bench suites.
@@ -184,28 +184,28 @@ fn main() -> ExitCode {
     let mut any_failed = false;
     if run_validate {
         let suite = OptimizeValidateSuite::load(run_options.clone());
-        let result = Runner::run_suite(&suite, &options.test);
+        let result = Runner::run_suite(suite, &options.test);
         if result != ExitCode::SUCCESS {
             any_failed = true;
         }
     }
     if run_baseline {
         let suite = OptimizeBaselineSuite::load(run_options.clone());
-        let result = Runner::run_suite(&suite, &options.test);
+        let result = Runner::run_suite(suite, &options.test);
         if result != ExitCode::SUCCESS {
             any_failed = true;
         }
     }
     if run_execute {
         let suite = OptimizeExecuteSuite::load(run_options.clone());
-        let result = Runner::run_suite(&suite, &options.test);
+        let result = Runner::run_suite(suite, &options.test);
         if result != ExitCode::SUCCESS {
             any_failed = true;
         }
     }
     if run_perf {
         let suite = OptimizePerfSuite::load(run_options);
-        let result = Runner::run_suite(&suite, &options.test);
+        let result = Runner::run_suite(suite, &options.test);
         if result != ExitCode::SUCCESS {
             any_failed = true;
         }

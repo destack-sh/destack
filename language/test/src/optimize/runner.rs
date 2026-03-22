@@ -19,7 +19,7 @@ use destack_workspace::TargetId;
 use mir::parse::ParseOptions;
 use serde::Serialize;
 
-use crate::harness::{RunContext, Suite, TestCase, TestOptions, TestResult};
+use crate::core::{Case, CaseResult, RunContext, RunOptions, Suite};
 
 use destack_test_mirbench as program;
 
@@ -458,7 +458,7 @@ pub struct OptimizeValidateSuite {
     /// Root path for the fixtures.
     root: PathBuf,
     /// Discovered test cases.
-    cases: Vec<TestCase>,
+    cases: Vec<Case>,
 }
 
 impl OptimizeValidateSuite {
@@ -487,16 +487,16 @@ impl Suite for OptimizeValidateSuite {
         "optimize_validate"
     }
 
-    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+    fn discover(&self, _options: &RunOptions) -> Vec<Case> {
         self.cases.clone()
     }
 
-    fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
+    fn run(&self, case: &Case, _context: &RunContext<'_>) -> CaseResult {
         // read the source program
         let source = match fs::read_to_string(&case.path) {
             Ok(source) => source,
             Err(error) => {
-                return TestResult::Failed {
+                return CaseResult::Failed {
                     message: format!("failed to read {}: {error}", case.path.display()),
                 };
             }
@@ -535,18 +535,18 @@ impl Suite for OptimizeValidateSuite {
                 options.clone(),
                 &allow_list,
             ) {
-                return TestResult::Failed { message };
+                return CaseResult::Failed { message };
             }
         }
 
         // skip if no levels matched the filter
         if !ran_any {
-            return TestResult::Skipped {
+            return CaseResult::Skipped {
                 reason: "filtered out by optimization level".to_string(),
             };
         }
 
-        TestResult::Passed
+        CaseResult::Passed
     }
 }
 
@@ -556,7 +556,7 @@ pub struct OptimizeBaselineSuite {
     /// Shared run options.
     options: OptimizeRunOptions,
     /// Discovered test cases.
-    cases: Vec<TestCase>,
+    cases: Vec<Case>,
     /// Program lookup by name.
     programs: HashMap<String, &'static program::Program>,
 }
@@ -574,7 +574,7 @@ impl OptimizeBaselineSuite {
         // build program cases
         for entry in program::all_programs() {
             let path = root.join(format!("{}.mir", entry.name));
-            let case = TestCase::file(entry.name, path, "destack_test::optimize::baseline");
+            let case = Case::file(entry.name, path, "destack_test::optimize::baseline");
             cases.push(case);
             programs.insert(entry.name.to_string(), entry);
         }
@@ -592,16 +592,16 @@ impl Suite for OptimizeBaselineSuite {
         "optimize_baseline"
     }
 
-    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+    fn discover(&self, _options: &RunOptions) -> Vec<Case> {
         self.cases.clone()
     }
 
-    fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
+    fn run(&self, case: &Case, _context: &RunContext<'_>) -> CaseResult {
         // resolve the program metadata
         let program = match self.programs.get(&case.name) {
             Some(program) => *program,
             None => {
-                return TestResult::Failed {
+                return CaseResult::Failed {
                     message: format!("program '{}' not found", case.name),
                 };
             }
@@ -610,7 +610,7 @@ impl Suite for OptimizeBaselineSuite {
         // parse allow list directives
         let allow_list = BenchAllowList::from_source(program.source);
         if allow_list.has_expectations() {
-            return TestResult::Skipped {
+            return CaseResult::Skipped {
                 reason: "skipped by allow list directives".to_string(),
             };
         }
@@ -626,13 +626,13 @@ impl Suite for OptimizeBaselineSuite {
             self.options.max_instruction_limit,
         ) {
             Ok(output) => output,
-            Err(message) => return TestResult::Failed { message },
+            Err(message) => return CaseResult::Failed { message },
         };
 
         // compare against expected output
         let expected = (program.expected)();
         if output.value != expected {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!(
                     "'{}' (baseline): expected {:?}, got {:?}",
                     program.name, expected, output.value
@@ -640,7 +640,7 @@ impl Suite for OptimizeBaselineSuite {
             };
         }
 
-        TestResult::Passed
+        CaseResult::Passed
     }
 }
 
@@ -652,7 +652,7 @@ pub struct OptimizeExecuteSuite {
     /// Root path for the fixtures.
     root: PathBuf,
     /// Discovered test cases.
-    cases: Vec<TestCase>,
+    cases: Vec<Case>,
     /// Program lookup by name.
     programs: HashMap<String, &'static program::Program>,
 }
@@ -670,7 +670,7 @@ impl OptimizeExecuteSuite {
         // build program cases
         for entry in program::all_programs() {
             let path = root.join(format!("{}.mir", entry.name));
-            let case = TestCase::file(entry.name, path, "destack_test::optimize::execute");
+            let case = Case::file(entry.name, path, "destack_test::optimize::execute");
             cases.push(case);
             programs.insert(entry.name.to_string(), entry);
         }
@@ -689,16 +689,16 @@ impl Suite for OptimizeExecuteSuite {
         "optimize_execute"
     }
 
-    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+    fn discover(&self, _options: &RunOptions) -> Vec<Case> {
         self.cases.clone()
     }
 
-    fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
+    fn run(&self, case: &Case, _context: &RunContext<'_>) -> CaseResult {
         // resolve the program metadata
         let program = match self.programs.get(&case.name) {
             Some(program) => *program,
             None => {
-                return TestResult::Failed {
+                return CaseResult::Failed {
                     message: format!("program '{}' not found", case.name),
                 };
             }
@@ -707,7 +707,7 @@ impl Suite for OptimizeExecuteSuite {
         // parse allow list directives
         let allow_list = BenchAllowList::from_source(program.source);
         if allow_list.has_expectations() {
-            return TestResult::Skipped {
+            return CaseResult::Skipped {
                 reason: "skipped by allow list directives".to_string(),
             };
         }
@@ -719,7 +719,7 @@ impl Suite for OptimizeExecuteSuite {
             self.options.bench_profile,
         ) {
             Ok(output) => output,
-            Err(message) => return TestResult::Failed { message },
+            Err(message) => return CaseResult::Failed { message },
         };
 
         // prepare shared configuration
@@ -755,7 +755,7 @@ impl Suite for OptimizeExecuteSuite {
                 &allow_list,
             ) {
                 Ok(output) => output,
-                Err(message) => return TestResult::Failed { message },
+                Err(message) => return CaseResult::Failed { message },
             };
 
             // execute the optimized program
@@ -780,7 +780,7 @@ impl Suite for OptimizeExecuteSuite {
                         &self.options,
                         message,
                     );
-                    return TestResult::Failed { message };
+                    return CaseResult::Failed { message };
                 }
             };
 
@@ -799,18 +799,18 @@ impl Suite for OptimizeExecuteSuite {
                     &self.options,
                     message,
                 );
-                return TestResult::Failed { message };
+                return CaseResult::Failed { message };
             }
         }
 
         // skip if no levels matched the filter
         if !ran_any {
-            return TestResult::Skipped {
+            return CaseResult::Skipped {
                 reason: "filtered out by optimization level".to_string(),
             };
         }
 
-        TestResult::Passed
+        CaseResult::Passed
     }
 }
 
@@ -822,7 +822,7 @@ pub struct OptimizePerfSuite {
     /// Root path for the fixtures.
     root: PathBuf,
     /// Discovered test cases.
-    cases: Vec<TestCase>,
+    cases: Vec<Case>,
     /// Program lookup by name.
     programs: HashMap<String, &'static program::Program>,
     /// Collected perf samples.
@@ -842,7 +842,7 @@ impl OptimizePerfSuite {
         // build program cases
         for entry in program::all_programs() {
             let path = root.join(format!("{}.mir", entry.name));
-            let case = TestCase::file(entry.name, path, "destack_test::optimize::perf");
+            let case = Case::file(entry.name, path, "destack_test::optimize::perf");
             cases.push(case);
             programs.insert(entry.name.to_string(), entry);
         }
@@ -862,16 +862,16 @@ impl Suite for OptimizePerfSuite {
         "optimize_perf"
     }
 
-    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+    fn discover(&self, _options: &RunOptions) -> Vec<Case> {
         self.cases.clone()
     }
 
-    fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
+    fn run(&self, case: &Case, _context: &RunContext<'_>) -> CaseResult {
         // resolve the program metadata
         let program = match self.programs.get(&case.name) {
             Some(program) => *program,
             None => {
-                return TestResult::Failed {
+                return CaseResult::Failed {
                     message: format!("program '{}' not found", case.name),
                 };
             }
@@ -880,7 +880,7 @@ impl Suite for OptimizePerfSuite {
         // parse allow list directives
         let allow_list = BenchAllowList::from_source(program.source);
         if allow_list.has_expectations() {
-            return TestResult::Skipped {
+            return CaseResult::Skipped {
                 reason: "skipped by allow list directives".to_string(),
             };
         }
@@ -891,7 +891,7 @@ impl Suite for OptimizePerfSuite {
         // parse baseline tree to count MIR instructions
         let (baseline_tree, baseline_strings) = match parse_mir_source(program.source) {
             Ok(output) => output,
-            Err(message) => return TestResult::Failed { message },
+            Err(message) => return CaseResult::Failed { message },
         };
         let baseline_mir_instructions = count_mir_instructions(&baseline_tree);
         let baseline_mir_bytes = count_mir_bytes(&baseline_tree, &baseline_strings);
@@ -908,7 +908,7 @@ impl Suite for OptimizePerfSuite {
         ) {
             Ok(output) => output,
             Err(error) => {
-                return TestResult::Failed {
+                return CaseResult::Failed {
                     message: format!("bench '{}' baseline failed: {error}", program.name),
                 };
             }
@@ -955,7 +955,7 @@ impl Suite for OptimizePerfSuite {
                     self.options.perf_pass_timing,
                 ) {
                     Ok(output) => output,
-                    Err(message) => return TestResult::Failed { message },
+                    Err(message) => return CaseResult::Failed { message },
                 };
                 let compile_ms = compile_start.elapsed().as_secs_f64() * 1000.0;
 
@@ -975,7 +975,7 @@ impl Suite for OptimizePerfSuite {
                 ) {
                     Ok(output) => output,
                     Err(error) => {
-                        return TestResult::Failed {
+                        return CaseResult::Failed {
                             message: format!(
                                 "bench '{}' ({level:?}) failed: {error}",
                                 program.name
@@ -986,7 +986,7 @@ impl Suite for OptimizePerfSuite {
 
                 // compare outputs against the baseline
                 if run_output.value != baseline_output.value {
-                    return TestResult::Failed {
+                    return CaseResult::Failed {
                         message: format!(
                             "'{}' ({level:?}): expected {:?}, got {:?}",
                             program.name, baseline_output.value, run_output.value
@@ -1019,15 +1019,15 @@ impl Suite for OptimizePerfSuite {
 
         // skip if no levels matched the filter
         if !ran_any {
-            return TestResult::Skipped {
+            return CaseResult::Skipped {
                 reason: "filtered out by optimization level".to_string(),
             };
         }
 
-        TestResult::Passed
+        CaseResult::Passed
     }
 
-    fn report(&self, _results: &[(TestCase, TestResult)], _context: &RunContext<'_>) {
+    fn report(&self, _results: &[(Case, CaseResult)], _context: &RunContext<'_>) {
         let mut samples = self
             .samples
             .lock()
@@ -1101,13 +1101,13 @@ fn collect_mir_files(root: &Path) -> Vec<PathBuf> {
 }
 
 /// Build a test case for a fixture path.
-fn build_fixture_case(root: &Path, path: PathBuf) -> TestCase {
+fn build_fixture_case(root: &Path, path: PathBuf) -> Case {
     // compute a stable relative name
     let relative = path.strip_prefix(root).unwrap_or(&path);
     let name = relative.to_string_lossy().replace('\\', "/");
 
     // build the test case
-    TestCase::file(name, path, "destack_test::optimize::validate")
+    Case::file(name, path, "destack_test::optimize::validate")
 }
 
 /// Return the module id for a bench fixture path.
