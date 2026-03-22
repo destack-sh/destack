@@ -4,7 +4,7 @@ use std::path::Path;
 use destack_lsp_server::jsonrpc::ErrorCode;
 use destack_lsp_types as lsp;
 
-use crate::harness::TestResult;
+use crate::core::CaseResult;
 use crate::lsp::runner::{
     assists, commands, hierarchy, lifecycle, navigation, refactor, symbols, tokens,
 };
@@ -41,12 +41,12 @@ struct SemanticTokenDeltaBaseline {
 }
 
 /// Run one applied-LSP markdown test case.
-pub(crate) fn run_mdtest_case(path: &Path, test: &MdTestCase) -> TestResult {
+pub(crate) fn run_mdtest_case(path: &Path, test: &MdTestCase) -> CaseResult {
     // parse the fixture before higher-level case execution begins
     let fixture = match LspFixture::from_mdtest(path, test) {
         Ok(fixture) => fixture,
         Err(error) => {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: error.to_string(),
             };
         }
@@ -56,65 +56,65 @@ pub(crate) fn run_mdtest_case(path: &Path, test: &MdTestCase) -> TestResult {
     let mut test_state = match LspTestState::from_fixture("applied_lsp", &fixture) {
         Ok(test_state) => test_state,
         Err(error) => {
-            return TestResult::Failed { message: error };
+            return CaseResult::Failed { message: error };
         }
     };
 
     // open the declared fixture files before semantic requests run
     if let Err(error) = test_state.open_fixture_files() {
-        return TestResult::Failed { message: error };
+        return CaseResult::Failed { message: error };
     }
 
     // explicit step sequences own their own execution order
     if fixture.has_step_sequence() {
         if fixture.has_declarative_cases() {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: "stepped fixture still contains declarative runnable cases".to_string(),
             };
         }
 
         if let Err(error) = run_step_sequence(&fixture, &mut test_state) {
-            return TestResult::Failed { message: error };
+            return CaseResult::Failed { message: error };
         }
 
-        return TestResult::Passed;
+        return CaseResult::Passed;
     }
 
     // execute declared workspace commands before semantic request families run
     if let Err(error) = commands::run_command_cases(&fixture, &mut test_state) {
-        return TestResult::Failed { message: error };
+        return CaseResult::Failed { message: error };
     }
 
     // run the capability families in a stable order
     if let Err(error) = navigation::run_navigation_cases(&fixture, &mut test_state) {
-        return TestResult::Failed { message: error };
+        return CaseResult::Failed { message: error };
     }
 
     if let Err(error) = assists::run_assist_cases(&fixture, &mut test_state) {
-        return TestResult::Failed { message: error };
+        return CaseResult::Failed { message: error };
     }
 
     if let Err(error) = hierarchy::run_hierarchy_cases(&fixture, &mut test_state) {
-        return TestResult::Failed { message: error };
+        return CaseResult::Failed { message: error };
     }
 
     if let Err(error) = symbols::run_symbol_cases(&fixture, &mut test_state) {
-        return TestResult::Failed { message: error };
+        return CaseResult::Failed { message: error };
     }
 
     if let Err(error) = tokens::run_token_cases(&fixture, &mut test_state) {
-        return TestResult::Failed { message: error };
+        return CaseResult::Failed { message: error };
     }
 
     if let Err(error) = refactor::run_refactor_cases(&fixture, &mut test_state) {
-        return TestResult::Failed { message: error };
+        return CaseResult::Failed { message: error };
     }
 
     if let Err(error) = lifecycle::run_lifecycle_cases(&fixture, &mut test_state) {
-        return TestResult::Failed { message: error };
+        return CaseResult::Failed { message: error };
     }
 
-    TestResult::Passed
+    CaseResult::Passed
 }
 
 /// Run one explicit step-indexed fixture sequence.
@@ -376,13 +376,6 @@ fn execute_step_cases(
                     parse_expected_definition_snapshot(fixture, step_snapshot, snapshot_text)?;
 
                 verify_reference_locations(&actual_references, &expected_references)?;
-            }
-            LspStepCase::QuickInfoExists { marker_name } => {
-                let marker = marker_for_step(fixture, step_snapshot, step_index, marker_name)?;
-
-                test_state.go_to_file(&marker.file_path)?;
-                test_state.go_to_offset(&marker.file_path, marker.offset)?;
-                test_state.verify().quick_info_exists()?;
             }
             LspStepCase::QuickInfo { marker_name } => {
                 let marker = marker_for_step(fixture, step_snapshot, step_index, marker_name)?;
@@ -825,28 +818,6 @@ fn execute_step_cases(
 
                 verify_type_hierarchy_items(&actual_items, &expected_items)?;
             }
-            LspStepCase::DiagnosticMarkerWindows {
-                start_marker_name,
-                end_marker_name,
-            } => {
-                let start_marker =
-                    marker_for_step(fixture, step_snapshot, step_index, start_marker_name)?;
-
-                test_state.go_to_file(&start_marker.file_path)?;
-                test_state
-                    .verify()
-                    .error_exists_between_markers(start_marker_name, end_marker_name)?;
-
-                // the compact step form only carries the span markers
-                test_state
-                    .verify()
-                    .error_exists_after_marker(Some(start_marker_name))?;
-
-                // the compact step form only carries the span markers
-                test_state
-                    .verify()
-                    .error_exists_before_marker(Some(end_marker_name))?;
-            }
             LspStepCase::NoErrors { file_path } => {
                 test_state.go_to_file(file_path)?;
                 test_state.verify().no_errors()?;
@@ -1031,20 +1002,28 @@ fn parse_bool_field(label: &str, value: &str) -> Result<bool, String> {
     }
 }
 
-/// Return one completion item with a matching label for step execution.
+/// Return one completion item with a unique matching label for step execution.
 fn completion_item_by_label_for_step(
     completion: lsp::CompletionResponse,
     label: &str,
-    _step_index: usize,
+    step_index: usize,
 ) -> Result<Option<lsp::CompletionItem>, String> {
-    match completion {
-        lsp::CompletionResponse::Array(items) => {
-            Ok(items.into_iter().find(|item| item.label == label))
-        }
-        lsp::CompletionResponse::List(list) => {
-            Ok(list.items.into_iter().find(|item| item.label == label))
-        }
+    let items = match completion {
+        lsp::CompletionResponse::Array(items) => items,
+        lsp::CompletionResponse::List(list) => list.items,
+    };
+
+    // require one unique match so step fixtures cannot bind to the wrong duplicate label
+    let mut matches = items.into_iter().filter(|item| item.label == label);
+    let first = matches.next();
+
+    if matches.next().is_some() {
+        return Err(format!(
+            "completion step {step_index} matched multiple completion items with label {label}"
+        ));
     }
+
+    Ok(first)
 }
 
 /// Normalize one expected completion kind string into the harness label space.
@@ -1247,7 +1226,7 @@ fn expected_document_symbols_for_step(
             .iter()
             .enumerate()
             .filter(|(parent_index, parent)| {
-                *parent_index != index && range_contains(&parent.range, &entries[index].range)
+                *parent_index != index && parent.range.contains(&entries[index].range)
             })
             .count();
         entries[index].depth = depth;
@@ -1526,18 +1505,4 @@ fn symbol_name_for_step_marker(
     }
 
     Ok(tail.chars().take(width).collect())
-}
-
-/// Return whether one normalized range is fully contained inside another.
-fn range_contains(parent: &NormalizedLocation, child: &NormalizedLocation) -> bool {
-    if parent.file_path != child.file_path {
-        return false;
-    }
-
-    let starts_before =
-        (parent.start_line, parent.start_character) <= (child.start_line, child.start_character);
-    let ends_after =
-        (parent.end_line, parent.end_character) >= (child.end_line, child.end_character);
-
-    starts_before && ends_after
 }

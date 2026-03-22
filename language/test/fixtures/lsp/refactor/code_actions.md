@@ -29,7 +29,7 @@ const value = alpha + zed;
 ```
 
 ```lsp code_action
-Organize Imports|source_organize_imports|false
+Organize Imports|source_organize_imports|false|true
 ```
 
 ## Lazy Resolve

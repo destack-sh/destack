@@ -28,7 +28,11 @@ Hover should return one payload when the caret sits on a value name.
 const /*hover_exists*/value = 1;
 ```
 
-```lsp quick_info_exists hover_exists [0]
+```lsp quick_info hover_exists [0]
+```
+
+```lsp hover_signature
+let value: 1
 ```
 
 ## Repeated Lookups
@@ -101,8 +105,12 @@ function helper(): int32 {
 const /*hover_exists*/value = 1;
 ```
 
-```lsp quick_info_exists hover_exists [0]
+```lsp quick_info hover_exists [0]
 ```
 
-```lsp quick_info_exists hover_exists [1]
+```lsp quick_info hover_exists [1]
+```
+
+```lsp hover_signature
+let value: 1
 ```

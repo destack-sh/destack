@@ -569,11 +569,6 @@ fn parse_step_block(
                 snapshot_text,
             },
         )?,
-        "quick_info_exists" => {
-            push_marker_empty_step_case(path, line, parts, step_index, metadata, |marker_name| {
-                LspStepCase::QuickInfoExists { marker_name }
-            })?
-        }
         "quick_info" => {
             push_marker_empty_step_case(path, line, parts, step_index, metadata, |marker_name| {
                 LspStepCase::QuickInfo { marker_name }
@@ -838,31 +833,6 @@ fn parse_step_block(
                 snapshot_text,
             },
         )?,
-        "diagnostic_marker_windows" => {
-            let Some(start_marker_name) = parts.get(2) else {
-                return Err(parse_error(
-                    path,
-                    line,
-                    "expected `lsp diagnostic_marker_windows <start> <end> [step]`",
-                ));
-            };
-            let Some(end_marker_name) = parts.get(3) else {
-                return Err(parse_error(
-                    path,
-                    line,
-                    "expected `lsp diagnostic_marker_windows <start> <end> [step]`",
-                ));
-            };
-
-            push_step_case(
-                metadata,
-                step_index,
-                LspStepCase::DiagnosticMarkerWindows {
-                    start_marker_name: (*start_marker_name).to_string(),
-                    end_marker_name: (*end_marker_name).to_string(),
-                },
-            );
-        }
         "no_errors" => {
             let Some(file_path) = parts.get(2) else {
                 return Err(parse_error(
@@ -1807,7 +1777,7 @@ mod tests {
     #[test]
     fn test_parse_mdtest_case_with_step_blocks_and_markers() {
         let test = MdTestCase {
-            name: "Quick Info Exists".to_string(),
+            name: "Quick Info".to_string(),
             section: "Navigation".to_string(),
             options: HashMap::new(),
             files: vec![MdTestFile {
@@ -1817,7 +1787,7 @@ mod tests {
             }],
             bullet_items: Vec::new(),
             extra_blocks: vec![RawCodeBlock {
-                language: "lsp quick_info_exists hover_exists [0]".to_string(),
+                language: "lsp quick_info hover_exists [0]".to_string(),
                 content: String::new(),
             }],
             line: 1,

@@ -2,11 +2,10 @@ use crate::lsp::runner::range_for_marker;
 use crate::lsp::{
     LspFixture, LspTestState, NormalizedHover, NormalizedLocation,
     NormalizedResolvedCompletionItem, NormalizedSignatureHelp, NormalizedSignatureInformation,
-    normalize_code_lenses, normalize_completion_response, normalize_folding_ranges,
-    normalize_hover, normalize_inlay_hints, normalize_prepare_rename,
-    normalize_resolved_completion_item, normalize_signature_help, verify_code_lenses,
-    verify_definition_locations, verify_folding_ranges, verify_hover, verify_inlay_hints,
-    verify_resolved_completion_item, verify_signature_help,
+    normalize_code_lenses, normalize_folding_ranges, normalize_hover, normalize_inlay_hints,
+    normalize_prepare_rename, normalize_resolved_completion_item, normalize_signature_help,
+    verify_code_lenses, verify_definition_locations, verify_folding_ranges, verify_hover,
+    verify_inlay_hints, verify_resolved_completion_item, verify_signature_help,
 };
 
 /// Run the assist-like cases declared by one fixture.
@@ -160,13 +159,6 @@ pub(crate) fn run_assist_cases(
         let completion = test_state
             .request_completion()?
             .ok_or_else(|| "expected completion result".to_string())?;
-        let actual_items = normalize_completion_response(&completion)?;
-        if !actual_items.iter().any(|item| item.label == expected_label) {
-            return Err(format!(
-                "completion resolve fixture is missing completion item {expected_label}"
-            ));
-        }
-
         let resolved_item = completion_item_by_label(completion, expected_label)?
             .ok_or_else(|| format!("failed to find completion item {expected_label}"))?;
         let resolved_item = test_state
@@ -236,7 +228,7 @@ pub(crate) fn run_assist_cases(
     Ok(())
 }
 
-/// Return one completion item with a matching label.
+/// Return one completion item with a unique matching label.
 fn completion_item_by_label(
     completion: destack_lsp_types::CompletionResponse,
     label: &str,
@@ -246,14 +238,17 @@ fn completion_item_by_label(
         destack_lsp_types::CompletionResponse::List(list) => list.items,
     };
 
-    // resolve the first matching item in response order
-    for item in items {
-        if item.label == label {
-            return Ok(Some(item));
-        }
+    // require one unique match so resolve fixtures cannot silently bind to the wrong item
+    let mut matches = items.into_iter().filter(|item| item.label == label);
+    let first = matches.next();
+
+    if matches.next().is_some() {
+        return Err(format!(
+            "completion resolve fixture matched multiple completion items with label {label}"
+        ));
     }
 
-    Ok(None)
+    Ok(first)
 }
 
 /// Build the exact markdown hover payload for one signature fixture.

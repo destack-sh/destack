@@ -91,26 +91,33 @@ impl<'a> Verify<'a> {
                 end: lsp::Position::new(range.end_line as u32, range.end_character as u32),
             },
         );
-        let has_match = diagnostics.iter().any(|diagnostic| {
-            let range_matches = diagnostic.file_path == expected_location.file_path
-                && diagnostic.start_line == expected_location.start_line
-                && diagnostic.start_character == expected_location.start_character
-                && diagnostic.end_line == expected_location.end_line
-                && diagnostic.end_character == expected_location.end_character;
-            let code_matches = diagnostic.code.as_deref() == Some(expected_code);
-            let message_matches =
-                expected_message.is_none_or(|message| diagnostic.message == message);
+        let match_count = diagnostics
+            .iter()
+            .filter(|diagnostic| {
+                let range_matches = diagnostic.file_path == expected_location.file_path
+                    && diagnostic.start_line == expected_location.start_line
+                    && diagnostic.start_character == expected_location.start_character
+                    && diagnostic.end_line == expected_location.end_line
+                    && diagnostic.end_character == expected_location.end_character;
+                let code_matches = diagnostic.code.as_deref() == Some(expected_code);
+                let message_matches =
+                    expected_message.is_none_or(|message| diagnostic.message == message);
 
-            range_matches && code_matches && message_matches
-        });
+                range_matches && code_matches && message_matches
+            })
+            .count();
 
-        if has_match {
+        if match_count == 1 {
             return Ok(());
         }
 
-        Err(format!(
-            "expected diagnostic at {}:{}-{}:{} with code {expected_code}",
-            range.start_line, range.start_character, range.end_line, range.end_character
+        Err(diagnostic_match_error(
+            "diagnostic at range",
+            match_count,
+            &format!(
+                "{}:{}-{}:{} with code {expected_code}",
+                range.start_line, range.start_character, range.end_line, range.end_character
+            ),
         ))
     }
 
@@ -141,13 +148,6 @@ impl<'a> Verify<'a> {
             .collect::<Result<Vec<_>, String>>()?;
 
         verify_completion_items(&actual_items, &expected_items)
-    }
-
-    /// Verify that quick info exists at the current caret.
-    pub fn quick_info_exists(&mut self) -> Result<(), String> {
-        let mut verifier = self.verifier(false);
-
-        verifier.quick_info_exists()
     }
 
     /// Verify the current line content.
@@ -257,31 +257,6 @@ impl<'a> Verify<'a> {
         verifier.assert_has_ranges(ranges)
     }
 
-    /// Verify that an error exists between two markers.
-    pub fn error_exists_between_markers(
-        &mut self,
-        start_marker_name: &str,
-        end_marker_name: &str,
-    ) -> Result<(), String> {
-        let mut verifier = self.verifier(false);
-
-        verifier.error_exists_between_markers(start_marker_name, end_marker_name)
-    }
-
-    /// Verify that an error exists after one marker.
-    pub fn error_exists_after_marker(&mut self, marker_name: Option<&str>) -> Result<(), String> {
-        let mut verifier = self.verifier(false);
-
-        verifier.error_exists_after_marker(marker_name)
-    }
-
-    /// Verify that an error exists before one marker.
-    pub fn error_exists_before_marker(&mut self, marker_name: Option<&str>) -> Result<(), String> {
-        let mut verifier = self.verifier(false);
-
-        verifier.error_exists_before_marker(marker_name)
-    }
-
     /// Build one negatable verifier with the requested polarity.
     fn verifier(&mut self, is_negative: bool) -> VerifyNegatable<'_> {
         VerifyNegatable {
@@ -379,150 +354,9 @@ impl<'a> VerifyNegatable<'a> {
 
         Ok(())
     }
-
-    /// Verify whether quick info exists at the current caret.
-    pub fn quick_info_exists(&mut self) -> Result<(), String> {
-        let help = self.state.request_hover()?;
-        let is_present = help.is_some();
-        let expectation_satisfied = if self.is_negative {
-            !is_present
-        } else {
-            is_present
-        };
-
-        if expectation_satisfied {
-            return Ok(());
-        }
-
-        let expectation = if self.is_negative {
-            "absent"
-        } else {
-            "present"
-        };
-
-        Err(format!("expected quick info to be {expectation}"))
-    }
-
-    /// Verify whether one diagnostic exists between two markers.
-    pub fn error_exists_between_markers(
-        &mut self,
-        start_marker_name: &str,
-        end_marker_name: &str,
-    ) -> Result<(), String> {
-        let start_marker = self
-            .state
-            .marker(start_marker_name)
-            .cloned()
-            .ok_or_else(|| format!("fixture is missing /*{start_marker_name}*/ marker"))?;
-        let end_marker = self
-            .state
-            .marker(end_marker_name)
-            .cloned()
-            .ok_or_else(|| format!("fixture is missing /*{end_marker_name}*/ marker"))?;
-        let diagnostics = self
-            .state
-            .semantic_diagnostics(Some(&start_marker.file_path))?;
-        let has_match = diagnostics.iter().any(|diagnostic| {
-            diagnostic.file_path == start_marker.file_path
-                && location_ge(
-                    diagnostic.start_line,
-                    diagnostic.start_character,
-                    start_marker.line,
-                    start_marker.character,
-                )
-                && location_le(
-                    diagnostic.end_line,
-                    diagnostic.end_character,
-                    end_marker.line,
-                    end_marker.character,
-                )
-        });
-
-        self.verify_boolean_presence(has_match, "diagnostic between markers")
-    }
-
-    /// Verify whether one diagnostic exists after one marker.
-    pub fn error_exists_after_marker(&mut self, marker_name: Option<&str>) -> Result<(), String> {
-        let marker_name = marker_name.unwrap_or("");
-        let marker = self
-            .state
-            .marker(marker_name)
-            .cloned()
-            .ok_or_else(|| format!("fixture is missing /*{marker_name}*/ marker"))?;
-        let diagnostics = self.state.semantic_diagnostics(Some(&marker.file_path))?;
-        let has_match = diagnostics.iter().any(|diagnostic| {
-            diagnostic.file_path == marker.file_path
-                && location_ge(
-                    diagnostic.start_line,
-                    diagnostic.start_character,
-                    marker.line,
-                    marker.character,
-                )
-        });
-
-        self.verify_boolean_presence(has_match, "diagnostic after marker")
-    }
-
-    /// Verify whether one diagnostic exists before one marker.
-    pub fn error_exists_before_marker(&mut self, marker_name: Option<&str>) -> Result<(), String> {
-        let marker_name = marker_name.unwrap_or("");
-        let marker = self
-            .state
-            .marker(marker_name)
-            .cloned()
-            .ok_or_else(|| format!("fixture is missing /*{marker_name}*/ marker"))?;
-        let diagnostics = self.state.semantic_diagnostics(Some(&marker.file_path))?;
-        let has_match = diagnostics.iter().any(|diagnostic| {
-            diagnostic.file_path == marker.file_path
-                && location_le(
-                    diagnostic.end_line,
-                    diagnostic.end_character,
-                    marker.line,
-                    marker.character,
-                )
-        });
-
-        self.verify_boolean_presence(has_match, "diagnostic before marker")
-    }
-
-    /// Verify one boolean presence expectation under negation.
-    fn verify_boolean_presence(&self, is_present: bool, label: &str) -> Result<(), String> {
-        let expectation_satisfied = if self.is_negative {
-            !is_present
-        } else {
-            is_present
-        };
-
-        if expectation_satisfied {
-            return Ok(());
-        }
-
-        let expectation = if self.is_negative {
-            "absent"
-        } else {
-            "present"
-        };
-
-        Err(format!("expected {label} to be {expectation}"))
-    }
 }
 
-/// Return true when the first location is lexicographically before or equal to the second.
-fn location_le(
-    left_line: usize,
-    left_character: usize,
-    right_line: usize,
-    right_character: usize,
-) -> bool {
-    (left_line, left_character) <= (right_line, right_character)
-}
-
-/// Return true when the first location is lexicographically after or equal to the second.
-fn location_ge(
-    left_line: usize,
-    left_character: usize,
-    right_line: usize,
-    right_character: usize,
-) -> bool {
-    (left_line, left_character) >= (right_line, right_character)
+/// Build one exact diagnostic match count error.
+fn diagnostic_match_error(label: &str, match_count: usize, expectation: &str) -> String {
+    format!("expected {label} to have {expectation}, got {match_count}")
 }
