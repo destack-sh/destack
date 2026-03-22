@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    CacheStore, CacheStoreError, DEFAULT_COMPILER_CACHE_NAMESPACE, WORKSPACE_INDEX_FILE_NAME,
-    WORKSPACE_INDEX_LOCK_FILE_NAME,
+    CacheStore, CacheStoreError, DEFAULT_LANGUAGE_CACHE_DIR_NAME, DEFAULT_LANGUAGE_CACHE_NAMESPACE,
+    WORKSPACE_INDEX_FILE_NAME, WORKSPACE_INDEX_LOCK_FILE_NAME,
 };
 
 use super::{WorkspaceIndexError, WorkspaceIndexHeader, WorkspaceIndexSnapshot};
@@ -23,7 +23,9 @@ pub struct WorkspaceStore<'a> {
 impl<'a> WorkspaceStore<'a> {
     /// Create a workspace index store for a cache root.
     pub fn new(store: &'a dyn CacheStore, cache_root: &Path) -> Self {
-        let base = cache_root.join(DEFAULT_COMPILER_CACHE_NAMESPACE);
+        let base = cache_root
+            .join(DEFAULT_LANGUAGE_CACHE_NAMESPACE)
+            .join(DEFAULT_LANGUAGE_CACHE_DIR_NAME);
         let index_path = base.join(WORKSPACE_INDEX_FILE_NAME);
         let lock_path = base.join(WORKSPACE_INDEX_LOCK_FILE_NAME);
         Self {
@@ -111,6 +113,36 @@ impl<'a> WorkspaceStore<'a> {
         self.store.write_atomic(&self.index_path, &bytes)?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use crate::{DiskCacheStore, WorkspaceStore};
+
+    /// Place workspace snapshots under the language namespace.
+    #[test]
+    fn test_workspace_store_uses_language_namespace() {
+        let store = DiskCacheStore::new();
+        let cache_root = PathBuf::from("/workspace/.destack");
+        let workspace_store = WorkspaceStore::new(&store, &cache_root);
+
+        assert_eq!(
+            workspace_store.index_path,
+            cache_root
+                .join("language")
+                .join("cache")
+                .join("workspace-index.bin")
+        );
+        assert_eq!(
+            workspace_store.lock_path,
+            cache_root
+                .join("language")
+                .join("cache")
+                .join("workspace-index.lock")
+        );
     }
 }
 

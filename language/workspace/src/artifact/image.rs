@@ -13,9 +13,20 @@ use super::{ArtifactFamily, ArtifactImageKey};
 /// Magic prefix for on disk artifact images.
 pub const ARTIFACT_IMAGE_MAGIC: [u8; 4] = *b"DSCH";
 /// Artifact image format version.
-pub const ARTIFACT_IMAGE_FORMAT_VERSION: u32 = 4;
+pub const ARTIFACT_IMAGE_FORMAT_VERSION: u32 = 6;
 /// Limit artifact image size to avoid excessive memory usage.
 pub const ARTIFACT_IMAGE_LIMIT_BYTES: u64 = 512 * 1024 * 1024;
+/// Number of bytes used to encode one header length prefix.
+pub const ARTIFACT_IMAGE_HEADER_LENGTH_BYTES: usize = 4;
+
+/// Persisted requirement proof for one artifact image dependency.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArtifactImageRequirement {
+    /// The required artifact image key.
+    pub key: ArtifactImageKey,
+    /// The validated dependency image hash for that artifact.
+    pub validation_hash: u64,
+}
 
 /// Common header for one serialized artifact image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -34,6 +45,12 @@ pub struct ArtifactImageHeader {
     pub config_hash: u64,
     /// Hash of the workspace string universe when the image depends on it.
     pub workspace_strings_hash: Option<u64>,
+    /// Family owned header context bytes for extra freshness validation.
+    pub context_bytes: Vec<u8>,
+    /// Hash of the payload and persisted dependency proofs.
+    pub validation_hash: u64,
+    /// Persisted dependency proofs required to reuse this image safely.
+    pub requirements: Vec<ArtifactImageRequirement>,
     /// Hash of the serialized payload bytes.
     pub payload_hash: u64,
 }
@@ -57,7 +74,26 @@ impl ArtifactImageHeader {
             profile_version,
             config_hash,
             workspace_strings_hash,
+            context_bytes: Vec::new(),
+            validation_hash: 0,
+            requirements: Vec::new(),
             payload_hash,
+        }
+    }
+
+    /// Attach one persisted requirement proof list to this header.
+    pub fn with_requirements(self, requirements: Vec<ArtifactImageRequirement>) -> Self {
+        Self {
+            requirements,
+            ..self
+        }
+    }
+
+    /// Attach one family owned header context payload to this header.
+    pub fn with_context_bytes(self, context_bytes: Vec<u8>) -> Self {
+        Self {
+            context_bytes,
+            ..self
         }
     }
 
@@ -100,6 +136,18 @@ impl ArtifactImageHeader {
             && self.profile_version == actual.profile_version
             && self.config_hash == actual.config_hash
             && self.workspace_strings_hash == actual.workspace_strings_hash
+            && self.context_bytes == actual.context_bytes
+    }
+
+    /// Compare this header with another header ignoring family context bytes.
+    pub fn matches_without_context_bytes(&self, actual: &Self) -> bool {
+        self.magic == actual.magic
+            && self.format_version == actual.format_version
+            && self.compiler_version == actual.compiler_version
+            && self.artifact_image_key == actual.artifact_image_key
+            && self.profile_version == actual.profile_version
+            && self.config_hash == actual.config_hash
+            && self.workspace_strings_hash == actual.workspace_strings_hash
     }
 }
 
@@ -118,7 +166,10 @@ where
 {
     /// Create one artifact image with a computed payload hash.
     pub fn new(mut header: ArtifactImageHeader, payload: T) -> Result<Self, ArtifactImageError> {
+        header.requirements = canonicalize_artifact_image_requirements(header.requirements)?;
         header.payload_hash = artifact_payload_hash_from_payload(&payload)?;
+        header.validation_hash =
+            artifact_validation_hash(header.payload_hash, &header.requirements)?;
         Ok(Self { header, payload })
     }
 
@@ -130,6 +181,7 @@ where
         self.header
             .validate_for_family(expected_family)
             .and_then(|_| validate_artifact_image_payload_hash(&self.header, &self.payload))
+            .and_then(|_| validate_artifact_image_validation_hash(&self.header))
     }
 
     /// Serialize this artifact image to bytes.
@@ -139,13 +191,30 @@ where
 
     /// Serialize this artifact image to bytes with one explicit size limit.
     pub(crate) fn serialize_with_limit(&self, limit: u64) -> Result<Vec<u8>, ArtifactImageError> {
-        let payload = serialize_payload_with_limit(&self.payload, limit)?;
-        let envelope = ArtifactImageEnvelope {
-            header: self.header.clone(),
-            payload,
-        };
+        let header_bytes = serialize_payload_with_limit(&self.header, limit)?;
+        let header_length = u32::try_from(header_bytes.len()).map_err(|_| {
+            ArtifactImageError::SizeLimitExceeded {
+                limit,
+                actual: header_bytes.len() as u64,
+            }
+        })?;
+        let payload_bytes = serialize_payload_with_limit(&self.payload, limit)?;
+        let total_bytes = ARTIFACT_IMAGE_HEADER_LENGTH_BYTES as u64
+            + header_bytes.len() as u64
+            + payload_bytes.len() as u64;
+        if total_bytes > limit {
+            return Err(ArtifactImageError::SizeLimitExceeded {
+                limit,
+                actual: total_bytes,
+            });
+        }
 
-        serialize_payload_with_limit(&envelope, limit)
+        let mut bytes = Vec::with_capacity(total_bytes as usize);
+        bytes.extend_from_slice(&header_length.to_le_bytes());
+        bytes.extend_from_slice(&header_bytes);
+        bytes.extend_from_slice(&payload_bytes);
+
+        Ok(bytes)
     }
 }
 
@@ -155,36 +224,25 @@ where
 {
     /// Deserialize one artifact image from bytes.
     pub fn deserialize(bytes: &[u8]) -> Result<Self, ArtifactImageError> {
-        let envelope = deserialize_payload_with_limit::<ArtifactImageEnvelope>(
-            bytes,
-            ARTIFACT_IMAGE_LIMIT_BYTES,
-        )?;
-
-        let payload_hash = payload_hash_from_bytes(&envelope.payload);
-        if payload_hash != envelope.header.payload_hash {
-            return Err(ArtifactImageError::InvalidPayloadHash {
-                expected: envelope.header.payload_hash,
-                found: payload_hash,
-            });
-        }
+        let (header, payload_bytes) = split_artifact_image_bytes(bytes)?;
+        validate_artifact_image_payload_hash_bytes(&header, payload_bytes)?;
+        validate_artifact_image_validation_hash(&header)?;
 
         let payload =
-            deserialize_payload_with_limit::<T>(&envelope.payload, ARTIFACT_IMAGE_LIMIT_BYTES)?;
+            deserialize_payload_with_limit::<T>(payload_bytes, ARTIFACT_IMAGE_LIMIT_BYTES)?;
 
-        Ok(Self {
-            header: envelope.header,
-            payload,
-        })
+        Ok(Self { header, payload })
     }
 }
 
-/// Serialized artifact image envelope.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct ArtifactImageEnvelope {
-    /// The image header.
-    header: ArtifactImageHeader,
-    /// The serialized payload bytes.
-    payload: Vec<u8>,
+impl ArtifactImageHeader {
+    /// Deserialize one prefixed artifact image header from bytes.
+    pub fn deserialize_prefixed(bytes: &[u8]) -> Result<Self, ArtifactImageError> {
+        let (header, _) = split_artifact_image_header_bytes(bytes)?;
+        validate_artifact_image_validation_hash(&header)?;
+
+        Ok(header)
+    }
 }
 
 /// Errors that can occur while reading or writing artifact images.
@@ -203,10 +261,14 @@ pub enum ArtifactImageError {
     Serialize(PostcardError),
     /// The image failed to deserialize.
     Deserialize(PostcardError),
+    /// The image framing was malformed.
+    InvalidLayout(&'static str),
     /// The image exceeded the configured size limit.
     SizeLimitExceeded { limit: u64, actual: u64 },
     /// The payload hash did not match.
     InvalidPayloadHash { expected: u64, found: u64 },
+    /// The recursive validation hash did not match.
+    InvalidValidationHash { expected: u64, found: u64 },
     /// The image failed to read or write.
     Io(std::io::Error),
 }
@@ -238,6 +300,9 @@ impl fmt::Display for ArtifactImageError {
             ArtifactImageError::Deserialize(error) => {
                 write!(f, "failed to deserialize artifact image: {error}")
             }
+            ArtifactImageError::InvalidLayout(message) => {
+                write!(f, "invalid artifact image layout: {message}")
+            }
             ArtifactImageError::SizeLimitExceeded { limit, actual } => {
                 write!(
                     f,
@@ -248,6 +313,12 @@ impl fmt::Display for ArtifactImageError {
                 write!(
                     f,
                     "invalid payload hash, expected {expected}, found {found}"
+                )
+            }
+            ArtifactImageError::InvalidValidationHash { expected, found } => {
+                write!(
+                    f,
+                    "invalid validation hash, expected {expected}, found {found}"
                 )
             }
             ArtifactImageError::Io(error) => write!(f, "artifact image io error: {error}"),
@@ -278,6 +349,24 @@ pub fn artifact_payload_hash_from_payload<T: Serialize>(
     Ok(payload_hash_from_bytes(&bytes))
 }
 
+/// Compute one recursive validation hash from the payload and requirement proofs.
+pub fn artifact_validation_hash(
+    payload_hash: u64,
+    requirements: &[ArtifactImageRequirement],
+) -> Result<u64, ArtifactImageError> {
+    let mut hasher = FxHasher::default();
+    payload_hash.hash(&mut hasher);
+
+    for requirement in requirements {
+        let key_bytes =
+            postcard::to_allocvec(&requirement.key).map_err(ArtifactImageError::Serialize)?;
+        key_bytes.hash(&mut hasher);
+        requirement.validation_hash.hash(&mut hasher);
+    }
+
+    Ok(hasher.finish())
+}
+
 /// Serialize one payload with a size limit.
 fn serialize_payload_with_limit<T: Serialize>(
     payload: &T,
@@ -305,12 +394,61 @@ fn deserialize_payload_with_limit<T: DeserializeOwned>(
     postcard::from_bytes(bytes).map_err(ArtifactImageError::Deserialize)
 }
 
+/// Split one serialized artifact image into header and payload bytes.
+fn split_artifact_image_bytes(
+    bytes: &[u8],
+) -> Result<(ArtifactImageHeader, &[u8]), ArtifactImageError> {
+    let (header, payload_offset) = split_artifact_image_header_bytes(bytes)?;
+    let payload_bytes = &bytes[payload_offset..];
+
+    Ok((header, payload_bytes))
+}
+
+/// Split one serialized artifact image header from the leading bytes.
+fn split_artifact_image_header_bytes(
+    bytes: &[u8],
+) -> Result<(ArtifactImageHeader, usize), ArtifactImageError> {
+    if bytes.len() < ARTIFACT_IMAGE_HEADER_LENGTH_BYTES {
+        return Err(ArtifactImageError::InvalidLayout(
+            "missing artifact image header length prefix",
+        ));
+    }
+
+    let length_bytes: [u8; ARTIFACT_IMAGE_HEADER_LENGTH_BYTES] = bytes[0..4]
+        .try_into()
+        .map_err(|_| ArtifactImageError::InvalidLayout("invalid artifact image header length"))?;
+    let header_length = u32::from_le_bytes(length_bytes) as usize;
+    let payload_offset = ARTIFACT_IMAGE_HEADER_LENGTH_BYTES + header_length;
+    if bytes.len() < payload_offset {
+        return Err(ArtifactImageError::InvalidLayout(
+            "truncated artifact image header bytes",
+        ));
+    }
+
+    let header_bytes = &bytes[ARTIFACT_IMAGE_HEADER_LENGTH_BYTES..payload_offset];
+    let header = deserialize_payload_with_limit::<ArtifactImageHeader>(
+        header_bytes,
+        ARTIFACT_IMAGE_LIMIT_BYTES,
+    )?;
+
+    Ok((header, payload_offset))
+}
+
 /// Validate one payload hash against an artifact image header.
 fn validate_artifact_image_payload_hash<T: Serialize>(
     header: &ArtifactImageHeader,
     payload: &T,
 ) -> Result<(), ArtifactImageError> {
-    let payload_hash = artifact_payload_hash_from_payload(payload)?;
+    let payload_bytes = serialize_payload_with_limit(payload, ARTIFACT_IMAGE_LIMIT_BYTES)?;
+    validate_artifact_image_payload_hash_bytes(header, &payload_bytes)
+}
+
+/// Validate one payload byte hash against an artifact image header.
+fn validate_artifact_image_payload_hash_bytes(
+    header: &ArtifactImageHeader,
+    payload_bytes: &[u8],
+) -> Result<(), ArtifactImageError> {
+    let payload_hash = payload_hash_from_bytes(payload_bytes);
     if payload_hash != header.payload_hash {
         return Err(ArtifactImageError::InvalidPayloadHash {
             expected: header.payload_hash,
@@ -319,4 +457,40 @@ fn validate_artifact_image_payload_hash<T: Serialize>(
     }
 
     Ok(())
+}
+
+/// Validate one recursive validation hash against an artifact image header.
+fn validate_artifact_image_validation_hash(
+    header: &ArtifactImageHeader,
+) -> Result<(), ArtifactImageError> {
+    let validation_hash = artifact_validation_hash(header.payload_hash, &header.requirements)?;
+    if validation_hash != header.validation_hash {
+        return Err(ArtifactImageError::InvalidValidationHash {
+            expected: header.validation_hash,
+            found: validation_hash,
+        });
+    }
+
+    Ok(())
+}
+
+/// Canonicalize one persisted requirement proof list.
+fn canonicalize_artifact_image_requirements(
+    mut requirements: Vec<ArtifactImageRequirement>,
+) -> Result<Vec<ArtifactImageRequirement>, ArtifactImageError> {
+    let mut keyed_requirements = Vec::with_capacity(requirements.len());
+
+    for requirement in requirements.drain(..) {
+        let key_bytes =
+            postcard::to_allocvec(&requirement.key).map_err(ArtifactImageError::Serialize)?;
+        keyed_requirements.push((key_bytes, requirement));
+    }
+
+    keyed_requirements.sort_unstable_by(|left, right| left.0.cmp(&right.0));
+    keyed_requirements.dedup_by(|left, right| left.1.key == right.1.key);
+
+    Ok(keyed_requirements
+        .into_iter()
+        .map(|(_, requirement)| requirement)
+        .collect())
 }

@@ -30,6 +30,10 @@ impl CacheStore for NullCacheStore {
         Ok(None)
     }
 
+    fn read_prefix(&self, _path: &Path, _limit: usize) -> Result<Option<Vec<u8>>, CacheStoreError> {
+        Ok(None)
+    }
+
     fn write_atomic(&self, _path: &Path, _bytes: &[u8]) -> Result<(), CacheStoreError> {
         Ok(())
     }

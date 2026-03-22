@@ -30,7 +30,7 @@ We still read `tsconfig.json` and `package.json` where needed for compatibility,
     },
     "cache": {
         "mode": "disk",
-        "dir": ".destack/cache",
+        "dir": ".destack",
         "maxSizeMb": 2048,
         "policy": "lru",
         "validate": "strict"

@@ -8,12 +8,12 @@ pub const DEFAULT_CACHE_DIR: &str = ".destack";
 pub const DEFAULT_HOME_CACHE_DIR: &str = ".cache";
 /// Default cache directory name for global caches.
 pub const DEFAULT_GLOBAL_CACHE_DIR: &str = "destack";
-/// Namespace for compiler cache entries.
-pub const DEFAULT_COMPILER_CACHE_NAMESPACE: &str = "compiler";
-/// Directory name for persisted artifact entries.
-pub const ARTIFACT_STORE_DIR_NAME: &str = "artifacts";
+/// Namespace for language cache entries.
+pub const DEFAULT_LANGUAGE_CACHE_NAMESPACE: &str = "language";
+/// Directory name for persisted compiler cache entries.
+pub const DEFAULT_LANGUAGE_CACHE_DIR_NAME: &str = "cache";
 /// Workspace index file name.
-pub const WORKSPACE_INDEX_FILE_NAME: &str = "workspace.bin";
+pub const WORKSPACE_INDEX_FILE_NAME: &str = "workspace-index.bin";
 /// Workspace index lock file name.
 pub const WORKSPACE_INDEX_LOCK_FILE_NAME: &str = "workspace-index.lock";
 
