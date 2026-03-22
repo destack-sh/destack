@@ -16,12 +16,12 @@ use destack_workspace::{
     TsConfigId, select_manifest_entry_paths,
 };
 
+use crate::core::print::color;
+use crate::core::{CaseResult, format_diagnostics};
 use crate::ecosystem::manifest::{
     CompilerOptionsConfig, EcosystemManifest, EcosystemPhase, EcosystemTscMode, EcosystemTscTool,
     ExpectedDiagnosticConfig,
 };
-use crate::harness::print::color;
-use crate::harness::{TestResult, format_diagnostics};
 
 /// default excludes applied by typescript when `exclude` is omitted.
 const TYPESCRIPT_DEFAULT_EXCLUDES: &[&str] = &["node_modules", "bower_components", "jspm_packages"];
@@ -44,7 +44,7 @@ pub(super) struct PhaseReadStats {
 #[derive(Debug, Clone)]
 pub(super) struct PhaseTierResult {
     /// Phase test result.
-    pub result: TestResult,
+    pub result: CaseResult,
     /// Optional phase read stats.
     pub stats: Option<PhaseReadStats>,
 }
@@ -97,9 +97,9 @@ fn run_parse_phase(
     }
 
     let result = if failures.is_empty() {
-        TestResult::Passed
+        CaseResult::Passed
     } else {
-        TestResult::Failed {
+        CaseResult::Failed {
             message: format!(
                 "{} files failed to parse with full diagnostics:\n\n{}",
                 failures.len(),
@@ -138,7 +138,7 @@ fn run_compiler_phase(
         Ok(entrypoints) => entrypoints,
         Err(message) => {
             return PhaseTierResult {
-                result: TestResult::Failed { message },
+                result: CaseResult::Failed { message },
                 stats,
             };
         }
@@ -164,7 +164,7 @@ fn run_compiler_phase(
             Ok(id) => id,
             Err(error) => {
                 return PhaseTierResult {
-                    result: TestResult::Failed {
+                    result: CaseResult::Failed {
                         message: format!("failed to resolve module {}: {error:?}", path.display()),
                     },
                     stats,
@@ -178,7 +178,7 @@ fn run_compiler_phase(
     // fail loudly when no module could be resolved
     if module_ids.is_empty() {
         return PhaseTierResult {
-            result: TestResult::Failed {
+            result: CaseResult::Failed {
                 message: "no modules resolved from selected entrypoints".to_string(),
             },
             stats,
@@ -231,7 +231,7 @@ fn run_compiler_phase(
     // pass immediately when no errors are observed or expected
     if !has_destack_errors && expected_phase_diagnostics.is_empty() {
         return PhaseTierResult {
-            result: TestResult::Passed,
+            result: CaseResult::Passed,
             stats,
         };
     }
@@ -250,7 +250,7 @@ fn run_compiler_phase(
         append_tsc_context_maybe(&mut message, tsc_result.as_ref());
 
         return PhaseTierResult {
-            result: TestResult::Failed { message },
+            result: CaseResult::Failed { message },
             stats,
         };
     }
@@ -267,7 +267,7 @@ fn run_compiler_phase(
         // pass when observed diagnostics exactly match expectations
         if outcome.missing_expected.is_empty() && outcome.unexpected_observed.is_empty() {
             return PhaseTierResult {
-                result: TestResult::Passed,
+                result: CaseResult::Passed,
                 stats,
             };
         }
@@ -290,7 +290,7 @@ fn run_compiler_phase(
         append_tsc_context_maybe(&mut message, tsc_result.as_ref());
 
         return PhaseTierResult {
-            result: TestResult::Failed { message },
+            result: CaseResult::Failed { message },
             stats,
         };
     }
@@ -310,7 +310,7 @@ fn run_compiler_phase(
     append_tsc_context_maybe(&mut message, tsc_result.as_ref());
 
     PhaseTierResult {
-        result: TestResult::Failed { message },
+        result: CaseResult::Failed { message },
         stats,
     }
 }
@@ -335,7 +335,7 @@ fn collect_compiler_phase_stats(program: &Arc<Program>) -> PhaseReadStats {
 struct ObservedPhaseDiagnostic {
     /// The diagnostic code.
     code: String,
-    /// The normalized file path fragment.
+    /// The normalized package relative file path.
     file: String,
     /// The diagnostic message.
     message: String,
@@ -371,7 +371,7 @@ fn collect_observed_phase_diagnostics(
     observed.into_iter().collect()
 }
 
-/// Normalize one diagnostic file path for stable path fragment matching.
+/// Normalize one diagnostic file path for stable exact matching.
 fn normalize_diagnostic_file(
     files: &FileRegistry,
     package_dir: &Path,
@@ -389,7 +389,7 @@ fn normalize_diagnostic_file(
     normalize_path_fragment(file.uri.as_ref())
 }
 
-/// Normalize one path like fragment for cross-platform matching.
+/// Normalize one path-like value for cross-platform exact matching.
 fn normalize_path_fragment(value: &str) -> String {
     value.replace('\\', "/")
 }
@@ -410,8 +410,8 @@ fn match_expected_phase_diagnostics(
 
         let matched_index = unmatched_observed.iter().position(|observed_diagnostic| {
             observed_diagnostic.code == expected_code
-                && observed_diagnostic.file.contains(expected_file.as_str())
-                && observed_diagnostic.message.contains(expected_message)
+                && observed_diagnostic.file == expected_file
+                && observed_diagnostic.message == expected_message
         });
 
         if let Some(index) = matched_index {
@@ -1964,7 +1964,7 @@ mod tests {
     }
 
     #[test]
-    fn test_match_expected_phase_diagnostics_matches_path_and_message_fragments() {
+    fn test_match_expected_phase_diagnostics_matches_exact_normalized_values() {
         let expected = vec![ExpectedDiagnosticConfig {
             phase: EcosystemPhase::Resolve,
             code: "ER200".to_string(),
@@ -1990,6 +1990,46 @@ mod tests {
 
         assert!(outcome.missing_expected.is_empty());
         assert!(outcome.unexpected_observed.is_empty());
+    }
+
+    #[test]
+    fn test_match_expected_phase_diagnostics_rejects_path_fragments() {
+        let expected = vec![ExpectedDiagnosticConfig {
+            phase: EcosystemPhase::Resolve,
+            code: "ER200".to_string(),
+            file: "format.ts".to_string(),
+            message: "unresolved module 'printj'".to_string(),
+        }];
+        let observed = vec![ObservedPhaseDiagnostic {
+            code: "ER200".to_string(),
+            file: "src/utils/format.ts".to_string(),
+            message: "unresolved module 'printj'".to_string(),
+        }];
+
+        let outcome = match_expected_phase_diagnostics(&expected, &observed);
+
+        assert_eq!(outcome.missing_expected.len(), 1);
+        assert_eq!(outcome.unexpected_observed.len(), 1);
+    }
+
+    #[test]
+    fn test_match_expected_phase_diagnostics_rejects_message_fragments() {
+        let expected = vec![ExpectedDiagnosticConfig {
+            phase: EcosystemPhase::Resolve,
+            code: "ER200".to_string(),
+            file: "src/utils/format.ts".to_string(),
+            message: "printj".to_string(),
+        }];
+        let observed = vec![ObservedPhaseDiagnostic {
+            code: "ER200".to_string(),
+            file: "src/utils/format.ts".to_string(),
+            message: "unresolved module 'printj'".to_string(),
+        }];
+
+        let outcome = match_expected_phase_diagnostics(&expected, &observed);
+
+        assert_eq!(outcome.missing_expected.len(), 1);
+        assert_eq!(outcome.unexpected_observed.len(), 1);
     }
 
     #[test]

@@ -2,11 +2,11 @@ use std::process::ExitCode;
 
 use clap::Parser;
 
+use destack_test::core::RunOptions;
 use destack_test::ecosystem::{
     EcosystemPhase, EcosystemRunOptions, EcosystemTscMode, EcosystemTscTool, FetchOptions,
     fetch_all_packages, run_ecosystem_tests,
 };
-use destack_test::harness::TestOptions;
 
 /// CLI options for the ecosystem test binary.
 #[derive(Parser, Debug, Clone)]
@@ -62,7 +62,7 @@ struct EcosystemOptions {
 
     /// Common test options.
     #[command(flatten)]
-    test: TestOptions,
+    test: RunOptions,
 }
 
 fn main() -> ExitCode {

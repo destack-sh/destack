@@ -8,10 +8,10 @@ use std::sync::Mutex;
 
 use destack_source::{FileType, glob, matches as glob_matches};
 
-use crate::harness::print::color;
-use crate::harness::{
-    RunContext, Runner, Suite, TestCase, TestOptions, TestResult, fixtures_dir,
-    load_expected_failures, save_expected_failures,
+use crate::core::print::color;
+use crate::core::{
+    Case, CaseResult, RunContext, RunOptions, Runner, Suite, fixtures_dir, load_expected_failures,
+    save_expected_failures,
 };
 
 use super::manifest::{
@@ -110,7 +110,7 @@ pub struct EcosystemSuite {
 
 impl EcosystemSuite {
     /// Load suite metadata, manifests, and status files.
-    pub fn load(options: &EcosystemRunOptions, test_options: &TestOptions) -> Self {
+    pub fn load(options: &EcosystemRunOptions, test_options: &RunOptions) -> Result<Self, String> {
         // resolve suite paths
         let ecosystem_dir = fixtures_dir().join("ecosystem");
         let packages_dir = ecosystem_dir.join("packages");
@@ -120,19 +120,22 @@ impl EcosystemSuite {
         let ignored_path = ecosystem_dir.join("ignored.txt");
 
         // load all manifests and keep lookup maps in sync
+        let manifest_paths = EcosystemManifest::discover_all(&packages_dir)?;
+        if manifest_paths.is_empty() {
+            return Err(format!(
+                "no ecosystem manifests found under {}",
+                packages_dir.display()
+            ));
+        }
+
         let mut manifests = Vec::new();
         let mut manifests_by_name = HashMap::new();
-        for path in EcosystemManifest::discover_all(&packages_dir) {
-            match EcosystemManifest::load(&path) {
-                Ok(manifest) => {
-                    manifests_by_name.insert(manifest.package.name.clone(), manifest.clone());
-                    manifests.push(manifest);
-                }
-                Err(error) => {
-                    eprintln!("warning: {error}");
-                }
-            }
+        for path in manifest_paths {
+            let manifest = EcosystemManifest::load(&path)?;
+            manifests_by_name.insert(manifest.package.name.clone(), manifest.clone());
+            manifests.push(manifest);
         }
+
         manifests.sort_by(|left, right| left.package.name.cmp(&right.package.name));
 
         // derive selected phases and valid case identifiers
@@ -167,7 +170,7 @@ impl EcosystemSuite {
         );
 
         // construct the suite state
-        Self {
+        Ok(Self {
             phases,
             include: options.include.clone(),
             exclude: options.exclude.clone(),
@@ -190,11 +193,11 @@ impl EcosystemSuite {
             stale_ignored_entries: status.stale_ignored_entries,
             fetch_failures,
             prepare_failures,
-        }
+        })
     }
 
     /// Run one package for one phase.
-    fn run_package_phase(&self, manifest: &EcosystemManifest, phase: EcosystemPhase) -> TestResult {
+    fn run_package_phase(&self, manifest: &EcosystemManifest, phase: EcosystemPhase) -> CaseResult {
         // fail fast on setup failures captured during suite load
         if let Some(preflight_failure) = self.preflight_failure_result(manifest) {
             return preflight_failure;
@@ -204,7 +207,7 @@ impl EcosystemSuite {
 
         // make sure checkout and overlays are ready before discovery
         if let Err(error) = self.ensure_package_checkout_ready(manifest, package_dir.as_path()) {
-            return TestResult::Failed { message: error };
+            return CaseResult::Failed { message: error };
         }
 
         // discover candidate source files for this package phase
@@ -217,7 +220,7 @@ impl EcosystemSuite {
             self.max_files,
         );
         if files.is_empty() {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!(
                     "no files found for phase '{}' after filtering",
                     phase.name(),
@@ -247,10 +250,10 @@ impl EcosystemSuite {
     }
 
     /// Return a failed result when precomputed setup failed for this package.
-    fn preflight_failure_result(&self, manifest: &EcosystemManifest) -> Option<TestResult> {
+    fn preflight_failure_result(&self, manifest: &EcosystemManifest) -> Option<CaseResult> {
         // surface auto-fetch failure from suite load
         if let Some(error) = self.fetch_failures.get(&manifest.package.name) {
-            return Some(TestResult::Failed {
+            return Some(CaseResult::Failed {
                 message: format!(
                     "auto-fetch failed for package '{}': {error}",
                     manifest.package.name
@@ -260,7 +263,7 @@ impl EcosystemSuite {
 
         // surface auto-prepare failure from suite load
         if let Some(error) = self.prepare_failures.get(&manifest.package.name) {
-            return Some(TestResult::Failed {
+            return Some(CaseResult::Failed {
                 message: format!(
                     "auto-prepare failed for package '{}': {error}",
                     manifest.package.name
@@ -359,7 +362,7 @@ impl EcosystemSuite {
     }
 
     /// Update known failure file from current run results.
-    fn update_known_failures(&self, results: &[(TestCase, TestResult)]) {
+    fn update_known_failures(&self, results: &[(Case, CaseResult)]) {
         let next_known_failures = compute_updated_known_failures(&self.raw_known_failures, results);
 
         if let Err(error) = save_expected_failures(&self.known_failures_path, &next_known_failures)
@@ -384,14 +387,14 @@ impl Suite for EcosystemSuite {
         "ecosystem"
     }
 
-    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+    fn discover(&self, _options: &RunOptions) -> Vec<Case> {
         self.manifests
             .iter()
             .flat_map(|manifest| {
                 self.phases.iter().map(move |phase| {
                     let case_id = case_id_for(manifest.package.name.as_str(), *phase);
                     let is_ignored = self.ignored_cases.contains(&case_id);
-                    TestCase::directory(
+                    Case::directory(
                         &case_id,
                         self.checkouts_dir.join(&manifest.package.name),
                         "destack_test::ecosystem",
@@ -402,7 +405,7 @@ impl Suite for EcosystemSuite {
             .collect()
     }
 
-    fn expected_failures(&self, _options: &TestOptions) -> Option<&HashSet<String>> {
+    fn expected_failures(&self, _options: &RunOptions) -> Option<&HashSet<String>> {
         if self.expected_failures.is_empty() {
             None
         } else {
@@ -410,15 +413,15 @@ impl Suite for EcosystemSuite {
         }
     }
 
-    fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
+    fn run(&self, case: &Case, _context: &RunContext<'_>) -> CaseResult {
         let Some((package_name, phase)) = parse_case_id(case.name.as_str()) else {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!("invalid ecosystem case id: {}", case.name),
             };
         };
 
         let Some(manifest) = self.manifests_by_name.get(package_name) else {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!("manifest not found: {package_name}"),
             };
         };
@@ -426,7 +429,7 @@ impl Suite for EcosystemSuite {
         self.run_package_phase(manifest, phase)
     }
 
-    fn report(&self, results: &[(TestCase, TestResult)], context: &RunContext<'_>) {
+    fn report(&self, results: &[(Case, CaseResult)], context: &RunContext<'_>) {
         if results.is_empty() {
             return;
         }
@@ -521,8 +524,8 @@ impl SuiteReportState {
     /// Record one case result into all report aggregates.
     fn record_case(
         &mut self,
-        case: &TestCase,
-        result: &TestResult,
+        case: &Case,
+        result: &CaseResult,
         expected_failures: &HashSet<String>,
         read_stats_enabled: bool,
         read_stats_by_case: &HashMap<String, CaseReadStats>,
@@ -591,7 +594,7 @@ impl SuiteReportState {
 }
 
 /// Update one phase summary row from one case result.
-fn update_phase_summary_outcome(phase_summary: &mut PhaseSummary, result: &TestResult) {
+fn update_phase_summary_outcome(phase_summary: &mut PhaseSummary, result: &CaseResult) {
     // count explicit pass and fail outcomes
     if result.is_passed() {
         phase_summary.passed += 1;
@@ -604,7 +607,7 @@ fn update_phase_summary_outcome(phase_summary: &mut PhaseSummary, result: &TestR
     }
 
     // track skipped reasons in dedicated buckets
-    if let TestResult::Skipped { reason } = result {
+    if let CaseResult::Skipped { reason } = result {
         phase_summary.skipped += 1;
 
         if reason == "known failure" {
@@ -616,8 +619,8 @@ fn update_phase_summary_outcome(phase_summary: &mut PhaseSummary, result: &TestR
 }
 
 /// Return whether this run should rewrite readme status tables.
-fn should_update_readme_for_context(options: &TestOptions) -> bool {
-    !options.include_skipped && !options.include_known_failures && !options.include_ignored
+fn should_update_readme_for_context(options: &RunOptions) -> bool {
+    !options.run_skipped && !options.run_known_failures && !options.run_ignored
 }
 
 /// Print regressions and fixed cases grouped by phase.
@@ -661,9 +664,16 @@ fn print_regression_report(
 }
 
 /// Run the ecosystem suite with shared test harness options.
-pub fn run_ecosystem_tests(options: &TestOptions, run_options: &EcosystemRunOptions) -> ExitCode {
-    let suite = EcosystemSuite::load(run_options, options);
-    Runner::run_suite(&suite, options)
+pub fn run_ecosystem_tests(options: &RunOptions, run_options: &EcosystemRunOptions) -> ExitCode {
+    let suite = match EcosystemSuite::load(run_options, options) {
+        Ok(suite) => suite,
+        Err(error) => {
+            eprintln!("{}: {error}", color::red("error"));
+            return ExitCode::FAILURE;
+        }
+    };
+
+    Runner::run_suite(suite, options)
 }
 
 #[derive(Debug)]
@@ -956,11 +966,11 @@ fn normalize_readme_package_name(package_name: &str) -> String {
 }
 
 /// Map one test result to a readme table status cell.
-fn readme_cell_from_result(result: &TestResult) -> ReadmeCellStatus {
+fn readme_cell_from_result(result: &CaseResult) -> ReadmeCellStatus {
     match result {
-        TestResult::Passed => ReadmeCellStatus::Pass,
-        TestResult::Failed { .. } => ReadmeCellStatus::Fail,
-        TestResult::Skipped { reason } => {
+        CaseResult::Passed => ReadmeCellStatus::Pass,
+        CaseResult::Failed { .. } => ReadmeCellStatus::Fail,
+        CaseResult::Skipped { reason } => {
             // known failures should count as failures in status tables
             if reason == "known failure" {
                 ReadmeCellStatus::Fail
@@ -970,7 +980,7 @@ fn readme_cell_from_result(result: &TestResult) -> ReadmeCellStatus {
                 ReadmeCellStatus::Ignored
             }
         }
-        TestResult::Suite { .. } => ReadmeCellStatus::Unknown,
+        CaseResult::Suite { .. } => ReadmeCellStatus::Unknown,
     }
 }
 fn update_ecosystem_readme(
@@ -994,8 +1004,26 @@ fn update_ecosystem_readme(
         }
     };
 
-    let old_rows = parse_readme_summary_rows(&content).unwrap_or_default();
-    let old_read_stats = parse_readme_summary_read_stats(&content).unwrap_or_default();
+    let old_rows = match parse_readme_summary_rows(&content) {
+        Ok(rows) => rows,
+        Err(error) => {
+            eprintln!(
+                "{}: failed to parse ecosystem README rows: {error}",
+                color::red("error")
+            );
+            return;
+        }
+    };
+    let old_read_stats = match parse_readme_summary_read_stats(&content) {
+        Ok(read_stats) => read_stats,
+        Err(error) => {
+            eprintln!(
+                "{}: failed to parse ecosystem README read stats: {error}",
+                color::red("error")
+            );
+            return;
+        }
+    };
 
     let mut merged_rows = if is_partial {
         old_rows
@@ -1346,8 +1374,9 @@ fn format_phase_total_cell(passed: usize, failed: usize, unknown: usize, ignored
 
 fn parse_readme_summary_read_stats(
     content: &str,
-) -> Option<BTreeMap<String, ReadmePackageReadStats>> {
-    let section = readme_section(content, README_SECTION_SUMMARY_RESULTS)?;
+) -> Result<BTreeMap<String, ReadmePackageReadStats>, String> {
+    let section = readme_section(content, README_SECTION_SUMMARY_RESULTS)
+        .ok_or_else(|| "README.md is missing summary-results section".to_string())?;
     let mut rows = BTreeMap::new();
 
     let mut modules_index = None;
@@ -1363,7 +1392,10 @@ fn parse_readme_summary_read_stats(
             continue;
         }
 
-        let package_name = cells.get(1).copied().unwrap_or_default();
+        let package_name = cells
+            .get(1)
+            .copied()
+            .ok_or_else(|| format!("malformed ecosystem README row: {line}"))?;
 
         if package_name.eq_ignore_ascii_case("package") {
             for (index, cell) in cells.iter().enumerate() {
@@ -1384,40 +1416,48 @@ fn parse_readme_summary_read_stats(
         }
 
         let Some(modules_index) = modules_index else {
-            continue;
+            return Err("ecosystem README header is missing Modules column".to_string());
         };
         let Some(lines_index) = lines_index else {
-            continue;
+            return Err("ecosystem README header is missing Lines column".to_string());
         };
 
-        let modules = cells
-            .get(modules_index)
-            .and_then(|value| parse_readme_count_cell(value));
-        let lines = cells
-            .get(lines_index)
-            .and_then(|value| parse_readme_count_cell(value));
+        let modules = parse_readme_count_cell(
+            cells
+                .get(modules_index)
+                .ok_or_else(|| format!("missing Modules cell in ecosystem README row: {line}"))?,
+        )?;
+        let lines = parse_readme_count_cell(
+            cells
+                .get(lines_index)
+                .ok_or_else(|| format!("missing Lines cell in ecosystem README row: {line}"))?,
+        )?;
 
         let package_name = normalize_readme_package_name(package_name);
         rows.insert(package_name, ReadmePackageReadStats { modules, lines });
     }
 
-    Some(rows)
+    Ok(rows)
 }
 
 /// Parse one readme count cell value into an optional number.
-fn parse_readme_count_cell(value: &str) -> Option<usize> {
+fn parse_readme_count_cell(value: &str) -> Result<Option<usize>, String> {
     let normalized = value.trim();
     if normalized.is_empty() || normalized == "-?-" {
-        return None;
+        return Ok(None);
     }
 
-    normalized.parse::<usize>().ok()
+    normalized
+        .parse::<usize>()
+        .map(Some)
+        .map_err(|_| format!("invalid ecosystem README count cell: '{value}'"))
 }
 
 fn parse_readme_summary_rows(
     content: &str,
-) -> Option<BTreeMap<String, BTreeMap<EcosystemPhase, ReadmeCellStatus>>> {
-    let section = readme_section(content, README_SECTION_SUMMARY_RESULTS)?;
+) -> Result<BTreeMap<String, BTreeMap<EcosystemPhase, ReadmeCellStatus>>, String> {
+    let section = readme_section(content, README_SECTION_SUMMARY_RESULTS)
+        .ok_or_else(|| "README.md is missing summary-results section".to_string())?;
     let mut rows = BTreeMap::new();
     let phases = EcosystemPhase::all();
 
@@ -1432,7 +1472,7 @@ fn parse_readme_summary_rows(
         }
 
         if cells.len() < phases.len() + 3 {
-            continue;
+            return Err(format!("malformed ecosystem README row: {line}"));
         }
 
         let package_name = cells[1];
@@ -1454,7 +1494,7 @@ fn parse_readme_summary_rows(
         rows.insert(package_name, row);
     }
 
-    Some(rows)
+    Ok(rows)
 }
 
 /// Return whether a parsed markdown table row is a separator row.
@@ -1975,7 +2015,7 @@ fn parse_case_id(case_id: &str) -> Option<(&str, EcosystemPhase)> {
 /// Compute the next known failure set from current run results.
 fn compute_updated_known_failures(
     raw_known_failures: &HashSet<String>,
-    results: &[(TestCase, TestResult)],
+    results: &[(Case, CaseResult)],
 ) -> HashSet<String> {
     let mut observed_case_ids = HashSet::new();
     let mut current_failures = HashSet::new();
@@ -1987,7 +2027,7 @@ fn compute_updated_known_failures(
         }
 
         // preserve existing known failures when they were skipped as known failures
-        if let TestResult::Skipped { reason } = result
+        if let CaseResult::Skipped { reason } = result
             && reason == "known failure"
         {
             continue;
