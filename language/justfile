@@ -36,12 +36,16 @@ _run-destack-test test_binary *args:
 
 # install language test fixtures
 install:
-    just install-conformance-ecma
-    just install-conformance-formatter
+    just install-conformance
     just fetch-ecosystem
     just install-resolver
 
 # install conformance suites
+install-conformance:
+    just install-conformance-ecma
+    just install-conformance-formatter
+
+# install ecma conformance suites
 install-conformance-ecma:
     python3 ./test/fixtures/conformance/fetch-suite.py \
         ./test/fixtures/conformance/ecma/test262 \
@@ -224,10 +228,8 @@ test:
     just test-resolver
     just test-formatter
     just test-grammar
-    just install-conformance-ecma
-    just install-conformance-formatter
-    just test-conformance-ecma
-    just test-conformance-formatter
+    just install-conformance
+    just test-conformance
 
 # run the language quick gate
 quick:
@@ -259,6 +261,11 @@ test-smoke:
 # run emit tests
 test-emit:
     just _run-destack-test emit
+
+# run all conformance tests
+test-conformance:
+    just test-conformance-ecma
+    just test-conformance-formatter
 
 # run ecma conformance tests
 test-conformance-ecma:

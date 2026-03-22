@@ -183,7 +183,7 @@ Run these from the repository root.
 # focused local loop
 cargo test -p destack_formatter
 just language/test-formatter
-just language/test-formatter-conformance
+just language/test-conformance
 
 # clean gate
 just language/quick
