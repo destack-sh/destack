@@ -1493,13 +1493,7 @@ impl Compiler {
             .unwrap_or(ImplicitCollectionConversionPolicy::Allow);
 
         // skip reify for non-native outputs
-        if !self
-            .program
-            .profile(state.ctx.profile)
-            .key
-            .output
-            .is_native()
-        {
+        if !self.program.profile(state.ctx.profile).key.emit.is_native() {
             return Ok(false);
         }
 

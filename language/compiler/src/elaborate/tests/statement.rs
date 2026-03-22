@@ -1,5 +1,5 @@
 use crate::tests::TestProgram;
-use destack_workspace::OutputFormat;
+use destack_workspace::EmitFormat;
 
 #[test]
 fn test_normalize_if_in_let_with_blocks() {
@@ -192,7 +192,7 @@ function choose(a, b): int32 {
 #[test]
 fn test_normalize_nullish_coalesce_in_let_native() {
     // native profiles normalize nullish coalesce into explicit control flow
-    let test = TestProgram::memory_sequential().with_profile_output(OutputFormat::Native);
+    let test = TestProgram::memory_sequential().with_profile_emit(EmitFormat::Native);
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -221,7 +221,7 @@ function choose(name, fallback): string {
 #[test]
 fn test_keep_nullish_coalesce_in_return_js() {
     // js profiles retain nullish coalesce syntax
-    let test = TestProgram::memory_sequential().with_profile_output(OutputFormat::Js);
+    let test = TestProgram::memory_sequential().with_profile_emit(EmitFormat::Js);
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -245,7 +245,7 @@ function choose(name, fallback): string {
 #[test]
 fn test_keep_nullish_coalesce_in_return_ts() {
     // ts profiles retain nullish coalesce syntax
-    let test = TestProgram::memory_sequential().with_profile_output(OutputFormat::Ts);
+    let test = TestProgram::memory_sequential().with_profile_emit(EmitFormat::Ts);
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -269,7 +269,7 @@ function choose(name, fallback): string {
 #[test]
 fn test_normalize_nullish_coalesce_in_assignment_native() {
     // native profiles normalize nullish coalesce in assignment value positions
-    let test = TestProgram::memory_sequential().with_profile_output(OutputFormat::Native);
+    let test = TestProgram::memory_sequential().with_profile_emit(EmitFormat::Native);
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -302,7 +302,7 @@ function choose(name, fallback): string {
 #[test]
 fn test_normalize_nullish_coalesce_in_call_argument_native() {
     // native profiles normalize nullish coalesce in eager call argument positions
-    let test = TestProgram::memory_sequential().with_profile_output(OutputFormat::Native);
+    let test = TestProgram::memory_sequential().with_profile_emit(EmitFormat::Native);
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -340,7 +340,7 @@ function choose(name, fallback): string {
 #[test]
 fn test_normalize_nullish_coalesce_in_ternary_arm_native() {
     // native profiles normalize nullish coalesce inside ternary branches without hoisting
-    let test = TestProgram::memory_sequential().with_profile_output(OutputFormat::Native);
+    let test = TestProgram::memory_sequential().with_profile_emit(EmitFormat::Native);
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -370,7 +370,7 @@ function choose(flag, name, fallback): string {
 #[test]
 fn test_normalize_nullish_coalesce_in_short_circuit_rhs_native() {
     // native profiles normalize nullish coalesce in short-circuit rhs without eager hoisting
-    let test = TestProgram::memory_sequential().with_profile_output(OutputFormat::Native);
+    let test = TestProgram::memory_sequential().with_profile_emit(EmitFormat::Native);
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -400,7 +400,7 @@ function isFallback(flag, name, fallback): boolean {
 #[test]
 fn test_normalize_nullish_coalesce_in_object_property_native() {
     // native profiles normalize nullish coalesce inside object property values
-    let test = TestProgram::memory_sequential().with_profile_output(OutputFormat::Native);
+    let test = TestProgram::memory_sequential().with_profile_emit(EmitFormat::Native);
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -430,7 +430,7 @@ function choose(name, fallback): { value: string } {
 #[test]
 fn test_normalize_nullish_coalesce_in_array_element_native() {
     // native profiles normalize nullish coalesce inside array expression elements
-    let test = TestProgram::memory_sequential().with_profile_output(OutputFormat::Native);
+    let test = TestProgram::memory_sequential().with_profile_emit(EmitFormat::Native);
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -460,7 +460,7 @@ function choose(name, fallback): string[] {
 #[test]
 fn test_keep_nullish_coalesce_in_call_argument_js() {
     // js profiles retain nested nullish coalesce syntax
-    let test = TestProgram::memory_sequential().with_profile_output(OutputFormat::Js);
+    let test = TestProgram::memory_sequential().with_profile_emit(EmitFormat::Js);
     let module_id = test.add_module(
         "test.ds",
         r#"

@@ -180,7 +180,7 @@ impl<'a> ModuleLowerer<'a> {
         // resolve runtime check policies
         let debug = compiler.program.profile(profile).key.debug;
         let runtime_checks = RuntimeCheckConfig::from_target(&target_config, debug);
-        let binding_abi_lowering = target_config.output.is_native();
+        let binding_abi_lowering = target_config.emit.is_native();
 
         let well_known_intrinsics = compiler
             .program

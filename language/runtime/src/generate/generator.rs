@@ -8,7 +8,7 @@ use destack_compiler::{
 };
 use destack_source::DiagnosticSeverity;
 use destack_workspace::{
-    EnvSnapshot, OutputFormat, Platform, ProfileFlags, ProfileId, ProfileKey, Program, Runtime,
+    EmitFormat, EnvSnapshot, Platform, ProfileFlags, ProfileId, ProfileKey, Program, Runtime,
     Session,
 };
 
@@ -255,7 +255,7 @@ impl RuntimeGenerator {
     /// Build the platform profile key for binding generation.
     fn profile_key(&self) -> ProfileKey {
         ProfileKey::new(
-            OutputFormat::Native,
+            EmitFormat::Native,
             Runtime::NativeHosted,
             self.host_platform(),
             None,

@@ -104,7 +104,7 @@ Instead of either all-flat or all-expanded, fill tries to maximize items per lin
 
 FIR isn't just for the main code formatter.
 It's also used by:
-- **JS codegen** (`codegen/js/`): generating TypeScript output from DIR
+- **JS generation** (`compiler/generate/js/`): generating TypeScript output from DIR
 - **MIR text output** (`mir/src/format/`): pretty-printing MIR for debugging
 - **Linter suggestions**: formatting suggested fixes
 

@@ -343,7 +343,7 @@ impl Compiler {
             return (options, false);
         };
 
-        let is_native_output = target.output.is_wasm() || target.output.is_native();
+        let is_native_output = target.emit.is_wasm() || target.emit.is_native();
         let options = Program::compiler_options_for_target(&target, &options);
 
         (options, is_native_output)

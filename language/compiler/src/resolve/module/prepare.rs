@@ -93,7 +93,7 @@ impl Compiler {
             filename: path.clone(),
             dir: dir.clone(),
             dirname: dir.clone(),
-            output: profile.key.output,
+            emit: profile.key.emit,
             platform: profile.key.platform,
             runtime: profile.key.runtime,
             target: ImportMetaTarget {

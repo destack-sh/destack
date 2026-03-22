@@ -11,7 +11,7 @@ impl Compiler {
         anchor: LocalNodeIdAny,
     ) {
         // native outputs handle this in elaborate reify
-        if self.program.profile(profile).key.output.is_native() {
+        if self.program.profile(profile).key.emit.is_native() {
             return;
         }
 
