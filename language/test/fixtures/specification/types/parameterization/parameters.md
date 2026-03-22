@@ -10,7 +10,7 @@
 type Bad<const T> = T;
 ```
 
-- contains: invalid type parameter modifier
+- invalid type parameter modifier
 
 ### in modifiers are allowed on type aliases
 
@@ -67,7 +67,7 @@ const tuple = id([1, 2]);
 tuple[0] satisfies 1;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### const function parameters preserve tuple literal precision through renamed re-exports
 
@@ -130,7 +130,7 @@ const value = id({ kind: "ready", level: 1 });
 value.kind satisfies "ready";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### defaulted generic parameters support partial inference
 
@@ -155,7 +155,7 @@ const value = pair(1);
 value[1] satisfies string;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### inference prefers argument usage over defaults when provided
 

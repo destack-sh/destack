@@ -73,7 +73,7 @@ const box = new Box();
 box.missing satisfies number;
 ```
 
-- contains: does not exist
+- does not exist
 
 ### static if also gates static class members
 
@@ -90,7 +90,7 @@ class Box {
 Box.missing() satisfies number;
 ```
 
-- contains: does not exist
+- does not exist
 
 ### static if true class fields remain required in constructors
 
@@ -110,4 +110,4 @@ const box = Box {};
 box.value satisfies number;
 ```
 
-- contains: not assignable
+- type {} is not assignable to type { value: number }

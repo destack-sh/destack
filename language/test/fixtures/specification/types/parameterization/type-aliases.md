@@ -29,7 +29,7 @@ declare function makeBox(): Box<number>;
 let value: Box<string> = makeBox();
 ```
 
-- contains: type string is not assignable to type number
+- type string is not assignable to type number
 
 ### static value arguments on type aliases
 
@@ -56,7 +56,7 @@ declare function makeBuffer(): Buffer<string, 4>;
 let buffer: Buffer<string, comptime 4> = makeBuffer();
 ```
 
-- contains: static argument must be a static expression
+- static argument must be a static expression
 
 ### static value argument mismatch on type aliases
 
@@ -70,7 +70,7 @@ declare function makeBuffer(): Buffer<string, 4>;
 let buffer: Buffer<string, true> = makeBuffer();
 ```
 
-- contains: type true is not assignable to type number
+- type true is not assignable to type number
 
 ### default static type parameters on type aliases
 
@@ -110,7 +110,7 @@ declare function makeBuffer(): Buffer<string>;
 let buffer: Buffer<string> = makeBuffer();
 ```
 
-- contains: static argument must be a static expression
+- static argument must be a static expression
 
 ### tuple static arguments stay grouped for direct aliases
 
@@ -252,7 +252,7 @@ declare function makeBox(): Box<number>;
 let value: Box<string> = makeBox();
 ```
 
-- contains: type string is not assignable to type number
+- type string is not assignable to type number
 
 ### static value arguments on newtypes
 
@@ -279,7 +279,7 @@ declare function makeBuffer(): Buffer<string, 4>;
 let buffer: Buffer<string, comptime 4> = makeBuffer();
 ```
 
-- contains: static argument must be a static expression
+- static argument must be a static expression
 
 ### static value argument mismatch on newtypes
 
@@ -293,7 +293,7 @@ declare function makeBuffer(): Buffer<string, 4>;
 let buffer: Buffer<string, true> = makeBuffer();
 ```
 
-- contains: type true is not assignable to type number
+- type true is not assignable to type number
 
 ### default static type parameters on newtypes
 

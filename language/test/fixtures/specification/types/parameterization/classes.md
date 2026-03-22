@@ -33,7 +33,7 @@ declare function makeBox(): Box<number>;
 let value: Box<string> = makeBox();
 ```
 
-- contains: type string is not assignable to type number
+- type string is not assignable to type number
 
 ### static value arguments on classes
 
@@ -64,7 +64,7 @@ declare function makeBuffer(): Buffer<string, 4>;
 let buffer: Buffer<string, true> = makeBuffer();
 ```
 
-- contains: type true is not assignable to type number
+- type true is not assignable to type number
 
 ### default static type parameters on classes
 
@@ -110,7 +110,7 @@ declare let numberBox: Box<number>;
 let stringBox: Box<string> = numberBox;
 ```
 
-- contains: not assignable
+- type Buffer<string, 4> is not assignable to type Buffer<string, 8>
 
 ### static value arguments affect assignability
 
@@ -126,4 +126,4 @@ declare let buffer4: Buffer<string, 4>;
 let buffer8: Buffer<string, 8> = buffer4;
 ```
 
-- contains: not assignable
+- type Buffer<string, 4> is not assignable to type Buffer<string, 8>

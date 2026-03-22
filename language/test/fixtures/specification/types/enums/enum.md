@@ -16,7 +16,7 @@ const status = Status.Active;
 const raw: int32 = status;
 ```
 
-- contains: is not assignable
+- is not assignable
 
 ### integer enum explicit cast
 
@@ -60,7 +60,7 @@ enum Status {
 const status: Status = 1;
 ```
 
-- contains: is not assignable
+- is not assignable
 
 ### string enum backing type
 
@@ -76,7 +76,7 @@ const flavor = Flavor.Sweet;
 const raw: string = flavor;
 ```
 
-- contains: is not assignable
+- is not assignable
 
 ### string enum explicit cast
 
@@ -118,7 +118,7 @@ enum Mixed {
 }
 ```
 
-- contains: invalid enum backing type
+- invalid enum backing type
 
 ## members
 

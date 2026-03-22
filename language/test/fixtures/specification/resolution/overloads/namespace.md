@@ -59,7 +59,7 @@ const selected = ns.pick("x");
 selected satisfies "specific";
 ```
 
-- contains: not assignable
+- not assignable
 
 ```ds:package.json
 { "name": "spec" }
@@ -123,7 +123,7 @@ const selected = parser.parse("x");
 selected satisfies "specific";
 ```
 
-- contains: not assignable
+- not assignable
 
 ```ds:package.json
 { "name": "spec" }
@@ -187,7 +187,7 @@ const selected = ns.choose("x");
 selected satisfies "specific";
 ```
 
-- contains: not assignable
+- not assignable
 
 ```ds:package.json
 { "name": "spec" }

@@ -114,7 +114,7 @@ struct Entity {
 const entity = Entity {};
 ```
 
-- contains: not assignable
+- not assignable
 
 ### struct embedding rejects duplicate field declarations
 
@@ -131,4 +131,4 @@ struct Entity {
 }
 ```
 
-- contains: duplicate
+- duplicate

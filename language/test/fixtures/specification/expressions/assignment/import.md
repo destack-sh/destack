@@ -18,7 +18,7 @@ import { counter } from "./counter";
 counter = 1;
 ```
 
-- contains: immutable binding
+- immutable binding
 
 ### imported bindings are immutable with aliases
 
@@ -34,7 +34,7 @@ import { counter as localCounter } from "./counter";
 localCounter = 1;
 ```
 
-- contains: immutable binding
+- immutable binding
 
 ### imported namespace bindings are immutable
 
@@ -50,7 +50,7 @@ import * as counter from "./counter";
 counter = { counter: 1 };
 ```
 
-- contains: immutable binding
+- immutable binding
 
 ### imported namespace members are immutable
 
@@ -66,7 +66,7 @@ import * as namespaceCounter from "./counter";
 namespaceCounter.counter = 1;
 ```
 
-- contains: immutable binding
+- immutable binding
 
 ### imported bindings reject update expressions
 
@@ -82,4 +82,4 @@ import { counter } from "./counter";
 counter++;
 ```
 
-- contains: immutable binding
+- immutable binding

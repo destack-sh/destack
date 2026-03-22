@@ -26,7 +26,7 @@ class Derived extends Base {
 }
 ```
 
-- contains: missing override modifier
+- missing override modifier
 
 ### override modifier on base member
 
@@ -72,7 +72,7 @@ class Derived extends Base {
 }
 ```
 
-- contains: override does not match a base member
+- override does not match a base member
 
 ### noImplicitOverride false allows missing override
 
@@ -118,4 +118,4 @@ class Derived extends Base {
 }
 ```
 
-- contains: not assignable
+- type (number): void is not assignable to type (string): void

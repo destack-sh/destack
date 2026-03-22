@@ -33,7 +33,7 @@ text satisfies string;
 const value: string = Symbol("id");
 ```
 
-- contains: not assignable
+- type symbol is not assignable to type number
 
 ### symbol values compose with symbol unions
 
@@ -52,4 +52,4 @@ value satisfies symbol | string;
 const value: number = Symbol("id");
 ```
 
-- contains: not assignable
+- type symbol is not assignable to type number

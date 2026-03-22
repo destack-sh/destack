@@ -78,7 +78,7 @@ declare function getAnimal(): Animal;
 getAnimal() satisfies Dog;
 ```
 
-- contains: expected Dog, found Animal
+- expected Dog, found Animal
 
 ## Multi-level Inheritance
 
@@ -233,7 +233,7 @@ class Second {}
 class Combined extends First, Second {}
 ```
 
-- contains: invalid lineage
+- invalid lineage
 
 ### classes cannot declare empty extends clauses
 
@@ -244,7 +244,7 @@ class Counter extends {
 }
 ```
 
-- contains: invalid lineage
+- invalid lineage
 
 ### structs cannot use extends
 
@@ -256,4 +256,4 @@ struct Base {}
 struct Counter extends Base {}
 ```
 
-- contains: invalid lineage
+- invalid lineage

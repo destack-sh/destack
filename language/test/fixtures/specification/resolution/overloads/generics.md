@@ -39,7 +39,7 @@ const selected = classify("x");
 selected satisfies "specific";
 ```
 
-- contains: not assignable
+- expected "specific", found "generic" (not assignable)
 
 ### specific overloads win when declared first
 
@@ -75,7 +75,7 @@ const selected = classify("x");
 selected satisfies "generic";
 ```
 
-- contains: not assignable
+- expected "specific", found "generic" (not assignable)
 
 ### generic overload ordering applies to imported re-exported symbols
 
@@ -127,4 +127,4 @@ const selected = classify("x");
 selected satisfies "specific";
 ```
 
-- contains: not assignable
+- expected "specific", found "generic" (not assignable)

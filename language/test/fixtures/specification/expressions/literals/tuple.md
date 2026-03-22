@@ -31,7 +31,7 @@ let pair = (1, 2);
 pair satisfies (1, 2);
 ```
 
-- contains: expected (1, 2)
+- expected (1, 2)
 
 ### const tuples still widen without const assertions
 
@@ -51,7 +51,7 @@ const pair = (1, 2);
 pair satisfies (1, 2);
 ```
 
-- contains: expected (1, 2)
+- expected (1, 2)
 
 ### nested tuple
 
@@ -109,7 +109,7 @@ const pair: (1 | 2, "a" | "b") = (1, "a");
 pair satisfies (1, "a");
 ```
 
-- contains: expected (1, "a")
+- expected (1, "a")
 
 ### contextual tuple literal mismatch
 
@@ -119,4 +119,4 @@ pair satisfies (1, "a");
 const pair: (number, string) = (1, 2);
 ```
 
-- contains: type (number, int32) is not assignable to type (number, string)
+- type (number, int32) is not assignable to type (number, string)

@@ -71,7 +71,7 @@ const shiftUnsigned = left >>> right;
 shiftUnsigned satisfies Bits;
 ```
 
-- contains: no matching overload
+- no matching overload
 
 ### bitwise and shift operators require rhs compatibility
 
@@ -95,7 +95,7 @@ const andValue = left & right;
 andValue satisfies Bits;
 ```
 
-- contains: no matching overload
+- no matching overload
 
 ### bitwise and shift operators do not use rhs-only implementations
 
@@ -119,7 +119,7 @@ const andValue = left & right;
 andValue satisfies OtherBits;
 ```
 
-- contains: no matching overload
+- no matching overload
 
 ### saturating shift operators require shift contracts
 
@@ -163,4 +163,4 @@ const shifted = left << right;
 shifted satisfies Bits;
 ```
 
-- contains: not assignable
+- type OtherBits is not assignable to type Bits

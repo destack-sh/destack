@@ -69,7 +69,7 @@ const ok: Keys = key;
 const bad: Keys = "name";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### keyof preserves well-known symbol keys
 
@@ -97,7 +97,7 @@ const other: symbol = Symbol("other");
 const badSymbol: Keys = other;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### Symbol.for keys are accepted
 
@@ -191,4 +191,4 @@ type Keys = keyof TokenBox;
 const bad: Keys = Symbol("other");
 ```
 
-- contains: not assignable
+- not assignable

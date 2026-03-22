@@ -64,7 +64,7 @@ declare function greet(): string {
 }
 ```
 
-- contains: invalid function
+- invalid function
 
 ### arrow functions cannot declare explicit this parameters
 
@@ -74,7 +74,7 @@ declare function greet(): string {
 let f = (this: string) => {}
 ```
 
-- contains: invalid function
+- invalid function
 
 ## noImplicitReturns
 
@@ -94,8 +94,8 @@ function example(value: number): number {
 }
 ```
 
-- contains: missing return
-- contains: not assignable
+- missing return
+- not assignable
 
 ### noImplicitReturns allows implicit return expression
 
@@ -145,7 +145,7 @@ function handle(value) {
 }
 ```
 
-- contains: implicit any type
+- implicit any type
 
 ### noImplicitAny allows defaulted parameters
 
@@ -173,7 +173,7 @@ function handle(value = 1) {
 let pending;
 ```
 
-- contains: implicit any type
+- implicit any type
 
 ## noImplicitThis
 
@@ -191,7 +191,7 @@ function counter() {
 }
 ```
 
-- contains: implicit this type
+- implicit this type
 
 ### noImplicitThis allows explicit this parameters
 
@@ -257,7 +257,7 @@ function make() {
 }
 ```
 
-- contains: implicit this type
+- implicit this type
 
 ## Arrow Functions
 
@@ -323,7 +323,7 @@ const parse = (value: string): string => value;
 parse satisfies Fn;
 ```
 
-- contains: expected
+- expected
 
 ### call signature object type accepts function value
 
@@ -343,7 +343,7 @@ const fn = (): string => "no";
 fn satisfies { (): number };
 ```
 
-- contains: expected
+- expected
 
 ### callable interface satisfies call signature object type
 
@@ -393,7 +393,7 @@ function narrow(value: string): void {}
 let wide: FnWide = narrow
 ```
 
-- contains: not assignable
+- not assignable
 
 ### strictFunctionTypes false allows bivariant parameters
 

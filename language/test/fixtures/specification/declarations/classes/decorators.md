@@ -80,4 +80,4 @@ class User {
 }
 ```
 
-- contains: likely and unlikely decorators cannot be combined
+- invalid well-known decorator: likely and unlikely decorators cannot be combined

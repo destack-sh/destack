@@ -34,7 +34,7 @@ declare function parse<T extends bigint>(value: `${T}`): T;
 let bad = parse("+1");
 ```
 
-- contains: type "+1" is not assignable to type `${bigint}`
+- type "+1" is not assignable to type `${bigint}`
 
 ### template literal infers constrained int literal
 
@@ -57,7 +57,7 @@ declare function parse<T extends int8>(value: `${T}`): T;
 let bad = parse("128");
 ```
 
-- contains: type "128" is not assignable to type `${int8}`
+- type "128" is not assignable to type `${int8}`
 
 ### template literal rejects non numeric string for number span
 
@@ -69,7 +69,7 @@ declare function parse<T extends number>(value: `${T}`): T;
 let bad = parse("no");
 ```
 
-- contains: type "no" is not assignable to type `${number}`
+- type "no" is not assignable to type `${number}`
 
 ### template literal infers non canonical number span as number
 
@@ -93,7 +93,7 @@ let nonCanonical = parse("1e3");
 let bad: 1000 = nonCanonical;
 ```
 
-- contains: not assignable to type 1000
+- not assignable to type 1000
 
 ### template literal infers constrained bigint literal for parseBig
 
@@ -128,7 +128,7 @@ let nonCanonical = parseBig("0x1");
 let bad: 1n = nonCanonical;
 ```
 
-- contains: not assignable to type 1n
+- not assignable to type 1n
 
 ### template literal rejects invalid bigint string
 
@@ -141,8 +141,8 @@ let bad = parseBig("01");
 let bad2 = parseBig("+1");
 ```
 
-- contains: type "01" is not assignable to type `${bigint}`
-- contains: type "+1" is not assignable to type `${bigint}`
+- type "01" is not assignable to type `${bigint}`
+- type "+1" is not assignable to type `${bigint}`
 
 ### template literal rejects invalid bigint string leading zeros
 
@@ -154,7 +154,7 @@ declare function parseBig<T extends bigint>(value: `${T}`): T;
 let bad = parseBig("01");
 ```
 
-- contains: type "01" is not assignable to type `${bigint}`
+- type "01" is not assignable to type `${bigint}`
 
 ### template literal rejects invalid bigint string plus sign
 
@@ -166,4 +166,4 @@ declare function parseBig<T extends bigint>(value: `${T}`): T;
 let bad = parseBig("+1");
 ```
 
-- contains: type "+1" is not assignable to type `${bigint}`
+- type "+1" is not assignable to type `${bigint}`

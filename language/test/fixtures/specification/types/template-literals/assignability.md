@@ -26,7 +26,7 @@ declare let combo: Combo;
 let bad: FooOnly = combo;
 ```
 
-- contains: not assignable to type fooonly
+- not assignable to type fooonly
 
 ### template literal type rejects assignment to narrower template
 
@@ -40,7 +40,7 @@ declare let loose: Loose;
 let bad: Tight = loose;
 ```
 
-- contains: type loose is not assignable to type tight
+- type loose is not assignable to type tight
 
 ### template literal type accepts generic spans
 
@@ -78,7 +78,7 @@ declare let value: StringId;
 let bad: NumericId = value;
 ```
 
-- contains: not assignable to type numericid
+- not assignable to type numericid
 
 ### template literal type assigns to string
 
@@ -117,7 +117,7 @@ declare let value: string;
 let bad: Tagged = value;
 ```
 
-- contains: type string is not assignable to type tagged
+- type string is not assignable to type tagged
 
 ### template literal type rejects boolean spans
 
@@ -131,4 +131,4 @@ declare let value: BoolSpan;
 let bad: NumSpan = value;
 ```
 
-- contains: not assignable to type numspan
+- type BoolSpan is not assignable to type NumSpan

@@ -32,7 +32,7 @@ type Id = `user-${number}`;
 let bad: Id = "user-abc";
 ```
 
-- contains: type "user-abc" is not assignable to type id
+- type "user-abc" is not assignable to type id
 
 ### template literal type accepts string
 
@@ -66,7 +66,7 @@ type UnknownString = `${unknown}`;
 let bad: UnknownString = "value";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### template literal type accepts any spans
 
@@ -92,7 +92,7 @@ type Bad = `${symbol}`;
 let value: Bad = "value";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### template literal type rejects never spans
 
@@ -104,7 +104,7 @@ type NeverString = `${never}`;
 let bad: NeverString = "value";
 ```
 
-- contains: type "value" is not assignable to type neverstring
+- type "value" is not assignable to type neverstring
 
 ### template literal type collapses never spans
 
@@ -128,7 +128,7 @@ type Result = IsNever<`${never}`>;
 let bad: Result = false;
 ```
 
-- contains: type false is not assignable to type result
+- type false is not assignable to type result
 
 ### template literal type accepts null literal strings
 
@@ -150,7 +150,7 @@ type NullString = `${null}`;
 let bad: NullString = "nil";
 ```
 
-- contains: type "nil" is not assignable to type nullstring
+- type "nil" is not assignable to type nullstring
 
 ### template literal type accepts undefined literal strings
 
@@ -172,7 +172,7 @@ type UndefinedString = `${undefined}`;
 let bad: UndefinedString = "defined";
 ```
 
-- contains: type "defined" is not assignable to type undefinedstring
+- type "defined" is not assignable to type undefinedstring
 
 ### template literal type accepts boolean literal strings
 
@@ -195,7 +195,7 @@ type Flag = `${boolean}`;
 let bad: Flag = "yes";
 ```
 
-- contains: type "yes" is not assignable to type flag
+- type "yes" is not assignable to type flag
 
 ### template literal type accepts union member strings
 
@@ -228,7 +228,7 @@ type Direction = `${"up" | "down"}`;
 let bad: Direction = "left";
 ```
 
-- contains: type "left" is not assignable to type direction
+- type "left" is not assignable to type direction
 
 ### template literal type accepts nested templates
 
@@ -250,7 +250,7 @@ type Nested = `prefix-${`id-${number}`}`;
 let bad: Nested = "prefix-id-a";
 ```
 
-- contains: type "prefix-id-a" is not assignable to type nested
+- type "prefix-id-a" is not assignable to type nested
 
 ### template literal type accepts union templates
 
@@ -272,4 +272,4 @@ type Combo = `foo-${string}` | `bar-${string}`;
 let bad: Combo = "baz-x";
 ```
 
-- contains: type "baz-x" is not assignable to type combo
+- type "baz-x" is not assignable to type combo

@@ -25,7 +25,7 @@ type Only = Exclude<Letters, "b">;
 const bad: Only = "b";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### exclude with never yields never
 
@@ -37,7 +37,7 @@ type NeverLetters = Exclude<never, "b">;
 let bad: NeverLetters = "b";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### exclude with any yields any
 
@@ -87,7 +87,7 @@ type AgeOnly = Pick<Person, "age">;
 const bad: AgeOnly = { name: "Ada" };
 ```
 
-- contains: excess property 'name'
+- excess property 'name'
 
 ### pick accepts required fields
 
@@ -144,7 +144,7 @@ type Picked = Pick<Mixed, "value">;
 const bad: Picked = { value: true };
 ```
 
-- contains: not assignable
+- not assignable
 
 ### pick rejects missing union keys
 
@@ -161,7 +161,7 @@ type NameAge = Pick<Person, "name" | "age">;
 const bad: NameAge = { name: "Ada" };
 ```
 
-- contains: not assignable
+- not assignable
 
 ### pick rejects extra fields
 
@@ -178,7 +178,7 @@ type NameOnly = Pick<Person, "name">;
 const bad: NameOnly = { name: "Ada", extra: true };
 ```
 
-- contains: excess property 'extra'
+- excess property 'extra'
 
 ### pick rejects extra fields with required keys
 
@@ -195,7 +195,7 @@ type NameOnly = Pick<Person, "name">;
 const bad: NameOnly = { name: "Ada", age: 42 };
 ```
 
-- contains: excess property 'age'
+- excess property 'age'
 
 ### pick rejects missing required fields
 
@@ -212,7 +212,7 @@ type NameOnly = Pick<Person, "name">;
 const bad: NameOnly = {};
 ```
 
-- contains: not assignable
+- not assignable
 
 ### pick rejects unknown keys
 
@@ -227,7 +227,7 @@ interface Person {
 type NameOnly = Pick<Person, "name" | "missing">;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### omit removes selected keys
 
@@ -260,7 +260,7 @@ type WithoutAge = Omit<Person, "age">;
 const bad: WithoutAge = { name: "Ada", age: 42 };
 ```
 
-- contains: excess property 'age'
+- excess property 'age'
 
 ### omit with union keys removes all
 
@@ -292,7 +292,7 @@ type WithoutAll = Omit<Person, "name" | "age">;
 const bad: WithoutAll = { name: "Ada" };
 ```
 
-- contains: excess property 'name'
+- excess property 'name'
 
 ### omit ignores unknown keys
 
@@ -329,7 +329,7 @@ ok satisfies Flags;
 type Bad = Record<{ name: string }, boolean>;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### record requires all keys
 
@@ -341,7 +341,7 @@ type Flags = Record<"a" | "b", boolean>;
 const bad: Flags = { a: true };
 ```
 
-- contains: not assignable
+- not assignable
 
 ### record supports numeric keys
 
@@ -364,7 +364,7 @@ type NumericFlags = Record<1 | 2, string>;
 const bad: NumericFlags = { 1: "one" };
 ```
 
-- contains: not assignable
+- not assignable
 
 ### record rejects extra keys
 
@@ -376,7 +376,7 @@ type Flags = Record<"a" | "b", boolean>;
 const bad: Flags = { a: true, b: false, c: true };
 ```
 
-- contains: excess property 'c'
+- excess property 'c'
 
 ### partial allows missing fields
 
@@ -411,7 +411,7 @@ type OptionalPerson = Partial<Person>;
 const bad: OptionalPerson = { name: "Ada", extra: true };
 ```
 
-- contains: excess property 'extra'
+- excess property 'extra'
 
 ### partial rejects incompatible field types
 
@@ -428,7 +428,7 @@ type OptionalPerson = Partial<Person>;
 const bad: OptionalPerson = { name: "Ada", age: "no" };
 ```
 
-- contains: not assignable
+- not assignable
 
 ### required removes optionality
 
@@ -461,7 +461,7 @@ type FullPerson = Required<Person>;
 const bad: FullPerson = { name: "Ada" };
 ```
 
-- contains: not assignable
+- not assignable
 
 ### readonly keeps field types
 
@@ -510,7 +510,7 @@ const frozen: Frozen = { name: "Ada", age: 42 };
 const bad: Person = frozen;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### nonnullable removes nullish
 
@@ -535,7 +535,7 @@ type Name = NonNullable<MaybeName>;
 const bad: Name = null;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### nonnullable with any yields any
 
@@ -562,7 +562,7 @@ type NeverValue = NonNullable<never>;
 let bad: NeverValue = "no";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### record with never yields empty object
 
@@ -584,7 +584,7 @@ type Empty = Record<never, boolean>;
 const bad: Empty = { value: true };
 ```
 
-- contains: excess property 'value'
+- excess property 'value'
 
 ### extract keeps matching members
 
@@ -611,7 +611,7 @@ type OnlyAorB = Extract<Letters, "a" | "b">;
 const bad: OnlyAorB = "c";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### extract with never yields never
 
@@ -623,7 +623,7 @@ type NeverLetters = Extract<never, "a">;
 let bad: NeverLetters = "a";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### extract with any yields any
 

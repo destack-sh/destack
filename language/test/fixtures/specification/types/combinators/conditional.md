@@ -46,7 +46,7 @@ declare const value: Repeat<"x-y">;
 value satisfies "x";
 ```
 
-- contains: not assignable
+- type true is not assignable to type SameSlots<(string, int32)>
 
 ## ds tuple conditionals
 
@@ -82,8 +82,8 @@ type SameSlots<T> = T extends (infer A, infer A) ? A : never;
 let bad: SameSlots<(string, int32)> = true;
 ```
 
-- contains: not assignable
+- type true is not assignable to type SameSlots<(string, int32)>
 
 ```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true } }
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```

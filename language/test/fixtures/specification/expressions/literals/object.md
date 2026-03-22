@@ -137,7 +137,7 @@ value satisfies { a: number, b: string };
 const value: { a: number, b: string } = { a: 1, b: 2 };
 ```
 
-- contains: type { a: number, b: int32 } is not assignable to type { a: number, b: string }
+- type { a: number, b: int32 } is not assignable to type { a: number, b: string }
 
 ### contextual object literal via alias
 
@@ -160,7 +160,7 @@ type Point = { x: number, y: number };
 const value: Point = { x: 1, y: "hi" };
 ```
 
-- contains: type { x: number, y: string } is not assignable to type Point
+- type { x: number, y: string } is not assignable to type Point
 
 ### contextual object spread literal
 
@@ -179,7 +179,7 @@ value satisfies { a: number };
 const value: { a: number } = { ...{ a: "hi" } };
 ```
 
-- contains: not assignable to type { a: number }
+- not assignable to type { a: number }
 
 ## Object Members
 

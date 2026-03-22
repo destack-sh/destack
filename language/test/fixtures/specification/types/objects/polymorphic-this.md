@@ -56,7 +56,7 @@ function use(this: { kind: "ok" }, value: number): number {
 use.call({ kind: "bad" }, 1);
 ```
 
-- contains: not assignable
+- type { tag: "bad" } is not assignable to type { tag: "tool" }
 
 ### extracted methods preserve this parameter requirements
 
@@ -73,8 +73,8 @@ const run = tool.run;
 run.call({ tag: "bad" }, 1);
 ```
 
-- contains: not assignable
+- type { tag: "bad" } is not assignable to type { tag: "tool" }
 
 ```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true, "noImplicitThis": true } }
+{ "compilerOptions": { "allowTs": true, "checkTs": true, "noImplicitThis": true } }
 ```

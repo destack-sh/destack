@@ -21,7 +21,7 @@ function invalid_switch_break_value_in_loop(value: int32): int32 {
 }
 ```
 
-- contains: switch break cannot have a value
+- switch break cannot have a value
 
 ### labeled break can target a switch
 
@@ -83,7 +83,7 @@ function invalid_switch_continue(value: int32): int32 {
 }
 ```
 
-- contains: invalid continue
+- invalid continue
 
 ### continue inside switch targets the loop
 
@@ -143,7 +143,7 @@ function invalid_labeled_continue_switch(value: int32): int32 {
 }
 ```
 
-- contains: invalid continue
+- invalid continue
 
 ## Guards
 
@@ -163,7 +163,7 @@ function invalid_switch_guard(value: int32): int32 {
 }
 ```
 
-- contains: switch cases do not support guards
+- switch cases do not support guards
 
 ## Typing
 
@@ -183,4 +183,4 @@ function invalid_switch_expression(value: int32): int32 {
 }
 ```
 
-- contains: not assignable
+- type void is not assignable to type int32

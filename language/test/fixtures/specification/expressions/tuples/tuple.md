@@ -28,7 +28,7 @@ right satisfies int32;
 let point: (int32, int32) = (1);
 ```
 
-- contains: not assignable
+- type ("left", 2) is not assignable to type (int32, string)
 
 ### tuple literals reject extra elements for fixed tuple targets
 
@@ -38,7 +38,7 @@ let point: (int32, int32) = (1);
 let point: (int32, int32) = (1, 2, 3);
 ```
 
-- contains: not assignable
+- type ("left", 2) is not assignable to type (int32, string)
 
 ### tuple literals enforce positional element types
 
@@ -48,4 +48,4 @@ let point: (int32, int32) = (1, 2, 3);
 let pair: (int32, string) = ("left", 2);
 ```
 
-- contains: not assignable
+- type ("left", 2) is not assignable to type (int32, string)

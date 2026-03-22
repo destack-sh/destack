@@ -57,7 +57,7 @@ const x = "hello";
 x satisfies number;
 ```
 
-- contains: expected number, found "hello"
+- expected number, found "hello"
 
 ## String Members
 

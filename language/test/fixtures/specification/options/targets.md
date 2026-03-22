@@ -29,7 +29,7 @@ value;
 }
 ```
 
-- contains: any type is disabled
+- any type is disabled
 
 ### native targets enforce noImprecisePrimitives
 
@@ -56,7 +56,7 @@ value;
 }
 ```
 
-- contains: imprecise primitive type is disabled
+- imprecise primitive type is disabled
 
 ### native targets enforce noImplicitConversions
 
@@ -83,7 +83,7 @@ value;
 }
 ```
 
-- contains: type 1 is not assignable
+- type 1 is not assignable
 
 ### native targets enforce noUnsafeTypeAssertions
 
@@ -111,8 +111,8 @@ cast;
 }
 ```
 
-- contains: unsafe type assertions are disabled
-- contains: cannot cast type int32 to boolean
+- unsafe type assertions are disabled
+- cannot cast type int32 to boolean
 
 ### native targets enforce noManaged
 
@@ -143,7 +143,7 @@ value;
 }
 ```
 
-- contains: managed memory is disabled
+- managed memory is disabled
 
 ## wasm targets
 
@@ -172,4 +172,4 @@ value;
 }
 ```
 
-- contains: any type is disabled
+- any type is disabled

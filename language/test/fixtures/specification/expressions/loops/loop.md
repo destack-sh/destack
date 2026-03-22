@@ -22,7 +22,7 @@ let value: number = loop {
 };
 ```
 
-- contains: not assignable
+- not assignable
 
 ### labeled loop break is allowed
 
@@ -54,7 +54,7 @@ let value: string = loop {
 };
 ```
 
-- contains: not assignable
+- not assignable
 
 ### loop breaks without values contribute void
 

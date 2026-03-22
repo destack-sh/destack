@@ -19,7 +19,7 @@ if (value !== null) {
 }
 ```
 
-- contains: not assignable
+- type undefined is not assignable to type string
 
 ### nested alias writes invalidate discriminant member availability
 
@@ -41,7 +41,7 @@ if (box.state.kind === "ready") {
 }
 ```
 
-- contains: does not exist
+- does not exist
 
 ### nested write through helper return invalidates discriminant member availability
 
@@ -64,7 +64,7 @@ if (box.state.kind === "ready") {
 }
 ```
 
-- contains: does not exist
+- does not exist
 
 ## joins and loops
 
@@ -85,7 +85,7 @@ const current = read();
 current satisfies string;
 ```
 
-- contains: not assignable
+- type undefined is not assignable to type string
 
 ### branch joins keep only shared member availability
 
@@ -107,7 +107,7 @@ if (take_first) {
 value.payload;
 ```
 
-- contains: does not exist
+- does not exist
 
 ### loop writes invalidate prior branch narrows after re entry
 
@@ -128,7 +128,7 @@ while (true) {
 value satisfies "a";
 ```
 
-- contains: not assignable
+- type undefined is not assignable to type string
 
 ## destructuring and property writes
 
@@ -146,7 +146,7 @@ if (typeof state.value === "string") {
 }
 ```
 
-- contains: does not exist
+- does not exist
 
 ### property writes invalidate narrowed optional reads
 
@@ -162,7 +162,7 @@ if (box.value !== undefined) {
 }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### nested property writes invalidate prior dotted-name narrows
 
@@ -181,8 +181,8 @@ if (box.inner.value !== undefined) {
 }
 ```
 
-- contains: not assignable
+- not assignable
 
 ```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true } }
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```

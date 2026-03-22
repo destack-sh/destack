@@ -24,7 +24,7 @@ function* gen(): Generator<int32, unknown, unknown> {
 }
 ```
 
-- contains: not assignable
+- type 1 is not assignable to type string
 
 ### yield expressions use the next type
 
@@ -48,7 +48,7 @@ function* gen(): Generator<int32, string, boolean> {
 }
 ```
 
-- contains: not assignable
+- type 1 is not assignable to type string
 
 ## return typing
 
@@ -72,4 +72,4 @@ function* gen(): Generator<int32, string, unknown> {
 }
 ```
 
-- contains: not assignable
+- type 1 is not assignable to type string

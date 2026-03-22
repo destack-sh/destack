@@ -16,7 +16,7 @@ function invalid_match_break(value: int32): int32 {
 }
 ```
 
-- contains: invalid break
+- invalid break to '<none>'
 
 ### match does not allow continue
 
@@ -32,7 +32,7 @@ function invalid_match_continue(value: int32): int32 {
 }
 ```
 
-- contains: invalid continue
+- invalid continue
 
 ### match allows break inside nested loops
 
@@ -93,4 +93,4 @@ function invalid_match_break_again(value: int32): int32 {
 }
 ```
 
-- contains: invalid break
+- invalid break to '<none>'

@@ -24,7 +24,7 @@ declare const value: EqualPair<[1, 2]>;
 value satisfies 1;
 ```
 
-- contains: not assignable
+- not assignable
 
 ## nested infer
 

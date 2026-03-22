@@ -14,7 +14,7 @@ let user: UserId = UserId(1);
 let order: OrderId = user;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### structs model value types
 
@@ -49,7 +49,7 @@ type Token = string | int32;
 let value: Token = true;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### intersections require values that satisfy all members
 

@@ -23,7 +23,7 @@ let value: number = do {
 };
 ```
 
-- contains: not assignable
+- not assignable
 
 ### do blocks can carry control flow through nested conditionals
 
@@ -53,7 +53,7 @@ const value = do {
 scoped satisfies int32;
 ```
 
-- contains: does not exist
+- does not exist
 
 ### do blocks can produce tuple values from tail expressions
 

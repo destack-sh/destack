@@ -39,7 +39,7 @@ function identity<T>(value: T): T {
 identity<number>("hi");
 ```
 
-- contains: type "hi" is not assignable to type number
+- type "hi" is not assignable to type number
 
 ### static value arguments
 
@@ -53,7 +53,7 @@ choose<true>(1);
 choose<1>(1);
 ```
 
-- contains: type 1 is not assignable to type boolean
+- type 1 is not assignable to type boolean
 
 ### default static value arguments
 
@@ -77,7 +77,7 @@ function broken<comptime Flag: boolean = 1>(value: number): number {
 broken(1);
 ```
 
-- contains: type 1 is not assignable to type boolean
+- type 1 is not assignable to type boolean
 
 ### default static type parameters
 
@@ -104,7 +104,7 @@ declare function getContainer(): Container<number>;
 getContainer().map<string>("hello");
 ```
 
-- contains: type "hello" is not assignable to type number
+- type "hello" is not assignable to type number
 
 ### member static arguments on member expressions
 
@@ -121,7 +121,7 @@ const mapper = getContainer().map<string>;
 mapper("hi");
 ```
 
-- contains: type "hi" is not assignable to type number
+- type "hi" is not assignable to type number
 
 ### instantiation expressions require parentheses before member access
 
@@ -135,8 +135,8 @@ function make<T>(value: T): T {
 make<number>.value;
 ```
 
-- contains: instantiation expressions must be parenthesized before member or index access
-- contains: property 'value' does not exist
+- instantiation expressions must be parenthesized before member or index access
+- property 'value' does not exist
 
 ### parenthesized instantiation expressions allow member access
 
@@ -165,4 +165,4 @@ declare function getContainer(): Container<number>;
 (getContainer().map<string>)<number>(1);
 ```
 
-- contains: static arguments specified on both member and call
+- static arguments specified on both member and call

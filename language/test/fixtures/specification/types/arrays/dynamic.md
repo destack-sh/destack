@@ -20,7 +20,7 @@ let source: int32[] = [1, 2, 3];
 let target: string[] = source;
 ```
 
-- contains: not assignable
+- not assignable
 
 ## indexing
 
@@ -45,7 +45,7 @@ let values: int32[] = [1, 2, 3];
 const first: string = values[0];
 ```
 
-- contains: not assignable
+- not assignable
 
 ## calls
 
@@ -74,4 +74,4 @@ function take(values: string[]): string[] {
 take([1, 2, 3]);
 ```
 
-- contains: not assignable
+- not assignable

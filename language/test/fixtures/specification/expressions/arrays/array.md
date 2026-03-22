@@ -18,7 +18,7 @@ let values: int32[] = [1, 2, 3];
 let bad = [1,, 3];
 ```
 
-- contains: array literal holes are not allowed
+- array literal holes are not allowed
 
 ### array literal infers a union element type
 
@@ -46,7 +46,7 @@ values satisfies (int32 | string)[];
 let values: int32[] = [1, "two", 3];
 ```
 
-- contains: not assignable
+- not assignable
 
 ### nested array literals preserve nested element unions
 

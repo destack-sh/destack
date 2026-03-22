@@ -53,7 +53,7 @@ class BadConfig {
 }
 ```
 
-- contains: static expression
+- static expression
 
 ### class associated comptime constants require initializer
 
@@ -67,7 +67,7 @@ class BadConfig {
 }
 ```
 
-- contains: initializer
+- initializer
 
 ### class associated comptime constants enforce annotation compatibility
 
@@ -81,7 +81,7 @@ class BadConfig {
 }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### class static const remains runtime member not associated comptime member
 
@@ -97,7 +97,7 @@ class SegmentPlan<Row> {
 declare const bytes: SegmentPlan<string>.SegmentBytes;
 ```
 
-- contains: type
+- type
 
 ### class static comptime const is rejected as redundant
 
@@ -111,7 +111,7 @@ class BadConfig {
 }
 ```
 
-- contains: invalid member modifier
+- invalid member modifier
 
 ### class associated comptime constants can coexist with runtime static constants
 
@@ -190,4 +190,4 @@ abstract class BatchPlan<Row> {
 class LogBatch extends BatchPlan<string> {}
 ```
 
-- contains: missing associated
+- invalid static argument: missing associated comptime implementation

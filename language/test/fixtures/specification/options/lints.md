@@ -23,7 +23,7 @@ function unused_local(): int32 {
 { "compiler": { "noUnusedLocals": true } }
 ```
 
-- contains: unused local
+- unused local
 
 ### noUnusedLocals allows unused locals when false
 
@@ -64,7 +64,7 @@ function unused_param(value: int32): int32 {
 { "compiler": { "noUnusedParameters": true } }
 ```
 
-- contains: unused parameter
+- unused parameter
 
 ### noUnusedParameters allows unused parameters when false
 
@@ -107,7 +107,7 @@ function unusedLabel(): int32 {
 { "compiler": { "allowUnusedLabels": false } }
 ```
 
-- contains: unused label
+- unused label
 
 ### allowUnusedLabels allows unused labels when true
 
@@ -174,7 +174,7 @@ function unreachable(): int32 {
 { "compiler": { "allowUnreachableCode": false } }
 ```
 
-- contains: unreachable code
+- unreachable code
 
 ### allowUnreachableCode allows unreachable code when true
 
@@ -241,7 +241,7 @@ function fallthrough(value: int32) {
 { "compiler": { "noFallthroughCasesInSwitch": true } }
 ```
 
-- contains: switch case falls through
+- switch case falls through
 
 ## noImplicitReturns
 
@@ -265,8 +265,8 @@ function missingReturn(flag: boolean): int32 {
 { "compiler": { "noImplicitReturns": true } }
 ```
 
-- contains: missing return
-- contains: not assignable
+- missing return
+- not assignable
 
 ### noImplicitReturns allows missing return when false
 
@@ -333,7 +333,7 @@ function redeclared(): int32 {
 { "compiler": { "noRedeclaredLocals": true } }
 ```
 
-- contains: duplicate identifier
+- duplicate identifier
 
 ### noRedeclaredLocals allows duplicate bindings when false
 

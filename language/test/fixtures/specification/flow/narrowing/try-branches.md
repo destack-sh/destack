@@ -18,7 +18,7 @@ try {
 value satisfies string;
 ```
 
-- contains: not assignable
+- type null is not assignable to type string
 
 ### discriminant narrowing does not leak across catch writes
 
@@ -41,7 +41,7 @@ try {
 state.payload;
 ```
 
-- contains: does not exist
+- does not exist
 
 ### finally writes invalidate prior narrows
 
@@ -61,4 +61,4 @@ if (value != null) {
 }
 ```
 
-- contains: not assignable
+- type null is not assignable to type string

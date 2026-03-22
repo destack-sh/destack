@@ -60,7 +60,7 @@ type Keys = keyof (A | B);
 const bad: Keys = "a";
 ```
 
-- contains: not assignable
+- not assignable
 
 ## Utility types
 

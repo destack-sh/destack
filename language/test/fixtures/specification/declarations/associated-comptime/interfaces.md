@@ -96,7 +96,7 @@ interface PartitionedStore<Row> {
 class AuditStore implements PartitionedStore<string> {}
 ```
 
-- contains: missing associated
+- missing associated
 
 ### implementor override must satisfy interface associated comptime constant type
 
@@ -114,7 +114,7 @@ class BadStore implements PartitionedStore<string> {
 }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### extension implementor can satisfy abstract interface associated comptime constants
 
@@ -221,4 +221,4 @@ interface WriteStore {
 class UnifiedStore implements ReadStore, WriteStore {}
 ```
 
-- contains: incompatible
+- invalid static argument: incompatible associated comptime defaults across inherited contracts

@@ -176,7 +176,7 @@ value;
 }
 ```
 
-- contains: unresolved module '#/feature'
+- unresolved module '#/feature'
 
 ## triple slash directives
 
@@ -285,7 +285,7 @@ export const value = 1;
 }
 ```
 
-- contains: unresolved module '@spec/runner'
+- unresolved module '@spec/runner'
 
 ### rejects self package subpath import without exports
 
@@ -305,7 +305,7 @@ export const feature = "ok";
 }
 ```
 
-- contains: unresolved module 'spec/feature'
+- unresolved module 'spec/feature'
 
 ### resolves self package bare import through exports when present
 
@@ -361,7 +361,7 @@ export const feature = 1;
 }
 ```
 
-- contains: unresolved module 'spec'
+- unresolved module 'spec'
 
 ### resolves package exports types through declaration companion reexports
 

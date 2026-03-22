@@ -14,7 +14,7 @@ declare const use_ready: (value: Ready) => void;
 use_ready({ kind: "ready", payload: "ok", extra: true });
 ```
 
-- contains: excess property
+- excess property
 
 ### variable indirection drops freshness for excess checks
 
@@ -51,7 +51,7 @@ let config = pass({ env: { mode: "dev" } });
 config.env.mode satisfies "dev";
 ```
 
-- contains: not assignable
+- not assignable
 
 ```json:destack.json
 { "compiler": { "allowTs": true, "checkTs": true } }

@@ -34,7 +34,7 @@ text satisfies string;
 const value: number = 42n;
 ```
 
-- contains: not assignable
+- expected bigint, found number (not assignable)
 
 ### bigint literals participate in bigint arithmetic
 
@@ -54,4 +54,4 @@ const value = 40n + 2;
 value satisfies bigint;
 ```
 
-- contains: not assignable
+- expected bigint, found number (not assignable)

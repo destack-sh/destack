@@ -13,7 +13,7 @@ Tests for static if validation errors.
 missingSymbol;
 ```
 
-- contains: missing symbol
+- missing symbol
 
 ### static if requires boolean
 
@@ -24,7 +24,7 @@ missingSymbol;
 const value = 1;
 ```
 
-- contains: static if condition must be boolean
+- static if condition must be boolean
 
 ### static if requires an argument
 
@@ -35,7 +35,7 @@ const value = 1;
 const value = 1;
 ```
 
-- contains: static if requires a condition argument
+- static if requires a condition argument
 
 ### static if rejects extra arguments
 
@@ -46,7 +46,7 @@ const value = 1;
 const value = 1;
 ```
 
-- contains: static if requires exactly one argument
+- static if requires exactly one argument
 
 ### static if rejects parameter placement
 
@@ -56,7 +56,7 @@ const value = 1;
 function demo(@if(true) value: number): void { }
 ```
 
-- contains: static if is only allowed on declarations, members, enum fields, or statements
+- invalid static if: static if is only allowed on declarations, members, enum fields, or statements
 
 ### static if rejects type literal properties
 
@@ -69,7 +69,7 @@ type Box = {
 };
 ```
 
-- contains: static if is only allowed on declarations, members, enum fields, or statements
+- invalid static if: static if is only allowed on declarations, members, enum fields, or statements
 
 ### static if rejects argument placement
 
@@ -81,4 +81,4 @@ function call(value: number): void { }
 call(@if(true) 1);
 ```
 
-- contains: static if is only allowed on declarations, members, enum fields, or statements
+- invalid static if: static if is only allowed on declarations, members, enum fields, or statements

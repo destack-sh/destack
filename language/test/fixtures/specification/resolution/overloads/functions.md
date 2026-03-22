@@ -49,7 +49,7 @@ export function parse(value: number): number {
 { "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
-- contains: overload
+- overload
 
 ## Duplicate signatures
 
@@ -109,7 +109,7 @@ declare let input: string | int32;
 const result = parse(input);
 ```
 
-- contains: no matching overload
+- no matching overload
 
 ### union overloads accept union arguments
 
@@ -146,7 +146,7 @@ export function parse(value: string): number {
 { "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
-- contains: duplicate overload signature
+- duplicate overload signature
 
 ### duplicate overloads are rejected in Destack modules
 
@@ -160,7 +160,7 @@ function parse(value: string): int32 {
 }
 ```
 
-- contains: duplicate overload signature
+- duplicate overload signature
 
 ### duplicate overloads are allowed in declaration modules
 

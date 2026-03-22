@@ -23,7 +23,7 @@ ok satisfies int32;
 type Invalid = infer U;
 ```
 
-- contains: infer declarations are only permitted in the extends clause of a conditional type
+- infer declarations are only permitted in the extends clause of a conditional type
 
 ### infer from type reference patterns rejects mismatches
 
@@ -37,7 +37,7 @@ type Inner<T> = T extends Box<infer U> ? U : never;
 let bad: Inner<Box<int32>> = "no";
 ```
 
-- contains: type "no" is not assignable to type inner<<type>>
+- type "no" is not assignable to type Inner<Box<int32>>
 
 ### infer from function return types
 
@@ -68,7 +68,7 @@ let bad: ReturnOf<() => string> = 1;
 { "compiler": { "noAny": false } }
 ```
 
-- contains: type 1 is not assignable to type returnof<<type>>
+- type 1 is not assignable to type ReturnOf<() => string>
 
 ### infer from nested return references
 
@@ -95,7 +95,7 @@ type Item<T> = T extends () => Box<infer U> ? U : never;
 let bad: Item<() => Box<string>> = 1;
 ```
 
-- contains: type 1 is not assignable to type item<<type>>
+- type 1 is not assignable to type Item<() => Box<string>>
 
 ### infer from function parameters
 
@@ -118,7 +118,7 @@ type FirstArg<T> = T extends (value: infer U, count: int32) => void ? U : never;
 let bad: FirstArg<(value: string, count: int32) => void> = 1;
 ```
 
-- contains: type 1 is not assignable to type firstarg<<type>>
+- type 1 is not assignable to type FirstArg<(value: string, count: int32) => void>
 
 ### infer from array element types
 
@@ -141,7 +141,7 @@ type ElementOf<T> = T extends (infer U)[] ? U : never;
 let bad: ElementOf<string[]> = 1;
 ```
 
-- contains: type 1 is not assignable to type elementof<<type>>
+- type 1 is not assignable to type ElementOf<string[]>
 
 ### infer from object property types
 
@@ -164,7 +164,7 @@ type ValueOf<T> = T extends { value: infer U } ? U : never;
 let bad: ValueOf<{ value: boolean }> = 1;
 ```
 
-- contains: type 1 is not assignable to type valueof<<type>>
+- type 1 is not assignable to type ValueOf<{ value: boolean }>
 
 ### infer merges repeated object bindings
 
@@ -188,7 +188,7 @@ type Both<T> = T extends { a: infer U, b: infer U } ? U : "no";
 let bad: Both<{ a: string, b: int32 }> = true;
 ```
 
-- contains: type true is not assignable to type both<<type>>
+- type true is not assignable to type Both<{ a: string, b: int32 }>
 
 ### infer from multi-parameter functions
 
@@ -211,7 +211,7 @@ type Params<T> = T extends (...args: infer P) => void ? P : never;
 let bad: Params<(a: string, b: int32) => void> = ["ok", "no"];
 ```
 
-- contains: type (string, "no") is not assignable to type params<<type>>
+- type (string, "no") is not assignable to type Params<(a: string, b: int32) => void>
 
 ### infer merges repeated parameter bindings
 
@@ -233,7 +233,7 @@ type Param<T> = T extends (a: infer U, b: infer U) => void ? U : "no";
 let bad: Param<(a: string, b: int32) => void> = "ok";
 ```
 
-- contains: type "ok" is not assignable to type param<<type>>
+- type "ok" is not assignable to type Param<(a: string, b: int32) => void>
 
 ### infer merges repeated tuple bindings
 
@@ -257,7 +257,7 @@ type Pair<T> = T extends (infer U, infer U) ? U : "no";
 let bad: Pair<(string, int32)> = true;
 ```
 
-- contains: type true is not assignable to type pair<<type>>
+- type true is not assignable to type Pair<(string, int32)>
 
 ### infer distributes over unions
 
@@ -282,7 +282,7 @@ type Inner<T> = T extends Box<infer U> ? U : never;
 let bad: Inner<Box<int32> | Box<string>> = true;
 ```
 
-- contains: type true is not assignable to type inner<<type>>
+- type true is not assignable to type Inner<Box<int32> | Box<string>>
 
 ### infer does not distribute when wrapped
 
@@ -308,7 +308,7 @@ type NonDist<T> = [T] extends [`foo-${infer A}`] ? A : "no";
 let badNon: NonDist<`foo-a` | `bar-b`> = "a";
 ```
 
-- contains: type "a" is not assignable to type nondist<<type>>
+- type "a" is not assignable to type NonDist<`foo-a` | `bar-b`>
 
 ### infer distributes when unwrapped rejects missing matches
 
@@ -320,7 +320,7 @@ type Dist<T> = T extends `foo-${infer A}` ? A : "no";
 let badDist: Dist<`foo-a` | `bar-b`> = "b";
 ```
 
-- contains: type "b" is not assignable to type dist<<type>>
+- type "b" is not assignable to type Dist<`foo-a` | `bar-b`>
 
 ### infer does not distribute without type parameters
 
@@ -342,7 +342,7 @@ type NonDistLiteral = (`foo-a` | `bar-b`) extends `foo-${infer A}` ? A : "no";
 let bad: NonDistLiteral = "a";
 ```
 
-- contains: type "a" is not assignable to type nondistliteral
+- type "a" is not assignable to type nondistliteral
 
 ### infer merges non distributive union matches
 
@@ -365,7 +365,7 @@ type NonDistAll = (`foo-a` | `foo-b`) extends `foo-${infer A}` ? A : "no";
 let bad: NonDistAll = "no";
 ```
 
-- contains: type "no" is not assignable to type nondistall
+- type "no" is not assignable to type nondistall
 
 ### infer merges union branch bindings
 
@@ -390,7 +390,7 @@ type Right<T> = T extends ({ a: infer U } | { b: infer U }) ? U : "no";
 let bad: Right<{ a: string, b: int32 }> = true;
 ```
 
-- contains: type true is not assignable to type right<<type>>
+- type true is not assignable to type Right<{ a: string, b: int32 }>
 
 ### infer merges union branch bindings rejects else when unmatched
 
@@ -402,7 +402,7 @@ type Right<T> = T extends ({ a: infer U } | { b: infer U }) ? U : "no";
 let badNone: Right<{ c: boolean }> = "ok";
 ```
 
-- contains: type "ok" is not assignable to type right<<type>>
+- type "ok" is not assignable to type Right<{ c: boolean }>
 
 ### infer falls back to else branch
 
@@ -425,7 +425,7 @@ type Fallback<T> = T extends { value: infer U } ? U : int32;
 let bad: Fallback<string> = "no";
 ```
 
-- contains: type "no" is not assignable to type fallback<<type>>
+- type "no" is not assignable to type Fallback<string>
 
 ### infer from any yields any
 
@@ -455,7 +455,7 @@ type Result = Branch<any>;
 const bad: Result = 3;
 ```
 
-- contains: not assignable
+- type string is not assignable to type `id:${"users" | "posts"}`
 
 ```json:destack.json
 { "compiler": { "noAny": false } }
@@ -481,7 +481,7 @@ type ValueOf<T> = T extends { value: infer U } ? U : "no";
 let bad: ValueOf<unknown> = 1;
 ```
 
-- contains: type 1 is not assignable to type valueof<<type>>
+- type 1 is not assignable to type ValueOf<unknown>
 
 ### infer from never yields never for object patterns
 
@@ -493,7 +493,7 @@ type ValueOf<T> = T extends { value: infer U } ? U : "no";
 let bad: ValueOf<never> = "no";
 ```
 
-- contains: type "no" is not assignable to type valueof<<type>>
+- type "no" is not assignable to type ValueOf<never>
 
 ### infer from never yields never for constrained object patterns
 
@@ -505,7 +505,7 @@ type ValueOf<T> = T extends { value: infer U extends number } ? U : "no";
 let bad: ValueOf<never> = "no";
 ```
 
-- contains: type "no" is not assignable to type valueof<<type>>
+- type "no" is not assignable to type ValueOf<never>
 
 ### infer from never yields never for template patterns
 
@@ -517,7 +517,7 @@ type FromNever = never extends `foo-${infer A}` ? A : "no";
 let bad: FromNever = "bar";
 ```
 
-- contains: type "bar" is not assignable to type fromnever
+- type "bar" is not assignable to type fromnever
 
 ### infer from never honors constrained template spans
 
@@ -529,7 +529,7 @@ type FromNever = never extends `foo-${infer A extends number | string | boolean}
 let bad: FromNever = "bar";
 ```
 
-- contains: type "bar" is not assignable to type fromnever
+- type "bar" is not assignable to type fromnever
 
 ### infer from constrained template spans
 
@@ -552,7 +552,7 @@ type FromId<T> = T extends `id-${infer A extends number}` ? A : "no";
 let bad: FromId<"id-42"> = "no";
 ```
 
-- contains: type "no" is not assignable to type fromid<<type>>
+- type "no" is not assignable to type FromId<"id-42">
 
 ### infer distributes over never for type parameters
 
@@ -564,7 +564,7 @@ type Dist<T> = T extends `foo-${infer A}` ? A : "no";
 let bad: Dist<never> = "no";
 ```
 
-- contains: type "no" is not assignable to type dist<<type>>
+- type "no" is not assignable to type Dist<never>
 
 ### non distributive conditionals treat never as a normal type
 
@@ -600,7 +600,7 @@ type SearchValue<T> = T extends { [K in "query"]: infer Query } ? Query : never;
 let bad: SearchValue<{ query: string }> = 1;
 ```
 
-- contains: type 1 is not assignable to type searchvalue<<type>>
+- type 1 is not assignable to type SearchValue<{ query: string }>
 
 ### infer in nested conditional clauses
 
@@ -658,7 +658,7 @@ let result = id(value);
 result satisfies "ready";
 ```
 
-- contains: not assignable
+- type string is not assignable to type `id:${"users" | "posts"}`
 
 ## cross-module literal precision behavior
 
@@ -719,7 +719,7 @@ let result = id(value);
 result satisfies "ready";
 ```
 
-- contains: not assignable
+- type string is not assignable to type `id:${"users" | "posts"}`
 
 ### renamed re-export generic inference preserves const literal precision
 
@@ -844,7 +844,7 @@ let result = id(value);
 result satisfies "api" | "admin";
 ```
 
-- contains: not assignable
+- type string is not assignable to type `id:${"users" | "posts"}`
 
 ## constrained literal inference
 
@@ -872,7 +872,7 @@ let mode = "dev";
 choose(mode);
 ```
 
-- contains: not assignable
+- type string is not assignable to type `id:${"users" | "posts"}`
 
 ### constrained generic inference keeps const ternary literal unions
 
@@ -898,7 +898,7 @@ let mode = true ? "dev" : "prod";
 choose(mode);
 ```
 
-- contains: not assignable
+- type string is not assignable to type `id:${"users" | "posts"}`
 
 ## object and template interactions
 
@@ -926,7 +926,7 @@ let value = { kind: "a", payload: 1 };
 select(value);
 ```
 
-- contains: not assignable
+- not assignable
 
 ### constrained template inference keeps const span literals
 
@@ -952,4 +952,4 @@ let value = "id:users";
 parse(value);
 ```
 
-- contains: not assignable
+- not assignable

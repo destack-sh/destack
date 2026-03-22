@@ -20,7 +20,7 @@ let value: any = 1;
 { "compiler": { "noAny": true } }
 ```
 
-- contains: any type is disabled
+- any type is disabled
 
 ### noAny allows any usage when false
 
@@ -58,7 +58,7 @@ try {
 { "compiler": { "noAny": true, "useUnknownInCatchVariables": false } }
 ```
 
-- contains: any type is disabled
+- any type is disabled
 
 ## noUnknown
 
@@ -78,7 +78,7 @@ let value: unknown = 1;
 { "compiler": { "noUnknown": true } }
 ```
 
-- contains: unknown type is disabled
+- unknown type is disabled
 
 ### noUnknown reports inferred unknown types
 
@@ -100,7 +100,7 @@ try {
 { "compiler": { "noUnknown": true, "useUnknownInCatchVariables": true } }
 ```
 
-- contains: unknown type is disabled
+- unknown type is disabled
 
 ### noUnknown allows unknown usage when false
 
@@ -136,7 +136,7 @@ let value: number = 1;
 { "compiler": { "noAny": false, "noImprecisePrimitives": true } }
 ```
 
-- contains: imprecise primitive type is disabled
+- imprecise primitive type is disabled
 
 ### noImprecisePrimitives reports inferred number usage
 
@@ -154,7 +154,7 @@ let value = Number(1);
 { "compiler": { "noAny": false, "noImprecisePrimitives": true } }
 ```
 
-- contains: imprecise primitive type is disabled
+- imprecise primitive type is disabled
 
 ### noImprecisePrimitives allows number usage when false
 
@@ -190,7 +190,7 @@ let value: float64 = 1;
 { "compiler": { "noImplicitConversions": true } }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### noImplicitConversions allows implicit conversions when false
 
@@ -229,7 +229,7 @@ const bad: Box = { value: undefined };
 { "compiler": { "exactOptionalPropertyTypes": true, "checkTs": true } }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### exactOptionalPropertyTypes allows explicit undefined when declared
 
@@ -292,7 +292,7 @@ const value: int32 = bag["missing"];
 { "compiler": { "noUncheckedIndexedAccess": true } }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### noUncheckedIndexedAccess allows index access when false
 
@@ -355,7 +355,7 @@ const value = bag.missing;
 { "compiler": { "noPropertyAccessFromIndexSignature": true } }
 ```
 
-- contains: index signature
+- index signature
 
 ### noPropertyAccessFromIndexSignature allows property access
 
@@ -498,7 +498,7 @@ let value: int32 | undefined = record["alpha"];
 { "compiler": { "implicitCollectionConversions": "deny" } }
 ```
 
-- contains: implicit collection conversions are disabled
+- implicit collection conversions are disabled
 
 ### implicitCollectionConversions forbids sized array conversions when deny
 
@@ -519,7 +519,7 @@ let value: int32 | undefined = dynamic[0];
 { "compiler": { "implicitCollectionConversions": "deny" } }
 ```
 
-- contains: implicit collection conversions are disabled
+- implicit collection conversions are disabled
 
 ## noUnsafeTypeAssertions
 
@@ -540,7 +540,7 @@ let cast = value as int32;
 { "compiler": { "noAny": false, "noUnsafeTypeAssertions": true } }
 ```
 
-- contains: unsafe type assertions are disabled
+- unsafe type assertions are disabled
 
 ### noUnsafeTypeAssertions allows safe assertions when true
 
@@ -597,7 +597,7 @@ out;
 { "compiler": { "noMustAssertions": true } }
 ```
 
-- contains: must assertions are disabled
+- must assertions are disabled
 
 ### noMustAssertions allows must assertions when false
 
@@ -638,7 +638,7 @@ class User {
 { "compiler": { "noDefiniteAssignmentAssertions": true } }
 ```
 
-- contains: definite assignment assertions are disabled
+- definite assignment assertions are disabled
 
 ### noDefiniteAssignmentAssertions allows definite assignment when false
 
@@ -676,7 +676,7 @@ declare function isString(value: unknown): value is string;
 { "compiler": { "noCustomTypeGuards": true } }
 ```
 
-- contains: custom type guards are disabled
+- custom type guards are disabled
 
 ### noCustomTypeGuards allows custom type guards when false
 
@@ -716,7 +716,7 @@ let value: Box = new Box();
 { "compiler": { "noImplicitManaged": true } }
 ```
 
-- contains: implicit managed types are disabled
+- implicit managed types are disabled
 
 ## noUnsoundVariance
 
@@ -740,7 +740,7 @@ let animals: Animal[] = dogs;
 { "compiler": { "noUnsoundVariance": true } }
 ```
 
-- contains: unsound variance is disabled
+- unsound variance is disabled
 
 ### noUnsoundVariance allows mutable array covariance when false
 
@@ -785,7 +785,7 @@ if (value instanceof Animal) {
 { "compiler": { "noUnsoundNarrowing": true } }
 ```
 
-- contains: unsound narrowing is disabled
+- unsound narrowing is disabled
 
 ### noUnsoundNarrowing allows guards when false
 
@@ -827,7 +827,7 @@ wrapped[0][0] = 2;
 { "compiler": { "deepReadonly": true } }
 ```
 
-- contains: cannot assign to readonly property
+- cannot assign to readonly property
 
 ### deepReadonly allows shallow readonly when false
 
@@ -862,7 +862,7 @@ let values: int32[] = [1, 2, 3];
 { "compiler": { "noImplicitManaged": true } }
 ```
 
-- contains: implicit managed types are disabled
+- implicit managed types are disabled
 
 ### noImplicitManaged reports implicit managed object types
 
@@ -880,7 +880,7 @@ let value: { x: int32 } = { x: 1 };
 { "compiler": { "noImplicitManaged": true } }
 ```
 
-- contains: implicit managed types are disabled
+- implicit managed types are disabled
 
 ### noImplicitManaged reports implicit managed function types
 
@@ -898,7 +898,7 @@ let fn: () => int32 = () => 1;
 { "compiler": { "noImplicitManaged": true } }
 ```
 
-- contains: implicit managed types are disabled
+- implicit managed types are disabled
 
 ### noImplicitManaged reports implicit managed string types
 
@@ -916,7 +916,7 @@ let value: string = "hello";
 { "compiler": { "noImplicitManaged": true } }
 ```
 
-- contains: implicit managed types are disabled
+- implicit managed types are disabled
 
 ### noImplicitManaged reports inferred managed values
 
@@ -938,7 +938,7 @@ let value = new Box();
 { "compiler": { "noImplicitManaged": true } }
 ```
 
-- contains: implicit managed values are disabled
+- implicit managed values are disabled
 
 ### noImplicitManaged reports inferred managed arrays
 
@@ -956,7 +956,7 @@ let values = [1, 2, 3];
 { "compiler": { "noImplicitManaged": true } }
 ```
 
-- contains: implicit managed values are disabled
+- implicit managed values are disabled
 
 ### noImplicitManaged allows explicit ownership
 

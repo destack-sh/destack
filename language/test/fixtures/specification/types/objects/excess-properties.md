@@ -18,7 +18,7 @@ interface Aged {
 const value: Named | Aged = { name: "Ada", extra: true };
 ```
 
-- contains: excess property
+- excess property
 
 ## intersections
 
@@ -38,7 +38,7 @@ interface Aged {
 const value: Named & Aged = { name: "Ada" };
 ```
 
-- contains: not assignable
+- not assignable
 
 ### intersection accepts combined fields
 
@@ -68,7 +68,7 @@ type Person = { name: string };
 const value: Person = { name: "Ada", extra: true };
 ```
 
-- contains: excess property
+- excess property
 
 ### non-fresh object values allow extra fields through assignment
 
@@ -108,7 +108,7 @@ type Shape =
 const value: Shape = { kind: "a" as const, value: 1, extra: true };
 ```
 
-- contains: not assignable
+- not assignable
 
 ### non-fresh discriminant values allow extra fields
 
@@ -136,7 +136,7 @@ const base = { name: "Ada" };
 const value: Person = { ...base, extra: true };
 ```
 
-- contains: excess property
+- excess property
 
 ### spread-only object literals keep source extras without fresh excess checks
 
@@ -164,7 +164,7 @@ type WeakPoint = {
 const value: WeakPoint = { label: "origin" };
 ```
 
-- contains: has no properties in common
+- has no properties in common
 
 ### weak object targets accept assignments with shared properties
 
@@ -193,7 +193,7 @@ const base = { label: "origin" };
 const value: WeakPoint = { ...base };
 ```
 
-- contains: has no properties in common
+- has no properties in common
 
 ### weak object targets accept spread literals with shared properties
 
@@ -223,7 +223,7 @@ function use(factory: () => Person): Person {
 use(() => ({ name: "Ada", extra: true }));
 ```
 
-- contains: excess property
+- excess property
 
 ### callback-produced values lose freshness outside contextual return positions
 
@@ -256,7 +256,7 @@ import type { PublicShape } from "./index";
 const value: PublicShape = { kind: "a" as const, value: 1, extra: true };
 ```
 
-- contains: excess property
+- excess property
 
 ### spread discriminant literals reject extra fields through renamed re-exports
 
@@ -279,4 +279,4 @@ const base = { kind: "a" as const, value: 1 };
 const value: PublicShape = { ...base, extra: true };
 ```
 
-- contains: excess property
+- excess property

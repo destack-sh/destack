@@ -43,7 +43,7 @@ let value: number = 1;
 value = "no";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### let bindings allow update expressions
 

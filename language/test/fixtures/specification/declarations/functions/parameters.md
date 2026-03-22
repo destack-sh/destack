@@ -43,7 +43,7 @@ repeat("ok");
 repeat(1);
 ```
 
-- contains: is not assignable
+- is not assignable
 
 ### tuple rest parameters infer element types
 
@@ -100,7 +100,7 @@ function sized(comptime value: int32): int32 {
 sized(width);
 ```
 
-- contains: static expression
+- static expression
 
 ### typescript tuple rest destructuring supports nested defaults
 
@@ -114,7 +114,7 @@ function spawnChild(...[src, { syncSnapshot = false } = {} as any]: SpawnArgumen
 }
 ```
 
-- contains: named fields are not allowed in array or tuple patterns
+- named fields are not allowed in array or tuple patterns
 
 
 ## invalid parameter properties
@@ -128,7 +128,7 @@ function build(public value: number) {
 }
 ```
 
-- contains: parameter property
+- parameter property
 
 ## invalid optional parameters
 
@@ -146,7 +146,7 @@ function handle({ value }?: Payload) {
 }
 ```
 
-- contains: optional parameters cannot use binding patterns
+- optional parameters cannot use binding patterns
 
 ### optional rest parameters are rejected in TypeScript
 
@@ -158,7 +158,7 @@ function collect(...items?: string[]) {
 }
 ```
 
-- contains: optional rest parameters are not allowed
+- optional rest parameters are not allowed
 
 ## this parameters
 

@@ -46,7 +46,7 @@ let widen: number = precise;
 let narrow: float64 = value;
 ```
 
-- contains: not assignable
+- type float64 is not assignable to type int32
 
 ### int alias rejects unsigned values
 
@@ -57,7 +57,7 @@ declare const value: uint32;
 let alias: int = value;
 ```
 
-- contains: not assignable
+- type float64 is not assignable to type int32
 
 ### float alias rejects integer-narrow expectations
 
@@ -68,4 +68,4 @@ declare const value: float;
 let alias: int = value;
 ```
 
-- contains: not assignable
+- type float64 is not assignable to type int32

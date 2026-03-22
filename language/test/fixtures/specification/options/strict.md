@@ -22,7 +22,7 @@ function handle(value) {
 { "compiler": { "strict": true } }
 ```
 
-- contains: implicit any type
+- implicit any type
 
 ## noImplicitAny
 
@@ -44,7 +44,7 @@ function handle(value) {
 { "compiler": { "strict": false, "noImplicitAny": true } }
 ```
 
-- contains: implicit any type
+- implicit any type
 
 ### noImplicitAny allows implicit any when false
 
@@ -98,7 +98,7 @@ let value: int32 = null;
 { "compiler": { "strict": true } }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### strict false allows null assignments by default
 
@@ -134,7 +134,7 @@ let value: int32 = null;
 { "compiler": { "strict": false, "strictNullChecks": true } }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### strictNullChecks allows null assignments when false
 
@@ -170,7 +170,7 @@ function counter() {
 { "compiler": { "strict": true } }
 ```
 
-- contains: implicit this type
+- implicit this type
 
 ### strict false allows implicit this by default
 
@@ -210,7 +210,7 @@ function counter() {
 { "compiler": { "strict": false, "noImplicitThis": true } }
 ```
 
-- contains: implicit this type
+- implicit this type
 
 ### noImplicitThis allows implicit this when false
 
@@ -251,7 +251,7 @@ let wide: FnWide = narrow;
 { "compiler": { "strict": true } }
 ```
 
-- contains: not assignable
+- not assignable
 
 ## strictFunctionTypes
 
@@ -276,7 +276,7 @@ let wide: FnWide = narrow;
 { "compiler": { "strict": false, "strictFunctionTypes": true } }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### strictFunctionTypes rejects narrow method parameters when true
 
@@ -302,7 +302,7 @@ let value: Wide = new Narrow();
 { "compiler": { "strict": false, "strictFunctionTypes": true } }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### strictFunctionTypes allows narrow parameter types when false
 
@@ -369,7 +369,7 @@ add.call({ base: "no" }, 1);
 { "compiler": { "strict": true } }
 ```
 
-- contains: not assignable
+- not assignable
 
 ## strictBindCallApply
 
@@ -393,7 +393,7 @@ add.call({ base: "no" }, 1);
 { "compiler": { "strict": false, "strictBindCallApply": true } }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### strictBindCallApply allows invalid call arguments when false
 
@@ -435,7 +435,7 @@ const value: ReturnValue = 1;
 }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### strict enables strictPropertyInitialization by default
 
@@ -455,7 +455,7 @@ class Counter {
 { "compiler": { "strict": true } }
 ```
 
-- contains: property is not definitely assigned
+- property is not definitely assigned
 
 ### strict enables useUnknownInCatchVariables by default
 
@@ -479,7 +479,7 @@ value satisfies int;
 { "compiler": { "strict": true } }
 ```
 
-- contains: expected string
+- expected string
 
 ## useUnknownInCatchVariables
 
@@ -503,7 +503,7 @@ try {
 { "compiler": { "strict": false, "useUnknownInCatchVariables": true } }
 ```
 
-- contains: expected string
+- expected string
 
 ### useUnknownInCatchVariables allows any when false
 
@@ -556,7 +556,7 @@ type ReturnValue = BuiltinIteratorReturn;
 const value: ReturnValue = 1;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### non-strict builtin iterator return is any
 

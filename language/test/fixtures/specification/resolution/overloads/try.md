@@ -110,7 +110,7 @@ function read(): Result<int, Error> {
 }
 ```
 
-- contains: fromError
+- fromError
 
 ### try unwrap rejects types without Try implementations
 
@@ -143,7 +143,7 @@ function read(): Result<int, Error> {
 }
 ```
 
-- contains: no matching overload
+- no matching overload
 
 ### try unwrap rejects invalid TryBranch
 
@@ -176,7 +176,7 @@ function read(): Result<int, Error> {
 }
 ```
 
-- contains: Try.branch must return TryBranch
+- Try.branch must return TryBranch
 
 ### try unwrap rejects wrong branch kinds
 
@@ -209,7 +209,7 @@ function read(): Result<int, Error> {
 }
 ```
 
-- contains: Try.branch must return TryBranch
+- Try.branch must return TryBranch
 
 ### try unwrap preserves nullish success values
 
@@ -272,7 +272,7 @@ function read(): Result<int, Error> {
 }
 ```
 
-- contains: no matching overload
+- no matching overload
 
 ### try unwrap rejects nullish unions
 
@@ -287,7 +287,7 @@ function read(): Result<int, Error> {
 }
 ```
 
-- contains: no matching overload
+- no matching overload
 
 ### try unwrap rejects unions with non Try values
 
@@ -302,7 +302,7 @@ function read(): Result<int, Error> {
 }
 ```
 
-- contains: no matching overload
+- no matching overload
 
 ### try unwrap requires Try return type
 
@@ -317,7 +317,7 @@ function read(): int {
 }
 ```
 
-- contains: try unwrap requires a Try return type
+- try unwrap requires a Try return type
 
 ## Try coalesce
 

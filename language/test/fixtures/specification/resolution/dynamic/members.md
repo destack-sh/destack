@@ -62,7 +62,7 @@ declare function getPerson(): Person;
 getPerson().name;
 ```
 
-- contains: does not exist
+- property 'displayName' does not exist on type { displayName: string } | { id: int32 }
 
 ### union member access fails through nullable aliases
 
@@ -80,7 +80,7 @@ declare function getPerson(): Person;
 getPerson().name;
 ```
 
-- contains: does not exist
+- property 'displayName' does not exist on type { displayName: string } | { id: int32 }
 
 ### union member access preserves optional member types
 
@@ -119,4 +119,4 @@ declare function getPerson(): User | Guest;
 getPerson().profile.displayName;
 ```
 
-- contains: does not exist
+- property 'displayName' does not exist on type { displayName: string } | { id: int32 }

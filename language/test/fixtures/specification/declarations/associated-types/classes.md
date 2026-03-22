@@ -74,7 +74,7 @@ function project<B: Box<string>>(value: B.Wrap): B.Wrap {
 }
 ```
 
-- contains: argument
+- argument
 
 ### class associated type constraint rejects incompatible defaults
 
@@ -88,7 +88,7 @@ class SizedBox {
 }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### class associated type satisfies interface contract
 
@@ -225,7 +225,7 @@ class BadMap implements SizedContainer<int32> {
 }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### class inherited generic associated type projection requires static arguments
 
@@ -250,7 +250,7 @@ function project<B: Buffer<int32>>(value: B.View): B.View {
 }
 ```
 
-- contains: argument
+- argument
 
 ### class inherits interface associated type defaults with static value parameters
 
@@ -318,7 +318,7 @@ function project<B: PairBox<string>>(value: B.Item<int32>): B.Item<int32> {
 }
 ```
 
-- contains: argument
+- argument
 
 ### class inheritance preserves associated type projections
 
@@ -565,7 +565,7 @@ abstract class Base<T> {
 class Derived extends Base<int32> {}
 ```
 
-- contains: missing associated type implementation
+- missing associated type implementation
 
 ### concrete subclasses must implement inherited abstract generic associated types
 
@@ -580,7 +580,7 @@ abstract class Base {
 class Derived extends Base {}
 ```
 
-- contains: missing associated type implementation
+- missing associated type implementation
 
 ### abstract subclasses can defer inherited abstract associated types
 
@@ -656,7 +656,7 @@ const value = new Derived();
 value satisfies Derived;
 ```
 
-- contains: missing associated type implementation
+- missing associated type implementation
 
 ### abstract associated requirements can be deferred across module boundaries
 
@@ -727,7 +727,7 @@ class Box<T> {
 const value = Box.Item;
 ```
 
-- contains: does not exist
+- does not exist
 
 ### class associated type names can coexist with runtime fields
 
@@ -820,7 +820,7 @@ declare const wide: BufferShape<boolean>.Buffer;
 wide satisfies uint8[12];
 ```
 
-- contains: static argument must be a static expression
+- static argument must be a static expression
 
 ### class conditional associated projections resolve across module boundaries
 
@@ -869,4 +869,4 @@ declare const wide: BufferShape<float64>.Buffer;
 wide satisfies uint8[12];
 ```
 
-- contains: static argument must be a static expression
+- static argument must be a static expression

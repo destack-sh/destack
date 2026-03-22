@@ -48,7 +48,7 @@ x satisfies (number | string | boolean)[];
 const x = [1, , 3];
 ```
 
-- contains: array literal holes
+- array literal holes
 
 ## Contextual Arrays
 
@@ -69,7 +69,7 @@ values satisfies number[];
 const values: number[] = [1, "two"];
 ```
 
-- contains: type (number | string)[] is not assignable to type number[]
+- type (number | string)[] is not assignable to type number[]
 
 ### contextual array literal via alias
 
@@ -92,7 +92,7 @@ type Numbers = number[];
 const values: Numbers = [1, "two"];
 ```
 
-- contains: type (number | string)[] is not assignable to type Numbers
+- type (number | string)[] is not assignable to type Numbers
 
 ### contextual array spread literal
 
@@ -111,7 +111,7 @@ values satisfies number[];
 const values: number[] = [...[1, "two"]];
 ```
 
-- contains: type (int32 | string)[] is not assignable to type number[]
+- type (int32 | string)[] is not assignable to type number[]
 
 ## Named Array Types
 

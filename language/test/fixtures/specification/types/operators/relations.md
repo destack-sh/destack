@@ -22,7 +22,7 @@ type IsNumber = int32 extends number;
 const bad: IsNumber = false;
 ```
 
-- contains: not assignable
+- type true is not assignable to type IsNever
 
 ### extends returns false for non assignable types
 
@@ -44,7 +44,7 @@ type IsString = string extends int32;
 const bad: IsString = true;
 ```
 
-- contains: not assignable
+- type true is not assignable to type IsNever
 
 ### implements returns true for compatible types
 
@@ -86,7 +86,7 @@ type IsDrawable = DrawnPoint implements Drawable;
 const bad: IsDrawable = false;
 ```
 
-- contains: not assignable
+- type true is not assignable to type IsNever
 
 ### implements returns false for incompatible types
 
@@ -124,7 +124,7 @@ type IsDrawable = PlainPoint implements Drawable;
 const bad: IsDrawable = true;
 ```
 
-- contains: not assignable
+- type true is not assignable to type IsNever
 
 ### unknown extends returns false
 
@@ -146,7 +146,7 @@ type IsUnknown = unknown extends string;
 const bad: IsUnknown = true;
 ```
 
-- contains: not assignable
+- type true is not assignable to type IsNever
 
 ### unknown accepts all types
 
@@ -178,7 +178,7 @@ type IsNever = never extends string;
 const bad: IsNever = false;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### extends never rejects non-never types
 
@@ -200,4 +200,4 @@ type IsNever = string extends never;
 const bad: IsNever = true;
 ```
 
-- contains: not assignable
+- not assignable

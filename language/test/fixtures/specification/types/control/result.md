@@ -24,7 +24,7 @@ err satisfies Result<int, string>;
 const value: Result<int, string> = Ok { value: 1 };
 ```
 
-- contains: not assignable
+- not assignable
 
 ## narrowing
 

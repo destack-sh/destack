@@ -59,7 +59,7 @@ const node = <A value={1} value={2} />;
 node;
 ```
 
-- contains: duplicate
+- duplicate
 
 ### tree literals support nested children
 

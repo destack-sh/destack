@@ -44,4 +44,4 @@ let value: string = "hello" ?? "fallback";
 let value: number = "hello" ?? 0;
 ```
 
-- contains: not assignable
+- type "hello" is not assignable to type number

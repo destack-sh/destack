@@ -20,7 +20,7 @@ second satisfies int32;
 let [value]: number[];
 ```
 
-- contains: destructuring declarations require initializers
+- destructuring declarations require initializers
 
 ### array patterns cannot use named fields in TypeScript
 
@@ -30,7 +30,7 @@ let [value]: number[];
 let [x: y] = [1, 2];
 ```
 
-- contains: named fields are not allowed in array or tuple patterns
+- named fields are not allowed in array or tuple patterns
 
 ### array patterns bind readonly named identifiers
 
@@ -60,4 +60,4 @@ tail satisfies int32[];
 let [value] = 1;
 ```
 
-- contains: not iterable
+- not iterable

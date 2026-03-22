@@ -20,7 +20,7 @@ function fail(): never {
 }
 ```
 
-- contains: exceptions are disabled
+- exceptions are disabled
 
 ### noExceptions allows try when no throw occurs
 
@@ -84,7 +84,7 @@ const value = try {
 value satisfies int32;
 ```
 
-- contains: exceptions are disabled
+- exceptions are disabled
 
 ### noExceptions forbids throw in catch bodies
 
@@ -108,4 +108,4 @@ const value = try {
 value satisfies int32;
 ```
 
-- contains: exceptions are disabled
+- exceptions are disabled

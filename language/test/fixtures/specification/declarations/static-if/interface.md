@@ -57,7 +57,7 @@ declare const box: Box;
 box.missing satisfies number;
 ```
 
-- contains: does not exist
+- does not exist
 
 ### static if gated interface members are not required by implementors
 
@@ -91,4 +91,4 @@ interface Box {
 class Concrete implements Box {}
 ```
 
-- contains: not assignable
+- type unknown is not assignable to type (): number

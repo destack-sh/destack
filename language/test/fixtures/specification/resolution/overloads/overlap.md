@@ -39,7 +39,7 @@ const selected = pick(1);
 selected satisfies "narrow";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### narrow overloads win when declared before broad overloads
 
@@ -75,7 +75,7 @@ const selected = pick(1);
 selected satisfies "broad";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### generic-first overlap shadows literal overloads
 

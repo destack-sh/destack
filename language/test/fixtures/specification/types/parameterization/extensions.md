@@ -110,7 +110,7 @@ buffer.requireSize([1, 2, 3, 4]);
 buffer.requireSize([1, 2]);
 ```
 
-- contains: not assignable
+- not assignable
 
 ### extension static defaults preserve mapped owner substitutions
 

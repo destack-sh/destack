@@ -26,7 +26,7 @@ struct Point {
 let value: Point = ^Point { x: 1 };
 ```
 
-- contains: not assignable
+- not assignable
 
 ### owned annotations require ownership
 
@@ -40,7 +40,7 @@ struct Point {
 let value: ^Point = Point { x: 1 };
 ```
 
-- contains: not assignable
+- not assignable
 
 ### owned parameters require explicit ownership
 
@@ -59,7 +59,7 @@ let data = Data { value: 1 };
 consume(data);
 ```
 
-- contains: not assignable
+- not assignable
 
 ### owned parameters accept explicit ownership conversion
 
@@ -91,7 +91,7 @@ let data = ^Data { value: 1 };
 let again = ^data;
 ```
 
-- contains: ownership operator requires an unowned value
+- ownership operator requires an unowned value
 
 ### owned fields are allowed in structs
 
@@ -139,7 +139,7 @@ let owned: ^readonly Point = ^readonly Point { x: 1 };
 owned.x = 2;
 ```
 
-- contains: cannot assign
+- cannot assign
 
 ## managed directives
 
@@ -162,7 +162,7 @@ function run(): void {
 { "name": "spec" }
 ```
 
-- contains: managed memory is disabled
+- managed memory is disabled
 
 ### noManaged allows owned values
 
@@ -203,7 +203,7 @@ function run(): void {
 { "name": "spec" }
 ```
 
-- contains: managed memory is disabled
+- managed memory is disabled
 
 ### noManaged rejects managed parameter types
 
@@ -223,7 +223,7 @@ function take(value: Box): void {
 { "name": "spec" }
 ```
 
-- contains: managed memory is disabled
+- managed memory is disabled
 
 ### noManaged rejects managed return types
 
@@ -244,4 +244,4 @@ function make(): Box {
 { "name": "spec" }
 ```
 
-- contains: managed memory is disabled
+- managed memory is disabled

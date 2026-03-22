@@ -28,7 +28,7 @@ const bag = { a: 1, b: "two" };
 bag satisfies Bag;
 ```
 
-- contains: expected Bag
+- expected Bag
 
 ### satisfies preserves literal type for index access
 
@@ -56,7 +56,7 @@ const bag = { a: 1 } satisfies Bag;
 let value = bag["missing"];
 ```
 
-- contains: indexing non-indexable
+- indexing non-indexable
 
 ## number index signatures
 
@@ -112,7 +112,7 @@ const bag: NumberBag = { 1: "one" };
 let value = bag["missing"];
 ```
 
-- contains: indexing non-indexable
+- indexing non-indexable
 
 ## record-like assignability
 
@@ -150,7 +150,7 @@ let mixed: Mixed = { x: 1, y: "two" };
 let bag: Bag = mixed;
 ```
 
-- contains: not assignable
+- not assignable
 
 ## noUncheckedIndexedAccess
 
@@ -175,7 +175,7 @@ let value: int32 = bag["a"];
 { "compiler": { "noUncheckedIndexedAccess": true } }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### noUncheckedIndexedAccess leaves index access unchanged when false
 
@@ -219,7 +219,7 @@ const bag: Bag = { a: 1 }
 let value = bag.missing
 ```
 
-- contains: only available via index signature
+- only available via index signature
 
 ### noPropertyAccessFromIndexSignature allows dot access when false
 

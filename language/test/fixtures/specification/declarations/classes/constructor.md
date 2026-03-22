@@ -22,7 +22,7 @@ class Counter {
 }
 ```
 
-- contains: property is not definitely assigned
+- property is not definitely assigned
 
 ### constructor assigns all fields
 
@@ -106,4 +106,4 @@ class Counter {
 }
 ```
 
-- contains: property is not definitely assigned
+- property is not definitely assigned

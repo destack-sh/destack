@@ -63,7 +63,7 @@ mod.value satisfies number;
 mod.Alias;
 ```
 
-- contains: property 'Alias' does not exist
+- property 'Alias' does not exist
 
 ### namespace import resolves module binding exports
 
@@ -134,7 +134,7 @@ namespace Client {
 class Client {}
 ```
 
-- contains: duplicate identifier
+- duplicate identifier
 
 ### runtime namespace declarations must follow function declarations when merging
 
@@ -148,7 +148,7 @@ namespace Factory {
 function Factory() {}
 ```
 
-- contains: duplicate identifier
+- duplicate identifier
 
 ### type only namespace declarations can merge with class and function declarations
 
@@ -184,7 +184,7 @@ namespace Runtime {
 var Runtime = 1;
 ```
 
-- contains: duplicate identifier
+- duplicate identifier
 
 ### runtime namespace and ambient value declarations conflict
 
@@ -198,7 +198,7 @@ namespace Runtime {
 declare var Runtime: number;
 ```
 
-- contains: duplicate identifier
+- duplicate identifier
 
 ### ambient namespace declarations can coexist with runtime values
 
@@ -242,7 +242,7 @@ declare var Iterator: {
 };
 ```
 
-- contains: duplicate identifier
+- duplicate identifier
 
 ### exported ambient namespace and value declarations can merge
 
@@ -268,7 +268,7 @@ export namespace Tag {
 export const Tag = 1;
 ```
 
-- contains: duplicate export
+- duplicate export
 
 ## declare namespace restrictions
 
@@ -286,9 +286,9 @@ declare namespace Bad {
 }
 ```
 
-- contains: declare bindings cannot have initializers
-- contains: invalid function
-- contains: invalid member modifier
+- declare bindings cannot have initializers
+- invalid function
+- invalid member modifier
 
 ### ambient const initializers are restricted
 
@@ -320,7 +320,7 @@ declare module "env" {
 }
 ```
 
-- contains: const initializers in ambient contexts must be literal values or enum references
+- const initializers in ambient contexts must be literal values or enum references
 
 > Parenthesized literals are not valid ambient const initializers.
 
@@ -330,4 +330,4 @@ declare module "env" {
 }
 ```
 
-- contains: const initializers in ambient contexts must be literal values or enum references
+- const initializers in ambient contexts must be literal values or enum references

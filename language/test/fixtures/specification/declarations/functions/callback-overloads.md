@@ -28,7 +28,7 @@ const result = drive(value => choose(value));
 result satisfies "number";
 ```
 
-- contains: not assignable
+- expected "ready", found string (not assignable)
 
 ### nested callback wrappers preserve contextual parameter typing
 
@@ -63,8 +63,8 @@ drive(input, value => {
 });
 ```
 
-- contains: not assignable
+- expected "ready", found string (not assignable)
 
 ```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true } }
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```

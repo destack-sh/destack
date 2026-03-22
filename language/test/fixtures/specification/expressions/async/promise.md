@@ -28,7 +28,7 @@ async function read(): Promise<string> {
 }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### await distributes over unions
 

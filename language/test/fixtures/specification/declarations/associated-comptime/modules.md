@@ -84,7 +84,7 @@ import { Patch } from "./impl";
 declare const grid: Patch<float32>.Grid;
 ```
 
-- contains: missing associated
+- missing associated
 
 ### unresolved imported generic value projections are rejected
 
@@ -105,7 +105,7 @@ function unresolved<Row>() {
 }
 ```
 
-- contains: resolvable
+- invalid static argument: associated comptime projection must be resolvable
 
 ### unresolved generic projections stay rejected through re-export chains
 
@@ -130,7 +130,7 @@ function unresolved<Row>() {
 }
 ```
 
-- contains: resolvable
+- invalid static argument: associated comptime projection must be resolvable
 
 ### type-only cycles keep associated comptime projections available
 
@@ -199,7 +199,7 @@ function unresolved() {
 }
 ```
 
-- contains: static argument cycle
+- static argument cycle
 
 ### generic recursive projections report static cycles before unresolved projection errors
 
@@ -230,7 +230,7 @@ function unresolved<Row>() {
 }
 ```
 
-- contains: static argument cycle
+- static argument cycle
 
 ### imported owners can specialize tensor-style layout aliases
 
@@ -590,6 +590,6 @@ function unresolved<Row>() {
 }
 ```
 
-- contains: resolvable
+- invalid static argument: associated comptime projection must be resolvable
 
 Cross-module fixed-array disambiguation matrices are owned by `types/operators/indexed-access.md`.

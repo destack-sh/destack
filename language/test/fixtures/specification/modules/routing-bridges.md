@@ -61,7 +61,7 @@ import { Item } from "./index";
 Item;
 ```
 
-- contains: type-only symbol cannot be used as a value
+- type-only symbol cannot be used as a value
 
 ### namespace bridges preserve conditional type rejection on non matches
 
@@ -82,7 +82,7 @@ declare const segment: api.Segment<"users">;
 segment satisfies "users";
 ```
 
-- contains: not assignable
+- not assignable
 
 ```json:destack.json
 { "compiler": { "allowTs": true, "checkTs": true } }

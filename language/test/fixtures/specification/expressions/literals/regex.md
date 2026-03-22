@@ -20,7 +20,7 @@ let value: string = /abc/;
 let value: number = /abc/;
 ```
 
-- contains: not assignable
+- type /abc/ is not assignable to type boolean
 
 ### regex literals expose string members
 
@@ -49,4 +49,4 @@ value satisfies string | int32;
 let value: boolean = /abc/;
 ```
 
-- contains: not assignable
+- type /abc/ is not assignable to type boolean

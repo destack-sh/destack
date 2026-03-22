@@ -29,7 +29,7 @@ value satisfies int32;
 let (x: y) = (1, 2);
 ```
 
-- contains: named fields are not allowed in array or tuple patterns
+- named fields are not allowed in array or tuple patterns
 
 ### tuple patterns reject arity mismatch
 
@@ -39,7 +39,7 @@ let (x: y) = (1, 2);
 let (left, right, extra) = (1, 2);
 ```
 
-- contains: not assignable
+- not assignable
 
 ### tuple patterns support nested destructuring
 

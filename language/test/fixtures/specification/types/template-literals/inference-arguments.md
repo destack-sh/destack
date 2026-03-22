@@ -37,7 +37,7 @@ let result = take(value);
 let bad: "a" = result;
 ```
 
-- contains: not assignable to type "a"
+- not assignable to type "a"
 
 ### template literal infers constrained spans from call arguments
 
@@ -60,7 +60,7 @@ declare function take<T extends "a" | "b">(value: `prefix-${T}`): T;
 let bad = take("prefix-c");
 ```
 
-- contains: type "prefix-c" is not assignable to type `prefix-${"a" | "b"}`
+- type "prefix-c" is not assignable to type `prefix-${"a" | "b"}`
 
 ### template literal infers from template literal parameters
 
@@ -86,7 +86,7 @@ let result = takeAny(value);
 let bad: "a" = result;
 ```
 
-- contains: not assignable to type "a"
+- not assignable to type "a"
 
 ### template literal infers empty span with literal boundary
 
@@ -152,7 +152,7 @@ let value = "id:users";
 parse(value);
 ```
 
-- contains: not assignable to type `id:${string}`
+- not assignable to type `id:${string}`
 
 ### imported generic `${T}` parser keeps const scalar precision
 
@@ -197,7 +197,7 @@ let value = "id:users";
 parse(value);
 ```
 
-- contains: not assignable to type `id:${string}`
+- not assignable to type `id:${string}`
 
 ### template literal argument inference accepts widened let scalar inputs for `${T}`
 
@@ -282,7 +282,7 @@ let value = "id:users";
 parse(value);
 ```
 
-- contains: not assignable to type `id:${string}`
+- not assignable to type `id:${string}`
 
 ### namespace import generic `${T}` parser keeps const scalar precision
 
@@ -327,7 +327,7 @@ let value = true ? "id:users" : "id:posts";
 parse(value);
 ```
 
-- contains: not assignable to type `id:${string}`
+- not assignable to type `id:${string}`
 
 ### renamed re-export generic `${T}` parser keeps const precision
 
@@ -412,4 +412,4 @@ let config = { id: "id:users" };
 parse(config.id);
 ```
 
-- contains: not assignable to type `id:${string}`
+- not assignable to type `id:${string}`

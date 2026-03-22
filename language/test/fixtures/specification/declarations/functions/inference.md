@@ -34,7 +34,7 @@ add satisfies (a: number, b: number) => number;
 const add: (a: number, b: number) => number = (a, b) => "hi"
 ```
 
-- contains: type "hi" is not assignable to type number
+- type "hi" is not assignable to type number
 
 ### contextual lambda from argument
 
@@ -58,7 +58,7 @@ function apply(transform: (value: number) => number) {
 apply((value) => "hi")
 ```
 
-- contains: type "hi" is not assignable to type number
+- type "hi" is not assignable to type number
 
 ### contextual object argument
 
@@ -82,7 +82,7 @@ function use_point(point: { x: number, y: number }) {
 use_point({ x: 1, y: "hi" })
 ```
 
-- contains: type { x: number, y: "hi" } is not assignable to type { x: number, y: number }
+- type { x: number, y: "hi" } is not assignable to type { x: number, y: number }
 
 ### contextual tuple argument
 
@@ -106,7 +106,7 @@ function sum(pair: (number, number)) {
 sum((1, "hi"))
 ```
 
-- contains: type (number, "hi") is not assignable to type (number, number)
+- type (number, "hi") is not assignable to type (number, number)
 
 ### contextual array argument
 
@@ -130,7 +130,7 @@ function total(values: number[]) {
 total([1, "hi"])
 ```
 
-- contains: type (number | "hi")[] is not assignable to type number[]
+- type (number | "hi")[] is not assignable to type number[]
 
 ## this-less object literal context sensitivity
 
@@ -174,7 +174,7 @@ callIt({
 { "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
-- contains: unknown
+- unknown
 
 ## this-less contextual inference torture
 
@@ -220,7 +220,7 @@ build({
 { "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
-- contains: unknown
+- unknown
 
 ### this-less arrow callbacks preserve inference through renamed re-exports
 
@@ -305,7 +305,7 @@ head satisfies 1;
 { "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### generic callback inference stays precise through renamed re-exports
 
@@ -369,7 +369,7 @@ withValue("ready", read => read().toFixed());
 { "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
-- contains: tofixed
+- tofixed
 
 ### nested this-less arrows remain order-insensitive in contextual object inference
 
@@ -416,4 +416,4 @@ wire({
 { "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
-- contains: unknown
+- unknown

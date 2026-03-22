@@ -32,7 +32,7 @@ const x: string = fail()
 const x: never = 1;
 ```
 
-- contains: not assignable
+- type "ok" is not assignable to type Value
 
 ### string to never is rejected
 
@@ -42,7 +42,7 @@ const x: never = 1;
 const x: never = "no";
 ```
 
-- contains: not assignable
+- type "ok" is not assignable to type Value
 
 ### union with never simplifies to the other member
 
@@ -65,4 +65,4 @@ type Value = never & string;
 const x: Value = "ok";
 ```
 
-- contains: not assignable
+- type "ok" is not assignable to type Value

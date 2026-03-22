@@ -46,7 +46,7 @@ const value = Status.Missing;
 value satisfies Status;
 ```
 
-- contains: does not exist
+- does not exist
 
 ### static if gated enum members do not affect remaining members
 

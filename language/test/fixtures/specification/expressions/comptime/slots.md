@@ -65,4 +65,4 @@ function runtime_width(): int32 {
 const width = comptime runtime_width();
 ```
 
-- contains: static expression
+- static expression

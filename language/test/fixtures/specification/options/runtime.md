@@ -24,7 +24,7 @@ export const value = 1;
 { "compiler": { "noDynamicImport": true } }
 ```
 
-- contains: dynamic imports are disabled
+- dynamic imports are disabled
 
 ### noDynamicImport allows dynamic imports when false
 
@@ -64,7 +64,7 @@ import "platform:fs";
 { "compiler": { "noInternalImport": true } }
 ```
 
-- contains: internal module import
+- internal module import
 
 ### noInternalImport allows internal protocol imports when false
 
@@ -98,7 +98,7 @@ import "platform:fs";
 { "compiler": { "noInternalImport": "warn" } }
 ```
 
-- warning: contains: internal module import
+- warning: internal module import
 
 ## noDynamicEvaluation
 
@@ -118,7 +118,7 @@ eval("1");
 { "compiler": { "noAny": false, "noDynamicEvaluation": true } }
 ```
 
-- contains: dynamic evaluation is disabled
+- dynamic evaluation is disabled
 
 ### noDynamicEvaluation allows eval when false
 
@@ -152,7 +152,7 @@ let value = Function(["return 1"]);
 { "compiler": { "noAny": false, "noDynamicEvaluation": true } }
 ```
 
-- contains: dynamic evaluation is disabled
+- dynamic evaluation is disabled
 
 ### noDynamicEvaluation allows Function when false
 
@@ -190,7 +190,7 @@ let proxy = new Proxy(target, handler);
 { "compiler": { "noAny": false, "noProxy": true } }
 ```
 
-- contains: proxy usage is disabled
+- proxy usage is disabled
 
 ### noProxy allows Proxy usage when false
 
@@ -230,7 +230,7 @@ Object.defineProperty(target, "x", descriptor);
 { "compiler": { "noAny": false, "noDynamicShapes": true } }
 ```
 
-- contains: dynamic shape mutation is disabled
+- dynamic shape mutation is disabled
 
 ### noDynamicShapes allows shape mutation when false
 
@@ -267,7 +267,7 @@ delete target.value;
 { "compiler": { "noDynamicShapes": true } }
 ```
 
-- contains: dynamic shape mutation is disabled
+- dynamic shape mutation is disabled
 
 ### noDynamicShapes allows delete when false
 
@@ -308,7 +308,7 @@ let value = new Box();
 { "compiler": { "noManaged": true } }
 ```
 
-- contains: managed memory is disabled
+- managed memory is disabled
 
 ### noManaged allows explicit ownership annotations
 
@@ -350,7 +350,7 @@ async function run(): int32 {
 { "compiler": { "noRuntime": true } }
 ```
 
-- contains: runtime features are disabled
+- runtime features are disabled
 
 ### noRuntime reports await when true
 
@@ -369,7 +369,7 @@ const value = await promise;
 { "compiler": { "noAny": false, "noRuntime": true } }
 ```
 
-- contains: runtime features are disabled
+- runtime features are disabled
 
 ### noRuntime reports yield when true
 
@@ -390,7 +390,7 @@ function* generator(): int32 {
 { "compiler": { "noRuntime": true } }
 ```
 
-- contains: runtime features are disabled
+- runtime features are disabled
 
 ### noRuntime allows async functions when false
 
@@ -466,7 +466,7 @@ function boom(): void {
 { "compiler": { "noExceptions": true } }
 ```
 
-- contains: exceptions are disabled
+- exceptions are disabled
 
 ### noExceptions reports try catch when true
 
@@ -488,7 +488,7 @@ try {
 { "compiler": { "noExceptions": true } }
 ```
 
-- contains: exceptions are disabled
+- exceptions are disabled
 
 ### noExceptions allows try catch when false
 
@@ -530,7 +530,7 @@ let out = target[key];
 { "compiler": { "noComputedPropertyAccess": true } }
 ```
 
-- contains: computed property access is disabled
+- computed property access is disabled
 
 ### noComputedPropertyAccess allows computed access when false
 
@@ -570,7 +570,7 @@ let same = left == right;
 { "compiler": { "noReferentialEquality": true } }
 ```
 
-- contains: referential equality is disabled
+- referential equality is disabled
 
 ### noReferentialEquality reports strict equality when true
 
@@ -590,7 +590,7 @@ let same = left === right;
 { "compiler": { "noReferentialEquality": true } }
 ```
 
-- contains: referential equality is disabled
+- referential equality is disabled
 
 ### noReferentialEquality reports strict inequality when true
 
@@ -610,7 +610,7 @@ let same = left !== right;
 { "compiler": { "noReferentialEquality": true } }
 ```
 
-- contains: referential equality is disabled
+- referential equality is disabled
 
 ### noReferentialEquality allows object equality when false
 
@@ -695,7 +695,7 @@ pet.speak();
 { "compiler": { "noImplicitDynamicDispatch": true } }
 ```
 
-- contains: implicit dynamic dispatch is disabled
+- implicit dynamic dispatch is disabled
 
 ### noImplicitDynamicDispatch allows union dispatch when false
 
@@ -750,7 +750,7 @@ let value = globalThis;
 { "compiler": { "noGlobalThis": true } }
 ```
 
-- contains: globalThis access is disabled
+- globalThis access is disabled
 
 ### noGlobalThis allows globalThis access when false
 
