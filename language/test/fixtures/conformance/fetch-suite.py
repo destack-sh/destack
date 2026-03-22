@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
 import sys
 import subprocess
 from pathlib import Path
@@ -36,10 +35,35 @@ def load_fetch_entries(suite_directory: Path) -> list[dict]:
     return entries
 
 
+def discover_suite_directories(path: Path) -> list[Path]:
+    """Discover suite directories from one suite or domain path."""
+
+    suite_path = path / SUITE_JSON_FILE_NAME
+    if suite_path.is_file():
+        return [path]
+
+    suite_directories = sorted(
+        suite_path.parent for suite_path in path.rglob(SUITE_JSON_FILE_NAME)
+    )
+    if suite_directories:
+        return suite_directories
+
+    raise FileNotFoundError(f"no suite.json found under {path}")
+
+
 def resolve_relative_path(base: Path, value: str) -> Path:
     """Resolve one relative path against one base directory."""
 
     return (base / value).resolve()
+
+
+def fetch_source_entries(suite_directory: Path) -> None:
+    """Fetch the source entries for one suite through the shared shell helper."""
+
+    helper = resolve_relative_path(suite_directory, "../../fetch-origin.sh")
+    result = subprocess.run([str(helper), str(suite_directory)], check=False)
+    if result.returncode != 0:
+        raise SystemExit(result.returncode)
 
 
 def ensure_test_path(test_directory: Path, value: str) -> Path:
@@ -50,30 +74,6 @@ def ensure_test_path(test_directory: Path, value: str) -> Path:
         raise ValueError(f"test path escapes the suite: {value}")
 
     return path
-
-
-def materialize_source_entry(entry: dict, suite_directory: Path, test_directory: Path) -> None:
-    """Copy one source entry into the suite test directory."""
-
-    source_root_value = entry.get("root")
-    if not isinstance(source_root_value, str) or not source_root_value:
-        raise ValueError("source entries must define a non-empty root")
-
-    source_root = resolve_relative_path(suite_directory, source_root_value)
-
-    for file_entry in entry.get("files", []):
-        source_value = file_entry.get("source")
-        target_value = file_entry.get("target", source_value)
-        if not isinstance(source_value, str) or not source_value:
-            raise ValueError("source file entries must define a non-empty source path")
-        if not isinstance(target_value, str) or not target_value:
-            raise ValueError("source file entries must define a non-empty target path")
-
-        source_path = resolve_relative_path(source_root, source_value)
-        target_path = ensure_test_path(test_directory, target_value)
-
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source_path, target_path)
 
 
 def validate_local_entry(entry: dict, test_directory: Path) -> None:
@@ -98,22 +98,23 @@ def validate_local_entry(entry: dict, test_directory: Path) -> None:
 def fetch_suite(suite_directory: Path) -> None:
     """Fetch one suite from its suite metadata."""
 
-    test_directory = suite_directory / "tests"
     fetch_entries = load_fetch_entries(suite_directory)
+    if not fetch_entries:
+        return
 
-    test_directory.mkdir(parents=True, exist_ok=True)
+    test_directory = suite_directory / "tests"
+    if any(entry.get("kind") == "source" for entry in fetch_entries):
+        fetch_source_entries(suite_directory)
+    else:
+        test_directory.mkdir(parents=True, exist_ok=True)
 
     for entry in fetch_entries:
         entry_kind = entry.get("kind")
         if entry_kind not in VALID_ENTRY_KINDS:
             raise ValueError(f"unsupported entry kind: {entry_kind}")
 
-        # copy imported source files into the checked in test tree
-        if entry_kind == "source":
-            materialize_source_entry(entry, suite_directory, test_directory)
-
         # validate locally translated or manual tests
-        else:
+        if entry_kind != "source":
             validate_local_entry(entry, test_directory)
 
 
@@ -148,7 +149,7 @@ def main(argv: list[str]) -> int:
     """Run the suite materializer."""
 
     argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument("suite_directory")
+    argument_parser.add_argument("paths", nargs="+")
     argument_parser.add_argument(
         "--diff",
         action="store_true",
@@ -156,11 +157,15 @@ def main(argv: list[str]) -> int:
     )
     arguments = argument_parser.parse_args(argv[1:])
 
-    suite_directory = Path(arguments.suite_directory).resolve()
-    fetch_suite(suite_directory)
+    for path_value in arguments.paths:
+        path = Path(path_value).resolve()
+        suite_directories = discover_suite_directories(path)
 
-    if arguments.diff:
-        print_translation_diffs(suite_directory)
+        for suite_directory in suite_directories:
+            fetch_suite(suite_directory)
+
+            if arguments.diff:
+                print_translation_diffs(suite_directory)
 
     return 0
 

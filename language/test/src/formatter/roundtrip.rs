@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::harness::{TestCase, TestResult, check_diagnostics};
+use crate::core::{Case, CaseResult, check_diagnostics};
 use destack_ast::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
 use destack_formatter::{
@@ -16,7 +16,7 @@ use destack_workspace::{FormatterOptions, LinterOptions, Program};
 /// Run a single formatter roundtrip test.
 ///
 /// Verifies that formatting a well-formatted file produces identical output.
-pub(super) fn run(test: &TestCase) -> TestResult {
+pub(super) fn run(test: &Case) -> CaseResult {
     let cwd = test.path.parent().unwrap().to_path_buf();
     let files = Arc::new(FileRegistry::new());
     let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
@@ -32,7 +32,7 @@ pub(super) fn run(test: &TestCase) -> TestResult {
     let original = match std::fs::read_to_string(&test.path) {
         Ok(content) => content,
         Err(e) => {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!("failed to read file: {e}"),
             };
         }
@@ -41,7 +41,7 @@ pub(super) fn run(test: &TestCase) -> TestResult {
     // create file
     let uri = Uri::from_path(&test.path);
     let Some(file_type) = FileType::from_path(&test.path) else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("unsupported roundtrip file type: {}", test.path.display()),
         };
     };
@@ -82,10 +82,10 @@ pub(super) fn run(test: &TestCase) -> TestResult {
     );
 
     if formatted == original {
-        TestResult::Passed
+        CaseResult::Passed
     } else {
         print_diff(&original, &formatted, &DiffOptions::new());
-        TestResult::Failed {
+        CaseResult::Failed {
             message: "formatted output differs from original".to_string(),
         }
     }

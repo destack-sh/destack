@@ -1,4 +1,5 @@
 {
+  "$schema": "../../schema/status.schema.json",
   "entries": [
     {
       "patterns": [
@@ -11,7 +12,9 @@
       "note": "unsupported legacy `with` statement syntax"
     },
     {
-      "pattern": "js/import-assertions/**",
+      "patterns": [
+        "js/import-assertions/**"
+      ],
       "status": "ignore",
       "reason": "legacy",
       "note": "unsupported legacy import `assert { ... }` attributes syntax"
@@ -32,7 +35,9 @@
       "note": "oxc / prettier-conformance snapshot mismatches (oxfmt behavior is preferred)"
     },
     {
-      "pattern": "typescript/union/consistent-with-flow/single-type.ts",
+      "patterns": [
+        "typescript/union/consistent-with-flow/single-type.ts"
+      ],
       "status": "ignore",
       "reason": "snapshot",
       "note": "oxc currently rewrites single-type union leading comment placement across passes"

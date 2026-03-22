@@ -10,7 +10,7 @@ use super::{StatusSet, status_json_path_for_dir};
 pub const SUITE_JSON_FILE_NAME: &str = "suite.json";
 
 /// One conformance domain.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ConformanceDomain {
     /// The ECMA compatibility domain.
@@ -42,7 +42,7 @@ impl fmt::Display for ConformanceDomain {
 }
 
 /// One conformance capability.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ConformanceCapability {
     /// The parsing capability.
@@ -83,7 +83,7 @@ impl fmt::Display for ConformanceCapability {
 }
 
 /// One conformance environment.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ConformanceEnvironment {
     /// A hostless environment.
@@ -133,7 +133,7 @@ impl fmt::Display for ConformanceEnvironment {
 }
 
 /// One origin kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum OriginKind {
     /// A git backed origin.
@@ -156,7 +156,7 @@ impl fmt::Display for OriginKind {
 }
 
 /// Origin source metadata for one suite.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct OriginMetadata {
     /// The origin transport kind.
     pub kind: OriginKind,
@@ -183,7 +183,7 @@ impl OriginMetadata {
 }
 
 /// One fetch entry kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum FetchEntryKind {
     /// One fetched source entry.
@@ -195,7 +195,7 @@ pub enum FetchEntryKind {
 }
 
 /// One fetch file entry.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct FetchFileEntry {
     /// The source-relative path for one fetched file.
     #[serde(default)]
@@ -209,7 +209,7 @@ pub struct FetchFileEntry {
 }
 
 /// One fetch entry in one suite manifest.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct FetchEntry {
     /// The fetch entry kind.
     pub kind: FetchEntryKind,
@@ -234,7 +234,7 @@ pub struct FetchEntry {
 }
 
 /// One fetch manifest embedded in one suite file.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct FetchMetadata {
     /// The fetch entries for one suite.
     #[serde(default)]
@@ -242,7 +242,7 @@ pub struct FetchMetadata {
 }
 
 /// One conformance suite metadata file.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct SuiteMetadata {
     /// The stable suite identifier.
     pub id: String,

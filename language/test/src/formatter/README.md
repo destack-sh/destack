@@ -28,7 +28,7 @@ cargo test --release --test formatter -- spacing     # tests matching "spacing"
 cargo test --release --test formatter -- roundtrip   # only roundtrip tests
 cargo test --release --test formatter -- transform   # only transform tests
 cargo test --release --test formatter -- smoke       # only smoke tests
-just test-formatter-conformance    # external suite conformance harness
+just test-conformance-formatter    # external suite conformance harness
 ```
 
 ## Fixture Sync

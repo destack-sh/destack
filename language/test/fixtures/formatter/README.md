@@ -39,8 +39,8 @@ When `expected.*` is missing, the test runs idempotence only, and requires `fmt(
 
 ## External Conformance Suites (`conformance/staging/**`)
 
-External corpora fetched from Biome, Prettier, and oxfmt live under `conformance/staging/`.
-These are used by the dedicated `formatter-conformance` test binary and not by `--test formatter`.
+External corpora fetched from Biome, Prettier, and oxfmt live under `conformance/staging/` for formatter local utilities.
+The dedicated `conformance-formatter` test binary uses the separate shared conformance fixture tree.
 
 ## Running Tests
 
@@ -53,7 +53,7 @@ just test-formatter
 To fetch upstream formatter conformance sources:
 
 ```bash
-just install-formatter-conformance
+just install-conformance-formatter
 ```
 
 To run a specific test:

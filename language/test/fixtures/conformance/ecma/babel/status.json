@@ -1,4 +1,5 @@
 {
+  "$schema": "../../schema/status.schema.json",
   "entries": [
     {
       "patterns": [
@@ -33,7 +34,9 @@
       "note": "the \"with\" object shape in imports is a typing concern, not a separate error (in theory we could also validate this in the tests but seems annoying, we have separate tests)"
     },
     {
-      "pattern": "typescript/exponentiation/await-non-null-before-exponential",
+      "patterns": [
+        "typescript/exponentiation/await-non-null-before-exponential"
+      ],
       "status": "ignore",
       "reason": "typing",
       "note": "operator restrictions are enforced via type checking (not \"early\" syntax)"
@@ -47,19 +50,25 @@
       "reason": "typing"
     },
     {
-      "pattern": "typescript/module-namespace/*-declare-new-line",
+      "patterns": [
+        "typescript/module-namespace/*-declare-new-line"
+      ],
       "status": "ignore",
       "reason": "permissive",
       "note": "allow namespace declarations without `declare` prefix (we're a bit more permissive)"
     },
     {
-      "pattern": "jsx/errors/*sequence-expression",
+      "patterns": [
+        "jsx/errors/*sequence-expression"
+      ],
       "status": "ignore",
       "reason": "permissive",
       "note": "babel-specific JSX restrictions (we allow sequence expressions in JSX containers)"
     },
     {
-      "pattern": "typescript/arrow-function/arrow-like-in-conditional-2",
+      "patterns": [
+        "typescript/arrow-function/arrow-like-in-conditional-2"
+      ],
       "status": "ignore",
       "reason": "permissive",
       "note": "babel rejects arrow functions in ternary branches without parentheses"

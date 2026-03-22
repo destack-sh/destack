@@ -1,4 +1,5 @@
 {
+  "$schema": "../../schema/suite.schema.json",
   "id": "formatter.oxfmt",
   "domain": "formatter",
   "suite": "oxfmt",

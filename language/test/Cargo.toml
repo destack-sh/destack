@@ -23,6 +23,10 @@ path = "src/conformance/bin/translation_diff.rs"
 name = "refresh_conformance_translation_metadata"
 path = "src/conformance/bin/refresh_translation_metadata.rs"
 
+[[bin]]
+name = "update_conformance_schema"
+path = "src/conformance/bin/update_schema.rs"
+
 [[test]]
 name = "smoke"
 path = "src/smoke/main.rs"
@@ -39,8 +43,8 @@ path = "src/formatter/main.rs"
 harness = false
 
 [[test]]
-name = "formatter-conformance"
-path = "src/formatter/conformance/main.rs"
+name = "conformance-formatter"
+path = "src/conformance/formatter/main.rs"
 harness = false
 
 [[test]]
@@ -59,8 +63,8 @@ path = "src/lsp/main.rs"
 harness = false
 
 [[test]]
-name = "parser-conformance"
-path = "src/parser/conformance/main.rs"
+name = "conformance-ecma"
+path = "src/conformance/ecma/main.rs"
 harness = false
 
 [[test]]
@@ -112,6 +116,7 @@ pulldown-cmark = { workspace = true }
 rayon = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+schemars = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "sync", "time"] }
 toml = { workspace = true }
 tracing = { workspace = true }

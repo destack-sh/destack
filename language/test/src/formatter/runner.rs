@@ -2,13 +2,12 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use crate::harness::{
-    RunContext, Runner, Suite, TestCase, TestOptions, TestResult, discover_test_files,
-    fixtures_dir, save_expected_failures,
+use crate::core::{
+    Case, CaseResult, MarkdownSuiteIndex, RunContext, RunOptions, Runner, Suite,
+    discover_file_cases, discover_markdown_suite, expected_failures_view, fixtures_dir,
+    update_failure_baseline,
 };
-use crate::mdtest::{
-    MdTestCase, discover_md_files, load_mdtest_expected_failures, parse_mdtest_file, slug,
-};
+use crate::mdtest::MdTestCase;
 
 use super::{roundtrip, smoke, transform};
 
@@ -17,45 +16,55 @@ use super::{roundtrip, smoke, transform};
 pub struct FormatterSuite {
     mdtests: HashMap<String, MdTestCase>,
     smoke: HashMap<String, smoke::FormatterSmokeCase>,
-    cases: Vec<TestCase>,
+    cases: Vec<Case>,
     expected_failures: HashSet<String>,
     expected_failures_path: PathBuf,
 }
 
 impl FormatterSuite {
     /// Load all formatter tests from the fixtures/formatter directory.
-    pub fn load() -> Self {
+    pub fn load() -> Result<Self, String> {
         let fixtures = fixtures_dir();
-        let mut suite = Self::default();
         let formatter_dir = fixtures.join("formatter");
+        let MarkdownSuiteIndex {
+            cases,
+            entries,
+            expected_failures,
+            expected_failures_path,
+        } = discover_markdown_suite(&formatter_dir, "destack_test::formatter::transform", Some)?;
+        let mut suite = Self {
+            mdtests: entries,
+            smoke: HashMap::new(),
+            cases,
+            expected_failures,
+            expected_failures_path,
+        };
 
-        suite.discover_roundtrip_tests(&formatter_dir);
-        suite.discover_mdtest_tests(&formatter_dir);
+        suite.discover_roundtrip_tests(&formatter_dir)?;
         suite.discover_smoke_tests(&formatter_dir);
-        suite.expected_failures = load_mdtest_expected_failures(&formatter_dir);
-        suite.expected_failures_path = formatter_dir.join("known-failures.txt");
 
-        suite
+        Ok(suite)
     }
 
-    fn discover_roundtrip_tests(&mut self, base_dir: &Path) {
+    fn discover_roundtrip_tests(&mut self, base_dir: &Path) -> Result<(), String> {
         let roundtrip_dir = base_dir.join("roundtrip");
-        let roundtrip_tests = discover_test_files(
+        let roundtrip_tests = discover_file_cases(
             &roundtrip_dir,
             &["ds", ".d.ds", "js", "jsx", "ts", "tsx", ".d.ts"],
             "destack_test::formatter::roundtrip",
         )
-        .unwrap_or_default();
+        .map_err(|error| {
+            format!(
+                "failed to discover formatter roundtrip fixtures in {}: {error}",
+                roundtrip_dir.display()
+            )
+        })?;
 
         for test in roundtrip_tests {
             self.cases.push(test);
         }
-    }
 
-    fn discover_mdtest_tests(&mut self, base_dir: &Path) {
-        for md_path in discover_md_files(base_dir).unwrap_or_default() {
-            self.add_mdtest_file(base_dir, &md_path);
-        }
+        Ok(())
     }
 
     fn discover_smoke_tests(&mut self, base_dir: &Path) {
@@ -65,35 +74,6 @@ impl FormatterSuite {
             self.cases.push(test);
         }
     }
-
-    fn add_mdtest_file(&mut self, base_dir: &Path, md_path: &Path) {
-        let cases = match parse_mdtest_file(md_path) {
-            Ok(cases) => cases,
-            Err(error) => {
-                panic!("failed to parse {}: {error}", md_path.display());
-            }
-        };
-
-        let relative_path = md_path.strip_prefix(base_dir).unwrap_or(md_path);
-        let relative_name = relative_path.to_string_lossy();
-
-        for case in cases {
-            let name = format!(
-                "{relative_name}/{}/{}",
-                slug(&case.section),
-                slug(&case.name)
-            );
-            let test_case = TestCase::file(
-                name,
-                md_path.to_path_buf(),
-                "destack_test::formatter::transform",
-            )
-            .with_skipped(case.skip);
-
-            self.mdtests.insert(test_case.full_name(), case);
-            self.cases.push(test_case);
-        }
-    }
 }
 
 impl Suite for FormatterSuite {
@@ -101,11 +81,11 @@ impl Suite for FormatterSuite {
         "formatter"
     }
 
-    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+    fn discover(&self, _options: &RunOptions) -> Vec<Case> {
         self.cases.clone()
     }
 
-    fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
+    fn run(&self, case: &Case, _context: &RunContext<'_>) -> CaseResult {
         if let Some(md_test) = self.mdtests.get(&case.full_name()) {
             transform::run(md_test)
         } else if let Some(smoke_case) = self.smoke.get(&case.full_name()) {
@@ -115,48 +95,43 @@ impl Suite for FormatterSuite {
         }
     }
 
-    fn expected_failures(&self, _options: &TestOptions) -> Option<&HashSet<String>> {
-        if self.expected_failures.is_empty() {
-            None
-        } else {
-            Some(&self.expected_failures)
-        }
+    fn expected_failures(&self, _options: &RunOptions) -> Option<&HashSet<String>> {
+        expected_failures_view(&self.expected_failures)
     }
 
     fn timeout(&self) -> Option<Duration> {
         Some(Duration::from_secs(10))
     }
 
-    fn report(&self, results: &[(TestCase, TestResult)], context: &RunContext<'_>) {
+    fn report(&self, results: &[(Case, CaseResult)], context: &RunContext<'_>) {
         if !context.options.update_known_failures {
             return;
         }
 
-        let mut failures = HashSet::new();
-        for (case, result) in results {
-            if result.is_failed() {
-                failures.insert(case.full_name());
+        let failure_count = match update_failure_baseline(&self.expected_failures_path, results) {
+            Ok(failure_count) => failure_count,
+            Err(error) => {
+                eprintln!("{error}");
+                return;
             }
-        }
-
-        if let Err(error) = save_expected_failures(&self.expected_failures_path, &failures) {
-            eprintln!(
-                "failed to update {}: {error}",
-                self.expected_failures_path.display()
-            );
-            return;
-        }
+        };
 
         println!(
             "  {} updated with {} failures",
             self.expected_failures_path.display(),
-            failures.len()
+            failure_count
         );
     }
 }
 
 /// Run all formatter tests.
-pub fn run_formatter_tests(options: &TestOptions) -> std::process::ExitCode {
-    let suite = FormatterSuite::load();
-    Runner::run_suite(&suite, options)
+pub fn run_formatter_tests(options: &RunOptions) -> std::process::ExitCode {
+    let suite = match FormatterSuite::load() {
+        Ok(suite) => suite,
+        Err(error) => {
+            eprintln!("{error}");
+            return std::process::ExitCode::FAILURE;
+        }
+    };
+    Runner::run_suite(suite, options)
 }
