@@ -1,6 +1,6 @@
 use crate::tests::TestProgram;
 use destack_dir as dir;
-use destack_workspace::OutputFormat;
+use destack_workspace::EmitFormat;
 use dir::{Expression, Resolution};
 
 #[test]
@@ -315,7 +315,7 @@ function greet(pet): string {
 fn test_reify_dynamic_method_call_casts_per_static_branch() {
     // dynamic call branches reify argument casts per selected signature
     let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_output(OutputFormat::Native)
+        .with_profile_emit(EmitFormat::Native)
         .with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",
@@ -367,7 +367,7 @@ function speakVolume(pet, amount): int32 {
 fn test_reify_dynamic_operator_call_on_union() {
     // dynamic operator calls on unions should split into static branches
     let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_output(OutputFormat::Native)
+        .with_profile_emit(EmitFormat::Native)
         .with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",

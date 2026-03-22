@@ -751,7 +751,7 @@ impl Compiler {
     /// Describe one active target profile for protocol diagnostics.
     fn protocol_runtime_support_description(&self, profile: ProfileId) -> String {
         let key = self.program.profile(profile).key.clone();
-        format!("{:?}/{:?}/{:?}", key.runtime, key.output, key.platform)
+        format!("{:?}/{:?}/{:?}", key.runtime, key.emit, key.platform)
     }
 
     /// Report one internal module import diagnostic when policy requires it.

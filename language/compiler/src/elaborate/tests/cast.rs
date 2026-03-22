@@ -1,11 +1,11 @@
 use crate::tests::TestProgram;
-use destack_workspace::OutputFormat;
+use destack_workspace::EmitFormat;
 
 #[test]
 fn test_reify_implicit_cast_in_binding() {
     // binding casts are inserted for mismatched types
     let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_output(OutputFormat::Native)
+        .with_profile_emit(EmitFormat::Native)
         .with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",
@@ -41,7 +41,7 @@ function test(): float64 {
 fn test_reify_implicit_cast_in_assignment() {
     // assignment casts are inserted for mismatched types
     let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_output(OutputFormat::Native)
+        .with_profile_emit(EmitFormat::Native)
         .with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",
@@ -79,7 +79,7 @@ function test(): float64 {
 fn test_reify_implicit_cast_in_return() {
     // return casts are inserted for declared return types
     let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_output(OutputFormat::Native)
+        .with_profile_emit(EmitFormat::Native)
         .with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",
@@ -113,7 +113,7 @@ function test(): float64 {
 fn test_reify_implicit_cast_in_call_argument() {
     // call arguments are cast to parameter types
     let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_output(OutputFormat::Native)
+        .with_profile_emit(EmitFormat::Native)
         .with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",
@@ -155,7 +155,7 @@ function test(): float64 {
 fn test_reify_implicit_cast_in_ternary() {
     // ternary branches cast to the expression type
     let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_output(OutputFormat::Native)
+        .with_profile_emit(EmitFormat::Native)
         .with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",
@@ -197,7 +197,7 @@ function test(condition): float64 {
 fn test_reify_implicit_cast_in_match_expression() {
     // match case expressions cast to the match expression type
     let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_output(OutputFormat::Native)
+        .with_profile_emit(EmitFormat::Native)
         .with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",
@@ -241,7 +241,7 @@ function test(condition): float64 {
 fn test_reify_implicit_cast_in_match_block() {
     // match case blocks cast their trailing expressions
     let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_output(OutputFormat::Native)
+        .with_profile_emit(EmitFormat::Native)
         .with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",
@@ -293,7 +293,7 @@ function test(condition): float64 {
 fn test_reify_implicit_cast_in_binary_comparison() {
     // comparison expressions cast numeric literals for alignment
     let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_output(OutputFormat::Native)
+        .with_profile_emit(EmitFormat::Native)
         .with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",
@@ -319,7 +319,7 @@ function test(value): boolean {
 fn test_reify_implicit_cast_in_binary_arithmetic() {
     // arithmetic expressions do not cast numeric literals
     let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_output(OutputFormat::Native)
+        .with_profile_emit(EmitFormat::Native)
         .with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",
@@ -1374,7 +1374,7 @@ function test(): Foo {
 fn test_reify_record_like_object_literal_in_binding() {
     // record like bindings reify object literals into map construction
     let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_output(OutputFormat::Native)
+        .with_profile_emit(EmitFormat::Native)
         .with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",
@@ -1406,7 +1406,7 @@ function build(): Record<string, int32> {
 fn test_reify_record_like_object_literal_in_assignment() {
     // record like assignments reify object literals into map construction
     let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_output(OutputFormat::Native)
+        .with_profile_emit(EmitFormat::Native)
         .with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",
@@ -1440,7 +1440,7 @@ function build(): Record<string, int32> {
 fn test_reify_record_like_object_literal_in_return() {
     // record like returns reify object literals into map construction
     let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_output(OutputFormat::Native)
+        .with_profile_emit(EmitFormat::Native)
         .with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",
@@ -1470,7 +1470,7 @@ function build(): Record<string, int32> {
 fn test_reify_record_like_object_literal_in_call_argument() {
     // record like arguments reify object literals into map construction
     let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_output(OutputFormat::Native)
+        .with_profile_emit(EmitFormat::Native)
         .with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",
@@ -1508,7 +1508,7 @@ function test(): void {
 fn test_reify_record_like_object_literal_explicit_cast() {
     // record like explicit casts reify object literals into map construction
     let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_output(OutputFormat::Native)
+        .with_profile_emit(EmitFormat::Native)
         .with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",
@@ -1538,7 +1538,7 @@ function build(): Record<string, int32> {
 fn test_reify_record_like_object_literal_skips_plain_assignment() {
     // non-record assignments keep object literals
     let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_output(OutputFormat::Native)
+        .with_profile_emit(EmitFormat::Native)
         .with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",
@@ -1572,7 +1572,7 @@ function buildPlain(): { beta: int32 } {
 fn test_reify_array_sized_value_in_binding() {
     // sized arrays reify into dynamic arrays in bindings
     let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_output(OutputFormat::Native)
+        .with_profile_emit(EmitFormat::Native)
         .with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",
@@ -1604,7 +1604,7 @@ function build(values): int32[] {
 fn test_reify_array_sized_value_in_return() {
     // sized arrays reify into dynamic arrays in returns
     let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_output(OutputFormat::Native)
+        .with_profile_emit(EmitFormat::Native)
         .with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",
@@ -1634,7 +1634,7 @@ function build(values): int32[] {
 fn test_reify_array_sized_value_in_call_argument() {
     // sized arrays reify into dynamic arrays in call arguments
     let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_output(OutputFormat::Native)
+        .with_profile_emit(EmitFormat::Native)
         .with_profile_libs(&["native"]);
     let module_id = test.add_module(
         "test.ds",

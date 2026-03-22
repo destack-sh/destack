@@ -1,6 +1,6 @@
 use destack_builtin::LanguageSymbol;
 use destack_dir as dir;
-use destack_workspace::OutputFormat;
+use destack_workspace::EmitFormat;
 use dir::{
     Argument, BinaryOperator, Declarator, Expression, IfCondition, IfKind, LocalNodeId, Mutability,
     NodeType, Property, ScopeKind, SymbolBinding, SymbolKind, SymbolSpace, SymbolType, Type,
@@ -632,8 +632,8 @@ impl Compiler {
 
     /// Return true when the profile should keep nullish syntax as-is.
     fn profile_keeps_nullish_coalesce(&self, state: &ElaborateState<'_>) -> bool {
-        let output = self.program.profile(state.ctx.profile).key.output;
-        matches!(output, OutputFormat::Js | OutputFormat::Ts)
+        let emit = self.program.profile(state.ctx.profile).key.emit;
+        matches!(emit, EmitFormat::Js | EmitFormat::Ts | EmitFormat::Html)
     }
 
     /// Build the shared synthetic binding and nullish condition for one left operand.

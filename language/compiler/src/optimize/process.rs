@@ -5,8 +5,8 @@ use std::str::FromStr;
 
 use destack_source::{ModuleId, ModuleVersion, PackageId, ProfileVersion};
 use destack_workspace::{
-    ArtifactKey, DebugMode, MirOptimized, Module, OptimizeLevel as WorkspaceOptimizeLevel,
-    OutputFormat, ProfileId, Target, TargetArch, TargetId,
+    ArtifactKey, DebugMode, EmitFormat, MirOptimized, Module,
+    OptimizeLevel as WorkspaceOptimizeLevel, ProfileId, Target, TargetArch, TargetId,
 };
 use target_lexicon::Triple;
 
@@ -320,9 +320,9 @@ impl Compiler {
         }
 
         // fall back to output defaults
-        let bits = match target.output {
-            OutputFormat::Wasm => 32,
-            OutputFormat::Native => (mem::size_of::<usize>() * 8) as u16,
+        let bits = match target.emit {
+            EmitFormat::Wasm => 32,
+            EmitFormat::Native => (mem::size_of::<usize>() * 8) as u16,
             _ => (mem::size_of::<usize>() * 8) as u16,
         };
 

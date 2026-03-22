@@ -49,9 +49,9 @@ We still read `tsconfig.json` and `package.json` where needed for compatibility,
         "preset": "recommended"
     },
     "targets": {
-        "web": { "output": "js", "platform": "browser" },
+        "web": { "emit": "js", "platform": "browser" },
         "iosApp": {
-            "output": "native",
+            "emit": "native",
             "platform": "ios",
             "app": {
                 "identity": {
@@ -99,7 +99,7 @@ We still read `tsconfig.json` and `package.json` where needed for compatibility,
             }
         },
         "macosApp": {
-            "output": "native",
+            "emit": "native",
             "platform": "macos",
             "app": {
                 "identity": {
@@ -143,7 +143,7 @@ We still read `tsconfig.json` and `package.json` where needed for compatibility,
             }
         },
         "androidApp": {
-            "output": "native",
+            "emit": "native",
             "platform": "android",
             "app": {
                 "identity": {
@@ -226,12 +226,12 @@ Session
     },
     "targets": {
         "web": {
-            "output": "js",
+            "emit": "js",
             "runtime": "browser",
             "platform": "browser"
         },
         "api": {
-            "output": "js",
+            "emit": "js",
             "runtime": "node"
         }
     },

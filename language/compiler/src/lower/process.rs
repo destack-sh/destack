@@ -6,7 +6,7 @@ use crate::{ArtifactRequirementError, Compiler, LowerError, LowerResult, ModuleL
 
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{
-    ArtifactKey, MirBase, OutputFormat, ProfileId, Target, TargetArch, TargetId,
+    ArtifactKey, EmitFormat, MirBase, ProfileId, Target, TargetArch, TargetId,
 };
 use target_lexicon::Triple;
 
@@ -245,9 +245,9 @@ impl Compiler {
         }
 
         // fall back to output defaults
-        let pointer_bytes = match target.output {
-            OutputFormat::Wasm => 4,
-            OutputFormat::Native => mem::size_of::<usize>() as u8,
+        let pointer_bytes = match target.emit {
+            EmitFormat::Wasm => 4,
+            EmitFormat::Native => mem::size_of::<usize>() as u8,
             _ => mem::size_of::<usize>() as u8,
         };
 
