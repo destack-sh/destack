@@ -1,12 +1,9 @@
-use std::sync::Arc;
+use destack_compiler::{BuildKey, Compiler, CompilerOptions};
+use destack_workspace::ArtifactKey;
 
-use destack_compiler::{Compiler, CompilerOptions};
-use destack_source::{FileSystem, MemoryFileSystem};
-use destack_workspace::{ArtifactKey, MemoryCacheStore, Session};
-
-use crate::harness::{
-    RunContext, Runner, Suite, TestCase, TestOptions, TestResult, check_diagnostics,
-    discover_test_files, fixtures_dir,
+use crate::core::{
+    Case, CaseResult, RunContext, RunOptions, Runner, SharedMemoryWorkspace, Suite,
+    check_diagnostics, discover_file_cases, fixtures_dir,
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -17,29 +14,29 @@ impl Suite for CompilerSmokeSuite {
         "smoke-compiler"
     }
 
-    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+    fn discover(&self, _options: &RunOptions) -> Vec<Case> {
         let smoke_directory = fixtures_dir().join("smoke").join("compiler");
-        discover_test_files(&smoke_directory, &["ds"], "destack_test::smoke::compiler")
+        discover_file_cases(&smoke_directory, &["ds"], "destack_test::smoke::compiler")
             .expect("failed to discover tests")
     }
 
-    fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
+    fn run(&self, case: &Case, _context: &RunContext<'_>) -> CaseResult {
         run_compiler_case(case)
     }
 }
 
 /// Run all compiler smoke tests.
-pub fn run_compiler_smoke_tests(options: &TestOptions) -> std::process::ExitCode {
-    Runner::run_suite(&CompilerSmokeSuite, options)
+pub fn run_compiler_smoke_tests(options: &RunOptions) -> std::process::ExitCode {
+    Runner::run_suite(CompilerSmokeSuite, options)
 }
 
 /// Run a single compiler smoke test.
-fn run_compiler_case(test: &TestCase) -> TestResult {
+fn run_compiler_case(test: &Case) -> CaseResult {
     // read file content from disk
     let content = match std::fs::read_to_string(&test.path) {
         Ok(content) => content,
         Err(e) => {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!("failed to read file: {e}"),
             };
         }
@@ -47,16 +44,12 @@ fn run_compiler_case(test: &TestCase) -> TestResult {
 
     // set up session and program with memory filesystem containing the test file
     let cwd = test.path.parent().unwrap().to_path_buf();
-    let memory_fs = Arc::new(MemoryFileSystem::new());
+    let workspace = SharedMemoryWorkspace::new(cwd.clone());
+    let memory_fs = workspace.fs();
     memory_fs
         .add_file(&test.path, content.as_bytes())
         .expect("failed to add test file to memory fs");
-    let fs: Arc<dyn FileSystem> = memory_fs;
-    let session = Arc::new(
-        Session::new(cwd.clone())
-            .with_fs(fs)
-            .with_cache_store(Arc::new(MemoryCacheStore::new())),
-    );
+    let session = workspace.session();
     let program = session.add_root(cwd);
 
     // compile the file
@@ -71,16 +64,16 @@ fn run_compiler_case(test: &TestCase) -> TestResult {
     let module_id = match compiler.resolve_path_to_module(&test.path) {
         Ok(id) => id,
         Err(e) => {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!("failed to resolve module: {e:?}"),
             };
         }
     };
     let profile = program.default_profile_id_for_module(module_id);
-    compiler.enqueue(ArtifactKey::DirAnalyzed {
+    compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
         module: module_id,
         profile,
-    });
+    }));
     compiler.compile();
     drop(compiler);
 

@@ -2,7 +2,7 @@ use std::process::ExitCode;
 
 use clap::Parser;
 
-use destack_test::harness::{Runner, TestOptions};
+use destack_test::core::{RunOptions, Runner};
 use destack_test::smoke::{CompilerSmokeSuite, ParserSmokeSuite};
 
 /// CLI options for the `smoke` test binary.
@@ -19,7 +19,7 @@ struct SmokeOptions {
 
     /// Common test options.
     #[command(flatten)]
-    test: TestOptions,
+    test: RunOptions,
 }
 
 fn main() -> ExitCode {
@@ -33,13 +33,13 @@ fn main() -> ExitCode {
     // actually run the tests
     let mut any_failed = false;
     if run_parser {
-        let result = Runner::run_suite(&ParserSmokeSuite, &options.test);
+        let result = Runner::run_suite(ParserSmokeSuite, &options.test);
         if result != ExitCode::SUCCESS {
             any_failed = true;
         }
     }
     if run_compiler {
-        let result = Runner::run_suite(&CompilerSmokeSuite, &options.test);
+        let result = Runner::run_suite(CompilerSmokeSuite, &options.test);
         if result != ExitCode::SUCCESS {
             any_failed = true;
         }
