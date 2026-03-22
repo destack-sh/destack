@@ -78,6 +78,7 @@ impl CompilerScenarioRun {
     where
         F: FnMut(usize, &Self) -> T,
     {
+        // run the same action sequentially
         let mut results = Vec::with_capacity(repeats);
         for repeat in 0..repeats {
             results.push(action(repeat, self));
@@ -92,6 +93,7 @@ impl CompilerScenarioRun {
         T: Send,
         F: Fn(usize, Self) -> T + Sync,
     {
+        // spawn one scoped task per worker
         thread::scope(|scope| {
             let mut tasks = Vec::with_capacity(parallelism);
 
@@ -101,6 +103,7 @@ impl CompilerScenarioRun {
                 tasks.push(scope.spawn(move || action(worker, run)));
             }
 
+            // join the worker results in submission order
             tasks
                 .into_iter()
                 .map(|task| {
@@ -128,6 +131,7 @@ impl CompilerScenarioWorkspace {
         T: Send,
         F: Fn(usize, CompilerScenarioRun) -> T + Sync,
     {
+        // spawn one fresh scenario run per worker
         thread::scope(|scope| {
             let mut tasks = Vec::with_capacity(parallelism);
 
@@ -139,6 +143,7 @@ impl CompilerScenarioWorkspace {
                 }));
             }
 
+            // join the worker results in submission order
             tasks
                 .into_iter()
                 .map(|task| {

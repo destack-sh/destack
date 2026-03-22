@@ -181,6 +181,7 @@ impl CompilerScenarioWorkspace {
     where
         F: FnOnce(&mut CompilerOptions),
     {
+        // build the session and workspace view
         let root_path = self.root_path().to_path_buf();
         let workspace = self.workspace();
         let mut session = Session::workspace(root_path.clone(), Arc::new(workspace));
@@ -190,6 +191,7 @@ impl CompilerScenarioWorkspace {
             session = session.with_cache_store(Arc::new(MemoryCacheStore::new()));
         }
 
+        // build the live program and compiler
         let session = Arc::new(session);
         let program = session.add_root(root_path.clone());
         let (inject_prelude, load_libraries) = match self.scenario.language_surface {
@@ -283,6 +285,7 @@ impl CompilerScenarioRun {
 
     /// Apply one edit to the live program and physical workspace.
     pub(crate) fn apply_edit(&self, edit: &CompilerEdit) {
+        // resolve the absolute workspace path first
         let absolute_path = match edit {
             CompilerEdit::ReplaceFile { path, .. } => self.path_for(path),
         };
@@ -295,6 +298,7 @@ impl CompilerScenarioRun {
             return;
         };
 
+        // propagate the updated file contents into the live program
         match edit {
             CompilerEdit::ReplaceFile { content, .. } => {
                 self.program
@@ -313,6 +317,7 @@ impl CompilerScenarioRun {
 
     /// Apply one edit script to the live program and physical workspace.
     pub(crate) fn apply_script(&self, script: &CompilerEditScript) {
+        // replay edits in order
         for edit in script.iter() {
             self.apply_edit(edit);
         }
@@ -380,7 +385,10 @@ impl ScenarioModule {
 
     /// Require the prepared DIR for this module.
     pub(crate) fn require_dir_prepared(&self) {
+        // resolve the ambient profile once
         let profile_id = self.profile_id();
+
+        // build the prepared dir to completion
         self.run
             .compiler
             .run_to_completion(|compiler| compiler.require_dir_prepared(self.module_id, profile_id))
@@ -389,7 +397,10 @@ impl ScenarioModule {
 
     /// Require the resolved DIR for this module.
     pub(crate) fn require_dir_resolved(&self) {
+        // resolve the ambient profile once
         let profile_id = self.profile_id();
+
+        // build the resolved dir to completion
         self.run
             .compiler
             .run_to_completion(|compiler| compiler.require_dir_resolved(self.module_id, profile_id))
@@ -425,6 +436,7 @@ impl ScenarioModule {
 
     /// Load the persisted AST image for this module when available.
     pub(crate) fn load_ast_image(&self) -> Option<Ast> {
+        // derive the persisted ast identity inputs
         let module = self.run.program.modules.get(self.module_id);
         let language_type = match module.loader {
             destack_workspace::Loader::Destack
@@ -458,6 +470,7 @@ impl ScenarioModule {
         }
         let file = self.run.program.files.get(file_id);
 
+        // probe the persisted image through the compiler cache path
         self.run
             .compiler
             .load_ast_image(
@@ -478,6 +491,7 @@ impl ScenarioModule {
 
 /// Parse one workspace config file.
 pub(crate) fn parse_workspace_config(config_path: &Path, config_content: &str) -> Destack {
+    // parse the config file through the normal source pipeline
     let file = File::from_text_as_jsonc(
         FileId::new(1),
         "destack.json".to_string(),
@@ -496,6 +510,7 @@ pub(crate) fn parse_workspace_config(config_path: &Path, config_content: &str) -
 pub(crate) fn build_disk_cache_compiler(
     root: &TemporaryPhysicalFileSystem,
 ) -> (Arc<Session>, Arc<Program>, Compiler, PathBuf) {
+    // resolve the fixed workspace paths
     let root_path = root.root().to_path_buf();
     let config_path = root.path_for("destack.json");
     let config_content = DEFAULT_DISK_CACHE_CONFIG;
@@ -518,6 +533,8 @@ pub(crate) fn build_disk_cache_compiler(
     let workspace = Workspace::single_package(root_path.clone()).with_config(config);
     let session = Arc::new(Session::workspace(root_path.clone(), Arc::new(workspace)));
     let program = session.add_root(root_path.clone());
+
+    // build the compiler with normal disk cache behavior
     let compiler = Compiler::new(
         session.clone(),
         program.clone(),
@@ -534,6 +551,7 @@ pub(crate) fn build_disk_cache_compiler(
 pub(crate) fn build_memory_cache_compiler(
     root: &TemporaryPhysicalFileSystem,
 ) -> (Arc<Session>, Arc<Program>, Compiler, PathBuf) {
+    // resolve the fixed workspace paths
     let root_path = root.root().to_path_buf();
     let package_manifest_path = root.path_for("package.json");
     let source_path = root.path_for("main.ts");
@@ -553,6 +571,8 @@ pub(crate) fn build_memory_cache_compiler(
             .with_cache_store(Arc::new(MemoryCacheStore::new())),
     );
     let program = session.add_root(root_path.clone());
+
+    // build the compiler over the in memory cache backend
     let compiler = Compiler::new(
         session.clone(),
         program.clone(),
