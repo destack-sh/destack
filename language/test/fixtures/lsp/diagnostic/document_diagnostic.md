@@ -104,13 +104,19 @@ export const value = 1;
 
 ### Marker windows locate one diagnostic
 
-Document diagnostics should line up with the marker window around the expected error span.
+Document diagnostics should identify the exact parse error span.
 
 ```ds:main.ds
 const value = /*error_start*//*error_before*/;/*error_after*//*error_end*/
 ```
 
-```lsp diagnostic_marker_windows error_start error_end [0]
+```lsp document_diagnostic main.ds [0]
+file=main.ds
+range=0:14-0:15
+severity=error
+code=EP001
+source=destack
+message=parse error: unexpected ; in Expression
 ```
 
 ## Document diagnostics

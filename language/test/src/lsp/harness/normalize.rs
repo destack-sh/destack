@@ -18,6 +18,22 @@ pub struct NormalizedLocation {
     pub end_character: usize,
 }
 
+impl NormalizedLocation {
+    /// Return whether this location fully contains another location.
+    pub fn contains(&self, other: &Self) -> bool {
+        if self.file_path != other.file_path {
+            return false;
+        }
+
+        let starts_before =
+            (self.start_line, self.start_character) <= (other.start_line, other.start_character);
+        let ends_after =
+            (self.end_line, self.end_character) >= (other.end_line, other.end_character);
+
+        starts_before && ends_after
+    }
+}
+
 /// One normalized diagnostic result for exact assertions.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NormalizedDiagnostic {
@@ -586,19 +602,33 @@ pub fn normalize_quick_info(
     let contents = normalized_hover.contents;
 
     let signature_prefix = "**Signature**\n\n```destack\n";
-    let documentation_prefix = "\n```\n\n**Documentation**\n\n";
-    let location_prefix = "\n\n**Location**\n\n`";
     let signature_tail = contents
         .strip_prefix(signature_prefix)
         .ok_or_else(|| format!("quick info is missing signature prefix\ncontents: {contents}"))?;
+    let (signature, tail) = signature_tail.split_once("\n```").ok_or_else(|| {
+        format!("quick info is missing closing signature fence\ncontents: {contents}")
+    })?;
+    let tail = tail.strip_prefix("\n").unwrap_or(tail);
+
+    // drop optional type detail because quick info tracks the signature payload
+    let tail = if let Some(type_tail) = tail.strip_prefix("\n**Type**\n\n```destack\n") {
+        let (_, type_tail) = type_tail.split_once("\n```").ok_or_else(|| {
+            format!("quick info type section is missing closing fence\ncontents: {contents}")
+        })?;
+        type_tail.strip_prefix("\n").unwrap_or(type_tail)
+    } else {
+        tail
+    };
 
     // split the normalized markdown into the signature body and optional documentation
-    if let Some((signature, tail)) = signature_tail.split_once(documentation_prefix) {
-        let (documentation, _) = tail.split_once(location_prefix).ok_or_else(|| {
-            format!(
-                "quick info with documentation is missing location suffix\ncontents: {contents}"
-            )
-        })?;
+    if let Some(documentation_tail) = tail.strip_prefix("\n**Documentation**\n\n") {
+        let documentation = if let Some((documentation, _)) =
+            documentation_tail.split_once("\n\n**Location**\n\n`")
+        {
+            documentation
+        } else {
+            documentation_tail
+        };
 
         return Ok(NormalizedQuickInfo {
             text: signature.to_string(),
@@ -606,15 +636,8 @@ pub fn normalize_quick_info(
         });
     }
 
-    let (signature, _) = signature_tail
-        .split_once(location_prefix)
-        .ok_or_else(|| format!("quick info is missing location suffix\ncontents: {contents}"))?;
-
     Ok(NormalizedQuickInfo {
-        text: signature
-            .strip_suffix("\n```")
-            .unwrap_or(signature)
-            .to_string(),
+        text: signature.to_string(),
         documentation: None,
     })
 }

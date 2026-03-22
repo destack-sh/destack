@@ -69,7 +69,7 @@ fn expected_document_symbols(
             .iter()
             .enumerate()
             .filter(|(parent_index, parent)| {
-                *parent_index != index && range_contains(&parent.range, &entries[index].range)
+                *parent_index != index && parent.range.contains(&entries[index].range)
             })
             .count();
         entries[index].depth = depth;
@@ -188,18 +188,4 @@ fn symbol_name_for_marker(fixture: &LspFixture, marker: &Marker) -> Result<Strin
     }
 
     Ok(tail.chars().take(width).collect())
-}
-
-/// Return whether one normalized range is fully contained inside another.
-fn range_contains(parent: &NormalizedLocation, child: &NormalizedLocation) -> bool {
-    if parent.file_path != child.file_path {
-        return false;
-    }
-
-    let starts_before =
-        (parent.start_line, parent.start_character) <= (child.start_line, child.start_character);
-    let ends_after =
-        (parent.end_line, parent.end_character) >= (child.end_line, child.end_character);
-
-    starts_before && ends_after
 }

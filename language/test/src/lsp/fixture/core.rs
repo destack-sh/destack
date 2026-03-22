@@ -140,8 +140,6 @@ pub enum LspStepCase {
         marker_name: String,
         snapshot_text: String,
     },
-    /// Verify that quick info exists for one marker at this step.
-    QuickInfoExists { marker_name: String },
     /// Verify exact quick info for one marker at this step.
     QuickInfo { marker_name: String },
     /// Verify exact indentation at one marker at this step.
@@ -241,11 +239,6 @@ pub enum LspStepCase {
     TypeHierarchySubtypes {
         marker_name: String,
         snapshot_text: String,
-    },
-    /// Verify exact error window helpers against one diagnostic span.
-    DiagnosticMarkerWindows {
-        start_marker_name: String,
-        end_marker_name: String,
     },
     /// Verify that one file has no diagnostics at this step.
     NoErrors { file_path: String },

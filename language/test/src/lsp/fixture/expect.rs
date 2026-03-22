@@ -332,19 +332,15 @@ pub fn parse_expected_code_actions(source: &str) -> Result<Vec<ExpectedCodeActio
         .filter(|entry| !entry.is_empty())
     {
         let parts = entry.split('|').map(str::trim).collect::<Vec<_>>();
-        if !(3..=4).contains(&parts.len()) || parts[..3].iter().any(|part| part.is_empty()) {
-            return Err("expected code_action line as title|kind|preferred|hasEdit?".to_string());
+        if parts.len() != 4 || parts.iter().any(|part| part.is_empty()) {
+            return Err("expected code_action line as title|kind|preferred|hasEdit".to_string());
         }
 
         actions.push(ExpectedCodeAction {
             title: parts[0].to_string(),
             kind: parts[1].to_string(),
             is_preferred: parse_bool(parts[2], "code action preferred")?,
-            has_edit: parts
-                .get(3)
-                .map(|value| parse_bool(value, "code action hasEdit"))
-                .transpose()?
-                .unwrap_or(true),
+            has_edit: parse_bool(parts[3], "code action hasEdit")?,
         });
     }
 
@@ -437,16 +433,14 @@ pub fn parse_expected_inlay_hints(source: &str) -> Result<Vec<NormalizedInlayHin
         let position = record.take_required("inlay hint", "position")?;
         let label = record.take_required("inlay hint", "label")?;
         let kind = record.take_optional("inlay hint", "kind")?;
-        let padding_left = record
-            .take_optional("inlay hint", "padding_left")?
-            .map(|value| parse_bool(&value, "inlay hint padding_left"))
-            .transpose()?
-            .unwrap_or(false);
-        let padding_right = record
-            .take_optional("inlay hint", "padding_right")?
-            .map(|value| parse_bool(&value, "inlay hint padding_right"))
-            .transpose()?
-            .unwrap_or(false);
+        let padding_left = parse_bool(
+            &record.take_required("inlay hint", "padding_left")?,
+            "inlay hint padding_left",
+        )?;
+        let padding_right = parse_bool(
+            &record.take_required("inlay hint", "padding_right")?,
+            "inlay hint padding_right",
+        )?;
         record.finish("inlay hint")?;
 
         let (line, character) = parse_snapshot_position(&position)?;
