@@ -225,9 +225,9 @@ pub struct ExpectedDiagnosticConfig {
     pub phase: EcosystemPhase,
     /// The expected diagnostic code.
     pub code: String,
-    /// A file path fragment to match.
+    /// The exact normalized package relative file path to match.
     pub file: String,
-    /// A message fragment to match.
+    /// The exact diagnostic message to match.
     pub message: String,
 }
 
@@ -358,18 +358,26 @@ impl EcosystemManifest {
     }
 
     /// Discover all manifest files in a directory.
-    pub fn discover_all(dir: &Path) -> Vec<PathBuf> {
+    pub fn discover_all(dir: &Path) -> Result<Vec<PathBuf>, String> {
         let mut manifests = Vec::new();
-        if let Ok(entries) = std::fs::read_dir(dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.extension().is_some_and(|ext| ext == "toml") {
-                    manifests.push(path);
-                }
+
+        let entries = std::fs::read_dir(dir)
+            .map_err(|error| format!("failed to read {}: {error}", dir.display()))?;
+        for entry in entries {
+            let entry = entry.map_err(|error| {
+                format!("failed to read one entry under {}: {error}", dir.display())
+            })?;
+            let path = entry.path();
+            if path
+                .extension()
+                .is_some_and(|extension| extension == "toml")
+            {
+                manifests.push(path);
             }
         }
+
         manifests.sort();
-        manifests
+        Ok(manifests)
     }
 
     /// Return expected diagnostics for one phase.

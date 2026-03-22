@@ -5,7 +5,7 @@ use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
-use crate::harness::fixtures_dir;
+use crate::core::fixtures_dir;
 
 use crate::ecosystem::manifest::{EcosystemManifest, EcosystemPhase};
 use crate::ecosystem::runner::FetchOptions;
@@ -598,7 +598,13 @@ pub(super) fn fetch_all_packages(options: FetchOptions) -> ExitCode {
     let checkouts_dir = ecosystem_dir.join("checkouts");
     let patches_dir = ecosystem_dir.join("patches");
 
-    let manifest_paths = EcosystemManifest::discover_all(&packages_dir);
+    let manifest_paths = match EcosystemManifest::discover_all(&packages_dir) {
+        Ok(manifest_paths) => manifest_paths,
+        Err(error) => {
+            eprintln!("  error: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
     println!("fetching {} packages...", manifest_paths.len());
 
     // load all manifests first: this allows stale checkout pruning

@@ -26,11 +26,3 @@ cargo test -p destack_test --test ecosystem
 cargo test -p destack_test --test ecosystem -- --phase parse
 cargo test -p destack_test --test ecosystem -- --all-phases
 ```
-
-## Notes
-
-Checkouts are intentionally mutable and may be refreshed with fetch commands.
-Patch overlays are stamped and re-applied only when patch content changes.
-Compiler phase entrypoints prefer package manifest entry fields before falling back to source sampling.
-Known failures are skipped by default, so use `--include-known-failures` to force execution and print diagnostics.
-Resolve and analyze phases can also run a TypeScript TSC (`tsgo` or `tsc`) to compare Destack failures against upstream compiler behavior.
