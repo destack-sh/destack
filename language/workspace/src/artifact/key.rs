@@ -310,6 +310,83 @@ impl ArtifactKey {
             | Self::PackageOutput { .. } => None,
         }
     }
+
+    /// Convert this live artifact key into one stable persisted image key.
+    pub fn image_key_with(
+        &self,
+        profile_key_for_id: impl Fn(ProfileId) -> ProfileKey,
+    ) -> ArtifactImageKey {
+        match self {
+            Self::ModuleGraph { profile } => ArtifactImageKey::ModuleGraph {
+                profile: profile_key_for_id(*profile),
+            },
+            Self::LanguageEnvironment { profile } => ArtifactImageKey::LanguageEnvironment {
+                profile: profile_key_for_id(*profile),
+            },
+            Self::IntrinsicEnvironment { profile } => ArtifactImageKey::IntrinsicEnvironment {
+                profile: profile_key_for_id(*profile),
+            },
+            Self::LibraryEnvironment { profile } => ArtifactImageKey::LibraryEnvironment {
+                profile: profile_key_for_id(*profile),
+            },
+            Self::Ast { module } => ArtifactImageKey::Ast { module: *module },
+            Self::DirBase { module } => ArtifactImageKey::DirBase { module: *module },
+            Self::DirPrepared { module, profile } => ArtifactImageKey::DirPrepared {
+                module: *module,
+                profile: profile_key_for_id(*profile),
+            },
+            Self::DirResolved { module, profile } => ArtifactImageKey::DirResolved {
+                module: *module,
+                profile: profile_key_for_id(*profile),
+            },
+            Self::DirDeclared { module, profile } => ArtifactImageKey::DirDeclared {
+                module: *module,
+                profile: profile_key_for_id(*profile),
+            },
+            Self::DirInterface { module, profile } => ArtifactImageKey::DirInterface {
+                module: *module,
+                profile: profile_key_for_id(*profile),
+            },
+            Self::DirAnalyzed { module, profile } => ArtifactImageKey::DirAnalyzed {
+                module: *module,
+                profile: profile_key_for_id(*profile),
+            },
+            Self::DirElaborated { module, profile } => ArtifactImageKey::DirElaborated {
+                module: *module,
+                profile: profile_key_for_id(*profile),
+            },
+            Self::DirPatched { module, profile } => ArtifactImageKey::DirPatched {
+                module: *module,
+                profile: profile_key_for_id(*profile),
+            },
+            Self::MirBase {
+                module,
+                profile,
+                target,
+            } => ArtifactImageKey::MirBase {
+                module: *module,
+                profile: profile_key_for_id(*profile),
+                target: target.clone(),
+            },
+            Self::MirOptimized {
+                module,
+                profile,
+                target,
+            } => ArtifactImageKey::MirOptimized {
+                module: *module,
+                profile: profile_key_for_id(*profile),
+                target: target.clone(),
+            },
+            Self::ModuleOutput { module, target } => ArtifactImageKey::ModuleOutput {
+                module: *module,
+                target: target.clone(),
+            },
+            Self::PackageOutput { package, target } => ArtifactImageKey::PackageOutput {
+                package: *package,
+                target: target.clone(),
+            },
+        }
+    }
 }
 
 impl ArtifactImageKey {

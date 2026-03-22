@@ -4,7 +4,7 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use destack_core::StringPool;
 use destack_source::{
-    File, FileRegistry, FileSystem, FileType, FileVersion, ModuleId, ModuleVersion,
+    File, FileKey, FileRegistry, FileSystem, FileType, FileVersion, ModuleId, ModuleVersion,
     PhysicalFileSystem, Uri,
 };
 use parking_lot::RwLock;
@@ -306,6 +306,19 @@ impl Session {
     /// Return true when the loaded workspace index has one module entry.
     pub fn has_workspace_index_module_entry(&self, module_id: ModuleId) -> bool {
         self.workspace_index_modules.contains_key(&module_id)
+    }
+
+    /// Return one indexed file path for a stable file key when present.
+    pub fn workspace_index_path_for_file_key(&self, file_key: FileKey) -> Option<PathBuf> {
+        self.workspace_index_files.iter().find_map(|entry| {
+            let path = entry.key();
+            let path_uri = Uri::from_path(path);
+            if FileKey::from_uri(&path_uri) == file_key {
+                Some(path.clone())
+            } else {
+                None
+            }
+        })
     }
 
     /// Load one tracked destack config file from the workspace.

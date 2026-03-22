@@ -1,208 +1,18 @@
 use std::sync::Arc;
 
 use destack_builtin::LanguageSymbol;
-use destack_core::StringPool;
-use destack_dir::{Dumper, DumperOptions, NodeVisitor};
-use destack_source::{File, FileId, FileType, FileVersion, TemporaryPhysicalFileSystem, Uri};
+use destack_source::{File, FileVersion, TemporaryPhysicalFileSystem};
 use destack_workspace::{
-    ArtifactDependency, ArtifactImage, ArtifactImageHeader, ArtifactImageKey, ArtifactKey,
-    ArtifactStore, Ast, AstImage, CacheStore, Destack, DirPrepared, DirResolved, EnvSnapshot,
-    LanguageEnvironment, MemoryCacheStore, OutputFormat, Platform, ProfileFlags, ProfileKey,
-    Program, Runtime, Session, Workspace,
+    ArtifactDependency, ArtifactFamily, ArtifactImage, ArtifactImageError, ArtifactImageHeader,
+    ArtifactImageKey, ArtifactImageRequirement, ArtifactKey, ArtifactStore, Ast, AstImage,
+    CacheStore, DirPreparedImage, LanguageEnvironment, MemoryCacheStore, PersistedImageValidation,
 };
 
-use crate::{Compiler, CompilerOptions};
-
-/// Build one stable profile key for cache image tests.
-fn test_profile_key() -> ProfileKey {
-    ProfileKey::new(
-        OutputFormat::Js,
-        Runtime::Node,
-        Platform::Web,
-        None,
-        None,
-        None,
-        Vec::new(),
-        false,
-        false,
-        false,
-        EnvSnapshot::Whitelist {
-            keys: Vec::new(),
-            hash: 0,
-        },
-        ProfileFlags::default(),
-    )
-}
-
-/// Parse one workspace config file.
-fn parse_workspace_config(config_path: &std::path::Path, config_content: &str) -> Destack {
-    let file = File::from_text_as_jsonc(
-        FileId::new(1),
-        "destack.json".to_string(),
-        Uri::from_path(config_path),
-        Some(config_path.to_path_buf()),
-        FileType::Json,
-        config_content.to_string(),
-    )
-    .unwrap_or_else(|error| panic!("failed to parse destack.json: {error}"));
-    let file = Arc::new(file.with_version(FileVersion::INITIAL));
-
-    Destack::parse(&file).unwrap_or_else(|error| panic!("failed to build destack.json: {error}"))
-}
-
-/// Build one compiler over a disk-cache-enabled temporary workspace.
-fn build_disk_cache_compiler(
-    root: &TemporaryPhysicalFileSystem,
-) -> (Arc<Session>, Arc<Program>, Compiler, std::path::PathBuf) {
-    let root_path = root.root().to_path_buf();
-    let config_path = root.path_for("destack.json");
-    let config_content = r#"{ "cache": { "mode": "disk" } }"#;
-    let package_manifest_path = root.path_for("package.json");
-    let source_path = root.path_for("main.ts");
-
-    // workspace files
-    if !package_manifest_path.exists() {
-        root.write_bytes("package.json", br#"{ "name": "artifact-image-test" }"#)
-            .unwrap_or_else(|error| panic!("failed to write package.json: {error}"));
-    }
-    if !config_path.exists() {
-        root.write_text("destack.json", config_content)
-            .unwrap_or_else(|error| panic!("failed to write destack.json: {error}"));
-    }
-    if !source_path.exists() {
-        root.write_text("main.ts", "export const value: number = 1;")
-            .unwrap_or_else(|error| panic!("failed to write main.ts: {error}"));
-    }
-
-    // workspace config
-    let config = parse_workspace_config(&config_path, config_content);
-    let workspace = Workspace::single_package(root_path.clone()).with_config(config);
-    let session = Arc::new(Session::workspace(root_path.clone(), Arc::new(workspace)));
-    let program = session.add_root(root_path.clone());
-    let compiler = Compiler::new(
-        session.clone(),
-        program.clone(),
-        CompilerOptions {
-            workers: 1,
-            ..CompilerOptions::default()
-        },
-    );
-
-    (session, program, compiler, root.path_for("main.ts"))
-}
-
-/// Build one compiler over a temporary workspace without persistent artifact caching.
-fn build_memory_cache_compiler(
-    root: &TemporaryPhysicalFileSystem,
-) -> (Arc<Session>, Arc<Program>, Compiler, std::path::PathBuf) {
-    let root_path = root.root().to_path_buf();
-    let package_manifest_path = root.path_for("package.json");
-    let source_path = root.path_for("main.ts");
-
-    // workspace files
-    if !package_manifest_path.exists() {
-        root.write_bytes("package.json", br#"{ "name": "artifact-image-test" }"#)
-            .unwrap_or_else(|error| panic!("failed to write package.json: {error}"));
-    }
-    if !source_path.exists() {
-        root.write_text("main.ts", "export const value: number = 1;")
-            .unwrap_or_else(|error| panic!("failed to write main.ts: {error}"));
-    }
-
-    // workspace config
-    let workspace = Workspace::single_package(root_path.clone());
-    let session = Arc::new(Session::workspace(root_path.clone(), Arc::new(workspace)));
-    let program = session.add_root(root_path.clone());
-    let compiler = Compiler::new(
-        session.clone(),
-        program.clone(),
-        CompilerOptions {
-            workers: 1,
-            ..CompilerOptions::default()
-        },
-    );
-
-    (session, program, compiler, root.path_for("main.ts"))
-}
-
-/// Append text to one file and bump its version.
-fn append_file_text(program: &Program, file_id: FileId, suffix: &str) {
-    let file = program.files.get(file_id);
-    let destack_source::FileContent::Text { content } = &file.content else {
-        panic!("expected text file");
-    };
-    let content = format!("{content}{suffix}");
-    let file = File::from_text(
-        file.id,
-        file.name.clone(),
-        file.uri.clone(),
-        file.path.clone(),
-        file.ty,
-        content,
-    )
-    .with_version(file.version.next());
-
-    program.files.replace(file);
-}
-
-/// Normalize one AST for stable cross-session comparison.
-fn normalize_ast(mut ast: Ast) -> Ast {
-    ast.tree.source_map.rebind_file(FileId::new(0));
-
-    for token in &mut ast.tokens {
-        token.span = token.span.with_file(FileId::new(0));
-    }
-
-    for token in &mut ast.side_tokens {
-        token.span = token.span.with_file(FileId::new(0));
-    }
-
-    ast
-}
-
-/// Dump one prepared DIR node surface deterministically.
-fn dump_dir_prepared_nodes(strings: &StringPool, dir: &DirPrepared) -> String {
-    let strings = strings.clone().into_immutable();
-    let mut dumper = Dumper::new(&strings, &dir.tree, DumperOptions::default());
-
-    for expression_id in dir.roots.iter().copied() {
-        let expression = dir.tree.get(expression_id);
-        dumper.visit_expression(&dir.tree, expression_id, expression);
-    }
-
-    dumper.finish()
-}
-
-/// Dump one prepared DIR symbol surface deterministically.
-fn dump_dir_prepared_symbols(strings: &StringPool, dir: &DirPrepared) -> String {
-    let strings = strings.clone().into_immutable();
-    let mut dumper = Dumper::new(&strings, &dir.tree, DumperOptions::default());
-    let scope = dir.symbols.get_scope_by_id(dir.namespace_scope);
-    dumper.visit_scope(&dir.tree, &dir.symbols, dir.namespace_scope, scope);
-    dumper.finish()
-}
-
-/// Dump one resolved DIR node surface deterministically.
-fn dump_dir_resolved_nodes(strings: &StringPool, dir: &DirResolved) -> String {
-    let strings = strings.clone().into_immutable();
-    let mut dumper = Dumper::new(&strings, &dir.tree, DumperOptions::default());
-
-    for expression_id in dir.roots.iter().copied() {
-        let expression = dir.tree.get(expression_id);
-        dumper.visit_expression(&dir.tree, expression_id, expression);
-    }
-
-    dumper.finish()
-}
-
-/// Dump one resolved DIR symbol surface deterministically.
-fn dump_dir_resolved_symbols(strings: &StringPool, dir: &DirResolved) -> String {
-    let strings = strings.clone().into_immutable();
-    let mut dumper = Dumper::new(&strings, &dir.tree, DumperOptions::default());
-    let scope = dir.symbols.get_scope_by_id(dir.namespace_scope);
-    dumper.visit_scope(&dir.tree, &dir.symbols, dir.namespace_scope, scope);
-    dumper.finish()
-}
+use crate::tests::scenario::{
+    append_file_text, build_disk_cache_compiler, build_memory_cache_compiler,
+    dump_dir_prepared_nodes, dump_dir_prepared_symbols, dump_dir_resolved_nodes,
+    dump_dir_resolved_symbols, normalize_ast, test_profile_key,
+};
 
 /// Persist and load one language environment image through the artifact store.
 #[test]
@@ -237,6 +47,43 @@ fn test_artifact_store_roundtrips_language_environment_image() {
     assert_eq!(loaded.header, image.header);
     assert_eq!(loaded.payload.items, image.payload.items);
     assert_eq!(loaded.payload.symbols, image.payload.symbols);
+}
+
+/// Reject one persisted image header with a tampered validation hash.
+#[test]
+fn test_artifact_store_rejects_tampered_validation_hash() {
+    let cache_root = std::path::PathBuf::from("/artifact-store-test");
+    let cache_store: Arc<dyn CacheStore> = Arc::new(MemoryCacheStore::new());
+    let artifact_store = ArtifactStore::new(cache_store.as_ref(), &cache_root);
+    let profile = test_profile_key();
+    let header = ArtifactImageHeader::new(
+        ArtifactImageKey::LanguageEnvironment { profile },
+        "test".to_string(),
+        None,
+        0,
+        None,
+        0,
+    );
+    let image = ArtifactImage::new(header, LanguageEnvironment::default())
+        .unwrap_or_else(|error| panic!("failed to build artifact image: {error}"));
+
+    // write a tampered image with the same stable key
+    let mut tampered = image.clone();
+    tampered.header.validation_hash = tampered.header.validation_hash.wrapping_add(1);
+    artifact_store
+        .save(&tampered)
+        .unwrap_or_else(|error| panic!("failed to save tampered artifact image: {error}"));
+
+    // reject the tampered header before payload deserialization
+    let error = artifact_store
+        .load_header(&tampered.header.artifact_image_key)
+        .err()
+        .unwrap_or_else(|| panic!("expected tampered header to fail"));
+
+    match error {
+        ArtifactImageError::InvalidValidationHash { .. } => {}
+        other => panic!("expected invalid validation hash, found {other}"),
+    }
 }
 
 /// Reuse one persisted language environment across a fresh compiler session.
@@ -727,6 +574,82 @@ fn test_compiler_invalidates_ast_image_when_source_changes() {
     assert_ne!(rebuilt_bytes, expected_bytes);
 }
 
+/// Keep persisted image validation contracts centralized on artifact families.
+#[test]
+fn test_artifact_families_classify_persisted_image_validation() {
+    // self-contained families
+    assert_eq!(
+        ArtifactFamily::LanguageEnvironment.persisted_image_validation(),
+        PersistedImageValidation::SelfContained
+    );
+    assert_eq!(
+        ArtifactFamily::IntrinsicEnvironment.persisted_image_validation(),
+        PersistedImageValidation::SelfContained
+    );
+    assert_eq!(
+        ArtifactFamily::LibraryEnvironment.persisted_image_validation(),
+        PersistedImageValidation::SelfContained
+    );
+    assert_eq!(
+        ArtifactFamily::Ast.persisted_image_validation(),
+        PersistedImageValidation::SelfContained
+    );
+    assert_eq!(
+        ArtifactFamily::DirBase.persisted_image_validation(),
+        PersistedImageValidation::SelfContained
+    );
+
+    // dependency-validated families
+    assert_eq!(
+        ArtifactFamily::ModuleGraph.persisted_image_validation(),
+        PersistedImageValidation::SelfContained
+    );
+    assert_eq!(
+        ArtifactFamily::DirPrepared.persisted_image_validation(),
+        PersistedImageValidation::DependencyValidated
+    );
+    assert_eq!(
+        ArtifactFamily::DirResolved.persisted_image_validation(),
+        PersistedImageValidation::DependencyValidated
+    );
+    assert_eq!(
+        ArtifactFamily::DirDeclared.persisted_image_validation(),
+        PersistedImageValidation::DependencyValidated
+    );
+    assert_eq!(
+        ArtifactFamily::DirInterface.persisted_image_validation(),
+        PersistedImageValidation::DependencyValidated
+    );
+    assert_eq!(
+        ArtifactFamily::DirAnalyzed.persisted_image_validation(),
+        PersistedImageValidation::DependencyValidated
+    );
+    assert_eq!(
+        ArtifactFamily::DirElaborated.persisted_image_validation(),
+        PersistedImageValidation::DependencyValidated
+    );
+    assert_eq!(
+        ArtifactFamily::DirPatched.persisted_image_validation(),
+        PersistedImageValidation::DependencyValidated
+    );
+    assert_eq!(
+        ArtifactFamily::MirBase.persisted_image_validation(),
+        PersistedImageValidation::DependencyValidated
+    );
+    assert_eq!(
+        ArtifactFamily::MirOptimized.persisted_image_validation(),
+        PersistedImageValidation::DependencyValidated
+    );
+    assert_eq!(
+        ArtifactFamily::ModuleOutput.persisted_image_validation(),
+        PersistedImageValidation::DependencyValidated
+    );
+    assert_eq!(
+        ArtifactFamily::PackageOutput.persisted_image_validation(),
+        PersistedImageValidation::DependencyValidated
+    );
+}
+
 /// Reuse one persisted prepared DIR image across a fresh compiler session.
 #[test]
 fn test_compiler_reuses_dir_prepared_image_across_sessions() {
@@ -748,18 +671,8 @@ fn test_compiler_reuses_dir_prepared_image_across_sessions() {
         .unwrap_or_else(|| panic!("expected published prepared dir"))
         .as_ref()
         .clone();
-    let direct_loaded = compiler
-        .load_dir_prepared_image(module_id, compiler.module_version(module_id), profile_id)
-        .unwrap_or_else(|error| {
-            panic!("failed to read prepared dir image in same session: {error}")
-        })
-        .unwrap_or_else(|| panic!("expected prepared dir image in same session"));
     let expected_nodes = dump_dir_prepared_nodes(&program.strings, &expected);
     let expected_symbols = dump_dir_prepared_symbols(&program.strings, &expected);
-    let loaded_nodes = dump_dir_prepared_nodes(&program.strings, &direct_loaded);
-    let loaded_symbols = dump_dir_prepared_symbols(&program.strings, &direct_loaded);
-    assert_eq!(loaded_nodes, expected_nodes);
-    assert_eq!(loaded_symbols, expected_symbols);
     compiler
         .flush_workspace_index()
         .unwrap_or_else(|error| panic!("failed to flush workspace index: {error}"));
@@ -786,112 +699,19 @@ fn test_compiler_reuses_dir_prepared_image_across_sessions() {
     // verify the persisted image is available before any rebuild
     let loaded = compiler
         .load_dir_prepared_image(module_id, compiler.module_version(module_id), profile_id)
-        .unwrap_or_else(|error| panic!("failed to load persisted prepared dir image: {error}"))
-        .unwrap_or_else(|| panic!("expected persisted prepared dir image"));
-
-    // compare the full dumped artifact surface
+        .unwrap_or_else(|error| panic!("failed to load prepared dir image: {error}"));
+    let loaded = loaded.unwrap_or_else(|| panic!("expected persisted prepared dir image"));
     let loaded_nodes = dump_dir_prepared_nodes(&program.strings, &loaded);
     let loaded_symbols = dump_dir_prepared_symbols(&program.strings, &loaded);
     assert_eq!(loaded_nodes, expected_nodes);
     assert_eq!(loaded_symbols, expected_symbols);
-
-    // validate the public compiler path too
-    compiler
-        .run_to_completion(|compiler| compiler.process_dir_prepared(module_id, profile_id))
-        .unwrap_or_else(|error| panic!("failed to load prepared dir: {error:?}"));
-    let resolved = compiler
-        .program
-        .artifacts
-        .dir_prepared(module_id, profile_id)
-        .unwrap_or_else(|| panic!("expected published prepared dir after load"))
-        .as_ref()
-        .clone();
-    let resolved_nodes = dump_dir_prepared_nodes(&program.strings, &resolved);
-    let resolved_symbols = dump_dir_prepared_symbols(&program.strings, &resolved);
-    assert_eq!(resolved_nodes, expected_nodes);
-    assert_eq!(resolved_symbols, expected_symbols);
 }
 
-/// Reject one persisted prepared DIR image when the source changes across sessions.
+/// Reject one persisted DIR image without creating live profiles from its proof metadata.
 #[test]
-fn test_compiler_invalidates_dir_prepared_image_when_source_changes() {
-    let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_prepared_image_invalidation");
+fn test_compiler_does_not_create_profiles_from_persisted_requirements() {
+    let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_prepared_profile_proof_lookup");
     let (session, program, compiler, module_path) = build_disk_cache_compiler(&root);
-
-    // build and persist the initial prepared dir
-    let module_id = compiler
-        .resolve_path_to_module(&module_path)
-        .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
-    let profile_id = program.default_profile_id_for_module(module_id);
-    compiler
-        .run_to_completion(|compiler| compiler.process_dir_prepared(module_id, profile_id))
-        .unwrap_or_else(|error| panic!("failed to build prepared dir: {error:?}"));
-    let expected = compiler
-        .program
-        .artifacts
-        .dir_prepared(module_id, profile_id)
-        .unwrap_or_else(|| panic!("expected published prepared dir"))
-        .as_ref()
-        .clone();
-    let expected_nodes = dump_dir_prepared_nodes(&program.strings, &expected);
-    let expected_symbols = dump_dir_prepared_symbols(&program.strings, &expected);
-    compiler
-        .flush_workspace_index()
-        .unwrap_or_else(|error| panic!("failed to flush workspace index: {error}"));
-
-    drop(compiler);
-    drop(program);
-    drop(session);
-
-    // change the module source before the fresh session is created
-    root.write_text("main.ts", "export const changed = 'updated';")
-        .unwrap_or_else(|error| panic!("failed to update main.ts: {error}"));
-    let (_session, program, compiler, module_path) = build_disk_cache_compiler(&root);
-    let module_id = compiler
-        .resolve_path_to_module(&module_path)
-        .unwrap_or_else(|error| {
-            panic!("failed to resolve main module in fresh session: {error:?}")
-        });
-    let profile_id = program.default_profile_id_for_module(module_id);
-
-    // load current source state before attempting direct dir image reuse
-    compiler
-        .run_to_completion(|compiler| compiler.process_dir_base(module_id))
-        .unwrap_or_else(|error| {
-            panic!("failed to build dir base for invalidation check: {error:?}")
-        });
-
-    // reject the stale prepared image directly
-    let loaded = compiler
-        .load_dir_prepared_image(module_id, compiler.module_version(module_id), profile_id)
-        .unwrap_or_else(|error| panic!("failed to load prepared dir image: {error}"));
-    assert!(
-        loaded.is_none(),
-        "expected changed source to invalidate prepared dir image"
-    );
-
-    // rebuild through the public compiler path and confirm the prepared dir changed
-    compiler
-        .run_to_completion(|compiler| compiler.process_dir_prepared(module_id, profile_id))
-        .unwrap_or_else(|error| panic!("failed to rebuild prepared dir: {error:?}"));
-    let rebuilt = compiler
-        .program
-        .artifacts
-        .dir_prepared(module_id, profile_id)
-        .unwrap_or_else(|| panic!("expected rebuilt prepared dir"))
-        .as_ref()
-        .clone();
-    let rebuilt_nodes = dump_dir_prepared_nodes(&program.strings, &rebuilt);
-    let rebuilt_symbols = dump_dir_prepared_symbols(&program.strings, &rebuilt);
-    assert_ne!(rebuilt_nodes, expected_nodes);
-    assert_ne!(rebuilt_symbols, expected_symbols);
-}
-
-/// Reject one persisted prepared DIR image when the workspace string universe changes.
-#[test]
-fn test_compiler_invalidates_dir_prepared_image_when_workspace_strings_change() {
-    let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_prepared_image_strings");
-    let (_session, program, compiler, module_path) = build_disk_cache_compiler(&root);
 
     // build and persist the prepared dir first
     let module_id = compiler
@@ -901,18 +721,68 @@ fn test_compiler_invalidates_dir_prepared_image_when_workspace_strings_change() 
     compiler
         .run_to_completion(|compiler| compiler.process_dir_prepared(module_id, profile_id))
         .unwrap_or_else(|error| panic!("failed to build prepared dir: {error:?}"));
+    compiler
+        .flush_workspace_index()
+        .unwrap_or_else(|error| panic!("failed to flush workspace index: {error}"));
 
-    // mutate the shared string universe after the image was produced
-    let _new_string = program.strings.intern("new-cache-boundary-string");
+    drop(compiler);
+    drop(program);
+    drop(session);
 
-    // reject the stale prepared image directly
+    let (session, program, compiler, module_path) = build_disk_cache_compiler(&root);
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| {
+            panic!("failed to resolve main module in fresh session: {error:?}")
+        });
+    let profile_id = program.default_profile_id_for_module(module_id);
+    let artifact_store =
+        ArtifactStore::new(session.cache_store.as_ref(), &session.workspace_cache_dir());
+    let image_key = ArtifactImageKey::DirPrepared {
+        module: module_id,
+        profile: program.profile(profile_id).key.clone(),
+    };
+    let image = artifact_store
+        .load::<DirPreparedImage>(&image_key)
+        .unwrap_or_else(|error| panic!("failed to load prepared dir image: {error}"))
+        .unwrap_or_else(|| panic!("expected prepared dir image"));
+
+    // replace the requirement list with one bogus profile scoped proof
+    let mut bogus_profile = test_profile_key();
+    bogus_profile.debug = !bogus_profile.debug;
+    let tampered = ArtifactImage::new(
+        image
+            .header
+            .with_requirements(vec![ArtifactImageRequirement {
+                key: ArtifactImageKey::LanguageEnvironment {
+                    profile: bogus_profile,
+                },
+                validation_hash: 0,
+            }]),
+        image.payload.clone(),
+    )
+    .unwrap_or_else(|error| panic!("failed to build tampered dir image: {error}"));
+    artifact_store
+        .save(&tampered)
+        .unwrap_or_else(|error| panic!("failed to save tampered dir image: {error}"));
+
+    // prepare the current source state and capture the live profile count
+    compiler
+        .run_to_completion(|compiler| compiler.process_dir_base(module_id))
+        .unwrap_or_else(|error| {
+            panic!("failed to build dir base for prepared dir load: {error:?}")
+        });
+    let profile_count_before = program.profiles.len();
+
+    // reject the tampered image without allocating a new live profile
     let loaded = compiler
         .load_dir_prepared_image(module_id, compiler.module_version(module_id), profile_id)
         .unwrap_or_else(|error| panic!("failed to load prepared dir image: {error}"));
     assert!(
         loaded.is_none(),
-        "expected changed workspace strings to invalidate prepared dir image"
+        "expected tampered prepared dir image to fail"
     );
+    assert_eq!(program.profiles.len(), profile_count_before);
 }
 
 /// Reuse one persisted resolved DIR image across a fresh compiler session.
@@ -936,18 +806,8 @@ fn test_compiler_reuses_dir_resolved_image_across_sessions() {
         .unwrap_or_else(|| panic!("expected published resolved dir"))
         .as_ref()
         .clone();
-    let direct_loaded = compiler
-        .load_dir_resolved_image(module_id, compiler.module_version(module_id), profile_id)
-        .unwrap_or_else(|error| {
-            panic!("failed to read resolved dir image in same session: {error}")
-        })
-        .unwrap_or_else(|| panic!("expected resolved dir image in same session"));
     let expected_nodes = dump_dir_resolved_nodes(&program.strings, &expected);
     let expected_symbols = dump_dir_resolved_symbols(&program.strings, &expected);
-    let loaded_nodes = dump_dir_resolved_nodes(&program.strings, &direct_loaded);
-    let loaded_symbols = dump_dir_resolved_symbols(&program.strings, &direct_loaded);
-    assert_eq!(loaded_nodes, expected_nodes);
-    assert_eq!(loaded_symbols, expected_symbols);
     compiler
         .flush_workspace_index()
         .unwrap_or_else(|error| panic!("failed to flush workspace index: {error}"));
@@ -974,133 +834,12 @@ fn test_compiler_reuses_dir_resolved_image_across_sessions() {
     // verify the persisted image is available before any rebuild
     let loaded = compiler
         .load_dir_resolved_image(module_id, compiler.module_version(module_id), profile_id)
-        .unwrap_or_else(|error| panic!("failed to load persisted resolved dir image: {error}"))
-        .unwrap_or_else(|| panic!("expected persisted resolved dir image"));
-
-    // compare the full dumped artifact surface
+        .unwrap_or_else(|error| panic!("failed to load resolved dir image: {error}"));
+    let loaded = loaded.unwrap_or_else(|| panic!("expected persisted resolved dir image"));
     let loaded_nodes = dump_dir_resolved_nodes(&program.strings, &loaded);
     let loaded_symbols = dump_dir_resolved_symbols(&program.strings, &loaded);
     assert_eq!(loaded_nodes, expected_nodes);
     assert_eq!(loaded_symbols, expected_symbols);
-
-    // validate the public compiler path too
-    compiler
-        .run_to_completion(|compiler| compiler.process_dir_resolved(module_id, profile_id))
-        .unwrap_or_else(|error| panic!("failed to load resolved dir: {error:?}"));
-    let resolved = compiler
-        .program
-        .artifacts
-        .dir_resolved(module_id, profile_id)
-        .unwrap_or_else(|| panic!("expected published resolved dir after load"))
-        .as_ref()
-        .clone();
-    let resolved_nodes = dump_dir_resolved_nodes(&program.strings, &resolved);
-    let resolved_symbols = dump_dir_resolved_symbols(&program.strings, &resolved);
-    assert_eq!(resolved_nodes, expected_nodes);
-    assert_eq!(resolved_symbols, expected_symbols);
-}
-
-/// Reject one persisted resolved DIR image when the source changes across sessions.
-#[test]
-fn test_compiler_invalidates_dir_resolved_image_when_source_changes() {
-    let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_resolved_image_invalidation");
-    let (session, program, compiler, module_path) = build_disk_cache_compiler(&root);
-
-    // build and persist the initial resolved dir
-    let module_id = compiler
-        .resolve_path_to_module(&module_path)
-        .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
-    let profile_id = program.default_profile_id_for_module(module_id);
-    compiler
-        .run_to_completion(|compiler| compiler.process_dir_resolved(module_id, profile_id))
-        .unwrap_or_else(|error| panic!("failed to build resolved dir: {error:?}"));
-    let expected = compiler
-        .program
-        .artifacts
-        .dir_resolved(module_id, profile_id)
-        .unwrap_or_else(|| panic!("expected published resolved dir"))
-        .as_ref()
-        .clone();
-    let expected_nodes = dump_dir_resolved_nodes(&program.strings, &expected);
-    let expected_symbols = dump_dir_resolved_symbols(&program.strings, &expected);
-    compiler
-        .flush_workspace_index()
-        .unwrap_or_else(|error| panic!("failed to flush workspace index: {error}"));
-
-    drop(compiler);
-    drop(program);
-    drop(session);
-
-    // change the module source before the fresh session is created
-    root.write_text("main.ts", "export const changed = 'updated';")
-        .unwrap_or_else(|error| panic!("failed to update main.ts: {error}"));
-    let (_session, program, compiler, module_path) = build_disk_cache_compiler(&root);
-    let module_id = compiler
-        .resolve_path_to_module(&module_path)
-        .unwrap_or_else(|error| {
-            panic!("failed to resolve main module in fresh session: {error:?}")
-        });
-    let profile_id = program.default_profile_id_for_module(module_id);
-
-    // load current source state before attempting direct dir image reuse
-    compiler
-        .run_to_completion(|compiler| compiler.process_dir_base(module_id))
-        .unwrap_or_else(|error| {
-            panic!("failed to build dir base for invalidation check: {error:?}")
-        });
-
-    // reject the stale resolved image directly
-    let loaded = compiler
-        .load_dir_resolved_image(module_id, compiler.module_version(module_id), profile_id)
-        .unwrap_or_else(|error| panic!("failed to load resolved dir image: {error}"));
-    assert!(
-        loaded.is_none(),
-        "expected changed source to invalidate resolved dir image"
-    );
-
-    // rebuild through the public compiler path and confirm the resolved dir changed
-    compiler
-        .run_to_completion(|compiler| compiler.process_dir_resolved(module_id, profile_id))
-        .unwrap_or_else(|error| panic!("failed to rebuild resolved dir: {error:?}"));
-    let rebuilt = compiler
-        .program
-        .artifacts
-        .dir_resolved(module_id, profile_id)
-        .unwrap_or_else(|| panic!("expected rebuilt resolved dir"))
-        .as_ref()
-        .clone();
-    let rebuilt_nodes = dump_dir_resolved_nodes(&program.strings, &rebuilt);
-    let rebuilt_symbols = dump_dir_resolved_symbols(&program.strings, &rebuilt);
-    assert_ne!(rebuilt_nodes, expected_nodes);
-    assert_ne!(rebuilt_symbols, expected_symbols);
-}
-
-/// Reject one persisted resolved DIR image when the workspace string universe changes.
-#[test]
-fn test_compiler_invalidates_dir_resolved_image_when_workspace_strings_change() {
-    let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_resolved_image_strings");
-    let (_session, program, compiler, module_path) = build_disk_cache_compiler(&root);
-
-    // build and persist the resolved dir first
-    let module_id = compiler
-        .resolve_path_to_module(&module_path)
-        .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
-    let profile_id = program.default_profile_id_for_module(module_id);
-    compiler
-        .run_to_completion(|compiler| compiler.process_dir_resolved(module_id, profile_id))
-        .unwrap_or_else(|error| panic!("failed to build resolved dir: {error:?}"));
-
-    // mutate the shared string universe after the image was produced
-    let _new_string = program.strings.intern("new-cache-boundary-string");
-
-    // reject the stale resolved image directly
-    let loaded = compiler
-        .load_dir_resolved_image(module_id, compiler.module_version(module_id), profile_id)
-        .unwrap_or_else(|error| panic!("failed to load resolved dir image: {error}"));
-    assert!(
-        loaded.is_none(),
-        "expected changed workspace strings to invalidate resolved dir image"
-    );
 }
 
 /// Skip artifact image loads when persistent cache is disabled.

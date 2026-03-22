@@ -2,10 +2,10 @@ use crate::compile::Compiler;
 
 use destack_source::{FileContent, ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{
-    ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, DirAnalyzed, DirAnalyzedImage,
-    DirBase, DirDeclared, DirDeclaredImage, DirElaborated, DirElaboratedImage, DirInterface,
-    DirInterfaceImage, DirPatched, DirPatchedImage, DirPrepared, DirPreparedImage, DirResolved,
-    DirResolvedImage, ProfileId, ProfileKey, hash_bytes,
+    ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ArtifactKey,
+    DirAnalyzed, DirAnalyzedImage, DirBase, DirDeclared, DirDeclaredImage, DirElaborated,
+    DirElaboratedImage, DirInterface, DirInterfaceImage, DirPatched, DirPatchedImage, DirPrepared,
+    DirPreparedImage, DirResolved, DirResolvedImage, ProfileId, ProfileKey, hash_bytes,
 };
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -67,6 +67,57 @@ impl ProfileDirImageContext {
 }
 
 impl Compiler {
+    /// Load one direct module scoped base DIR image entry.
+    fn load_base_dir_entry(
+        &self,
+        module_id: ModuleId,
+        module_version: ModuleVersion,
+    ) -> Result<Option<ArtifactImage<DirBase>>, ArtifactImageError> {
+        let Some(context) = self.base_dir_image_context(module_id, module_version) else {
+            return Ok(None);
+        };
+        let expected = context.header(module_id);
+        let Some(image) = self.load_image::<DirBase>(expected)? else {
+            return Ok(None);
+        };
+
+        if image.payload.version != context.module_version {
+            return Ok(None);
+        }
+
+        Ok(Some(image))
+    }
+
+    /// Load one profile scoped DIR image entry.
+    fn load_profile_dir_entry<T, D>(
+        &self,
+        module_id: ModuleId,
+        module_version: ModuleVersion,
+        profile_id: ProfileId,
+        image_key: impl FnOnce(ModuleId, ProfileKey) -> ArtifactImageKey,
+        into_dir: impl Fn(T, ProfileId) -> D + Copy,
+        version: impl FnOnce(&D) -> ModuleVersion,
+    ) -> Result<Option<ArtifactImage<T>>, ArtifactImageError>
+    where
+        T: Clone + DeserializeOwned + Serialize,
+    {
+        let Some(context) = self.profile_dir_image_context(module_id, module_version, profile_id)
+        else {
+            return Ok(None);
+        };
+        let expected = context.header(image_key(module_id, context.profile_key.clone()));
+        let Some(image) = self.load_image::<T>(expected)? else {
+            return Ok(None);
+        };
+        let dir = into_dir(image.payload.clone(), profile_id);
+
+        if version(&dir) != context.module_version {
+            return Ok(None);
+        }
+
+        Ok(Some(image))
+    }
+
     /// Hash the current source content for one module.
     pub(super) fn module_source_hash(&self, module_id: ModuleId) -> Option<u64> {
         let module = self.program.modules.get(module_id);
@@ -131,19 +182,9 @@ impl Compiler {
         module_id: ModuleId,
         module_version: ModuleVersion,
     ) -> Result<Option<DirBase>, ArtifactImageError> {
-        let Some(context) = self.base_dir_image_context(module_id, module_version) else {
-            return Ok(None);
-        };
-        let expected = context.header(module_id);
-        let Some(image) = self.load_image::<DirBase>(expected)? else {
-            return Ok(None);
-        };
-
-        if image.payload.version != context.module_version {
-            return Ok(None);
-        }
-
-        Ok(Some(image.payload))
+        Ok(self
+            .load_base_dir_entry(module_id, module_version)?
+            .map(|image| image.payload))
     }
 
     /// Store one direct module scoped base DIR image.
@@ -156,9 +197,10 @@ impl Compiler {
         let Some(context) = self.base_dir_image_context(module_id, module_version) else {
             return Ok(());
         };
+        let artifact_key = ArtifactKey::dir_base(module_id);
         let header = context.header(module_id);
 
-        self.store_image(header, dir.clone())
+        self.store_image(&artifact_key, header, dir.clone())
     }
 
     /// Load one profile scoped DIR image.
@@ -168,27 +210,22 @@ impl Compiler {
         module_version: ModuleVersion,
         profile_id: ProfileId,
         image_key: impl FnOnce(ModuleId, ProfileKey) -> ArtifactImageKey,
-        into_dir: impl FnOnce(T, ProfileId) -> D,
+        into_dir: impl Fn(T, ProfileId) -> D + Copy,
         version: impl FnOnce(&D) -> ModuleVersion,
     ) -> Result<Option<D>, ArtifactImageError>
     where
-        T: DeserializeOwned + Serialize,
+        T: Clone + DeserializeOwned + Serialize,
     {
-        let Some(context) = self.profile_dir_image_context(module_id, module_version, profile_id)
-        else {
-            return Ok(None);
-        };
-        let expected = context.header(image_key(module_id, context.profile_key.clone()));
-        let Some(image) = self.load_image::<T>(expected)? else {
-            return Ok(None);
-        };
-        let dir = into_dir(image.payload, profile_id);
-
-        if version(&dir) != context.module_version {
-            return Ok(None);
-        }
-
-        Ok(Some(dir))
+        Ok(self
+            .load_profile_dir_entry(
+                module_id,
+                module_version,
+                profile_id,
+                image_key,
+                into_dir,
+                version,
+            )?
+            .map(|image| into_dir(image.payload, profile_id)))
     }
 
     /// Store one profile scoped DIR image.
@@ -197,6 +234,7 @@ impl Compiler {
         module_id: ModuleId,
         profile_id: ProfileId,
         module_version: ModuleVersion,
+        artifact_key: ArtifactKey,
         dir: &D,
         image_key: impl FnOnce(ModuleId, ProfileKey) -> ArtifactImageKey,
         from_dir: impl FnOnce(&D) -> T,
@@ -211,7 +249,123 @@ impl Compiler {
         let header = context.header(image_key(module_id, context.profile_key.clone()));
         let payload = from_dir(dir);
 
-        self.store_image(header, payload)
+        self.store_image(&artifact_key, header, payload)
+    }
+
+    /// Build the current expected base DIR image header.
+    pub(crate) fn dir_base_image_header(
+        &self,
+        module_id: ModuleId,
+        module_version: ModuleVersion,
+    ) -> Option<ArtifactImageHeader> {
+        let context = self.base_dir_image_context(module_id, module_version)?;
+
+        Some(context.header(module_id))
+    }
+
+    /// Build the current expected prepared DIR image header.
+    pub(crate) fn dir_prepared_image_header(
+        &self,
+        module_id: ModuleId,
+        module_version: ModuleVersion,
+        profile_id: ProfileId,
+    ) -> Option<ArtifactImageHeader> {
+        let context = self.profile_dir_image_context(module_id, module_version, profile_id)?;
+
+        Some(context.header(ArtifactImageKey::DirPrepared {
+            module: module_id,
+            profile: context.profile_key.clone(),
+        }))
+    }
+
+    /// Build the current expected resolved DIR image header.
+    pub(crate) fn dir_resolved_image_header(
+        &self,
+        module_id: ModuleId,
+        module_version: ModuleVersion,
+        profile_id: ProfileId,
+    ) -> Option<ArtifactImageHeader> {
+        let context = self.profile_dir_image_context(module_id, module_version, profile_id)?;
+
+        Some(context.header(ArtifactImageKey::DirResolved {
+            module: module_id,
+            profile: context.profile_key.clone(),
+        }))
+    }
+
+    /// Build the current expected declared DIR image header.
+    pub(crate) fn dir_declared_image_header(
+        &self,
+        module_id: ModuleId,
+        module_version: ModuleVersion,
+        profile_id: ProfileId,
+    ) -> Option<ArtifactImageHeader> {
+        let context = self.profile_dir_image_context(module_id, module_version, profile_id)?;
+
+        Some(context.header(ArtifactImageKey::DirDeclared {
+            module: module_id,
+            profile: context.profile_key.clone(),
+        }))
+    }
+
+    /// Build the current expected interface DIR image header.
+    pub(crate) fn dir_interface_image_header(
+        &self,
+        module_id: ModuleId,
+        module_version: ModuleVersion,
+        profile_id: ProfileId,
+    ) -> Option<ArtifactImageHeader> {
+        let context = self.profile_dir_image_context(module_id, module_version, profile_id)?;
+
+        Some(context.header(ArtifactImageKey::DirInterface {
+            module: module_id,
+            profile: context.profile_key.clone(),
+        }))
+    }
+
+    /// Build the current expected analyzed DIR image header.
+    pub(crate) fn dir_analyzed_image_header(
+        &self,
+        module_id: ModuleId,
+        module_version: ModuleVersion,
+        profile_id: ProfileId,
+    ) -> Option<ArtifactImageHeader> {
+        let context = self.profile_dir_image_context(module_id, module_version, profile_id)?;
+
+        Some(context.header(ArtifactImageKey::DirAnalyzed {
+            module: module_id,
+            profile: context.profile_key.clone(),
+        }))
+    }
+
+    /// Build the current expected elaborated DIR image header.
+    pub(crate) fn dir_elaborated_image_header(
+        &self,
+        module_id: ModuleId,
+        module_version: ModuleVersion,
+        profile_id: ProfileId,
+    ) -> Option<ArtifactImageHeader> {
+        let context = self.profile_dir_image_context(module_id, module_version, profile_id)?;
+
+        Some(context.header(ArtifactImageKey::DirElaborated {
+            module: module_id,
+            profile: context.profile_key.clone(),
+        }))
+    }
+
+    /// Build the current expected patched DIR image header.
+    pub(crate) fn dir_patched_image_header(
+        &self,
+        module_id: ModuleId,
+        module_version: ModuleVersion,
+        profile_id: ProfileId,
+    ) -> Option<ArtifactImageHeader> {
+        let context = self.profile_dir_image_context(module_id, module_version, profile_id)?;
+
+        Some(context.header(ArtifactImageKey::DirPatched {
+            module: module_id,
+            profile: context.profile_key.clone(),
+        }))
     }
 
     /// Load one base DIR image.
@@ -260,6 +414,7 @@ impl Compiler {
             module_id,
             profile_id,
             dir.version,
+            ArtifactKey::dir_prepared(module_id, profile_id),
             dir,
             |module, profile| ArtifactImageKey::DirPrepared { module, profile },
             DirPreparedImage::from_dir,
@@ -294,6 +449,7 @@ impl Compiler {
             module_id,
             profile_id,
             dir.version,
+            ArtifactKey::dir_resolved(module_id, profile_id),
             dir,
             |module, profile| ArtifactImageKey::DirResolved { module, profile },
             DirResolvedImage::from_dir,
@@ -328,6 +484,7 @@ impl Compiler {
             module_id,
             profile_id,
             dir.version,
+            ArtifactKey::dir_declared(module_id, profile_id),
             dir,
             |module, profile| ArtifactImageKey::DirDeclared { module, profile },
             DirDeclaredImage::from_dir,
@@ -362,6 +519,7 @@ impl Compiler {
             module_id,
             profile_id,
             dir.version,
+            ArtifactKey::dir_interface(module_id, profile_id),
             dir,
             |module, profile| ArtifactImageKey::DirInterface { module, profile },
             DirInterfaceImage::from_dir,
@@ -396,6 +554,7 @@ impl Compiler {
             module_id,
             profile_id,
             dir.version,
+            ArtifactKey::dir_analyzed(module_id, profile_id),
             dir,
             |module, profile| ArtifactImageKey::DirAnalyzed { module, profile },
             DirAnalyzedImage::from_dir,
@@ -430,6 +589,7 @@ impl Compiler {
             module_id,
             profile_id,
             dir.version,
+            ArtifactKey::dir_elaborated(module_id, profile_id),
             dir,
             |module, profile| ArtifactImageKey::DirElaborated { module, profile },
             DirElaboratedImage::from_dir,
@@ -464,6 +624,7 @@ impl Compiler {
             module_id,
             profile_id,
             dir.version,
+            ArtifactKey::dir_patched(module_id, profile_id),
             dir,
             |module, profile| ArtifactImageKey::DirPatched { module, profile },
             DirPatchedImage::from_dir,

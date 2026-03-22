@@ -3,6 +3,7 @@ mod dir;
 mod environment;
 mod graph;
 mod hasher;
+mod image;
 mod mir;
 mod output;
 mod store;
@@ -11,7 +12,7 @@ mod tests;
 mod workspace;
 
 pub use destack_workspace::{
-    DEFAULT_CACHE_DIR, DEFAULT_COMPILER_CACHE_NAMESPACE, DEFAULT_GLOBAL_CACHE_DIR,
+    DEFAULT_CACHE_DIR, DEFAULT_GLOBAL_CACHE_DIR, DEFAULT_LANGUAGE_CACHE_NAMESPACE,
 };
 pub(crate) use hasher::CacheHasher;
 
