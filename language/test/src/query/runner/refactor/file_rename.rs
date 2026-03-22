@@ -3,17 +3,17 @@ use std::path::{Path, PathBuf};
 use destack_query as query;
 use destack_source::Uri;
 
-use crate::harness::TestResult;
+use crate::core::CaseResult;
 use crate::query::{QueryExpectation, QueryTestSession};
 
 /// Run a file rename test.
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
     // handle missing expectation
     if let Some(exp) = expectation {
         return run_with_expectation(session, exp);
     }
 
-    TestResult::Skipped {
+    CaseResult::Skipped {
         reason: "no file_rename expectation provided".to_string(),
     }
 }
@@ -51,12 +51,12 @@ pub(crate) fn parse_rename_entries(
 /// Run with markdown expectation.
 ///
 /// Format: `query file_rename old_path new_path [old_path new_path ...]`.
-fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> TestResult {
+fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> CaseResult {
     // parse rename entries
     let renames = match parse_rename_entries(session, exp) {
         Ok(renames) => renames,
         Err(error) => {
-            return TestResult::Failed { message: error };
+            return CaseResult::Failed { message: error };
         }
     };
 
@@ -67,8 +67,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     let content = exp.content.trim();
     if content == "<none>" {
         return match result {
-            None => TestResult::Passed,
-            Some(rename_result) => TestResult::Failed {
+            None => CaseResult::Passed,
+            Some(rename_result) => CaseResult::Failed {
                 message: format!(
                     "file_rename should have produced no edits but produced {}",
                     rename_result.edit_count()
@@ -79,7 +79,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
 
     // require a result when expecting edits
     let Some(rename_result) = result else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: "file_rename returned no edits".to_string(),
         };
     };
@@ -88,24 +88,24 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     if content.is_empty() {
         // reject empty edit sets
         if rename_result.edit_count() == 0 {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: "file_rename produced 0 edits".to_string(),
             };
         }
 
-        return TestResult::Passed;
+        return CaseResult::Passed;
     }
 
     // parse expected edit count
     let Ok(expected_count) = content.parse::<usize>() else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("file_rename expectation '{content}' is not a valid count"),
         };
     };
 
     // ensure expected edit count matches
     if rename_result.edit_count() != expected_count {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "file_rename produced {} edits, expected {}",
                 rename_result.edit_count(),
@@ -114,7 +114,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         };
     }
 
-    TestResult::Passed
+    CaseResult::Passed
 }
 
 /// Resolve a rename path from input.

@@ -54,7 +54,7 @@ comment
 
 This file has multi-line declarations that produce folding ranges: function, class, struct, interface, enum, namespace, and nested function.
 
-```query folding $0
+```query folding_ranges $0
 1-3
 5-8
 10-13
@@ -93,7 +93,7 @@ const value = 1;
 // block
 ```
 
-```query folding $0
+```query folding_ranges $0
 1-4
 8-9
 15-16
@@ -108,6 +108,6 @@ function noop(): void {}
 class Tiny {}
 ```
 
-```query folding $0
-0
+```query folding_ranges $0
+<none>
 ```

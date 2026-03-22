@@ -2,9 +2,9 @@ use destack_query as query;
 use destack_query::{CodeLens, CodeLensData};
 use destack_source::Span;
 
-use crate::harness::TestResult;
+use crate::core::CaseResult;
 use crate::query::runner::position::resolve_query_position;
-use crate::query::runner::snapshot::normalize_expected_snapshot;
+use crate::query::runner::snapshot::{compare_snapshot, looks_like_span_snapshot};
 use crate::query::runner::span::{format_span_for_session, source_for_file};
 use crate::query::{QueryExpectation, QueryTestSession};
 
@@ -21,9 +21,9 @@ use crate::query::{QueryExpectation, QueryTestSession};
 /// 1 implementation
 /// ▶ Run test_foo
 /// ```
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
     let Some(exp) = expectation else {
-        return TestResult::Skipped {
+        return CaseResult::Skipped {
             reason: "no code_lens expectation defined".to_string(),
         };
     };
@@ -38,16 +38,16 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 pub fn run_resolve(
     session: &QueryTestSession,
     expectation: Option<&QueryExpectation>,
-) -> TestResult {
+) -> CaseResult {
     let Some(exp) = expectation else {
-        return TestResult::Skipped {
+        return CaseResult::Skipped {
             reason: "no resolve_code_lens expectation defined".to_string(),
         };
     };
 
     let content = exp.content.trim();
     if content.is_empty() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: "resolve_code_lens expectation is empty".to_string(),
         };
     }
@@ -55,9 +55,9 @@ pub fn run_resolve(
     let lenses = query::code_lenses(&session.session, session.file_id);
     if lenses.is_empty() {
         return if content == "<none>" {
-            TestResult::Passed
+            CaseResult::Passed
         } else {
-            TestResult::Failed {
+            CaseResult::Failed {
                 message: "resolve_code_lens expected a lens, but none were returned".to_string(),
             }
         };
@@ -65,17 +65,17 @@ pub fn run_resolve(
 
     let (file_id, offset) = match resolve_query_position(session, &exp.target) {
         Ok(position) => position,
-        Err(message) => return TestResult::Failed { message },
+        Err(message) => return CaseResult::Failed { message },
     };
     if file_id != session.file_id {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: "resolve_code_lens only supports the primary file".to_string(),
         };
     }
 
     let index = exp.args.first().and_then(|arg| arg.parse::<usize>().ok());
     let Some(lens) = select_lens(&lenses, Some(offset), index) else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: "resolve_code_lens could not select a lens".to_string(),
         };
     };
@@ -83,26 +83,16 @@ pub fn run_resolve(
     let resolved = query::resolve_code_lens(&session.session, lens);
     let actual_line = format_lens_line(session, &resolved);
 
-    if is_snapshot_expectation(content) {
-        let expected_snapshot = normalize_expected_snapshot(content);
-        let actual_snapshot = normalize_expected_snapshot(&actual_line);
-        return if expected_snapshot == actual_snapshot {
-            TestResult::Passed
-        } else {
-            TestResult::Failed {
-                message: format!(
-                    "resolve_code_lens snapshot mismatch\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}"
-                ),
-            }
-        };
+    if looks_like_span_snapshot(content, &["kind=", "title="]) {
+        return compare_snapshot("resolve_code_lens", &actual_line, content);
     }
 
     if content == "<same>" {
         let original_line = format_lens_line(session, lens);
         return if original_line == actual_line {
-            TestResult::Passed
+            CaseResult::Passed
         } else {
-            TestResult::Failed {
+            CaseResult::Failed {
                 message: format!(
                     "resolve_code_lens expected unchanged lens\n\nexpected:\n{original_line}\n\nactual:\n{actual_line}"
                 ),
@@ -111,10 +101,10 @@ pub fn run_resolve(
     }
 
     if resolved.title() == content {
-        return TestResult::Passed;
+        return CaseResult::Passed;
     }
 
-    TestResult::Failed {
+    CaseResult::Failed {
         message: format!(
             "resolve_code_lens title mismatch: expected '{content}', got '{}'",
             resolved.title()
@@ -127,50 +117,39 @@ fn run_with_expectation(
     session: &QueryTestSession,
     exp: &QueryExpectation,
     lenses: &[CodeLens],
-) -> TestResult {
+) -> CaseResult {
     // normalize the expectation content
     let content = exp.content.trim();
 
     // empty expectations are not allowed
     if content.is_empty() {
         let actual_snapshot = format_lens_snapshot(session, lenses).join("\n");
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("code_lens expectation is empty, query returned:\n{actual_snapshot}"),
         };
     }
 
     // validate invariants before comparisons
     if let Err(message) = validate_lens_invariants(session, lenses) {
-        return TestResult::Failed { message };
+        return CaseResult::Failed { message };
     }
 
     // "<none>" means we expect no lenses
     if content == "<none>" {
         if lenses.is_empty() {
-            return TestResult::Passed;
+            return CaseResult::Passed;
         }
 
         let actual_snapshot = format_lens_snapshot(session, lenses).join("\n");
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("code_lens expected no lenses, got:\n{actual_snapshot}"),
         };
     }
 
     // compare against protocol shaped snapshots when structured
-    if is_snapshot_expectation(content) {
-        let actual_snapshot =
-            normalize_expected_snapshot(&format_lens_snapshot(session, lenses).join("\n"));
-        let expected_snapshot = normalize_expected_snapshot(content);
-
-        if actual_snapshot != expected_snapshot {
-            return TestResult::Failed {
-                message: format!(
-                    "code_lens snapshot mismatch\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}"
-                ),
-            };
-        }
-
-        return TestResult::Passed;
+    if looks_like_span_snapshot(content, &["kind=", "title="]) {
+        let actual_snapshot = format_lens_snapshot(session, lenses).join("\n");
+        return compare_snapshot("code_lens", &actual_snapshot, content);
     }
 
     // parse expected lens titles
@@ -186,7 +165,7 @@ fn run_with_expectation(
     // compare counts
     if actual.len() != expected.len() {
         let actual_snapshot = format_lens_snapshot(session, lenses).join("\n");
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "code_lenses count mismatch: expected {}, got {}\nExpected:\n{}\nActual:\n{}",
                 expected.len(),
@@ -200,25 +179,16 @@ fn run_with_expectation(
     // compare each lens title
     for (i, (exp_title, act_title)) in expected.iter().zip(actual.iter()).enumerate() {
         if *exp_title != act_title {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!("lens {i} mismatch: expected '{exp_title}', got '{act_title}'"),
             };
         }
     }
 
-    TestResult::Passed
+    CaseResult::Passed
 }
 
 /// Decide whether an expectation is a structured snapshot.
-fn is_snapshot_expectation(expected: &str) -> bool {
-    // detect structured snapshots by kind markers or span like digits
-    expected.lines().map(str::trim).any(|line| {
-        let has_kind_marker = line.contains("kind=") || line.contains("title=");
-        let has_digit_span = line.contains(':') && line.chars().any(|c| c.is_ascii_digit());
-        has_kind_marker || has_digit_span
-    })
-}
-
 /// Validate code lens invariants.
 fn validate_lens_invariants(session: &QueryTestSession, lenses: &[CodeLens]) -> Result<(), String> {
     let mut errors = Vec::new();

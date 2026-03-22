@@ -2,32 +2,31 @@ use destack_query as query;
 use destack_query::SelectionRange;
 use destack_source::{FileId, Span};
 
-use crate::harness::TestResult;
+use crate::core::CaseResult;
 use crate::query::runner::position::resolve_query_position;
-use crate::query::runner::snapshot::normalize_expected_snapshot;
+use crate::query::runner::snapshot::{compare_snapshot, looks_like_span_snapshot};
 use crate::query::runner::span::{format_span_for_session, source_for_file};
 use crate::query::{QueryExpectation, QueryTestSession};
 
 /// Run a selection_range test.
 ///
-/// Tests that selecting at a position produces the expected depth of nested ranges.
-/// Format: `query selection_range $0` with content showing expected depth.
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
+/// Tests that selecting at a position produces the expected selection chain.
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
     if let Some(exp) = expectation {
         return run_with_expectation(session, exp);
     }
 
-    TestResult::Skipped {
+    CaseResult::Skipped {
         reason: "no selection_range expectation provided".to_string(),
     }
 }
 
 /// Run with markdown expectation.
-fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> TestResult {
+fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> CaseResult {
     // resolve the query position from the expectation target
     let (file_id, offset) = match resolve_query_position(session, &exp.target) {
         Ok(position) => position,
-        Err(message) => return TestResult::Failed { message },
+        Err(message) => return CaseResult::Failed { message },
     };
 
     let ranges = query::selection_ranges(&session.session, file_id, &[offset]);
@@ -37,13 +36,13 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     // empty expectation is an error
     if content.is_empty() {
         let depth = ranges.first().map(|r| r.depth()).unwrap_or(0);
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("selection_range expectation is empty, got depth {depth}"),
         };
     }
 
     let Some(selection) = ranges.first() else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: "selection_range returned no ranges".to_string(),
         };
     };
@@ -53,61 +52,32 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
 
     // validate selection invariants before comparisons
     if let Err(message) = validate_selection_invariants(session, file_id, &chain) {
-        return TestResult::Failed { message };
+        return CaseResult::Failed { message };
     }
 
     // compare against a protocol shaped snapshot when structured
-    if is_snapshot_expectation(content) {
+    if looks_like_span_snapshot(content, &["range="]) {
         let actual_snapshot = chain
             .iter()
             .map(|span| format_span_for_session(session, *span))
             .collect::<Vec<_>>()
             .join("\n");
-        let actual_snapshot = normalize_expected_snapshot(&actual_snapshot);
-        let expected_snapshot = normalize_expected_snapshot(content);
-
-        if actual_snapshot != expected_snapshot {
-            return TestResult::Failed {
-                message: format!(
-                    "selection_range snapshot mismatch at '{}'\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}",
-                    exp.target
-                ),
-            };
-        }
-
-        return TestResult::Passed;
+        return compare_snapshot(
+            &format!("selection_range at '{}'", exp.target),
+            &actual_snapshot,
+            content,
+        );
     }
 
-    // parse expected depth from content
-    let Ok(expected_depth) = content.parse::<usize>() else {
-        return TestResult::Failed {
-            message: format!("selection_range expectation '{content}' is not a valid depth"),
-        };
-    };
-
-    let actual_depth = chain.len();
-
-    if actual_depth != expected_depth {
-        TestResult::Failed {
-            message: format!(
-                "selection_range at '{}' has depth {actual_depth}, expected {expected_depth}",
-                exp.target
-            ),
-        }
-    } else {
-        TestResult::Passed
+    CaseResult::Failed {
+        message: format!(
+            "selection_range at '{}' requires an explicit span snapshot, got '{content}'",
+            exp.target
+        ),
     }
 }
 
 /// Decide whether an expectation is a structured snapshot.
-fn is_snapshot_expectation(expected: &str) -> bool {
-    // detect structured snapshots by the presence of spans or range labels
-    expected
-        .lines()
-        .map(str::trim)
-        .any(|line| line.contains(':') || line.contains("range="))
-}
-
 /// Flatten a selection range chain from leaf to root.
 fn selection_chain(selection: &SelectionRange) -> Vec<Span> {
     // collect the selection chain from leaf to root

@@ -1,16 +1,16 @@
 use destack_query as query;
 use destack_source::Span;
 
-use crate::harness::TestResult;
+use crate::core::CaseResult;
 use crate::query::runner::position::resolve_query_position;
-use crate::query::runner::snapshot::normalize_expected_snapshot;
+use crate::query::runner::snapshot::{compare_snapshot, looks_like_span_snapshot};
 use crate::query::runner::span::{format_span_for_session, source_for_file};
 use crate::query::{QueryExpectation, QueryTestSession};
 
 /// Run a goto_implementation test.
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
     let Some(exp) = expectation else {
-        return TestResult::Skipped {
+        return CaseResult::Skipped {
             reason: "no goto_implementation expectation provided".to_string(),
         };
     };
@@ -18,14 +18,14 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     // resolve the query position from the expectation target
     let (file_id, offset) = match resolve_query_position(session, &exp.target) {
         Ok(position) => position,
-        Err(message) => return TestResult::Failed { message },
+        Err(message) => return CaseResult::Failed { message },
     };
 
     // run the query
     let result = query::goto_implementation(&session.session, file_id, offset);
 
     let Some(result) = result else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: "goto_implementation returned None".to_string(),
         };
     };
@@ -34,7 +34,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 
     // empty expectations are not allowed
     if expected_content.is_empty() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "goto_implementation expectation is empty, got {} locations",
                 result.locations.len()
@@ -45,9 +45,9 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     // allow explicit empty expectations
     if expected_content == "<none>" {
         return if result.locations.is_empty() {
-            TestResult::Passed
+            CaseResult::Passed
         } else {
-            TestResult::Failed {
+            CaseResult::Failed {
                 message: format!(
                     "goto_implementation expected no locations, got {}",
                     result.locations.len(),
@@ -58,63 +58,28 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 
     // validate invariants before comparisons
     if let Err(message) = validate_implementation_invariants(session, &result.locations) {
-        return TestResult::Failed { message };
+        return CaseResult::Failed { message };
     }
 
     // compare against a protocol shaped snapshot when structured
-    if is_snapshot_expectation(expected_content) {
+    if looks_like_span_snapshot(expected_content, &["range="]) {
         let actual_snapshot = result
             .locations
             .iter()
             .map(|span| format_span_for_session(session, *span))
             .collect::<Vec<_>>()
             .join("\n");
-        let actual_snapshot = normalize_expected_snapshot(&actual_snapshot);
-        let expected_snapshot = normalize_expected_snapshot(expected_content);
-
-        if actual_snapshot != expected_snapshot {
-            return TestResult::Failed {
-                message: format!(
-                    "goto_implementation snapshot mismatch\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}"
-                ),
-            };
-        }
-
-        return TestResult::Passed;
+        return compare_snapshot("goto_implementation", &actual_snapshot, expected_content);
     }
 
-    // parse expected count from expectation content
-    let Ok(expected_count) = expected_content.parse::<usize>() else {
-        return TestResult::Failed {
-            message: format!(
-                "goto_implementation expectation '{expected_content}' is not a valid count"
-            ),
-        };
-    };
-
-    if result.locations.len() != expected_count {
-        return TestResult::Failed {
-            message: format!(
-                "expected {} implementations, found {}",
-                expected_count,
-                result.locations.len()
-            ),
-        };
+    CaseResult::Failed {
+        message: format!(
+            "goto_implementation requires an explicit location snapshot, got '{expected_content}'"
+        ),
     }
-
-    TestResult::Passed
 }
 
 /// Decide whether an expectation is a structured snapshot.
-fn is_snapshot_expectation(expected: &str) -> bool {
-    // detect structured snapshots by span markers
-    expected.lines().map(str::trim).any(|line| {
-        let has_span = line.contains(':') && line.chars().any(|ch| ch.is_ascii_digit());
-        let has_range = line.contains("range=");
-        has_span || has_range
-    })
-}
-
 /// Validate implementation location invariants.
 fn validate_implementation_invariants(
     session: &QueryTestSession,

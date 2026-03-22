@@ -4,16 +4,16 @@ use destack_query as query;
 use destack_query::{DocumentLink, DocumentLinkTarget};
 use destack_source::Span;
 
-use crate::harness::TestResult;
+use crate::core::CaseResult;
 use crate::query::runner::position::resolve_query_position;
-use crate::query::runner::snapshot::normalize_expected_snapshot;
+use crate::query::runner::snapshot::{compare_snapshot, looks_like_span_snapshot};
 use crate::query::runner::span::{format_span_for_session, source_for_file};
 use crate::query::{QueryExpectation, QueryTestSession};
 
 /// Run a document_link test.
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
     let Some(exp) = expectation else {
-        return TestResult::Skipped {
+        return CaseResult::Skipped {
             reason: "no document_links expectation provided".to_string(),
         };
     };
@@ -25,7 +25,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     let expected_content = exp.content.trim();
     if expected_content.is_empty() {
         let actual_lines = format_document_link_snapshot(session, &links).join("\n");
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "document_link expectation is empty, but query returned:\n{actual_lines}"
             ),
@@ -34,24 +34,28 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 
     // validate invariants before any comparisons
     if let Err(message) = validate_link_invariants(session, &links) {
-        return TestResult::Failed { message };
+        return CaseResult::Failed { message };
+    }
+
+    // "<none>" means we expect no links
+    if expected_content == "<none>" {
+        return if links.is_empty() {
+            CaseResult::Passed
+        } else {
+            CaseResult::Failed {
+                message: format!("expected no document links, found {}", links.len()),
+            }
+        };
     }
 
     // use structured snapshots when the expectation looks like a snapshot
-    if is_snapshot_expectation(expected_content) {
+    if looks_like_span_snapshot(expected_content, &["target=", "tooltip="]) {
         return run_snapshot_expectation(session, &links, expected_content);
     }
 
-    // fall back to legacy count expectations when given a number
-    let expected_count: usize = expected_content.parse().unwrap_or(0);
-    if links.len() == expected_count {
-        return TestResult::Passed;
-    }
-
-    TestResult::Failed {
+    CaseResult::Failed {
         message: format!(
-            "expected {expected_count} document links, found {}",
-            links.len()
+            "document_link expectation '{expected_content}' is not a valid snapshot or <none>"
         ),
     }
 }
@@ -60,16 +64,16 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 pub fn run_resolve(
     session: &QueryTestSession,
     expectation: Option<&QueryExpectation>,
-) -> TestResult {
+) -> CaseResult {
     let Some(exp) = expectation else {
-        return TestResult::Skipped {
+        return CaseResult::Skipped {
             reason: "no resolve_document_link expectation provided".to_string(),
         };
     };
 
     let content = exp.content.trim();
     if content.is_empty() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: "resolve_document_link expectation is empty".to_string(),
         };
     }
@@ -77,9 +81,9 @@ pub fn run_resolve(
     let links = query::document_links(&session.session, session.file_id);
     if links.is_empty() {
         return if content == "<none>" {
-            TestResult::Passed
+            CaseResult::Passed
         } else {
-            TestResult::Failed {
+            CaseResult::Failed {
                 message: "resolve_document_link expected a link, but none were returned"
                     .to_string(),
             }
@@ -88,17 +92,17 @@ pub fn run_resolve(
 
     let (file_id, offset) = match resolve_query_position(session, &exp.target) {
         Ok(position) => position,
-        Err(message) => return TestResult::Failed { message },
+        Err(message) => return CaseResult::Failed { message },
     };
     if file_id != session.file_id {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: "resolve_document_link only supports the primary file".to_string(),
         };
     }
 
     let index = exp.args.first().and_then(|arg| arg.parse::<usize>().ok());
     let Some(link) = select_link(&links, Some(offset), index) else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: "resolve_document_link could not select a link".to_string(),
         };
     };
@@ -106,26 +110,16 @@ pub fn run_resolve(
     let resolved = query::resolve_document_link(&session.session, link);
     let actual_line = format_document_link_line(session, &resolved);
 
-    if is_snapshot_expectation(content) {
-        let expected_snapshot = normalize_expected_snapshot(content);
-        let actual_snapshot = normalize_expected_snapshot(&actual_line);
-        return if expected_snapshot == actual_snapshot {
-            TestResult::Passed
-        } else {
-            TestResult::Failed {
-                message: format!(
-                    "resolve_document_link snapshot mismatch\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}"
-                ),
-            }
-        };
+    if looks_like_span_snapshot(content, &["target=", "tooltip="]) {
+        return compare_snapshot("resolve_document_link", &actual_line, content);
     }
 
     if content == "<same>" {
         let original_line = format_document_link_line(session, link);
         return if original_line == actual_line {
-            TestResult::Passed
+            CaseResult::Passed
         } else {
-            TestResult::Failed {
+            CaseResult::Failed {
                 message: format!(
                     "resolve_document_link expected unchanged link\n\nexpected:\n{original_line}\n\nactual:\n{actual_line}"
                 ),
@@ -133,19 +127,11 @@ pub fn run_resolve(
         };
     }
 
-    TestResult::Failed {
+    CaseResult::Failed {
         message: format!(
             "resolve_document_link expectation did not match\n\nactual:\n{actual_line}"
         ),
     }
-}
-
-/// Decide whether a document link expectation is snapshot shaped.
-fn is_snapshot_expectation(expected: &str) -> bool {
-    expected
-        .lines()
-        .map(str::trim)
-        .any(|line| line.contains(".ds:") || line.contains("target="))
 }
 
 /// Run a structured snapshot expectation for document links.
@@ -153,21 +139,12 @@ fn run_snapshot_expectation(
     session: &QueryTestSession,
     links: &[DocumentLink],
     expected: &str,
-) -> TestResult {
-    // format the actual snapshot into deterministic lines
-    let actual_snapshot =
-        normalize_expected_snapshot(&format_document_link_snapshot(session, links).join("\n"));
-    let expected_snapshot = normalize_expected_snapshot(expected);
-
-    if actual_snapshot == expected_snapshot {
-        return TestResult::Passed;
-    }
-
-    TestResult::Failed {
-        message: format!(
-            "document_link snapshot mismatch\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}"
-        ),
-    }
+) -> CaseResult {
+    compare_snapshot(
+        "document_link",
+        &format_document_link_snapshot(session, links).join("\n"),
+        expected,
+    )
 }
 
 /// Validate common invariants for document links.

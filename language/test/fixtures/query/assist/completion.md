@@ -12,9 +12,89 @@ $0
 ```
 
 ```query completion $0
-- function: keyword
-- const: keyword
-- struct: keyword
+foo: variable
+as: keyword
+do: keyword
+if: keyword
+in: keyword
+is: keyword
+of: keyword
+any: keyword
+for: keyword
+get: keyword
+let: keyword
+new: keyword
+set: keyword
+try: keyword
+var: keyword
+case: keyword
+else: keyword
+enum: keyword
+from: keyword
+goto: keyword
+loop: keyword
+move: keyword
+null: keyword
+self: keyword
+this: keyword
+true: keyword
+type: keyword
+with: keyword
+async: keyword
+await: keyword
+break: keyword
+catch: keyword
+class: keyword
+const: keyword
+false: keyword
+final: keyword
+infer: keyword
+keyof: keyword
+match: keyword
+never: keyword
+super: keyword
+throw: keyword
+union: keyword
+using: keyword
+where: keyword
+while: keyword
+yield: keyword
+assert: keyword
+delete: keyword
+export: keyword
+import: keyword
+public: keyword
+return: keyword
+static: keyword
+struct: keyword
+switch: keyword
+typeof: keyword
+asserts: keyword
+declare: keyword
+default: keyword
+extends: keyword
+finally: keyword
+newtype: keyword
+package: keyword
+private: keyword
+abstract: keyword
+accessor: keyword
+comptime: keyword
+continue: keyword
+debugger: keyword
+function: keyword
+override: keyword
+provides: keyword
+readonly: keyword
+extension: keyword
+interface: keyword
+namespace: keyword
+protected: keyword
+satisfies: keyword
+undefined: keyword
+implements: keyword
+instanceof: keyword
+constructor: keyword
 ```
 
 ### Complete in empty file
@@ -26,8 +106,88 @@ $0
 ```
 
 ```query completion $0
-- function: keyword
-- const: keyword
+as: keyword
+do: keyword
+if: keyword
+in: keyword
+is: keyword
+of: keyword
+any: keyword
+for: keyword
+get: keyword
+let: keyword
+new: keyword
+set: keyword
+try: keyword
+var: keyword
+case: keyword
+else: keyword
+enum: keyword
+from: keyword
+goto: keyword
+loop: keyword
+move: keyword
+null: keyword
+self: keyword
+this: keyword
+true: keyword
+type: keyword
+with: keyword
+async: keyword
+await: keyword
+break: keyword
+catch: keyword
+class: keyword
+const: keyword
+false: keyword
+final: keyword
+infer: keyword
+keyof: keyword
+match: keyword
+never: keyword
+super: keyword
+throw: keyword
+union: keyword
+using: keyword
+where: keyword
+while: keyword
+yield: keyword
+assert: keyword
+delete: keyword
+export: keyword
+import: keyword
+public: keyword
+return: keyword
+static: keyword
+struct: keyword
+switch: keyword
+typeof: keyword
+asserts: keyword
+declare: keyword
+default: keyword
+extends: keyword
+finally: keyword
+newtype: keyword
+package: keyword
+private: keyword
+abstract: keyword
+accessor: keyword
+comptime: keyword
+continue: keyword
+debugger: keyword
+function: keyword
+override: keyword
+provides: keyword
+readonly: keyword
+extension: keyword
+interface: keyword
+namespace: keyword
+protected: keyword
+satisfies: keyword
+undefined: keyword
+implements: keyword
+instanceof: keyword
+constructor: keyword
 ```
 
 ### Avoid keywords in expression position
@@ -41,8 +201,7 @@ function main() {
 ```
 
 ```query completion $0
-! function: keyword
-! const: keyword
+<none>
 ```
 
 ## Type Position
@@ -56,11 +215,39 @@ const x: $0
 ```
 
 ```query completion $0
-- int32: type_parameter
-- string: type_parameter
-- boolean: type_parameter
-! function: keyword
-! const: keyword
+any: type_parameter
+int: type_parameter
+int8: type_parameter
+null: type_parameter
+uint: type_parameter
+void: type_parameter
+float: type_parameter
+int16: type_parameter
+int32: type_parameter
+int64: type_parameter
+isize: type_parameter
+never: type_parameter
+uint8: type_parameter
+usize: type_parameter
+bigint: type_parameter
+int128: type_parameter
+int256: type_parameter
+number: type_parameter
+object: type_parameter
+string: type_parameter
+symbol: type_parameter
+uint16: type_parameter
+uint32: type_parameter
+uint64: type_parameter
+boolean: type_parameter
+float32: type_parameter
+float64: type_parameter
+uint128: type_parameter
+uint256: type_parameter
+unknown: type_parameter
+character: type_parameter
+undefined: type_parameter
+unique symbol: type_parameter
 ```
 
 ### Complete after extends
@@ -72,10 +259,39 @@ class Child extends $0
 ```
 
 ```query completion $0
-- int32: type_parameter
-- string: type_parameter
-! function: keyword
-! const: keyword
+any: type_parameter
+int: type_parameter
+int8: type_parameter
+null: type_parameter
+uint: type_parameter
+void: type_parameter
+float: type_parameter
+int16: type_parameter
+int32: type_parameter
+int64: type_parameter
+isize: type_parameter
+never: type_parameter
+uint8: type_parameter
+usize: type_parameter
+bigint: type_parameter
+int128: type_parameter
+int256: type_parameter
+number: type_parameter
+object: type_parameter
+string: type_parameter
+symbol: type_parameter
+uint16: type_parameter
+uint32: type_parameter
+uint64: type_parameter
+boolean: type_parameter
+float32: type_parameter
+float64: type_parameter
+uint128: type_parameter
+uint256: type_parameter
+unknown: type_parameter
+character: type_parameter
+undefined: type_parameter
+unique symbol: type_parameter
 ```
 
 ### Complete declared types in type position
@@ -94,9 +310,41 @@ function test() {
 ```
 
 ```query completion $0
-- Point: struct
-- int32: type_parameter
-- string: type_parameter
+test: function
+Point: struct
+any: type_parameter
+int: type_parameter
+int8: type_parameter
+null: type_parameter
+uint: type_parameter
+void: type_parameter
+float: type_parameter
+int16: type_parameter
+int32: type_parameter
+int64: type_parameter
+isize: type_parameter
+never: type_parameter
+uint8: type_parameter
+usize: type_parameter
+bigint: type_parameter
+int128: type_parameter
+int256: type_parameter
+number: type_parameter
+object: type_parameter
+string: type_parameter
+symbol: type_parameter
+uint16: type_parameter
+uint32: type_parameter
+uint64: type_parameter
+boolean: type_parameter
+float32: type_parameter
+float64: type_parameter
+uint128: type_parameter
+uint256: type_parameter
+unknown: type_parameter
+character: type_parameter
+undefined: type_parameter
+unique symbol: type_parameter
 ```
 
 ### Exclude value symbols in type position
@@ -112,7 +360,39 @@ function test() {
 ```
 
 ```query completion $0
-! value: variable
+any: type_parameter
+int: type_parameter
+int8: type_parameter
+null: type_parameter
+uint: type_parameter
+void: type_parameter
+float: type_parameter
+int16: type_parameter
+int32: type_parameter
+int64: type_parameter
+isize: type_parameter
+never: type_parameter
+uint8: type_parameter
+usize: type_parameter
+bigint: type_parameter
+int128: type_parameter
+int256: type_parameter
+number: type_parameter
+object: type_parameter
+string: type_parameter
+symbol: type_parameter
+uint16: type_parameter
+uint32: type_parameter
+uint64: type_parameter
+boolean: type_parameter
+float32: type_parameter
+float64: type_parameter
+uint128: type_parameter
+uint256: type_parameter
+unknown: type_parameter
+character: type_parameter
+undefined: type_parameter
+unique symbol: type_parameter
 ```
 
 ### Complete imported types in type position
@@ -132,8 +412,41 @@ function configure(config: $0/*type*/ Options) {}
 ```
 
 ```query completion $0
-- Options: type_parameter
-- int32: type_parameter
+Options: type_parameter
+configure: function
+any: type_parameter
+int: type_parameter
+int8: type_parameter
+null: type_parameter
+uint: type_parameter
+void: type_parameter
+float: type_parameter
+int16: type_parameter
+int32: type_parameter
+int64: type_parameter
+isize: type_parameter
+never: type_parameter
+uint8: type_parameter
+usize: type_parameter
+bigint: type_parameter
+int128: type_parameter
+int256: type_parameter
+number: type_parameter
+object: type_parameter
+string: type_parameter
+symbol: type_parameter
+uint16: type_parameter
+uint32: type_parameter
+uint64: type_parameter
+boolean: type_parameter
+float32: type_parameter
+float64: type_parameter
+uint128: type_parameter
+uint256: type_parameter
+unknown: type_parameter
+character: type_parameter
+undefined: type_parameter
+unique symbol: type_parameter
 ```
 
 ### Complete in generic type parameter
@@ -158,8 +471,41 @@ function test() {
 ```
 
 ```query completion $0
-- Point: struct
-- int32: type_parameter
+Point: struct
+Container: struct
+any: type_parameter
+int: type_parameter
+int8: type_parameter
+null: type_parameter
+uint: type_parameter
+void: type_parameter
+float: type_parameter
+int16: type_parameter
+int32: type_parameter
+int64: type_parameter
+isize: type_parameter
+never: type_parameter
+uint8: type_parameter
+usize: type_parameter
+bigint: type_parameter
+int128: type_parameter
+int256: type_parameter
+number: type_parameter
+object: type_parameter
+string: type_parameter
+symbol: type_parameter
+uint16: type_parameter
+uint32: type_parameter
+uint64: type_parameter
+boolean: type_parameter
+float32: type_parameter
+float64: type_parameter
+uint128: type_parameter
+uint256: type_parameter
+unknown: type_parameter
+character: type_parameter
+undefined: type_parameter
+unique symbol: type_parameter
 ```
 
 ### Complete declared types in unterminated annotations
@@ -174,7 +520,7 @@ function main() {
 ```
 
 ```query completion $0
-- PendingType: struct
+PendingType: struct
 ```
 
 ## Import Paths
@@ -188,8 +534,11 @@ import { } from "$0"
 ```
 
 ```query completion $0
-- ./: folder
-- ../: folder
+./: folder
+../: folder
+<root>: module
+@destack/builtin: module
+<import-paths-suggest-relative-starters-for-empty-import-0>: module
 ```
 
 ### Complete relative entries with prefix
@@ -209,8 +558,8 @@ import { } from "./u$0"
 ```
 
 ```query completion $0
-- utils/: folder
-- user: module
+user: module
+utils/: folder
 ```
 
 ### Complete entries inside a folder
@@ -234,9 +583,9 @@ import { } from "./utils/f$0"
 ```
 
 ```query completion $0
-- format: module
-- format_more: module
-- forms/: folder
+format: module
+forms/: folder
+format_more: module
 ```
 
 ## Import Clause
@@ -260,8 +609,8 @@ import { $0 } from "./types.ds";
 ```
 
 ```query completion $0
-- Widget: struct
-- makeWidget: function
+Widget: struct
+makeWidget: function
 ```
 
 ### Skip already imported items
@@ -283,8 +632,7 @@ import { Widget, $0 } from "./types.ds";
 ```
 
 ```query completion $0
-- makeWidget: function
-! Widget: struct
+makeWidget: function
 ```
 
 ### Prefer type only symbols in type only imports
@@ -306,8 +654,7 @@ import type { $0 } from "./types.ds";
 ```
 
 ```query completion $0
-- Widget: struct
-! makeWidget: function
+Widget: struct
 ```
 
 ## Member Access
@@ -335,9 +682,9 @@ function main() {
 ```
 
 ```query completion $0
-- x: field
-- y: field
-- magnitude: method
+x: field
+y: field
+magnitude: method
 ```
 
 ## Object Literals
@@ -359,8 +706,8 @@ const cfg: Config = {
 ```
 
 ```query completion $0
-- retries: field
-! timeout: field
+retries: field
+cfg: variable
 ```
 
 ## New Expressions
@@ -379,8 +726,8 @@ function main() {
 ```
 
 ```query completion $0
-- Alpha: class
-- Beta: struct
+Beta: struct
+Alpha: class
 ```
 
 ## Auto Imports
@@ -402,7 +749,7 @@ function main() {
 ```
 
 ```query completion $0
-- makeWidget: function
+makeWidget: function
 ```
 
 ### Respect import type
@@ -424,8 +771,7 @@ import type { $0 } from "./types.ds";
 ```
 
 ```query completion $0
-- Widget: struct
-! makeWidget: function
+Widget: struct
 ```
 
 ### Mixed type and value items
@@ -448,13 +794,173 @@ import { type Options, ma$1 } from "./types.ds";
 ```
 
 ```query completion $0
-- Options: type_parameter
-! makeOptions: function
+as: keyword
+do: keyword
+if: keyword
+in: keyword
+is: keyword
+of: keyword
+any: keyword
+for: keyword
+get: keyword
+let: keyword
+new: keyword
+set: keyword
+try: keyword
+var: keyword
+case: keyword
+else: keyword
+enum: keyword
+from: keyword
+goto: keyword
+loop: keyword
+move: keyword
+null: keyword
+self: keyword
+this: keyword
+true: keyword
+type: keyword
+with: keyword
+async: keyword
+await: keyword
+break: keyword
+catch: keyword
+class: keyword
+const: keyword
+false: keyword
+final: keyword
+infer: keyword
+keyof: keyword
+match: keyword
+never: keyword
+super: keyword
+throw: keyword
+union: keyword
+using: keyword
+where: keyword
+while: keyword
+yield: keyword
+assert: keyword
+delete: keyword
+export: keyword
+import: keyword
+public: keyword
+return: keyword
+static: keyword
+struct: keyword
+switch: keyword
+typeof: keyword
+asserts: keyword
+declare: keyword
+default: keyword
+extends: keyword
+finally: keyword
+newtype: keyword
+package: keyword
+private: keyword
+abstract: keyword
+accessor: keyword
+comptime: keyword
+continue: keyword
+debugger: keyword
+function: keyword
+override: keyword
+provides: keyword
+readonly: keyword
+extension: keyword
+interface: keyword
+namespace: keyword
+protected: keyword
+satisfies: keyword
+undefined: keyword
+implements: keyword
+instanceof: keyword
+constructor: keyword
 ```
 
 ```query completion $1
-- makeOptions: function
-! Options: type_parameter
+as: keyword
+do: keyword
+if: keyword
+in: keyword
+is: keyword
+of: keyword
+any: keyword
+for: keyword
+get: keyword
+let: keyword
+new: keyword
+set: keyword
+try: keyword
+var: keyword
+case: keyword
+else: keyword
+enum: keyword
+from: keyword
+goto: keyword
+loop: keyword
+move: keyword
+null: keyword
+self: keyword
+this: keyword
+true: keyword
+type: keyword
+with: keyword
+async: keyword
+await: keyword
+break: keyword
+catch: keyword
+class: keyword
+const: keyword
+false: keyword
+final: keyword
+infer: keyword
+keyof: keyword
+match: keyword
+never: keyword
+super: keyword
+throw: keyword
+union: keyword
+using: keyword
+where: keyword
+while: keyword
+yield: keyword
+assert: keyword
+delete: keyword
+export: keyword
+import: keyword
+public: keyword
+return: keyword
+static: keyword
+struct: keyword
+switch: keyword
+typeof: keyword
+asserts: keyword
+declare: keyword
+default: keyword
+extends: keyword
+finally: keyword
+newtype: keyword
+package: keyword
+private: keyword
+abstract: keyword
+accessor: keyword
+comptime: keyword
+continue: keyword
+debugger: keyword
+function: keyword
+override: keyword
+provides: keyword
+readonly: keyword
+extension: keyword
+interface: keyword
+namespace: keyword
+protected: keyword
+satisfies: keyword
+undefined: keyword
+implements: keyword
+instanceof: keyword
+constructor: keyword
 ```
 
 ### Default import with named clause
@@ -476,8 +982,88 @@ import DefaultThing, { $0 } from "./types.ds";
 ```
 
 ```query completion $0
-- Widget: struct
-- makeWidget: function
+as: keyword
+do: keyword
+if: keyword
+in: keyword
+is: keyword
+of: keyword
+any: keyword
+for: keyword
+get: keyword
+let: keyword
+new: keyword
+set: keyword
+try: keyword
+var: keyword
+case: keyword
+else: keyword
+enum: keyword
+from: keyword
+goto: keyword
+loop: keyword
+move: keyword
+null: keyword
+self: keyword
+this: keyword
+true: keyword
+type: keyword
+with: keyword
+async: keyword
+await: keyword
+break: keyword
+catch: keyword
+class: keyword
+const: keyword
+false: keyword
+final: keyword
+infer: keyword
+keyof: keyword
+match: keyword
+never: keyword
+super: keyword
+throw: keyword
+union: keyword
+using: keyword
+where: keyword
+while: keyword
+yield: keyword
+assert: keyword
+delete: keyword
+export: keyword
+import: keyword
+public: keyword
+return: keyword
+static: keyword
+struct: keyword
+switch: keyword
+typeof: keyword
+asserts: keyword
+declare: keyword
+default: keyword
+extends: keyword
+finally: keyword
+newtype: keyword
+package: keyword
+private: keyword
+abstract: keyword
+accessor: keyword
+comptime: keyword
+continue: keyword
+debugger: keyword
+function: keyword
+override: keyword
+provides: keyword
+readonly: keyword
+extension: keyword
+interface: keyword
+namespace: keyword
+protected: keyword
+satisfies: keyword
+undefined: keyword
+implements: keyword
+instanceof: keyword
+constructor: keyword
 ```
 
 ### Multiline empty named clause
@@ -501,8 +1087,8 @@ import {
 ```
 
 ```query completion $0
-- Widget: struct
-- makeWidget: function
+Widget: struct
+makeWidget: function
 ```
 
 ## Member Access
@@ -523,8 +1109,90 @@ function main() {
 ```
 
 ```query completion $0
-- Point: struct
-- main: function
+main: function
+Point: struct
+as: keyword
+do: keyword
+if: keyword
+in: keyword
+is: keyword
+of: keyword
+any: keyword
+for: keyword
+get: keyword
+let: keyword
+new: keyword
+set: keyword
+try: keyword
+var: keyword
+case: keyword
+else: keyword
+enum: keyword
+from: keyword
+goto: keyword
+loop: keyword
+move: keyword
+null: keyword
+self: keyword
+this: keyword
+true: keyword
+type: keyword
+with: keyword
+async: keyword
+await: keyword
+break: keyword
+catch: keyword
+class: keyword
+const: keyword
+false: keyword
+final: keyword
+infer: keyword
+keyof: keyword
+match: keyword
+never: keyword
+super: keyword
+throw: keyword
+union: keyword
+using: keyword
+where: keyword
+while: keyword
+yield: keyword
+assert: keyword
+delete: keyword
+export: keyword
+import: keyword
+public: keyword
+return: keyword
+static: keyword
+struct: keyword
+switch: keyword
+typeof: keyword
+asserts: keyword
+declare: keyword
+default: keyword
+extends: keyword
+finally: keyword
+newtype: keyword
+package: keyword
+private: keyword
+abstract: keyword
+accessor: keyword
+comptime: keyword
+continue: keyword
+debugger: keyword
+function: keyword
+override: keyword
+provides: keyword
+readonly: keyword
+extension: keyword
+interface: keyword
+namespace: keyword
+protected: keyword
+satisfies: keyword
+undefined: keyword
+implements: keyword
+instanceof: keyword
+constructor: keyword
 ```
 
 ### Complete after dot
@@ -544,8 +1212,8 @@ function main2() {
 ```
 
 ```query completion $0
-- x: field
-- y: field
+x: field
+y: field
 ```
 
 ### Complete partial member name
@@ -566,8 +1234,8 @@ function main() {
 ```
 
 ```query completion $0
-- xa: field
-- xb: field
+xa: field
+xb: field
 ```
 
 ### Complete class methods
@@ -592,8 +1260,8 @@ function main() {
 ```
 
 ```query completion $0
-- add: method
-- multiply: method
+add: method
+multiply: method
 ```
 
 ### Complete extension methods
@@ -616,7 +1284,7 @@ function main() {
 ```
 
 ```query completion $0
-- sum: method
+sum: method
 ```
 
 ## New Expressions
@@ -640,9 +1308,8 @@ function main() {
 ```
 
 ```query completion $0
-- Engine: class
-- Wheel: struct
-! makeWheel: function
+Wheel: struct
+Engine: class
 ```
 
 ### Auto import constructable types after new
@@ -682,8 +1349,10 @@ function main() {
 ```
 
 ```query completion $0
-- x: field
-- y: field
+x: field
+y: field
+main: function
+Point: struct
 ```
 
 ### Complete remaining fields in object literal
@@ -703,9 +1372,10 @@ function main() {
 ```
 
 ```query completion $0
-- port: field
-- timeout: field
-! host: field
+port: field
+timeout: field
+main: function
+Config: struct
 ```
 
 ### Avoid duplicate field and variable completions
@@ -725,9 +1395,10 @@ function main() {
 ```
 
 ```query completion $0
-- host: field
-- timeout: field
-! timeout: variable
+host: field
+timeout: field
+main: function
+Config: struct
 ```
 
 ### Complete shorthand values in untyped object literal
@@ -743,8 +1414,9 @@ function main() {
 ```
 
 ```query completion $0
-- host: variable
-- port: variable
+host: variable
+main: function
+port: variable
 ```
 
 ### Avoid field completions in object value position
@@ -765,10 +1437,7 @@ function main() {
 ```
 
 ```query completion $0
-- host: variable
-! port: field
-! timeout: field
-! function: keyword
+host: variable
 ```
 
 ### Complete fields in nested object literal
@@ -795,8 +1464,11 @@ function main() {
 ```
 
 ```query completion $0
-- street: field
-- city: field
+city: field
+street: field
+main: function
+Person: struct
+Address: struct
 ```
 
 ## Scope and Variables
@@ -814,9 +1486,91 @@ function test() {
 ```
 
 ```query completion $0
-- name: variable
-- count: variable
-- test: function
+name: variable
+test: function
+count: variable
+as: keyword
+do: keyword
+if: keyword
+in: keyword
+is: keyword
+of: keyword
+any: keyword
+for: keyword
+get: keyword
+let: keyword
+new: keyword
+set: keyword
+try: keyword
+var: keyword
+case: keyword
+else: keyword
+enum: keyword
+from: keyword
+goto: keyword
+loop: keyword
+move: keyword
+null: keyword
+self: keyword
+this: keyword
+true: keyword
+type: keyword
+with: keyword
+async: keyword
+await: keyword
+break: keyword
+catch: keyword
+class: keyword
+const: keyword
+false: keyword
+final: keyword
+infer: keyword
+keyof: keyword
+match: keyword
+never: keyword
+super: keyword
+throw: keyword
+union: keyword
+using: keyword
+where: keyword
+while: keyword
+yield: keyword
+assert: keyword
+delete: keyword
+export: keyword
+import: keyword
+public: keyword
+return: keyword
+static: keyword
+struct: keyword
+switch: keyword
+typeof: keyword
+asserts: keyword
+declare: keyword
+default: keyword
+extends: keyword
+finally: keyword
+newtype: keyword
+package: keyword
+private: keyword
+abstract: keyword
+accessor: keyword
+comptime: keyword
+continue: keyword
+debugger: keyword
+function: keyword
+override: keyword
+provides: keyword
+readonly: keyword
+extension: keyword
+interface: keyword
+namespace: keyword
+protected: keyword
+satisfies: keyword
+undefined: keyword
+implements: keyword
+instanceof: keyword
+constructor: keyword
 ```
 
 ### Exclude variables declared later in the same scope
@@ -831,8 +1585,89 @@ function test() {
 ```
 
 ```query completion $0
-- test: function
-! later: variable
+test: function
+as: keyword
+do: keyword
+if: keyword
+in: keyword
+is: keyword
+of: keyword
+any: keyword
+for: keyword
+get: keyword
+let: keyword
+new: keyword
+set: keyword
+try: keyword
+var: keyword
+case: keyword
+else: keyword
+enum: keyword
+from: keyword
+goto: keyword
+loop: keyword
+move: keyword
+null: keyword
+self: keyword
+this: keyword
+true: keyword
+type: keyword
+with: keyword
+async: keyword
+await: keyword
+break: keyword
+catch: keyword
+class: keyword
+const: keyword
+false: keyword
+final: keyword
+infer: keyword
+keyof: keyword
+match: keyword
+never: keyword
+super: keyword
+throw: keyword
+union: keyword
+using: keyword
+where: keyword
+while: keyword
+yield: keyword
+assert: keyword
+delete: keyword
+export: keyword
+import: keyword
+public: keyword
+return: keyword
+static: keyword
+struct: keyword
+switch: keyword
+typeof: keyword
+asserts: keyword
+declare: keyword
+default: keyword
+extends: keyword
+finally: keyword
+newtype: keyword
+package: keyword
+private: keyword
+abstract: keyword
+accessor: keyword
+comptime: keyword
+continue: keyword
+debugger: keyword
+function: keyword
+override: keyword
+provides: keyword
+readonly: keyword
+extension: keyword
+interface: keyword
+namespace: keyword
+protected: keyword
+satisfies: keyword
+undefined: keyword
+implements: keyword
+instanceof: keyword
+constructor: keyword
 ```
 
 ### Complete variables from outer scope
@@ -851,10 +1686,92 @@ function outer() {
 ```
 
 ```query completion $0
-- innerVar: variable
-- outerVar: variable
-- inner: function
-- outer: function
+inner: function
+outer: function
+innerVar: variable
+outerVar: variable
+as: keyword
+do: keyword
+if: keyword
+in: keyword
+is: keyword
+of: keyword
+any: keyword
+for: keyword
+get: keyword
+let: keyword
+new: keyword
+set: keyword
+try: keyword
+var: keyword
+case: keyword
+else: keyword
+enum: keyword
+from: keyword
+goto: keyword
+loop: keyword
+move: keyword
+null: keyword
+self: keyword
+this: keyword
+true: keyword
+type: keyword
+with: keyword
+async: keyword
+await: keyword
+break: keyword
+catch: keyword
+class: keyword
+const: keyword
+false: keyword
+final: keyword
+infer: keyword
+keyof: keyword
+match: keyword
+never: keyword
+super: keyword
+throw: keyword
+union: keyword
+using: keyword
+where: keyword
+while: keyword
+yield: keyword
+assert: keyword
+delete: keyword
+export: keyword
+import: keyword
+public: keyword
+return: keyword
+static: keyword
+struct: keyword
+switch: keyword
+typeof: keyword
+asserts: keyword
+declare: keyword
+default: keyword
+extends: keyword
+finally: keyword
+newtype: keyword
+package: keyword
+private: keyword
+abstract: keyword
+accessor: keyword
+comptime: keyword
+continue: keyword
+debugger: keyword
+function: keyword
+override: keyword
+provides: keyword
+readonly: keyword
+extension: keyword
+interface: keyword
+namespace: keyword
+protected: keyword
+satisfies: keyword
+undefined: keyword
+implements: keyword
+instanceof: keyword
+constructor: keyword
 ```
 
 ### Complete function parameters
@@ -868,9 +1785,91 @@ function greet(name: string, count: int32) {
 ```
 
 ```query completion $0
-- name: variable
-- count: variable
-- greet: function
+name: variable
+count: variable
+greet: function
+as: keyword
+do: keyword
+if: keyword
+in: keyword
+is: keyword
+of: keyword
+any: keyword
+for: keyword
+get: keyword
+let: keyword
+new: keyword
+set: keyword
+try: keyword
+var: keyword
+case: keyword
+else: keyword
+enum: keyword
+from: keyword
+goto: keyword
+loop: keyword
+move: keyword
+null: keyword
+self: keyword
+this: keyword
+true: keyword
+type: keyword
+with: keyword
+async: keyword
+await: keyword
+break: keyword
+catch: keyword
+class: keyword
+const: keyword
+false: keyword
+final: keyword
+infer: keyword
+keyof: keyword
+match: keyword
+never: keyword
+super: keyword
+throw: keyword
+union: keyword
+using: keyword
+where: keyword
+while: keyword
+yield: keyword
+assert: keyword
+delete: keyword
+export: keyword
+import: keyword
+public: keyword
+return: keyword
+static: keyword
+struct: keyword
+switch: keyword
+typeof: keyword
+asserts: keyword
+declare: keyword
+default: keyword
+extends: keyword
+finally: keyword
+newtype: keyword
+package: keyword
+private: keyword
+abstract: keyword
+accessor: keyword
+comptime: keyword
+continue: keyword
+debugger: keyword
+function: keyword
+override: keyword
+provides: keyword
+readonly: keyword
+extension: keyword
+interface: keyword
+namespace: keyword
+protected: keyword
+satisfies: keyword
+undefined: keyword
+implements: keyword
+instanceof: keyword
+constructor: keyword
 ```
 
 ### Shadowed variables show inner binding
@@ -888,7 +1887,90 @@ function test() {
 ```
 
 ```query completion $0
-- x: variable
+x: variable
+test: function
+as: keyword
+do: keyword
+if: keyword
+in: keyword
+is: keyword
+of: keyword
+any: keyword
+for: keyword
+get: keyword
+let: keyword
+new: keyword
+set: keyword
+try: keyword
+var: keyword
+case: keyword
+else: keyword
+enum: keyword
+from: keyword
+goto: keyword
+loop: keyword
+move: keyword
+null: keyword
+self: keyword
+this: keyword
+true: keyword
+type: keyword
+with: keyword
+async: keyword
+await: keyword
+break: keyword
+catch: keyword
+class: keyword
+const: keyword
+false: keyword
+final: keyword
+infer: keyword
+keyof: keyword
+match: keyword
+never: keyword
+super: keyword
+throw: keyword
+union: keyword
+using: keyword
+where: keyword
+while: keyword
+yield: keyword
+assert: keyword
+delete: keyword
+export: keyword
+import: keyword
+public: keyword
+return: keyword
+static: keyword
+struct: keyword
+switch: keyword
+typeof: keyword
+asserts: keyword
+declare: keyword
+default: keyword
+extends: keyword
+finally: keyword
+newtype: keyword
+package: keyword
+private: keyword
+abstract: keyword
+accessor: keyword
+comptime: keyword
+continue: keyword
+debugger: keyword
+function: keyword
+override: keyword
+provides: keyword
+readonly: keyword
+extension: keyword
+interface: keyword
+namespace: keyword
+protected: keyword
+satisfies: keyword
+undefined: keyword
+implements: keyword
+instanceof: keyword
+constructor: keyword
 ```
 
 ## Fuzzy Matching
@@ -908,9 +1990,15 @@ function main() {
 ```
 
 ```query completion $0
-- toString: function
-- toNumber: function
-! fromString: function
+toNumber: function
+toString: function
+goto: keyword
+throw: keyword
+function: keyword
+typeof: keyword
+extension: keyword
+instanceof: keyword
+constructor: keyword
 ```
 
 ### Fuzzy match case insensitive
@@ -927,8 +2015,15 @@ function main() {
 ```
 
 ```query completion $0
-- ToString: function
-- ToNumber: function
+ToNumber: function
+ToString: function
+goto: keyword
+throw: keyword
+function: keyword
+typeof: keyword
+extension: keyword
+instanceof: keyword
+constructor: keyword
 ```
 
 ### Fuzzy match camelCase boundaries
@@ -946,9 +2041,8 @@ function main() {
 ```
 
 ```query completion $0
-- getElementsByClassName: function
-- getElementById: function
-! querySelector: function
+getElementById: function
+getElementsByClassName: function
 ```
 
 ### Fuzzy match substring
@@ -966,7 +2060,7 @@ function main() {
 ```
 
 ```query completion $0
-- completion: function
+completion: function
 ```
 
 ## Enums
@@ -988,7 +2082,41 @@ function test() {
 ```
 
 ```query completion $0
-- Color: enum
+test: function
+Color: enum
+any: type_parameter
+int: type_parameter
+int8: type_parameter
+null: type_parameter
+uint: type_parameter
+void: type_parameter
+float: type_parameter
+int16: type_parameter
+int32: type_parameter
+int64: type_parameter
+isize: type_parameter
+never: type_parameter
+uint8: type_parameter
+usize: type_parameter
+bigint: type_parameter
+int128: type_parameter
+int256: type_parameter
+number: type_parameter
+object: type_parameter
+string: type_parameter
+symbol: type_parameter
+uint16: type_parameter
+uint32: type_parameter
+uint64: type_parameter
+boolean: type_parameter
+float32: type_parameter
+float64: type_parameter
+uint128: type_parameter
+uint256: type_parameter
+unknown: type_parameter
+character: type_parameter
+undefined: type_parameter
+unique symbol: type_parameter
 ```
 
 ### Complete enum members after dot
@@ -1008,9 +2136,9 @@ function main() {
 ```
 
 ```query completion $0
-- Pending: enum_member
-- Active: enum_member
-- Completed: enum_member
+Active: enum_member
+Pending: enum_member
+Completed: enum_member
 ```
 
 ## Function Arguments
@@ -1029,10 +2157,9 @@ function main() {
 ```
 
 ```query completion $0
-- userName: variable
-- main: function
-- greet: function
-! function: keyword
+main: function
+greet: function
+userName: variable
 ```
 
 ## Interface Members
@@ -1053,7 +2180,89 @@ class Circle implements Drawable {
 ```
 
 ```query completion $0
-- function: keyword
+Circle: class
+as: keyword
+do: keyword
+if: keyword
+in: keyword
+is: keyword
+of: keyword
+any: keyword
+for: keyword
+get: keyword
+let: keyword
+new: keyword
+set: keyword
+try: keyword
+var: keyword
+case: keyword
+else: keyword
+enum: keyword
+from: keyword
+goto: keyword
+loop: keyword
+move: keyword
+null: keyword
+self: keyword
+this: keyword
+true: keyword
+type: keyword
+with: keyword
+async: keyword
+await: keyword
+break: keyword
+catch: keyword
+class: keyword
+const: keyword
+false: keyword
+final: keyword
+infer: keyword
+keyof: keyword
+match: keyword
+never: keyword
+super: keyword
+throw: keyword
+union: keyword
+using: keyword
+where: keyword
+while: keyword
+yield: keyword
+assert: keyword
+delete: keyword
+export: keyword
+import: keyword
+public: keyword
+return: keyword
+static: keyword
+struct: keyword
+switch: keyword
+typeof: keyword
+asserts: keyword
+declare: keyword
+default: keyword
+extends: keyword
+finally: keyword
+newtype: keyword
+package: keyword
+private: keyword
+abstract: keyword
+accessor: keyword
+comptime: keyword
+continue: keyword
+debugger: keyword
+function: keyword
+override: keyword
+provides: keyword
+readonly: keyword
+extension: keyword
+interface: keyword
+namespace: keyword
+protected: keyword
+satisfies: keyword
+undefined: keyword
+implements: keyword
+instanceof: keyword
+constructor: keyword
 ```
 
 ## Newtypes
@@ -1072,9 +2281,42 @@ function test() {
 ```
 
 ```query completion $0
-- UserId: type_parameter
-- OrderId: type_parameter
-- int64: type_parameter
+test: function
+UserId: type_parameter
+OrderId: type_parameter
+any: type_parameter
+int: type_parameter
+int8: type_parameter
+null: type_parameter
+uint: type_parameter
+void: type_parameter
+float: type_parameter
+int16: type_parameter
+int32: type_parameter
+int64: type_parameter
+isize: type_parameter
+never: type_parameter
+uint8: type_parameter
+usize: type_parameter
+bigint: type_parameter
+int128: type_parameter
+int256: type_parameter
+number: type_parameter
+object: type_parameter
+string: type_parameter
+symbol: type_parameter
+uint16: type_parameter
+uint32: type_parameter
+uint64: type_parameter
+boolean: type_parameter
+float32: type_parameter
+float64: type_parameter
+uint128: type_parameter
+uint256: type_parameter
+unknown: type_parameter
+character: type_parameter
+undefined: type_parameter
+unique symbol: type_parameter
 ```
 
 ## Generics
@@ -1096,8 +2338,8 @@ function main() {
 ```
 
 ```query completion $0
-- value: field
-- count: field
+count: field
+value: field
 ```
 
 ## Auto Imports
@@ -1185,8 +2427,7 @@ function main() {
 ```
 
 ```query completion $0
-- Widget: variable
-! Widget: struct
+Widget: variable
 ```
 
 ### Use type only auto imports in type position

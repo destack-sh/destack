@@ -1,28 +1,28 @@
 use destack_query as query;
 use destack_source::Span;
 
-use crate::harness::TestResult;
+use crate::core::CaseResult;
 use crate::query::runner::position::resolve_query_span;
 use crate::query::{QueryExpectation, QueryTestSession};
 
 /// Run an extract function test.
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
     // handle missing expectation
     if let Some(exp) = expectation {
         return run_with_expectation(session, exp);
     }
 
-    TestResult::Skipped {
+    CaseResult::Skipped {
         reason: "no extract_function expectation provided".to_string(),
     }
 }
 
 /// Run an extract function test with an expectation.
-fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> TestResult {
+fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> CaseResult {
     // resolve the selection span
     let selection = match resolve_query_span(session, &exp.target) {
         Ok(span) => span,
-        Err(error) => return TestResult::Failed { message: error },
+        Err(error) => return CaseResult::Failed { message: error },
     };
 
     let new_name = exp
@@ -37,8 +37,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     let content = exp.content.trim();
     if content == "<none>" {
         return match result {
-            None => TestResult::Passed,
-            Some(result) => TestResult::Failed {
+            None => CaseResult::Passed,
+            Some(result) => CaseResult::Failed {
                 message: format!(
                     "extract_function should have produced no edits but produced {}",
                     result.edits.total_edits()
@@ -48,29 +48,29 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     }
 
     let Some(result) = result else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: "extract_function returned no edits".to_string(),
         };
     };
 
     if content.is_empty() {
         if result.edits.total_edits() == 0 {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: "extract_function produced 0 edits".to_string(),
             };
         }
 
-        return TestResult::Passed;
+        return CaseResult::Passed;
     }
 
     let Ok(expected_count) = content.parse::<usize>() else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("extract_function expectation '{content}' is not a valid count"),
         };
     };
 
     if result.edits.total_edits() != expected_count {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "extract_function produced {} edits, expected {}",
                 result.edits.total_edits(),
@@ -79,7 +79,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         };
     }
 
-    TestResult::Passed
+    CaseResult::Passed
 }
 
 /// Resolve a selection span from args when needed.

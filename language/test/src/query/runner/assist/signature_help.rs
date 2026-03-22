@@ -1,74 +1,35 @@
 use destack_query as query;
 use destack_query::SignatureHelp;
 
-use crate::harness::TestResult;
+use crate::core::CaseResult;
+use crate::query::runner::expectation::{
+    TextExpectation, describe_text_expectation, matches_text_expectation,
+};
 use crate::query::runner::position::resolve_query_position;
-use crate::query::runner::snapshot::normalize_expected_snapshot;
+use crate::query::runner::snapshot::{
+    compare_snapshot, looks_like_snapshot, normalize_expected_snapshot,
+};
 use crate::query::{QueryExpectation, QueryTestSession};
 
 /// Run a signature_help test.
 ///
 /// Verifies that signature help at cursor position shows expected function signature.
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
-    if let Some(exp) = expectation {
-        return run_with_expectation(session, exp);
-    }
-
-    // fallback: check signature expectations from markers
-    for (cursor_idx, (expected_sig, expected_active)) in &session.markers.expectations.signature {
-        let Some(cursor) = session.markers.cursor(*cursor_idx) else {
-            return TestResult::Failed {
-                message: format!("cursor ${cursor_idx} not found"),
-            };
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
+    let Some(exp) = expectation else {
+        return CaseResult::Skipped {
+            reason: "no signature_help expectation provided".to_string(),
         };
+    };
 
-        let result = query::signature_help(&session.session, session.file_id, cursor.offset);
-
-        match result {
-            Some(signature_help) => {
-                // validate signature help invariants before substring checks
-                if let Err(message) = validate_signature_help(&signature_help) {
-                    return TestResult::Failed { message };
-                }
-
-                let signature = &signature_help.signatures[signature_help.active_signature];
-                if !signature.label.contains(expected_sig) {
-                    return TestResult::Failed {
-                        message: format!(
-                            "signature_help at ${} expected '{}', got '{}'",
-                            cursor_idx, expected_sig, signature.label
-                        ),
-                    };
-                }
-
-                if let Some(active) = expected_active
-                    && signature_help.active_parameter != *active
-                {
-                    return TestResult::Failed {
-                        message: format!(
-                            "signature_help at ${cursor_idx} expected active parameter {active}, got {}",
-                            signature_help.active_parameter
-                        ),
-                    };
-                }
-            }
-            None => {
-                return TestResult::Failed {
-                    message: format!("signature_help at ${cursor_idx} returned None"),
-                };
-            }
-        }
-    }
-
-    TestResult::Passed
+    run_with_expectation(session, exp)
 }
 
 /// Run with markdown expectation.
-fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> TestResult {
+fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> CaseResult {
     // resolve the target position, allowing file scoped targets
     let (file_id, offset) = match resolve_query_position(session, &exp.target) {
         Ok(position) => position,
-        Err(message) => return TestResult::Failed { message },
+        Err(message) => return CaseResult::Failed { message },
     };
 
     // run the signature help query once
@@ -78,7 +39,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
 
     // empty expectation is an error
     if expected_sig.is_empty() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "signature_help expectation is empty at '{}', got: {:?}",
                 exp.target,
@@ -90,8 +51,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     // "<none>" means we expect no result
     if expected_sig == "<none>" {
         return match result {
-            None => TestResult::Passed,
-            Some(sig_help) => TestResult::Failed {
+            None => CaseResult::Passed,
+            Some(sig_help) => CaseResult::Failed {
                 message: format!(
                     "signature_help at '{}' expected None, got '{}'",
                     exp.target,
@@ -109,51 +70,43 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         Some(sig_help) => {
             // validate signature help invariants before comparisons
             if let Err(message) = validate_signature_help(&sig_help) {
-                return TestResult::Failed { message };
+                return CaseResult::Failed { message };
             }
 
             // compare against protocol shaped snapshots when structured
-            if is_snapshot_expectation(expected_sig) {
+            if looks_like_snapshot(expected_sig, &["active_signature=", "signature["]) {
                 let actual_snapshot = format_signature_help_snapshot(&sig_help);
-                let expected_snapshot = normalize_expected_snapshot(expected_sig);
-
-                if actual_snapshot != expected_snapshot {
-                    return TestResult::Failed {
-                        message: format!(
-                            "signature_help snapshot mismatch at '{}'\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}",
-                            exp.target
-                        ),
-                    };
-                }
-
-                return TestResult::Passed;
+                return compare_snapshot(
+                    &format!("signature_help at '{}'", exp.target),
+                    &actual_snapshot,
+                    expected_sig,
+                );
             }
 
-            // fall back to substring matching for legacy expectations
+            // explicit query blocks are exact only
             let sig = &sig_help.signatures[sig_help.active_signature];
-            if sig.label.contains(expected_sig) {
-                TestResult::Passed
+            let expectation = match TextExpectation::parse(expected_sig) {
+                Ok(expectation) => expectation,
+                Err(message) => return CaseResult::Failed { message },
+            };
+            if matches_text_expectation(&sig.label, expectation) {
+                CaseResult::Passed
             } else {
-                TestResult::Failed {
+                CaseResult::Failed {
                     message: format!(
-                        "signature_help at '{}' expected '{expected_sig}', got '{}'",
-                        exp.target, sig.label
+                        "signature_help at '{}' expected to {} '{}', got '{}'",
+                        exp.target,
+                        describe_text_expectation(expectation),
+                        expectation.text(),
+                        sig.label
                     ),
                 }
             }
         }
-        None => TestResult::Failed {
+        None => CaseResult::Failed {
             message: format!("signature_help at '{}' returned None", exp.target),
         },
     }
-}
-
-/// Decide whether an expectation is a structured snapshot.
-fn is_snapshot_expectation(expected: &str) -> bool {
-    expected
-        .lines()
-        .map(str::trim)
-        .any(|line| line.contains("active_signature=") || line.starts_with("signature["))
 }
 
 /// Validate signature help invariants.

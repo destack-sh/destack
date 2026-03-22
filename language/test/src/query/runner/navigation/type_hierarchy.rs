@@ -2,16 +2,16 @@ use destack_query as query;
 use destack_query::{TypeHierarchyItem, TypeHierarchyKind};
 use destack_source::Span;
 
-use crate::harness::TestResult;
+use crate::core::CaseResult;
 use crate::query::runner::position::resolve_query_position;
-use crate::query::runner::snapshot::normalize_expected_snapshot;
+use crate::query::runner::snapshot::{compare_snapshot, looks_like_span_snapshot};
 use crate::query::runner::span::{format_span_for_session, source_for_file};
 use crate::query::{QueryExpectation, QueryTestSession};
 
 /// Run a type_hierarchy test.
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
     let Some(exp) = expectation else {
-        return TestResult::Skipped {
+        return CaseResult::Skipped {
             reason: "no type_hierarchy expectation provided".to_string(),
         };
     };
@@ -20,11 +20,11 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 }
 
 /// Run with markdown expectation.
-fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> TestResult {
+fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> CaseResult {
     // resolve the query position from the expectation target
     let (file_id, offset) = match resolve_query_position(session, &exp.target) {
         Ok(position) => position,
-        Err(message) => return TestResult::Failed { message },
+        Err(message) => return CaseResult::Failed { message },
     };
 
     // parse direction from args
@@ -36,14 +36,14 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
 
     // prepare type hierarchy item
     let Some(item) = query::prepare_type_hierarchy(&session.session, file_id, offset) else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("type_hierarchy at '{}' returned None", exp.target),
         };
     };
 
     // validate the prepared item before expansion
     if let Err(message) = validate_item_invariants(session, &item) {
-        return TestResult::Failed { message };
+        return CaseResult::Failed { message };
     }
 
     // compute hierarchy items for the requested direction
@@ -51,7 +51,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         "supertypes" | "super" => (query::supertypes(&session.session, &item), "supertypes"),
         "subtypes" | "sub" => (query::subtypes(&session.session, &item), "subtypes"),
         _ => {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!(
                     "type_hierarchy direction '{direction}' is invalid, expected supertypes or subtypes"
                 ),
@@ -64,7 +64,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
 
     // empty expectation is an error
     if expected.is_empty() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "type_hierarchy {label} expectation is empty at '{}', got {} items",
                 exp.target,
@@ -75,35 +75,27 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
 
     // validate returned items before comparisons
     if let Err(message) = validate_items_invariants(session, &items, label) {
-        return TestResult::Failed { message };
+        return CaseResult::Failed { message };
     }
 
     // "<none>" means we expect no items
     if expected == "<none>" {
         if items.is_empty() {
-            return TestResult::Passed;
+            return CaseResult::Passed;
         }
         let names: Vec<&str> = items.iter().map(|item| item.name.as_str()).collect();
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("type_hierarchy {label} expected no results, got {names:?}"),
         };
     }
 
     // compare against protocol shaped snapshots when structured
-    if is_snapshot_expectation(expected) {
-        let actual_snapshot = normalize_expected_snapshot(&snapshot_items(session, &items));
-        let expected_snapshot = normalize_expected_snapshot(expected);
-
-        if actual_snapshot != expected_snapshot {
-            return TestResult::Failed {
-                message: format!(
-                    "type_hierarchy {label} snapshot mismatch at '{}'\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}",
-                    exp.target
-                ),
-            };
-        }
-
-        return TestResult::Passed;
+    if looks_like_span_snapshot(expected, &["kind=", "selection=", "detail="]) {
+        return compare_snapshot(
+            &format!("type_hierarchy {label} at '{}'", exp.target),
+            &snapshot_items(session, &items),
+            expected,
+        );
     }
 
     // parse expected names
@@ -117,7 +109,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
 
     // compare counts
     if expected_names.len() != actual_names.len() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "type_hierarchy {label} count mismatch: expected {}, got {} ({actual_names:?})",
                 expected_names.len(),
@@ -126,28 +118,30 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         };
     }
 
-    // compare name sets
-    for name in &expected_names {
-        if !actual_names.contains(name) {
-            return TestResult::Failed {
-                message: format!("type_hierarchy {label} missing '{name}', got {actual_names:?}"),
-            };
-        }
+    // compare the exact multiset of names
+    let mut expected_names = expected_names
+        .into_iter()
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    let mut actual_names = actual_names
+        .into_iter()
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    expected_names.sort();
+    actual_names.sort();
+
+    if actual_names != expected_names {
+        return CaseResult::Failed {
+            message: format!(
+                "type_hierarchy {label} names mismatch: expected {expected_names:?}, got {actual_names:?}"
+            ),
+        };
     }
 
-    TestResult::Passed
+    CaseResult::Passed
 }
 
 /// Decide whether an expectation is a structured snapshot.
-fn is_snapshot_expectation(expected: &str) -> bool {
-    // detect structured snapshots by kind markers or span like digits
-    expected.lines().map(str::trim).any(|line| {
-        let has_kind_marker = line.contains("kind=") || line.contains("selection=");
-        let has_digit_span = line.contains(':') && line.chars().any(|c| c.is_ascii_digit());
-        has_kind_marker || has_digit_span
-    })
-}
-
 /// Format type hierarchy items into a protocol shaped snapshot.
 fn snapshot_items(session: &QueryTestSession, items: &[TypeHierarchyItem]) -> String {
     // format each item into a single snapshot line

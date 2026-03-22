@@ -2,78 +2,45 @@ use destack_query as query;
 use destack_query::{DocumentHighlight, HighlightKind};
 use destack_source::{FileId, Span};
 
-use crate::harness::TestResult;
-use crate::query::runner::snapshot::normalize_expected_snapshot;
+use crate::core::CaseResult;
+use crate::query::runner::snapshot::{compare_snapshot, looks_like_snapshot};
 use crate::query::runner::span::{format_span_for_session, source_for_file};
 use crate::query::{QueryExpectation, QueryTestSession};
 
 /// Run a document_highlight test.
 ///
 /// Tests that querying from a marker highlights the expected ranges.
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
-    if let Some(exp) = expectation {
-        return run_with_expectation(session, exp);
-    }
-
-    // fall back to marker based expectations when no query block exists
-    for (cursor_idx, expected_highlights) in &session.markers.expectations.highlights {
-        // resolve the cursor position for this expectation
-        let Some(cursor) = session.markers.cursor(*cursor_idx) else {
-            return TestResult::Failed {
-                message: format!("cursor ${cursor_idx} not found"),
-            };
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
+    let Some(exp) = expectation else {
+        return CaseResult::Skipped {
+            reason: "no document_highlight expectation provided".to_string(),
         };
+    };
 
-        // run the highlight query at the cursor position
-        let highlights =
-            query::document_highlights(&session.session, session.file_id, cursor.offset);
-
-        // compare the expected highlight count first for clearer errors
-        if highlights.len() != expected_highlights.len() {
-            return TestResult::Failed {
-                message: format!(
-                    "document_highlight at ${} returned {} highlights, expected {}",
-                    cursor_idx,
-                    highlights.len(),
-                    expected_highlights.len()
-                ),
-            };
-        }
-
-        // require each expected highlight span to appear in the results
-        for exp in expected_highlights {
-            let found = highlights
-                .iter()
-                .any(|h| h.range.start == exp.start && h.range.end == exp.end);
-
-            if !found {
-                return TestResult::Failed {
-                    message: format!(
-                        "highlight {}-{} not found at ${}",
-                        exp.start, exp.end, cursor_idx
-                    ),
-                };
-            }
-        }
-    }
-
-    TestResult::Passed
+    run_with_expectation(session, exp)
 }
 
 /// Run with markdown expectation.
-fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> TestResult {
+fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> CaseResult {
     // resolve the target file and offset from a cursor or marker
     let (file_id, offset) = if exp.target.starts_with('$') {
-        let cursor_idx: usize = exp.target[1..].parse().unwrap_or(0);
+        let cursor_idx: usize = match exp.target[1..].parse() {
+            Ok(cursor_idx) => cursor_idx,
+            Err(_) => {
+                return CaseResult::Failed {
+                    message: format!("invalid cursor target '{}'", exp.target),
+                };
+            }
+        };
         let Some(cursor) = session.markers.cursor(cursor_idx) else {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!("cursor ${cursor_idx} not found"),
             };
         };
         (session.file_id, cursor.offset)
     } else {
         let Some(marker) = session.markers.range(&exp.target) else {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!("marker '{}' not found", exp.target),
             };
         };
@@ -84,7 +51,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     let content = exp.content.trim();
     if content.is_empty() {
         let highlights = query::document_highlights(&session.session, file_id, offset);
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "document_highlight expectation is empty at '{}', got {} highlights",
                 exp.target,
@@ -98,15 +65,15 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
 
     // validate invariants before any comparisons
     if let Err(message) = validate_highlight_invariants(session, file_id, &highlights) {
-        return TestResult::Failed { message };
+        return CaseResult::Failed { message };
     }
 
     // treat <none> as an explicit empty result expectation
     if content == "<none>" {
         return if highlights.is_empty() {
-            TestResult::Passed
+            CaseResult::Passed
         } else {
-            TestResult::Failed {
+            CaseResult::Failed {
                 message: format!(
                     "document_highlight at '{}' expected no highlights, got {}",
                     exp.target,
@@ -117,80 +84,17 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     }
 
     // prefer structured snapshots when the expectation looks like a snapshot
-    if is_snapshot_expectation(content) {
+    if looks_like_snapshot(content, &[".ds:", "kind="]) {
         return run_snapshot_expectation(session, &highlights, content);
     }
 
-    // allow legacy numeric count expectations
-    if let Ok(expected_count) = content.parse::<usize>() {
-        return if highlights.len() != expected_count {
-            TestResult::Failed {
-                message: format!(
-                    "document_highlight at '{}' returned {} highlights, expected {expected_count}",
-                    exp.target,
-                    highlights.len(),
-                ),
-            }
-        } else {
-            TestResult::Passed
-        };
+    let actual_snapshot = format_highlight_snapshot(session, &highlights).join("\n");
+    CaseResult::Failed {
+        message: format!(
+            "document_highlight at '{}' requires structured snapshot expectations with explicit kind=\n\nactual:\n{}",
+            exp.target, actual_snapshot
+        ),
     }
-
-    // parse expected markers from the content for marker based expectations
-    let expected_markers: Vec<&str> = content
-        .lines()
-        .map(|line| line.trim())
-        .filter(|line| !line.is_empty())
-        .collect();
-
-    // resolve marker spans into expected spans
-    let mut expected_spans = Vec::new();
-    for marker in &expected_markers {
-        let Some(range) = session.markers.range(marker) else {
-            return TestResult::Failed {
-                message: format!("expected marker '{marker}' not found"),
-            };
-        };
-        expected_spans.push(range.span);
-    }
-
-    // check count agreement before comparing individual spans
-    if highlights.len() != expected_spans.len() {
-        return TestResult::Failed {
-            message: format!(
-                "document_highlight at '{}' returned {} highlights, expected {}",
-                exp.target,
-                highlights.len(),
-                expected_spans.len()
-            ),
-        };
-    }
-
-    // require each expected span to appear in the highlight results
-    for expected in &expected_spans {
-        let found = highlights.iter().any(|highlight| {
-            highlight.range.start == expected.start && highlight.range.end == expected.end
-        });
-
-        if !found {
-            return TestResult::Failed {
-                message: format!(
-                    "document_highlight at '{}' missing expected span {:?}",
-                    exp.target, expected
-                ),
-            };
-        }
-    }
-
-    TestResult::Passed
-}
-
-/// Decide whether a document highlight expectation is snapshot shaped.
-fn is_snapshot_expectation(expected: &str) -> bool {
-    expected
-        .lines()
-        .map(str::trim)
-        .any(|line| line.contains(".ds:") || line.contains("kind="))
 }
 
 /// Run a structured snapshot expectation for document highlights.
@@ -198,21 +102,10 @@ fn run_snapshot_expectation(
     session: &QueryTestSession,
     highlights: &[DocumentHighlight],
     expected: &str,
-) -> TestResult {
+) -> CaseResult {
     // format the highlight results into deterministic snapshot lines
-    let actual_snapshot =
-        normalize_expected_snapshot(&format_highlight_snapshot(session, highlights).join("\n"));
-    let expected_snapshot = normalize_expected_snapshot(expected);
-
-    if actual_snapshot == expected_snapshot {
-        return TestResult::Passed;
-    }
-
-    TestResult::Failed {
-        message: format!(
-            "document_highlight snapshot mismatch\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}"
-        ),
-    }
+    let actual_snapshot = format_highlight_snapshot(session, highlights).join("\n");
+    compare_snapshot("document_highlight", &actual_snapshot, expected)
 }
 
 /// Validate common invariants for document highlights.

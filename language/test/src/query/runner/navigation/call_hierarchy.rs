@@ -4,16 +4,16 @@ use destack_query::{
 };
 use destack_source::{FileId, Span};
 
-use crate::harness::TestResult;
+use crate::core::CaseResult;
 use crate::query::runner::position::resolve_query_position;
-use crate::query::runner::snapshot::normalize_expected_snapshot;
+use crate::query::runner::snapshot::{compare_snapshot, looks_like_span_snapshot};
 use crate::query::runner::span::{format_span_for_session, source_for_file};
 use crate::query::{QueryExpectation, QueryTestSession};
 
 /// Run a call_hierarchy test.
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
     let Some(exp) = expectation else {
-        return TestResult::Skipped {
+        return CaseResult::Skipped {
             reason: "no call_hierarchy expectation provided".to_string(),
         };
     };
@@ -22,11 +22,11 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 }
 
 /// Run with markdown expectation.
-fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> TestResult {
+fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> CaseResult {
     // resolve the query position from the expectation target
     let (file_id, offset) = match resolve_query_position(session, &exp.target) {
         Ok(position) => position,
-        Err(message) => return TestResult::Failed { message },
+        Err(message) => return CaseResult::Failed { message },
     };
 
     // parse direction from args
@@ -38,14 +38,14 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
 
     // prepare call hierarchy item
     let Some(item) = query::prepare_call_hierarchy(&session.session, file_id, offset) else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("call_hierarchy at '{}' returned None", exp.target),
         };
     };
 
     // validate the prepared item before expansion
     if let Err(message) = validate_item_invariants(session, &item) {
-        return TestResult::Failed { message };
+        return CaseResult::Failed { message };
     }
 
     // compute calls for the requested direction
@@ -53,7 +53,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
 
     // empty expectation is an error
     if expected.is_empty() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "call_hierarchy {direction} expectation is empty at '{}'",
                 exp.target
@@ -65,7 +65,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     match direction {
         "incoming" => run_incoming_expectation(session, &item, expected, &exp.target),
         "outgoing" => run_outgoing_expectation(session, &item, expected, &exp.target),
-        _ => TestResult::Failed {
+        _ => CaseResult::Failed {
             message: format!(
                 "call_hierarchy direction '{direction}' is invalid, expected incoming or outgoing"
             ),
@@ -79,40 +79,33 @@ fn run_incoming_expectation(
     item: &CallHierarchyItem,
     expected: &str,
     target: &str,
-) -> TestResult {
+) -> CaseResult {
     // run the incoming calls query
     let calls = query::incoming_calls(&session.session, item);
 
     // validate invariants before comparisons
     if let Err(message) = validate_incoming_invariants(session, &calls) {
-        return TestResult::Failed { message };
+        return CaseResult::Failed { message };
     }
 
     // "<none>" means we expect no calls
     if expected == "<none>" {
         if calls.is_empty() {
-            return TestResult::Passed;
+            return CaseResult::Passed;
         }
         let actual_names: Vec<&str> = calls.iter().map(|call| call.from.name.as_str()).collect();
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("call_hierarchy incoming expected no results, got {actual_names:?}"),
         };
     }
 
     // compare against protocol shaped snapshots when structured
-    if is_snapshot_expectation(expected) {
-        let actual_snapshot = normalize_expected_snapshot(&snapshot_incoming(session, &calls));
-        let expected_snapshot = normalize_expected_snapshot(expected);
-
-        if actual_snapshot != expected_snapshot {
-            return TestResult::Failed {
-                message: format!(
-                    "call_hierarchy incoming snapshot mismatch at '{target}'\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}"
-                ),
-            };
-        }
-
-        return TestResult::Passed;
+    if looks_like_span_snapshot(expected, &["kind=", "selection=", "calls="]) {
+        return compare_snapshot(
+            &format!("call_hierarchy incoming at '{target}'"),
+            &snapshot_incoming(session, &calls),
+            expected,
+        );
     }
 
     // parse expected names
@@ -127,7 +120,7 @@ fn run_incoming_expectation(
 
     // compare counts
     if expected_names.len() != actual_names.len() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "call_hierarchy incoming count mismatch: expected {}, got {} ({actual_names:?})",
                 expected_names.len(),
@@ -136,16 +129,24 @@ fn run_incoming_expectation(
         };
     }
 
-    // compare name sets
-    for name in &expected_names {
-        if !actual_names.iter().any(|actual| actual == name) {
-            return TestResult::Failed {
-                message: format!("call_hierarchy incoming missing '{name}', got {actual_names:?}"),
-            };
-        }
+    // compare the exact multiset of names
+    let mut expected_names = expected_names
+        .into_iter()
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    let mut actual_names = actual_names;
+    expected_names.sort();
+    actual_names.sort();
+
+    if actual_names != expected_names {
+        return CaseResult::Failed {
+            message: format!(
+                "call_hierarchy incoming names mismatch: expected {expected_names:?}, got {actual_names:?}"
+            ),
+        };
     }
 
-    TestResult::Passed
+    CaseResult::Passed
 }
 
 /// Run outgoing call hierarchy expectations.
@@ -154,40 +155,33 @@ fn run_outgoing_expectation(
     item: &CallHierarchyItem,
     expected: &str,
     target: &str,
-) -> TestResult {
+) -> CaseResult {
     // run the outgoing calls query
     let calls = query::outgoing_calls(&session.session, item);
 
     // validate invariants before comparisons
     if let Err(message) = validate_outgoing_invariants(session, item, &calls) {
-        return TestResult::Failed { message };
+        return CaseResult::Failed { message };
     }
 
     // "<none>" means we expect no calls
     if expected == "<none>" {
         if calls.is_empty() {
-            return TestResult::Passed;
+            return CaseResult::Passed;
         }
         let actual_names: Vec<&str> = calls.iter().map(|call| call.to.name.as_str()).collect();
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("call_hierarchy outgoing expected no results, got {actual_names:?}"),
         };
     }
 
     // compare against protocol shaped snapshots when structured
-    if is_snapshot_expectation(expected) {
-        let actual_snapshot = normalize_expected_snapshot(&snapshot_outgoing(session, &calls));
-        let expected_snapshot = normalize_expected_snapshot(expected);
-
-        if actual_snapshot != expected_snapshot {
-            return TestResult::Failed {
-                message: format!(
-                    "call_hierarchy outgoing snapshot mismatch at '{target}'\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}"
-                ),
-            };
-        }
-
-        return TestResult::Passed;
+    if looks_like_span_snapshot(expected, &["kind=", "selection=", "calls="]) {
+        return compare_snapshot(
+            &format!("call_hierarchy outgoing at '{target}'"),
+            &snapshot_outgoing(session, &calls),
+            expected,
+        );
     }
 
     // parse expected names
@@ -202,7 +196,7 @@ fn run_outgoing_expectation(
 
     // compare counts
     if expected_names.len() != actual_names.len() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "call_hierarchy outgoing count mismatch: expected {}, got {} ({actual_names:?})",
                 expected_names.len(),
@@ -211,26 +205,24 @@ fn run_outgoing_expectation(
         };
     }
 
-    // compare name sets
-    for name in &expected_names {
-        if !actual_names.iter().any(|actual| actual == name) {
-            return TestResult::Failed {
-                message: format!("call_hierarchy outgoing missing '{name}', got {actual_names:?}"),
-            };
-        }
+    // compare the exact multiset of names
+    let mut expected_names = expected_names
+        .into_iter()
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    let mut actual_names = actual_names;
+    expected_names.sort();
+    actual_names.sort();
+
+    if actual_names != expected_names {
+        return CaseResult::Failed {
+            message: format!(
+                "call_hierarchy outgoing names mismatch: expected {expected_names:?}, got {actual_names:?}"
+            ),
+        };
     }
 
-    TestResult::Passed
-}
-
-/// Decide whether an expectation is a structured snapshot.
-fn is_snapshot_expectation(expected: &str) -> bool {
-    // detect structured snapshots by kind markers or span like digits
-    expected.lines().map(str::trim).any(|line| {
-        let has_kind_marker = line.contains("kind=") || line.contains("range=");
-        let has_digit_span = line.contains(':') && line.chars().any(|c| c.is_ascii_digit());
-        has_kind_marker || has_digit_span
-    })
+    CaseResult::Passed
 }
 
 /// Format incoming calls into a protocol shaped snapshot.

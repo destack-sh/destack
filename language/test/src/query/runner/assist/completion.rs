@@ -2,79 +2,44 @@ use destack_query as query;
 use destack_query::{Completion, CompletionTrigger};
 use destack_source::Span;
 
-use crate::harness::TestResult;
+use crate::core::CaseResult;
 use crate::query::runner::position::resolve_query_position;
-use crate::query::runner::snapshot::normalize_expected_snapshot;
+use crate::query::runner::snapshot::{
+    compare_snapshot, looks_like_snapshot, parse_snapshot_top_directive,
+};
 use crate::query::runner::span::{format_span_for_session, source_for_file};
-use crate::query::{ExpectedCompletion, QueryExpectation, QueryTestSession};
+use crate::query::{QueryExpectation, QueryTestSession};
+
+/// One exact expected completion item.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ExpectedCompletion {
+    /// The completion label.
+    label: String,
+    /// The completion kind name.
+    kind: String,
+    /// The optional detail text.
+    detail: Option<String>,
+}
 
 /// Run a completion test.
 ///
 /// Supports both markdown format (query block) and inline format (@completion).
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
-    // if we have a markdown expectation, use it
-    if let Some(exp) = expectation {
-        return run_with_expectation(session, exp);
-    }
-
-    // fallback: use inline @completion expectations
-    let expectations = &session.markers.expectations.completions;
-
-    if expectations.is_empty() {
-        return TestResult::Skipped {
-            reason: "no completion expectations defined".to_string(),
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
+    let Some(exp) = expectation else {
+        return CaseResult::Skipped {
+            reason: "no completion expectation provided".to_string(),
         };
-    }
+    };
 
-    for (cursor_idx, expected) in expectations {
-        let Some(cursor) = session.markers.cursor(*cursor_idx) else {
-            return TestResult::Failed {
-                message: format!("cursor ${cursor_idx} not found in source"),
-            };
-        };
-
-        let completions = query::completions(
-            &session.session,
-            session.file_id,
-            cursor.offset,
-            CompletionTrigger::Invoked,
-        );
-
-        // validate completion invariants before comparisons
-        if let Err(message) = validate_completion_invariants(session, &completions) {
-            return TestResult::Failed { message };
-        }
-
-        // check expected completions are present
-        for exp in expected {
-            let found = completions
-                .iter()
-                .any(|item| item.label == exp.label && kind_to_str(&item.kind) == exp.kind);
-
-            if !found {
-                let actual: Vec<_> = completions
-                    .iter()
-                    .map(|i| format!("{}({})", i.label, kind_to_str(&i.kind)))
-                    .collect();
-                return TestResult::Failed {
-                    message: format!(
-                        "completion '{}({})' not found at ${cursor_idx}\nactual: {actual:?}",
-                        exp.label, exp.kind
-                    ),
-                };
-            }
-        }
-    }
-
-    TestResult::Passed
+    run_with_expectation(session, exp)
 }
 
 /// Run with markdown expectation: `query completion $0` with content listing expected items.
-fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> TestResult {
+fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> CaseResult {
     // resolve the target position, allowing file scoped targets
     let (file_id, offset) = match resolve_query_position(session, &exp.target) {
         Ok(position) => position,
-        Err(message) => return TestResult::Failed { message },
+        Err(message) => return CaseResult::Failed { message },
     };
 
     // normalize the expectation content once
@@ -82,7 +47,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
 
     // empty expectations are not allowed
     if content.is_empty() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("completion expectation is empty at '{}'", exp.target),
         };
     }
@@ -96,11 +61,11 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
 
     // validate completion invariants before comparisons
     if let Err(message) = validate_completion_invariants(session, &completions) {
-        return TestResult::Failed { message };
+        return CaseResult::Failed { message };
     }
 
     // support snapshot expectations for stricter ordering assertions
-    if is_snapshot_expectation(content) {
+    if looks_like_snapshot(content, &["[", "label=", "sort="]) {
         // parse an optional top directive for prefix snapshot checks
         let (top_limit, snapshot_body) = parse_snapshot_top_directive(content);
 
@@ -109,200 +74,106 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         if let Some(limit) = top_limit {
             actual_lines.truncate(limit);
         }
-        let actual_snapshot = normalize_expected_snapshot(&actual_lines.join("\n"));
-        let expected_snapshot = normalize_expected_snapshot(&snapshot_body);
+        return compare_snapshot(
+            &format!("completion snapshot at '{}'", exp.target),
+            &actual_lines.join("\n"),
+            &snapshot_body,
+        );
+    }
 
-        if actual_snapshot == expected_snapshot {
-            return TestResult::Passed;
-        }
+    // treat <none> as an explicit empty result expectation
+    if content == "<none>" {
+        return if completions.is_empty() {
+            CaseResult::Passed
+        } else {
+            let actual = completions
+                .iter()
+                .map(ExpectedCompletion::from)
+                .map(|completion| format_expected_completion(&completion))
+                .collect::<Vec<_>>();
+            CaseResult::Failed {
+                message: format!(
+                    "completion at '{}' expected none\n\nactual: {actual:?}",
+                    exp.target
+                ),
+            }
+        };
+    }
 
-        return TestResult::Failed {
+    // parse the exact expected completion list
+    let expected = match parse_completion_entries(content) {
+        Ok(expected) => expected,
+        Err(message) => return CaseResult::Failed { message },
+    };
+
+    // reject empty non snapshot expectations
+    if expected.is_empty() {
+        return CaseResult::Failed {
+            message: format!("completion expectation is empty at '{}'", exp.target),
+        };
+    }
+
+    // compare exact completion membership
+    let actual = completions
+        .iter()
+        .map(ExpectedCompletion::from)
+        .collect::<Vec<_>>();
+
+    if actual != expected {
+        let expected = expected
+            .iter()
+            .map(format_expected_completion)
+            .collect::<Vec<_>>();
+        let actual = actual
+            .iter()
+            .map(format_expected_completion)
+            .collect::<Vec<_>>();
+        return CaseResult::Failed {
             message: format!(
-                "completion snapshot mismatch at '{}'\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}",
+                "completion set mismatch at '{}'\n\nexpected: {expected:?}\nactual:   {actual:?}",
                 exp.target
             ),
         };
     }
 
-    // parse expected completions from content
-    let ParsedExpectations {
-        expected,
-        excluded,
-        ordered,
-    } = parse_completion_content(content);
-
-    // skip only when no explicit expectations are present
-    if expected.is_empty() && excluded.is_empty() {
-        return TestResult::Skipped {
-            reason: "no expected completions in query block".to_string(),
-        };
-    }
-
-    // check expected completions are present
-    for exp_item in &expected {
-        let found = completions
-            .iter()
-            .any(|item| item.label == exp_item.label && kind_to_str(&item.kind) == exp_item.kind);
-
-        if !found {
-            let actual: Vec<_> = completions
-                .iter()
-                .map(|i| format!("{}: {}", i.label, kind_to_str(&i.kind)))
-                .collect();
-            return TestResult::Failed {
-                message: format!(
-                    "completion '{}: {}' not found\nactual: {:?}",
-                    exp_item.label, exp_item.kind, actual
-                ),
-            };
-        }
-    }
-
-    // check excluded completions are NOT present
-    for exc_item in &excluded {
-        let found = completions
-            .iter()
-            .any(|item| item.label == exc_item.label && kind_to_str(&item.kind) == exc_item.kind);
-
-        if found {
-            return TestResult::Failed {
-                message: format!(
-                    "completion '{}: {}' should NOT be present but was found",
-                    exc_item.label, exc_item.kind
-                ),
-            };
-        }
-    }
-
-    // check ordered completions appear in order
-    if ordered.len() > 1 {
-        let mut last_index = None;
-
-        for item in &ordered {
-            let Some(index) = completions.iter().position(|candidate| {
-                candidate.label == item.label && kind_to_str(&candidate.kind) == item.kind
-            }) else {
-                return TestResult::Failed {
-                    message: format!(
-                        "ordered completion '{}: {}' not found",
-                        item.label, item.kind
-                    ),
-                };
-            };
-
-            // fail when ordering is violated
-            if let Some(previous) = last_index
-                && index <= previous
-            {
-                return TestResult::Failed {
-                    message: format!(
-                        "completion order violated for '{}: {}'",
-                        item.label, item.kind
-                    ),
-                };
-            }
-
-            last_index = Some(index);
-        }
-    }
-
-    TestResult::Passed
+    CaseResult::Passed
 }
 
-/// Parsed completion expectations.
-struct ParsedExpectations {
-    /// Completions that should be present.
-    expected: Vec<ExpectedCompletion>,
-    /// Completions that should NOT be present.
-    excluded: Vec<ExpectedCompletion>,
-    /// Completions that should appear in order.
-    ordered: Vec<ExpectedCompletion>,
+/// Format one completion for failure messages.
+fn format_expected_completion(completion: &ExpectedCompletion) -> String {
+    format!("{}: {}", completion.label, completion.kind)
 }
 
-/// Parse markdown list of completions: "- x: field\n- y: field".
-/// Also supports exclusions with "! x: field" prefix.
-fn parse_completion_content(content: &str) -> ParsedExpectations {
+impl From<&Completion> for ExpectedCompletion {
+    fn from(completion: &Completion) -> Self {
+        Self {
+            label: completion.label.clone(),
+            kind: kind_to_str(&completion.kind).to_string(),
+            detail: None,
+        }
+    }
+}
+
+/// Parse an exact completion list.
+fn parse_completion_entries(content: &str) -> Result<Vec<ExpectedCompletion>, String> {
     let mut expected = Vec::new();
-    let mut excluded = Vec::new();
-    let mut ordered = Vec::new();
 
     for line in content.lines() {
         let line = line.trim();
-        if let Some(order_line) = line.strip_prefix("order:") {
-            for entry in order_line.split(',') {
-                let entry = entry.trim();
-                if entry.is_empty() {
-                    continue;
-                }
-
-                if let Some(completion) = parse_completion_entry(entry) {
-                    ordered.push(completion);
-                }
-            }
+        if line.is_empty() {
             continue;
         }
 
-        // exclusion: "! x: field" or "- ! x: field"
-        let is_exclusion = line.starts_with("! ") || line.starts_with("- ! ");
-        let line = line
-            .strip_prefix("- ! ")
-            .or_else(|| line.strip_prefix("! "))
-            .or_else(|| line.strip_prefix("- "));
-
-        let Some(line) = line else { continue };
         let Some(completion) = parse_completion_entry(line) else {
-            continue;
+            return Err(format!(
+                "completion expectation line '{line}' is invalid: expected 'label: kind'"
+            ));
         };
 
-        if is_exclusion {
-            excluded.push(completion);
-        } else {
-            expected.push(completion);
-        }
+        expected.push(completion);
     }
 
-    ParsedExpectations {
-        expected,
-        excluded,
-        ordered,
-    }
-}
-
-/// Decide whether an expectation is a structured snapshot.
-fn is_snapshot_expectation(expected: &str) -> bool {
-    expected
-        .lines()
-        .map(str::trim)
-        .any(|line| line.starts_with('[') || line.contains("label=") || line.contains("sort="))
-}
-
-/// Parse an optional top directive for snapshot checks.
-fn parse_snapshot_top_directive(content: &str) -> (Option<usize>, String) {
-    let mut top_limit = None;
-    let mut lines = Vec::new();
-
-    // parse the first non empty line as a potential top directive
-    let mut directive_consumed = false;
-    for raw_line in content.lines() {
-        let trimmed = raw_line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        if !directive_consumed {
-            let rest = trimmed.strip_prefix("top:");
-            if let Some(rest) = rest {
-                top_limit = rest.trim().parse::<usize>().ok();
-                directive_consumed = true;
-                continue;
-            }
-        }
-
-        directive_consumed = true;
-        lines.push(trimmed.to_string());
-    }
-
-    (top_limit, lines.join("\n"))
+    Ok(expected)
 }
 
 /// Validate completion invariants like label and edit bounds.

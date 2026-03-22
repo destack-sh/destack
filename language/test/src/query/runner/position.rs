@@ -9,7 +9,9 @@ pub fn resolve_query_position(
 ) -> Result<(FileId, u32), String> {
     // parse cursor targets like $0
     if let Some(cursor_index) = target.strip_prefix('$') {
-        let cursor_idx: usize = cursor_index.parse().unwrap_or(0);
+        let cursor_idx: usize = cursor_index
+            .parse()
+            .map_err(|_| format!("invalid cursor target '{target}'"))?;
         let Some(cursor) = session.markers.cursor(cursor_idx) else {
             return Err(format!("cursor ${cursor_idx} not found"));
         };
@@ -38,4 +40,18 @@ pub fn resolve_query_span(session: &QueryTestSession, target: &str) -> Result<Sp
     };
 
     Ok(marker.span)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_query_position;
+    use crate::query::QueryTestSession;
+
+    #[test]
+    fn test_resolve_query_position_rejects_invalid_cursor_targets() {
+        let session = QueryTestSession::from_source("const value = 1;\n");
+
+        let error = resolve_query_position(&session, "$oops").unwrap_err();
+        assert_eq!(error, "invalid cursor target '$oops'");
+    }
 }

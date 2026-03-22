@@ -2,9 +2,11 @@ use destack_query as query;
 use destack_query::{SemanticTokenModifiers, SemanticTokenType};
 use destack_source::Span;
 
-use crate::harness::TestResult;
+use crate::core::CaseResult;
 use crate::query::runner::position::resolve_query_span;
-use crate::query::runner::snapshot::normalize_expected_snapshot;
+use crate::query::runner::snapshot::{
+    compare_snapshot, looks_like_snapshot, normalize_expected_snapshot,
+};
 use crate::query::runner::span::{format_span_line_col, source_for_file};
 use crate::query::{QueryExpectation, QueryTestSession};
 
@@ -22,9 +24,9 @@ use crate::query::{QueryExpectation, QueryTestSession};
 /// foo: function [declaration, async]
 /// x: parameter [declaration, readonly]
 /// ```
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
     let Some(exp) = expectation else {
-        return TestResult::Skipped {
+        return CaseResult::Skipped {
             reason: "no semantic_tokens expectation defined".to_string(),
         };
     };
@@ -34,16 +36,16 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 }
 
 /// Run a semantic_tokens_range test.
-pub fn run_range(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
+pub fn run_range(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
     let Some(exp) = expectation else {
-        return TestResult::Skipped {
+        return CaseResult::Skipped {
             reason: "no semantic_tokens_range expectation defined".to_string(),
         };
     };
 
     let range = match resolve_query_span(session, &exp.target) {
         Ok(range) => range,
-        Err(message) => return TestResult::Failed { message },
+        Err(message) => return CaseResult::Failed { message },
     };
 
     let tokens = query::semantic_tokens_range(&session.session, range.file, range);
@@ -55,13 +57,13 @@ fn run_with_expectation(
     session: &QueryTestSession,
     exp: &QueryExpectation,
     tokens: &[query::SemanticToken],
-) -> TestResult {
+) -> CaseResult {
     let content = exp.content.trim();
     let snapshot = format_tokens_snapshot(session, tokens);
 
     // empty expectation is an error
     if content.is_empty() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("semantic_tokens expectation is empty, got:\n{snapshot}"),
         };
     }
@@ -69,9 +71,9 @@ fn run_with_expectation(
     // "<none>" means we expect no tokens
     if content == "<none>" {
         return if tokens.is_empty() {
-            TestResult::Passed
+            CaseResult::Passed
         } else {
-            TestResult::Failed {
+            CaseResult::Failed {
                 message: format!("semantic_tokens expected no tokens, got:\n{snapshot}"),
             }
         };
@@ -79,20 +81,12 @@ fn run_with_expectation(
 
     // validate basic invariants before comparing expectations
     if let Err(message) = validate_token_invariants(session, tokens) {
-        return TestResult::Failed { message };
+        return CaseResult::Failed { message };
     }
 
     // support snapshot expectations for gold standard assertions
-    if is_snapshot_expectation(content) {
-        let expected = normalize_expected_snapshot(content);
-        if snapshot == expected {
-            return TestResult::Passed;
-        }
-        return TestResult::Failed {
-            message: format!(
-                "semantic_tokens snapshot mismatch\n\nexpected:\n{expected}\n\nactual:\n{snapshot}",
-            ),
-        };
+    if looks_like_snapshot(content, &["range=", "kind="]) {
+        return compare_snapshot("semantic_tokens", &snapshot, content);
     }
 
     // parse expected tokens
@@ -103,7 +97,7 @@ fn run_with_expectation(
         .collect();
 
     if expected.is_empty() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("failed to parse any expected tokens from:\n{content}"),
         };
     }
@@ -116,7 +110,7 @@ fn run_with_expectation(
 
     // compare
     if actual.len() != expected.len() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "semantic_tokens count mismatch: expected {}, got {}\nActual:\n{snapshot}",
                 expected.len(),
@@ -127,7 +121,7 @@ fn run_with_expectation(
 
     for (i, (exp, act)) in expected.iter().zip(actual.iter()).enumerate() {
         if exp.text != act.text {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!(
                     "token {} text mismatch: expected '{}', got '{}'",
                     i, exp.text, act.text
@@ -135,7 +129,7 @@ fn run_with_expectation(
             };
         }
         if exp.token_type != act.token_type {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!(
                     "token '{}' type mismatch: expected {:?}, got {:?}",
                     exp.text, exp.token_type, act.token_type
@@ -145,14 +139,14 @@ fn run_with_expectation(
         // for modifiers, check that expected modifiers are present
         for modifier in &exp.modifiers {
             if !act.modifiers.contains(modifier) {
-                return TestResult::Failed {
+                return CaseResult::Failed {
                     message: format!("token '{}' missing modifier: {:?}", exp.text, modifier),
                 };
             }
         }
     }
 
-    TestResult::Passed
+    CaseResult::Passed
 }
 
 /// A parsed expected token.
@@ -359,12 +353,6 @@ fn collect_modifiers(mods: SemanticTokenModifiers) -> Vec<SemanticTokenModifiers
 }
 
 /// Detect whether an expectation uses the snapshot format.
-fn is_snapshot_expectation(content: &str) -> bool {
-    content
-        .lines()
-        .any(|line| line.contains("range=") || line.contains("kind="))
-}
-
 /// Format tokens into the snapshot format.
 fn format_tokens_snapshot(session: &QueryTestSession, tokens: &[query::SemanticToken]) -> String {
     // resolve the correct source for this file

@@ -4,9 +4,10 @@ use std::sync::Arc;
 
 use destack_compiler::{Compiler, CompilerOptions};
 use destack_source::{FileId, FileSystem, FileType, MemoryFileSystem, Uri};
-use destack_workspace::{ArtifactKey, MemoryCacheStore, Session};
+use destack_workspace::{ArtifactKey, Session};
 
 use super::{TestMarkers, parse_markers};
+use crate::core::SharedMemoryWorkspace;
 use crate::mdtest::{MdTestCase, select_profile_for_mdtest};
 
 /// Information about a single file in a test session.
@@ -42,13 +43,10 @@ pub struct QueryTestSession {
 impl QueryTestSession {
     /// Create a test session from source with markers.
     pub fn from_source(source: &str) -> Self {
-        let fs = Arc::new(MemoryFileSystem::new());
-        let root = PathBuf::from("/test");
-        let session = Arc::new(
-            Session::new(root.clone())
-                .with_fs(fs.clone())
-                .with_cache_store(Arc::new(MemoryCacheStore::new())),
-        );
+        let workspace = SharedMemoryWorkspace::new("/test");
+        let fs = workspace.fs();
+        let root = workspace.root().to_path_buf();
+        let session = workspace.session();
 
         // register the test file
         let uri = Uri::from_string("file:///test/test.ds");
@@ -58,10 +56,10 @@ impl QueryTestSession {
         let (clean_source, markers) = parse_markers(file_id, source);
 
         // write clean source to memory fs
-        let _ = fs.write(&PathBuf::from("/test/test.ds"), clean_source.as_bytes());
+        let _ = fs.write(&root.join("test.ds"), clean_source.as_bytes());
 
         // register with session
-        let program = session.add_root(PathBuf::from("/test"));
+        let program = session.add_root(root.clone());
         program.register_inline_module(uri, clean_source.clone(), FileType::Destack);
 
         let mut files = HashMap::new();
@@ -87,13 +85,10 @@ impl QueryTestSession {
 
     /// Create a test session from multiple files.
     pub fn from_files(input_files: &[(&str, &str)]) -> Self {
-        let fs = Arc::new(MemoryFileSystem::new());
-        let root = PathBuf::from("/test");
-        let session = Arc::new(
-            Session::new(root.clone())
-                .with_fs(fs.clone())
-                .with_cache_store(Arc::new(MemoryCacheStore::new())),
-        );
+        let workspace = SharedMemoryWorkspace::new("/test");
+        let fs = workspace.fs();
+        let root = workspace.root().to_path_buf();
+        let session = workspace.session();
         let program = session.add_root(root.clone());
 
         let mut primary_file_id = None;
@@ -146,14 +141,10 @@ impl QueryTestSession {
     /// Uses the same setup as spec tests for proper initialization.
     /// Runs the compiler to populate DIR with resolved symbols.
     pub fn from_mdtest(test: &MdTestCase) -> Self {
-        let memory_fs = Arc::new(MemoryFileSystem::new());
-        let root = PathBuf::from("/test");
-        let fs: Arc<dyn FileSystem> = memory_fs.clone();
-        let session = Arc::new(
-            Session::new(root.clone())
-                .with_fs(fs)
-                .with_cache_store(Arc::new(MemoryCacheStore::new())),
-        );
+        let workspace = SharedMemoryWorkspace::new("/test");
+        let memory_fs = workspace.fs();
+        let root = workspace.root().to_path_buf();
+        let session = workspace.session();
 
         Self::from_mdtest_with_session(test, session, memory_fs, root)
     }
@@ -183,6 +174,17 @@ impl QueryTestSession {
         }
 
         let program = session.add_root(root.clone());
+
+        // register the provided files eagerly so every fixture file has a stable file id
+        for (path, clean_source, _) in &clean_files {
+            let file_path = root.join(path);
+            let Some(file_type) = FileType::from_path(&file_path) else {
+                continue;
+            };
+
+            let uri = Uri::from_path(&file_path);
+            let _ = program.register_inline_module(uri, clean_source.clone(), file_type);
+        }
 
         // create compiler and run analysis
         let mut compiler = Compiler::new(
@@ -245,11 +247,13 @@ impl QueryTestSession {
 
         for (path, clean_source, markers) in &clean_files {
             let file_path = root.join(path);
+            let file_uri = Uri::from_path(&file_path);
 
             // get actual file_id from session
             let file_id = session
                 .files
                 .get_id_by_path(&file_path)
+                .or_else(|| session.files.get_id_by_uri(&file_uri))
                 .unwrap_or_else(|| panic!("missing file id for path: {}", file_path.display()));
 
             // update marker spans with correct file_id
@@ -266,10 +270,6 @@ impl QueryTestSession {
                     offset: cursor.offset,
                 });
             }
-            if markers.test_type.is_some() {
-                all_markers.test_type.clone_from(&markers.test_type);
-            }
-
             files.insert(
                 path.clone(),
                 TestFile {

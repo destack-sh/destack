@@ -1,17 +1,17 @@
 use destack_query as query;
 
-use crate::harness::TestResult;
+use crate::core::CaseResult;
 use crate::query::{QueryExpectation, QueryTestSession};
 
 /// Run a rename test.
 ///
 /// Verifies that renaming a symbol produces the expected edits.
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
     if let Some(exp) = expectation {
         return run_with_expectation(session, exp);
     }
 
-    TestResult::Skipped {
+    CaseResult::Skipped {
         reason: "no rename expectation provided".to_string(),
     }
 }
@@ -19,10 +19,10 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 /// Run with markdown expectation.
 ///
 /// Format: `query rename def:foo "newName"` with content showing expected edit count.
-fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> TestResult {
+fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> CaseResult {
     // parse marker from target
     let Some(marker) = session.markers.range(&exp.target) else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("marker '{}' not found", exp.target),
         };
     };
@@ -39,8 +39,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     if content == "<none>" {
         let result = query::rename(&session.session, file_id, offset, new_name);
         return match result {
-            None => TestResult::Passed,
-            Some(rename_result) => TestResult::Failed {
+            None => CaseResult::Passed,
+            Some(rename_result) => CaseResult::Failed {
                 message: format!(
                     "rename at '{}' to '{}' should have failed but produced {} edits",
                     exp.target,
@@ -54,7 +54,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     // first check prepare_rename
     let prepare_result = query::prepare_rename(&session.session, file_id, offset);
     if prepare_result.is_none() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("prepare_rename at '{}' returned None", exp.target),
         };
     }
@@ -67,17 +67,17 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         match result {
             Some(rename_result) => {
                 if rename_result.edit_count() == 0 {
-                    return TestResult::Failed {
+                    return CaseResult::Failed {
                         message: format!(
                             "rename at '{}' to '{}' produced 0 edits",
                             exp.target, new_name
                         ),
                     };
                 }
-                return TestResult::Passed;
+                return CaseResult::Passed;
             }
             None => {
-                return TestResult::Failed {
+                return CaseResult::Failed {
                     message: format!("rename at '{}' to '{}' returned None", exp.target, new_name),
                 };
             }
@@ -86,7 +86,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
 
     // parse expected edit count from content
     let Ok(expected_count) = content.parse::<usize>() else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("rename expectation '{content}' is not a valid count"),
         };
     };
@@ -94,7 +94,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     match result {
         Some(rename_result) => {
             if rename_result.edit_count() != expected_count {
-                TestResult::Failed {
+                CaseResult::Failed {
                     message: format!(
                         "rename at '{}' to '{}' produced {} edits, expected {}",
                         exp.target,
@@ -104,10 +104,10 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
                     ),
                 }
             } else {
-                TestResult::Passed
+                CaseResult::Passed
             }
         }
-        None => TestResult::Failed {
+        None => CaseResult::Failed {
             message: format!("rename at '{}' to '{}' returned None", exp.target, new_name),
         },
     }
