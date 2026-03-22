@@ -8,8 +8,8 @@ use destack_source::{
 };
 use destack_workspace::{ArtifactKey, FormatterOptions, LinterOptions, Program, Session};
 
-use crate::harness::{
-    RunContext, Suite, TestCase, TestOptions, TestResult, discover_test_files, fixtures_dir,
+use crate::core::{
+    Case, CaseResult, RunContext, RunOptions, Suite, discover_file_cases, fixtures_dir,
 };
 
 // --- parser stress suite ---
@@ -23,7 +23,7 @@ impl Suite for ParserStressSuite {
         "stress-parser"
     }
 
-    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+    fn discover(&self, _options: &RunOptions) -> Vec<Case> {
         let stress_dir = fixtures_dir().join("stress").join("parser");
         if !stress_dir.exists() {
             eprintln!("stress fixtures not found, run `just generate-stress`");
@@ -31,11 +31,11 @@ impl Suite for ParserStressSuite {
         }
 
         let extensions = &["ds", "ts", "tsx", "js", "jsx"];
-        discover_test_files(&stress_dir, extensions, "destack_test::stress::parser")
+        discover_file_cases(&stress_dir, extensions, "destack_test::stress::parser")
             .unwrap_or_default()
     }
 
-    fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
+    fn run(&self, case: &Case, _context: &RunContext<'_>) -> CaseResult {
         run_parser_stress(case)
     }
 
@@ -45,7 +45,7 @@ impl Suite for ParserStressSuite {
 }
 
 /// Run parser-only stress test.
-fn run_parser_stress(test: &TestCase) -> TestResult {
+fn run_parser_stress(test: &Case) -> CaseResult {
     // determine file type
     let path_str = test.path.to_string_lossy();
     let file_type = if path_str.ends_with(".d.ds") {
@@ -74,7 +74,7 @@ fn run_parser_stress(test: &TestCase) -> TestResult {
     let content = match std::fs::read_to_string(&test.path) {
         Ok(c) => c,
         Err(e) => {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!("failed to read: {e}"),
             };
         }
@@ -102,7 +102,7 @@ fn run_parser_stress(test: &TestCase) -> TestResult {
     let elapsed = start.elapsed();
 
     eprintln!("  {file_size} bytes, {line_count} lines, parsed in {elapsed:?}",);
-    TestResult::Passed
+    CaseResult::Passed
 }
 
 // --- resolver stress suite ---
@@ -116,7 +116,7 @@ impl Suite for ResolverStressSuite {
         "stress-resolver"
     }
 
-    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+    fn discover(&self, _options: &RunOptions) -> Vec<Case> {
         let stress_dir = fixtures_dir().join("stress").join("resolver");
         if !stress_dir.exists() {
             eprintln!("stress fixtures not found, run `just generate-stress`");
@@ -127,7 +127,7 @@ impl Suite for ResolverStressSuite {
         discover_project_entry_points(&stress_dir, "destack_test::stress::resolver")
     }
 
-    fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
+    fn run(&self, case: &Case, _context: &RunContext<'_>) -> CaseResult {
         run_resolver_stress(case)
     }
 
@@ -137,7 +137,7 @@ impl Suite for ResolverStressSuite {
 }
 
 /// Discover project entry points (index.ds files) in subdirectories.
-fn discover_project_entry_points(dir: &std::path::Path, category: &str) -> Vec<TestCase> {
+fn discover_project_entry_points(dir: &std::path::Path, category: &str) -> Vec<Case> {
     let mut cases = vec![];
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
@@ -146,7 +146,7 @@ fn discover_project_entry_points(dir: &std::path::Path, category: &str) -> Vec<T
                 let index = path.join("index.ds");
                 if index.exists() {
                     let name = path.file_name().unwrap().to_string_lossy().to_string();
-                    cases.push(TestCase::file(name, index, category));
+                    cases.push(Case::file(name, index, category));
                 }
             }
         }
@@ -155,7 +155,7 @@ fn discover_project_entry_points(dir: &std::path::Path, category: &str) -> Vec<T
 }
 
 /// Run resolver stress test (parse + bind + resolve).
-fn run_resolver_stress(test: &TestCase) -> TestResult {
+fn run_resolver_stress(test: &Case) -> CaseResult {
     let project_dir = test.path.parent().unwrap();
     let start = std::time::Instant::now();
 
@@ -182,7 +182,7 @@ fn run_resolver_stress(test: &TestCase) -> TestResult {
     let module_id = match compiler.resolve_path_to_module(&test.path) {
         Ok(id) => id,
         Err(e) => {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!("failed to resolve module: {e:?}"),
             };
         }
@@ -198,7 +198,7 @@ fn run_resolver_stress(test: &TestCase) -> TestResult {
 
     let elapsed = start.elapsed();
     eprintln!("  {file_count} files, resolved in {elapsed:?}",);
-    TestResult::Passed
+    CaseResult::Passed
 }
 
 // --- checker stress suite ---
@@ -212,7 +212,7 @@ impl Suite for CheckerStressSuite {
         "stress-checker"
     }
 
-    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+    fn discover(&self, _options: &RunOptions) -> Vec<Case> {
         let stress_dir = fixtures_dir().join("stress").join("checker");
         if !stress_dir.exists() {
             eprintln!("stress fixtures not found, run `just generate-stress`");
@@ -220,11 +220,11 @@ impl Suite for CheckerStressSuite {
         }
 
         let extensions = &["ds"];
-        discover_test_files(&stress_dir, extensions, "destack_test::stress::checker")
+        discover_file_cases(&stress_dir, extensions, "destack_test::stress::checker")
             .unwrap_or_default()
     }
 
-    fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
+    fn run(&self, case: &Case, _context: &RunContext<'_>) -> CaseResult {
         run_checker_stress(case)
     }
 
@@ -234,14 +234,14 @@ impl Suite for CheckerStressSuite {
 }
 
 /// Run checker stress test (full compile through type checking).
-fn run_checker_stress(test: &TestCase) -> TestResult {
+fn run_checker_stress(test: &Case) -> CaseResult {
     let start = std::time::Instant::now();
 
     // read file content for stats
     let content = match std::fs::read_to_string(&test.path) {
         Ok(c) => c,
         Err(e) => {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!("failed to read: {e}"),
             };
         }
@@ -263,7 +263,7 @@ fn run_checker_stress(test: &TestCase) -> TestResult {
     let module_id = match compiler.resolve_path_to_module(&test.path) {
         Ok(id) => id,
         Err(e) => {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!("failed to resolve module: {e:?}"),
             };
         }
@@ -279,5 +279,5 @@ fn run_checker_stress(test: &TestCase) -> TestResult {
 
     let elapsed = start.elapsed();
     eprintln!("  {file_size} bytes, {line_count} lines, checked in {elapsed:?}",);
-    TestResult::Passed
+    CaseResult::Passed
 }

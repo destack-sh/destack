@@ -2,7 +2,7 @@ use std::process::ExitCode;
 
 use clap::Parser;
 
-use destack_test::harness::{Runner, TestOptions};
+use destack_test::core::{RunOptions, Runner};
 use destack_test::stress::{CheckerStressSuite, ParserStressSuite, ResolverStressSuite};
 
 #[derive(Parser, Debug, Clone)]
@@ -21,7 +21,7 @@ struct StressOptions {
     checker: bool,
 
     #[command(flatten)]
-    test: TestOptions,
+    test: RunOptions,
 }
 
 fn main() -> ExitCode {
@@ -35,21 +35,21 @@ fn main() -> ExitCode {
     let mut any_failed = false;
 
     if run_parser {
-        let result = Runner::run_suite(&ParserStressSuite, &options.test);
+        let result = Runner::run_suite(ParserStressSuite, &options.test);
         if result != ExitCode::SUCCESS {
             any_failed = true;
         }
     }
 
     if run_resolver {
-        let result = Runner::run_suite(&ResolverStressSuite, &options.test);
+        let result = Runner::run_suite(ResolverStressSuite, &options.test);
         if result != ExitCode::SUCCESS {
             any_failed = true;
         }
     }
 
     if run_checker {
-        let result = Runner::run_suite(&CheckerStressSuite, &options.test);
+        let result = Runner::run_suite(CheckerStressSuite, &options.test);
         if result != ExitCode::SUCCESS {
             any_failed = true;
         }
