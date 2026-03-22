@@ -2,8 +2,10 @@ use destack_query as query;
 use destack_query::{InlayHint, InlayHintKind};
 use destack_source::{FileId, Span};
 
-use crate::harness::TestResult;
-use crate::query::runner::snapshot::normalize_expected_snapshot;
+use crate::core::CaseResult;
+use crate::query::runner::snapshot::{
+    compare_snapshot, looks_like_span_snapshot, normalize_expected_snapshot,
+};
 use crate::query::runner::span::{
     compute_line_starts, file_for, offset_to_line_col, source_for_file,
 };
@@ -12,60 +14,25 @@ use crate::query::{QueryExpectation, QueryTestSession};
 /// Run an inlay_hints test.
 ///
 /// Verifies that inlay hints are shown at expected positions.
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
-    if let Some(exp) = expectation {
-        return run_with_expectation(session, exp);
-    }
-
-    // fallback: check inlay_hint expectations from markers
-    let expected_hints = &session.markers.expectations.inlay_hints;
-    if expected_hints.is_empty() {
-        return TestResult::Skipped {
-            reason: "no inlay_hint expectations defined".to_string(),
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
+    let Some(exp) = expectation else {
+        return CaseResult::Skipped {
+            reason: "no inlay_hints expectation provided".to_string(),
         };
-    }
+    };
 
-    // get all hints for the file
-    let range = Span::new(session.file_id, 0, session.source.len() as u32);
-    let hints = query::inlay_hints(&session.session, session.file_id, range);
-
-    // validate hint invariants before marker comparisons
-    if let Err(message) = validate_inlay_hint_invariants(session, session.file_id, &hints) {
-        return TestResult::Failed { message };
-    }
-
-    // ensure each expected hint is present in the results
-    for expected_hint in expected_hints {
-        let found = hints
-            .iter()
-            .any(|h| h.position == expected_hint.offset && h.label.contains(&expected_hint.label));
-
-        if !found {
-            let actual: Vec<_> = hints
-                .iter()
-                .map(|h| format!("{}:{}", h.position, h.label))
-                .collect();
-            return TestResult::Failed {
-                message: format!(
-                    "inlay_hint at offset {} with label '{}' not found\nactual: {:?}",
-                    expected_hint.offset, expected_hint.label, actual
-                ),
-            };
-        }
-    }
-
-    TestResult::Passed
+    run_with_expectation(session, exp)
 }
 
 /// Run with markdown expectation.
-fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> TestResult {
+fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> CaseResult {
     let content = exp.content.trim();
 
     // empty expectation is an error
     if content.is_empty() {
         let range = Span::new(session.file_id, 0, session.source.len() as u32);
         let hints = query::inlay_hints(&session.session, session.file_id, range);
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "inlay_hints expectation is empty, but query returned {} hints",
                 hints.len()
@@ -79,69 +46,32 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
 
     // validate hint invariants before comparisons
     if let Err(message) = validate_inlay_hint_invariants(session, session.file_id, &hints) {
-        return TestResult::Failed { message };
+        return CaseResult::Failed { message };
     }
 
     // treat <none> as an explicit empty result expectation
     if content == "<none>" {
         if hints.is_empty() {
-            return TestResult::Passed;
+            return CaseResult::Passed;
         }
 
         let actual_snapshot = normalize_expected_snapshot(
             &inlay_hint_snapshot(session, session.file_id, &hints).join("\n"),
         );
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("inlay_hints expected none, got:\n{actual_snapshot}"),
         };
     }
 
     // compare against a protocol shaped snapshot when structured
-    if is_snapshot_expectation(content) {
-        let actual_snapshot = normalize_expected_snapshot(
-            &inlay_hint_snapshot(session, session.file_id, &hints).join("\n"),
-        );
-        let expected_snapshot = normalize_expected_snapshot(content);
-
-        if actual_snapshot != expected_snapshot {
-            return TestResult::Failed {
-                message: format!(
-                    "inlay_hints snapshot mismatch\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}"
-                ),
-            };
-        }
-
-        return TestResult::Passed;
+    if looks_like_span_snapshot(content, &["kind="]) {
+        let actual_snapshot = inlay_hint_snapshot(session, session.file_id, &hints).join("\n");
+        return compare_snapshot("inlay_hints", &actual_snapshot, content);
     }
 
-    // parse expected count from content
-    let Ok(expected_count) = content.parse::<usize>() else {
-        return TestResult::Failed {
-            message: format!("inlay_hints expectation '{content}' is not a valid count"),
-        };
-    };
-
-    if hints.len() != expected_count {
-        TestResult::Failed {
-            message: format!(
-                "inlay_hints returned {} hints, expected {}",
-                hints.len(),
-                expected_count
-            ),
-        }
-    } else {
-        TestResult::Passed
+    CaseResult::Failed {
+        message: format!("inlay_hints requires an explicit snapshot or <none>, got '{content}'"),
     }
-}
-
-/// Decide whether an expectation is a structured snapshot.
-fn is_snapshot_expectation(expected: &str) -> bool {
-    // detect structured snapshots by kind markers or line and column spans
-    expected.lines().map(str::trim).any(|line| {
-        let has_kind = line.contains("kind=");
-        let has_span = line.contains(':') && line.chars().any(|ch| ch.is_ascii_digit());
-        has_kind || has_span
-    })
 }
 
 /// Validate inlay hint invariants.

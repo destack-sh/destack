@@ -2,18 +2,20 @@ use destack_query as query;
 use destack_query::{CodeAction, CodeActionKind};
 use destack_source::{Edit, FileEdit, FileId, Span};
 
-use crate::harness::TestResult;
+use crate::core::CaseResult;
 use crate::query::runner::position::resolve_query_position;
-use crate::query::runner::snapshot::normalize_expected_snapshot;
+use crate::query::runner::snapshot::{
+    compare_snapshot_lines, looks_like_snapshot, parse_snapshot_top_directive,
+};
 use crate::query::runner::span::{file_for, format_span_line_col, source_for_file};
 use crate::query::{QueryExpectation, QueryTestSession};
 
 /// Run a code_actions test.
 ///
 /// Verifies that code actions are available at the expected positions.
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
     let Some(exp) = expectation else {
-        return TestResult::Skipped {
+        return CaseResult::Skipped {
             reason: "no code_actions expectation defined".to_string(),
         };
     };
@@ -22,16 +24,16 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 }
 
 /// Run with markdown expectation.
-fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> TestResult {
+fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> CaseResult {
     let parsed_expectation = match parse_code_action_expectation(exp.content.trim()) {
         Ok(parsed_expectation) => parsed_expectation,
-        Err(message) => return TestResult::Failed { message },
+        Err(message) => return CaseResult::Failed { message },
     };
     let content = parsed_expectation.expected.trim();
 
     // empty expectation is an error
     if content.is_empty() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: "code_actions expectation is empty".to_string(),
         };
     }
@@ -39,7 +41,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     // resolve the target into a span
     let range = match resolve_query_span(session, &exp.target) {
         Ok(range) => range,
-        Err(message) => return TestResult::Failed { message },
+        Err(message) => return CaseResult::Failed { message },
     };
 
     // run the query for the resolved span
@@ -48,11 +50,11 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
 
     // validate invariants before comparing against expectations
     if let Err(message) = validate_code_action_invariants(session, &actions) {
-        return TestResult::Failed { message };
+        return CaseResult::Failed { message };
     }
 
     // prefer protocol shaped snapshots when the expectation is structured
-    if is_snapshot_expectation(content) {
+    if looks_like_snapshot(content, &["[", "title=", "kind=", "edits="]) {
         // apply an optional top directive for large result sets
         let (top_limit, expected_snapshot) = parse_snapshot_top_directive(content);
 
@@ -62,29 +64,21 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
             lines.truncate(limit);
         }
 
-        let actual_snapshot = normalize_expected_snapshot(&lines.join("\n"));
-        let expected_snapshot = normalize_expected_snapshot(&expected_snapshot);
-
-        if actual_snapshot != expected_snapshot {
-            return TestResult::Failed {
-                message: format!(
-                    "code_actions snapshot mismatch at '{}'\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}",
-                    exp.target
-                ),
-            };
-        }
-
-        return TestResult::Passed;
+        return compare_snapshot_lines(
+            &format!("code_actions snapshot at '{}'", exp.target),
+            &lines,
+            &expected_snapshot,
+        );
     }
 
     // treat <none> as an explicit empty result expectation
     if content == "<none>" {
         if actions.is_empty() {
-            return TestResult::Passed;
+            return CaseResult::Passed;
         }
 
         let titles: Vec<_> = actions.iter().map(|action| action.title.clone()).collect();
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "code_actions at '{}' expected none, got {} actions: {titles:?}",
                 exp.target,
@@ -93,34 +87,25 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         };
     }
 
-    // parse expected count when the expectation is numeric
-    if let Ok(expected_count) = content.parse::<usize>() {
-        if actions.len() == expected_count {
-            return TestResult::Passed;
-        }
+    // require exact title lists in non snapshot mode
+    let expected_titles: Vec<&str> = content
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect();
 
-        return TestResult::Failed {
+    let actual_titles: Vec<&str> = actions.iter().map(|action| action.title.as_str()).collect();
+
+    if actual_titles != expected_titles {
+        return CaseResult::Failed {
             message: format!(
-                "code_actions at '{}' returned {} actions, expected {expected_count}",
-                exp.target,
-                actions.len(),
+                "code_actions title list mismatch at '{}'\n\nexpected: {expected_titles:?}\nactual:   {actual_titles:?}",
+                exp.target
             ),
         };
     }
 
-    // fall back to a contains check for simple expectations
-    let found = actions.iter().any(|action| action.title.contains(content));
-    if found {
-        return TestResult::Passed;
-    }
-
-    let titles: Vec<_> = actions.iter().map(|action| action.title.clone()).collect();
-    TestResult::Failed {
-        message: format!(
-            "no code action at '{}' contains '{content}'\navailable: {titles:?}",
-            exp.target,
-        ),
-    }
+    CaseResult::Passed
 }
 
 /// Parsed expectation for code action tests.
@@ -299,34 +284,6 @@ fn validate_code_action_invariants(
 }
 
 /// Decide whether an expectation is a structured snapshot.
-fn is_snapshot_expectation(expected: &str) -> bool {
-    expected.lines().map(str::trim).any(|line| {
-        line.starts_with('[')
-            || line.contains("title=")
-            || line.contains("kind=")
-            || line.contains("edits=")
-    })
-}
-
-/// Parse an optional top directive from a snapshot expectation.
-fn parse_snapshot_top_directive(content: &str) -> (Option<usize>, String) {
-    let mut top_limit = None;
-    let mut lines = Vec::new();
-
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if let Some(rest) = trimmed.strip_prefix("top:") {
-            top_limit = rest.trim().parse::<usize>().ok();
-            continue;
-        }
-
-        lines.push(line);
-    }
-
-    let normalized = lines.join("\n");
-    (top_limit, normalized)
-}
-
 /// Format code actions as a protocol shaped snapshot.
 fn code_action_snapshot(session: &QueryTestSession, actions: &[CodeAction]) -> Vec<String> {
     let mut lines = Vec::new();

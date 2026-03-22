@@ -131,11 +131,11 @@ export namespace Api {
 ```
 
 ```query workspace_symbols UserId
-UserId
+UserId(type_parameter) file=kinds.ds range=1:1-1:28
 ```
 
 ```query workspace_symbols Api
-Api
+Api(namespace) file=kinds.ds range=2:1-4:2
 ```
 
 ## Empty Search
@@ -149,7 +149,7 @@ export function alphaOnly(): void {}
 ```
 
 ```query workspace_symbols does_not_exist
-0
+<none>
 ```
 
 ## Damaged Source
@@ -164,5 +164,5 @@ export function broken( {}
 ```
 
 ```query workspace_symbols stable
-0
+<none>
 ```

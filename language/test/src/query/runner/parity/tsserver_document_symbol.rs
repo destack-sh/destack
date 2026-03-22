@@ -8,21 +8,21 @@ use destack_query::{DocumentSymbol, SymbolKind};
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
-use crate::harness::TestResult;
+use crate::core::CaseResult;
 use crate::query::runner::span::{compute_line_starts, offset_to_line_col, source_for_file};
 use crate::query::{QueryExpectation, QueryTestSession};
 
 /// Run a document symbol parity check via an external tsserver tool.
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
     let Some(_expectation) = expectation else {
-        return TestResult::Skipped {
+        return CaseResult::Skipped {
             reason: "no parity expectation".to_string(),
         };
     };
 
     // allow running parity checks only when explicitly configured
     let Some(parity_bin) = env::var_os("DESTACK_TSSERVER_PARITY_BIN") else {
-        return TestResult::Skipped {
+        return CaseResult::Skipped {
             reason: "DESTACK_TSSERVER_PARITY_BIN is not set".to_string(),
         };
     };
@@ -50,13 +50,13 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     let response = match run_external_parity(Path::new(&parity_bin), &request) {
         Ok(response) => response,
         Err(error) => {
-            return TestResult::Failed { message: error };
+            return CaseResult::Failed { message: error };
         }
     };
 
     // compare the snapshots and report a focused diff on mismatch
     if response.snapshot != request.snapshot {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "tsserver parity mismatch\n\nexternal:\n{}\n\ndestack:\n{}",
                 response.snapshot, request.snapshot
@@ -64,7 +64,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
         };
     }
 
-    TestResult::Passed
+    CaseResult::Passed
 }
 
 #[derive(Debug, Serialize)]

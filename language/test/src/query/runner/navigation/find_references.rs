@@ -1,68 +1,29 @@
 use destack_query as query;
 use destack_source::Span;
 
-use crate::harness::TestResult;
-use crate::query::runner::snapshot::normalize_expected_snapshot;
+use crate::core::CaseResult;
+use crate::query::runner::snapshot::{compare_snapshot, looks_like_span_snapshot};
 use crate::query::runner::span::{file_for, format_span_line_col, source_for_file};
 use crate::query::{QueryExpectation, QueryTestSession};
 
 /// Run a find_references test.
 ///
-/// Tests that querying from a marker finds the expected number of references.
-/// Format: `query find_references def:foo` with content showing expected count or markers.
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
+/// Tests that querying from a marker finds the exact expected references.
+/// Format: `query find_references def:foo` with content showing markers or a structured snapshot.
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
     if let Some(exp) = expectation {
         return run_with_expectation(session, exp);
     }
 
-    // fallback: check reference_count expectations from markers
-    for (marker_name, expected_count) in &session.markers.expectations.reference_count {
-        let Some(marker) = session.markers.range(marker_name) else {
-            return TestResult::Failed {
-                message: format!("marker '{marker_name}' not found"),
-            };
-        };
-
-        // resolve marker file and run query
-        let file_id = marker.span.file;
-        let offset = marker.span.start;
-        let declaration_span = query::goto_definition(&session.session, file_id, offset)
-            .and_then(|result| result.locations.first().copied());
-        let result = query::find_references(&session.session, file_id, offset, true);
-
-        match result {
-            Some(refs) => {
-                // validate invariants before count comparisons
-                if let Err(message) =
-                    validate_reference_invariants(session, &refs.references, declaration_span)
-                {
-                    return TestResult::Failed { message };
-                }
-
-                if refs.len() != *expected_count {
-                    return TestResult::Failed {
-                        message: format!(
-                            "find_references at '{marker_name}' returned {} references, expected {expected_count}",
-                            refs.len(),
-                        ),
-                    };
-                }
-            }
-            None => {
-                return TestResult::Failed {
-                    message: format!("find_references at '{marker_name}' returned None",),
-                };
-            }
-        }
+    CaseResult::Failed {
+        message: "find_references requires an explicit markdown expectation".to_string(),
     }
-
-    TestResult::Passed
 }
 
 /// Run with markdown expectation.
-fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> TestResult {
+fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> CaseResult {
     let Some(source_marker) = session.markers.range(&exp.target) else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("source marker '{}' not found", exp.target),
         };
     };
@@ -78,7 +39,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     // empty expectation is an error
     if content.is_empty() {
         let result = query::find_references(&session.session, file_id, offset, true);
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "find_references expectation is empty at '{}', got: {:?}",
                 exp.target,
@@ -91,19 +52,19 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     if content == "<none>" {
         let result = query::find_references(&session.session, file_id, offset, true);
         return match result {
-            None => TestResult::Passed,
+            None => CaseResult::Passed,
             Some(refs) => {
                 // validate invariants when we do get a result
                 if let Err(message) =
                     validate_reference_invariants(session, &refs.references, declaration_span)
                 {
-                    return TestResult::Failed { message };
+                    return CaseResult::Failed { message };
                 }
 
                 if refs.is_empty() {
-                    TestResult::Passed
+                    CaseResult::Passed
                 } else {
-                    TestResult::Failed {
+                    CaseResult::Failed {
                         message: format!(
                             "find_references at '{}' expected no results, got {}",
                             exp.target,
@@ -115,40 +76,9 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         };
     }
 
-    // parse expected count from content (e.g., "3" or "count: 3")
-    let count_str = content.strip_prefix("count:").unwrap_or(content).trim();
-    if let Ok(expected_count) = count_str.parse::<usize>() {
-        let result = query::find_references(&session.session, file_id, offset, true);
-        return match result {
-            Some(refs) => {
-                // validate invariants before count comparisons
-                if let Err(message) =
-                    validate_reference_invariants(session, &refs.references, declaration_span)
-                {
-                    return TestResult::Failed { message };
-                }
-
-                if refs.len() != expected_count {
-                    TestResult::Failed {
-                        message: format!(
-                            "find_references at '{}' returned {} references, expected {expected_count}",
-                            exp.target,
-                            refs.len(),
-                        ),
-                    }
-                } else {
-                    TestResult::Passed
-                }
-            }
-            None => TestResult::Failed {
-                message: format!("find_references at '{}' returned None", exp.target),
-            },
-        };
-    }
-
     let result = query::find_references(&session.session, file_id, offset, true);
     let Some(refs) = result else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("find_references at '{}' returned None", exp.target),
         };
     };
@@ -156,25 +86,17 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     // validate reference invariants before comparing expectations
     if let Err(message) = validate_reference_invariants(session, &refs.references, declaration_span)
     {
-        return TestResult::Failed { message };
+        return CaseResult::Failed { message };
     }
 
     // prefer protocol shaped snapshots when the expectation is structured
-    if is_snapshot_expectation(content) {
+    if looks_like_span_snapshot(content, &["file=", "decl=", "ref=", ".ds:", "range="]) {
         let actual_lines = format_reference_snapshot(session, &refs.references, declaration_span);
-        let actual_snapshot = normalize_expected_snapshot(&actual_lines.join("\n"));
-        let expected_snapshot = normalize_expected_snapshot(content);
-
-        if actual_snapshot != expected_snapshot {
-            return TestResult::Failed {
-                message: format!(
-                    "find_references snapshot mismatch at '{}'\n\nexpected:\n{}\n\nactual:\n{}",
-                    exp.target, expected_snapshot, actual_snapshot
-                ),
-            };
-        }
-
-        return TestResult::Passed;
+        return compare_snapshot(
+            &format!("find_references at '{}'", exp.target),
+            &actual_lines.join("\n"),
+            content,
+        );
     }
 
     // parse expected markers from content
@@ -187,7 +109,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     let mut expected_spans = Vec::new();
     for marker in &expected_markers {
         let Some(range) = session.markers.range(marker) else {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!("expected marker '{marker}' not found"),
             };
         };
@@ -199,7 +121,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     let expected_spans = normalized_spans(&expected_spans, declaration_span);
 
     if actual_spans.len() != expected_spans.len() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "find_references at '{}' returned {} references, expected {}",
                 exp.target,
@@ -213,7 +135,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         let found = actual_spans.iter().any(|reference| reference == expected);
         if !found {
             let actual_lines = format_reference_snapshot(session, &actual_spans, declaration_span);
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!(
                     "find_references at '{}' missing expected span {:?}\nactual:\n{}",
                     exp.target,
@@ -224,7 +146,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         }
     }
 
-    TestResult::Passed
+    CaseResult::Passed
 }
 
 /// Validate basic reference invariants.
@@ -325,14 +247,6 @@ fn normalized_spans(spans: &[Span], declaration_span: Option<Span>) -> Vec<Span>
     }
 
     spans
-}
-
-/// Decide whether an expectation is a structured snapshot.
-fn is_snapshot_expectation(expected: &str) -> bool {
-    expected
-        .lines()
-        .map(str::trim)
-        .any(|line| line.contains("range=") || line.contains("file=") || line.contains(".ds:"))
 }
 
 /// Format references into a protocol shaped snapshot.

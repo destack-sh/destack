@@ -1,9 +1,11 @@
 use destack_query as query;
 use destack_source::Span;
 
-use crate::harness::TestResult;
+use crate::core::CaseResult;
 use crate::query::runner::position::resolve_query_position;
-use crate::query::runner::snapshot::normalize_expected_snapshot;
+use crate::query::runner::snapshot::{
+    compare_snapshot, looks_like_span_snapshot, normalize_expected_snapshot,
+};
 use crate::query::runner::span::{format_span_for_session, source_for_file};
 use crate::query::{QueryExpectation, QueryTestSession};
 
@@ -11,73 +13,22 @@ use crate::query::{QueryExpectation, QueryTestSession};
 ///
 /// For each use marker, verify it resolves to the expected def marker.
 /// With markdown format, the expectation specifies target marker and expected result.
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
-    // if we have a markdown expectation, use it
-    if let Some(exp) = expectation {
-        return run_with_expectation(session, exp);
-    }
-
-    // fall back to inline reference targets when no markdown expectation is present
-    for reference in session.markers.references() {
-        let Some(target_name) = &reference.target else {
-            continue;
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
+    let Some(exp) = expectation else {
+        return CaseResult::Skipped {
+            reason: "no goto_definition expectation provided".to_string(),
         };
+    };
 
-        // resolve the expected target marker
-        let Some(expected_def) = session.markers.range(target_name) else {
-            return TestResult::Failed {
-                message: format!("target marker '{target_name}' not found"),
-            };
-        };
-
-        // run goto definition at the reference position
-        let file_id = reference.span.file;
-        let offset = reference.span.start;
-        let result = query::goto_definition(&session.session, file_id, offset);
-
-        let Some(def_result) = result else {
-            return TestResult::Failed {
-                message: format!("goto_definition at offset {offset} returned None"),
-            };
-        };
-
-        // require at least one definition location
-        if def_result.locations.is_empty() {
-            return TestResult::Failed {
-                message: format!("goto_definition at offset {offset} returned empty result"),
-            };
-        }
-
-        // validate invariants before matching expected spans
-        if let Err(message) = validate_definition_invariants(session, &def_result.locations) {
-            return TestResult::Failed { message };
-        }
-
-        // check that the expected target span is present
-        let found_match = def_result
-            .locations
-            .iter()
-            .any(|loc| loc.start == expected_def.span.start && loc.end == expected_def.span.end);
-
-        if !found_match {
-            return TestResult::Failed {
-                message: format!(
-                    "goto_definition at offset {offset} returned wrong location: expected {:?}, got {:?}",
-                    expected_def.span, def_result.locations[0]
-                ),
-            };
-        }
-    }
-
-    TestResult::Passed
+    run_with_expectation(session, exp)
 }
 
 /// Run with markdown expectation: `query goto_definition use:foo` expects `def:foo`.
-fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> TestResult {
+fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> CaseResult {
     // resolve the query position from the expectation target
     let (file_id, offset) = match resolve_query_position(session, &exp.target) {
         Ok(position) => position,
-        Err(message) => return TestResult::Failed { message },
+        Err(message) => return CaseResult::Failed { message },
     };
 
     // normalize the expected content for comparison
@@ -85,7 +36,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
 
     // empty expectation is an error
     if expected_content.is_empty() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("goto_definition expectation at '{}' is empty", exp.target),
         };
     }
@@ -96,9 +47,9 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     // "<none>" means we expect no result
     if expected_content == "<none>" {
         return match result {
-            None => TestResult::Passed,
-            Some(def_result) if def_result.locations.is_empty() => TestResult::Passed,
-            Some(def_result) => TestResult::Failed {
+            None => CaseResult::Passed,
+            Some(def_result) if def_result.locations.is_empty() => CaseResult::Passed,
+            Some(def_result) => CaseResult::Failed {
                 message: format!(
                     "goto_definition at '{}' expected no results, got {} locations",
                     exp.target,
@@ -109,63 +60,50 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     }
 
     let Some(def_result) = result else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("goto_definition at '{}' returned None", exp.target),
         };
     };
 
     // require at least one definition location
     if def_result.locations.is_empty() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("goto_definition at '{}' returned empty result", exp.target),
         };
     }
 
     // validate invariants before comparisons
     if let Err(message) = validate_definition_invariants(session, &def_result.locations) {
-        return TestResult::Failed { message };
+        return CaseResult::Failed { message };
     }
 
     // compare against protocol shaped snapshots when structured
-    if is_snapshot_expectation(expected_content) {
+    if looks_like_span_snapshot(expected_content, &["range="]) {
         let actual_snapshot = snapshot_locations(session, &def_result.locations);
-        let expected_snapshot = normalize_expected_snapshot(expected_content);
-
-        if actual_snapshot != expected_snapshot {
-            return TestResult::Failed {
-                message: format!(
-                    "goto_definition snapshot mismatch at '{}'\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}",
-                    exp.target
-                ),
-            };
-        }
-
-        return TestResult::Passed;
+        return compare_snapshot(
+            &format!("goto_definition at '{}'", exp.target),
+            &actual_snapshot,
+            expected_content,
+        );
     }
 
     // resolve the expected definition marker
     let Some(expected_def) = session.markers.range(expected_content) else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("expected marker '{expected_content}' not found"),
         };
     };
 
-    // check that the expected target span is present
-    let found_match = def_result
-        .locations
-        .iter()
-        .any(|loc| loc.start == expected_def.span.start && loc.end == expected_def.span.end);
-
-    if !found_match {
-        return TestResult::Failed {
-            message: format!(
-                "goto_definition at '{}' returned wrong location: expected {:?}, got {:?}",
-                exp.target, expected_def.span, def_result.locations[0]
-            ),
-        };
+    if let Err(message) = require_exact_marker_match(
+        "goto_definition",
+        exp.target.clone(),
+        &def_result.locations,
+        expected_def.span,
+    ) {
+        return CaseResult::Failed { message };
     }
 
-    TestResult::Passed
+    CaseResult::Passed
 }
 
 /// Run a goto_type_definition test.
@@ -174,9 +112,9 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
 pub fn run_type_definition(
     session: &QueryTestSession,
     expectation: Option<&QueryExpectation>,
-) -> TestResult {
+) -> CaseResult {
     let Some(exp) = expectation else {
-        return TestResult::Skipped {
+        return CaseResult::Skipped {
             reason: "no expectation for goto_type_definition".to_string(),
         };
     };
@@ -188,9 +126,9 @@ pub fn run_type_definition(
 pub fn run_declaration(
     session: &QueryTestSession,
     expectation: Option<&QueryExpectation>,
-) -> TestResult {
+) -> CaseResult {
     let Some(exp) = expectation else {
-        return TestResult::Skipped {
+        return CaseResult::Skipped {
             reason: "no expectation for goto_declaration".to_string(),
         };
     };
@@ -202,11 +140,11 @@ pub fn run_declaration(
 fn run_declaration_with_expectation(
     session: &QueryTestSession,
     exp: &QueryExpectation,
-) -> TestResult {
+) -> CaseResult {
     // resolve the query position from the expectation target
     let (file_id, offset) = match resolve_query_position(session, &exp.target) {
         Ok(position) => position,
-        Err(message) => return TestResult::Failed { message },
+        Err(message) => return CaseResult::Failed { message },
     };
 
     // normalize the expected content for comparison
@@ -214,7 +152,7 @@ fn run_declaration_with_expectation(
 
     // empty expectation is an error
     if expected_content.is_empty() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("goto_declaration expectation at '{}' is empty", exp.target),
         };
     }
@@ -225,9 +163,9 @@ fn run_declaration_with_expectation(
     // "<none>" means we expect no result
     if expected_content == "<none>" {
         return match result {
-            None => TestResult::Passed,
-            Some(def_result) if def_result.locations.is_empty() => TestResult::Passed,
-            Some(def_result) => TestResult::Failed {
+            None => CaseResult::Passed,
+            Some(def_result) if def_result.locations.is_empty() => CaseResult::Passed,
+            Some(def_result) => CaseResult::Failed {
                 message: format!(
                     "goto_declaration at '{}' expected no results, got {} locations",
                     exp.target,
@@ -238,74 +176,61 @@ fn run_declaration_with_expectation(
     }
 
     let Some(def_result) = result else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("goto_declaration at '{}' returned None", exp.target),
         };
     };
 
     // require at least one declaration location
     if def_result.locations.is_empty() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("goto_declaration at '{}' returned empty result", exp.target),
         };
     }
 
     // validate invariants before comparisons
     if let Err(message) = validate_definition_invariants(session, &def_result.locations) {
-        return TestResult::Failed { message };
+        return CaseResult::Failed { message };
     }
 
     // compare against protocol shaped snapshots when structured
-    if is_snapshot_expectation(expected_content) {
+    if looks_like_span_snapshot(expected_content, &["range="]) {
         let actual_snapshot = snapshot_locations(session, &def_result.locations);
-        let expected_snapshot = normalize_expected_snapshot(expected_content);
-
-        if actual_snapshot != expected_snapshot {
-            return TestResult::Failed {
-                message: format!(
-                    "goto_declaration snapshot mismatch at '{}'\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}",
-                    exp.target
-                ),
-            };
-        }
-
-        return TestResult::Passed;
+        return compare_snapshot(
+            &format!("goto_declaration at '{}'", exp.target),
+            &actual_snapshot,
+            expected_content,
+        );
     }
 
     // resolve the expected declaration marker
     let Some(expected_def) = session.markers.range(expected_content) else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("expected marker '{expected_content}' not found"),
         };
     };
 
-    // check that the expected target span is present
-    let found_match = def_result
-        .locations
-        .iter()
-        .any(|loc| loc.start == expected_def.span.start && loc.end == expected_def.span.end);
-
-    if !found_match {
-        return TestResult::Failed {
-            message: format!(
-                "goto_declaration at '{}' returned wrong location: expected {:?}, got {:?}",
-                exp.target, expected_def.span, def_result.locations[0]
-            ),
-        };
+    if let Err(message) = require_exact_marker_match(
+        "goto_declaration",
+        exp.target.clone(),
+        &def_result.locations,
+        expected_def.span,
+    ) {
+        return CaseResult::Failed { message };
     }
 
-    TestResult::Passed
+    CaseResult::Passed
 }
 
 /// Run type definition with markdown expectation.
 fn run_type_definition_with_expectation(
     session: &QueryTestSession,
     exp: &QueryExpectation,
-) -> TestResult {
+) -> CaseResult {
     // resolve the query position from the expectation target
     let (file_id, offset) = match resolve_query_position(session, &exp.target) {
         Ok(position) => position,
-        Err(message) => return TestResult::Failed { message },
+        Err(message) => return CaseResult::Failed { message },
     };
 
     // normalize the expected content for comparison
@@ -313,7 +238,7 @@ fn run_type_definition_with_expectation(
 
     // empty expectation is an error
     if expected_content.is_empty() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "goto_type_definition expectation at '{}' is empty",
                 exp.target
@@ -327,9 +252,9 @@ fn run_type_definition_with_expectation(
     // "<none>" means we expect no result
     if expected_content == "<none>" {
         return match result {
-            None => TestResult::Passed,
-            Some(def_result) if def_result.locations.is_empty() => TestResult::Passed,
-            Some(def_result) => TestResult::Failed {
+            None => CaseResult::Passed,
+            Some(def_result) if def_result.locations.is_empty() => CaseResult::Passed,
+            Some(def_result) => CaseResult::Failed {
                 message: format!(
                     "goto_type_definition at '{}' expected no results, got {} locations",
                     exp.target,
@@ -340,14 +265,14 @@ fn run_type_definition_with_expectation(
     }
 
     let Some(def_result) = result else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("goto_type_definition at '{}' returned None", exp.target),
         };
     };
 
     // require at least one type definition location
     if def_result.locations.is_empty() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "goto_type_definition at '{}' returned empty result",
                 exp.target
@@ -357,59 +282,36 @@ fn run_type_definition_with_expectation(
 
     // validate invariants before comparisons
     if let Err(message) = validate_definition_invariants(session, &def_result.locations) {
-        return TestResult::Failed { message };
+        return CaseResult::Failed { message };
     }
 
     // compare against protocol shaped snapshots when structured
-    if is_snapshot_expectation(expected_content) {
+    if looks_like_span_snapshot(expected_content, &["range="]) {
         let actual_snapshot = snapshot_locations(session, &def_result.locations);
-        let expected_snapshot = normalize_expected_snapshot(expected_content);
-
-        if actual_snapshot != expected_snapshot {
-            return TestResult::Failed {
-                message: format!(
-                    "goto_type_definition snapshot mismatch at '{}'\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}",
-                    exp.target
-                ),
-            };
-        }
-
-        return TestResult::Passed;
+        return compare_snapshot(
+            &format!("goto_type_definition at '{}'", exp.target),
+            &actual_snapshot,
+            expected_content,
+        );
     }
 
     // resolve the expected type definition marker
     let Some(expected_def) = session.markers.range(expected_content) else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("expected marker '{expected_content}' not found"),
         };
     };
 
-    // check that the expected target span is present
-    let found_match = def_result
-        .locations
-        .iter()
-        .any(|loc| loc.start == expected_def.span.start && loc.end == expected_def.span.end);
-
-    if !found_match {
-        return TestResult::Failed {
-            message: format!(
-                "goto_type_definition at '{}' returned wrong location: expected {:?}, got {:?}",
-                exp.target, expected_def.span, def_result.locations[0]
-            ),
-        };
+    if let Err(message) = require_exact_marker_match(
+        "goto_type_definition",
+        exp.target.clone(),
+        &def_result.locations,
+        expected_def.span,
+    ) {
+        return CaseResult::Failed { message };
     }
 
-    TestResult::Passed
-}
-
-/// Decide whether an expectation is a structured snapshot.
-fn is_snapshot_expectation(expected: &str) -> bool {
-    // detect structured snapshots by range markers or span like digits
-    expected.lines().map(str::trim).any(|line| {
-        let has_range_marker = line.contains("range=");
-        let has_digit_span = line.contains(':') && line.chars().any(|c| c.is_ascii_digit());
-        has_range_marker || has_digit_span
-    })
+    CaseResult::Passed
 }
 
 /// Format definition locations into a protocol shaped snapshot.
@@ -488,4 +390,63 @@ fn validate_definition_invariants(
 /// Build a stable ordering key for a span.
 fn location_key(span: Span) -> (u32, u32, u32) {
     (span.file.0, span.start, span.end)
+}
+
+/// Require one exact location match for marker based expectations.
+fn require_exact_marker_match(
+    operation: &str,
+    target: impl AsRef<str>,
+    locations: &[Span],
+    expected: Span,
+) -> Result<(), String> {
+    let target = target.as_ref();
+
+    if locations.len() != 1 {
+        return Err(format!(
+            "{operation} at '{target}' returned {} locations, expected exactly 1 matching {:?}",
+            locations.len(),
+            expected
+        ));
+    }
+
+    let actual = locations[0];
+    if actual == expected {
+        return Ok(());
+    }
+
+    Err(format!(
+        "{operation} at '{target}' returned wrong location: expected {:?}, got {:?}",
+        expected, actual
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use destack_source::{FileId, Span};
+
+    use super::require_exact_marker_match;
+
+    #[test]
+    fn test_require_exact_marker_match_rejects_extra_locations() {
+        let expected = Span::new(FileId(0), 1, 2);
+        let locations = [expected, Span::new(FileId(0), 3, 4)];
+
+        let error =
+            require_exact_marker_match("goto_definition", "use:value", &locations, expected)
+                .unwrap_err();
+
+        assert!(error.contains("returned 2 locations"));
+    }
+
+    #[test]
+    fn test_require_exact_marker_match_rejects_wrong_location() {
+        let expected = Span::new(FileId(0), 1, 2);
+        let locations = [Span::new(FileId(0), 3, 4)];
+
+        let error =
+            require_exact_marker_match("goto_definition", "use:value", &locations, expected)
+                .unwrap_err();
+
+        assert!(error.contains("returned wrong location"));
+    }
 }

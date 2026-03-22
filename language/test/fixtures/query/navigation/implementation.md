@@ -20,7 +20,7 @@ struct Rectangle implements Drawable {
 }
 ```
 
-```query implementation $0
+```query goto_implementation $0
 main.ds:5:7-5:13
 main.ds:9:8-9:17
 ```
@@ -35,7 +35,7 @@ Functions are not implementation targets, so the result should be empty.
 function $0helper(): void {}
 ```
 
-```query implementation $0
+```query goto_implementation $0
 <none>
 ```
 
@@ -49,7 +49,7 @@ struct $0Point {
 }
 ```
 
-```query implementation $0
+```query goto_implementation $0
 <none>
 ```
 
@@ -73,7 +73,7 @@ class SubDerived extends Derived {}
 
 The snapshot lists the direct subclass locations.
 
-```query implementation $0
+```query goto_implementation $0
 main.ds:5:7-5:14
 ```
 
@@ -114,7 +114,7 @@ const _circle = Circle {};
 const _square = Square {};
 ```
 
-```query implementation def:Drawable
+```query goto_implementation def:Drawable
 impl.ds:3:14-3:20
 impl.ds:7:15-7:21
 ```
@@ -155,7 +155,7 @@ function draw(item: Renderable): void {
 }
 ```
 
-```query implementation use:Renderable
+```query goto_implementation use:Renderable
 alias_impl.ds:3:14-3:20
 alias_impl.ds:7:15-7:19
 ```
@@ -184,6 +184,6 @@ import { Derived } from "./impl.ds";
 const _value: Base = new Derived();
 ```
 
-```query implementation def:Base
+```query goto_implementation def:Base
 impl.ds:3:14-3:21
 ```

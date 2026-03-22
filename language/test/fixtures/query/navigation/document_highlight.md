@@ -89,10 +89,10 @@ function main(p: Point) {
 Highlighting `p.x` should include the definition and all accesses.
 
 ```query document_highlight use:field_x_1
-def:field_x
-use:field_x_1
-use:field_x_2
-use:field_x_3
+main.ds:2:5-2:6 kind=write
+main.ds:8:17-8:18 kind=read
+main.ds:9:17-9:18 kind=read
+main.ds:9:23-9:24 kind=read
 ```
 
 ## Shadowing
@@ -116,6 +116,6 @@ function test() {
 When highlighting `value` inside `test`, only the inner definition and use should be highlighted.
 
 ```query document_highlight def:inner_value
-def:inner_value
-use:inner_value
+main.ds:5:11-5:16 kind=write
+main.ds:6:12-6:17 kind=read
 ```

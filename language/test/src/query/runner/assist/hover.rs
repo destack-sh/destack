@@ -2,64 +2,34 @@ use destack_query as query;
 use destack_query::HoverInfo;
 use destack_source::Span;
 
-use crate::harness::TestResult;
+use crate::core::CaseResult;
+use crate::query::runner::expectation::{
+    TextExpectation, describe_text_expectation, matches_text_expectation,
+};
 use crate::query::runner::position::resolve_query_position;
-use crate::query::runner::snapshot::normalize_expected_snapshot;
+use crate::query::runner::snapshot::{compare_snapshot, looks_like_snapshot};
 use crate::query::runner::span::{format_span_for_session, source_for_file};
 use crate::query::{QueryExpectation, QueryTestSession};
 
 /// Run a hover test.
 ///
 /// Verifies that hover at cursor position shows expected information.
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
-    if let Some(exp) = expectation {
-        return run_with_expectation(session, exp);
-    }
-
-    // fallback: check hover expectations from markers
-    for (cursor_idx, expected_text) in &session.markers.expectations.hover {
-        let Some(cursor) = session.markers.cursor(*cursor_idx) else {
-            return TestResult::Failed {
-                message: format!("cursor ${cursor_idx} not found"),
-            };
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
+    let Some(exp) = expectation else {
+        return CaseResult::Skipped {
+            reason: "no hover expectation provided".to_string(),
         };
+    };
 
-        let result = query::hover(&session.session, session.file_id, cursor.offset);
-
-        match result {
-            Some(hover_info) => {
-                // validate hover invariants before substring checks
-                if let Err(message) = validate_hover_invariants(session, &hover_info, cursor.offset)
-                {
-                    return TestResult::Failed { message };
-                }
-
-                if !hover_info.signature.contains(expected_text) {
-                    return TestResult::Failed {
-                        message: format!(
-                            "hover at ${} expected to contain '{}', got '{}'",
-                            cursor_idx, expected_text, hover_info.signature
-                        ),
-                    };
-                }
-            }
-            None => {
-                return TestResult::Failed {
-                    message: format!("hover at ${cursor_idx} returned None"),
-                };
-            }
-        }
-    }
-
-    TestResult::Passed
+    run_with_expectation(session, exp)
 }
 
 /// Run with markdown expectation.
-fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> TestResult {
+fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> CaseResult {
     // resolve the query position from the expectation target
     let (file_id, offset) = match resolve_query_position(session, &exp.target) {
         Ok(position) => position,
-        Err(message) => return TestResult::Failed { message },
+        Err(message) => return CaseResult::Failed { message },
     };
 
     // run the hover query once
@@ -70,7 +40,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
 
     // empty expectation is an error
     if expected_text.is_empty() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "hover expectation is empty at '{}', got: {:?}",
                 exp.target,
@@ -82,8 +52,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     // "<none>" means we expect no result
     if expected_text == "<none>" {
         return match result {
-            None => TestResult::Passed,
-            Some(hover_info) => TestResult::Failed {
+            None => CaseResult::Passed,
+            Some(hover_info) => CaseResult::Failed {
                 message: format!(
                     "hover at '{}' expected None, got '{}'",
                     exp.target, hover_info.signature
@@ -97,52 +67,42 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         Some(hover_info) => {
             // validate hover invariants before comparisons
             if let Err(message) = validate_hover_invariants(session, &hover_info, offset) {
-                return TestResult::Failed { message };
+                return CaseResult::Failed { message };
             }
 
             // compare against protocol shaped snapshots when structured
-            if is_snapshot_expectation(expected_text) {
-                let actual_snapshot =
-                    normalize_expected_snapshot(&format_hover_snapshot(session, &hover_info));
-                let expected_snapshot = normalize_expected_snapshot(expected_text);
-
-                if actual_snapshot != expected_snapshot {
-                    return TestResult::Failed {
-                        message: format!(
-                            "hover snapshot mismatch at '{}'\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}",
-                            exp.target
-                        ),
-                    };
-                }
-
-                return TestResult::Passed;
+            if looks_like_snapshot(expected_text, &["signature=", "range="]) {
+                let actual_snapshot = format_hover_snapshot(session, &hover_info);
+                return compare_snapshot(
+                    &format!("hover at '{}'", exp.target),
+                    &actual_snapshot,
+                    expected_text,
+                );
             }
 
-            // fall back to substring matching for legacy expectations
-            if !hover_info.signature.contains(expected_text) {
-                TestResult::Failed {
+            // explicit query blocks are exact only
+            let expectation = match TextExpectation::parse(expected_text) {
+                Ok(expectation) => expectation,
+                Err(message) => return CaseResult::Failed { message },
+            };
+            if !matches_text_expectation(&hover_info.signature, expectation) {
+                CaseResult::Failed {
                     message: format!(
-                        "hover at '{}' expected to contain '{}', got '{}'",
-                        exp.target, expected_text, hover_info.signature
+                        "hover at '{}' expected to {} '{}', got '{}'",
+                        exp.target,
+                        describe_text_expectation(expectation),
+                        expectation.text(),
+                        hover_info.signature
                     ),
                 }
             } else {
-                TestResult::Passed
+                CaseResult::Passed
             }
         }
-        None => TestResult::Failed {
+        None => CaseResult::Failed {
             message: format!("hover at '{}' returned None", exp.target),
         },
     }
-}
-
-/// Decide whether an expectation is a structured snapshot.
-fn is_snapshot_expectation(expected: &str) -> bool {
-    // detect structured snapshots by signature or range markers
-    expected
-        .lines()
-        .map(str::trim)
-        .any(|line| line.contains("signature=") || line.contains("range="))
 }
 
 /// Validate hover invariants.

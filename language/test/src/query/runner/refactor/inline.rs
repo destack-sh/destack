@@ -1,27 +1,27 @@
 use destack_query as query;
 
-use crate::harness::TestResult;
+use crate::core::CaseResult;
 use crate::query::runner::position::resolve_query_position;
 use crate::query::{QueryExpectation, QueryTestSession};
 
 /// Run an inline refactor test.
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
     // handle missing expectation
     if let Some(exp) = expectation {
         return run_with_expectation(session, exp);
     }
 
-    TestResult::Skipped {
+    CaseResult::Skipped {
         reason: "no inline expectation provided".to_string(),
     }
 }
 
 /// Run an inline refactor test with an expectation.
-fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> TestResult {
+fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> CaseResult {
     // resolve target position
     let (file_id, offset) = match resolve_query_position(session, &exp.target) {
         Ok(pos) => pos,
-        Err(error) => return TestResult::Failed { message: error },
+        Err(error) => return CaseResult::Failed { message: error },
     };
 
     let result = query::inline_symbol(&session.session, file_id, offset);
@@ -30,8 +30,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     let content = exp.content.trim();
     if content == "<none>" {
         return match result {
-            None => TestResult::Passed,
-            Some(result) => TestResult::Failed {
+            None => CaseResult::Passed,
+            Some(result) => CaseResult::Failed {
                 message: format!(
                     "inline should have produced no edits but produced {}",
                     result.edits.total_edits()
@@ -41,29 +41,29 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     }
 
     let Some(result) = result else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: "inline returned no edits".to_string(),
         };
     };
 
     if content.is_empty() {
         if result.edits.total_edits() == 0 {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: "inline produced 0 edits".to_string(),
             };
         }
 
-        return TestResult::Passed;
+        return CaseResult::Passed;
     }
 
     let Ok(expected_count) = content.parse::<usize>() else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("inline expectation '{content}' is not a valid count"),
         };
     };
 
     if result.edits.total_edits() != expected_count {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "inline produced {} edits, expected {}",
                 result.edits.total_edits(),
@@ -72,5 +72,5 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         };
     }
 
-    TestResult::Passed
+    CaseResult::Passed
 }

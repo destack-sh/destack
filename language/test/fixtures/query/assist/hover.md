@@ -293,7 +293,7 @@ export function greetExport(name: string): string {
 Hovering over `export` should show function info because it's part of the declaration span.
 
 ```query hover hover:export_fn
-function greetExport
+export function greetExport(name: string): string
 ```
 
 ### Hover over export keyword on struct
@@ -310,7 +310,7 @@ export struct ExportedPoint {
 ```
 
 ```query hover hover:export_struct
-struct ExportedPoint
+export struct ExportedPoint
 ```
 
 ### Hover over export keyword on class
@@ -326,7 +326,7 @@ export class ExportedAnimal {
 ```
 
 ```query hover hover:export_class
-class ExportedAnimal
+export class ExportedAnimal
 ```
 
 ### Hover over export keyword on enum
@@ -344,7 +344,7 @@ export enum ExportedColor {
 ```
 
 ```query hover hover:export_enum
-enum ExportedColor
+export enum ExportedColor
 ```
 
 ### Hover over export keyword on interface
@@ -360,7 +360,7 @@ export interface ExportedShape {
 ```
 
 ```query hover hover:export_interface
-interface ExportedShape
+export interface ExportedShape
 ```
 
 ### Hover over export keyword on type alias
@@ -374,7 +374,7 @@ export type ExportedId = string | int32
 ```
 
 ```query hover hover:export_type
-type ExportedId
+export type ExportedId
 ```
 
 ### Hover over abstract keyword on class
@@ -390,7 +390,7 @@ abstract class AbstractBase {
 ```
 
 ```query hover hover:abstract_class
-class AbstractBase
+abstract class AbstractBase
 ```
 
 ### Hover over export abstract combination
@@ -406,7 +406,7 @@ export abstract class ExportedAbstract {
 ```
 
 ```query hover hover:export_abstract
-class ExportedAbstract
+export abstract class ExportedAbstract
 ```
 
 ### Hover over declare keyword on function
@@ -420,7 +420,7 @@ declare function declaredFn(x: int32): int32
 ```
 
 ```query hover hover:declare_fn
-function declaredFn
+declare function declaredFn(x: int32): int32
 ```
 
 ### Hover over export declare combination
@@ -434,7 +434,7 @@ export declare function exportDeclaredFn(x: int32): int32
 ```
 
 ```query hover hover:export_declare_fn
-function exportDeclaredFn
+export declare function exportDeclaredFn(x: int32): int32
 ```
 
 ### Hover over declare keyword on class
@@ -450,7 +450,7 @@ declare class DeclaredClass {
 ```
 
 ```query hover hover:declare_class
-class DeclaredClass
+declare class DeclaredClass
 ```
 
 ### Hover over export keyword on namespace
@@ -466,7 +466,7 @@ export namespace ExportedNS {
 ```
 
 ```query hover hover:export_ns
-namespace ExportedNS
+export namespace ExportedNS
 ```
 
 ## Local Variables

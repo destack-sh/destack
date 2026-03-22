@@ -2,7 +2,7 @@ use destack_query as query;
 use destack_query::{DocumentSymbol, SymbolKind};
 use destack_source::Span;
 
-use crate::harness::TestResult;
+use crate::core::CaseResult;
 use crate::query::runner::snapshot::normalize_expected_snapshot;
 use crate::query::runner::span::{compute_line_starts, offset_to_line_col, source_for_file};
 use crate::query::{QueryExpectation, QueryTestSession};
@@ -10,9 +10,9 @@ use crate::query::{QueryExpectation, QueryTestSession};
 /// Run a document_symbols test.
 ///
 /// Tests that document symbols returns the expected symbols for a file.
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
     let Some(exp) = expectation else {
-        return TestResult::Skipped {
+        return CaseResult::Skipped {
             reason: "no document_symbols expectation".to_string(),
         };
     };
@@ -23,7 +23,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     if expected.is_empty() {
         let symbols = query::document_symbols(&session.session, session.file_id);
         let actual_names: Vec<&str> = symbols.iter().map(|s| s.name.as_str()).collect();
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "document_symbols expectation is empty, but query returned: {actual_names:?}"
             ),
@@ -36,72 +36,39 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     // read the source for span validation and formatting
     let source = source_for_file(session, session.file_id);
 
-    // check if we should verify count
-    if let Some(count_str) = expected.strip_prefix("count:") {
-        let expected_count: usize = count_str.trim().parse().unwrap_or(0);
-        if symbols.len() != expected_count {
-            return TestResult::Failed {
-                message: format!(
-                    "document_symbols returned {} symbols, expected {}",
-                    symbols.len(),
-                    expected_count
-                ),
-            };
-        }
-        return TestResult::Passed;
-    }
-
     // prefer protocol shaped snapshots when the expectation is structured
     if is_protocol_symbols_expectation(expected) {
         return run_protocol_symbols_expectation(&symbols, source, expected);
     }
 
-    // collect all symbol names with indentation
+    // compare the full hierarchical shape for legacy expectations too
     let actual_lines = format_symbols_hierarchical(&symbols, 0);
-
-    // parse expected lines with indentation
-    let expected_lines: Vec<(usize, &str)> = expected
+    let actual_snapshot = actual_lines.join("\n");
+    let expected_snapshot = expected
         .lines()
-        .filter(|l| !l.trim().is_empty())
-        .map(|l| {
-            let indent = l.len() - l.trim_start().len();
-            let name = l.trim();
-            (indent, name)
-        })
-        .collect();
+        .map(str::trim_end)
+        .filter(|line| !line.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
 
-    // check each expected line against actual
-    for (exp_indent, exp_name) in &expected_lines {
-        let found = actual_lines.iter().any(|(indent, name)| {
-            // match by name, allowing indent to be approximate, just needs to be child level
-            name == exp_name && (*exp_indent == 0) == (*indent == 0)
-        });
-
-        if !found {
-            let actual_formatted: Vec<String> = actual_lines
-                .iter()
-                .map(|(indent, name)| format!("{}{}", " ".repeat(*indent), name))
-                .collect();
-            return TestResult::Failed {
-                message: format!(
-                    "document_symbols missing expected symbol '{}', got:\n{}",
-                    exp_name,
-                    actual_formatted.join("\n")
-                ),
-            };
-        }
+    if actual_snapshot != expected_snapshot {
+        return CaseResult::Failed {
+            message: format!(
+                "document_symbols mismatch\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}"
+            ),
+        };
     }
 
-    TestResult::Passed
+    CaseResult::Passed
 }
 
 /// Format symbols hierarchically with indentation.
-fn format_symbols_hierarchical(symbols: &[DocumentSymbol], indent: usize) -> Vec<(usize, String)> {
+fn format_symbols_hierarchical(symbols: &[DocumentSymbol], indent: usize) -> Vec<String> {
     let mut result = Vec::new();
 
     // walk the symbol tree depth first and accumulate indentation
     for symbol in symbols {
-        result.push((indent, symbol.name.clone()));
+        result.push(format!("{}{}", " ".repeat(indent), symbol.name));
         result.extend(format_symbols_hierarchical(&symbol.children, indent + 2));
     }
 
@@ -113,10 +80,10 @@ fn run_protocol_symbols_expectation(
     symbols: &[DocumentSymbol],
     source: &str,
     expected: &str,
-) -> TestResult {
+) -> CaseResult {
     // validate protocol invariants before snapshot comparison
     if let Err(message) = validate_symbol_invariants(symbols, source) {
-        return TestResult::Failed { message };
+        return CaseResult::Failed { message };
     }
 
     // format the actual tree into a deterministic snapshot
@@ -128,14 +95,14 @@ fn run_protocol_symbols_expectation(
 
     // require an exact snapshot match in protocol mode
     if actual_snapshot != expected_snapshot {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "document_symbols snapshot mismatch\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}"
             ),
         };
     }
 
-    TestResult::Passed
+    CaseResult::Passed
 }
 
 /// Validate basic document symbol invariants.

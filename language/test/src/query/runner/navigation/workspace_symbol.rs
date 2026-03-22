@@ -2,19 +2,18 @@ use destack_query as query;
 use destack_query::{SymbolKind, WorkspaceSymbol};
 use destack_source::Span;
 
-use crate::harness::TestResult;
-use crate::query::runner::snapshot::normalize_expected_snapshot;
+use crate::core::CaseResult;
+use crate::query::runner::snapshot::{compare_snapshot_lines, looks_like_snapshot};
 use crate::query::runner::span::{file_for, format_span_line_col, source_for_file};
 use crate::query::{QueryExpectation, QueryTestSession};
 
 /// Run a workspace_symbols test.
 ///
-/// Tests that workspace symbol search returns expected symbols.
-/// Format: `query workspace_symbols "query"` with content showing expected count or symbol names.
-pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
+/// Tests that workspace symbol search returns an exact symbol list.
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> CaseResult {
     // resolve the expectation for this test
     let Some(exp) = expectation else {
-        return TestResult::Skipped {
+        return CaseResult::Skipped {
             reason: "no workspace_symbols expectation".to_string(),
         };
     };
@@ -35,51 +34,42 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     // empty expectation is an error
     if expected.is_empty() {
         let names: Vec<&str> = symbols.iter().map(|s| s.name.as_str()).collect();
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!(
                 "workspace_symbols expectation is empty, query '{query_str}' returned: {names:?}"
             ),
         };
     }
 
-    // check if we should verify count
-    if let Ok(expected_count) = expected.parse::<usize>() {
-        if source_symbols.len() != expected_count {
-            let names: Vec<&str> = source_symbols.iter().map(|s| s.name.as_str()).collect();
-            return TestResult::Failed {
-                message: format!(
-                    "workspace_symbols for '{query_str}' returned {} symbols ({names:?}), expected {expected_count}",
-                    source_symbols.len()
-                ),
-            };
+    // treat <none> as an explicit empty result expectation
+    if expected == "<none>" {
+        if source_symbols.is_empty() {
+            return CaseResult::Passed;
         }
-        return TestResult::Passed;
+
+        let actual_snapshot = format_workspace_symbol_snapshot(session, source_symbols).join("\n");
+        return CaseResult::Failed {
+            message: format!(
+                "workspace_symbols for '{query_str}' expected none, got:\n{actual_snapshot}"
+            ),
+        };
     }
 
     // validate invariants before checking expectations
     if let Err(message) = validate_workspace_symbol_invariants(session, query_str, source_symbols) {
-        return TestResult::Failed { message };
+        return CaseResult::Failed { message };
     }
 
     // prefer protocol shaped snapshots when the expectation is structured
-    if is_snapshot_expectation(expected) {
-        let actual_snapshot = normalize_expected_snapshot(
-            &format_workspace_symbol_snapshot(session, source_symbols).join("\n"),
+    if looks_like_snapshot(expected, &["(", "range=", "file="]) {
+        return compare_snapshot_lines(
+            &format!("workspace_symbols snapshot for '{query_str}'"),
+            &format_workspace_symbol_snapshot(session, source_symbols),
+            expected,
         );
-        let expected_snapshot = normalize_expected_snapshot(expected);
-
-        if actual_snapshot != expected_snapshot {
-            return TestResult::Failed {
-                message: format!(
-                    "workspace_symbols snapshot mismatch for '{query_str}'\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}"
-                ),
-            };
-        }
-
-        return TestResult::Passed;
     }
 
-    // check expected symbol names
+    // require an exact simple name list when no structured snapshot is provided
     let expected_names: Vec<&str> = expected
         .lines()
         .map(|l| l.trim())
@@ -88,17 +78,15 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 
     let actual_names: Vec<&str> = source_symbols.iter().map(|s| s.name.as_str()).collect();
 
-    for name in &expected_names {
-        if !actual_names.contains(name) {
-            return TestResult::Failed {
-                message: format!(
-                    "workspace_symbols for '{query_str}' missing '{name}', got: {actual_names:?}"
-                ),
-            };
-        }
+    if actual_names != expected_names {
+        return CaseResult::Failed {
+            message: format!(
+                "workspace_symbols name list mismatch for '{query_str}'\n\nexpected: {expected_names:?}\nactual:   {actual_names:?}"
+            ),
+        };
     }
 
-    TestResult::Passed
+    CaseResult::Passed
 }
 
 /// Validate basic workspace symbol invariants.
@@ -164,7 +152,13 @@ fn validate_workspace_symbol_invariants(
     for symbol in symbols {
         // compute the score and name for sorting
         let name_lower = symbol.name.to_lowercase();
-        let score = score_symbol_match(&symbol.name, query).unwrap_or(0);
+        let Some(score) = score_symbol_match(&symbol.name, query) else {
+            errors.push(format!(
+                "workspace symbol '{}' does not match query '{}' during ordering validation",
+                symbol.name, query
+            ));
+            continue;
+        };
         let key = (
             std::cmp::Reverse(score),
             symbol.name.len(),
@@ -192,15 +186,6 @@ fn validate_workspace_symbol_invariants(
             errors.join("\n")
         ))
     }
-}
-
-/// Decide whether an expectation is a structured snapshot.
-fn is_snapshot_expectation(expected: &str) -> bool {
-    // check for snapshot shaped lines
-    expected
-        .lines()
-        .map(str::trim)
-        .any(|line| line.contains('(') || line.contains("range=") || line.contains("file="))
 }
 
 /// Format workspace symbols into a protocol shaped snapshot.

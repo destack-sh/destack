@@ -1,5 +1,6 @@
 pub mod assist;
 pub mod diagnostic;
+pub mod expectation;
 pub mod navigation;
 pub mod parity;
 pub mod position;
