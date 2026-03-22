@@ -1,6 +1,6 @@
 [package]
-name = "destack_codegen_lib"
-description = "Destack Codegen Library"
+name = "destack_codegen_js"
+description = "Destack Codegen for JavaScript/TypeScript"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -14,11 +14,13 @@ doctest = false
 [dependencies]
 # language
 destack_ast = { workspace = true }
+destack_codegen_lib = { workspace = true }
+destack_core = { workspace = true }
 destack_dir = { workspace = true }
 destack_fir = { workspace = true }
 destack_mir = { workspace = true }
 destack_source = { workspace = true }
-destack_workspace = { path = "../../workspace", default-features = false }
+destack_workspace = { path = "../../../workspace", default-features = false }
 
 # general
 dashmap = { workspace = true }

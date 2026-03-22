@@ -2,7 +2,7 @@ use crate::timing::tags;
 use crate::{ArtifactRequirementError, Compiler, GenerateError, GenerateResult};
 
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ArtifactKey, OutputFormat, ProfileId, TargetId};
+use destack_workspace::{ArtifactKey, ProfileId, TargetId};
 
 impl Compiler {
     /// Build one module output.
@@ -100,24 +100,41 @@ impl Compiler {
 
         self.require_dir_patched(module_id, profile)?;
 
-        // dispatch based on output format
-        match target.output {
-            OutputFormat::Js | OutputFormat::Ts => self.generate_js(module_id, &target, profile),
-            // native codegen path, enabled by feature
-            #[cfg(feature = "native-codegen")]
-            OutputFormat::Native | OutputFormat::Wasm => {
-                self.generate_cranelift(module_id, &target, profile)
-            }
-            // native codegen path, disabled by feature
-            #[cfg(not(feature = "native-codegen"))]
-            OutputFormat::Native | OutputFormat::Wasm => Err(GenerateError::Internal {
-                module: module_id,
-                message: format!(
-                    "native codegen is disabled: cannot generate output '{:?}' for target '{}'",
-                    target.output, target.name
-                ),
-            }),
+        // generate through the JavaScript pipeline
+        if target.uses_js_generate_pipeline() {
+            return self.generate_js(module_id, &target, profile);
         }
+
+        #[cfg(feature = "native-codegen")]
+        {
+            // otherwise generate through the native pipeline when enabled
+            if target.uses_native_generate_pipeline() {
+                return self.generate_cranelift(module_id, &target, profile);
+            }
+        }
+
+        #[cfg(not(feature = "native-codegen"))]
+        {
+            // otherwise report disabled native generation
+            if target.uses_native_generate_pipeline() {
+                return Err(GenerateError::Internal {
+                    module: module_id,
+                    message: format!(
+                        "native codegen is disabled: cannot generate output '{:?}' for target '{}'",
+                        target.emit, target.name
+                    ),
+                });
+            }
+        }
+
+        // otherwise reject the unsupported output kind
+        Err(GenerateError::Internal {
+            module: module_id,
+            message: format!(
+                "unsupported output '{:?}' for target '{}'",
+                target.emit, target.name
+            ),
+        })
     }
 
     /// Require one module output artifact.

@@ -7,9 +7,7 @@ use destack_codegen_lib::CodegenBackend;
 use destack_core::StringPool;
 use destack_mir as mir;
 use destack_source::{FileType, ModuleId};
-use destack_workspace::{
-    ModuleOutput, OutputContent, OutputEntry, OutputFormat, Program, Target, TargetId,
-};
+use destack_workspace::{EmitFormat, OutputContent, OutputEntry, Program, Target, TargetId};
 use target_lexicon::Triple;
 
 use crate::lower::{ModuleLowerOutput, ModuleLowerer};
@@ -18,8 +16,8 @@ use crate::{CodegenCraneliftError, CodegenCraneliftResult, CodegenCraneliftWarni
 /// Output from Cranelift code generation.
 #[derive(Debug)]
 pub struct CodegenCraneliftOutput {
-    /// Generated module output payload.
-    pub emit: ModuleOutput,
+    /// Generated output entries.
+    pub entries: Vec<OutputEntry>,
     /// Warnings encountered during generation.
     pub warnings: Vec<CodegenCraneliftWarning>,
     /// Non-fatal errors encountered during generation.
@@ -70,15 +68,15 @@ impl CodegenCraneliftBackend {
 
     /// Get the target triple for the given target configuration.
     fn target_triple(target: &Target) -> CodegenCraneliftResult<Triple> {
-        match target.output {
-            OutputFormat::Wasm => Ok(Triple::from_str("wasm32-unknown-unknown").unwrap()),
-            OutputFormat::Native => cranelift_native::builder()
+        match target.emit {
+            EmitFormat::Wasm => Ok(Triple::from_str("wasm32-unknown-unknown").unwrap()),
+            EmitFormat::Native => cranelift_native::builder()
                 .map(|b| b.triple().clone())
                 .map_err(|e| CodegenCraneliftError::Internal {
                     message: e.to_string(),
                 }),
             _ => Err(CodegenCraneliftError::UnsupportedTarget {
-                triple: format!("{:?}", target.output),
+                triple: format!("{:?}", target.emit),
                 message: None,
             }),
         }
@@ -181,7 +179,7 @@ impl CodegenBackend for CodegenCraneliftBackend {
     }
 
     fn supports_target(&self, target: &Target) -> bool {
-        matches!(target.output, OutputFormat::Wasm | OutputFormat::Native)
+        target.uses_native_generate_pipeline()
     }
 }
 
@@ -195,8 +193,8 @@ pub fn generate_module(
     target: &Target,
 ) -> CodegenCraneliftResult<CodegenCraneliftOutput> {
     // validate target
-    match target.output {
-        OutputFormat::Wasm | OutputFormat::Native => {}
+    match target.emit {
+        EmitFormat::Wasm | EmitFormat::Native => {}
         other => {
             return Err(CodegenCraneliftError::UnsupportedTarget {
                 triple: format!("{other:?}"),
@@ -231,15 +229,15 @@ pub fn generate_module(
     };
 
     // determine file type and create output
-    let (file_type, content) = match target.output {
-        OutputFormat::Wasm => (FileType::Wasm, OutputContent::wasm(compile_output.bytes)),
-        OutputFormat::Native => (
+    let (file_type, content) = match target.emit {
+        EmitFormat::Wasm => (FileType::Wasm, OutputContent::wasm(compile_output.bytes)),
+        EmitFormat::Native => (
             FileType::Object,
             OutputContent::object(compile_output.bytes),
         ),
         _ => {
             return Err(CodegenCraneliftError::UnsupportedTarget {
-                triple: format!("{:?}", target.output),
+                triple: format!("{:?}", target.emit),
                 message: Some("expected Wasm or Native".to_string()),
             });
         }
@@ -255,7 +253,7 @@ pub fn generate_module(
     };
 
     Ok(CodegenCraneliftOutput {
-        emit: ModuleOutput::for_target(target, vec![output]),
+        entries: vec![output],
         warnings: compile_output.warnings,
         errors: compile_output.errors,
     })
