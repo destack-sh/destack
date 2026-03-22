@@ -1,21 +1,25 @@
-# codegen/js
+# generate/js
 
-JS/TS code generation.
-Takes elaborated DIR and produces `.js` or `.ts` source files.
+JS and TS target generation.
+Takes elaborated DIR and produces final JavaScript oriented target outputs.
 
 ## Pipeline
 
 ```text
-DIR → JS AST → FIR Document → Source Text
-      (lower)    (format)      (print)
+DIR → plan → emit → bundle → minify → print → output entries
 ```
 
-1. **Lower** (`lower/`): Walk DIR, emit a simplified JS AST
-2. **Format** (`format/`): Convert JS AST to FIR document nodes
-3. **Print**: Use FIR printer to produce final source text
+1. **Plan** (`plan.rs`): Decide output topology and assembly mode for the target.
+2. **Emit** (`emit.rs`, `lower/`, `tree/`): Walk DIR and build a simplified JS tree.
+3. **Bundle** (`bundle.rs`): Assemble one target level output shape.
+4. **Minify** (`minify.rs`): Apply post assembly output compression.
+5. **Print** (`print.rs`, `format/`): Convert the JS tree to FIR and final source text.
 
 The intermediate JS AST (`tree/`) is simpler than the Destack AST.
 It only has constructs that exist in JavaScript/TypeScript.
+
+Bundling and minification are not fully implemented yet.
+The pipeline seams are now explicit so we can land those features without keeping all JS generation logic in one backend entry point.
 
 ## What Gets Lowered
 

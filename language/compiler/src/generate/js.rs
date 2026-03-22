@@ -23,7 +23,7 @@ impl Compiler {
 
         self.program.artifacts.publish(
             ArtifactKey::module_output(module_id, target_id),
-            ModuleOutput::for_target(target, output.emit.entries),
+            ModuleOutput::for_target(target, output.entries),
         );
 
         // map warnings/errors

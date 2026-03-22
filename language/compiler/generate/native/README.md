@@ -1,4 +1,4 @@
-# codegen/cranelift
+# generate/native
 
 Native and WebAssembly code generation using [Cranelift](https://cranelift.dev/).
 Takes MIR and produces object files (`.o`) or WASM modules (`.wasm`).

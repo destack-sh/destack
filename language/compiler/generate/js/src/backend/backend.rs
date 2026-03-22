@@ -4,10 +4,20 @@ use std::sync::Arc;
 
 use destack_codegen_lib::CodegenBackend;
 use destack_source::ModuleId;
-use destack_workspace::{OutputFormat, ProfileId, Program, Target};
+use destack_workspace::{OutputEntry, ProfileId, Program, Target};
 
-use crate::lower::{CodegenJsOutput, ModuleLowerer};
 use crate::{CodegenJsError, CodegenJsResult};
+
+/// Output from JS code generation.
+#[derive(Debug)]
+pub struct CodegenJsOutput {
+    /// Generated output entries.
+    pub entries: Vec<OutputEntry>,
+    /// Warnings encountered during generation.
+    pub warnings: Vec<crate::CodegenJsWarning>,
+    /// Non fatal errors encountered during generation.
+    pub errors: Vec<CodegenJsError>,
+}
 
 /// JavaScript/TypeScript codegen backend.
 #[derive(Debug, Default)]
@@ -19,7 +29,7 @@ impl CodegenBackend for JsBackend {
     }
 
     fn supports_target(&self, target: &Target) -> bool {
-        matches!(target.output, OutputFormat::Js | OutputFormat::Ts)
+        target.uses_js_generate_pipeline()
     }
 }
 
@@ -34,10 +44,10 @@ pub fn generate_module(
     profile: ProfileId,
 ) -> CodegenJsResult<CodegenJsOutput> {
     // validate target
-    if !matches!(target.output, OutputFormat::Js | OutputFormat::Ts) {
+    if !target.uses_js_generate_pipeline() {
         return Err(CodegenJsError::UnsupportedTarget {
-            format: format!("{:?}", target.output),
-            message: Some("expected JS/TS".to_string()),
+            format: format!("{:?}", target.emit),
+            message: Some("expected JS, TS, or HTML".to_string()),
         });
     }
 
@@ -67,11 +77,24 @@ pub fn generate_module(
         .and_then(|c| c.options.compiler.root_dir.clone());
     drop(package);
 
-    // create lowerer and process
-    let mut lowerer =
-        ModuleLowerer::new(&module, &ast, dir_tree, &dir_roots, symbols, types, target);
-    lowerer.lower_module()?;
+    // plan the requested output shape
+    let plan = crate::plan_module_output(&module, target, &package_dir, root_dir.as_deref())?;
 
-    // finish and get outputs + warnings
-    lowerer.finish(&package_dir, root_dir.as_deref())
+    // emit one lowered JavaScript module tree
+    let emit = crate::emit_module(&module, &ast, dir_tree, &dir_roots, symbols, types, target)?;
+
+    // assemble target level output shape
+    let emit = crate::bundle_module_output(&plan, emit)?;
+
+    // apply post assembly minification policy
+    let emit = crate::minify_module_output(&plan, emit)?;
+
+    // print the final output entries
+    let (entries, warnings, errors) = crate::print_module_output(target, &plan, emit)?;
+
+    Ok(CodegenJsOutput {
+        entries,
+        warnings,
+        errors,
+    })
 }

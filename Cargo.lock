@@ -1362,7 +1362,6 @@ dependencies = [
  "destack_ast",
  "destack_builtin",
  "destack_codegen_js",
- "destack_codegen_lib",
  "destack_codegen_native",
  "destack_compiler_macros",
  "destack_core",
