@@ -35,15 +35,59 @@ Set `DESTACK_TEST_JOBS` only when a custom harness should use a different worker
 | [**Smoke**](language/test/fixtures/smoke/) | Correctness | Quick | Broad no-crash and basic no-regression coverage for parser and compiler flows |
 | [**Emit**](language/test/fixtures/emit/) | Correctness | Standalone | Emitted output matches curated checked-in snapshots |
 | [**Specification**](language/test/fixtures/specification/) | Correctness | Quick | First-party language semantics and diagnostics |
+| [**Regression**](language/test/fixtures/regression/) | Correctness | Quick | Targeted bug reproductions that do not fit cleanly elsewhere |
+| [**Conformance**](language/test/fixtures/conformance/) | Conformance | Mixed | External compatibility suites organized by domain, with `ecma` remaining corpus-first and `web` and `node` becoming feature-first |
 | [**Query**](language/test/fixtures/query/) | Correctness | Quick | Query-layer IDE behavior such as navigation, completion, rename, and diagnostics |
 | [**LSP**](language/test/fixtures/lsp/) | Correctness | Quick | Applied LSP editor scenarios over the real in-process language server |
 | [**Resolver**](language/test/fixtures/resolver/) | Correctness | Quick | Node and TypeScript style module and package resolution |
 | [**Formatter**](language/test/fixtures/formatter/) | Correctness | Quick | Formatting behavior on first-party fixtures |
 | [**Grammar**](language/grammar/README.md) | Correctness | Quick | Tree-sitter grammar routing, corpus coverage, and specification sweeps |
-| [**Parser Conformance**](language/test/fixtures/parser/conformance/) | Conformance | Quick | Behavior against pinned upstream parser suites |
-| [**Formatter Conformance**](language/test/fixtures/formatter/conformance/) | Conformance | Quick | Behavior against pinned upstream formatter suites |
 | [**Ecosystem**](language/test/fixtures/ecosystem/) | Conformance | Full | Curated TS-first Node, backend, and tooling packages |
 | [**Stress**](language/test/fixtures/stress/) | Correctness | Full | Very large or pathological inputs that should still complete correctly |
+
+The shared conformance catalog is generated from `suite.json` and `status.json`.
+
+<!-- begin:conformance-catalog -->
+| Domain | Suite | Title | Status | Origin Ref |
+| --- | --- | --- | --- | --- |
+| ecma | babel | ECMA Babel | ignore 7 | b8ef443e0a3ee202264fb40edc1cbce8f2352aaa |
+| ecma | biome | ECMA Biome | ignore 7 | 9f1b3b06586401b39e0aa886bf7c8484fd2a6ded |
+| ecma | jsc | ECMA JSC | none | main |
+| ecma | math | Math | none | 5c8206929d81b2d3d727ca6aac56c18358c8d790 |
+| ecma | number | Number | translated 4, excluded 4 | 5c8206929d81b2d3d727ca6aac56c18358c8d790 |
+| ecma | swc | ECMA SWC | ignore 2 | 5b9d77c1c89ade5772c6feee429386faf3b93a39 |
+| ecma | temporal | Temporal | translated 3 | 5c8206929d81b2d3d727ca6aac56c18358c8d790 |
+| ecma | test262 | ECMA Test262 | ignore 7 | main |
+| ecma | v8 | ECMA V8 | none | main |
+| formatter | oxfmt | Formatter Oxfmt | none | f4fefb6201295f2ba6cef1c1348b4b17c9d6e197 |
+| formatter | prettier | Formatter Prettier | known-fail 1, ignore 13 | 456d14dbc2639d5a6b3eb2d8836b30f63597e1d6 |
+| node | crypto | node:crypto | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | fs | node:fs | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | net | node:net | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | os | node:os | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | path | node:path | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | process | node:process | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | random | node:random | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | streams | node:streams | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | thread | node:thread | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | time | node:time | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | tls | node:tls | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | tty | node:tty | translated 10, excluded 3 | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | url | node:url | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| web | bluetooth | Bluetooth | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | encoding | Encoding | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | fetch | fetch | translated 20, excluded 11 | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | fileapi | FileAPI | translated 5 | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | filesystem-access | File System Access | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | indexeddb | IndexedDB | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | streams | Streams | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | url | URL | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | webaudio | WebAudio | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | webcrypto | WebCrypto | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | webgpu | WebGPU | none | 9726cfe2893834c4bb42b435638c4e7362f4c258 |
+| web | webserial | WebSerial | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | workers | Workers | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
+<!-- end:conformance-catalog -->
 
 ## Targets
 
@@ -84,7 +128,7 @@ Run these commands from the repository root.
 ```bash
 # tune test concurrency when needed
 DESTACK_TEST_THREADS=8 just quick
-DESTACK_TEST_THREADS=4 DESTACK_TEST_JOBS=16 just language/test-parser-conformance
+DESTACK_TEST_THREADS=4 DESTACK_TEST_JOBS=16 just language/test-conformance
 
 # gates
 just quick
@@ -96,13 +140,16 @@ just language/test-unit
 just language/test-smoke
 just language/test-emit
 just language/test-specification
+just language/test-regression
 just language/test-query
 just language/test-lsp
 just language/test-resolver
 just language/test-formatter
 just language/test-grammar
-just language/test-parser-conformance
-just language/test-formatter-conformance
+just language/test-conformance
+just language/test-conformance-ecma
+just language/test-conformance-formatter
+just language/update-conformance-catalog
 just language/fetch-ecosystem
 just language/test-ecosystem
 just language/generate-stress

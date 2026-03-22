@@ -1,5 +1,5 @@
-use crate::harness::{
-    RunContext, Suite, TestCase, TestOptions, TestResult, discover_test_directories, fixtures_dir,
+use crate::core::{
+    Case, CaseResult, RunContext, RunOptions, Suite, discover_directory_cases, fixtures_dir,
 };
 
 /// The regression suite.
@@ -11,14 +11,15 @@ impl Suite for RegressionSuite {
         "regression"
     }
 
-    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+    fn discover(&self, _options: &RunOptions) -> Vec<Case> {
         let regression_directory = fixtures_dir().join("regression");
-        discover_test_directories(&regression_directory, "destack_test::regression")
+
+        discover_directory_cases(&regression_directory, "destack_test::regression")
             .expect("failed to discover regression tests")
     }
 
-    fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
-        TestResult::Failed {
+    fn run(&self, case: &Case, _context: &RunContext<'_>) -> CaseResult {
+        CaseResult::Failed {
             message: format!(
                 "regression case '{}' is not runnable yet: dedicated regression harness work is still pending",
                 case.full_name()

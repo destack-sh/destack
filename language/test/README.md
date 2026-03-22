@@ -13,7 +13,7 @@ Unit tests enter the language gate model through `just test-unit`.
 
 ## Suite Taxonomy
 
-The current language suite taxonomy is:
+The language suite taxonomy is:
 
 | Suite | Family | Gate | Location | Purpose |
 |-------|--------|------|----------|---------|
@@ -22,16 +22,57 @@ The current language suite taxonomy is:
 | **Emit** | Correctness | Standalone | `fixtures/emit/` | Emitted output matches curated snapshots |
 | **Specification** | Correctness | Quick | `fixtures/specification/` | First-party language semantics and diagnostics |
 | **Regression** | Correctness | Quick | `fixtures/regression/` | Targeted bug reproductions that do not fit cleanly elsewhere |
+| **Conformance** | Conformance | Mixed | `fixtures/conformance/` | External compatibility suites organized by domain, with `ecma` remaining corpus-first and `web` and `node` becoming feature-first |
 | **Query** | Correctness | Quick | `fixtures/query/` | Query-layer IDE behavior |
 | **LSP** | Correctness | Quick | `fixtures/lsp/` | Applied editor scenarios over the real in-process LSP server |
 | **Resolver** | Correctness | Quick | `fixtures/resolver/` | Module and package resolution |
 | **Formatter** | Correctness | Quick | `fixtures/formatter/` | Formatting behavior on first-party fixtures |
-| **Parser Conformance** | Conformance | Quick | `fixtures/parser/conformance/` | Behavior against pinned upstream parser suites |
-| **Formatter Conformance** | Conformance | Quick | `fixtures/formatter/conformance/` | Behavior against pinned upstream formatter suites |
 | **Ecosystem** | Conformance | Full | `fixtures/ecosystem/` | Curated TS-first Node, backend, and tooling packages |
 | **Stress** | Correctness | Full | `fixtures/stress/` | Correctness on very large and pathological inputs |
 
-`node-conformance` will join the external conformance family once it lands.
+The shared conformance catalog is generated from `suite.json` and `status.json`.
+
+<!-- begin:conformance-catalog -->
+| Domain | Suite | Title | Status | Origin Ref |
+| --- | --- | --- | --- | --- |
+| ecma | babel | ECMA Babel | ignore 7 | b8ef443e0a3ee202264fb40edc1cbce8f2352aaa |
+| ecma | biome | ECMA Biome | ignore 7 | 9f1b3b06586401b39e0aa886bf7c8484fd2a6ded |
+| ecma | jsc | ECMA JSC | none | main |
+| ecma | math | Math | none | 5c8206929d81b2d3d727ca6aac56c18358c8d790 |
+| ecma | number | Number | translated 4, excluded 4 | 5c8206929d81b2d3d727ca6aac56c18358c8d790 |
+| ecma | swc | ECMA SWC | ignore 2 | 5b9d77c1c89ade5772c6feee429386faf3b93a39 |
+| ecma | temporal | Temporal | translated 3 | 5c8206929d81b2d3d727ca6aac56c18358c8d790 |
+| ecma | test262 | ECMA Test262 | ignore 7 | main |
+| ecma | v8 | ECMA V8 | none | main |
+| formatter | oxfmt | Formatter Oxfmt | none | f4fefb6201295f2ba6cef1c1348b4b17c9d6e197 |
+| formatter | prettier | Formatter Prettier | known-fail 1, ignore 13 | 456d14dbc2639d5a6b3eb2d8836b30f63597e1d6 |
+| node | crypto | node:crypto | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | fs | node:fs | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | net | node:net | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | os | node:os | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | path | node:path | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | process | node:process | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | random | node:random | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | streams | node:streams | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | thread | node:thread | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | time | node:time | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | tls | node:tls | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | tty | node:tty | translated 10, excluded 3 | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| node | url | node:url | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
+| web | bluetooth | Bluetooth | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | encoding | Encoding | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | fetch | fetch | translated 20, excluded 11 | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | fileapi | FileAPI | translated 5 | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | filesystem-access | File System Access | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | indexeddb | IndexedDB | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | streams | Streams | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | url | URL | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | webaudio | WebAudio | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | webcrypto | WebCrypto | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | webgpu | WebGPU | none | 9726cfe2893834c4bb42b435638c4e7362f4c258 |
+| web | webserial | WebSerial | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
+| web | workers | Workers | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
+<!-- end:conformance-catalog -->
 
 ## Gates
 
@@ -56,7 +97,7 @@ Set `DESTACK_TEST_JOBS` only when a custom harness should use a different worker
 DESTACK_TEST_THREADS=4 just quick
 
 # keep rust tests at 4 but let a custom harness fan out further
-DESTACK_TEST_THREADS=4 DESTACK_TEST_JOBS=16 just test-parser-conformance
+DESTACK_TEST_THREADS=4 DESTACK_TEST_JOBS=16 just test-conformance
 ```
 
 ## Commands
@@ -82,8 +123,10 @@ just test-formatter
 just test-grammar
 
 # external suites
-just test-parser-conformance
-just test-formatter-conformance
+just test-conformance
+just test-conformance-ecma
+just test-conformance-formatter
+just update-conformance-catalog
 just fetch-ecosystem
 just test-ecosystem
 

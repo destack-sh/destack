@@ -61,7 +61,7 @@ Run these from the repository root.
 # focused local loop
 cargo test -p destack_parser
 cargo test -p destack_test --test smoke -- --parser
-just language/test-parser-conformance
+just language/test-conformance
 
 # clean gate
 just language/quick
