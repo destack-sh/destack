@@ -6,9 +6,9 @@ use destack_source::{
 };
 use destack_workspace::{FormatterOptions, LinterOptions, Program};
 
-use crate::harness::{
-    RunContext, Runner, Suite, TestCase, TestOptions, TestResult, check_diagnostics,
-    discover_test_files, fixtures_dir,
+use crate::core::{
+    Case, CaseResult, RunContext, RunOptions, Runner, Suite, check_diagnostics,
+    discover_file_cases, fixtures_dir,
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -19,28 +19,28 @@ impl Suite for ParserSmokeSuite {
         "smoke-parser"
     }
 
-    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+    fn discover(&self, _options: &RunOptions) -> Vec<Case> {
         let smoke_directory = fixtures_dir().join("smoke").join("parser");
 
         // support all language file extensions
         let extensions = &["ds", ".d.ds", "ts", ".d.ts", "tsx", "js", "jsx"];
 
-        discover_test_files(&smoke_directory, extensions, "destack_test::smoke::parser")
+        discover_file_cases(&smoke_directory, extensions, "destack_test::smoke::parser")
             .expect("failed to discover tests")
     }
 
-    fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
+    fn run(&self, case: &Case, _context: &RunContext<'_>) -> CaseResult {
         run_parser_case(case)
     }
 }
 
 /// Run all parser smoke tests.
-pub fn run_parser_smoke_tests(options: &TestOptions) -> std::process::ExitCode {
-    Runner::run_suite(&ParserSmokeSuite, options)
+pub fn run_parser_smoke_tests(options: &RunOptions) -> std::process::ExitCode {
+    Runner::run_suite(ParserSmokeSuite, options)
 }
 
 /// Run a single parser smoke test.
-fn run_parser_case(test: &TestCase) -> TestResult {
+fn run_parser_case(test: &Case) -> CaseResult {
     // determine file type from extension
     let path_str = test.path.to_string_lossy();
     let file_type = if path_str.ends_with(".d.ds") {
@@ -69,7 +69,7 @@ fn run_parser_case(test: &TestCase) -> TestResult {
     let content = match std::fs::read_to_string(&test.path) {
         Ok(content) => content,
         Err(e) => {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!("failed to read file: {e}"),
             };
         }
