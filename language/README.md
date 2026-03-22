@@ -12,15 +12,15 @@ The language toolchain is split into several Rust crates, each handling a specif
 
 | Project | Status | Summary |
 |---------|--------|---------|
-| [`compiler`](compiler/README.md) | Experimental | End-to-end compiler from AST through DIR to MIR |
+| [`compiler`](compiler/README.md) | Alpha | End-to-end compiler from AST through DIR to MIR |
 | [`formatter`](formatter/README.md) | Alpha | Canonical source formatter |
-| [`linter`](linter/README.md) | Experimental | Linter rules and linting interface |
-| [`lsp`](lsp/README.md) | Experimental | Language Server Protocol service implementation |
+| [`linter`](linter/README.md) | Alpha | Linter rules and linting interface |
+| [`lsp`](lsp/README.md) | Alpha | Language Server Protocol service implementation |
 | [`parser`](parser/README.md) | Alpha | Lexer and parser for `.ds`, `.ts`, `.tsx`, `.js`, and `.jsx` |
-| [`query`](query/README.md) | Experimental | Semantic tooling queries and presentation formatting |
+| [`query`](query/README.md) | Alpha | Semantic tooling queries and presentation formatting |
 | [`resolver`](resolver/README.md) | Alpha | JS and TS style module and package resolution |
 | [`runtime`](runtime/README.md) | Experimental | Native runtime, platform bindings, and host integration |
-| [`workspace`](workspace/README.md) | Experimental | Stateful multi-program workspaces |
+| [`workspace`](workspace/README.md) | Alpha | Stateful multi-program workspaces |
 
 ## Commands
 
