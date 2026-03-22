@@ -167,12 +167,12 @@ impl Runner {
         // initialize shared execution state
         let mut summary = RunSummary::new();
         let start = Instant::now();
-        let skip_known_failures = !context.options.include_known_failures_effective();
-        let skip_ignored = !context.options.include_ignored_effective();
-        let track_expected_failures = !context.options.include_known_failures_effective();
+        let skip_known_failures = !context.options.runs_known_failures();
+        let skip_ignored = !context.options.runs_ignored();
+        let track_expected_failures = !context.options.runs_known_failures();
         let mut expected_summary =
             track_expected_failures.then(|| ExpectedFailureSummary::new(expected_failures));
-        let abort_on_timeout = context.options.abort_on_timeout();
+        let abort_on_timeout = context.options.aborts_on_timeout();
         let should_run_parallel =
             should_run_parallel(context.options, context.timeout, abort_on_timeout);
 
@@ -406,7 +406,7 @@ fn should_run_parallel(
     timeout: Option<Duration>,
     abort_on_timeout: bool,
 ) -> bool {
-    options.parallel() && options.jobs > 1 && !(timeout.is_some() && abort_on_timeout)
+    options.runs_in_parallel() && options.jobs > 1 && !(timeout.is_some() && abort_on_timeout)
 }
 
 /// Compute a skip reason for a case when it should not run.
