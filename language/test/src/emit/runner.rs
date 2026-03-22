@@ -6,9 +6,9 @@ use destack_compiler::{Compiler, CompilerOptions};
 use destack_source::{File, FileSystem, FileType, PhysicalFileSystem, Uri};
 use destack_workspace::{ArtifactKey, Destack, Session, Target, TargetId};
 
-use crate::harness::{
-    RunContext, Runner, Suite, TestCase, TestOptions, TestResult, check_diagnostics,
-    discover_test_directories, fixtures_dir,
+use crate::core::{
+    Case, CaseResult, RunContext, RunOptions, Runner, Suite, check_diagnostics,
+    discover_directory_cases, fixtures_dir,
 };
 
 use super::assert::compare_directory;
@@ -22,30 +22,30 @@ impl Suite for EmitSuite {
         "emit"
     }
 
-    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+    fn discover(&self, _options: &RunOptions) -> Vec<Case> {
         let emit_directory = fixtures_dir().join("emit");
-        discover_test_directories(&emit_directory, "destack_test::emit")
+        discover_directory_cases(&emit_directory, "destack_test::emit")
             .expect("failed to discover tests")
     }
 
-    fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
+    fn run(&self, case: &Case, _context: &RunContext<'_>) -> CaseResult {
         run_emit_case(case)
     }
 }
 
 /// Run all emit tests.
-pub fn run_emit_tests(options: &TestOptions) -> std::process::ExitCode {
-    Runner::run_suite(&EmitSuite, options)
+pub fn run_emit_tests(options: &RunOptions) -> std::process::ExitCode {
+    Runner::run_suite(EmitSuite, options)
 }
 
 /// Run a single emit test.
-fn run_emit_case(test: &TestCase) -> TestResult {
+fn run_emit_case(test: &Case) -> CaseResult {
     // parse destack.json to get targets
     let destack_config_path = test.path.join("destack.json");
     let config = match load_destack_config(&destack_config_path) {
         Ok(config) => config,
         Err(e) => {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!("failed to load destack.json: {e}"),
             };
         }
@@ -59,7 +59,7 @@ fn run_emit_case(test: &TestCase) -> TestResult {
         .map(|(name, opts)| (name.clone(), opts.to_target(name)))
         .collect();
     if targets.is_empty() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: "no targets defined in destack.json".to_string(),
         };
     }
@@ -84,13 +84,13 @@ fn run_emit_case(test: &TestCase) -> TestResult {
     let source_files = match discover_source_files(&source_dir, SOURCE_EXTENSIONS) {
         Ok(files) => files,
         Err(e) => {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!("failed to discover source files: {e}"),
             };
         }
     };
     if source_files.is_empty() {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: "no source files found in source directory".to_string(),
         };
     }
@@ -101,7 +101,7 @@ fn run_emit_case(test: &TestCase) -> TestResult {
         let module_id = match compiler.resolve_path_to_module(source_path) {
             Ok(id) => id,
             Err(e) => {
-                return TestResult::Failed {
+                return CaseResult::Failed {
                     message: format!("failed to resolve module {}: {e:?}", source_path.display()),
                 };
             }
@@ -140,7 +140,7 @@ fn run_emit_case(test: &TestCase) -> TestResult {
     if dist_actual.exists()
         && let Err(e) = fs::remove_dir_all(&dist_actual)
     {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("failed to clean dist-actual/: {e}"),
         };
     }
@@ -171,7 +171,7 @@ fn run_emit_case(test: &TestCase) -> TestResult {
     for (target_name, _) in &targets {
         let target_id = TargetId::new(package_id, target_name);
         if let Err(error) = compiler.emit_package(package_id, &target_id) {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!("failed to emit package output for {target_name}: {error:?}"),
             };
         }

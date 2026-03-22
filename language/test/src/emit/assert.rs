@@ -4,17 +4,17 @@ use std::path::Path;
 
 use destack_source::{DiffOptions, print_diff};
 
-use crate::harness::TestResult;
+use crate::core::CaseResult;
 
 use super::discover::collect_files;
 
 /// Compare two directories recursively, failing if they differ.
-pub(super) fn compare_directory(expected: &Path, actual: &Path) -> TestResult {
+pub(super) fn compare_directory(expected: &Path, actual: &Path) -> CaseResult {
     // expected directory
     let expected_files = match collect_files(expected, expected) {
         Ok(files) => files,
         Err(e) => {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!("failed to read expected directory: {e}"),
             };
         }
@@ -25,7 +25,7 @@ pub(super) fn compare_directory(expected: &Path, actual: &Path) -> TestResult {
     let actual_files = match collect_files(actual, actual) {
         Ok(files) => files,
         Err(e) => {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!("failed to read actual directory: {e}"),
             };
         }
@@ -82,9 +82,9 @@ pub(super) fn compare_directory(expected: &Path, actual: &Path) -> TestResult {
     }
 
     if errors.is_empty() {
-        TestResult::Passed
+        CaseResult::Passed
     } else {
-        TestResult::Failed {
+        CaseResult::Failed {
             message: errors.join("\n"),
         }
     }
