@@ -9,7 +9,7 @@ Tests for static if gating on statements.
 > Module statements gated by static if are removed before resolution.
 
 ```ds
-@if(import.meta.output == "js" && import.meta.output == "native")
+@if(import.meta.emit == "js" && import.meta.emit == "native")
 missingSymbol;
 
 const value = 1;
@@ -32,7 +32,7 @@ value satisfies number;
 
 ```ds
 function demo(): number {
-    @if(import.meta.output == "js" && import.meta.output == "native")
+    @if(import.meta.emit == "js" && import.meta.emit == "native")
     missingSymbol;
 
     return 1;
@@ -60,7 +60,7 @@ function demo(): number {
 
 ```ds
 function compute(): number {
-    @if(import.meta.output == "js" && import.meta.output == "native")
+    @if(import.meta.emit == "js" && import.meta.emit == "native")
     const hidden = missingSymbol;
 
     return 1;

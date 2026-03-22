@@ -3,10 +3,10 @@ Static if declaration members
 ==================================
 
 class Box {
-  @if(import.meta.output == "js")
+  @if(import.meta.emit == "js")
   value: number;
 
-  @if(import.meta.output == "native")
+  @if(import.meta.emit == "native")
   read(): number {
     1
   }

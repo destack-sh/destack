@@ -10,10 +10,10 @@ Tests for static if gating on interface members.
 
 ```ds
 interface Box {
-    @if(import.meta.output == "js" && import.meta.output == "native")
+    @if(import.meta.emit == "js" && import.meta.emit == "native")
     missing: MissingType;
 
-    @if(import.meta.output == "js" && import.meta.output == "native")
+    @if(import.meta.emit == "js" && import.meta.emit == "native")
     missingMethod(): MissingType;
 
     value: number;

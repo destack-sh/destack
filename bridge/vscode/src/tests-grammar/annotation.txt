@@ -67,7 +67,7 @@ function first(a: &string, b: &string): @lifetime("a") &string {
 }
 
 class CompileHooks {
-  @if(import.meta.output == "js")
+  @if(import.meta.emit == "js")
 //^ entity.name.function.decorator.ds
   comptime const Enabled: boolean = true
 }

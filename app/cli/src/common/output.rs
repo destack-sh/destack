@@ -2,30 +2,33 @@ use std::path::PathBuf;
 
 use clap::{Args, ValueEnum};
 use destack_workspace::{
-    DebugInfoLevel, EmitArtifact, LinkMode, LtoMode, OptimizeLevel, OutputFormat, Platform,
-    Runtime, StripLevel, Target,
+    DebugInfoLevel, EmitArtifact, EmitFormat, LinkMode, LtoMode, OptimizeLevel, Platform, Runtime,
+    StripLevel, Target,
 };
 
-/// Output format for CLI (maps to workspace OutputFormat).
+/// Emit format for CLI (maps to workspace EmitFormat).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum OutputArg {
+pub enum EmitArg {
     /// JavaScript (.js).
     Js,
     /// TypeScript (.ts).
     Ts,
+    /// HTML document.
+    Html,
     /// WebAssembly (.wasm).
     Wasm,
     /// Native binary.
     Native,
 }
 
-impl From<OutputArg> for OutputFormat {
-    fn from(kind: OutputArg) -> Self {
+impl From<EmitArg> for EmitFormat {
+    fn from(kind: EmitArg) -> Self {
         match kind {
-            OutputArg::Js => OutputFormat::Js,
-            OutputArg::Ts => OutputFormat::Ts,
-            OutputArg::Wasm => OutputFormat::Wasm,
-            OutputArg::Native => OutputFormat::Native,
+            EmitArg::Js => EmitFormat::Js,
+            EmitArg::Ts => EmitFormat::Ts,
+            EmitArg::Html => EmitFormat::Html,
+            EmitArg::Wasm => EmitFormat::Wasm,
+            EmitArg::Native => EmitFormat::Native,
         }
     }
 }
@@ -116,7 +119,7 @@ impl From<LinkModeArg> for LinkMode {
 
 /// Extra artifacts to emit for CLI (maps to workspace EmitArtifact).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum EmitArtifactArg {
+pub enum ArtifactArg {
     /// Lowered MIR.
     Mir,
     /// Backend IR.
@@ -129,14 +132,14 @@ pub enum EmitArtifactArg {
     Symbols,
 }
 
-impl From<EmitArtifactArg> for EmitArtifact {
-    fn from(value: EmitArtifactArg) -> Self {
+impl From<ArtifactArg> for EmitArtifact {
+    fn from(value: ArtifactArg) -> Self {
         match value {
-            EmitArtifactArg::Mir => EmitArtifact::Mir,
-            EmitArtifactArg::Ir => EmitArtifact::Ir,
-            EmitArtifactArg::Asm => EmitArtifact::Asm,
-            EmitArtifactArg::Object => EmitArtifact::Object,
-            EmitArtifactArg::Symbols => EmitArtifact::Symbols,
+            ArtifactArg::Mir => EmitArtifact::Mir,
+            ArtifactArg::Ir => EmitArtifact::Ir,
+            ArtifactArg::Asm => EmitArtifact::Asm,
+            ArtifactArg::Object => EmitArtifact::Object,
+            ArtifactArg::Symbols => EmitArtifact::Symbols,
         }
     }
 }
@@ -217,9 +220,9 @@ pub struct TargetArgs {
     #[arg(long = "target", short = 't')]
     pub target: Option<String>,
 
-    /// Output format (js, ts, wasm, native). Default: js.
-    #[arg(long = "output", short = 'O')]
-    pub output: Option<OutputArg>,
+    /// Emit format (js, ts, html, wasm, native). Default: js.
+    #[arg(long = "emit", short = 'O')]
+    pub emit: Option<EmitArg>,
 
     /// Runtime environment. Default: browser.
     #[arg(long)]
@@ -246,8 +249,8 @@ pub struct TargetArgs {
     pub source_map: bool,
 
     /// Extra artifacts to emit (mir, ir, asm, object, symbols).
-    #[arg(long = "emit", value_enum, value_delimiter = ',')]
-    pub emit: Vec<EmitArtifactArg>,
+    #[arg(long = "artifact", value_enum, value_delimiter = ',')]
+    pub artifacts: Vec<ArtifactArg>,
 
     /// Enable optimization.
     #[arg(long)]
@@ -314,7 +317,7 @@ impl TargetArgs {
 
     /// Check if any ad-hoc target options are specified.
     pub fn has_adhoc_options(&self) -> bool {
-        self.output.is_some()
+        self.emit.is_some()
             || self.runtime.is_some()
             || self.platform.is_some()
             || self.target_triple.is_some()
@@ -327,7 +330,7 @@ impl TargetArgs {
             || self.out_file.is_some()
             || self.declaration
             || self.source_map
-            || !self.emit.is_empty()
+            || !self.artifacts.is_empty()
             || self.optimize
             || self.opt_level.is_some()
             || self.debug
@@ -352,12 +355,13 @@ impl TargetArgs {
 
     /// Apply CLI arguments to an existing target.
     pub fn apply_to_target(&self, target: &mut Target) {
-        // apply output and runtime overrides
-        if let Some(output) = self.output {
-            target.output = output.into();
+        // apply emit and runtime overrides
+        if let Some(emit) = self.emit {
+            target.emit = emit.into();
         }
         if let Some(runtime) = self.runtime {
             target.runtime = runtime.into();
+            target.runtime_options.host = runtime.into();
         }
         if let Some(platform) = self.platform {
             target.platform = platform.into();
@@ -398,8 +402,13 @@ impl TargetArgs {
         // apply emission flags
         target.declaration = self.declaration;
         target.source_map = self.source_map;
-        if !self.emit.is_empty() {
-            target.emit = self.emit.iter().copied().map(EmitArtifact::from).collect();
+        if !self.artifacts.is_empty() {
+            target.artifacts = self
+                .artifacts
+                .iter()
+                .copied()
+                .map(EmitArtifact::from)
+                .collect();
         }
 
         // apply optimization settings

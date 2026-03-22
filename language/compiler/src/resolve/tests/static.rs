@@ -1,5 +1,5 @@
 use destack_dir::{FunctionMode, Member};
-use destack_workspace::{OutputFormat, Platform};
+use destack_workspace::{EmitFormat, Platform};
 
 use crate::tests::TestProgram;
 
@@ -7,7 +7,7 @@ fn test_program_js() -> TestProgram {
     let mut test = TestProgram::memory_sequential();
     let default_profile = test.program.profile(test.default_profile_id_for_root());
     let mut key = default_profile.key.clone();
-    key.output = OutputFormat::Js;
+    key.emit = EmitFormat::Js;
     let profile_id = test.program.profiles.get_or_create(key);
     test.default_profile_override = Some(profile_id);
     test
@@ -17,7 +17,7 @@ fn test_program_js_for_platform(platform: Platform) -> TestProgram {
     let mut test = TestProgram::memory_sequential();
     let default_profile = test.program.profile(test.default_profile_id_for_root());
     let mut key = default_profile.key.clone();
-    key.output = OutputFormat::Js;
+    key.emit = EmitFormat::Js;
     key.platform = platform;
     let profile_id = test.program.profiles.get_or_create(key);
     test.default_profile_override = Some(profile_id);
@@ -32,7 +32,7 @@ fn test_static_if_gates_declaration() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-@if(import.meta.output == "native")
+@if(import.meta.emit == "native")
 struct Hidden {
     value: number;
 }
@@ -58,7 +58,7 @@ fn test_static_if_gates_statement() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-@if(import.meta.output == "native")
+@if(import.meta.emit == "native")
 missing_symbol();
 
 const value = 1;
@@ -82,7 +82,7 @@ fn test_static_if_gates_block_statement() {
         "test.ds",
         r#"
 function demo(): number {
-    @if(import.meta.output == "native")
+    @if(import.meta.emit == "native")
     missing_symbol();
 
     return 1;
@@ -103,7 +103,7 @@ fn test_static_if_errors_when_true() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-@if(import.meta.output == "js")
+@if(import.meta.emit == "js")
 missing_symbol();
 "#,
     );
@@ -167,7 +167,7 @@ fn test_static_if_gates_members() {
         "test.ds",
         r#"
 class Box {
-    @if(import.meta.output == "native")
+    @if(import.meta.emit == "native")
     missing: MissingType;
 
     value: number;
@@ -188,8 +188,8 @@ fn test_static_if_combines_conditions() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-@if(import.meta.output == "js")
-@if(import.meta.output == "native")
+@if(import.meta.emit == "js")
+@if(import.meta.emit == "native")
 const value = missing_symbol();
 "#,
     );
@@ -208,12 +208,12 @@ fn test_static_if_attaches_to_accessor_members() {
         "test.ds",
         r#"
 class Box {
-    @if(import.meta.output == "js" && import.meta.output == "native")
+    @if(import.meta.emit == "js" && import.meta.emit == "native")
     get value(): MissingType {
         return missingSymbol;
     }
 
-    @if(import.meta.output == "js" && import.meta.output == "native")
+    @if(import.meta.emit == "js" && import.meta.emit == "native")
     set value(next: MissingType) {
         missingSymbol;
     }

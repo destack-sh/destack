@@ -5,12 +5,13 @@ use std::sync::{Arc, mpsc};
 use std::time::Duration;
 use std::{io, thread};
 
-use destack_source::{MemoryFileSystem, ModuleId};
+use destack_source::{FileSystem, MemoryFileSystem, ModuleId};
 use destack_workspace::{
-    OutputFormat, Platform, ProfileEnv, ProfileId, Program, Runtime, Session, Target,
+    EmitFormat, MemoryCacheStore, Platform, ProfileEnv, ProfileId, Program, Runtime, Session,
+    Target,
 };
 
-use crate::core::{CaseResult, SharedMemoryWorkspace, discover_file_cases, load_expected_failures};
+use crate::harness::{TestResult, discover_test_files, load_expected_failures};
 
 use super::parser::MdTestCase;
 
@@ -31,8 +32,8 @@ pub enum MdTestLibs {
 /// Profile overrides for mdtest cases.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 struct MdTestProfileOverrides {
-    /// Output format override for profile identity and lib derivation.
-    pub output: Option<OutputFormat>,
+    /// Emit format override for profile identity and lib derivation.
+    pub emit: Option<EmitFormat>,
     /// Runtime override for import.meta and lib derivation.
     pub runtime: Option<Runtime>,
     /// Runtime version override for versioned libs.
@@ -46,7 +47,7 @@ struct MdTestProfileOverrides {
 impl MdTestProfileOverrides {
     /// Return true if any override affects lib derivation.
     fn has_lib_overrides(&self) -> bool {
-        self.output.is_some()
+        self.emit.is_some()
             || self.runtime.is_some()
             || self.runtime_version.is_some()
             || self.platform.is_some()
@@ -87,8 +88,8 @@ pub fn parse_mdtest_libs(test: &MdTestCase) -> Option<MdTestLibs> {
 
 /// Parse profile overrides from a mdtest case.
 fn parse_mdtest_profile_overrides(test: &MdTestCase) -> MdTestProfileOverrides {
-    // parse output format override
-    let output = option_value(&test.options, &["output"]).map(parse_output_format);
+    // parse emit format override
+    let emit = option_value(&test.options, &["emit"]).map(parse_emit_format);
 
     // parse runtime override
     let runtime = option_value(&test.options, &["runtime"]).map(|value| {
@@ -111,7 +112,7 @@ fn parse_mdtest_profile_overrides(test: &MdTestCase) -> MdTestProfileOverrides {
     let debug = option_value(&test.options, &["debug"]).map(|value| parse_bool(value, "debug"));
 
     MdTestProfileOverrides {
-        output,
+        emit,
         runtime,
         runtime_version,
         platform,
@@ -138,8 +139,8 @@ pub fn select_profile_for_mdtest(
     let mut recompute_test = false;
 
     // apply runtime overrides
-    if let Some(output) = overrides.output {
-        key.output = output;
+    if let Some(emit) = overrides.emit {
+        key.emit = emit;
     }
     if let Some(runtime) = overrides.runtime {
         key.runtime = runtime;
@@ -225,14 +226,15 @@ fn parse_bool(value: &str, key: &str) -> bool {
     }
 }
 
-/// Parse an output format mdtest option.
-fn parse_output_format(value: &str) -> OutputFormat {
+/// Parse an emit format mdtest option.
+fn parse_emit_format(value: &str) -> EmitFormat {
     match value.trim().to_lowercase().as_str() {
-        "js" | "javascript" => OutputFormat::Js,
-        "ts" | "typescript" => OutputFormat::Ts,
-        "wasm" | "webassembly" => OutputFormat::Wasm,
-        "native" => OutputFormat::Native,
-        _ => panic!("invalid mdtest output value '{value}'"),
+        "js" | "javascript" => EmitFormat::Js,
+        "ts" | "typescript" => EmitFormat::Ts,
+        "html" => EmitFormat::Html,
+        "wasm" | "webassembly" => EmitFormat::Wasm,
+        "native" => EmitFormat::Native,
+        _ => panic!("invalid mdtest emit value '{value}'"),
     }
 }
 
@@ -279,11 +281,15 @@ pub fn setup_test_environment(
     PathBuf,
     PathBuf,
 ) {
-    // setup memory workspace
-    let workspace = SharedMemoryWorkspace::new("/test");
-    let memory_fs = workspace.fs();
-    let cwd = workspace.root().to_path_buf();
-    let session = workspace.session();
+    // setup memory filesystem and session
+    let memory_fs = Arc::new(MemoryFileSystem::new());
+    let cwd = PathBuf::from("/test");
+    let fs: Arc<dyn FileSystem> = memory_fs.clone();
+    let session = Arc::new(
+        Session::new(cwd.clone())
+            .with_fs(fs)
+            .with_cache_store(Arc::new(MemoryCacheStore::new())),
+    );
 
     // delegate to session based setup
     setup_test_environment_with_session(test, session, memory_fs, cwd)
@@ -291,9 +297,9 @@ pub fn setup_test_environment(
 
 /// Run a test function with a timeout.
 /// Returns a failed result if the test times out or panics.
-pub fn run_with_timeout<F>(test: MdTestCase, timeout: Duration, f: F) -> CaseResult
+pub fn run_with_timeout<F>(test: MdTestCase, timeout: Duration, f: F) -> TestResult
 where
-    F: FnOnce(&MdTestCase) -> CaseResult + Send + 'static,
+    F: FnOnce(&MdTestCase) -> TestResult + Send + 'static,
 {
     // allocate the communication channel
     let (tx, rx) = mpsc::channel();
@@ -314,11 +320,11 @@ where
 
                 // skip tests marked with #Incomplete
                 if msg.contains("#Incomplete") {
-                    CaseResult::Skipped {
+                    TestResult::Skipped {
                         reason: msg.to_string(),
                     }
                 } else {
-                    CaseResult::Failed {
+                    TestResult::Failed {
                         message: format!("panic: {msg}"),
                     }
                 }
@@ -332,13 +338,13 @@ where
     // wait for the test result or timeout
     match rx.recv_timeout(timeout) {
         Ok(result) => result,
-        Err(mpsc::RecvTimeoutError::Timeout) => CaseResult::Failed {
+        Err(mpsc::RecvTimeoutError::Timeout) => TestResult::Failed {
             message: format!(
-                "timeout: exceeded {}s limit, likely deadlock or infinite loop",
+                "test timed out after {}s (likely deadlock or infinite loop)",
                 timeout.as_secs()
             ),
         },
-        Err(mpsc::RecvTimeoutError::Disconnected) => CaseResult::Failed {
+        Err(mpsc::RecvTimeoutError::Disconnected) => TestResult::Failed {
             message: "test thread disconnected unexpectedly".to_string(),
         },
     }
@@ -356,7 +362,7 @@ pub fn discover_md_files(dir: &Path) -> io::Result<Vec<PathBuf>> {
     }
 
     // collect direct md files excluding readme
-    let direct_files = discover_file_cases(dir, &["md"], "mdtest")?;
+    let direct_files = discover_test_files(dir, &["md"], "mdtest")?;
     for test in direct_files {
         if test.name.to_lowercase() == "readme" {
             continue;

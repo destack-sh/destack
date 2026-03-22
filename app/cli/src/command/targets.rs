@@ -71,7 +71,7 @@ pub fn run(args: &TargetsArgs) -> i32 {
                     .unwrap_or("");
                 let title = format!(
                     "{}{}  [{} | {} | {}]",
-                    entry.name, default_tag, entry.output, entry.runtime, entry.platform
+                    entry.name, default_tag, entry.emit, entry.runtime, entry.platform
                 );
                 ListEntry::new(title)
             });

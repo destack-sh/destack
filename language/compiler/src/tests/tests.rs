@@ -29,8 +29,8 @@ use destack_vm::{Heap, Isolate, IsolateOptions, MemoryContext, SharedSpace, Valu
 use destack_workspace::{
     ArtifactKey, CacheMode, CacheStore, Destack, DestackJson, DestackOptions, DirAnalyzed, DirBase,
     DirDeclared, DirElaborated, DirInterface, DirPatched, DirPrepared, DirResolved, DiskCacheStore,
-    ExportedSymbolTable, MemoryCacheStore, Module, OutputFormat, ProfileId, Program, Session,
-    Target, TargetId,
+    EmitFormat, ExportedSymbolTable, MemoryCacheStore, Module, ProfileId, Program, Session, Target,
+    TargetId,
 };
 use serde_json::json;
 
@@ -1011,11 +1011,11 @@ impl TestProgram {
         self
     }
 
-    /// Override the default profile with an explicit output format.
-    pub fn with_profile_output(mut self, output: OutputFormat) -> Self {
+    /// Override the default profile with an explicit emit format.
+    pub fn with_profile_emit(mut self, emit: EmitFormat) -> Self {
         let default_profile = self.program.profile(self.default_profile_id_for_root());
         let mut key = default_profile.key.clone();
-        key.output = output;
+        key.emit = emit;
         let profile_id = self.program.profiles.get_or_create(key);
         self.default_profile_override = Some(profile_id);
         self

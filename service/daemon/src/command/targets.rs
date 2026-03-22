@@ -16,8 +16,8 @@ pub struct CommandTargetsOptions {
 pub struct CommandTargetsEntry {
     /// The target name.
     pub name: String,
-    /// The output format.
-    pub output: String,
+    /// The emit format.
+    pub emit: String,
     /// The runtime environment.
     pub runtime: String,
     /// The target platform.
@@ -68,7 +68,7 @@ impl CommandContext<'_> {
             for (name, target) in &config.options.targets {
                 entries.push(CommandTargetsEntry {
                     name: name.clone(),
-                    output: format!("{:?}", target.output),
+                    emit: format!("{:?}", target.emit),
                     runtime: format!("{:?}", target.runtime),
                     platform: format!("{:?}", target.platform),
                     out_dir: target.out_dir.display().to_string(),

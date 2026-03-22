@@ -6,7 +6,7 @@ use destack_dir::{
     TypeLiteral, TypeTable, walk_any,
 };
 use destack_source::ModuleId;
-use destack_workspace::{ImportMeta, OutputFormat, Platform, ProfileEnv, ProfileId, Runtime};
+use destack_workspace::{EmitFormat, ImportMeta, Platform, ProfileEnv, ProfileId, Runtime};
 
 use crate::{Compiler, ResolveError, ResolveResult, evaluate_binary_scalar, evaluate_unary_scalar};
 
@@ -1043,7 +1043,7 @@ impl Compiler {
         let filename_name = self.program.strings.intern("filename");
         let dir_name = self.program.strings.intern("dir");
         let dirname_name = self.program.strings.intern("dirname");
-        let output_key = self.program.strings.intern("output");
+        let emit_key = self.program.strings.intern("emit");
         let platform_key = self.program.strings.intern("platform");
         let runtime_key = self.program.strings.intern("runtime");
         let debug_name = self.program.strings.intern("debug");
@@ -1063,9 +1063,7 @@ impl Compiler {
             id if id == dirname_name => {
                 Ok(self.optional_path_literal(import_meta.dirname.as_ref()))
             }
-            id if id == output_key => {
-                Ok(self.static_string_literal(output_name(import_meta.output)))
-            }
+            id if id == emit_key => Ok(self.static_string_literal(emit_name(import_meta.emit))),
             id if id == platform_key => {
                 Ok(self.static_string_literal(platform_name(import_meta.platform)))
             }
@@ -1217,14 +1215,15 @@ impl Compiler {
     }
 }
 
-/// Return the output name used by import.meta.
-fn output_name(output: OutputFormat) -> &'static str {
-    // map outputs to their import.meta names
-    match output {
-        OutputFormat::Js => "js",
-        OutputFormat::Ts => "ts",
-        OutputFormat::Wasm => "wasm",
-        OutputFormat::Native => "native",
+/// Return the emit name used by import.meta.
+fn emit_name(emit: EmitFormat) -> &'static str {
+    // map emit formats to their import.meta names
+    match emit {
+        EmitFormat::Js => "js",
+        EmitFormat::Ts => "ts",
+        EmitFormat::Html => "html",
+        EmitFormat::Wasm => "wasm",
+        EmitFormat::Native => "native",
     }
 }
 

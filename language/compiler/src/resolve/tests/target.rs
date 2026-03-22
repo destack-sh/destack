@@ -1,7 +1,7 @@
 use crate::TestProgram;
 use destack_dir::StaticKey;
 use destack_source::DiagnosticSeverity;
-use destack_workspace::{OutputFormat, Runtime};
+use destack_workspace::{EmitFormat, Runtime};
 use std::time::Duration;
 
 /// Resolve imports from module declarations.
@@ -648,7 +648,7 @@ import "platform:fs";
     test.set_module_profile(
         main_module_id,
         Runtime::Node,
-        OutputFormat::Js,
+        EmitFormat::Js,
         &["js", "esnext"],
     );
 
@@ -686,7 +686,7 @@ import "platform:fs";
     test.set_module_profile(
         main_module_id,
         Runtime::NativeHosted,
-        OutputFormat::Native,
+        EmitFormat::Native,
         &["default"],
     );
 
@@ -774,7 +774,7 @@ import "bun:sqlite";
     test.set_module_profile(
         main_module_id,
         Runtime::Bun,
-        OutputFormat::Js,
+        EmitFormat::Js,
         &["bun.v1.3", "js", "esnext"],
     );
 
@@ -811,7 +811,7 @@ import "bun:not_a_real_builtin";
     test.set_module_profile(
         main_module_id,
         Runtime::Bun,
-        OutputFormat::Js,
+        EmitFormat::Js,
         &["js", "esnext"],
     );
 
@@ -849,7 +849,7 @@ import "deno:kv";
     test.set_module_profile(
         main_module_id,
         Runtime::Deno,
-        OutputFormat::Js,
+        EmitFormat::Js,
         &["js", "esnext"],
     );
 

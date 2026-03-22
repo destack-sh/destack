@@ -663,7 +663,7 @@ pub fn target_overrides_from_args(args: &TargetArgs) -> Option<CommandTargetOver
     }
 
     Some(CommandTargetOverrides {
-        output: args.output.map(Into::into),
+        emit: args.emit.map(Into::into),
         runtime: args.runtime.map(Into::into),
         platform: args.platform.map(Into::into),
         target_triple: args.target_triple.clone(),
@@ -678,7 +678,7 @@ pub fn target_overrides_from_args(args: &TargetArgs) -> Option<CommandTargetOver
         out_file: args.out_file.clone(),
         declaration: args.declaration,
         source_map: args.source_map,
-        emit: args.emit.iter().copied().map(Into::into).collect(),
+        artifacts: args.artifacts.iter().copied().map(Into::into).collect(),
         optimize: args.optimize,
         opt_level: args.opt_level.map(OptimizeLevel::from),
         debug: args.debug,
