@@ -1,21 +1,21 @@
 mod diagnostic;
 mod heap;
-mod options;
 mod platform;
 mod random;
 mod replay;
 mod rules;
+mod runtime;
 mod scheduler;
 mod selectors;
 mod time;
 
 pub use diagnostic::*;
 pub use heap::*;
-pub use options::*;
 pub use platform::*;
 pub use random::*;
 pub use replay::*;
 pub use rules::*;
+pub use runtime::*;
 pub use scheduler::*;
 pub use selectors::*;
 pub use time::*;

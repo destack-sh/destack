@@ -12,15 +12,27 @@ use crate::{FormatterOptions, LinterOptions, ProfileConfig, ProfileConfigJson, R
 use super::account::{
     AccountJson, AccountOptions, account_options_from_json, extend_account_options,
 };
+use super::asset::{AssetJson, AssetOptions, asset_options_from_json, extend_asset_options};
 use super::cache::{CacheJson, CacheOptions};
 use super::compiler::{CompilerOptions, CompilerOptionsJson};
+use super::config::{ConfigJson, ConfigOptions, config_options_from_json, extend_config_options};
 use super::daemon::{DaemonJson, DaemonOptions};
+use super::environment::{
+    EnvironmentJson, EnvironmentOptions, environment_options_from_json, extend_environment_options,
+};
+use super::feature::{
+    FeatureJson, FeatureOptions, extend_feature_options, feature_options_from_json,
+};
 use super::formatter::FormatterJson;
 use super::linter::LinterJson;
-use super::runtime::{RuntimeOptionsJson, runtime_options_from_json, runtime_options_with_base};
-use super::stack::{StackJson, StackOptions};
-use super::target::{TargetJson, TargetOptions};
+use super::runtime::{RuntimeConfigJson, runtime_options_from_json, runtime_options_with_base};
+use super::secret::{SecretJson, SecretOptions, extend_secret_options, secret_options_from_json};
+use super::stacks::{StackJson, StackOptions};
+use super::targets::{TargetJson, TargetOptions};
 use super::task::{TaskJson, TaskOptions};
+use super::telemetry::{
+    TelemetryJson, TelemetryOptions, extend_telemetry_options, telemetry_options_from_json,
+};
 use super::watch::{WatchJson, WatchOptions};
 use super::workspace::{WorkspaceJson, WorkspaceOptions};
 
@@ -622,6 +634,36 @@ impl Destack {
         extend_account_options(&mut accounts, &parent.accounts);
         self.options.accounts = accounts;
 
+        // inherit top-level configs
+        let mut configs = config_options_from_json(&self.content.configs);
+        extend_config_options(&mut configs, &parent.configs);
+        self.options.configs = configs;
+
+        // inherit top-level secrets
+        let mut secrets = secret_options_from_json(&self.content.secrets);
+        extend_secret_options(&mut secrets, &parent.secrets);
+        self.options.secrets = secrets;
+
+        // inherit top-level assets
+        let mut assets = asset_options_from_json(&self.content.assets);
+        extend_asset_options(&mut assets, &parent.assets);
+        self.options.assets = assets;
+
+        // inherit top-level environments
+        let mut environments = environment_options_from_json(&self.content.environments);
+        extend_environment_options(&mut environments, &parent.environments);
+        self.options.environments = environments;
+
+        // inherit top-level features
+        let mut features = feature_options_from_json(&self.content.features);
+        extend_feature_options(&mut features, &parent.features);
+        self.options.features = features;
+
+        // inherit top-level telemetry
+        let mut telemetry = telemetry_options_from_json(&self.content.telemetry);
+        extend_telemetry_options(&mut telemetry, &parent.telemetry);
+        self.options.telemetry = telemetry;
+
         // inherit compiler incremental settings (child overrides if explicitly set in JSON)
         if self.content.compiler.incremental.is_none() {
             self.options.compiler.incremental = parent.compiler.incremental;
@@ -755,6 +797,18 @@ pub struct DestackOptions {
     pub stacks: IndexMap<String, StackOptions>,
     /// Named control-plane accounts.
     pub accounts: IndexMap<String, AccountOptions>,
+    /// Named reusable environment overlays.
+    pub environments: IndexMap<String, EnvironmentOptions>,
+    /// Named reusable config bindings.
+    pub configs: IndexMap<String, ConfigOptions>,
+    /// Named reusable secret bindings.
+    pub secrets: IndexMap<String, SecretOptions>,
+    /// Named reusable asset collections.
+    pub assets: IndexMap<String, AssetOptions>,
+    /// Named runtime feature definitions.
+    pub features: IndexMap<String, FeatureOptions>,
+    /// Named telemetry definitions.
+    pub telemetry: IndexMap<String, TelemetryOptions>,
     /// Named profiles for semantic configuration.
     pub profiles: IndexMap<String, ProfileConfig>,
     /// Default target for workspace.
@@ -835,6 +889,12 @@ impl From<&DestackJson> for DestackOptions {
             watch,
             daemon,
             accounts: account_options_from_json(&json.accounts),
+            environments: environment_options_from_json(&json.environments),
+            configs: config_options_from_json(&json.configs),
+            secrets: secret_options_from_json(&json.secrets),
+            assets: asset_options_from_json(&json.assets),
+            features: feature_options_from_json(&json.features),
+            telemetry: telemetry_options_from_json(&json.telemetry),
             targets,
             stacks: json
                 .stacks
@@ -921,7 +981,7 @@ pub struct DestackJson {
     pub compiler: CompilerOptionsJson,
     /// Runtime options.
     #[serde(default)]
-    pub runtime: RuntimeOptionsJson,
+    pub runtime: RuntimeConfigJson,
     /// Formatter options.
     #[serde(default, alias = "formatterOptions")]
     pub formatter: FormatterJson,
@@ -943,6 +1003,18 @@ pub struct DestackJson {
     pub stacks: Option<IndexMap<String, StackJson>>,
     /// Named control-plane accounts.
     pub accounts: Option<IndexMap<String, AccountJson>>,
+    /// Named reusable environment overlays.
+    pub environments: Option<IndexMap<String, EnvironmentJson>>,
+    /// Named reusable config bindings.
+    pub configs: Option<IndexMap<String, ConfigJson>>,
+    /// Named reusable secret bindings.
+    pub secrets: Option<IndexMap<String, SecretJson>>,
+    /// Named reusable asset collections.
+    pub assets: Option<IndexMap<String, AssetJson>>,
+    /// Named runtime feature definitions.
+    pub features: Option<IndexMap<String, FeatureJson>>,
+    /// Named telemetry definitions.
+    pub telemetry: Option<IndexMap<String, TelemetryJson>>,
     /// Named profiles for semantic configuration.
     pub profiles: Option<IndexMap<String, ProfileConfigJson>>,
     /// Default target for workspace.

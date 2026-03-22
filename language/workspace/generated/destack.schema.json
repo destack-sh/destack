@@ -202,8 +202,10 @@
     },
     "runtime": {
       "description": "Runtime options.",
-      "$ref": "#/$defs/RuntimeOptionsJson",
+      "$ref": "#/$defs/RuntimeConfigJson",
       "default": {
+        "host": null,
+        "version": null,
         "name": null,
         "labels": null,
         "primaryAgent": null,
@@ -288,6 +290,66 @@
       ],
       "additionalProperties": {
         "$ref": "#/$defs/AccountJson"
+      }
+    },
+    "environments": {
+      "description": "Named reusable environment overlays.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/EnvironmentJson"
+      }
+    },
+    "configs": {
+      "description": "Named reusable config bindings.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/ConfigJson"
+      }
+    },
+    "secrets": {
+      "description": "Named reusable secret bindings.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/SecretJson"
+      }
+    },
+    "assets": {
+      "description": "Named reusable asset collections.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/AssetJson"
+      }
+    },
+    "features": {
+      "description": "Named runtime feature definitions.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/FeatureJson"
+      }
+    },
+    "telemetry": {
+      "description": "Named telemetry definitions.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/TelemetryJson"
       }
     },
     "profiles": {
@@ -1191,10 +1253,37 @@
         "strict"
       ]
     },
+    "RuntimeConfigJson": {
+      "description": "Runtime config JSON.",
+      "anyOf": [
+        {
+          "description": "Runtime host shorthand.",
+          "type": "string"
+        },
+        {
+          "description": "Full runtime configuration object.",
+          "$ref": "#/$defs/RuntimeOptionsJson"
+        }
+      ]
+    },
     "RuntimeOptionsJson": {
-      "description": "Runtime options (top-level).",
+      "description": "Runtime options (object form).",
       "type": "object",
       "properties": {
+        "host": {
+          "description": "Execution host semantics for this runtime.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "description": "Runtime version for versioned library selection.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "name": {
           "description": "Stable runtime name for policy selection.",
           "type": [
@@ -4392,11 +4481,11 @@
             "type": "string"
           }
         },
-        "output": {
-          "description": "Output format (e.g., JavaScript, TypeScript, WebAssembly, Native).",
+        "emit": {
+          "description": "Emitted artifact family (e.g., JavaScript, TypeScript, HTML, WebAssembly, Native).",
           "anyOf": [
             {
-              "$ref": "#/$defs/OutputFormatJson"
+              "$ref": "#/$defs/EmitFormatJson"
             },
             {
               "type": "null"
@@ -4404,17 +4493,14 @@
           ]
         },
         "runtime": {
-          "description": "Runtime for the built artifact (e.g., browser, node, edge, worker, native).",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "runtimeVersion": {
-          "description": "Runtime version for selecting versioned libs.",
-          "type": [
-            "string",
-            "null"
+          "description": "Runtime host shorthand or full runtime configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeConfigJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "platform": {
@@ -4525,8 +4611,8 @@
           "type": "boolean",
           "default": false
         },
-        "emit": {
-          "description": "Extra artifacts to emit.",
+        "artifacts": {
+          "description": "Extra sidecar artifacts to emit.",
           "type": [
             "array",
             "null"
@@ -4543,7 +4629,7 @@
           ]
         },
         "outFile": {
-          "description": "Output file for single-file targets like wasm (e.g., \"./dist/core.wasm\").",
+          "description": "Output file for single-file targets like html or wasm (e.g., \"./dist/index.html\").",
           "type": [
             "string",
             "null"
@@ -4597,11 +4683,44 @@
             "null"
           ]
         },
+        "bundle": {
+          "description": "Bundling options for assembled JavaScript and HTML outputs.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetBundleJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "app": {
           "description": "App declaration for packaging and runtime capability planning.",
           "anyOf": [
             {
               "$ref": "#/$defs/TargetAppDeclarationJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "features": {
+          "description": "Referenced runtime feature definitions.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FeatureRefsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "telemetry": {
+          "description": "Referenced telemetry definitions.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TelemetryRefsJson"
             },
             {
               "type": "null"
@@ -4626,7 +4745,7 @@
           ],
           "format": "uint8",
           "minimum": 0,
-          "maximum": 255
+          "maximum": 4
         },
         "unrollThreshold": {
           "description": "Loop unroll threshold in instructions.",
@@ -4665,7 +4784,7 @@
           ],
           "format": "uint8",
           "minimum": 0,
-          "maximum": 255
+          "maximum": 3
         },
         "floatMath": {
           "description": "Floating point math optimization policy.",
@@ -4694,17 +4813,6 @@
           "anyOf": [
             {
               "$ref": "#/$defs/DebugModeJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "osrMode": {
-          "description": "OSR mode for native execution.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/OsrModeJson"
             },
             {
               "type": "null"
@@ -4758,17 +4866,6 @@
           "anyOf": [
             {
               "$ref": "#/$defs/ExecutionModeJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "runtimeOptions": {
-          "description": "Runtime options overrides for this target.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RuntimeOptionsJson"
             },
             {
               "type": "null"
@@ -4920,8 +5017,8 @@
         }
       }
     },
-    "OutputFormatJson": {
-      "description": "Output format for JSON deserialization.",
+    "EmitFormatJson": {
+      "description": "Emit family for JSON deserialization.",
       "oneOf": [
         {
           "description": "JavaScript (.js).",
@@ -4932,6 +5029,11 @@
           "description": "TypeScript (.ts).",
           "type": "string",
           "const": "ts"
+        },
+        {
+          "description": "HTML document output.",
+          "type": "string",
+          "const": "html"
         },
         {
           "description": "WebAssembly (.wasm).",
@@ -5010,10 +5112,235 @@
         }
       ]
     },
+    "TargetBundleJson": {
+      "description": "Target scoped bundling options in `destack.json`.",
+      "type": "object",
+      "properties": {
+        "format": {
+          "description": "Bundle format for assembled JavaScript outputs.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BundleFormat"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "splitting": {
+          "description": "Whether to split output into multiple chunks.",
+          "type": "boolean",
+          "default": false
+        },
+        "inlineDynamicImports": {
+          "description": "Whether to inline dynamic imports into one bundle.",
+          "type": "boolean",
+          "default": false
+        },
+        "preserveModules": {
+          "description": "Whether to preserve module boundaries in emitted output.",
+          "type": "boolean",
+          "default": false
+        },
+        "preserveModulesRoot": {
+          "description": "Root directory for preserved module paths.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "manualChunks": {
+          "description": "Manual chunk assignments keyed by chunk name.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "external": {
+          "description": "Module specifiers to leave external.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "alias": {
+          "description": "Module specifier aliases.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "conditions": {
+          "description": "Resolution conditions to prefer.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "mainFields": {
+          "description": "Package.json fields to prefer during resolution.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "entryFileNames": {
+          "description": "Output naming template for entry chunks.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "chunkFileNames": {
+          "description": "Output naming template for shared chunks.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "assetFileNames": {
+          "description": "Output naming template for assets.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "publicPath": {
+          "description": "Public path prefix for runtime asset resolution.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "manifest": {
+          "description": "Whether to emit a build manifest.",
+          "type": "boolean",
+          "default": false
+        },
+        "treeshake": {
+          "description": "Whether to tree shake unused modules and exports.",
+          "type": "boolean",
+          "default": false
+        },
+        "define": {
+          "description": "Compile time define replacements.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "minify": {
+          "description": "Whether to minify final bundled output.",
+          "type": "boolean",
+          "default": false
+        },
+        "minifySyntax": {
+          "description": "Whether to minify syntax forms.",
+          "type": "boolean",
+          "default": false
+        },
+        "minifyWhitespace": {
+          "description": "Whether to minify whitespace.",
+          "type": "boolean",
+          "default": false
+        },
+        "minifyIdentifiers": {
+          "description": "Whether to minify identifiers.",
+          "type": "boolean",
+          "default": false
+        },
+        "keepNames": {
+          "description": "Whether to preserve function and class names.",
+          "type": "boolean",
+          "default": false
+        },
+        "globals": {
+          "description": "Global names for externals in IIFE and UMD formats.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "banner": {
+          "description": "Banner text to prepend to each emitted bundle.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "footer": {
+          "description": "Footer text to append to each emitted bundle.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "BundleFormat": {
+      "description": "Bundler format for assembled JavaScript outputs.",
+      "oneOf": [
+        {
+          "description": "Emit ECMAScript modules.",
+          "type": "string",
+          "const": "esm"
+        },
+        {
+          "description": "Emit CommonJS modules.",
+          "type": "string",
+          "const": "cjs"
+        },
+        {
+          "description": "Emit one self executing bundle.",
+          "type": "string",
+          "const": "iife"
+        },
+        {
+          "description": "Emit one UMD bundle.",
+          "type": "string",
+          "const": "umd"
+        }
+      ]
+    },
     "TargetAppDeclarationJson": {
       "description": "Target-scoped app declaration JSON.",
       "type": "object",
       "properties": {
+        "identity": {
+          "description": "Stable app identity for packaging and host-facing integration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetAppIdentityDeclarationJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "permissions": {
           "description": "Permission declarations keyed by permission selector.",
           "type": [
@@ -5099,6 +5426,33 @@
             {
               "type": "null"
             }
+          ]
+        }
+      }
+    },
+    "TargetAppIdentityDeclarationJson": {
+      "description": "Stable app identity declaration JSON for one target.",
+      "type": "object",
+      "properties": {
+        "identifier": {
+          "description": "Stable application identifier, ideally reverse-DNS style.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "displayName": {
+          "description": "Human-facing app display name.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "iconPath": {
+          "description": "Optional host-facing icon path for desktop shell integration.",
+          "type": [
+            "string",
+            "null"
           ]
         }
       }
@@ -5584,6 +5938,38 @@
         }
       }
     },
+    "FeatureRefsJson": {
+      "description": "Feature reference JSON.",
+      "anyOf": [
+        {
+          "description": "One named feature definition reference.",
+          "type": "string"
+        },
+        {
+          "description": "Many named feature definition references.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "TelemetryRefsJson": {
+      "description": "Telemetry reference JSON.",
+      "anyOf": [
+        {
+          "description": "One named telemetry definition reference.",
+          "type": "string"
+        },
+        {
+          "description": "Many named telemetry definition references.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "LtoModeJson": {
       "description": "Link time optimization mode for JSON deserialization.",
       "oneOf": [
@@ -5671,26 +6057,6 @@
           "description": "Run native only (no deopt).",
           "type": "string",
           "const": "native"
-        }
-      ]
-    },
-    "OsrModeJson": {
-      "description": "OSR mode for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "OSR disabled.",
-          "type": "string",
-          "const": "disabled"
-        },
-        {
-          "description": "OSR at loop headers.",
-          "type": "string",
-          "const": "loopheaders"
-        },
-        {
-          "description": "OSR only at explicit sites.",
-          "type": "string",
-          "const": "explicit"
         }
       ]
     },
@@ -6025,7 +6391,7 @@
       ]
     },
     "StackJson": {
-      "description": "A deployment topology node.\n\nInputs: targets, components, explicit graph nodes, and environment overlays.\nOutputs: one normalized stack graph.",
+      "description": "A deployment topology node.\n\nInputs: explicit graph nodes and references to build outputs.\nOutputs: one normalized stack graph.",
       "type": "object",
       "properties": {
         "labels": {
@@ -6048,13 +6414,6 @@
             "type": "string"
           }
         },
-        "entry": {
-          "description": "Source-backed stack entry file.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "provider": {
           "description": "Provider attachment.",
           "anyOf": [
@@ -6069,25 +6428,27 @@
         "with": {
           "description": "Extra stack arguments."
         },
-        "targets": {
-          "description": "Target references used by this stack.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
+        "features": {
+          "description": "Referenced runtime feature definitions.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FeatureRefsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
-        "components": {
-          "description": "Typed component instances that lower into the stack graph.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/$defs/StackComponentJson"
-          }
+        "telemetry": {
+          "description": "Referenced telemetry definitions.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TelemetryRefsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "workloads": {
           "description": "Named deployable workloads.",
@@ -6119,26 +6480,6 @@
             "$ref": "#/$defs/StackVolumeJson"
           }
         },
-        "configs": {
-          "description": "Named attached configs.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/$defs/StackConfigJson"
-          }
-        },
-        "secrets": {
-          "description": "Named secret references.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/$defs/StackSecretJson"
-          }
-        },
         "assets": {
           "description": "Named asset collections.",
           "type": [
@@ -6146,11 +6487,11 @@
             "null"
           ],
           "additionalProperties": {
-            "$ref": "#/$defs/StackAssetJson"
+            "$ref": "#/$defs/AssetJson"
           }
         },
         "publications": {
-          "description": "Named publications over assets.",
+          "description": "Named publications over assets or target outputs.",
           "type": [
             "object",
             "null"
@@ -6176,16 +6517,6 @@
         "network": {
           "description": "Internal network topology settings.",
           "$ref": "#/$defs/StackNetworkJson"
-        },
-        "environments": {
-          "description": "Environment overlays for this stack.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/$defs/StackEnvironmentJson"
-          }
         }
       }
     },
@@ -6225,62 +6556,8 @@
         }
       }
     },
-    "StackComponentJson": {
-      "description": "A typed graph expansion.\n\nInputs: component type, optional version, and typed `with` parameters.\nOutputs: named graph nodes in the lowered stack.",
-      "type": "object",
-      "properties": {
-        "type": {
-          "description": "Open component type identifier.\n\nBuiltin component types currently blessed by Destack are:\n`destack.sh/component/client`,\n`destack.sh/component/service`,\n`destack.sh/component/worker`,\n`destack.sh/component/job`,\nand `destack.sh/component/site`.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "version": {
-          "description": "Optional component version selector.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "with": {
-          "description": "Typed component inputs.\n\nFor builtin component types this object should match the corresponding\nclient, service, worker, job, or site parameter shape.\nRuntime and platform remain target-scoped rather than component-scoped."
-        },
-        "labels": {
-          "description": "Selection labels.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "annotations": {
-          "description": "Non-identifying metadata.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "provider": {
-          "description": "Provider attachment.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/StackProviderJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      }
-    },
     "StackWorkloadJson": {
-      "description": "An executable compute node.\n\nInputs: one target, bindings, mounts, env transport, and runtime policy.\nOutputs: runtime instances that may back one or more services.",
+      "description": "An executable compute node.\n\nInputs: one target, bindings, mounts, env transport, schedule, and runtime policy.\nOutputs: runtime instances that may back one or more services.",
       "type": "object",
       "properties": {
         "target": {
@@ -6290,9 +6567,34 @@
             "null"
           ]
         },
-        "run": {
-          "description": "How this workload is run or triggered.",
-          "$ref": "#/$defs/StackRunJson"
+        "features": {
+          "description": "Referenced runtime feature definitions.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FeatureRefsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "telemetry": {
+          "description": "Referenced telemetry definitions.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TelemetryRefsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schedule": {
+          "description": "Cron schedule for scheduled workloads.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "bindings": {
           "description": "Typed bindings exposed to this workload.",
@@ -6376,10 +6678,10 @@
           "$ref": "#/$defs/StackTimeoutJson"
         },
         "runtime": {
-          "description": "Destack runtime overrides for this workload.",
+          "description": "Destack runtime shorthand or overrides for this workload.",
           "anyOf": [
             {
-              "$ref": "#/$defs/RuntimeOptionsJson"
+              "$ref": "#/$defs/RuntimeConfigJson"
             },
             {
               "type": "null"
@@ -6403,243 +6705,282 @@
         }
       }
     },
-    "StackRunJson": {
-      "description": "Workload run configuration JSON.",
-      "type": "object",
-      "properties": {
-        "kind": {
-          "description": "Run kind.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/StackRunKindJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "protocol": {
-          "description": "Run protocol.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "mount": {
-          "description": "Optional mount path or handler path.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "assets": {
-          "description": "Referenced asset collections.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/StackAssetRefsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "trigger": {
-          "description": "Trigger configuration.",
-          "$ref": "#/$defs/StackTriggerJson"
-        },
-        "delivery": {
-          "description": "Delivery configuration.",
-          "$ref": "#/$defs/StackDeliveryJson"
-        },
-        "with": {
-          "description": "Extra run arguments."
-        }
-      }
-    },
-    "StackRunKindJson": {
-      "description": "Run kind JSON.",
-      "oneOf": [
-        {
-          "description": "Serve HTTP traffic.",
-          "type": "string",
-          "const": "http"
-        },
-        {
-          "description": "Publish static assets.",
-          "type": "string",
-          "const": "static"
-        },
-        {
-          "description": "Consume queue or stream messages.",
-          "type": "string",
-          "const": "consumer"
-        },
-        {
-          "description": "Run on a cron-like schedule.",
-          "type": "string",
-          "const": "schedule"
-        },
-        {
-          "description": "Run as a one-shot background job.",
-          "type": "string",
-          "const": "job"
-        }
-      ]
-    },
-    "StackAssetRefsJson": {
-      "description": "Asset reference JSON.",
-      "anyOf": [
-        {
-          "description": "One named asset collection reference.",
-          "type": "string"
-        },
-        {
-          "description": "Many named asset collection references.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      ]
-    },
-    "StackTriggerJson": {
-      "description": "Trigger configuration JSON.",
-      "type": "object",
-      "properties": {
-        "kind": {
-          "description": "Open trigger kind identifier.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "service": {
-          "description": "Upstream service that activates this workload.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "schedule": {
-          "description": "Cron schedule for scheduled workloads.",
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      }
-    },
-    "StackDeliveryJson": {
-      "description": "Delivery configuration JSON.",
-      "type": "object",
-      "properties": {
-        "batch": {
-          "description": "Batch delivery settings.",
-          "$ref": "#/$defs/StackBatchJson"
-        },
-        "retry": {
-          "description": "Retry delivery settings.",
-          "$ref": "#/$defs/StackRetryJson"
-        },
-        "visibilityTimeoutSeconds": {
-          "description": "Visibility timeout in seconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        }
-      }
-    },
-    "StackBatchJson": {
-      "description": "Batch delivery JSON.",
-      "type": "object",
-      "properties": {
-        "maxSize": {
-          "description": "Maximum batch size.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "maxWaitSeconds": {
-          "description": "Maximum batch wait in seconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        }
-      }
-    },
-    "StackRetryJson": {
-      "description": "Retry delivery JSON.",
-      "type": "object",
-      "properties": {
-        "maxAttempts": {
-          "description": "Maximum delivery attempts.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "backoffSeconds": {
-          "description": "Retry backoff in seconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        }
-      }
-    },
     "StackBindingJson": {
       "description": "Binding configuration JSON.",
       "type": "object",
       "properties": {
-        "workload": {
-          "description": "Bound workload name.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "service": {
-          "description": "Bound service name.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "config": {
-          "description": "Bound config name.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "secret": {
-          "description": "Bound secret name.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "field": {
-          "description": "Requested output field.",
-          "type": [
-            "string",
-            "null"
+        "source": {
+          "description": "Bound source.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackAttachmentSourceJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         }
       }
+    },
+    "StackAttachmentSourceJson": {
+      "description": "Stack attachment source JSON.",
+      "oneOf": [
+        {
+          "description": "Read from one named workload.",
+          "type": "object",
+          "properties": {
+            "workload": {
+              "description": "Workload name.",
+              "type": "string"
+            },
+            "field": {
+              "description": "Optional named field or member within the source object.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "with": {
+              "description": "Extra source arguments."
+            },
+            "kind": {
+              "type": "string",
+              "const": "workload"
+            }
+          },
+          "required": [
+            "kind",
+            "workload"
+          ]
+        },
+        {
+          "description": "Read from one named service.",
+          "type": "object",
+          "properties": {
+            "service": {
+              "description": "Service name.",
+              "type": "string"
+            },
+            "field": {
+              "description": "Optional named field or member within the source object.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "with": {
+              "description": "Extra source arguments."
+            },
+            "kind": {
+              "type": "string",
+              "const": "service"
+            }
+          },
+          "required": [
+            "kind",
+            "service"
+          ]
+        },
+        {
+          "description": "Read from one named config.",
+          "type": "object",
+          "properties": {
+            "config": {
+              "description": "Config name.",
+              "type": "string"
+            },
+            "field": {
+              "description": "Optional named field or member within the source object.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "with": {
+              "description": "Extra source arguments."
+            },
+            "kind": {
+              "type": "string",
+              "const": "config"
+            }
+          },
+          "required": [
+            "kind",
+            "config"
+          ]
+        },
+        {
+          "description": "Read from one named secret.",
+          "type": "object",
+          "properties": {
+            "secret": {
+              "description": "Secret name.",
+              "type": "string"
+            },
+            "field": {
+              "description": "Optional named field or member within the source object.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "with": {
+              "description": "Extra source arguments."
+            },
+            "kind": {
+              "type": "string",
+              "const": "secret"
+            }
+          },
+          "required": [
+            "kind",
+            "secret"
+          ]
+        },
+        {
+          "description": "Read from one named volume.",
+          "type": "object",
+          "properties": {
+            "volume": {
+              "description": "Volume name.",
+              "type": "string"
+            },
+            "field": {
+              "description": "Optional named field or member within the source object.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "with": {
+              "description": "Extra source arguments."
+            },
+            "kind": {
+              "type": "string",
+              "const": "volume"
+            }
+          },
+          "required": [
+            "kind",
+            "volume"
+          ]
+        },
+        {
+          "description": "Read from one named asset collection.",
+          "type": "object",
+          "properties": {
+            "asset": {
+              "description": "Asset name.",
+              "type": "string"
+            },
+            "output": {
+              "description": "Optional named output within the source object.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "with": {
+              "description": "Extra source arguments."
+            },
+            "kind": {
+              "type": "string",
+              "const": "asset"
+            }
+          },
+          "required": [
+            "kind",
+            "asset"
+          ]
+        },
+        {
+          "description": "Read from one named target.",
+          "type": "object",
+          "properties": {
+            "target": {
+              "description": "Target name.",
+              "type": "string"
+            },
+            "output": {
+              "description": "Optional named output within the source object.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TargetOutputName"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "with": {
+              "description": "Extra source arguments."
+            },
+            "kind": {
+              "type": "string",
+              "const": "target"
+            }
+          },
+          "required": [
+            "kind",
+            "target"
+          ]
+        }
+      ]
+    },
+    "TargetOutputName": {
+      "description": "Builtin target output surface name.",
+      "oneOf": [
+        {
+          "description": "Per-module library output.",
+          "type": "string",
+          "const": "module"
+        },
+        {
+          "description": "Primary runnable entry output.",
+          "type": "string",
+          "const": "entry"
+        },
+        {
+          "description": "Primary document output.",
+          "type": "string",
+          "const": "document"
+        },
+        {
+          "description": "Declaration or type surface.",
+          "type": "string",
+          "const": "types"
+        },
+        {
+          "description": "Asset collection emitted by this target.",
+          "type": "string",
+          "const": "assets"
+        },
+        {
+          "description": "Build manifest or output index.",
+          "type": "string",
+          "const": "manifest"
+        },
+        {
+          "description": "Source maps or debug maps.",
+          "type": "string",
+          "const": "maps"
+        },
+        {
+          "description": "Binary or wasm payload.",
+          "type": "string",
+          "const": "binary"
+        },
+        {
+          "description": "Debug symbol or debug sidecar output.",
+          "type": "string",
+          "const": "debug"
+        },
+        {
+          "description": "Additional metadata sidecar output.",
+          "type": "string",
+          "const": "metadata"
+        }
+      ]
     },
     "StackEnvVarJson": {
       "description": "Environment variable transport JSON.",
@@ -6652,11 +6993,15 @@
             "null"
           ]
         },
-        "binding": {
-          "description": "Binding name to expose as an environment variable.",
-          "type": [
-            "string",
-            "null"
+        "source": {
+          "description": "Bound source exposed as an environment variable.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackAttachmentSourceJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         }
       }
@@ -6665,25 +7010,15 @@
       "description": "Mount JSON.",
       "type": "object",
       "properties": {
-        "volume": {
-          "description": "Mounted volume name.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "config": {
-          "description": "Mounted config name.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "secret": {
-          "description": "Mounted secret name.",
-          "type": [
-            "string",
-            "null"
+        "source": {
+          "description": "Mounted source.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackAttachmentSourceJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "path": {
@@ -7193,14 +7528,29 @@
       }
     },
     "StackServiceJson": {
-      "description": "A stable bindable capability or endpoint.\n\nInputs: either named workloads or one external endpoint, plus protocol, placement, and service config.\nOutputs: addressable fields such as `url` for bindings and ingress.",
+      "description": "A stable bindable capability backed by workloads.\n\nInputs: named workloads, protocol, placement, and service config.\nOutputs: addressable fields such as `url` for bindings and ingress.",
       "type": "object",
       "properties": {
-        "type": {
-          "description": "Open semantic service type identifier.",
-          "type": [
-            "string",
-            "null"
+        "features": {
+          "description": "Referenced runtime feature definitions.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FeatureRefsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "telemetry": {
+          "description": "Referenced telemetry definitions.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TelemetryRefsJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "labels": {
@@ -7235,7 +7585,7 @@
           ]
         },
         "workloads": {
-          "description": "Workloads that provide this service.\n\nExactly one of `workloads` or `endpoint` should be set.",
+          "description": "Workloads that provide this service.",
           "type": [
             "array",
             "null"
@@ -7243,13 +7593,6 @@
           "items": {
             "type": "string"
           }
-        },
-        "endpoint": {
-          "description": "External endpoint for unmanaged services.\n\nExactly one of `workloads` or `endpoint` should be set.",
-          "type": [
-            "string",
-            "null"
-          ]
         },
         "protocol": {
           "description": "Service protocol.",
@@ -7499,119 +7842,19 @@
         }
       }
     },
-    "StackConfigJson": {
-      "description": "A passive configuration node.\n\nInputs: inline data or one file source.\nOutputs: mountable or bindable configuration handles.",
-      "type": "object",
-      "properties": {
-        "file": {
-          "description": "Source file path.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "data": {
-          "description": "Inline config data.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "labels": {
-          "description": "Selection labels.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "annotations": {
-          "description": "Non-identifying metadata.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "provider": {
-          "description": "Provider attachment.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/StackProviderJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "with": {
-          "description": "Extra config arguments."
-        }
-      }
-    },
-    "StackSecretJson": {
-      "description": "A passive secret reference node.\n\nInputs: one external secret reference.\nOutputs: injectible secret bindings.",
-      "type": "object",
-      "properties": {
-        "reference": {
-          "description": "External secret reference.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "labels": {
-          "description": "Selection labels.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "annotations": {
-          "description": "Non-identifying metadata.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "provider": {
-          "description": "Provider attachment.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/StackProviderJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "with": {
-          "description": "Extra secret arguments."
-        }
-      }
-    },
-    "StackAssetJson": {
+    "AssetJson": {
       "description": "Asset collection JSON.",
       "type": "object",
       "properties": {
         "source": {
-          "description": "Local source directory or built asset root.",
-          "type": [
-            "string",
-            "null"
+          "description": "Local or generated asset source.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AssetSourceJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "profile": {
@@ -7628,7 +7871,7 @@
             "null"
           ],
           "additionalProperties": {
-            "$ref": "#/$defs/StackAssetOutputJson"
+            "$ref": "#/$defs/AssetOutputJson"
           }
         },
         "with": {
@@ -7636,7 +7879,65 @@
         }
       }
     },
-    "StackAssetOutputJson": {
+    "AssetSourceJson": {
+      "description": "Asset source JSON.",
+      "oneOf": [
+        {
+          "description": "Read assets from one local path.",
+          "type": "object",
+          "properties": {
+            "path": {
+              "description": "File system path for the source.",
+              "type": "string"
+            },
+            "with": {
+              "description": "Extra source arguments."
+            },
+            "location": {
+              "type": "string",
+              "const": "path"
+            }
+          },
+          "required": [
+            "location",
+            "path"
+          ]
+        },
+        {
+          "description": "Read assets from one named target output.",
+          "type": "object",
+          "properties": {
+            "target": {
+              "description": "Target name for the source.",
+              "type": "string"
+            },
+            "output": {
+              "description": "Optional named output within the source target.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TargetOutputName"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "with": {
+              "description": "Extra source arguments."
+            },
+            "location": {
+              "type": "string",
+              "const": "target"
+            }
+          },
+          "required": [
+            "location",
+            "target"
+          ]
+        }
+      ]
+    },
+    "AssetOutputJson": {
       "description": "Asset output JSON.",
       "type": "object",
       "properties": {
@@ -7644,7 +7945,7 @@
           "description": "Derived output kind.",
           "anyOf": [
             {
-              "$ref": "#/$defs/StackAssetOutputKindJson"
+              "$ref": "#/$defs/AssetOutputKindJson"
             },
             {
               "type": "null"
@@ -7673,7 +7974,7 @@
         }
       }
     },
-    "StackAssetOutputKindJson": {
+    "AssetOutputKindJson": {
       "description": "Asset output kind JSON.",
       "oneOf": [
         {
@@ -7690,16 +7991,6 @@
           "description": "Catalog or lookup manifest.",
           "type": "string",
           "const": "catalog"
-        },
-        {
-          "description": "Preview or thumbnail output.",
-          "type": "string",
-          "const": "preview"
-        },
-        {
-          "description": "Streaming playback output.",
-          "type": "string",
-          "const": "stream"
         }
       ]
     },
@@ -7707,18 +7998,15 @@
       "description": "Publication JSON.",
       "type": "object",
       "properties": {
-        "asset": {
-          "description": "Source asset collection name.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "output": {
-          "description": "Optional named output within the source asset collection.",
-          "type": [
-            "string",
-            "null"
+        "source": {
+          "description": "Source publication input.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackPublicationSourceJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "provider": {
@@ -7764,6 +8052,65 @@
           "description": "Extra publication arguments."
         }
       }
+    },
+    "StackPublicationSourceJson": {
+      "description": "Publication source JSON.",
+      "oneOf": [
+        {
+          "description": "Publish one named asset collection.",
+          "type": "object",
+          "properties": {
+            "asset": {
+              "description": "Asset collection name.",
+              "type": "string"
+            },
+            "output": {
+              "description": "Optional named output within the source asset collection.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "type": "string",
+              "const": "asset"
+            }
+          },
+          "required": [
+            "kind",
+            "asset"
+          ]
+        },
+        {
+          "description": "Publish one named target output directly.",
+          "type": "object",
+          "properties": {
+            "target": {
+              "description": "Target name.",
+              "type": "string"
+            },
+            "output": {
+              "description": "Optional named output within the source target.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TargetOutputName"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "kind": {
+              "type": "string",
+              "const": "target"
+            }
+          },
+          "required": [
+            "kind",
+            "target"
+          ]
+        }
+      ]
     },
     "StackPublicationOriginJson": {
       "description": "Publication origin JSON.",
@@ -8620,137 +8967,6 @@
         }
       }
     },
-    "StackEnvironmentJson": {
-      "description": "A partial environment overlay over one named stack.\n\nInputs: explicit overrides for graph nodes and policy.\nOutputs: one environment-specific view of the same stack graph.",
-      "type": "object",
-      "properties": {
-        "labels": {
-          "description": "Selection labels.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "annotations": {
-          "description": "Non-identifying metadata.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "ephemeral": {
-          "description": "Whether this environment is ephemeral.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "components": {
-          "description": "Component overrides.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/$defs/StackComponentJson"
-          }
-        },
-        "workloads": {
-          "description": "Workload overrides.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/$defs/StackWorkloadJson"
-          }
-        },
-        "services": {
-          "description": "Service overrides.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/$defs/StackServiceJson"
-          }
-        },
-        "volumes": {
-          "description": "Volume overrides.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/$defs/StackVolumeJson"
-          }
-        },
-        "configs": {
-          "description": "Config overrides.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/$defs/StackConfigJson"
-          }
-        },
-        "secrets": {
-          "description": "Secret overrides.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/$defs/StackSecretJson"
-          }
-        },
-        "assets": {
-          "description": "Asset overrides.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/$defs/StackAssetJson"
-          }
-        },
-        "publications": {
-          "description": "Publication overrides.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/$defs/StackPublicationJson"
-          }
-        },
-        "domains": {
-          "description": "Domain overrides.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/$defs/StackDomainJson"
-          }
-        },
-        "ingress": {
-          "description": "Ingress overrides.",
-          "$ref": "#/$defs/StackIngressJson"
-        },
-        "network": {
-          "description": "Network overrides.",
-          "$ref": "#/$defs/StackNetworkJson"
-        }
-      }
-    },
     "AccountJson": {
       "description": "A declared control-plane account.\n\nInputs: provider identity metadata and one auth mode declaration.\nOutputs: a named account reference that stacks and domains can target.",
       "type": "object",
@@ -8831,22 +9047,1223 @@
         }
       ]
     },
+    "EnvironmentJson": {
+      "description": "A reusable environment overlay.\n\nInputs: refinements for existing graph nodes and policy.\nOutputs: one environment-specific view of the same stack graph.",
+      "type": "object",
+      "properties": {
+        "labels": {
+          "description": "Selection labels.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "description": "Non-identifying metadata.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "ephemeral": {
+          "description": "Whether this environment is ephemeral.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "features": {
+          "description": "Referenced runtime feature definitions.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FeatureRefsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "telemetry": {
+          "description": "Referenced telemetry definitions.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TelemetryRefsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "workloads": {
+          "description": "Workload refinements.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/WorkloadJson"
+          }
+        },
+        "services": {
+          "description": "Service refinements.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/ServiceJson"
+          }
+        },
+        "volumes": {
+          "description": "Volume overrides.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/StackVolumeJson"
+          }
+        },
+        "configs": {
+          "description": "Config overrides.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/ConfigJson"
+          }
+        },
+        "secrets": {
+          "description": "Secret overrides.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/SecretJson"
+          }
+        },
+        "assets": {
+          "description": "Asset overrides.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/AssetJson"
+          }
+        },
+        "publications": {
+          "description": "Publication refinements.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/PublicationJson"
+          }
+        },
+        "domains": {
+          "description": "Domain overrides.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/StackDomainJson"
+          }
+        },
+        "ingress": {
+          "description": "Ingress overrides.",
+          "$ref": "#/$defs/StackIngressJson"
+        },
+        "network": {
+          "description": "Network overrides.",
+          "$ref": "#/$defs/StackNetworkJson"
+        }
+      }
+    },
+    "WorkloadJson": {
+      "description": "Workload refinement JSON.",
+      "type": "object",
+      "properties": {
+        "features": {
+          "description": "Referenced runtime feature definitions.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FeatureRefsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "telemetry": {
+          "description": "Referenced telemetry definitions.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TelemetryRefsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schedule": {
+          "description": "Cron schedule for scheduled workloads.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "bindings": {
+          "description": "Typed bindings exposed to this workload.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/StackBindingJson"
+          }
+        },
+        "env": {
+          "description": "Environment variable transport overrides.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/StackEnvVarJson"
+          }
+        },
+        "mounts": {
+          "description": "Named mounts exposed to this workload.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/StackMountJson"
+          }
+        },
+        "labels": {
+          "description": "Selection labels.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "description": "Non-identifying metadata.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "provider": {
+          "description": "Provider attachment.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackProviderJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "health": {
+          "description": "Workload health checks.",
+          "$ref": "#/$defs/StackHealthJson"
+        },
+        "placement": {
+          "description": "Placement constraints and preferences.",
+          "$ref": "#/$defs/StackPlacementJson"
+        },
+        "identity": {
+          "description": "Workload identity.",
+          "$ref": "#/$defs/StackIdentityJson"
+        },
+        "capacity": {
+          "description": "Compute envelope and scaling behavior.",
+          "$ref": "#/$defs/StackCapacityJson"
+        },
+        "timeouts": {
+          "description": "Generic workload and runtime time budgets.",
+          "$ref": "#/$defs/StackTimeoutJson"
+        },
+        "runtime": {
+          "description": "Destack runtime shorthand or overrides for this workload.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeConfigJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "with": {
+          "description": "Extra workload arguments."
+        },
+        "rollout": {
+          "description": "Rollout policy.",
+          "$ref": "#/$defs/StackRolloutJson"
+        },
+        "restart": {
+          "description": "Restart policy.",
+          "$ref": "#/$defs/StackRestartJson"
+        },
+        "availability": {
+          "description": "Availability policy.",
+          "$ref": "#/$defs/StackAvailabilityJson"
+        }
+      }
+    },
+    "ServiceJson": {
+      "description": "Service refinement JSON.",
+      "type": "object",
+      "properties": {
+        "features": {
+          "description": "Referenced runtime feature definitions.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FeatureRefsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "telemetry": {
+          "description": "Referenced telemetry definitions.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TelemetryRefsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "labels": {
+          "description": "Selection labels.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "description": "Non-identifying metadata.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "provider": {
+          "description": "Provider attachment.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackProviderJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "protocol": {
+          "description": "Service protocol.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "port": {
+          "description": "Externally visible service port.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "targetPort": {
+          "description": "Target workload port.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "placement": {
+          "description": "Placement constraints and preferences.",
+          "$ref": "#/$defs/StackPlacementJson"
+        },
+        "access": {
+          "description": "Service access expectations.",
+          "$ref": "#/$defs/StackServiceAccessJson"
+        },
+        "with": {
+          "description": "Extra service arguments."
+        }
+      }
+    },
+    "ConfigJson": {
+      "description": "A passive configuration node.\n\nInputs: inline data or one external source declaration.\nOutputs: mountable or bindable configuration handles.",
+      "type": "object",
+      "properties": {
+        "source": {
+          "description": "Source declaration for external or file backed config.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConfigSourceJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "data": {
+          "description": "Inline config data.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": true
+        },
+        "labels": {
+          "description": "Selection labels.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "description": "Non-identifying metadata.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "provider": {
+          "description": "Provider attachment.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackProviderJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "with": {
+          "description": "Extra config arguments."
+        }
+      }
+    },
+    "ConfigSourceJson": {
+      "description": "Config source JSON.",
+      "oneOf": [
+        {
+          "description": "Load config from one local file.",
+          "type": "object",
+          "properties": {
+            "path": {
+              "description": "File system path for the source.",
+              "type": "string"
+            },
+            "selector": {
+              "description": "Optional selected projection within the source.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ConfigSourceSelectorJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "format": {
+              "description": "Declared source format.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ConfigSourceFormatJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "optional": {
+              "description": "Whether missing source material is allowed.",
+              "type": "boolean",
+              "default": false
+            },
+            "with": {
+              "description": "Extra source arguments."
+            },
+            "location": {
+              "type": "string",
+              "const": "file"
+            }
+          },
+          "required": [
+            "location",
+            "path"
+          ]
+        },
+        {
+          "description": "Read config from ambient process environment.",
+          "type": "object",
+          "properties": {
+            "selector": {
+              "description": "Optional selected projection within the source.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ConfigSourceSelectorJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "format": {
+              "description": "Declared source format.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ConfigSourceFormatJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "optional": {
+              "description": "Whether missing source material is allowed.",
+              "type": "boolean",
+              "default": false
+            },
+            "with": {
+              "description": "Extra source arguments."
+            },
+            "location": {
+              "type": "string",
+              "const": "processEnvironment"
+            }
+          },
+          "required": [
+            "location"
+          ]
+        },
+        {
+          "description": "Load config from one external store reference.",
+          "type": "object",
+          "properties": {
+            "reference": {
+              "description": "Remote source reference.",
+              "type": "string"
+            },
+            "selector": {
+              "description": "Optional selected projection within the source.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ConfigSourceSelectorJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "format": {
+              "description": "Declared source format.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ConfigSourceFormatJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "optional": {
+              "description": "Whether missing source material is allowed.",
+              "type": "boolean",
+              "default": false
+            },
+            "with": {
+              "description": "Extra source arguments."
+            },
+            "location": {
+              "type": "string",
+              "const": "remote"
+            }
+          },
+          "required": [
+            "location",
+            "reference"
+          ]
+        }
+      ]
+    },
+    "ConfigSourceSelectorJson": {
+      "description": "Config source selector JSON.",
+      "type": "object",
+      "properties": {
+        "key": {
+          "description": "Optional selected key within the source.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "prefix": {
+          "description": "Optional key prefix within the source.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "ConfigSourceFormatJson": {
+      "description": "Config source format JSON.",
+      "oneOf": [
+        {
+          "description": "Infer one format from source metadata.",
+          "type": "string",
+          "const": "auto"
+        },
+        {
+          "description": "Parse JSON.",
+          "type": "string",
+          "const": "json"
+        },
+        {
+          "description": "Parse YAML.",
+          "type": "string",
+          "const": "yaml"
+        },
+        {
+          "description": "Parse TOML.",
+          "type": "string",
+          "const": "toml"
+        },
+        {
+          "description": "Parse dotenv key value pairs.",
+          "type": "string",
+          "const": "env"
+        },
+        {
+          "description": "Read one plain text payload.",
+          "type": "string",
+          "const": "text"
+        }
+      ]
+    },
+    "SecretJson": {
+      "description": "A passive secret reference node.\n\nInputs: one external source declaration.\nOutputs: injectible secret bindings.",
+      "type": "object",
+      "properties": {
+        "source": {
+          "description": "Source declaration for external, file backed, or ambient secrets.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SecretSourceJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "labels": {
+          "description": "Selection labels.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "description": "Non-identifying metadata.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "provider": {
+          "description": "Provider attachment.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackProviderJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "with": {
+          "description": "Extra secret arguments."
+        }
+      }
+    },
+    "SecretSourceJson": {
+      "description": "Secret source JSON.",
+      "oneOf": [
+        {
+          "description": "Load one secret from one local file.",
+          "type": "object",
+          "properties": {
+            "path": {
+              "description": "File system path for the source.",
+              "type": "string"
+            },
+            "selector": {
+              "description": "Selected projection within the source.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SecretSourceSelectorJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "format": {
+              "description": "Declared source format.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SecretSourceFormatJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "optional": {
+              "description": "Whether missing source material is allowed.",
+              "type": "boolean",
+              "default": false
+            },
+            "with": {
+              "description": "Extra source arguments."
+            },
+            "location": {
+              "type": "string",
+              "const": "file"
+            }
+          },
+          "required": [
+            "location",
+            "path"
+          ]
+        },
+        {
+          "description": "Read one secret from ambient process environment.",
+          "type": "object",
+          "properties": {
+            "selector": {
+              "description": "Selected projection within the source.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SecretSourceSelectorJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "format": {
+              "description": "Declared source format.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SecretSourceFormatJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "optional": {
+              "description": "Whether missing source material is allowed.",
+              "type": "boolean",
+              "default": false
+            },
+            "with": {
+              "description": "Extra source arguments."
+            },
+            "location": {
+              "type": "string",
+              "const": "processEnvironment"
+            }
+          },
+          "required": [
+            "location"
+          ]
+        },
+        {
+          "description": "Load one secret from one external store reference.",
+          "type": "object",
+          "properties": {
+            "reference": {
+              "description": "Remote source reference.",
+              "type": "string"
+            },
+            "selector": {
+              "description": "Selected projection within the source.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SecretSourceSelectorJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "format": {
+              "description": "Declared source format.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SecretSourceFormatJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "optional": {
+              "description": "Whether missing source material is allowed.",
+              "type": "boolean",
+              "default": false
+            },
+            "with": {
+              "description": "Extra source arguments."
+            },
+            "location": {
+              "type": "string",
+              "const": "remote"
+            }
+          },
+          "required": [
+            "location",
+            "reference"
+          ]
+        }
+      ]
+    },
+    "SecretSourceSelectorJson": {
+      "description": "Secret source selector JSON.",
+      "type": "object",
+      "properties": {
+        "key": {
+          "description": "Selected key within the source.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "SecretSourceFormatJson": {
+      "description": "Secret source format JSON.",
+      "oneOf": [
+        {
+          "description": "Infer one format from source metadata.",
+          "type": "string",
+          "const": "auto"
+        },
+        {
+          "description": "Read one plain text payload.",
+          "type": "string",
+          "const": "text"
+        },
+        {
+          "description": "Parse dotenv key value pairs.",
+          "type": "string",
+          "const": "env"
+        },
+        {
+          "description": "Read opaque binary bytes.",
+          "type": "string",
+          "const": "binary"
+        }
+      ]
+    },
+    "PublicationJson": {
+      "description": "Publication refinement JSON.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "description": "Provider attachment.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackProviderJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "origin": {
+          "description": "Backing origin configuration.",
+          "$ref": "#/$defs/StackPublicationOriginJson"
+        },
+        "cache": {
+          "description": "Cache policy for the published content.",
+          "$ref": "#/$defs/StackCacheJson"
+        },
+        "labels": {
+          "description": "Selection labels.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "description": "Non-identifying metadata.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "with": {
+          "description": "Extra publication arguments."
+        }
+      }
+    },
+    "FeatureJson": {
+      "description": "Dynamic runtime feature JSON.",
+      "type": "object",
+      "properties": {
+        "labels": {
+          "description": "Selection labels.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "description": "Non-identifying metadata.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "default": {
+          "description": "Default feature value."
+        },
+        "variants": {
+          "description": "Named feature variants.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": true
+        },
+        "rules": {
+          "description": "Ordered targeting rules.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/FeatureRuleJson"
+          }
+        },
+        "provider": {
+          "description": "Optional external feature provider key.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "with": {
+          "description": "Extra feature arguments."
+        }
+      }
+    },
+    "FeatureRuleJson": {
+      "description": "Feature targeting rule JSON.",
+      "type": "object",
+      "properties": {
+        "environments": {
+          "description": "Environment names targeted by this rule.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "targets": {
+          "description": "Target names targeted by this rule.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "labels": {
+          "description": "Required label matches.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "context": {
+          "description": "Required runtime context matches.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": true
+        },
+        "percentage": {
+          "description": "Optional rollout percentage.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "variant": {
+          "description": "Named variant selected by this rule.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "value": {
+          "description": "Direct value selected by this rule."
+        },
+        "with": {
+          "description": "Extra rule arguments."
+        }
+      }
+    },
+    "TelemetryJson": {
+      "description": "Reusable telemetry policy JSON.",
+      "type": "object",
+      "properties": {
+        "labels": {
+          "description": "Selection labels.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "description": "Non-identifying metadata.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "resource": {
+          "description": "Resource attributes attached to all emitted observations.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "observe": {
+          "description": "Observation policy for the runtime and libraries.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TelemetryObserveJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sinks": {
+          "description": "Named sinks.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/TelemetrySinkJson"
+          }
+        },
+        "with": {
+          "description": "Extra telemetry arguments."
+        }
+      }
+    },
+    "TelemetryObserveJson": {
+      "description": "Telemetry observation JSON.",
+      "type": "object",
+      "properties": {
+        "runtime": {
+          "description": "Observe runtime, resource, scheduler, and platform events.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "diagnostic": {
+          "description": "Observe diagnostics, failures, and warnings.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "domain": {
+          "description": "Observe application and library domain events.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "with": {
+          "description": "Extra observation arguments."
+        }
+      }
+    },
+    "TelemetrySinkJson": {
+      "description": "Telemetry sink JSON.",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "description": "Sink kind.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TelemetrySinkKind"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "endpoint": {
+          "description": "Sink endpoint.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "protocol": {
+          "description": "Transport protocol.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "headers": {
+          "description": "Static request headers.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "with": {
+          "description": "Extra exporter arguments."
+        }
+      }
+    },
+    "TelemetrySinkKind": {
+      "description": "Telemetry sink kind.",
+      "oneOf": [
+        {
+          "description": "OpenTelemetry OTLP sink.",
+          "type": "string",
+          "const": "otlp"
+        },
+        {
+          "description": "Human readable stdout sink.",
+          "type": "string",
+          "const": "stdout"
+        },
+        {
+          "description": "File based sink.",
+          "type": "string",
+          "const": "file"
+        },
+        {
+          "description": "External vendor sink.",
+          "type": "string",
+          "const": "vendor"
+        }
+      ]
+    },
     "ProfileConfigJson": {
       "description": "Profile configuration JSON (from destack.json).",
       "type": "object",
       "properties": {
         "runtime": {
           "description": "Runtime environment (browser, node, wasm-wasi, native-hosted, etc.).",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "runtimeVersion": {
-          "description": "Runtime version for selecting versioned libs.",
-          "type": [
-            "string",
-            "null"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeConfigJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "platform": {

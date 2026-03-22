@@ -586,9 +586,9 @@ mod tests {
 
     use crate::{
         ArtifactKey, Ast, Destack, DirAnalyzed, DirBase, DirDeclared, DirInterface, DirPrepared,
-        DirResolved, EnvSnapshot, ExportedSymbolTable, ImportedModuleTable, Loader, Module,
-        ModuleBindingExportTable, ModuleDetection, ModuleFormat, ModuleSource, ModuleTarget,
-        OutputFormat, Package, PackageKind, PackageManifest, Platform, ProfileFlags, ProfileId,
+        DirResolved, EmitFormat, EnvSnapshot, ExportedSymbolTable, ImportedModuleTable, Loader,
+        Module, ModuleBindingExportTable, ModuleDetection, ModuleFormat, ModuleSource,
+        ModuleTarget, Package, PackageKind, PackageManifest, Platform, ProfileFlags, ProfileId,
         ProfileKey, Program, Runtime, SourceType, TsConfig,
     };
 
@@ -740,7 +740,7 @@ mod tests {
         );
 
         let profile_key = ProfileKey::new(
-            OutputFormat::Js,
+            EmitFormat::Js,
             Runtime::Node,
             Platform::Web,
             None,

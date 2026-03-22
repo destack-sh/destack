@@ -50,6 +50,13 @@ impl Hash for TargetAppDeclaration {
     }
 }
 
+impl TargetAppDeclaration {
+    /// Return whether the declaration contains no app specific settings.
+    pub fn is_empty(&self) -> bool {
+        self == &Self::default()
+    }
+}
+
 impl From<&TargetAppDeclarationJson> for TargetAppDeclaration {
     fn from(json: &TargetAppDeclarationJson) -> Self {
         Self {

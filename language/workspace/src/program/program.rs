@@ -646,7 +646,7 @@ impl Program {
         }
 
         if let Some((existing_id, _)) = package.targets.iter().find(|(_, target)| {
-            !target.synthetic && (target.output.is_native() || target.output.is_wasm())
+            !target.synthetic && (target.emit.is_native() || target.emit.is_wasm())
         }) {
             return existing_id.clone();
         }
@@ -844,12 +844,17 @@ impl Program {
         tsconfig_options: Option<&TsConfigOptions>,
     ) -> ProfileKey {
         let compiler_options = Self::compiler_options_for_target(target, compiler_options);
-        let output = target.output;
+        let emit = target.emit;
         let runtime = profile_config
-            .and_then(|profile| profile.runtime)
+            .and_then(|profile| profile.runtime.as_ref().map(|runtime| runtime.host))
             .unwrap_or(target.runtime);
         let runtime_version = profile_config
-            .and_then(|profile| profile.runtime_version.clone())
+            .and_then(|profile| {
+                profile
+                    .runtime
+                    .as_ref()
+                    .and_then(|runtime| runtime.version.clone())
+            })
             .or_else(|| target.runtime_version.clone());
         let platform = profile_config
             .and_then(|profile| profile.platform)
@@ -879,7 +884,7 @@ impl Program {
         let (_, _, _, test) = ProfileEnv::mode_from_snapshot(&env, debug);
 
         ProfileKey::new(
-            output,
+            emit,
             runtime,
             platform,
             target.target_arch.clone(),
@@ -900,7 +905,7 @@ impl Program {
         compiler_options: &CompilerOptions,
     ) -> CompilerOptions {
         let mut options = compiler_options.clone();
-        let is_native_output = target.output.is_wasm() || target.output.is_native();
+        let is_native_output = target.emit.is_wasm() || target.emit.is_native();
 
         // require strict mode for native or wasm output
         if is_native_output {
@@ -1025,7 +1030,7 @@ impl Program {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{BorrowMode, DiagnosticPolicy, EsTarget, OutputFormat, Platform, Runtime};
+    use crate::{BorrowMode, DiagnosticPolicy, EmitFormat, EsTarget, Platform, Runtime};
 
     #[test]
     fn test_profile_key_for_target_appends_types() {
@@ -1192,7 +1197,7 @@ mod tests {
 
         // enforce soundness defaults for native output
         let target = Target {
-            output: OutputFormat::Native,
+            emit: EmitFormat::Native,
             ..Target::default()
         };
         let options = Program::compiler_options_for_target(&target, &compiler_options);

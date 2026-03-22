@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use destack_source::Uri;
 use serde::{Deserialize, Serialize};
 
-use crate::{OutputFormat, Platform, ProfileEnv, Runtime};
+use crate::{EmitFormat, Platform, ProfileEnv, Runtime};
 
 /// The resolution semantics for one import edge.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -45,8 +45,8 @@ pub struct ImportMeta {
     pub dir: Option<PathBuf>,
     /// The directory containing the current module.
     pub dirname: Option<PathBuf>,
-    /// The output format being compiled.
-    pub output: OutputFormat,
+    /// The emit format being compiled.
+    pub emit: EmitFormat,
     /// The target platform (OS) being compiled for.
     pub platform: Platform,
     /// The runtime environment that will execute the code.

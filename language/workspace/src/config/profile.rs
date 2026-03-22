@@ -1,14 +1,12 @@
 use serde::Deserialize;
 
-use crate::{Platform, Runtime};
+use crate::{Platform, RuntimeConfigJson, RuntimeOptions, runtime_options_from_json};
 
 /// Normalized profile configuration.
 #[derive(Debug, Clone, Default)]
 pub struct ProfileConfig {
     /// Runtime environment for this profile.
-    pub runtime: Option<Runtime>,
-    /// Runtime version for selecting versioned libs.
-    pub runtime_version: Option<String>,
+    pub runtime: Option<RuntimeOptions>,
     /// Target platform / operating system for this profile.
     pub platform: Option<Platform>,
     /// Library files for this profile.
@@ -25,8 +23,10 @@ impl ProfileConfig {
     /// Convert from a JSON profile config.
     pub fn from_json(json: &ProfileConfigJson) -> Self {
         Self {
-            runtime: json.runtime.as_deref().and_then(Runtime::parse),
-            runtime_version: json.runtime_version.clone(),
+            runtime: json
+                .runtime
+                .as_ref()
+                .map(|runtime| runtime_options_from_json(Some(runtime))),
             platform: json.platform.as_deref().and_then(Platform::parse),
             lib: json.lib.clone(),
             types: json.types.clone(),
@@ -42,9 +42,7 @@ impl ProfileConfig {
 #[serde(rename_all = "camelCase")]
 pub struct ProfileConfigJson {
     /// Runtime environment (browser, node, wasm-wasi, native-hosted, etc.).
-    pub runtime: Option<String>,
-    /// Runtime version for selecting versioned libs.
-    pub runtime_version: Option<String>,
+    pub runtime: Option<RuntimeConfigJson>,
     /// Target platform / operating system.
     pub platform: Option<String>,
     /// Library files for this profile.

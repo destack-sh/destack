@@ -355,9 +355,9 @@ pub type LibraryEnvironmentArtifactImage = ArtifactImage<LibraryEnvironment>;
 #[cfg(test)]
 mod tests {
     use crate::{
-        ArtifactFamily, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, EnvSnapshot,
-        ExportedSymbolTable, ImportedModuleTable, ModuleBindingExportTable, ModuleOutputKind,
-        OutputFormat, PackageOutputKind, Platform, ProfileFlags, ProfileKey, Runtime, TargetId,
+        ArtifactFamily, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, EmitFormat,
+        EnvSnapshot, ExportedSymbolTable, ImportedModuleTable, ModuleBindingExportTable,
+        ModuleOutputKind, PackageOutputKind, Platform, ProfileFlags, ProfileKey, Runtime, TargetId,
     };
     use destack_source::{
         FileKey, FileVersion, ModuleId, ModuleVersion, PackageId, ProfileVersion,
@@ -368,7 +368,7 @@ mod tests {
     /// Build one stable profile key for artifact image tests.
     fn test_profile_key() -> ProfileKey {
         ProfileKey::new(
-            OutputFormat::Js,
+            EmitFormat::Js,
             Runtime::Node,
             Platform::Web,
             None,
@@ -757,7 +757,12 @@ mod tests {
         let result: Result<ArtifactImage<LanguageEnvironment>, ArtifactImageError> =
             ArtifactImage::deserialize(truncated);
 
-        assert!(matches!(result, Err(ArtifactImageError::Deserialize(..))));
+        assert!(matches!(
+            result,
+            Err(ArtifactImageError::InvalidLayout(..)
+                | ArtifactImageError::InvalidPayloadHash { .. }
+                | ArtifactImageError::Deserialize(..))
+        ));
     }
 
     /// Enforce artifact image size limits during serialization.

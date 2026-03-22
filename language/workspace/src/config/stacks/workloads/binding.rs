@@ -1,37 +1,23 @@
 use serde::Deserialize;
 
+use super::super::{StackAttachmentSourceJson, StackAttachmentSourceOptions};
+
 /// Binding configuration options.
 #[derive(Debug, Clone, Default)]
 pub struct StackBindingOptions {
-    /// Bound workload name.
-    pub workload: Option<String>,
-    /// Bound service name.
-    pub service: Option<String>,
-    /// Bound config name.
-    pub config: Option<String>,
-    /// Bound secret name.
-    pub secret: Option<String>,
-    /// Requested output field.
-    pub field: Option<String>,
+    /// Bound source.
+    pub source: Option<StackAttachmentSourceOptions>,
 }
 
 impl StackBindingOptions {
     /// Inherit unset binding settings from one parent config.
     pub fn extend_from(&mut self, parent: &Self) {
-        if self.workload.is_none() {
-            self.workload = parent.workload.clone();
-        }
-        if self.service.is_none() {
-            self.service = parent.service.clone();
-        }
-        if self.config.is_none() {
-            self.config = parent.config.clone();
-        }
-        if self.secret.is_none() {
-            self.secret = parent.secret.clone();
-        }
-        if self.field.is_none() {
-            self.field = parent.field.clone();
+        if let Some(parent_source) = &parent.source {
+            if let Some(source) = self.source.as_mut() {
+                source.extend_from(parent_source);
+            } else {
+                self.source = Some(parent_source.clone());
+            }
         }
     }
 }
@@ -39,11 +25,7 @@ impl StackBindingOptions {
 impl From<&StackBindingJson> for StackBindingOptions {
     fn from(json: &StackBindingJson) -> Self {
         Self {
-            workload: json.workload.clone(),
-            service: json.service.clone(),
-            config: json.config.clone(),
-            secret: json.secret.clone(),
-            field: json.field.clone(),
+            source: json.source.as_ref().map(StackAttachmentSourceOptions::from),
         }
     }
 }
@@ -53,8 +35,8 @@ impl From<&StackBindingJson> for StackBindingOptions {
 pub struct StackEnvVarOptions {
     /// Literal string value.
     pub value: Option<String>,
-    /// Binding name to expose as an environment variable.
-    pub binding: Option<String>,
+    /// Bound source exposed as an environment variable.
+    pub source: Option<StackAttachmentSourceOptions>,
 }
 
 impl StackEnvVarOptions {
@@ -63,8 +45,13 @@ impl StackEnvVarOptions {
         if self.value.is_none() {
             self.value = parent.value.clone();
         }
-        if self.binding.is_none() {
-            self.binding = parent.binding.clone();
+
+        if let Some(parent_source) = &parent.source {
+            if let Some(source) = self.source.as_mut() {
+                source.extend_from(parent_source);
+            } else {
+                self.source = Some(parent_source.clone());
+            }
         }
     }
 }
@@ -73,7 +60,7 @@ impl From<&StackEnvVarJson> for StackEnvVarOptions {
     fn from(json: &StackEnvVarJson) -> Self {
         Self {
             value: json.value.clone(),
-            binding: json.binding.clone(),
+            source: json.source.as_ref().map(StackAttachmentSourceOptions::from),
         }
     }
 }
@@ -81,12 +68,8 @@ impl From<&StackEnvVarJson> for StackEnvVarOptions {
 /// Mount options.
 #[derive(Debug, Clone, Default)]
 pub struct StackMountOptions {
-    /// Mounted volume name.
-    pub volume: Option<String>,
-    /// Mounted config name.
-    pub config: Option<String>,
-    /// Mounted secret name.
-    pub secret: Option<String>,
+    /// Mounted source.
+    pub source: Option<StackAttachmentSourceOptions>,
     /// Mount path.
     pub path: Option<String>,
     /// Whether the mount is read only.
@@ -96,15 +79,14 @@ pub struct StackMountOptions {
 impl StackMountOptions {
     /// Inherit unset mount settings from one parent config.
     pub fn extend_from(&mut self, parent: &Self) {
-        if self.volume.is_none() {
-            self.volume = parent.volume.clone();
+        if let Some(parent_source) = &parent.source {
+            if let Some(source) = self.source.as_mut() {
+                source.extend_from(parent_source);
+            } else {
+                self.source = Some(parent_source.clone());
+            }
         }
-        if self.config.is_none() {
-            self.config = parent.config.clone();
-        }
-        if self.secret.is_none() {
-            self.secret = parent.secret.clone();
-        }
+
         if self.path.is_none() {
             self.path = parent.path.clone();
         }
@@ -117,9 +99,7 @@ impl StackMountOptions {
 impl From<&StackMountJson> for StackMountOptions {
     fn from(json: &StackMountJson) -> Self {
         Self {
-            volume: json.volume.clone(),
-            config: json.config.clone(),
-            secret: json.secret.clone(),
+            source: json.source.as_ref().map(StackAttachmentSourceOptions::from),
             path: json.path.clone(),
             read_only: json.read_only,
         }
@@ -131,16 +111,8 @@ impl From<&StackMountJson> for StackMountOptions {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct StackBindingJson {
-    /// Bound workload name.
-    pub workload: Option<String>,
-    /// Bound service name.
-    pub service: Option<String>,
-    /// Bound config name.
-    pub config: Option<String>,
-    /// Bound secret name.
-    pub secret: Option<String>,
-    /// Requested output field.
-    pub field: Option<String>,
+    /// Bound source.
+    pub source: Option<StackAttachmentSourceJson>,
 }
 
 /// Environment variable transport JSON.
@@ -150,8 +122,8 @@ pub struct StackBindingJson {
 pub struct StackEnvVarJson {
     /// Literal string value.
     pub value: Option<String>,
-    /// Binding name to expose as an environment variable.
-    pub binding: Option<String>,
+    /// Bound source exposed as an environment variable.
+    pub source: Option<StackAttachmentSourceJson>,
 }
 
 /// Mount JSON.
@@ -159,12 +131,8 @@ pub struct StackEnvVarJson {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct StackMountJson {
-    /// Mounted volume name.
-    pub volume: Option<String>,
-    /// Mounted config name.
-    pub config: Option<String>,
-    /// Mounted secret name.
-    pub secret: Option<String>,
+    /// Mounted source.
+    pub source: Option<StackAttachmentSourceJson>,
     /// Mount path.
     pub path: Option<String>,
     /// Whether the mount is read only.

@@ -6,9 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use dashmap::DashMap;
 
-use crate::{
-    CompilerOptions, OutputFormat, Platform, Runtime, TargetArch, TargetEnv, TargetVendor,
-};
+use crate::{CompilerOptions, EmitFormat, Platform, Runtime, TargetArch, TargetEnv, TargetVendor};
 
 // Re-export ProfileId and ProfileVersion from destack_source
 pub use destack_source::{ProfileId, ProfileVersion};
@@ -84,8 +82,8 @@ pub struct ProfileFlags {
 /// Canonical profile key for semantic identity.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ProfileKey {
-    /// Output format for the profile.
-    pub output: OutputFormat,
+    /// Emit format for the profile.
+    pub emit: EmitFormat,
     /// Runtime environment for the profile.
     pub runtime: Runtime,
     /// Target platform for the profile.
@@ -287,7 +285,7 @@ impl From<&CompilerOptions> for ProfileFlags {
 impl ProfileKey {
     /// Create a profile key with normalized library entries.
     pub fn new(
-        output: OutputFormat,
+        emit: EmitFormat,
         runtime: Runtime,
         platform: Platform,
         target_arch: Option<TargetArch>,
@@ -302,7 +300,7 @@ impl ProfileKey {
     ) -> Self {
         let lib = normalize_keys(lib);
         Self {
-            output,
+            emit,
             runtime,
             platform,
             target_arch,

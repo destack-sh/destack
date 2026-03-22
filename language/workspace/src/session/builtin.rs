@@ -16,7 +16,7 @@ use indexmap::IndexMap;
 use parking_lot::Mutex;
 
 use crate::{
-    Loader, Module, ModuleFormat, ModuleRegistry, ModuleSource, OutputFormat, Package, PackageKind,
+    EmitFormat, Loader, Module, ModuleFormat, ModuleRegistry, ModuleSource, Package, PackageKind,
     PackageRegistry, Platform, ProfileKey, Runtime, SourceType, TargetArch, TargetEnv,
     TargetVendor,
 };
@@ -37,8 +37,8 @@ pub const BUILTIN_PACKAGE_NAME: &str = "@destack/builtin";
 /// can reuse the same builtin library graph and symbols, since builtins do not depend on those.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct BuiltinLibraryKey {
-    /// Output format for builtin selection.
-    output: OutputFormat,
+    /// Emit format for builtin selection.
+    emit: EmitFormat,
     /// Runtime for builtin selection.
     runtime: Runtime,
     /// Platform for builtin selection.
@@ -57,7 +57,7 @@ impl BuiltinLibraryKey {
     /// Build a builtin key from a full profile key.
     fn from_profile_key(profile_key: &ProfileKey) -> Self {
         Self {
-            output: profile_key.output,
+            emit: profile_key.emit,
             runtime: profile_key.runtime,
             platform: profile_key.platform,
             target_arch: profile_key.target_arch.clone(),
@@ -236,12 +236,12 @@ impl Builtins {
         };
 
         let runtime = BuiltinRuntime::from(profile_key.runtime);
-        let output = BuiltinOutputFormat::from(profile_key.output);
+        let emit = BuiltinOutputFormat::from(profile_key.emit);
         let platform = BuiltinPlatform::from(profile_key.platform);
 
         lib.sources
             .iter()
-            .any(|source| source.matches_target(runtime, output, platform))
+            .any(|source| source.matches_target(runtime, emit, platform))
     }
 
     /// Cache the builtin library selection for one profile key.
@@ -301,13 +301,13 @@ impl Builtins {
 
         // check if the library has any sources for this target
         let runtime = BuiltinRuntime::from(profile_key.runtime);
-        let output = BuiltinOutputFormat::from(profile_key.output);
+        let emit = BuiltinOutputFormat::from(profile_key.emit);
         let platform = BuiltinPlatform::from(profile_key.platform);
         let filtered_sources = lib
             .sources
             .iter()
             .copied()
-            .filter(|source| source.matches_target(runtime, output, platform))
+            .filter(|source| source.matches_target(runtime, emit, platform))
             .collect::<Vec<_>>();
         if filtered_sources.is_empty() {
             return None;

@@ -218,38 +218,6 @@ impl DebugMode {
     }
 }
 
-/// OSR entry mode for native execution.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum OsrMode {
-    /// OSR disabled.
-    Disabled,
-    /// OSR at loop headers.
-    #[default]
-    LoopHeaders,
-    /// OSR only at explicitly marked sites.
-    Explicit,
-}
-
-impl std::str::FromStr for OsrMode {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "disabled" | "off" => Ok(Self::Disabled),
-            "loop_headers" | "loops" => Ok(Self::LoopHeaders),
-            "explicit" => Ok(Self::Explicit),
-            _ => Err(()),
-        }
-    }
-}
-
-impl OsrMode {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-}
-
 /// Safepoint insertion mode for native execution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum SafepointMode {
@@ -536,32 +504,6 @@ impl From<DebugModeJson> for DebugMode {
             DebugModeJson::Vm => DebugMode::Vm,
             DebugModeJson::Deopt => DebugMode::Deopt,
             DebugModeJson::Native => DebugMode::Native,
-        }
-    }
-}
-
-/// OSR mode for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum OsrModeJson {
-    /// OSR disabled.
-    #[serde(alias = "off")]
-    Disabled,
-    /// OSR at loop headers.
-    #[serde(alias = "loops")]
-    #[serde(alias = "loop-headers")]
-    LoopHeaders,
-    /// OSR only at explicit sites.
-    Explicit,
-}
-
-impl From<OsrModeJson> for OsrMode {
-    fn from(value: OsrModeJson) -> Self {
-        match value {
-            OsrModeJson::Disabled => OsrMode::Disabled,
-            OsrModeJson::LoopHeaders => OsrMode::LoopHeaders,
-            OsrModeJson::Explicit => OsrMode::Explicit,
         }
     }
 }
