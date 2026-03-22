@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::harness::{TestResult, format_diagnostics};
+use crate::core::{CaseResult, format_diagnostics};
 use crate::mdtest::MdTestCase;
 use destack_ast::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
@@ -18,9 +18,9 @@ use destack_workspace::{FormatterOptions, LinterOptions, Program};
 /// Run a single formatter transform test.
 ///
 /// Test cases are defined in markdown with `ds` input blocks and `ds expected` output blocks.
-pub(super) fn run(test: &MdTestCase) -> TestResult {
+pub(super) fn run(test: &MdTestCase) -> CaseResult {
     let Some(input_file) = test.files.first() else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: "no input code block found".to_string(),
         };
     };
@@ -31,7 +31,7 @@ pub(super) fn run(test: &MdTestCase) -> TestResult {
         .iter()
         .find(|b| b.language.contains("expected"));
     let Some(expected) = expected_block else {
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: "no expected code block found (add ```ds expected ... ``` block)".to_string(),
         };
     };
@@ -115,7 +115,7 @@ pub(super) fn run(test: &MdTestCase) -> TestResult {
         }
         let options = PrintOptions::new().with_colorizer(source_colorizer());
         let rendered = format_diagnostics(&program.files, &diagnostics, options);
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("parse errors:\n\n{rendered}"),
         };
     }
@@ -137,14 +137,14 @@ pub(super) fn run(test: &MdTestCase) -> TestResult {
     let formatted_normalized = normalize_output(&formatted);
 
     if formatted_normalized == expected_normalized {
-        TestResult::Passed
+        CaseResult::Passed
     } else {
         print_diff(
             &expected_normalized,
             &formatted_normalized,
             &DiffOptions::new(),
         );
-        TestResult::Failed {
+        CaseResult::Failed {
             message: "formatted output differs from expected".to_string(),
         }
     }

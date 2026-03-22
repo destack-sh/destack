@@ -1,4 +1,5 @@
 {
+  "$schema": "../../schema/status.schema.json",
   "entries": [
     {
       "patterns": [
@@ -12,7 +13,9 @@
       "note": "legacy type assertions: <T>expr (not supported)"
     },
     {
-      "pattern": "ok/ts_as_assignment.ts",
+      "patterns": [
+        "ok/ts_as_assignment.ts"
+      ],
       "status": "ignore",
       "reason": "assertion",
       "note": "legacy <T> type assertions are not supported"
@@ -51,19 +54,25 @@
       "note": "proposal syntax: import defer/source"
     },
     {
-      "pattern": "ok/metavar.tsx",
+      "patterns": [
+        "ok/metavar.tsx"
+      ],
       "status": "ignore",
       "reason": "meta",
       "note": "Biome metavariables are not part of JS/TS syntax"
     },
     {
-      "pattern": "ok/ts_type_parameters.ts",
+      "patterns": [
+        "ok/ts_type_parameters.ts"
+      ],
       "status": "ignore",
       "reason": "syntax",
       "note": "empty type parameter lists are invalid in TS"
     },
     {
-      "pattern": "ok/export_named*.js",
+      "patterns": [
+        "ok/export_named*.js"
+      ],
       "status": "ignore",
       "reason": "syntax",
       "note": "export specifiers do not allow string literal names"

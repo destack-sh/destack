@@ -1,4 +1,5 @@
 {
+  "$schema": "../../schema/suite.schema.json",
   "id": "ecma.swc",
   "domain": "ecma",
   "suite": "swc",

@@ -1824,6 +1824,7 @@ dependencies = [
  "destack_workspace",
  "pulldown-cmark",
  "rayon",
+ "schemars",
  "serde",
  "serde_json",
  "tokio",

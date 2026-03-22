@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::harness::{TestCase, TestResult, format_diagnostics};
+use crate::core::{Case, CaseResult, format_diagnostics};
 use destack_ast::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
 use destack_formatter::{
@@ -27,7 +27,7 @@ pub(super) struct FormatterSmokeCase {
 }
 
 /// Discover formatter smoke cases in a fixture directory.
-pub(super) fn discover_cases(base_dir: &Path) -> Vec<(TestCase, FormatterSmokeCase)> {
+pub(super) fn discover_cases(base_dir: &Path) -> Vec<(Case, FormatterSmokeCase)> {
     let mut cases = Vec::new();
     discover_cases_in_dir(base_dir, base_dir, &mut cases);
     cases.sort_by(|left, right| left.0.name.cmp(&right.0.name));
@@ -38,7 +38,7 @@ pub(super) fn discover_cases(base_dir: &Path) -> Vec<(TestCase, FormatterSmokeCa
 fn discover_cases_in_dir(
     base_dir: &Path,
     directory: &Path,
-    cases: &mut Vec<(TestCase, FormatterSmokeCase)>,
+    cases: &mut Vec<(Case, FormatterSmokeCase)>,
 ) {
     let Ok(entries) = std::fs::read_dir(directory) else {
         return;
@@ -100,7 +100,7 @@ fn discover_cases_in_dir(
         let is_skipped = relative_parent
             .components()
             .any(|component| component.as_os_str().to_string_lossy().starts_with('_'));
-        let test = TestCase::file(name, path.clone(), SMOKE_CATEGORY).with_skipped(is_skipped);
+        let test = Case::file(name, path.clone(), SMOKE_CATEGORY).with_skipped(is_skipped);
         let case = FormatterSmokeCase {
             input_path: path,
             expected_path,
@@ -110,7 +110,7 @@ fn discover_cases_in_dir(
 }
 
 /// Run one formatter smoke case.
-pub(super) fn run(test: &TestCase, case: &FormatterSmokeCase) -> TestResult {
+pub(super) fn run(test: &Case, case: &FormatterSmokeCase) -> CaseResult {
     let cwd = case
         .input_path
         .parent()
@@ -129,7 +129,7 @@ pub(super) fn run(test: &TestCase, case: &FormatterSmokeCase) -> TestResult {
     let original = match std::fs::read_to_string(&case.input_path) {
         Ok(content) => content,
         Err(error) => {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: format!(
                     "failed to read input '{}': {error}",
                     case.input_path.display()
@@ -141,7 +141,7 @@ pub(super) fn run(test: &TestCase, case: &FormatterSmokeCase) -> TestResult {
     let first_pass = match format_source(&program, &case.input_path, &original) {
         Ok(formatted) => formatted,
         Err(message) => {
-            return TestResult::Failed { message };
+            return CaseResult::Failed { message };
         }
     };
 
@@ -149,7 +149,7 @@ pub(super) fn run(test: &TestCase, case: &FormatterSmokeCase) -> TestResult {
         let expected = match std::fs::read_to_string(expected_path) {
             Ok(content) => content,
             Err(error) => {
-                return TestResult::Failed {
+                return CaseResult::Failed {
                     message: format!(
                         "failed to read expected '{}': {error}",
                         expected_path.display()
@@ -161,11 +161,11 @@ pub(super) fn run(test: &TestCase, case: &FormatterSmokeCase) -> TestResult {
         let expected = normalize_output(&expected);
         let actual = normalize_output(&first_pass);
         if actual == expected {
-            return TestResult::Passed;
+            return CaseResult::Passed;
         }
 
         print_diff(&expected, &actual, &DiffOptions::new());
-        return TestResult::Failed {
+        return CaseResult::Failed {
             message: format!("formatted output differs from expected for '{}'", test.name),
         };
     }
@@ -173,18 +173,18 @@ pub(super) fn run(test: &TestCase, case: &FormatterSmokeCase) -> TestResult {
     let second_pass = match format_source(&program, &case.input_path, &first_pass) {
         Ok(formatted) => formatted,
         Err(message) => {
-            return TestResult::Failed { message };
+            return CaseResult::Failed { message };
         }
     };
 
     let first_pass = normalize_output(&first_pass);
     let second_pass = normalize_output(&second_pass);
     if first_pass == second_pass {
-        return TestResult::Passed;
+        return CaseResult::Passed;
     }
 
     print_diff(&first_pass, &second_pass, &DiffOptions::new());
-    TestResult::Failed {
+    CaseResult::Failed {
         message: format!("formatter is not idempotent for '{}'", test.name),
     }
 }

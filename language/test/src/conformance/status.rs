@@ -10,7 +10,19 @@ use super::{ConformanceCapability, ConformanceEnvironment};
 pub const STATUS_JSON_FILE_NAME: &str = "status.json";
 
 /// One case status value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum CaseStatus {
     /// The case is maintained as one direct sound translation.
@@ -54,7 +66,19 @@ impl fmt::Display for CaseStatus {
 }
 
 /// One semantic source selector kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum SourceSelectorKind {
     /// The full source file is the logical test.
@@ -92,23 +116,11 @@ impl fmt::Display for SourceSelectorKind {
 }
 
 /// One case status entry.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct StatusEntry {
-    /// The legacy case pattern or identifier.
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub pattern: String,
-    /// The legacy case patterns or identifiers.
+    /// The case patterns or identifiers.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub patterns: Vec<String>,
-    /// The legacy target-relative file path.
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub file: String,
-    /// The legacy target-relative subcase label.
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub subcase: String,
-    /// The legacy target-relative ordinal suffix.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub ordinal: Option<usize>,
     /// The source-relative file path.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub source_file: String,
@@ -121,18 +133,9 @@ pub struct StatusEntry {
     /// The canonical hash of the extracted source fragment.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub source_hash: String,
-    /// The source-relative subcase label.
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub source_subcase: String,
     /// The source-relative ordinal suffix.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_ordinal: Option<usize>,
-    /// The source-relative starting line for one explicit source span.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub source_line: Option<usize>,
-    /// The source-relative ending line for one explicit source span.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub source_end_line: Option<usize>,
     /// The target-relative file path.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub target_file: String,
@@ -159,51 +162,41 @@ pub struct StatusEntry {
 }
 
 impl StatusEntry {
-    /// Return whether this entry uses legacy pattern selectors.
+    /// Return whether this entry uses pattern selectors.
     pub fn has_pattern_selectors(&self) -> bool {
-        !self.pattern.is_empty() || !self.patterns.is_empty()
+        !self.patterns.is_empty()
     }
 
     /// Return the canonical source selector string for this entry.
     pub fn source_selector(&self) -> Option<String> {
-        if let Some(source_kind) = self.source_kind {
-            let mut selector = self.source_file.clone();
-            if !self.source_key.is_empty() {
-                selector.push_str("::");
-                selector.push_str(source_kind.as_str());
-                selector.push('=');
-                selector.push_str(&self.source_key);
-            }
-            if let Some(source_ordinal) = self.source_ordinal {
-                selector.push('#');
-                selector.push_str(&source_ordinal.to_string());
-            }
-
-            return Some(selector);
+        let source_kind = self.source_kind?;
+        if self.source_file.is_empty() || self.source_key.is_empty() {
+            return None;
         }
 
-        self.explicit_selector(&self.source_file, &self.source_subcase, self.source_ordinal)
+        let mut selector = self.source_file.clone();
+        selector.push_str("::");
+        selector.push_str(source_kind.as_str());
+        selector.push('=');
+        selector.push_str(&self.source_key);
+
+        if let Some(source_ordinal) = self.source_ordinal {
+            selector.push('#');
+            selector.push_str(&source_ordinal.to_string());
+        }
+
+        Some(selector)
     }
 
     /// Return the canonical selectors for this entry.
     pub fn selectors(&self) -> Vec<String> {
-        // prefer grouped legacy patterns when present
         if !self.patterns.is_empty() {
             return self.patterns.clone();
-        }
-
-        // preserve the legacy single pattern field when present
-        if !self.pattern.is_empty() {
-            return vec![self.pattern.clone()];
         }
 
         if let Some(selector) =
             self.explicit_selector(&self.target_file, &self.target_subcase, self.target_ordinal)
         {
-            return vec![selector];
-        }
-
-        if let Some(selector) = self.explicit_selector(&self.file, &self.subcase, self.ordinal) {
             return vec![selector];
         }
 
@@ -290,7 +283,7 @@ impl StatusEntry {
 }
 
 /// One status file.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct StatusSet {
     /// The status entries in declaration order.
     #[serde(default)]
@@ -357,12 +350,12 @@ impl StatusSet {
             .filter(move |entry| entry.status == status)
     }
 
-    /// Return one normalized status set with merged legacy pattern entries.
+    /// Return one normalized status set with merged pattern entries.
     pub fn normalized(&self) -> Self {
         let mut groups = BTreeMap::<String, (StatusEntry, BTreeSet<String>)>::new();
         let mut order = Vec::<NormalizationItem>::new();
 
-        // preserve explicit entries and merge legacy pattern groups
+        // preserve explicit entries and merge pattern groups
         for entry in &self.entries {
             if !entry.has_pattern_selectors() {
                 order.push(NormalizationItem::Entry(entry.clone()));
@@ -370,7 +363,6 @@ impl StatusSet {
             }
 
             let mut key_entry = entry.clone();
-            key_entry.pattern.clear();
             key_entry.patterns.clear();
 
             let key = serde_json::to_string(&key_entry)
@@ -399,13 +391,7 @@ impl StatusSet {
                         .remove(&key)
                         .expect("status entry normalization group must exist");
 
-                    let selectors = selectors.into_iter().collect::<Vec<_>>();
-                    if selectors.len() == 1 {
-                        entry.pattern = selectors[0].clone();
-                    } else {
-                        entry.patterns = selectors;
-                    }
-
+                    entry.patterns = selectors.into_iter().collect::<Vec<_>>();
                     entries.push(entry);
                 }
             }
@@ -425,7 +411,7 @@ pub fn status_json_path_for_dir(directory: &Path) -> PathBuf {
 enum NormalizationItem {
     /// One explicit entry kept in place.
     Entry(StatusEntry),
-    /// One merged legacy pattern group.
+    /// One merged pattern group.
     PatternGroup(String),
 }
 
@@ -601,6 +587,25 @@ mod tests {
     };
     use crate::conformance::{ConformanceCapability, ConformanceEnvironment};
 
+    fn status_entry(status: CaseStatus) -> StatusEntry {
+        StatusEntry {
+            patterns: Vec::new(),
+            source_file: String::new(),
+            source_kind: None,
+            source_key: String::new(),
+            source_hash: String::new(),
+            source_ordinal: None,
+            target_file: String::new(),
+            target_subcase: String::new(),
+            target_ordinal: None,
+            status,
+            reason: String::new(),
+            note: String::new(),
+            capabilities: Vec::new(),
+            environments: Vec::new(),
+        }
+    }
+
     #[test]
     fn test_pattern_matches_exact_names() {
         assert!(pattern_matches("path/to/case", "path/to/case"));
@@ -623,27 +628,11 @@ mod tests {
     fn test_match_entry_respects_filters() {
         let statuses = StatusSet {
             entries: vec![StatusEntry {
-                pattern: "tests/**".to_string(),
-                patterns: Vec::new(),
-                file: String::new(),
-                subcase: String::new(),
-                ordinal: None,
-                source_file: String::new(),
-                source_kind: None,
-                source_key: String::new(),
-                source_hash: String::new(),
-                source_subcase: String::new(),
-                source_ordinal: None,
-                source_line: None,
-                source_end_line: None,
-                target_file: String::new(),
-                target_subcase: String::new(),
-                target_ordinal: None,
-                status: CaseStatus::KnownFail,
+                patterns: vec!["tests/**".to_string()],
                 reason: "requires runtime support".to_string(),
-                note: String::new(),
                 capabilities: vec![ConformanceCapability::Run],
                 environments: vec![ConformanceEnvironment::Hostless],
+                ..status_entry(CaseStatus::KnownFail)
             }],
         };
 
@@ -665,27 +654,11 @@ mod tests {
     #[test]
     fn test_selector_uses_file_and_subcase_when_present() {
         let entry = StatusEntry {
-            pattern: String::new(),
-            patterns: Vec::new(),
-            file: "api/headers/headers-basic.any.ts".to_string(),
-            subcase: "Create headers with 1 should throw".to_string(),
-            ordinal: Some(2),
-            source_file: String::new(),
-            source_kind: None,
-            source_key: String::new(),
-            source_hash: String::new(),
-            source_subcase: String::new(),
-            source_ordinal: None,
-            source_line: None,
-            source_end_line: None,
-            target_file: String::new(),
-            target_subcase: String::new(),
-            target_ordinal: None,
-            status: CaseStatus::Translated,
+            target_file: "api/headers/headers-basic.any.ts".to_string(),
+            target_subcase: "Create headers with 1 should throw".to_string(),
+            target_ordinal: Some(2),
             reason: "unsound".to_string(),
-            note: String::new(),
-            capabilities: Vec::new(),
-            environments: Vec::new(),
+            ..status_entry(CaseStatus::Translated)
         };
 
         assert_eq!(
@@ -698,27 +671,10 @@ mod tests {
     fn test_match_entry_accepts_structured_selectors() {
         let statuses = StatusSet {
             entries: vec![StatusEntry {
-                pattern: String::new(),
-                patterns: Vec::new(),
-                file: "pseudo-tty/test-tty-isatty.ts".to_string(),
-                subcase: "{} reported to be a tty, but it is not".to_string(),
-                ordinal: None,
-                source_file: String::new(),
-                source_kind: None,
-                source_key: String::new(),
-                source_hash: String::new(),
-                source_subcase: String::new(),
-                source_ordinal: None,
-                source_line: None,
-                source_end_line: None,
-                target_file: String::new(),
-                target_subcase: String::new(),
-                target_ordinal: None,
-                status: CaseStatus::Excluded,
+                target_file: "pseudo-tty/test-tty-isatty.ts".to_string(),
+                target_subcase: "{} reported to be a tty, but it is not".to_string(),
                 reason: "unsound".to_string(),
-                note: String::new(),
-                capabilities: Vec::new(),
-                environments: Vec::new(),
+                ..status_entry(CaseStatus::Excluded)
             }],
         };
 
@@ -734,27 +690,14 @@ mod tests {
     #[test]
     fn test_selector_prefers_explicit_target_fields() {
         let entry = StatusEntry {
-            pattern: String::new(),
-            patterns: Vec::new(),
-            file: "legacy.ts".to_string(),
-            subcase: "legacy".to_string(),
-            ordinal: None,
             source_file: "source.js".to_string(),
             source_kind: Some(SourceSelectorKind::Title),
             source_key: "source".to_string(),
             source_hash: "fnv1a64:1234".to_string(),
-            source_subcase: "source".to_string(),
-            source_ordinal: None,
-            source_line: None,
-            source_end_line: None,
             target_file: "target.ts".to_string(),
             target_subcase: "target".to_string(),
             target_ordinal: Some(2),
-            status: CaseStatus::Translated,
-            reason: String::new(),
-            note: String::new(),
-            capabilities: Vec::new(),
-            environments: Vec::new(),
+            ..status_entry(CaseStatus::Translated)
         };
 
         assert_eq!(entry.selector().as_deref(), Some("target.ts::target#2"));
@@ -768,27 +711,9 @@ mod tests {
     fn test_match_entry_accepts_grouped_patterns() {
         let statuses = StatusSet {
             entries: vec![StatusEntry {
-                pattern: String::new(),
                 patterns: vec!["pass*/alpha".to_string(), "fail/beta".to_string()],
-                file: String::new(),
-                subcase: String::new(),
-                ordinal: None,
-                source_file: String::new(),
-                source_kind: None,
-                source_key: String::new(),
-                source_hash: String::new(),
-                source_subcase: String::new(),
-                source_ordinal: None,
-                source_line: None,
-                source_end_line: None,
-                target_file: String::new(),
-                target_subcase: String::new(),
-                target_ordinal: None,
-                status: CaseStatus::Ignore,
                 reason: "scope".to_string(),
-                note: String::new(),
-                capabilities: Vec::new(),
-                environments: Vec::new(),
+                ..status_entry(CaseStatus::Ignore)
             }],
         };
 
@@ -853,50 +778,14 @@ mod tests {
         let statuses = StatusSet {
             entries: vec![
                 StatusEntry {
-                    pattern: "js/a.js".to_string(),
-                    patterns: Vec::new(),
-                    file: String::new(),
-                    subcase: String::new(),
-                    ordinal: None,
-                    source_file: String::new(),
-                    source_kind: None,
-                    source_key: String::new(),
-                    source_hash: String::new(),
-                    source_subcase: String::new(),
-                    source_ordinal: None,
-                    source_line: None,
-                    source_end_line: None,
-                    target_file: String::new(),
-                    target_subcase: String::new(),
-                    target_ordinal: None,
-                    status: CaseStatus::KnownFail,
+                    patterns: vec!["js/a.js".to_string()],
                     reason: "auto".to_string(),
-                    note: String::new(),
-                    capabilities: Vec::new(),
-                    environments: Vec::new(),
+                    ..status_entry(CaseStatus::KnownFail)
                 },
                 StatusEntry {
-                    pattern: "js/b.js".to_string(),
-                    patterns: Vec::new(),
-                    file: String::new(),
-                    subcase: String::new(),
-                    ordinal: None,
-                    source_file: String::new(),
-                    source_kind: None,
-                    source_key: String::new(),
-                    source_hash: String::new(),
-                    source_subcase: String::new(),
-                    source_ordinal: None,
-                    source_line: None,
-                    source_end_line: None,
-                    target_file: String::new(),
-                    target_subcase: String::new(),
-                    target_ordinal: None,
-                    status: CaseStatus::KnownFail,
+                    patterns: vec!["js/b.js".to_string()],
                     reason: "auto".to_string(),
-                    note: String::new(),
-                    capabilities: Vec::new(),
-                    environments: Vec::new(),
+                    ..status_entry(CaseStatus::KnownFail)
                 },
             ],
         };
@@ -914,73 +803,23 @@ mod tests {
         let statuses = StatusSet {
             entries: vec![
                 StatusEntry {
-                    pattern: "js/a.js".to_string(),
-                    patterns: Vec::new(),
-                    file: String::new(),
-                    subcase: String::new(),
-                    ordinal: None,
-                    source_file: String::new(),
-                    source_kind: None,
-                    source_key: String::new(),
-                    source_hash: String::new(),
-                    source_subcase: String::new(),
-                    source_ordinal: None,
-                    source_line: None,
-                    source_end_line: None,
-                    target_file: String::new(),
-                    target_subcase: String::new(),
-                    target_ordinal: None,
-                    status: CaseStatus::KnownFail,
+                    patterns: vec!["js/a.js".to_string()],
                     reason: "auto".to_string(),
-                    note: String::new(),
-                    capabilities: Vec::new(),
-                    environments: Vec::new(),
+                    ..status_entry(CaseStatus::KnownFail)
                 },
                 StatusEntry {
-                    pattern: String::new(),
-                    patterns: Vec::new(),
-                    file: String::new(),
-                    subcase: String::new(),
-                    ordinal: None,
                     source_file: "source.js".to_string(),
                     source_kind: Some(SourceSelectorKind::Title),
                     source_key: "alpha".to_string(),
                     source_hash: "fnv1a64:123".to_string(),
-                    source_subcase: String::new(),
-                    source_ordinal: None,
-                    source_line: None,
-                    source_end_line: None,
                     target_file: "target.ts".to_string(),
                     target_subcase: "alpha".to_string(),
-                    target_ordinal: None,
-                    status: CaseStatus::Translated,
-                    reason: String::new(),
-                    note: String::new(),
-                    capabilities: Vec::new(),
-                    environments: Vec::new(),
+                    ..status_entry(CaseStatus::Translated)
                 },
                 StatusEntry {
-                    pattern: "js/b.js".to_string(),
-                    patterns: Vec::new(),
-                    file: String::new(),
-                    subcase: String::new(),
-                    ordinal: None,
-                    source_file: String::new(),
-                    source_kind: None,
-                    source_key: String::new(),
-                    source_hash: String::new(),
-                    source_subcase: String::new(),
-                    source_ordinal: None,
-                    source_line: None,
-                    source_end_line: None,
-                    target_file: String::new(),
-                    target_subcase: String::new(),
-                    target_ordinal: None,
-                    status: CaseStatus::KnownFail,
+                    patterns: vec!["js/b.js".to_string()],
                     reason: "auto".to_string(),
-                    note: String::new(),
-                    capabilities: Vec::new(),
-                    environments: Vec::new(),
+                    ..status_entry(CaseStatus::KnownFail)
                 },
             ],
         };

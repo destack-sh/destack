@@ -1,4 +1,5 @@
 {
+  "$schema": "../../schema/status.schema.json",
   "entries": [
     {
       "patterns": [
@@ -19,7 +20,9 @@
       "note": "legacy TypeScript type assertions (`<T>expr` / `<const>expr`) are intentionally unsupported"
     },
     {
-      "pattern": "typescript/variance-annotations/**/input.ts*",
+      "patterns": [
+        "typescript/variance-annotations/**/input.ts*"
+      ],
       "status": "ignore",
       "reason": "typing",
       "note": "variance modifiers are validated like Babel/TSC, SWC suite does not expect errors here"

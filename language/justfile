@@ -36,18 +36,24 @@ _run-destack-test test_binary *args:
 
 # install language test fixtures
 install:
-    just install-parser-conformance
-    just install-formatter-conformance
+    just install-conformance-ecma
+    just install-conformance-formatter
     just fetch-ecosystem
     just install-resolver
 
 # install conformance suites
-install-parser-conformance:
-    bash ./test/fixtures/conformance/ecma/fetch.sh
+install-conformance-ecma:
+    python3 ./test/fixtures/conformance/fetch-suite.py \
+        ./test/fixtures/conformance/ecma/test262 \
+        ./test/fixtures/conformance/ecma/babel \
+        ./test/fixtures/conformance/ecma/swc \
+        ./test/fixtures/conformance/ecma/biome
 
 # install formatter conformance sources
-install-formatter-conformance:
-    bash ./test/fixtures/conformance/formatter/fetch.sh
+install-conformance-formatter:
+    python3 ./test/fixtures/conformance/fetch-suite.py \
+        ./test/fixtures/conformance/formatter/prettier \
+        ./test/fixtures/conformance/formatter/oxfmt
 
 # install resolver fixture dependencies
 install-resolver:
@@ -156,6 +162,7 @@ generate:
     just generate-unicode
     just generate-lexer
     just generate-schema
+    just generate-conformance-schema
 
 # regenerate unicode tables
 generate-unicode:
@@ -171,6 +178,11 @@ generate-schema:
     cargo run -p destack_workspace --features schema --bin generate-schema --release > workspace/generated/destack.schema.json
     cp workspace/generated/destack.schema.json ../bridge/vscode/destack.schema.json
     @echo "generated workspace/generated/destack.schema.json"
+
+# generate conformance fixture JSON schema
+generate-conformance-schema:
+    cargo run -p destack_test --bin update_conformance_schema
+    @echo "generated language/test/fixtures/conformance/schema/*.json"
 
 # generate runtime binding catalog
 generate-bindings *args:
@@ -212,10 +224,10 @@ test:
     just test-resolver
     just test-formatter
     just test-grammar
-    just install-parser-conformance
-    just install-formatter-conformance
-    just test-parser-conformance
-    just test-formatter-conformance
+    just install-conformance-ecma
+    just install-conformance-formatter
+    just test-conformance-ecma
+    just test-conformance-formatter
 
 # run the language quick gate
 quick:
@@ -248,32 +260,32 @@ test-smoke:
 test-emit:
     just _run-destack-test emit
 
-# run conformance tests
-test-parser-conformance:
-    just _run-destack-test parser-conformance
+# run ecma conformance tests
+test-conformance-ecma:
+    just _run-destack-test conformance-ecma
 
-# update conformance test baselines
-test-parser-conformance-update:
-    just _run-destack-test parser-conformance --update-known-failures
+# update ecma conformance baselines
+test-conformance-ecma-update:
+    just _run-destack-test conformance-ecma --update-known-failures
 
 # run formatter tests
 test-formatter:
     just _run-destack-test formatter
 
 # run formatter conformance tests
-test-formatter-conformance:
-    just _run-destack-test formatter-conformance
+test-conformance-formatter:
+    just _run-destack-test conformance-formatter
 
 # update formatter conformance known failures
-test-formatter-conformance-update:
-    just _run-destack-test formatter-conformance --update-known-failures
+test-conformance-formatter-update:
+    just _run-destack-test conformance-formatter --update-known-failures
 
 # regenerate shared conformance catalog sections
 update-conformance-catalog:
     cargo run -p destack_test --bin update_conformance_catalog
 
-# snapshot formatter output for a cases tree
-snapshot-formatter-corpus root="test/fixtures/conformance/formatter/oxfmt/cases" out="/tmp/destack-snapshot-formatter-corpus":
+# snapshot formatter output for a tests tree
+snapshot-formatter-corpus root="test/fixtures/conformance/formatter/oxfmt/tests" out="/tmp/destack-snapshot-formatter-corpus":
     bash ./formatter/scripts/corpus_snapshot.sh "{{root}}" "{{out}}"
 
 # bench formatter parse and print throughput on a corpus
