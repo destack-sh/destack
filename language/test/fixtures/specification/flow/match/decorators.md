@@ -38,7 +38,7 @@ const result = match (value) {
 result satisfies string;
 ```
 
-- contains: likely and unlikely decorators cannot be combined
+- likely and unlikely decorators cannot be combined
 
 ### wildcard match arm decorators are accepted
 
@@ -73,7 +73,7 @@ const result = match (value) {
 result satisfies string;
 ```
 
-- contains: likely
+- likely
 
 ### match arm decorators reject duplicate cold decorators
 
@@ -92,4 +92,4 @@ const result = match (value) {
 result satisfies string;
 ```
 
-- contains: duplicate
+- duplicate

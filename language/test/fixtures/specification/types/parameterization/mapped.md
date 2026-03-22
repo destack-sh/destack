@@ -32,7 +32,7 @@ interface Person {
 const bad: Flags<Person> = { name: true, age: "no" };
 ```
 
-- contains: type { name: boolean, age: string } is not assignable to type flags<<type>>
+- type { name: boolean, age: string } is not assignable to type Flags<Person>
 
 ### mapped types support optional modifiers
 
@@ -65,7 +65,7 @@ interface Person {
 const bad: Optional<Person> = { name: "Ada", age: "no" };
 ```
 
-- contains: type { name: string, age: string } is not assignable to type optional<<type>>
+- type { name: string, age: string } is not assignable to type Optional<Person>
 
 ### mapped types can remove optional modifiers
 
@@ -81,7 +81,7 @@ interface Person {
 const bad: RequiredKeys<Person> = {};
 ```
 
-- contains: not assignable
+- type {} is not assignable to type Required<Optional<Person>>
 
 ### mapped types can remap keys
 
@@ -114,7 +114,7 @@ interface Person {
 const bad: Renamed<Person> = { value: true };
 ```
 
-- contains: type { value: boolean } is not assignable to type renamed<<type>>
+- type { value: boolean } is not assignable to type Renamed<Person>
 
 ### mapped types add readonly modifiers
 
@@ -132,7 +132,7 @@ const frozen: Frozen<Person> = { name: "Ada", age: 42 };
 const bad: Person = frozen;
 ```
 
-- contains: not assignable
+- type {} is not assignable to type Required<Optional<Person>>
 
 ### mapped types remove readonly modifiers
 
@@ -165,4 +165,4 @@ interface Person {
 const bad: Required<Optional<Person>> = {};
 ```
 
-- contains: not assignable
+- type {} is not assignable to type Required<Optional<Person>>

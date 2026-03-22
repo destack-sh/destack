@@ -117,7 +117,7 @@ function demo(): void { }
 function parse(): void { }
 ```
 
-- contains: hot decorator does not accept arguments
+- hot decorator does not accept arguments
 
 ### cold decorator rejects arguments
 
@@ -128,7 +128,7 @@ function parse(): void { }
 function logError(): void { }
 ```
 
-- contains: cold decorator does not accept arguments
+- cold decorator does not accept arguments
 
 ### likely decorator rejects arguments
 
@@ -139,7 +139,7 @@ function logError(): void { }
 function handle(): void { }
 ```
 
-- contains: likely decorator does not accept arguments
+- likely decorator does not accept arguments
 
 ### unlikely decorator rejects arguments
 
@@ -150,7 +150,7 @@ function handle(): void { }
 function handle(): void { }
 ```
 
-- contains: unlikely decorator does not accept arguments
+- unlikely decorator does not accept arguments
 
 ### hot and cold decorators conflict
 
@@ -162,7 +162,7 @@ function handle(): void { }
 function parse(): void { }
 ```
 
-- contains: hot and cold decorators cannot be combined
+- hot and cold decorators cannot be combined
 
 ### likely and unlikely decorators conflict
 
@@ -174,7 +174,7 @@ function parse(): void { }
 function dispatch(): void { }
 ```
 
-- contains: likely and unlikely decorators cannot be combined
+- likely and unlikely decorators cannot be combined
 
 ## Additional targets
 

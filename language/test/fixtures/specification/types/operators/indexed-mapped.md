@@ -25,7 +25,7 @@ type Remap<T> = { [K in keyof T as `x_${K & string}`]: T[K] };
 type Missing = Remap<Source>["x_missing"];
 ```
 
-- contains: does not exist
+- does not exist
 
 ## optional mapped projections
 
@@ -51,7 +51,7 @@ type MaybeName = Optional<{ name: string }>["name"];
 const value: MaybeName = 1;
 ```
 
-- contains: not assignable
+- not assignable
 
 ## imported alias chains
 

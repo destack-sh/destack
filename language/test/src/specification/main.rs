@@ -6,11 +6,11 @@ use clap::{Parser, ValueEnum};
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::prelude::*;
 
-use destack_test::harness::{Runner, Suite, TestOptions, fixtures_dir};
+use destack_test::core::{RunOptions, Runner, Suite, fixtures_dir};
 use destack_test::mdtest::discover_md_files;
 use destack_test::specification::SpecificationSuite;
 
-const SPEC_STACK_BYTES: &str = "134217728";
+const SPEC_STACK_BYTES: &str = "268435456";
 const SPEC_CHILD_ENV: &str = "DESTACK_SPEC_CHILD";
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -25,7 +25,7 @@ enum IsolationLevel {
 #[command(name = "specification", about = "Run Destack specification tests")]
 struct SpecificationOptions {
     #[command(flatten)]
-    test: TestOptions,
+    test: RunOptions,
 
     /// Isolate tests in subprocesses by group, file, or test.
     #[arg(long, value_enum, default_value_t = IsolationLevel::None)]
@@ -47,8 +47,14 @@ fn main() -> ExitCode {
     let is_child = std::env::var_os(SPEC_CHILD_ENV).is_some();
     let normal_mode = matches!(options.isolate, IsolationLevel::None);
     if is_child || options.test.filter.is_some() || options.test.list || normal_mode {
-        let suite = SpecificationSuite::load();
-        return Runner::run_suite(&suite, &options.test);
+        let suite = match SpecificationSuite::load() {
+            Ok(suite) => suite,
+            Err(error) => {
+                eprintln!("{error}");
+                return ExitCode::FAILURE;
+            }
+        };
+        return Runner::run_suite(suite, &options.test);
     }
 
     run_isolated(&options.test, options.isolate)
@@ -66,9 +72,15 @@ fn init_tracing() {
         .try_init();
 }
 
-fn run_isolated(options: &TestOptions, isolate: IsolationLevel) -> ExitCode {
+fn run_isolated(options: &RunOptions, isolate: IsolationLevel) -> ExitCode {
     let spec_dir = fixtures_dir().join("specification");
-    let entries = isolation_entries(&spec_dir, isolate);
+    let entries = match isolation_entries(&spec_dir, isolate) {
+        Ok(entries) => entries,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
     if entries.is_empty() {
         println!("no tests to run");
         return ExitCode::SUCCESS;
@@ -102,45 +114,65 @@ fn run_isolated(options: &TestOptions, isolate: IsolationLevel) -> ExitCode {
     ExitCode::FAILURE
 }
 
-fn isolation_entries(spec_dir: &Path, isolate: IsolationLevel) -> Vec<(String, String)> {
+fn isolation_entries(
+    spec_dir: &Path,
+    isolate: IsolationLevel,
+) -> Result<Vec<(String, String)>, String> {
     match isolate {
-        IsolationLevel::None => Vec::new(),
-        IsolationLevel::Group => top_level_groups(spec_dir)
-            .into_iter()
-            .map(|group| {
-                let filter = format!("{group}/");
-                (group, filter)
-            })
-            .collect(),
-        IsolationLevel::File => discover_md_files(spec_dir)
-            .unwrap_or_default()
-            .into_iter()
-            .filter_map(|md_path| {
-                let relative = md_path.strip_prefix(spec_dir).ok()?;
-                let relative = relative.to_string_lossy().to_string();
-                Some(relative)
-            })
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .map(|relative| (relative.clone(), relative))
-            .collect(),
+        IsolationLevel::None => Ok(Vec::new()),
+        IsolationLevel::Group => top_level_groups(spec_dir).map(|groups| {
+            groups
+                .into_iter()
+                .map(|group| {
+                    let filter = format!("{group}/");
+                    (group, filter)
+                })
+                .collect()
+        }),
+        IsolationLevel::File => {
+            let entries = discover_md_files(spec_dir)
+                .map_err(|error| {
+                    format!(
+                        "failed to discover specification fixtures in {}: {error}",
+                        spec_dir.display()
+                    )
+                })?
+                .into_iter()
+                .filter_map(|md_path| {
+                    let relative = md_path.strip_prefix(spec_dir).ok()?;
+                    let relative = relative.to_string_lossy().to_string();
+                    Some(relative)
+                })
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .map(|relative| (relative.clone(), relative))
+                .collect();
+
+            Ok(entries)
+        }
         IsolationLevel::Test => {
-            let suite = SpecificationSuite::load();
+            let suite = SpecificationSuite::load()?;
             let mut entries: BTreeSet<String> = BTreeSet::new();
-            for case in suite.discover(&TestOptions::default()) {
+            for case in suite.discover(&RunOptions::default()) {
                 entries.insert(case.full_name());
             }
-            entries
+            Ok(entries
                 .into_iter()
                 .map(|name| (name.clone(), name))
-                .collect()
+                .collect())
         }
     }
 }
 
-fn top_level_groups(spec_dir: &Path) -> BTreeSet<String> {
+fn top_level_groups(spec_dir: &Path) -> Result<BTreeSet<String>, String> {
     let mut groups = BTreeSet::new();
-    for md_path in discover_md_files(spec_dir).unwrap_or_default() {
+    let md_paths = discover_md_files(spec_dir).map_err(|error| {
+        format!(
+            "failed to discover specification fixtures in {}: {error}",
+            spec_dir.display()
+        )
+    })?;
+    for md_path in md_paths {
         let Ok(relative) = md_path.strip_prefix(spec_dir) else {
             continue;
         };
@@ -150,20 +182,21 @@ fn top_level_groups(spec_dir: &Path) -> BTreeSet<String> {
         let group = component.as_os_str().to_string_lossy().to_string();
         groups.insert(group);
     }
-    groups
+
+    Ok(groups)
 }
 
-fn run_child(options: &TestOptions, filter: &str) -> std::process::ExitStatus {
+fn run_child(options: &RunOptions, filter: &str) -> std::process::ExitStatus {
     let exe = std::env::current_exe().expect("failed to resolve current executable");
     let mut command = Command::new(exe);
     command.env(SPEC_CHILD_ENV, "1");
     command.arg(filter);
     command.arg("--jobs");
     command.arg(options.jobs.to_string());
-    command.arg("--mdtest-timeout-ms");
-    command.arg(options.mdtest_timeout_ms.to_string());
-    if options.no_parallel {
-        command.arg("--no-parallel");
+    command.arg("--markdown-timeout-ms");
+    command.arg(options.case_timeout_ms.to_string());
+    if options.sequential {
+        command.arg("--sequential");
     }
     if options.verbose {
         command.arg("--verbose");

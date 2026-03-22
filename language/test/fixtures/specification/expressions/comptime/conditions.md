@@ -19,7 +19,7 @@ value satisfies int32;
 const value: int32 = if (comptime true) { 1 } else { "nope" };
 ```
 
-- contains: is not assignable
+- is not assignable
 
 ### comptime condition accepts type relations
 
@@ -76,4 +76,4 @@ function format<T>(value: T): string {
 }
 ```
 
-- contains: does not exist
+- property 'name' does not exist on type T

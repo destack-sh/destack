@@ -55,7 +55,7 @@ const point = Point { x: 1 };
 point.missing satisfies int32;
 ```
 
-- contains: does not exist
+- does not exist
 
 ### static if gated struct fields are not required in literals
 
@@ -90,4 +90,4 @@ const point = Point { y: 2 };
 point.y satisfies int32;
 ```
 
-- contains: not assignable
+- type { y: int32 } is not assignable to type { x: int32, y: int32 }

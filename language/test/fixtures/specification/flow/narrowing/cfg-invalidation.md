@@ -21,7 +21,7 @@ if (box.inner.value !== undefined) {
 }
 ```
 
-- contains: not assignable
+- type null is not assignable to type string
 
 ### catch joins widen post try member availability
 
@@ -39,7 +39,7 @@ try {
 value.toUpperCase();
 ```
 
-- contains: does not exist
+- does not exist
 
 ## closure writes inside loops
 
@@ -67,7 +67,7 @@ while (true) {
 }
 ```
 
-- contains: does not exist
+- does not exist
 
 ### finally helper writes invalidate null narrows
 
@@ -91,8 +91,8 @@ if (value !== null) {
 }
 ```
 
-- contains: not assignable
+- type null is not assignable to type string
 
 ```json:destack.json
-{ "compiler": { "allowTs": true, "checkTs": true } }
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```

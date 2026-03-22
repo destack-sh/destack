@@ -36,7 +36,7 @@ declare global {
 type Alias = GlobalThing;
 ```
 
-- contains: missing symbol
+- missing symbol
 
 ### global declarations merge across imports
 

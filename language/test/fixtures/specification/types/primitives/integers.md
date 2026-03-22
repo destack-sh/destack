@@ -18,7 +18,7 @@ let small: int3 = 3;
 let tooLarge: int3 = 4;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### uintN accepts in-range literals
 
@@ -36,7 +36,7 @@ let small: uint3 = 7;
 let tooLarge: uint3 = 8;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### pointer-sized integers accept literals
 

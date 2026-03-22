@@ -27,7 +27,7 @@ declare const user: User | null;
 user?.missing;
 ```
 
-- contains: does not exist
+- does not exist
 
 ## optional element access
 
@@ -67,7 +67,7 @@ declare const handler: ((value: number) => string) | undefined;
 handler?.("bad");
 ```
 
-- contains: not assignable
+- not assignable
 
 ### optional call rejects non callable values
 
@@ -79,7 +79,7 @@ declare const value: { name: string } | undefined;
 value?.();
 ```
 
-- contains: calling non-callable
+- calling non-callable
 
 ## optional chain composition
 

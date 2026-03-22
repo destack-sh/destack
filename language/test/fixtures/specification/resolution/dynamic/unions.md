@@ -39,7 +39,7 @@ declare function getPerson(): User | Guest;
 getPerson().name;
 ```
 
-- contains: does not exist
+- property 'speak' does not exist on type Cat | Dog
 
 ### union member access fails on nullable variants
 
@@ -55,7 +55,7 @@ declare function getPerson(): User | null;
 getPerson().name;
 ```
 
-- contains: does not exist
+- property 'speak' does not exist on type Cat | Dog
 
 ## union method calls
 
@@ -127,7 +127,7 @@ declare function getPet(): Cat | Dog;
 getPet().speak(1);
 ```
 
-- contains: no matching overload
+- no matching overload
 
 ### union method call resolves extension members
 
@@ -175,7 +175,7 @@ declare function getPet(): Cat | Dog;
 getPet().speak();
 ```
 
-- contains: does not exist
+- does not exist
 
 ### union method call fails when a nullable variant is present
 
@@ -193,7 +193,7 @@ declare function getPet(): Cat | null;
 getPet().speak();
 ```
 
-- contains: does not exist
+- does not exist
 
 ### union method call rejects missing extension member
 
@@ -214,4 +214,4 @@ declare function getPet(): Cat | Dog;
 getPet().speak();
 ```
 
-- contains: does not exist
+- does not exist

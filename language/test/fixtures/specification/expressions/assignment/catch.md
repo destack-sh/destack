@@ -74,7 +74,7 @@ try {
 }
 ```
 
-- contains: catch type annotations must be 'any' or 'unknown'
+- catch type annotations must be 'any' or 'unknown'
 
 ### catch annotations allow unknown in typescript
 

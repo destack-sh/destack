@@ -22,7 +22,7 @@ let value: number = for (let i = 0; i < 1; i++) {
 };
 ```
 
-- contains: not assignable
+- not assignable
 
 ### for allows continue in the loop body
 
@@ -57,4 +57,4 @@ for (let i = 0; i < 1; i++) {}
 i satisfies int32;
 ```
 
-- contains: does not exist
+- does not exist

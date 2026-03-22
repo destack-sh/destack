@@ -91,7 +91,7 @@ const subtract = left - right;
 subtract satisfies Scalar;
 ```
 
-- contains: no matching overload
+- no matching overload
 
 ### arithmetic operators require rhs compatibility
 
@@ -115,7 +115,7 @@ const add = left + right;
 add satisfies Scalar;
 ```
 
-- contains: no matching overload
+- no matching overload
 
 ### arithmetic operators do not use rhs-only implementations
 
@@ -139,7 +139,7 @@ const add = left + right;
 add satisfies Other;
 ```
 
-- contains: no matching overload
+- no matching overload
 
 ### arithmetic wrapping operators require the same receiver contracts
 
@@ -183,4 +183,4 @@ const wrapped = left +% right;
 wrapped satisfies Scalar;
 ```
 
-- contains: not assignable
+- type Other is not assignable to type Scalar

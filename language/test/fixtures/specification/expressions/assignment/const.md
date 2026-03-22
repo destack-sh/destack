@@ -13,7 +13,7 @@ const value: number = 1;
 value = 2;
 ```
 
-- contains: immutable binding
+- immutable binding
 
 ### const bindings reject compound assignment
 
@@ -24,7 +24,7 @@ const value: number = 1;
 value += 1;
 ```
 
-- contains: immutable binding
+- immutable binding
 
 ### const destructuring rejects assignment
 
@@ -35,7 +35,7 @@ const { count }: { count: number } = { count: 0 };
 count = 1;
 ```
 
-- contains: immutable binding
+- immutable binding
 
 ## Members
 
@@ -58,4 +58,4 @@ const state: { readonly count: number } = { count: 0 };
 state.count = 1;
 ```
 
-- contains: readonly
+- cannot assign to readonly property 'count'

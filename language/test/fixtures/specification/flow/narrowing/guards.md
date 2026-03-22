@@ -77,7 +77,7 @@ const value = Point { x: 1, y: 2 };
 const ok = value instanceof Point;
 ```
 
-- contains: instanceof requires a class type
+- instanceof requires a class type
 
 ## In Guards
 

@@ -67,7 +67,7 @@ const positive = +value;
 positive satisfies Signed;
 ```
 
-- contains: no matching overload
+- no matching overload for type Signed
 
 ### dereference rejects unavailable deref contracts
 
@@ -83,7 +83,7 @@ const derefValue = *pointer;
 derefValue satisfies int;
 ```
 
-- contains: no matching overload
+- no matching overload for type Signed
 
 ### unary dispatch preserves receiver-specific implementations
 
@@ -128,4 +128,4 @@ const value = getSigned();
 const negated = -value;
 ```
 
-- contains: no matching overload
+- no matching overload for type Signed

@@ -105,4 +105,4 @@ type Alias = import("./mod").Missing;
 export type User = { name: string };
 ```
 
-- contains: does not exist
+- does not exist

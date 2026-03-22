@@ -45,7 +45,7 @@ const right = getVector();
 left + right;
 ```
 
-- contains: no matching overload
+- no matching overload
 
 ## Builtin overloading
 
@@ -155,4 +155,4 @@ const selected = counter + 1;
 selected satisfies "int32";
 ```
 
-- contains: not assignable
+- expected "int32", found "number" (not assignable)

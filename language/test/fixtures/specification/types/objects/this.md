@@ -49,7 +49,7 @@ builder.merge(builder);
 builder.merge("nope");
 ```
 
-- contains: type "nope" is not assignable to type builder
+- type "nope" is not assignable to type builder
 
 ### this in property types
 

@@ -3,23 +3,32 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use destack_compiler::{Compiler, CompilerOptions};
+use destack_compiler::{BuildKey, Compiler, CompilerOptions};
 use destack_parser::source_colorizer;
 use destack_source::{File, FileType, MemoryFileSystem, ModuleId, PrintOptions, Uri};
 use destack_workspace::{
-    ArtifactKey, Destack, MemoryCacheStore, OutputFormat, Session, TargetId, TargetOptions,
+    ArtifactKey, Destack, DestackOptions, OutputFormat, Session, TargetId, TargetOptions,
 };
-use serde_json::json;
 
-use crate::harness::print::color;
-use crate::harness::{
-    RunContext, Suite, TestCase, TestOptions, TestResult, fixtures_dir, format_diagnostics,
-    save_expected_failures,
+use crate::core::print::color;
+use crate::core::{
+    Case, CaseResult, MarkdownSuiteIndex, RunContext, RunOptions, SharedMemoryWorkspace, Suite,
+    discover_markdown_suite, expected_failures_view, fixtures_dir, format_diagnostics,
+    update_failure_baseline,
 };
 use crate::mdtest::{
-    MdTestCase, discover_md_files, load_mdtest_expected_failures, parse_mdtest_file,
-    run_with_timeout, select_profile_for_mdtest, slug,
+    MdTestCase, run_with_timeout, select_profile_for_mdtest, setup_test_environment_with_session,
+    slug,
 };
+
+/// The collected specification diagnostics for one case.
+#[derive(Debug, Clone, Default)]
+pub(super) struct SpecificationDiagnostics {
+    /// The emitted error messages.
+    pub errors: Vec<String>,
+    /// The emitted warning messages.
+    pub warnings: Vec<String>,
+}
 
 /// Test suite for type checking specification tests.
 #[derive(Debug, Default)]
@@ -27,7 +36,7 @@ pub struct SpecificationSuite {
     /// Map from test full name to the parsed test case.
     tests: HashMap<String, MdTestCase>,
     /// List of discovered test cases.
-    cases: Vec<TestCase>,
+    cases: Vec<Case>,
     /// Known failing tests for baseline tracking.
     expected_failures: HashSet<String>,
     /// Location of the known failures file.
@@ -36,49 +45,22 @@ pub struct SpecificationSuite {
 
 impl SpecificationSuite {
     /// Load all specification tests from the fixtures/specification directory.
-    pub fn load() -> Self {
-        // setup fixtures and suite container
+    pub fn load() -> Result<Self, String> {
         let fixtures = fixtures_dir();
-        let mut suite = Self::default();
-
-        // discover spec markdown files
         let spec_dir = fixtures.join("specification");
-        for md_path in discover_md_files(&spec_dir).unwrap_or_default() {
-            suite.add_file(&spec_dir, &md_path);
-        }
+        let MarkdownSuiteIndex {
+            cases,
+            entries,
+            expected_failures,
+            expected_failures_path,
+        } = discover_markdown_suite(&spec_dir, "destack_test::specification", Some)?;
 
-        suite.expected_failures = load_mdtest_expected_failures(&spec_dir);
-        suite.expected_failures_path = spec_dir.join("known-failures.txt");
-        suite
-    }
-
-    fn add_file(&mut self, base_dir: &Path, md_path: &Path) {
-        // parse tests from the markdown file
-        let cases = match parse_mdtest_file(md_path) {
-            Ok(cases) => cases,
-            Err(error) => {
-                panic!("failed to parse {}: {error}", md_path.display());
-            }
-        };
-
-        // compute file path labels
-        let relative_path = md_path.strip_prefix(base_dir).unwrap_or(md_path);
-        let relative_name = relative_path.to_string_lossy();
-
-        // register each test case
-        for case in cases {
-            let name = format!(
-                "{relative_name}/{}/{}",
-                slug(&case.section),
-                slug(&case.name)
-            );
-            let test_case =
-                TestCase::file(name, md_path.to_path_buf(), "destack_test::specification")
-                    .with_skipped(case.skip);
-
-            self.tests.insert(test_case.full_name(), case);
-            self.cases.push(test_case);
-        }
+        Ok(Self {
+            tests: entries,
+            cases,
+            expected_failures,
+            expected_failures_path,
+        })
     }
 }
 
@@ -87,22 +69,18 @@ impl Suite for SpecificationSuite {
         "specification"
     }
 
-    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+    fn discover(&self, _options: &RunOptions) -> Vec<Case> {
         self.cases.clone()
     }
 
-    fn expected_failures(&self, _options: &TestOptions) -> Option<&HashSet<String>> {
-        if self.expected_failures.is_empty() {
-            None
-        } else {
-            Some(&self.expected_failures)
-        }
+    fn expected_failures(&self, _options: &RunOptions) -> Option<&HashSet<String>> {
+        expected_failures_view(&self.expected_failures)
     }
 
-    fn run(&self, case: &TestCase, context: &RunContext<'_>) -> TestResult {
+    fn run(&self, case: &Case, context: &RunContext<'_>) -> CaseResult {
         // resolve the parsed md test
         let Some(md_test) = self.tests.get(&case.full_name()) else {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: "test not found".to_string(),
             };
         };
@@ -110,7 +88,7 @@ impl Suite for SpecificationSuite {
         // select timeout and run the test
         let timeout = context
             .timeout
-            .unwrap_or_else(|| context.options.mdtest_timeout());
+            .unwrap_or_else(|| context.options.case_timeout());
         run_with_timeout(md_test.clone(), timeout, run_specification_test)
     }
 
@@ -119,175 +97,187 @@ impl Suite for SpecificationSuite {
         None
     }
 
-    fn report(&self, results: &[(TestCase, TestResult)], context: &RunContext<'_>) {
+    fn report(&self, results: &[(Case, CaseResult)], context: &RunContext<'_>) {
         if !context.options.update_known_failures {
             return;
         }
 
-        // collect current failures for baseline updates
-        let mut failures = HashSet::new();
-        for (case, result) in results {
-            if result.is_failed() {
-                failures.insert(case.full_name());
+        let failure_count = match update_failure_baseline(&self.expected_failures_path, results) {
+            Ok(failure_count) => failure_count,
+            Err(error) => {
+                eprintln!("{error}");
+                return;
             }
-        }
-
-        if let Err(error) = save_expected_failures(&self.expected_failures_path, &failures) {
-            eprintln!(
-                "failed to update {}: {error}",
-                self.expected_failures_path.display()
-            );
-            return;
-        }
+        };
 
         println!(
             "  {} updated with {} failures",
             self.expected_failures_path.display(),
-            failures.len()
+            failure_count
         );
     }
 }
 
+#[derive(Debug)]
+struct SharedSpecEnvironment {
+    /// The shared in memory workspace.
+    workspace: SharedMemoryWorkspace,
+}
+
+impl SharedSpecEnvironment {
+    /// Create a new shared environment for spec tests.
+    fn new() -> Self {
+        Self {
+            workspace: SharedMemoryWorkspace::new("/test/spec"),
+        }
+    }
+
+    /// Allocate a unique root directory for a test case.
+    fn root_for(&self, test: &MdTestCase) -> PathBuf {
+        let section = slug(&test.section);
+        let name = slug(&test.name);
+        self.workspace.allocate_root(&format!("{section}-{name}"))
+    }
+
+    /// Return the shared session.
+    fn session(&self) -> Arc<Session> {
+        self.workspace.session()
+    }
+
+    /// Return the shared file system.
+    fn fs(&self) -> Arc<MemoryFileSystem> {
+        self.workspace.fs()
+    }
+}
+
+thread_local! {
+    static SHARED_SPEC_ENV: SharedSpecEnvironment = SharedSpecEnvironment::new();
+}
+
 /// Run a single spec test: compile the code and compare errors against expectations.
-fn run_specification_test(test: &MdTestCase) -> TestResult {
-    // build one isolated in-memory environment per test
-    let (session, program, root, main_path) = {
-        let root = specification_root_for(test);
-        let cwd = PathBuf::from("/test/spec");
-        let fs = Arc::new(MemoryFileSystem::new());
-        let session = Arc::new(
-            Session::new(cwd)
-                .with_fs(fs.clone())
-                .with_cache_store(Arc::new(MemoryCacheStore::new())),
-        );
-        crate::mdtest::setup_test_environment_with_session(test, session, fs, root)
+fn run_specification_test(test: &MdTestCase) -> CaseResult {
+    let compiled = match compile_specification_test(test) {
+        Ok(compiled) => compiled,
+        Err(message) => return CaseResult::Failed { message },
     };
+
+    let (expected_errors, expected_warnings) = split_expected_diagnostics(&test.bullet_items);
+    let error_result = compare_expected("error", &expected_errors, &compiled.diagnostics.errors);
+    let warning_result = if expected_warnings.is_empty() {
+        CaseResult::Passed
+    } else {
+        compare_expected(
+            "warning",
+            &expected_warnings,
+            &compiled.diagnostics.warnings,
+        )
+    };
+    let result = merge_results(error_result, warning_result);
+
+    match result {
+        CaseResult::Failed { mut message } => {
+            if !compiled.rendered_diagnostics.is_empty() {
+                if !message.is_empty() {
+                    message.push('\n');
+                    message.push('\n');
+                }
+                message.push_str(&compiled.rendered_diagnostics);
+            }
+            CaseResult::Failed { message }
+        }
+        other => other,
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct CompiledSpecificationTest {
+    /// The collected diagnostics.
+    pub diagnostics: SpecificationDiagnostics,
+    /// The rendered diagnostics for failure output.
+    pub rendered_diagnostics: String,
+}
+
+/// Compile one specification test and collect diagnostics.
+pub(super) fn compile_specification_test(
+    test: &MdTestCase,
+) -> Result<CompiledSpecificationTest, String> {
+    let (session, program, root, main_path) = SHARED_SPEC_ENV.with(|env| {
+        let root = env.root_for(test);
+        setup_test_environment_with_session(test, env.session(), env.fs(), root)
+    });
     let prefer_native = test_option_bool(test, "native").unwrap_or(false);
     let verify_mir = !prefer_native;
 
-    // compile with single worker for deterministic results
     let mut compiler = Compiler::new(
         session.clone(),
         program.clone(),
         CompilerOptions {
-            load_libraries: false,
+            load_libs: false,
             workers: 1,
             verify_mir,
             ..Default::default()
         },
     );
 
-    // run the spec body, then always remove the isolated session root
     let result = (|| {
-        // resolve the main module to compile
-        let module_id = match compiler.resolve_path_to_module(&main_path) {
-            Ok(id) => id,
-            Err(e) => {
-                return TestResult::Failed {
-                    message: format!("failed to resolve module: {e:?}"),
-                };
-            }
-        };
+        let module_id = compiler
+            .resolve_path_to_module(&main_path)
+            .map_err(|error| format!("failed to resolve module: {error:?}"))?;
 
-        // apply config options and targets
-        if let Err(error) =
-            apply_destack_config_for_spec(&program, module_id, &main_path, prefer_native)
-        {
-            return TestResult::Failed { message: error };
-        }
+        apply_destack_config_for_spec(&program, module_id, &main_path, prefer_native)?;
 
-        // select profile and lib loading
-        let (profile, mut load_libraries) =
+        let (profile, mut load_libs) =
             select_profile_for_mdtest(&program, module_id, test, prefer_native);
 
-        // native spec cases need builtin libraries for lowering
-        if prefer_native {
-            load_libraries = true;
+        if !load_libs && has_explicit_libs(&program, module_id) {
+            load_libs = true;
         }
 
-        // load libs only when explicitly requested
-        if !load_libraries && has_explicit_libs(&program, module_id) {
-            load_libraries = true;
-        }
-
-        // enqueue analysis task
-        compiler.options.load_libraries = load_libraries;
-        compiler.enqueue(ArtifactKey::DirAnalyzed {
+        compiler.options.load_libs = load_libs;
+        compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
             module: module_id,
             profile,
-        });
+        }));
 
-        // run optimize passes only for native spec tests
-        let run_optimize = prefer_native;
-        if run_optimize {
-            // select target and profile for diagnostics
+        if prefer_native {
             let diagnostic_target = program.ensure_target_for_module(module_id);
             let diagnostic_profile =
                 program.profile_id_for_target_or_default(module_id, &diagnostic_target);
-            compiler.enqueue(ArtifactKey::MirOptimized {
+            compiler.enqueue(BuildKey::Artifact(ArtifactKey::MirOptimized {
                 module: module_id,
                 profile: diagnostic_profile,
                 target: diagnostic_target,
-            });
+            }));
         }
 
         compiler.compile();
         drop(compiler);
 
-        // collect actual diagnostics
         let diagnostics = program.diagnostics.collect();
         let diagnostics_vec = diagnostics.iter();
-        let actual_errors: Vec<String> = diagnostics_vec
+        let errors = diagnostics_vec
             .iter()
             .filter(|d| d.severity == destack_source::DiagnosticSeverity::Error)
             .map(|d| d.message.clone())
             .collect();
-        let actual_warnings: Vec<String> = diagnostics_vec
+        let warnings = diagnostics_vec
             .iter()
             .filter(|d| d.severity == destack_source::DiagnosticSeverity::Warning)
             .map(|d| d.message.clone())
             .collect();
 
-        // split expected errors and warnings from bullet items
-        let (expected_errors, expected_warnings) = split_expected_diagnostics(&test.bullet_items);
+        let options = PrintOptions::new().with_colorizer(source_colorizer());
+        let rendered_diagnostics = format_diagnostics(&program.files, &diagnostics, options);
 
-        // compare against expected diagnostics
-        let error_result = compare_expected("error", &expected_errors, &actual_errors);
-        let warning_result = if expected_warnings.is_empty() {
-            TestResult::Passed
-        } else {
-            compare_expected("warning", &expected_warnings, &actual_warnings)
-        };
-        let result = merge_results(error_result, warning_result);
-
-        // append rendered diagnostics for failures
-        match result {
-            TestResult::Failed { mut message } => {
-                let options = PrintOptions::new().with_colorizer(source_colorizer());
-                let rendered = format_diagnostics(&program.files, &diagnostics, options);
-                if !rendered.is_empty() {
-                    if !message.is_empty() {
-                        message.push('\n');
-                        message.push('\n');
-                    }
-                    message.push_str(&rendered);
-                }
-                TestResult::Failed { message }
-            }
-            other => other,
-        }
+        Ok(CompiledSpecificationTest {
+            diagnostics: SpecificationDiagnostics { errors, warnings },
+            rendered_diagnostics,
+        })
     })();
 
     let _ = session.remove_root(&root);
 
     result
-}
-
-/// Build the isolated root directory for one specification case.
-fn specification_root_for(test: &MdTestCase) -> PathBuf {
-    let section = slug(&test.section);
-    let name = slug(&test.name);
-    PathBuf::from("/test/spec").join(format!("{section}-{name}"))
 }
 
 fn test_option_bool(test: &MdTestCase, key: &str) -> Option<bool> {
@@ -347,16 +337,50 @@ fn apply_destack_config_for_spec(
             return Ok(());
         }
 
-        // materialize a real default config so later path based lookups stay honest
-        materialize_default_spec_destack_config(program, &destack_config_path)
-            .map_err(|error| format!("failed to write default destack.json: {error}"))?;
+        // build a default config for js output
+        let file_id = program.files.next_id();
+        let mut options = DestackOptions::default();
+        options.compiler.check_ts = true;
+        options.compiler.check_js = true;
+        let target = TargetOptions {
+            output: OutputFormat::Js,
+            ..Default::default()
+        };
+        options.targets.insert("default".to_string(), target);
+        options.default_target = Some("default".to_string());
+
+        let config = Destack {
+            file_id,
+            path: destack_config_path.clone(),
+            directory: root.to_path_buf(),
+            options,
+            content: Default::default(),
+        };
+
+        // attach the default config to the package
+        let package_id = {
+            let module = program.modules.get(module_id);
+            let module = module.as_ref();
+            module.package_id
+        };
+        let package = program.packages.get(package_id);
+        let mut package = package.write();
+        package.config = Some(config.clone());
+        package.targets.clear();
+        for (name, options) in config.options.targets.iter() {
+            let target = options.to_target(name);
+            let target_id = TargetId::new(package_id, name);
+            package.targets.insert(target_id, target);
+        }
+
+        return Ok(());
     }
 
-    // read and parse destack.json through the real JSONC-aware loader
+    // read and parse destack.json
     let content = program
         .fs
         .read_to_string(&destack_config_path)
-        .map_err(|error| format!("failed to read destack.json: {error}"))?;
+        .map_err(|e| format!("failed to read destack.json: {e}"))?;
     let name = destack_config_path
         .file_name()
         .unwrap_or_default()
@@ -372,9 +396,9 @@ fn apply_destack_config_for_spec(
         FileType::Json,
         content,
     )
-    .map_err(|error| format!("failed to parse destack.json: {error}"))?;
+    .map_err(|e| format!("failed to parse destack.json: {e}"))?;
     let file = Arc::new(file);
-    let mut config = Destack::parse(&file).map_err(|error| error.to_string())?;
+    let mut config = Destack::parse(&file).map_err(|e| e.to_string())?;
 
     // prefer js defaults for spec tests unless a native target is required
     if !prefer_native && config.options.targets.is_empty() {
@@ -401,36 +425,12 @@ fn apply_destack_config_for_spec(
         let target_id = TargetId::new(package_id, name);
         package.targets.insert(target_id, target);
     }
+
     Ok(())
 }
 
-/// Materialize the default spec `destack.json` for TypeScript checking.
-fn materialize_default_spec_destack_config(
-    program: &destack_workspace::Program,
-    destack_config_path: &Path,
-) -> std::io::Result<()> {
-    // build the default spec config payload
-    let content = json!({
-        "compiler": {
-            "checkTs": true,
-            "checkJs": true
-        },
-        "targets": {
-            "default": {
-                "output": "js"
-            }
-        },
-        "defaultTarget": "default"
-    });
-    let content = serde_json::to_string_pretty(&content)
-        .expect("default spec config serialization should succeed");
-
-    // write the config file through the shared filesystem
-    program.fs.write_string(destack_config_path, &content)
-}
-
 /// Split expected diagnostics into error and warning buckets.
-fn split_expected_diagnostics(items: &[String]) -> (Vec<String>, Vec<String>) {
+pub(super) fn split_expected_diagnostics(items: &[String]) -> (Vec<String>, Vec<String>) {
     // allocate result buckets
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
@@ -463,31 +463,43 @@ fn split_expected_diagnostics(items: &[String]) -> (Vec<String>, Vec<String>) {
 }
 
 /// Compare expected diagnostics against actual diagnostics.
-fn compare_expected(kind: &str, expected: &[String], actual: &[String]) -> TestResult {
+pub(super) fn compare_expected(kind: &str, expected: &[String], actual: &[String]) -> CaseResult {
     // normalize expected and actual diagnostics
-    let expected_patterns: Vec<ExpectedError> =
-        expected.iter().map(|s| ExpectedError::parse(s)).collect();
+    let expected_normalized: Vec<String> = expected.iter().map(|s| normalize_error(s)).collect();
     let actual_normalized: Vec<String> = actual.iter().map(|s| normalize_error(s)).collect();
+    let mut unmatched_actuals = vec![true; actual_normalized.len()];
 
-    // find expected diagnostics that did not occur
+    // match expected diagnostics in order
     let mut missing: Vec<&str> = Vec::new();
-    for expected in &expected_patterns {
-        if !actual_normalized.iter().any(|a| expected.matches(a)) {
+    for expected in &expected_normalized {
+        let Some(index) = actual_normalized
+            .iter()
+            .enumerate()
+            .find_map(|(index, actual)| {
+                unmatched_actuals[index]
+                    .then(|| actual == expected)
+                    .filter(|matched| *matched)
+                    .map(|_| index)
+            })
+        else {
             missing.push(expected.as_str());
-        }
+            continue;
+        };
+
+        unmatched_actuals[index] = false;
     }
 
-    // find unexpected actual diagnostics
+    // any unmatched actuals are unexpected
     let mut unexpected: Vec<&str> = Vec::new();
-    for act in &actual_normalized {
-        if !expected_patterns.iter().any(|e| e.matches(act)) {
-            unexpected.push(act.as_str());
+    for (index, actual) in actual_normalized.iter().enumerate() {
+        if unmatched_actuals[index] {
+            unexpected.push(actual.as_str());
         }
     }
 
     // return success when nothing is missing or unexpected
     if missing.is_empty() && unexpected.is_empty() {
-        return TestResult::Passed;
+        return CaseResult::Passed;
     }
 
     // build failure message
@@ -515,24 +527,24 @@ fn compare_expected(kind: &str, expected: &[String], actual: &[String]) -> TestR
         }
     }
 
-    TestResult::Failed { message }
+    CaseResult::Failed { message }
 }
 
 /// Merge two diagnostic comparison results.
-fn merge_results(first: TestResult, second: TestResult) -> TestResult {
+fn merge_results(first: CaseResult, second: CaseResult) -> CaseResult {
     // merge two diagnostic comparison results
     match (first, second) {
-        (TestResult::Passed, TestResult::Passed) => TestResult::Passed,
-        (TestResult::Failed { message }, TestResult::Passed)
-        | (TestResult::Passed, TestResult::Failed { message }) => TestResult::Failed { message },
-        (TestResult::Failed { message: left }, TestResult::Failed { message: right }) => {
+        (CaseResult::Passed, CaseResult::Passed) => CaseResult::Passed,
+        (CaseResult::Failed { message }, CaseResult::Passed)
+        | (CaseResult::Passed, CaseResult::Failed { message }) => CaseResult::Failed { message },
+        (CaseResult::Failed { message: left }, CaseResult::Failed { message: right }) => {
             let message = format!("{left}\n\n{right}");
-            TestResult::Failed { message }
+            CaseResult::Failed { message }
         }
-        (TestResult::Skipped { reason }, _) | (_, TestResult::Skipped { reason }) => {
-            TestResult::Skipped { reason }
+        (CaseResult::Skipped { reason }, _) | (_, CaseResult::Skipped { reason }) => {
+            CaseResult::Skipped { reason }
         }
-        (TestResult::Suite { .. }, other) | (other, TestResult::Suite { .. }) => other,
+        (CaseResult::Suite { .. }, other) | (other, CaseResult::Suite { .. }) => other,
     }
 }
 
@@ -544,63 +556,29 @@ fn normalize_error(s: &str) -> String {
     s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// An expected error pattern: either exact match or substring match.
-#[derive(Debug, Clone)]
-enum ExpectedError {
-    /// Exact match against normalized error message.
-    Exact(String),
-    /// Substring match (use "contains: foo" in test).
-    Contains(String),
-}
+#[cfg(test)]
+mod tests {
+    use super::{CaseResult, compare_expected};
 
-impl ExpectedError {
-    /// Parse an expected error string.
-    /// Use "contains: foo" prefix for substring matching.
-    fn parse(raw: &str) -> Self {
-        let raw = raw.trim();
-        let lower = raw.to_lowercase();
-        if let Some(rest) = lower.strip_prefix("contains:") {
-            return Self::Contains(normalize_error(rest));
-        }
-        Self::Exact(normalize_error(raw))
+    #[test]
+    fn test_compare_expected_counts_duplicate_expected_diagnostics() {
+        let result = compare_expected(
+            "error",
+            &["duplicate".into(), "duplicate".into()],
+            &["duplicate".into()],
+        );
+
+        assert!(matches!(result, CaseResult::Failed { .. }));
     }
 
-    /// Check if an actual error matches this expectation.
-    fn matches(&self, actual: &str) -> bool {
-        match self {
-            ExpectedError::Exact(expected) => actual == expected,
-            ExpectedError::Contains(expected) => contains_with_type_placeholder(actual, expected),
-        }
+    #[test]
+    fn test_compare_expected_counts_duplicate_actual_diagnostics() {
+        let result = compare_expected(
+            "error",
+            &["duplicate".into()],
+            &["duplicate".into(), "duplicate".into()],
+        );
+
+        assert!(matches!(result, CaseResult::Failed { .. }));
     }
-
-    fn as_str(&self) -> &str {
-        match self {
-            ExpectedError::Exact(s) => s,
-            ExpectedError::Contains(s) => s,
-        }
-    }
-}
-
-/// Check if an error message contains an expected substring with type wildcards.
-fn contains_with_type_placeholder(actual: &str, expected: &str) -> bool {
-    // fast path for standard contains checks
-    if !expected.contains("<<type>>") {
-        return actual.contains(expected);
-    }
-
-    // split on the placeholder and match parts in order
-    let mut offset = 0;
-    for part in expected.split("<<type>>") {
-        if part.is_empty() {
-            continue;
-        }
-
-        let Some(position) = actual[offset..].find(part) else {
-            return false;
-        };
-
-        offset += position + part.len();
-    }
-
-    true
 }

@@ -47,7 +47,7 @@ class Counter {
 const value = Counter.value;
 ```
 
-- contains: does not exist
+- does not exist
 
 ## static members
 
@@ -90,7 +90,7 @@ const counter = new Counter();
 const value = counter.defaultValue;
 ```
 
-- contains: does not exist
+- does not exist
 
 ### static method call yields return type
 
@@ -126,7 +126,7 @@ const counter = new Counter();
 const value = counter.make();
 ```
 
-- contains: does not exist
+- does not exist
 
 ### static blocks can access static members
 
@@ -189,7 +189,7 @@ const counter = new Counter();
 counter.count = "bad";
 ```
 
-- contains: not assignable
+- not assignable
 
 ## parameter properties
 
@@ -217,7 +217,7 @@ class Counter {
 }
 ```
 
-- contains: parameter property
+- parameter property
 
 ### parameter properties cannot be rest parameters
 
@@ -229,7 +229,7 @@ class Counter {
 }
 ```
 
-- contains: parameter property
+- parameter property
 
 ### readonly parameter properties reject assignment
 
@@ -245,7 +245,7 @@ class Counter {
 }
 ```
 
-- contains: readonly
+- readonly
 
 ### private parameter properties are inaccessible outside the class
 
@@ -260,7 +260,7 @@ const counter = new Counter(1);
 counter.value;
 ```
 
-- contains: is private
+- is private
 
 ### protected parameter properties are accessible in subclasses
 
@@ -294,7 +294,7 @@ const base = new Base(1);
 base.value;
 ```
 
-- contains: is protected
+- is protected
 
 ### parameter properties support default values
 
@@ -319,7 +319,7 @@ class Counter {
 }
 ```
 
-- contains: parameter property
+- parameter property
 
 ### private parameter properties keep classes nominally distinct
 
@@ -338,7 +338,7 @@ declare const right: Right;
 const left: Left = right;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### protected parameter properties keep classes nominally distinct
 
@@ -357,7 +357,7 @@ declare const right: Right;
 const left: Left = right;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### parameter property fields are inherited by subclasses
 
@@ -394,7 +394,7 @@ class Derived extends Base {
 }
 ```
 
-- contains: readonly
+- readonly
 
 ## invalid members
 
@@ -408,7 +408,7 @@ abstract class Counter {
 }
 ```
 
-- contains: invalid member modifier
+- invalid member modifier
 
 ### readonly does not apply to methods
 
@@ -422,7 +422,7 @@ class Counter {
 }
 ```
 
-- contains: invalid member modifier
+- invalid member modifier
 
 ### readonly fields reject assignment
 
@@ -438,7 +438,7 @@ class Counter {
 }
 ```
 
-- contains: readonly
+- readonly
 
 ### declare fields cannot include initializers
 
@@ -450,7 +450,7 @@ class Counter {
 }
 ```
 
-- contains: invalid member modifier
+- invalid member modifier
 
 ### override constructors are invalid
 
@@ -464,7 +464,7 @@ class Counter extends Base {
 }
 ```
 
-- contains: invalid constructor
+- invalid constructor
 
 ### abstract methods cannot have bodies
 
@@ -476,7 +476,7 @@ abstract class Counter {
 }
 ```
 
-- contains: invalid abstract method
+- invalid abstract method
 
 ### abstract methods require abstract classes
 
@@ -492,7 +492,7 @@ class Counter {
 }
 ```
 
-- contains: invalid abstract method
+- invalid abstract method
 
 ### static abstract methods are invalid
 
@@ -504,7 +504,7 @@ abstract class Counter {
 }
 ```
 
-- contains: invalid member modifier
+- invalid member modifier
 
 ### constructors cannot have static parameters
 
@@ -516,7 +516,7 @@ class Counter {
 }
 ```
 
-- contains: invalid constructor
+- invalid constructor
 
 ### declare methods cannot have bodies
 
@@ -528,7 +528,7 @@ class Counter {
 }
 ```
 
-- contains: invalid member modifier
+- invalid member modifier
 
 ### declare accessors are invalid
 
@@ -540,7 +540,7 @@ class Counter {
 }
 ```
 
-- contains: invalid member modifier
+- invalid member modifier
 
 ### declare override is invalid
 
@@ -556,7 +556,7 @@ class Counter extends Base {
 }
 ```
 
-- contains: invalid member modifier
+- invalid member modifier
 
 ### abstract fields require abstract classes
 
@@ -572,7 +572,7 @@ class Counter {
 }
 ```
 
-- contains: invalid member modifier
+- invalid member modifier
 
 ### private abstract fields are invalid
 
@@ -588,7 +588,7 @@ abstract class Counter {
 }
 ```
 
-- contains: invalid member modifier
+- invalid member modifier
 
 ### auto accessors cannot be combined with readonly
 
@@ -604,7 +604,7 @@ class Counter {
 }
 ```
 
-- contains: invalid member modifier
+- invalid member modifier
 
 ### declare abstract fields are invalid
 
@@ -620,7 +620,7 @@ abstract class Counter {
 }
 ```
 
-- contains: invalid member modifier
+- invalid member modifier
 
 ### index signatures cannot use modifiers
 
@@ -632,7 +632,7 @@ class Counter {
 }
 ```
 
-- contains: invalid member modifier
+- invalid member modifier
 
 ### static blocks cannot use modifiers
 
@@ -647,4 +647,4 @@ class Counter {
 }
 ```
 
-- contains: static class blocks cannot have any modifier
+- static class blocks cannot have any modifier

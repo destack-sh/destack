@@ -140,7 +140,7 @@ import { server } from "./server";
 server.invoke("/missing");
 ```
 
-- contains: not assignable
+- not assignable
 
 ## Re-exports
 
@@ -205,7 +205,7 @@ type Alias = User;
 User;
 ```
 
-- contains: value
+- value
 
 ### export inference preserves renamed reexports
 
@@ -262,7 +262,7 @@ type Alias = User;
 User;
 ```
 
-- contains: value
+- value
 
 ### export type specifiers remain type-only
 
@@ -283,7 +283,7 @@ type Alias = User;
 User;
 ```
 
-- contains: value
+- value
 
 ### export type star reexports types only
 
@@ -304,7 +304,7 @@ type Alias = User;
 User;
 ```
 
-- contains: value
+- value
 
 ### export type star rejects runtime value usage
 
@@ -326,7 +326,7 @@ import { User } from "./mod";
 const value = User;
 ```
 
-- contains: value
+- value
 
 ### export inference preserves namespace reexports
 
@@ -534,7 +534,7 @@ import { Options } from "./module-b";
 const value = Options;
 ```
 
-- contains: value
+- value
 
 ## Type-only Imports
 
@@ -558,7 +558,7 @@ import { value } from "./module-b";
 value satisfies unknown;
 ```
 
-- contains: type-only
+- type-only
 
 ## Export Circularity
 
@@ -578,7 +578,7 @@ import { x } from "./a";
 export const y = x;
 ```
 
-- contains: annotation
+- annotation
 
 ### export inference allows partially annotated cycles
 
@@ -634,7 +634,7 @@ import { x } from "./a";
 export const z = x;
 ```
 
-- contains: annotation
+- annotation
 
 ### export inference allows three-module cycles with one anchor
 
@@ -696,7 +696,7 @@ import * as a from "./a";
 export const y = a.x;
 ```
 
-- contains: annotation
+- annotation
 
 ### export inference allows namespace cycles with one anchor
 
@@ -750,7 +750,7 @@ import { x } from "./a";
 export const y = x;
 ```
 
-- contains: annotation
+- annotation
 
 ### export inference allows reexported cycles with one anchor
 

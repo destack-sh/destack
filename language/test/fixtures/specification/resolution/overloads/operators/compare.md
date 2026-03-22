@@ -56,7 +56,7 @@ left === right;
 left !== right;
 ```
 
-- contains: strict equality
+- strict equality
 
 ### comparison operators reject unavailable compare contracts
 
@@ -78,7 +78,7 @@ const isLess = left < right;
 isLess satisfies boolean;
 ```
 
-- contains: not assignable
+- type OtherMeasure is not assignable to type Measure
 
 ### equality operators reject unavailable equal contracts
 
@@ -100,7 +100,7 @@ const isEqual = left == right;
 isEqual satisfies boolean;
 ```
 
-- contains: no matching overload
+- no matching overload
 
 ### strict equality accepts primitive operands
 
@@ -136,4 +136,4 @@ const isLess = left < right;
 isLess satisfies boolean;
 ```
 
-- contains: not assignable
+- type OtherMeasure is not assignable to type Measure

@@ -92,7 +92,7 @@ function unresolved<Row>() {
 }
 ```
 
-- contains: resolvable
+- resolvable
 
 ### associated comptime projections can drive fixed array aliases
 
@@ -124,4 +124,4 @@ const plan = new SegmentPlan<string>();
 const width = plan.Width;
 ```
 
-- contains: does not exist
+- property 'Width' does not exist on type SegmentPlan<string>

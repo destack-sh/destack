@@ -119,7 +119,7 @@ const volume: string | int32 = "loud";
 getPet().speak(volume);
 ```
 
-- contains: no matching overload
+- no matching overload
 
 ### union method call rejects union arguments with only per-overload coverage
 
@@ -153,7 +153,7 @@ const volume: string | int32 = "loud";
 getPet().speak(volume);
 ```
 
-- contains: no matching overload
+- no matching overload
 
 ### union method call accepts union argument with union overload
 

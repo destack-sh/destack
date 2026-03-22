@@ -38,7 +38,7 @@ declare function triple<T, U = T, V = readonly U[]>(first: T, second?: U, third?
 triple(1, "ok", [1]);
 ```
 
-- contains: not assignable
+- not assignable
 
 ## keyof defaults
 

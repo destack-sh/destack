@@ -51,7 +51,7 @@ const selected = pick("x");
 selected satisfies "specific";
 ```
 
-- contains: not assignable
+- not assignable
 
 ```ds:package.json
 { "name": "spec" }
@@ -117,7 +117,7 @@ const selected = pick("x");
 selected satisfies "specific";
 ```
 
-- contains: not assignable
+- not assignable
 
 ```ds:package.json
 { "name": "spec" }
@@ -181,7 +181,7 @@ const selected = pick("x");
 selected satisfies "specific";
 ```
 
-- contains: not assignable
+- not assignable
 
 ```ds:package.json
 { "name": "spec" }

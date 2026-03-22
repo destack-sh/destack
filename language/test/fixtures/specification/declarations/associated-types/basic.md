@@ -88,7 +88,7 @@ class Packet {
 const size = Packet.Size;
 ```
 
-- contains: does not exist
+- does not exist
 
 ### associated type projections can anchor function signatures
 
@@ -121,4 +121,4 @@ class Matrix<T> {
 declare const row: Matrix<boolean>.Row;
 ```
 
-- contains: static argument
+- missing static argument

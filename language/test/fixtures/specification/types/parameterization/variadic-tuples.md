@@ -39,7 +39,7 @@ const value = concat(left, right);
 value[0] satisfies 1;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### rest parameter inference preserves tuple element ordering
 

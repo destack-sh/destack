@@ -12,7 +12,7 @@ Tests for definite assignment assertions on variable declarators.
 let value!: string;
 ```
 
-- contains: definite assignment assertions are not valid in variable declarators
+- definite assignment assertions are not valid in variable declarators
 
 ### destack variable declarators may use definite assignment assertions
 
@@ -41,7 +41,7 @@ value satisfies string;
 const value!: string = "ready";
 ```
 
-- contains: definite assignment assertions are not valid in variable declarators
+- definite assignment assertions are not valid in variable declarators
 
 ### destack definite assignment assertions still enforce declared types
 
@@ -52,4 +52,4 @@ let value!: string;
 value = 1;
 ```
 
-- contains: not assignable
+- type 1 is not assignable to type string

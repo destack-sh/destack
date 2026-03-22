@@ -87,4 +87,4 @@ import { api } from "./index";
 api.parse("users");
 ```
 
-- contains: not assignable
+- not assignable

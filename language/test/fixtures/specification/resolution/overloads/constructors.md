@@ -58,7 +58,7 @@ export class Box {
 { "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
-- contains: constructor
+- constructor
 
 ### typescript rejects constructor implementations incompatible with overload signatures
 
@@ -84,7 +84,7 @@ export class Box {
 { "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
-- contains: overload
+- overload
 
 ### constructor call picks declared overload signatures
 
@@ -142,4 +142,4 @@ new Box(true);
 { "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
-- contains: overload
+- overload

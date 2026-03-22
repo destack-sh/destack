@@ -22,7 +22,7 @@ type Segment<T> = T extends `/${infer Name}` ? Name : never;
 let bad: Segment<"/api"> = 1;
 ```
 
-- contains: type 1 is not assignable to type segment<<type>>
+- type 1 is not assignable to type Segment<"/api">
 
 ### template literal infer extracts span from template literal type
 
@@ -55,7 +55,7 @@ type Strip<T> = T extends `prefix-${infer A}` ? A : "no";
 let bad: Strip<string> = "value";
 ```
 
-- contains: type "value" is not assignable to type strip<<type>>
+- type "value" is not assignable to type Strip<string>
 
 ### template literal infer from any yields union
 
@@ -86,7 +86,7 @@ let bad: Strip<any> = 1;
 { "compiler": { "noAny": false } }
 ```
 
-- contains: type 1 is not assignable to type strip<<type>>
+- type 1 is not assignable to type Strip<any>
 
 ### template literal infer falls back for unknown
 
@@ -108,7 +108,7 @@ type Strip<T> = T extends `prefix-${infer A}` ? A : "no";
 let bad: Strip<unknown> = "value";
 ```
 
-- contains: type "value" is not assignable to type strip<<type>>
+- type "value" is not assignable to type Strip<unknown>
 
 ### template literal infer distributes over union templates
 
@@ -145,7 +145,7 @@ type Result = Extract<`id-${"a" | "b"}`>;
 let bad: Result = "c";
 ```
 
-- contains: type "c" is not assignable to type result
+- type "c" is not assignable to type result
 
 ### template literal infer merges repeated spans
 
@@ -178,7 +178,7 @@ type Extract<T> = T extends `id-${infer A extends "a" | "b"}` ? A : "no";
 let bad: Extract<"id-c"> = "c";
 ```
 
-- contains: type "c" is not assignable to type extract<<type>>
+- type "c" is not assignable to type Extract<"id-c">
 
 ### template literal infer falls back for mismatched repeated spans
 
@@ -200,7 +200,7 @@ type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
 let bad: Repeat<"foo-bar"> = "foo";
 ```
 
-- contains: type "foo" is not assignable to type repeat<<type>>
+- type "foo" is not assignable to type Repeat<"foo-bar">
 
 ### template literal infer rejects non matching union member
 
@@ -213,7 +213,7 @@ type Result = Extract<`foo-a` | `bar-b`>;
 let bad: Result = "b";
 ```
 
-- contains: type "b" is not assignable to type result
+- type "b" is not assignable to type result
 
 ### template literal infer rejects non string result
 
@@ -226,7 +226,7 @@ type Result = Strip<"prefix-hello">;
 let bad: Result = 1;
 ```
 
-- contains: type 1 is not assignable to type result
+- type 1 is not assignable to type result
 
 ### template literal infer splits on first literal
 
@@ -248,7 +248,7 @@ type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
 let bad: Pair<"foo-bar-baz"> = ("foo-bar", "baz");
 ```
 
-- contains: type ("foo-bar", "baz") is not assignable to type pair<<type>>
+- type ("foo-bar", "baz") is not assignable to type Pair<"foo-bar-baz">
 
 ### template literal infer requires non empty spans
 
@@ -280,4 +280,4 @@ type Split<T> = T extends `${infer A}${infer B}` ? (A, B) : never;
 let bad: Split<"a"> = ("", "a");
 ```
 
-- contains: type ("", "a") is not assignable to type split<<type>>
+- type ("", "a") is not assignable to type Split<"a">

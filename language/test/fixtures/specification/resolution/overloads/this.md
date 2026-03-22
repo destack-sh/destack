@@ -55,7 +55,7 @@ const selected = use.call({ kind: "a" }, 1);
 selected satisfies "narrow";
 ```
 
-- contains: not assignable
+- expected "narrow", found "broad" (not assignable)
 
 ### this parameter overloads apply through bind with declaration order
 
@@ -103,7 +103,7 @@ function use(this: { kind: string }, value: number): "broad" {
 use.call({ kind: 1 }, 1);
 ```
 
-- contains: not assignable
+- expected "narrow", found "broad" (not assignable)
 
 ### this parameter overloads preserve declaration order for apply
 
@@ -155,4 +155,4 @@ const selected = use.apply({ kind: "a" }, [1]);
 selected satisfies "narrow";
 ```
 
-- contains: not assignable
+- expected "narrow", found "broad" (not assignable)

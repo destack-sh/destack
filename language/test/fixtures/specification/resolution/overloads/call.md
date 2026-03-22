@@ -55,7 +55,7 @@ const selected = pick.call(undefined, 1);
 selected satisfies "narrow";
 ```
 
-- contains: not assignable
+- expected "narrow", found "broad" (not assignable)
 
 ### bind selects the first overload
 
@@ -109,7 +109,7 @@ const selected = bound(1);
 selected satisfies "narrow";
 ```
 
-- contains: not assignable
+- expected "narrow", found "broad" (not assignable)
 
 ### apply selects the first overload
 
@@ -161,4 +161,4 @@ const selected = pick.apply(undefined, [1]);
 selected satisfies "narrow";
 ```
 
-- contains: not assignable
+- expected "narrow", found "broad" (not assignable)

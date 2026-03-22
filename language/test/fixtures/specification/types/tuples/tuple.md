@@ -39,7 +39,7 @@ const right: [int32, string] = (1, "hello");
 const pair: (int32, string) = (1);
 ```
 
-- contains: not assignable
+- type int32[] is not assignable to type (int32, int32)
 
 ### bracket tuple arity is enforced on assignment
 
@@ -49,7 +49,7 @@ const pair: (int32, string) = (1);
 const pair: [int32, string] = [1];
 ```
 
-- contains: not assignable
+- type int32[] is not assignable to type (int32, int32)
 
 ### parenthesized tuple positional element types are enforced
 
@@ -59,7 +59,7 @@ const pair: [int32, string] = [1];
 const pair: (int32, string) = ("one", 2);
 ```
 
-- contains: not assignable
+- not assignable
 
 ### bracket tuple positional element types are enforced
 
@@ -69,7 +69,7 @@ const pair: (int32, string) = ("one", 2);
 const pair: [int32, string] = ["one", 2];
 ```
 
-- contains: not assignable
+- not assignable
 
 ### nested tuples preserve nested element types across both syntaxes
 
@@ -109,7 +109,7 @@ const pair: (int32, int32) = (1, 2);
 const values: string[] = pair;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### dynamic arrays are not assignable to fixed tuples
 
@@ -121,4 +121,4 @@ const pair: (int32, int32) = values;
 const pair2: [int32, int32] = values;
 ```
 
-- contains: not assignable
+- not assignable

@@ -71,7 +71,7 @@ const x = true;
 x satisfies string;
 ```
 
-- contains: expected string, found true
+- expected string, found true
 
 ## Boolean Members
 

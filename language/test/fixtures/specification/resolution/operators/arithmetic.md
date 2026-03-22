@@ -68,7 +68,7 @@ x satisfies number;
 const value = 1 + "two";
 ```
 
-- contains: no matching overload
+- no matching overload for type true
 
 ### arithmetic operators reject boolean operands
 
@@ -78,4 +78,4 @@ const value = 1 + "two";
 const value = true * 2;
 ```
 
-- contains: no matching overload
+- no matching overload for type true

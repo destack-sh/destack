@@ -74,7 +74,7 @@ extension for Document implements Printable, Serializable {
 }
 ```
 
-- contains: missing implementation
+- missing implementation
 
 ### extension can implement imported interfaces across modules
 
@@ -131,4 +131,4 @@ extension for Document implements Printable, Serializable {
 }
 ```
 
-- contains: missing implementation
+- missing implementation

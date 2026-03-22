@@ -37,7 +37,7 @@ value satisfies number;
 declare using value = 1;
 ```
 
-- contains: declare bindings cannot have initializers
+- declare bindings cannot have initializers
 
 ## await using bindings
 

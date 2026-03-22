@@ -102,7 +102,7 @@ struct Vec2 {
 const value: Add<Vec2> = Vec2 { x: 0, y: 0 };
 ```
 
-- contains: not assignable
+- not assignable
 
 ### nominal interfaces can be satisfied across module boundaries via implements
 

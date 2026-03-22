@@ -24,7 +24,7 @@ let value = 1;
 value satisfies 1;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### const scalar literals keep literal types
 
@@ -56,7 +56,7 @@ const config = { version: 1 };
 config.version satisfies 1;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### const assertions suppress widening for object members
 
@@ -119,7 +119,7 @@ Const assertions are only valid on direct literal forms, not whole conditional e
 const value = (true ? 1 : 2) as const;
 ```
 
-- contains: const assertions
+- const assertions
 
 ### const arrays widen without const assertions
 
@@ -141,7 +141,7 @@ const pair = [1, 2];
 pair[0] satisfies 1;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### annotations prevent widening but do not keep literal types
 
@@ -154,7 +154,7 @@ value satisfies 1 | 2;
 value satisfies 1;
 ```
 
-- contains: not assignable
+- not assignable
 
 ## Cross module surfaces
 
@@ -186,7 +186,7 @@ import { counter } from "./values";
 counter satisfies 1;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### exported let literals still satisfy primitive types
 
@@ -230,7 +230,7 @@ import { config } from "./values";
 config.version satisfies 1;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### renamed re-export const literals keep literal types across modules
 
@@ -306,7 +306,7 @@ let value = seed;
 value satisfies 1;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### assigning widened let scalars into const bindings keeps widened type
 
@@ -356,7 +356,7 @@ const result = identity(value);
 result satisfies "users";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### constrained generic arguments keep literal precision
 
@@ -398,7 +398,7 @@ let widened = seed;
 widened satisfies "users";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### constrained generic regularization through alias chains keeps source widenability
 
@@ -431,7 +431,7 @@ let widened = seed;
 widened satisfies "users";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### constrained generic regularization on tuple elements keeps source widenability
 
@@ -462,7 +462,7 @@ let widened = pair[0];
 widened satisfies "posts";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### constrained template argument inference keeps source widenability
 
@@ -493,7 +493,7 @@ let widened = seed;
 widened satisfies "users";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### constrained overload paths keep source widenability
 
@@ -526,7 +526,7 @@ let widened = seed;
 widened satisfies "users";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### repeated constrained calls keep source widenability
 
@@ -560,7 +560,7 @@ let widened = seed;
 widened satisfies "users";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### cross module constrained generic calls keep source widenability
 
@@ -603,7 +603,7 @@ let widened = seed;
 widened satisfies "users";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### constrained generic member paths keep source widenability
 
@@ -636,7 +636,7 @@ let widened = seed;
 widened satisfies "users";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### constrained generic calls from parameter defaults keep widening behavior
 
@@ -669,7 +669,7 @@ function read(mode = "users") {
 }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### satisfies boundary with constrained calls keeps later let widening
 
@@ -700,7 +700,7 @@ let widened = seed;
 widened satisfies "users";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### constrained template inference keeps parsed bigint literals
 
@@ -722,7 +722,7 @@ const pair = [1, 2] as const;
 pair[0] = 3;
 ```
 
-- contains: readonly
+- readonly
 
 ### assigning widened let scalars into const bindings does not restore literal
 
@@ -735,7 +735,7 @@ const value = seed;
 value satisfies "ready";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### nested literal usage does not consume const source freshness
 
@@ -771,7 +771,7 @@ function readMode(mode = "dev") {
 }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### function return inference widens literal returns
 
@@ -799,7 +799,7 @@ const mode = makeMode();
 mode satisfies "dev";
 ```
 
-- contains: not assignable
+- not assignable
 
 ## Nested boundaries
 
@@ -833,7 +833,7 @@ function outer() {
 }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### nested const to let commitment still widens after inner usage
 
@@ -865,4 +865,4 @@ let widened = seed;
 widened satisfies "ready";
 ```
 
-- contains: not assignable
+- not assignable

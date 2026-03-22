@@ -23,7 +23,7 @@ let value: string = "ok";
 value ||= 1;
 ```
 
-- contains: not assignable
+- type string | 1 is not assignable to type string | undefined
 
 ## logical and assignment
 
@@ -51,7 +51,7 @@ let value: string | undefined = "ok";
 value &&= 1;
 ```
 
-- contains: not assignable
+- type string | 1 is not assignable to type string | undefined
 
 ## nullish assignment
 
@@ -76,4 +76,4 @@ let value: string | undefined = undefined;
 value ??= 1;
 ```
 
-- contains: not assignable
+- type string | 1 is not assignable to type string | undefined

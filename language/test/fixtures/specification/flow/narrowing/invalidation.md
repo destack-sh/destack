@@ -19,7 +19,7 @@ if (value != null) {
 }
 ```
 
-- contains: not assignable
+- expected string, found string | null (not assignable)
 
 ### assignment invalidates discriminant member availability
 
@@ -39,7 +39,7 @@ if (box.state.kind == "ready") {
 box.state.payload;
 ```
 
-- contains: does not exist
+- does not exist
 
 ## loops and joins
 
@@ -62,7 +62,7 @@ while (true) {
 value satisfies "a";
 ```
 
-- contains: not assignable
+- expected string, found string | null (not assignable)
 
 ### branch joins preserve only intersection of branch guarantees
 
@@ -80,7 +80,7 @@ if (true) {
 value satisfies string;
 ```
 
-- contains: not assignable
+- not assignable
 
 ## closure capture
 
@@ -98,7 +98,7 @@ if (value != null) {
 }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### closure-returned values keep union contracts after mutation
 
@@ -114,7 +114,7 @@ const current = read();
 current satisfies string;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### nested closure writes invalidate prior narrows
 
@@ -133,7 +133,7 @@ if (value != null) {
 }
 ```
 
-- contains: not assignable
+- not assignable
 
 ## alias and member writes
 
@@ -154,7 +154,7 @@ if (box.state.kind == "ready") {
 }
 ```
 
-- contains: does not exist
+- does not exist
 
 ### index writes invalidate prior tuple element narrows
 
@@ -170,4 +170,4 @@ if (pair[0] != null) {
 }
 ```
 
-- contains: not assignable
+- not assignable

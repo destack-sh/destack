@@ -80,4 +80,4 @@ function read(): Result<int, Error> {
 }
 ```
 
-- contains: fromError
+- fromError

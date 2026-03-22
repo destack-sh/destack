@@ -15,7 +15,7 @@ type Loop<T> = Loop<T>;
 declare let value: Loop<number>;
 ```
 
-- contains: recursive
+- recursive type instantiation
 
 ## Recursive conditionals
 
@@ -29,7 +29,7 @@ type Recurse<T> = T extends string ? Recurse<T> : never;
 declare let value: Recurse<"x">;
 ```
 
-- contains: recursive
+- recursive type instantiation
 
 ### mutually recursive aliases are rejected
 
@@ -42,7 +42,7 @@ type B<T> = A<T>;
 declare let value: A<number>;
 ```
 
-- contains: recursive
+- recursive
 
 ### recursive aliases through mapped projections are rejected
 
@@ -54,7 +54,7 @@ type Remap<T> = { [K in keyof T]: Remap<T[K]> };
 declare let value: Remap<{ name: string }>;
 ```
 
-- contains: recursive
+- recursive
 
 ### recursive aliases across modules are rejected
 
@@ -78,4 +78,4 @@ import type { A } from "./a";
 declare let value: A<number>;
 ```
 
-- contains: recursive
+- recursive

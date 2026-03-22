@@ -172,7 +172,7 @@ declare const segment: api.Segment<"users">;
 segment satisfies "users";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### associated template projections remain precise through renamed re-exports
 
@@ -297,7 +297,7 @@ declare const segment: renamed.Segment<"id:users" | "id:posts">;
 segment satisfies "users" | "posts" | "other";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### associated template conditionals keep precision through export-star plus rename chains
 

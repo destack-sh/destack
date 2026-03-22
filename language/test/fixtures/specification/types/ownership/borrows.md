@@ -28,7 +28,7 @@ let point = Point { x: 1 };
 let value: Point = &readonly point;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### shared reference is not assignable to mutable reference
 
@@ -44,7 +44,7 @@ let shared: &readonly Point = &readonly point;
 let mutableRef: &Point = shared;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### shared reference rejects member assignment
 
@@ -60,7 +60,7 @@ let shared = &readonly point;
 shared.x = 2;
 ```
 
-- contains: immutable reference
+- immutable reference
 
 ### shared reference rejects index assignment
 
@@ -72,7 +72,7 @@ let shared: &readonly int32[] = &readonly values;
 shared[0] = 4;
 ```
 
-- contains: immutable reference
+- immutable reference
 
 ## mutable references
 
@@ -118,7 +118,7 @@ let mutableRef: &Point = &point;
 let shared: &readonly Point = mutableRef;
 ```
 
-- contains: not assignable
+- not assignable
 
 ## borrow conflicts
 
@@ -144,7 +144,7 @@ function run(): void {
 }
 ```
 
-- contains: cannot borrow as mutable
+- cannot borrow as mutable
 
 ### mutable borrow conflicts with mutable borrow
 
@@ -168,7 +168,7 @@ function run(): void {
 }
 ```
 
-- contains: cannot borrow as mutable
+- cannot borrow as mutable
 
 ### shared borrows do not conflict
 
@@ -246,7 +246,7 @@ function run(): void {
 }
 ```
 
-- warning: contains: cannot borrow as mutable
+- warning: cannot borrow as mutable
 
 ### strict mode reports conflicts as errors
 
@@ -278,4 +278,4 @@ function run(): void {
 }
 ```
 
-- contains: cannot borrow as mutable
+- cannot borrow as mutable

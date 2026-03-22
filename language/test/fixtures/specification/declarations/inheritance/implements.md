@@ -224,4 +224,4 @@ class Counter implements {
 }
 ```
 
-- contains: invalid lineage
+- invalid lineage

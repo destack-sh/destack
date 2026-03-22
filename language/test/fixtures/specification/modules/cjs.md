@@ -105,7 +105,7 @@ import cjs from "./cjs";
 cjs.buildValue();
 ```
 
-- contains: does not exist on type unknown
+- does not exist on type unknown
 
 ### es module interop enables synthetic default imports from named only commonjs exports
 
@@ -349,7 +349,7 @@ import { helper } from "./cjs";
 helper();
 ```
 
-- contains: missing symbol
+- missing symbol 'buildValue'
 
 ### module exports replacement drops earlier named writes on the old object
 
@@ -376,7 +376,7 @@ selected();
 first();
 ```
 
-- contains: missing symbol
+- missing symbol 'buildValue'
 
 ### exports alias writes after replacement do not affect module exports
 
@@ -403,7 +403,7 @@ selected();
 leaked();
 ```
 
-- contains: missing symbol
+- missing symbol 'buildValue'
 
 ## unsupported dynamic forms
 
@@ -425,7 +425,7 @@ import { buildValue } from "./cjs";
 buildValue();
 ```
 
-- contains: missing symbol
+- missing symbol
 
 ### aliased exports object assignment does not synthesize named exports
 
@@ -445,7 +445,7 @@ import { buildValue } from "./cjs";
 buildValue();
 ```
 
-- contains: missing symbol
+- missing symbol
 
 ### branch dependent writes do not synthesize named exports
 
@@ -465,7 +465,7 @@ import { buildValue } from "./cjs";
 buildValue();
 ```
 
-- contains: missing symbol
+- missing symbol
 
 ### defineproperty writes do not synthesize named exports
 
@@ -485,4 +485,4 @@ import { buildValue } from "./cjs";
 buildValue();
 ```
 
-- contains: missing symbol
+- missing symbol

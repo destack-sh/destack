@@ -22,7 +22,7 @@ function run(): void {
 }
 ```
 
-- contains: use of moved value
+- use of moved value
 
 ### moved value is allowed when not used again
 
@@ -65,7 +65,7 @@ function run(flag: boolean): void {
 }
 ```
 
-- contains: may have been moved
+- may have been moved
 
 ### moving twice is rejected
 
@@ -87,7 +87,7 @@ function run(): void {
 }
 ```
 
-- contains: use of moved value
+- use of moved value
 
 ## move and borrow interactions
 
@@ -116,7 +116,7 @@ function run(): void {
 }
 ```
 
-- contains: cannot move while borrowed
+- cannot move while borrowed
 
 ### borrow after move is rejected
 
@@ -143,4 +143,4 @@ function run(): void {
 }
 ```
 
-- contains: use of moved value
+- use of moved value

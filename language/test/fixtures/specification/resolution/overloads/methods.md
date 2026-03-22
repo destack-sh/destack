@@ -56,7 +56,7 @@ export class Parser {
 { "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
-- contains: overload
+- overload
 
 ## Destack overload order
 
@@ -100,7 +100,7 @@ const selected = parser.parse(1);
 selected satisfies "narrow";
 ```
 
-- contains: not assignable
+- expected "narrow", found "broad" (not assignable)
 
 ### method overload order is preserved through class inheritance
 
@@ -146,4 +146,4 @@ const selected = parser.parse(1);
 selected satisfies "narrow";
 ```
 
-- contains: not assignable
+- expected "narrow", found "broad" (not assignable)

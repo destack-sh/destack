@@ -16,7 +16,7 @@ function invalid_match_continue(value: int32): int32 {
 }
 ```
 
-- contains: invalid continue
+- invalid continue
 
 ### loops inside match allow break
 
@@ -77,7 +77,7 @@ function invalid_direct_continue(value: int32): int32 {
 }
 ```
 
-- contains: invalid continue
+- invalid continue
 
 ### loop control still rejects direct break in arms
 
@@ -92,4 +92,4 @@ function invalid_direct_break(value: int32): int32 {
 }
 ```
 
-- contains: invalid break
+- invalid break to '<none>'

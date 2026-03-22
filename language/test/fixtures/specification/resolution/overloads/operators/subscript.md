@@ -58,7 +58,7 @@ const bag = getBag();
 bag[1] = "nope";
 ```
 
-- contains: not assignable
+- type unknown is not assignable to type int32
 
 ### index access rejects missing Index contracts
 
@@ -74,7 +74,7 @@ const value = bag[1];
 value satisfies int;
 ```
 
-- contains: no matching overload
+- no matching overload
 
 ### index assignment rejects missing IndexSet contracts
 
@@ -89,7 +89,7 @@ const bag = getBag();
 bag[1] = 2;
 ```
 
-- contains: no matching overload
+- no matching overload
 
 ### index access checks key type compatibility
 
@@ -109,4 +109,4 @@ const value = bag["one"];
 value satisfies int;
 ```
 
-- contains: not assignable
+- type unknown is not assignable to type int32

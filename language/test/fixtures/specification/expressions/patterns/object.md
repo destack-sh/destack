@@ -41,7 +41,7 @@ let point = Point { x: 1, y: 2 };
 let { x, y } = point;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### object destructuring requires an initializer
 
@@ -51,7 +51,7 @@ let { x, y } = point;
 const { x }: { x: number };
 ```
 
-- contains: destructuring declarations require initializers
+- destructuring declarations require initializers
 
 ### object patterns bind readonly named identifiers
 
@@ -70,4 +70,4 @@ readonly satisfies number;
 let { readonly value } = { readonly: 1 };
 ```
 
-- contains: parse error
+- parse error: unexpected Identifier in Expression

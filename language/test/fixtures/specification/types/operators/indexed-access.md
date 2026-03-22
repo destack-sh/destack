@@ -23,7 +23,7 @@ type User = { name: string; age: number };
 type Missing = User["missing"];
 ```
 
-- contains: does not exist
+- does not exist
 
 ## unions and intersections
 
@@ -52,7 +52,7 @@ type Value = (A | B)["value"];
 const bad: Value = true;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### indexed access on intersections preserves members
 
@@ -89,7 +89,7 @@ type Value = User["name" | "age"];
 const bad: Value = true;
 ```
 
-- contains: not assignable
+- not assignable
 
 ## indexed access with conditionals
 
@@ -118,7 +118,7 @@ type Values<T> = T extends unknown ? T["value"] : never;
 const bad: Values<A | B> = true;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### generic indexed access preserves key constrained member types
 
@@ -142,7 +142,7 @@ type User = { name: string; age: number };
 const bad: ValueOf<User, "age"> = "Ada";
 ```
 
-- contains: not assignable
+- not assignable
 
 ## index signatures
 
@@ -168,7 +168,7 @@ type Value = Bag[string];
 const bad: Value = "no";
 ```
 
-- contains: not assignable
+- not assignable
 
 ## .ds disambiguation
 
@@ -215,7 +215,7 @@ type ObjectLike = { label: string };
 type Missing = ObjectLike[5];
 ```
 
-- contains: does not exist
+- does not exist
 
 ### .ds tuple indexing keeps indexed-access semantics with numeric literals
 
@@ -237,7 +237,7 @@ first satisfies string;
 type Ambiguous<T, N> = T[N];
 ```
 
-- contains: ambiguous
+- ambiguous
 
 ### .ds as comptime disambiguates numeric static parameters for fixed arrays
 
@@ -290,7 +290,7 @@ class Segment<Row> {
 type Lane<Row> = uint8[Segment<Row>.Width as comptime];
 ```
 
-- contains: static expression
+- static expression
 
 ## cross-module disambiguation
 

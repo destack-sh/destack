@@ -74,7 +74,7 @@ function compute_runtime(value: int): int {
 }
 ```
 
-- contains: static expression
+- static expression
 
 ### class comptime blocks reject runtime instance access
 
@@ -91,4 +91,4 @@ class Counter {
 }
 ```
 
-- contains: static expression
+- static expression

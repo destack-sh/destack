@@ -39,7 +39,7 @@ pair satisfies int32[2];
 const pair: int32[2] = [1, 2, 3];
 ```
 
-- contains: not assignable
+- not assignable
 
 ### nested fixed array annotations accept matching nested lengths
 
@@ -58,4 +58,4 @@ matrix satisfies int32[2][2];
 const matrix: int32[2][2] = [[1, 2], [3]];
 ```
 
-- contains: not assignable
+- not assignable

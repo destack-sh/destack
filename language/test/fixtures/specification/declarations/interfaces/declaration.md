@@ -12,7 +12,7 @@ Tests for interface declaration validation.
 abstract interface Config {}
 ```
 
-- contains: invalid interface
+- invalid interface
 
 ### default export interfaces must be named
 
@@ -24,7 +24,7 @@ export default interface {
 }
 ```
 
-- contains: invalid interface
+- invalid interface
 
 ### empty extends clauses are rejected
 
@@ -35,7 +35,7 @@ interface Config extends {
 }
 ```
 
-- contains: invalid lineage
+- invalid lineage
 
 ## valid declarations
 

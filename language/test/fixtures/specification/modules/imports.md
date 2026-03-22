@@ -15,7 +15,7 @@ export default class Foo {}
 export type Bar = string;
 ```
 
-- contains: type-only imports cannot mix default and named bindings
+- type-only imports cannot mix default and named bindings
 
 ### type-only imports cannot be used as values
 
@@ -31,7 +31,7 @@ Foo;
 export type Foo = { name: string };
 ```
 
-- contains: type-only
+- type-only
 
 ### named type-only imports are allowed
 
@@ -63,7 +63,7 @@ Foo;
 export type Foo = { name: string };
 ```
 
-- contains: type-only
+- type-only
 
 ### default type-only imports are allowed
 
@@ -99,7 +99,7 @@ export default interface Foo {
 }
 ```
 
-- contains: type-only
+- type-only
 
 ### namespace type-only imports are allowed
 
@@ -135,7 +135,7 @@ export interface User {
 }
 ```
 
-- contains: type-only
+- type-only
 
 ### value imports allow type-only exports in type positions
 
@@ -167,7 +167,7 @@ Foo;
 export type Foo = { name: string };
 ```
 
-- contains: value
+- value
 
 ### imported generic constraints are enforced at call sites
 
@@ -186,7 +186,7 @@ readName({ name: "ok" });
 readName({ name: 1 });
 ```
 
-- contains: not assignable
+- not assignable
 
 ## import aliases
 
@@ -212,7 +212,7 @@ function bar() {
 import Foo = bar();
 ```
 
-- contains: import aliases must target a qualified identifier path
+- import aliases must target a qualified identifier path
 
 ## CommonJS interop
 

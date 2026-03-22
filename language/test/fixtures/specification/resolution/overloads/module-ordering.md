@@ -50,7 +50,7 @@ const value = routedChoose("ok");
 value satisfies "number";
 ```
 
-- contains: not assignable
+- not assignable
 
 ## namespace routing
 

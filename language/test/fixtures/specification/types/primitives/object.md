@@ -47,7 +47,7 @@ const x: object = fn
 const x: object = 42
 ```
 
-- contains: not assignable
+- type undefined is not assignable to type object
 
 ### string not assignable to object
 
@@ -57,7 +57,7 @@ const x: object = 42
 const x: object = "hello"
 ```
 
-- contains: not assignable
+- type undefined is not assignable to type object
 
 ### boolean not assignable to object
 
@@ -67,7 +67,7 @@ const x: object = "hello"
 const x: object = true
 ```
 
-- contains: not assignable
+- type undefined is not assignable to type object
 
 ### null not assignable to object
 
@@ -77,7 +77,7 @@ const x: object = true
 const x: object = null
 ```
 
-- contains: not assignable
+- type undefined is not assignable to type object
 
 ### undefined not assignable to object
 
@@ -87,5 +87,4 @@ const x: object = null
 const x: object = undefined
 ```
 
-- contains: not assignable
-
+- type undefined is not assignable to type object

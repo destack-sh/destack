@@ -28,7 +28,7 @@ let wide: float32 = 1.5;
 let narrow: float16 = wide;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### floatN does not implicitly convert to integers
 
@@ -38,7 +38,7 @@ let narrow: float16 = wide;
 let value: int32 = 1.5;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### floatN values can widen through multiple widths
 

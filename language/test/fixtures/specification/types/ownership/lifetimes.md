@@ -21,7 +21,7 @@ function makeDataRef(): &Data {
 }
 ```
 
-- contains: cannot return reference to local
+- cannot return reference to local
 
 ## lifetime annotations
 
@@ -36,7 +36,7 @@ function pick(a: &int32, b: &int32): &int32 {
 }
 ```
 
-- contains: return borrows from b not covered by lifetime annotation
+- return borrows from b not covered by lifetime annotation
 
 ### return matches lifetime annotation
 
@@ -75,4 +75,4 @@ function pick(value: &int32): &int32 {
 }
 ```
 
-- contains: return borrows from value not covered by lifetime annotation
+- return borrows from value not covered by lifetime annotation

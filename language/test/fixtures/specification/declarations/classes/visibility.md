@@ -17,7 +17,7 @@ const counter = new Counter();
 const out = counter.value;
 ```
 
-- contains: is private
+- is private
 
 ### private shorthand fields are inaccessible outside the class
 
@@ -34,7 +34,7 @@ const counter = new Counter();
 const out = counter.#value;
 ```
 
-- contains: is private
+- is private
 
 ### private shorthand fields are accessible within the class
 
@@ -65,7 +65,7 @@ class Child extends Base {
 }
 ```
 
-- contains: is private
+- is private
 
 ### private shorthand methods are accessible within the class
 
@@ -95,7 +95,7 @@ const counter = new Counter();
 const out = counter.#next();
 ```
 
-- contains: is private
+- is private
 
 ### static private fields are accessible within the class
 
@@ -125,7 +125,7 @@ class Counter {
 Counter.#value;
 ```
 
-- contains: is private
+- is private
 
 ## protected fields
 
@@ -164,4 +164,4 @@ const child = new Child();
 const out = child.value;
 ```
 
-- contains: is protected
+- '<anonymous>' is protected

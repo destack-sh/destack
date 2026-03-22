@@ -37,7 +37,7 @@ const node = <div className="card" />;
 node;
 ```
 
-- contains: intrinsic
+- intrinsic
 
 ### fragment requires configured TreeTagBuilder
 
@@ -52,7 +52,7 @@ const node = <>
 node;
 ```
 
-- contains: Fragment
+- Fragment
 
 ### namespaced tags route as intrinsic string names
 
@@ -63,8 +63,8 @@ const node = <svg:path />;
 node;
 ```
 
-- contains: intrinsic
-- contains: svg:path
+- intrinsic
+- svg:path
 
 ## Attributes And Spread
 
@@ -96,5 +96,5 @@ const node = <Button {...dynamicProps} />;
 node;
 ```
 
-- contains: spread
-- contains: dynamic
+- spread
+- dynamic

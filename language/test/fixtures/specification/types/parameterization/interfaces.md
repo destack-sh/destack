@@ -29,7 +29,7 @@ declare function makeBox(): Box<number>;
 let value: Box<string> = makeBox();
 ```
 
-- contains: type string is not assignable to type number
+- type string is not assignable to type number
 
 ### static value arguments on interfaces
 
@@ -56,7 +56,7 @@ declare function makeBuffer(): Buffer<string, 4>;
 let buffer: Buffer<string, true> = makeBuffer();
 ```
 
-- contains: type true is not assignable to type number
+- type true is not assignable to type number
 
 ### default static type parameters on interfaces
 

@@ -20,7 +20,7 @@ type MutableRequired<T> = { -readonly [K in keyof T]-?: T[K] };
 const bad: MutableRequired<Person> = {};
 ```
 
-- contains: not assignable
+- type string is not assignable to type number
 
 ### mapped readonly modifiers prevent mutation
 
@@ -33,7 +33,7 @@ const value: Frozen<{ a: number }> = { a: 1 };
 value.a = 2;
 ```
 
-- contains: readonly
+- readonly
 
 ## Key remapping
 
@@ -53,7 +53,7 @@ const ok: WithoutA<Shape> = { b: "x" };
 const bad: WithoutA<Shape> = { a: 1, b: "x" };
 ```
 
-- contains: excess property
+- excess property
 
 ### key remap collisions merge value types
 
@@ -70,7 +70,7 @@ type Merge<T> = { [K in keyof T as "value"]: T[K] };
 const bad: Merge<Shape> = { value: true };
 ```
 
-- contains: not assignable
+- type string is not assignable to type number
 
 ### key remapping supports template literal keys
 
@@ -112,4 +112,4 @@ const bad: Prefixed<Shape> = {
 };
 ```
 
-- contains: not assignable
+- type string is not assignable to type number

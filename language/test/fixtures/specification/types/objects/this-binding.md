@@ -27,7 +27,7 @@ function use(this: { tag: "ok" }, value: number): number {
 use.bind({ tag: "bad" });
 ```
 
-- contains: not assignable
+- not assignable
 
 ## callbacks
 

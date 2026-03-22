@@ -42,7 +42,7 @@ const value = counter + 1;
 value satisfies "int32";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### rhs only implementations are not selected
 
@@ -62,7 +62,7 @@ declare let right: Right;
 left + right;
 ```
 
-- contains: no matching overload
+- no matching overload
 
 ### imported extension modules preserve receiver family ordering
 

@@ -34,7 +34,7 @@ function next_id(id: UserId): int64 {
 }
 ```
 
-- contains: not assignable
+- type object is not assignable to type Config
 
 ## tuple newtype patterns
 
@@ -90,4 +90,4 @@ function read(config: Config): boolean {
 }
 ```
 
-- contains: not assignable
+- type object is not assignable to type Config

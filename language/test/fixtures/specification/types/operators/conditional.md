@@ -22,7 +22,7 @@ type Select<T> = T extends string ? string : int32;
 let bad: Select<string> = 1;
 ```
 
-- contains: type 1 is not assignable to type select<<type>>
+- type 1 is not assignable to type Select<string>
 
 ### conditional types pick false branch
 
@@ -44,7 +44,7 @@ type Select<T> = T extends string ? string : int32;
 let bad: Select<int32> = "no";
 ```
 
-- contains: type "no" is not assignable to type select<<type>>
+- type "no" is not assignable to type Select<int32>
 
 ### conditional types distribute over unions
 
@@ -66,7 +66,7 @@ type OnlyStrings<T> = T extends string ? T : never;
 let bad: OnlyStrings<string | int32> = 1;
 ```
 
-- contains: not assignable to type OnlyStrings<<type>>
+- type 1 is not assignable to type OnlyStrings<string | int32>
 
 ### conditional types with any yield union branches
 
@@ -101,7 +101,7 @@ const bad: AnySelect = 1;
 { "compiler": { "noAny": false } }
 ```
 
-- contains: not assignable
+- not assignable
 
 ### conditional types with unknown select else branch
 
@@ -123,7 +123,7 @@ type Select<T> = T extends string ? "yes" : "no";
 let bad: Select<unknown> = "yes";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### conditional types treat never as empty unions
 
@@ -136,7 +136,7 @@ type Result = OnlyStrings<never>;
 let bad: Result = "no";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### conditional types disable distribution with tuples
 
@@ -181,7 +181,7 @@ type NonDist<T> = [T] extends ["a"] ? 1 : 0;
 let bad: NonDist<"a" | "b"> = 1;
 ```
 
-- contains: not assignable
+- not assignable
 
 ### wrapped any conditionals choose the true branch
 
@@ -231,7 +231,7 @@ type Unbox<T> = T extends Box<infer U> ? U : never;
 const bad: Unbox<Box<"ready">> = "no";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### conditional infer over unions preserves distributed member unions
 
@@ -256,7 +256,7 @@ type Unbox<T> = T extends Box<infer U> ? U : never;
 const bad: Unbox<Box<"a"> | Box<"b">> = "c";
 ```
 
-- contains: not assignable
+- not assignable
 
 ### wrapped conditional infer keeps union extraction in one relation
 

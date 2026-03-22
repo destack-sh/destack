@@ -21,7 +21,7 @@ function label(state: State): string {
 }
 ```
 
-- contains: non-exhaustive match
+- non-exhaustive match
 
 ### match accepts full enum coverage
 
@@ -80,7 +80,7 @@ function label(status: Status): string {
 }
 ```
 
-- contains: non-exhaustive match
+- non-exhaustive match
 
 ### match accepts exhaustive boolean coverage
 
@@ -256,7 +256,7 @@ function label(value: Mixed): string {
 }
 ```
 
-- contains: non-exhaustive match
+- non-exhaustive match
 
 ### match reports non-exhaustive tuple unions with literal discriminants
 
@@ -275,7 +275,7 @@ function normalize(pair: Pair): int32 {
 }
 ```
 
-- contains: non-exhaustive match
+- non-exhaustive match
 
 ### match requires fallback for guarded tuple discriminants
 
@@ -294,7 +294,7 @@ function normalize(pair: Pair): int32 {
 }
 ```
 
-- contains: non-exhaustive match
+- non-exhaustive match
 
 ## discriminated unions
 
@@ -314,7 +314,7 @@ function area(shape: Shape): int32 {
 }
 ```
 
-- contains: non-exhaustive match
+- non-exhaustive match
 
 ### match accepts exhaustive discriminated unions
 
@@ -384,7 +384,7 @@ function label(envelope: Envelope): int32 {
 }
 ```
 
-- contains: non-exhaustive match
+- non-exhaustive match
 
 ### match accepts wildcard object filters as fallback coverage
 
@@ -431,7 +431,7 @@ function pick(value: int32): int32 {
 }
 ```
 
-- contains: non-exhaustive match
+- non-exhaustive match
 
 ### match requires fallback for open array patterns
 
@@ -445,4 +445,4 @@ function firstTwo(values: number[]): number {
 }
 ```
 
-- contains: non-exhaustive match
+- non-exhaustive match
