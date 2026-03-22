@@ -65,6 +65,15 @@ impl Compiler {
         self.task_requirements_are_satisfied(task_id, &mut visiting, &mut satisfied)
     }
 
+    /// Return whether one exact requirement set is currently satisfied.
+    pub(crate) fn requirements_are_satisfied(&self, requirements: &[ArtifactRequirement]) -> bool {
+        let task_count = self.queue.task_count();
+        let mut visiting = vec![false; task_count];
+        let mut satisfied = vec![None; task_count];
+
+        self.requirement_list_is_satisfied(requirements, &mut visiting, &mut satisfied)
+    }
+
     /// Return whether one completed task still satisfies its last exact requirements.
     fn task_requirements_are_satisfied(
         &self,
@@ -90,7 +99,23 @@ impl Compiler {
             return true;
         }
 
-        let is_satisfied = handle.final_requirements.iter().all(|requirement| {
+        let is_satisfied =
+            self.requirement_list_is_satisfied(&handle.final_requirements, visiting, satisfied);
+
+        visiting[task_index] = false;
+        satisfied[task_index] = Some(is_satisfied);
+
+        is_satisfied
+    }
+
+    /// Return whether one requirement list is currently satisfied.
+    fn requirement_list_is_satisfied(
+        &self,
+        requirements: &[ArtifactRequirement],
+        visiting: &mut [bool],
+        satisfied: &mut [Option<bool>],
+    ) -> bool {
+        requirements.iter().all(|requirement| {
             self.artifact_satisfies_dependency(&requirement.key, requirement.dependency)
                 && self
                     .queue
@@ -99,12 +124,7 @@ impl Compiler {
                         self.task_requirements_are_satisfied(required_task_id, visiting, satisfied)
                     })
                     .unwrap_or(true)
-        });
-
-        visiting[task_index] = false;
-        satisfied[task_index] = Some(is_satisfied);
-
-        is_satisfied
+        })
     }
 
     /// Return whether one artifact key satisfies one specific dependency.

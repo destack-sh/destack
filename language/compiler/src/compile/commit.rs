@@ -3,9 +3,12 @@ use destack_workspace::{ArtifactDependency, ArtifactKey};
 use crate::Compiler;
 
 impl Compiler {
-    /// Commit the completed artifact dependency from the current workspace state.
-    pub(crate) fn commit_completed_artifact(&self, artifact_key: &ArtifactKey) {
-        let dependency = self.artifact_dependency_for_key(artifact_key);
+    /// Commit one completed artifact dependency.
+    pub(crate) fn commit_completed_artifact(
+        &self,
+        artifact_key: &ArtifactKey,
+        dependency: ArtifactDependency,
+    ) {
         self.set_artifact_dependency(artifact_key, dependency);
     }
 

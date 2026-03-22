@@ -4,8 +4,10 @@ use std::sync::OnceLock;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use destack_workspace::ArtifactKey;
+use destack_workspace::{ArtifactDependency, ArtifactKey};
 
+#[cfg(test)]
+use crate::tests::scenario::CompilerScenarioEvent;
 use crate::{
     AnalyzeError, ArtifactRequirement, ArtifactRequirementSet, ArtifactTaskKeyExt, Compiler,
     CompilerEvent, ElaborateError, ExecuteError, GenerateError, ImportError, InternalError,
@@ -86,6 +88,11 @@ impl Compiler {
     /// Take the current task requirement log.
     fn take_current_requirements(&self) -> Vec<ArtifactRequirement> {
         CURRENT_REQUIREMENTS.with(|requirements| std::mem::take(&mut *requirements.borrow_mut()))
+    }
+
+    /// Clone the current task requirement log.
+    pub(crate) fn current_requirements(&self) -> Vec<ArtifactRequirement> {
+        CURRENT_REQUIREMENTS.with(|requirements| requirements.borrow().clone())
     }
 
     /// Enqueue a task to the compiler.
@@ -291,6 +298,7 @@ impl Compiler {
 
         // process task
         let started_at = Instant::now();
+        let attempt_dependency = self.artifact_dependency_for_key(&handle.artifact_key);
         self.queue.set_status(task_id, TaskStatus::Running);
         self.clear_current_requirements();
         CURRENT_TASK.with(|current| {
@@ -323,7 +331,14 @@ impl Compiler {
                 description: description.clone(),
             });
         }
-        self.handle_outcome(task_id, &handle, outcome, elapsed, description);
+        self.handle_outcome(
+            task_id,
+            &handle,
+            outcome,
+            elapsed,
+            description,
+            attempt_dependency,
+        );
     }
 
     /// Process a compiler task and return the outcome.
@@ -422,6 +437,7 @@ impl Compiler {
         outcome: TaskOutcome,
         elapsed: Duration,
         description: String,
+        attempt_dependency: ArtifactDependency,
     ) {
         // record per-task timing
         let task_name = format!("{}.{}", handle.phase().name(), handle.artifact_key.name());
@@ -438,32 +454,71 @@ impl Compiler {
                 );
                 tracing::debug!(%event, %description, ?task_id);
 
-                // publish the current dependency stamp before waking waiters
-                self.commit_completed_artifact(&handle.artifact_key);
-                self.queue
-                    .set_final_requirements(task_id, self.take_current_requirements());
-                self.queue.set_status(task_id, TaskStatus::Complete);
-                self.wake_waiters(task_id);
-                self.stats.record_complete();
-                self.stats.record_phase_time(handle.phase(), elapsed);
-
-                // record per-package time from task anchor
-                let anchor = handle.artifact_key.anchor();
-                if let Some(module_id) = anchor.module_id() {
-                    let package_id = self.program.modules.get(module_id).package_id;
-                    self.stats.record_package_time(package_id, elapsed);
-                } else if let Some(package_id) = anchor.package_id() {
-                    self.stats.record_package_time(package_id, elapsed);
-                }
-
-                // emit task completed event
-                self.emit_event(CompilerEvent::TaskCompleted {
-                    task_id,
+                // test interleavings
+                #[cfg(test)]
+                self.emit_scenario_event(CompilerScenarioEvent::BeforeTaskCommit {
                     artifact_key: handle.artifact_key.clone(),
-                    phase: handle.phase(),
-                    elapsed,
-                    description,
                 });
+
+                // validate the task snapshot before accepting the publish
+                let final_requirements = self.take_current_requirements();
+                if self.completed_artifact_is_stale(
+                    &handle.artifact_key,
+                    attempt_dependency,
+                    &final_requirements,
+                ) {
+                    self.program.artifacts.invalidate(&handle.artifact_key);
+                    self.queue.clear_final_requirements(task_id);
+                    self.queue.set_status(task_id, TaskStatus::Skipped);
+                    self.stats.record_skip();
+                    self.stats.record_phase_time(handle.phase(), elapsed);
+                    self.wake_waiters(task_id);
+
+                    // record per-package time from task anchor
+                    let anchor = handle.artifact_key.anchor();
+                    if let Some(module_id) = anchor.module_id() {
+                        let package_id = self.program.modules.get(module_id).package_id;
+                        self.stats.record_package_time(package_id, elapsed);
+                    } else if let Some(package_id) = anchor.package_id() {
+                        self.stats.record_package_time(package_id, elapsed);
+                    }
+
+                    // emit task skipped event
+                    self.emit_event(CompilerEvent::TaskSkipped {
+                        task_id,
+                        artifact_key: handle.artifact_key.clone(),
+                        phase: handle.phase(),
+                        description,
+                    });
+                }
+                // otherwise commit the completed artifact and wake waiters
+                else {
+                    self.queue
+                        .set_final_requirements(task_id, final_requirements);
+                    self.commit_completed_artifact(&handle.artifact_key, attempt_dependency);
+                    self.queue.set_status(task_id, TaskStatus::Complete);
+                    self.wake_waiters(task_id);
+                    self.stats.record_complete();
+                    self.stats.record_phase_time(handle.phase(), elapsed);
+
+                    // record per-package time from task anchor
+                    let anchor = handle.artifact_key.anchor();
+                    if let Some(module_id) = anchor.module_id() {
+                        let package_id = self.program.modules.get(module_id).package_id;
+                        self.stats.record_package_time(package_id, elapsed);
+                    } else if let Some(package_id) = anchor.package_id() {
+                        self.stats.record_package_time(package_id, elapsed);
+                    }
+
+                    // emit task completed event
+                    self.emit_event(CompilerEvent::TaskCompleted {
+                        task_id,
+                        artifact_key: handle.artifact_key.clone(),
+                        phase: handle.phase(),
+                        elapsed,
+                        description,
+                    });
+                }
             }
             TaskOutcome::Skipped => {
                 let event = format!(
@@ -581,6 +636,23 @@ impl Compiler {
         if !requeued {
             self.queue.set_last_outcome(task_id, outcome);
         }
+    }
+
+    /// Return whether one completed artifact no longer matches its build snapshot.
+    fn completed_artifact_is_stale(
+        &self,
+        artifact_key: &ArtifactKey,
+        attempt_dependency: ArtifactDependency,
+        final_requirements: &[ArtifactRequirement],
+    ) -> bool {
+        // reject direct input drift
+        let current_dependency = self.artifact_dependency_for_key(artifact_key);
+        if attempt_dependency != current_dependency {
+            return true;
+        }
+
+        // reject stale exact requirements
+        !self.requirements_are_satisfied(final_requirements)
     }
 
     /// Check if a yield should trigger an internal error (i.e. circuit break).
