@@ -49,6 +49,15 @@ impl CacheStore for MemoryCacheStore {
         Ok(entries.get(path).map(|entry| entry.bytes.clone()))
     }
 
+    fn read_prefix(&self, path: &Path, limit: usize) -> Result<Option<Vec<u8>>, CacheStoreError> {
+        let entries = self.entries.read();
+        let bytes = entries
+            .get(path)
+            .map(|entry| entry.bytes.iter().take(limit).copied().collect());
+
+        Ok(bytes)
+    }
+
     fn write_atomic(&self, path: &Path, bytes: &[u8]) -> Result<(), CacheStoreError> {
         let entry = MemoryCacheEntry {
             bytes: bytes.to_vec(),

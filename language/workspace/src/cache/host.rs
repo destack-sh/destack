@@ -69,6 +69,23 @@ mod disk_impl {
             }
         }
 
+        fn read_prefix(
+            &self,
+            path: &Path,
+            limit: usize,
+        ) -> Result<Option<Vec<u8>>, CacheStoreError> {
+            let mut file = match fs::File::open(path) {
+                Ok(file) => file,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+                Err(error) => return Err(CacheStoreError::Io(error)),
+            };
+            let mut bytes = vec![0; limit];
+            let read_bytes = std::io::Read::read(&mut file, &mut bytes)?;
+            bytes.truncate(read_bytes);
+
+            Ok(Some(bytes))
+        }
+
         fn write_atomic(&self, path: &Path, bytes: &[u8]) -> Result<(), CacheStoreError> {
             // ensure the parent directory exists
             if let Some(parent) = path.parent() {
@@ -215,6 +232,14 @@ mod disk_impl {
         }
 
         fn read(&self, _path: &Path) -> Result<Option<Vec<u8>>, CacheStoreError> {
+            Err(unsupported())
+        }
+
+        fn read_prefix(
+            &self,
+            _path: &Path,
+            _limit: usize,
+        ) -> Result<Option<Vec<u8>>, CacheStoreError> {
             Err(unsupported())
         }
 

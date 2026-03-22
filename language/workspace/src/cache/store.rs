@@ -73,6 +73,9 @@ pub trait CacheStore: std::fmt::Debug + Send + Sync {
     /// Read cache bytes from a path.
     fn read(&self, path: &Path) -> Result<Option<Vec<u8>>, CacheStoreError>;
 
+    /// Read one cache byte prefix from a path.
+    fn read_prefix(&self, path: &Path, limit: usize) -> Result<Option<Vec<u8>>, CacheStoreError>;
+
     /// Write cache bytes using an atomic replace.
     fn write_atomic(&self, path: &Path, bytes: &[u8]) -> Result<(), CacheStoreError>;
 
