@@ -7,13 +7,14 @@ use destack_workspace::{Program, Session, Target};
 use parking_lot::Mutex;
 
 use super::CompilerIndex;
+#[cfg(test)]
+use crate::TaskHandle;
+#[cfg(test)]
+use crate::tests::scenario::CompilerScenarioEvent;
 use crate::{
     ArtifactRequirementCollector, ArtifactRequirementSet, CompileDiagnostic, CompilerEvent,
     CompilerOptions, CompilerStats, TaskError, TaskQueue, TaskWarning,
 };
-
-#[cfg(test)]
-use crate::TaskHandle;
 
 /// Compile files and sources into something (via DIR).
 /// #Architecture: should Compiler be per-target? what about comptime though?
@@ -95,6 +96,15 @@ impl Compiler {
     #[inline]
     pub fn emit_event(&self, event: CompilerEvent) {
         if let Some(handler) = &self.options.event_handler {
+            handler(event);
+        }
+    }
+
+    /// Emit one internal compiler scenario event.
+    #[cfg(test)]
+    #[inline]
+    pub(crate) fn emit_scenario_event(&self, event: CompilerScenarioEvent) {
+        if let Some(handler) = &self.options.scenario_event_handler {
             handler(event);
         }
     }

@@ -1,6 +1,9 @@
 use super::parallel::default_workers as resolve_default_workers;
-use crate::CompilerEventHandler;
 use destack_source::DiagnosticOptions;
+
+use crate::CompilerEventHandler;
+#[cfg(test)]
+use crate::tests::scenario::CompilerScenarioEventHandler;
 
 /// Get the default number of worker threads.
 pub fn default_workers() -> u16 {
@@ -73,6 +76,9 @@ pub struct CompilerOptions {
     /// Optional event handler for progress reporting.
     /// Called for task start/complete/fail events during compilation.
     pub event_handler: Option<CompilerEventHandler>,
+    /// Optional internal scenario event handler for deterministic interleaving tests.
+    #[cfg(test)]
+    pub(crate) scenario_event_handler: Option<CompilerScenarioEventHandler>,
 
     /// Whether to collect detailed timing tags.
     pub timings: bool,
@@ -112,6 +118,8 @@ impl Default for CompilerOptions {
             emit_dry_run: false,
 
             event_handler: None,
+            #[cfg(test)]
+            scenario_event_handler: None,
             timings: false,
             validate_builtin_libs: false,
             verify_mir: true,
@@ -121,7 +129,8 @@ impl Default for CompilerOptions {
 
 impl std::fmt::Debug for CompilerOptions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CompilerOptions")
+        let mut debug = f.debug_struct("CompilerOptions");
+        debug
             .field("diagnostic", &self.diagnostic)
             .field("workers", &self.workers)
             .field("follow_imports", &self.follow_imports)
@@ -157,7 +166,15 @@ impl std::fmt::Debug for CompilerOptions {
             .field("emit_overwrite", &self.emit_overwrite)
             .field("emit_create_dirs", &self.emit_create_dirs)
             .field("emit_dry_run", &self.emit_dry_run)
-            .field("event_handler", &self.event_handler.is_some())
+            .field("event_handler", &self.event_handler.is_some());
+
+        #[cfg(test)]
+        debug.field(
+            "scenario_event_handler",
+            &self.scenario_event_handler.is_some(),
+        );
+
+        debug
             .field("timings", &self.timings)
             .field("validate_builtin_libs", &self.validate_builtin_libs)
             .field("verify_mir", &self.verify_mir)

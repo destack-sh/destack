@@ -1,6 +1,7 @@
 mod assert;
 mod dumper;
 mod resolve;
+pub(crate) mod scenario;
 mod tests;
 mod tracing;
 
