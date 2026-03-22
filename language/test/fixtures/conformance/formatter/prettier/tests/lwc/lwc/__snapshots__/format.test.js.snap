@@ -1,0 +1,112 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`attributes.html - {"semi":false} format 1`] = `
+====================================options=====================================
+parsers: ["lwc"]
+semi: false
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+<template>
+  <div
+    data-for={value}
+    data-for={value[0]}
+    data-for={value.toString()}
+    data-for={value()}
+    class="test"
+  ></div>
+  </template>
+<template if:true={value.error}>
+    <c-error-panel errors={value.error}></c-error-panel>
+</template>
+<a href="#" onclick={aFunction}>
+=====================================output=====================================
+<template>
+  <div
+    data-for={value}
+    data-for={value[0]}
+    data-for={value.toString()}
+    data-for={value()}
+    class="test"
+  ></div>
+</template>
+<template if:true={value.error}>
+  <c-error-panel errors={value.error}></c-error-panel>
+</template>
+<a href="#" onclick={aFunction}></a>
+
+================================================================================
+`;
+
+exports[`attributes.html - {"trailingComma":"es5"} format 1`] = `
+====================================options=====================================
+parsers: ["lwc"]
+trailingComma: "es5"
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+<template>
+  <div
+    data-for={value}
+    data-for={value[0]}
+    data-for={value.toString()}
+    data-for={value()}
+    class="test"
+  ></div>
+  </template>
+<template if:true={value.error}>
+    <c-error-panel errors={value.error}></c-error-panel>
+</template>
+<a href="#" onclick={aFunction}>
+=====================================output=====================================
+<template>
+  <div
+    data-for={value}
+    data-for={value[0]}
+    data-for={value.toString()}
+    data-for={value()}
+    class="test"
+  ></div>
+</template>
+<template if:true={value.error}>
+  <c-error-panel errors={value.error}></c-error-panel>
+</template>
+<a href="#" onclick={aFunction}></a>
+
+================================================================================
+`;
+
+exports[`attributes.html - {"trailingComma":"none"} format 1`] = `
+====================================options=====================================
+parsers: ["lwc"]
+trailingComma: "none"
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+<template>
+  <div
+    data-for={value}
+    data-for={value[0]}
+    data-for={value.toString()}
+    data-for={value()}
+    class="test"
+  ></div>
+  </template>
+<template if:true={value.error}>
+    <c-error-panel errors={value.error}></c-error-panel>
+</template>
+<a href="#" onclick={aFunction}>
+=====================================output=====================================
+<template>
+  <div
+    data-for={value}
+    data-for={value[0]}
+    data-for={value.toString()}
+    data-for={value()}
+    class="test"
+  ></div>
+</template>
+<template if:true={value.error}>
+  <c-error-panel errors={value.error}></c-error-panel>
+</template>
+<a href="#" onclick={aFunction}></a>
+
+================================================================================
+`;

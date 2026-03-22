@@ -1,4 +1,5 @@
 {
+  "$schema": "../../schema/suite.schema.json",
   "id": "web.filesystem-access",
   "domain": "web",
   "suite": "filesystem-access",

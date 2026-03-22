@@ -1,4 +1,5 @@
 {
+  "$schema": "../../schema/suite.schema.json",
   "id": "web.fetch",
   "domain": "web",
   "suite": "fetch",

@@ -34,7 +34,7 @@ struct Args {
 fn main() -> ExitCode {
     let args = Args::parse();
     let mut test_options = args.test;
-    test_options.continue_on_timeout = true;
+    test_options.continue_after_timeout = true;
     let selection = FormatterConformanceSelection {
         prettier: args.prettier,
         oxfmt: args.oxfmt,

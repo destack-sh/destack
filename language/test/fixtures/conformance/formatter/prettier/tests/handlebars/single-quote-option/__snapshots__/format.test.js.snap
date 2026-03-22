@@ -1,0 +1,235 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`arguments.hbs - {"singleQuote":false} format 1`] = `
+====================================options=====================================
+parsers: ["glimmer"]
+singleQuote: false
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+<GlimmerComponent
+  class="medium"
+  @autocomplete="off"
+  @errors={{or this.aProp (and this.bProp (get bike "number" "message"))}}
+/>
+
+<GlimmerComponent
+  class='medium'
+  @autocomplete='off'
+  @errors={{or this.aProp (and this.bProp (get bike 'number' 'message'))}}
+/>
+
+=====================================output=====================================
+<GlimmerComponent
+  class="medium"
+  @autocomplete="off"
+  @errors={{or this.aProp (and this.bProp (get bike "number" "message"))}}
+/>
+
+<GlimmerComponent
+  class="medium"
+  @autocomplete="off"
+  @errors={{or this.aProp (and this.bProp (get bike "number" "message"))}}
+/>
+================================================================================
+`;
+
+exports[`arguments.hbs - {"singleQuote":true} format 1`] = `
+====================================options=====================================
+parsers: ["glimmer"]
+singleQuote: true
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+<GlimmerComponent
+  class="medium"
+  @autocomplete="off"
+  @errors={{or this.aProp (and this.bProp (get bike "number" "message"))}}
+/>
+
+<GlimmerComponent
+  class='medium'
+  @autocomplete='off'
+  @errors={{or this.aProp (and this.bProp (get bike 'number' 'message'))}}
+/>
+
+=====================================output=====================================
+<GlimmerComponent
+  class='medium'
+  @autocomplete='off'
+  @errors={{or this.aProp (and this.bProp (get bike 'number' 'message'))}}
+/>
+
+<GlimmerComponent
+  class='medium'
+  @autocomplete='off'
+  @errors={{or this.aProp (and this.bProp (get bike 'number' 'message'))}}
+/>
+================================================================================
+`;
+
+exports[`attributes.hbs - {"singleQuote":false} format 1`] = `
+====================================options=====================================
+parsers: ["glimmer"]
+singleQuote: false
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+<div title='My title'></div>
+<div title="My title"></div>
+<div title='My "title"'></div>
+<div title="My other 'title'"></div>
+
+<div title="{{t 'my.title'}}" />
+<div title='{{t "my.title"}}' />
+
+<a href="/{{url}}/{{url}}"></a>
+<a href='/{{url}}/{{url}}'></a>
+
+<button class="padding width-{{locales.length}} {{if (has locale) "uk-button-primary"}}"></button>
+<button class="padding width-{{locales.length}} {{if (has locale) 'uk-button-primary'}}"></button>
+<button class='padding width-{{locales.length}} {{if (has locale) "uk-button-primary"}}'></button>
+<button class='padding width-{{locales.length}} {{if (has locale) 'uk-button-primary'}}'></button>
+
+<div class="padding {{if foo (if fooAgain "bar" (if fooAgainAgain "bar" "foo"))}} baz" />
+
+=====================================output=====================================
+<div title="My title"></div>
+<div title="My title"></div>
+<div title='My "title"'></div>
+<div title="My other 'title'"></div>
+
+<div title="{{t 'my.title'}}" />
+<div title="{{t 'my.title'}}" />
+
+<a href="/{{url}}/{{url}}"></a>
+<a href="/{{url}}/{{url}}"></a>
+
+<button
+  class="padding width-{{locales.length}}
+    {{if (has locale) 'uk-button-primary'}}"
+></button>
+<button
+  class="padding width-{{locales.length}}
+    {{if (has locale) 'uk-button-primary'}}"
+></button>
+<button
+  class="padding width-{{locales.length}}
+    {{if (has locale) 'uk-button-primary'}}"
+></button>
+<button
+  class="padding width-{{locales.length}}
+    {{if (has locale) 'uk-button-primary'}}"
+></button>
+
+<div
+  class="padding
+    {{if foo (if fooAgain 'bar' (if fooAgainAgain 'bar' 'foo'))}}
+    baz"
+/>
+================================================================================
+`;
+
+exports[`attributes.hbs - {"singleQuote":true} format 1`] = `
+====================================options=====================================
+parsers: ["glimmer"]
+singleQuote: true
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+<div title='My title'></div>
+<div title="My title"></div>
+<div title='My "title"'></div>
+<div title="My other 'title'"></div>
+
+<div title="{{t 'my.title'}}" />
+<div title='{{t "my.title"}}' />
+
+<a href="/{{url}}/{{url}}"></a>
+<a href='/{{url}}/{{url}}'></a>
+
+<button class="padding width-{{locales.length}} {{if (has locale) "uk-button-primary"}}"></button>
+<button class="padding width-{{locales.length}} {{if (has locale) 'uk-button-primary'}}"></button>
+<button class='padding width-{{locales.length}} {{if (has locale) "uk-button-primary"}}'></button>
+<button class='padding width-{{locales.length}} {{if (has locale) 'uk-button-primary'}}'></button>
+
+<div class="padding {{if foo (if fooAgain "bar" (if fooAgainAgain "bar" "foo"))}} baz" />
+
+=====================================output=====================================
+<div title='My title'></div>
+<div title='My title'></div>
+<div title='My "title"'></div>
+<div title="My other 'title'"></div>
+
+<div title='{{t "my.title"}}' />
+<div title='{{t "my.title"}}' />
+
+<a href='/{{url}}/{{url}}'></a>
+<a href='/{{url}}/{{url}}'></a>
+
+<button
+  class='padding width-{{locales.length}}
+    {{if (has locale) "uk-button-primary"}}'
+></button>
+<button
+  class='padding width-{{locales.length}}
+    {{if (has locale) "uk-button-primary"}}'
+></button>
+<button
+  class='padding width-{{locales.length}}
+    {{if (has locale) "uk-button-primary"}}'
+></button>
+<button
+  class='padding width-{{locales.length}}
+    {{if (has locale) "uk-button-primary"}}'
+></button>
+
+<div
+  class='padding
+    {{if foo (if fooAgain "bar" (if fooAgainAgain "bar" "foo"))}}
+    baz'
+/>
+================================================================================
+`;
+
+exports[`string-literals.hbs - {"singleQuote":false} format 1`] = `
+====================================options=====================================
+parsers: ["glimmer"]
+singleQuote: false
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+{{"abc"}}
+{{'abc'}}
+{{" \\" \\" ' more double quote than single quote "}}
+{{' \\' \\' " more single quote than double quote '}}
+{{' " \\' \\" \\\\ '}}
+{{" \\" \\' ' \\\\ "}}
+
+=====================================output=====================================
+{{"abc"}}
+{{"abc"}}
+{{' " " \\' more double quote than single quote '}}
+{{" ' ' \\" more single quote than double quote "}}
+{{' " \\' \\" \\\\ '}}
+{{" \\" \\' ' \\\\ "}}
+================================================================================
+`;
+
+exports[`string-literals.hbs - {"singleQuote":true} format 1`] = `
+====================================options=====================================
+parsers: ["glimmer"]
+singleQuote: true
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+{{"abc"}}
+{{'abc'}}
+{{" \\" \\" ' more double quote than single quote "}}
+{{' \\' \\' " more single quote than double quote '}}
+{{' " \\' \\" \\\\ '}}
+{{" \\" \\' ' \\\\ "}}
+
+=====================================output=====================================
+{{'abc'}}
+{{'abc'}}
+{{' " " \\' more double quote than single quote '}}
+{{" ' ' \\" more single quote than double quote "}}
+{{' " \\' \\" \\\\ '}}
+{{" \\" \\' ' \\\\ "}}
+================================================================================
+`;

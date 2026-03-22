@@ -1,0 +1,26 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`prettier-ignore-comment.graphql format 1`] = `
+====================================options=====================================
+parsers: ["graphql"]
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+{
+  # prettier-ignore
+  hero {
+       name
+    height
+  }
+}
+
+=====================================output=====================================
+{
+  # prettier-ignore
+  hero {
+       name
+    height
+  }
+}
+
+================================================================================
+`;

@@ -1,0 +1,14 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`typeof-with-type-arguments.js format 1`] = `
+====================================options=====================================
+parsers: ["flow"]
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+type Foo = typeof MyGenericClass<string, number>;
+
+=====================================output=====================================
+type Foo = typeof MyGenericClass<string, number>;
+
+================================================================================
+`;
