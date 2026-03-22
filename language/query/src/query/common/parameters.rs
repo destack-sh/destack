@@ -4,8 +4,8 @@ use destack_dir::{
     Declaration, GlobalSymbolId, LocalNodeId, Member, NodeTree, NodeType, Parameter,
 };
 
-use crate::common::{doc_strings_for_node_or_enclosing, parse_param_docs};
-use destack_workspace::{Ast, Session};
+use crate::common::{AstContext, doc_strings_for_node_or_enclosing, parse_param_docs};
+use destack_workspace::Session;
 
 /// Parameter names and documentation collected from a declaration.
 #[derive(Debug, Clone, Default)]
@@ -94,7 +94,7 @@ pub(crate) fn parameter_data_for_symbol(
             };
 
             let ast_node_id = dir_tree.get_source(declaration_id.id);
-            let docs = parameter_doc_map(&ctx.ast, source, ast_node_id);
+            let docs = parameter_doc_map(ctx.ast_context(), source, ast_node_id);
             let names =
                 dynamic_parameter_display_names(session, dir_tree, &signature.dynamic_parameters);
 
@@ -110,7 +110,7 @@ pub(crate) fn parameter_data_for_symbol(
             };
 
             let ast_node_id = dir_tree.get_source(member_id.id);
-            let docs = parameter_doc_map(&ctx.ast, source, ast_node_id);
+            let docs = parameter_doc_map(ctx.ast_context(), source, ast_node_id);
             let names =
                 dynamic_parameter_display_names(session, dir_tree, &signature.dynamic_parameters);
 
@@ -123,7 +123,7 @@ pub(crate) fn parameter_data_for_symbol(
 
 /// Collect @param documentation from a declaration's doc comments.
 pub(crate) fn parameter_doc_map(
-    ast: &Ast,
+    ast: AstContext<'_>,
     source: &str,
     ast_node_id: u32,
 ) -> HashMap<String, String> {

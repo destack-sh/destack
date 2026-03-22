@@ -238,9 +238,9 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
     // collect top level import expressions in order
     let mut imports: Vec<(Span, String, bool, String)> = Vec::new();
 
-    for expr_id in &ctx.ast.roots {
+    for expr_id in ctx.ast_context().roots() {
         // stop once we hit the first non import expression after imports
-        let expr = ctx.ast.tree.get(*expr_id);
+        let expr = ctx.ast_context().tree().get(*expr_id);
         let target = match expr {
             ast::Expression::Import {
                 source: ast::ImportSource::ImportStatement | ast::ImportSource::ImportEquals,
@@ -249,7 +249,7 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
                 ..
             } => Some((*target, items.is_empty())),
             ast::Expression::Statement(inner_id) => {
-                let inner = ctx.ast.tree.get(*inner_id);
+                let inner = ctx.ast_context().tree().get(*inner_id);
                 if let ast::Expression::Import {
                     source: ast::ImportSource::ImportStatement | ast::ImportSource::ImportEquals,
                     target: ast::ImportTarget::String(target),
@@ -273,7 +273,7 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
         };
 
         // resolve the import span and raw text
-        let span = ctx.ast.tree.source_map.get(expr_id.id);
+        let span = ctx.ast_context().tree().source_map.get(expr_id.id);
         let text = source
             .get(span.start as usize..span.end as usize)
             .unwrap_or("")
@@ -281,7 +281,7 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
             .to_string();
 
         // resolve the import target for sorting
-        let target_text = ctx.ast.strings.get(target).to_string();
+        let target_text = ctx.ast_context().strings().get(target).to_string();
 
         // store the import entry for sorting
         imports.push((span, target_text, is_side_effect, text));

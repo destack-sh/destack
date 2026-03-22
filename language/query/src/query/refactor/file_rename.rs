@@ -124,16 +124,17 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
             dir_targets.insert(source_id, target_module);
         }
 
-        for expr_id in ctx.ast.tree.iter_nodes::<ast::Expression>() {
+        for expr_id in ctx.ast_context().tree().iter_nodes::<ast::Expression>() {
             // resolve the module specifier and dependency kind
-            let expression = ctx.ast.tree.get(expr_id);
-            let Some((target, kind)) = module_specifier_in_expression(&ctx.ast.tree, expression)
+            let expression = ctx.ast_context().tree().get(expr_id);
+            let Some((target, kind)) =
+                module_specifier_in_expression(&ctx.ast_context().tree(), expression)
             else {
                 continue;
             };
 
             // resolve the specifier text
-            let specifier_text = ctx.ast.strings.get(target).to_string();
+            let specifier_text = ctx.ast_context().strings().get(target).to_string();
 
             // resolve the target module id
             let target_module_id = resolve_rename_target_module_id(
@@ -245,11 +246,15 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
             }
 
             // resolve the string literal span for the import target
-            let ast_span = ctx.ast.tree.source_map.get_main_or_enclosing(expr_id.id);
+            let ast_span = ctx
+                .ast_context()
+                .tree()
+                .source_map
+                .get_main_or_enclosing(expr_id.id);
             let enclosing = Span::new(ctx.file_id, ast_span.start, ast_span.end);
             let span = string_literal_span_in_enclosing(
                 &file,
-                &ctx.ast.tokens,
+                &ctx.ast_context().tokens(),
                 enclosing,
                 &specifier_text,
             )

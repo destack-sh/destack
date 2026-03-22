@@ -496,7 +496,7 @@ fn function_parameter_span(session: &Session, symbol_id: dir::GlobalSymbolId) ->
                 return None;
             }
             let source_id = dir_tree.get_source(decl_id.id);
-            ctx.ast.tree.source_map.get(source_id)
+            ctx.ast_context().tree().source_map.get(source_id)
         }
         dir::NodeType::Member => {
             let Ok(member_id) = local_id.try_into() else {
@@ -507,12 +507,12 @@ fn function_parameter_span(session: &Session, symbol_id: dir::GlobalSymbolId) ->
                 return None;
             }
             let source_id = dir_tree.get_source(member_id.id);
-            ctx.ast.tree.source_map.get(source_id)
+            ctx.ast_context().tree().source_map.get(source_id)
         }
         dir::NodeType::Declarator | dir::NodeType::Pattern => {
             let declaration_id = function_declaration_from_binding(dir_tree, local_id)?;
             let source_id = dir_tree.get_source(declaration_id.id);
-            ctx.ast.tree.source_map.get(source_id)
+            ctx.ast_context().tree().source_map.get(source_id)
         }
         _ => return None,
     };
@@ -622,7 +622,7 @@ fn parameter_span_for_node(session: &Session, node_id: dir::GlobalNodeIdAny) -> 
                 return None;
             }
             let source_id = dir_tree.get_source(decl_id.id);
-            let ast_span = ctx.ast.tree.source_map.get(source_id);
+            let ast_span = ctx.ast_context().tree().source_map.get(source_id);
             let full_span = Span::new(ctx.file_id, ast_span.start, ast_span.end);
             find_parenthesis_inner_span(&ctx, full_span)
         }
@@ -635,14 +635,14 @@ fn parameter_span_for_node(session: &Session, node_id: dir::GlobalNodeIdAny) -> 
                 return None;
             }
             let source_id = dir_tree.get_source(member_id.id);
-            let ast_span = ctx.ast.tree.source_map.get(source_id);
+            let ast_span = ctx.ast_context().tree().source_map.get(source_id);
             let full_span = Span::new(ctx.file_id, ast_span.start, ast_span.end);
             find_parenthesis_inner_span(&ctx, full_span)
         }
         dir::NodeType::Declarator | dir::NodeType::Pattern => {
             let decl_id = function_declaration_from_binding(dir_tree, node_id.local_id)?;
             let source_id = dir_tree.get_source(decl_id.id);
-            let ast_span = ctx.ast.tree.source_map.get(source_id);
+            let ast_span = ctx.ast_context().tree().source_map.get(source_id);
             let full_span = Span::new(ctx.file_id, ast_span.start, ast_span.end);
             find_parenthesis_inner_span(&ctx, full_span)
         }
@@ -720,7 +720,7 @@ fn find_parenthesis_inner_span(ctx: &QueryContext<'_>, span: Span) -> Option<Spa
     let mut depth = 0u32;
     let mut start = None;
 
-    for token in &ctx.ast.tokens {
+    for token in ctx.ast_context().tokens() {
         if token.span.file != ctx.file_id {
             continue;
         }

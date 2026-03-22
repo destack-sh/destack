@@ -122,7 +122,11 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
         let source = source_file.text();
 
         // find enclosing AST nodes at the offset
-        let enclosing = ctx.ast.tree.source_map.get_enclosing_spans(offset, offset);
+        let enclosing = ctx
+            .ast_context()
+            .tree()
+            .source_map
+            .get_enclosing_spans(offset, offset);
 
         // bail out when no enclosing spans exist
         if enclosing.is_empty() {
@@ -238,7 +242,7 @@ fn signature_info_for_symbol(
             };
             let ast_node_id = dir_tree.get_source(declaration_id.id);
             let doc_text = doc_text_for_node_without_tags(
-                &ctx.ast,
+                ctx.ast_context(),
                 source,
                 ast_node_id,
                 &["@param", "@return", "@returns"],
@@ -254,7 +258,7 @@ fn signature_info_for_symbol(
             };
             let ast_node_id = dir_tree.get_source(member_id.id);
             let doc_text = doc_text_for_node_without_tags(
-                &ctx.ast,
+                ctx.ast_context(),
                 source,
                 ast_node_id,
                 &["@param", "@return", "@returns"],

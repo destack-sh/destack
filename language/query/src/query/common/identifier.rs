@@ -68,12 +68,14 @@ pub(crate) fn token_span_at_offset(
 
 /// Find the token span that contains the offset.
 fn token_span_at_offset_in_context(ctx: &QueryContext<'_>, offset: u32) -> Option<ast::TokenSpan> {
+    let source = ctx.source_context();
+
     // track the last token starting before the offset
     let mut candidate = None;
 
     // walk tokens in order to find the containing span
-    for token in &ctx.ast.tokens {
-        if token.span.file != ctx.file_id {
+    for token in source.tokens() {
+        if token.span.file != source.file_id {
             continue;
         }
 

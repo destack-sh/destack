@@ -1,8 +1,10 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
 
+use destack_ast as ast;
+use destack_core::StringPool;
 use destack_dir::{self as dir};
-use destack_source::{FileId, ModuleId, ProfileId};
+use destack_source::{FileId, ModuleId, NodeSourceMap, ProfileId};
 use destack_workspace::{Ast, DirAnalyzed, DirResolved, Module, Program, Session};
 
 use super::{get_module_by_file_id, program_for_module};
@@ -31,7 +33,136 @@ pub struct QueryContext<'a> {
     marker: PhantomData<&'a ()>,
 }
 
+/// Source-facing query context.
+#[derive(Debug, Clone, Copy)]
+pub struct SourceContext<'a> {
+    /// The file id for this source view.
+    pub file_id: FileId,
+    /// The module AST carrying source tokens and spans.
+    pub ast: &'a Ast,
+}
+
+impl<'a> SourceContext<'a> {
+    /// Execute a closure with the source text for this file.
+    pub fn with_text<T>(self, session: &Session, f: impl FnOnce(&str) -> T) -> T {
+        let source_file = session.files.get(self.file_id);
+
+        f(source_file.text())
+    }
+
+    /// Return the token stream for this file.
+    pub fn tokens(self) -> &'a [ast::TokenSpan] {
+        &self.ast.tokens
+    }
+
+    /// Return the side token stream for this file.
+    pub fn side_tokens(self) -> &'a [ast::TokenSpan] {
+        &self.ast.side_tokens
+    }
+}
+
+/// Ast-facing query context.
+#[derive(Debug, Clone, Copy)]
+pub struct AstContext<'a> {
+    /// The file id for this ast view.
+    pub file_id: FileId,
+    /// The module AST.
+    pub ast: &'a Ast,
+}
+
+impl<'a> AstContext<'a> {
+    /// Return the AST node tree.
+    pub fn tree(self) -> &'a ast::NodeTree {
+        &self.ast.tree
+    }
+
+    /// Return the AST source map.
+    pub fn source_map(self) -> &'a NodeSourceMap {
+        &self.ast.tree.source_map
+    }
+
+    /// Return the AST parent index.
+    pub fn parents(self) -> &'a ast::NodeParentIndex {
+        &self.ast.parents
+    }
+
+    /// Return the top level AST roots.
+    pub fn roots(self) -> &'a [ast::LocalNodeId<ast::Expression>] {
+        &self.ast.roots
+    }
+
+    /// Return the module string pool.
+    pub fn strings(self) -> &'a StringPool {
+        &self.ast.strings
+    }
+
+    /// Return the main token stream for this file.
+    pub fn tokens(self) -> &'a [ast::TokenSpan] {
+        &self.ast.tokens
+    }
+
+    /// Return the side token stream for this file.
+    pub fn side_tokens(self) -> &'a [ast::TokenSpan] {
+        &self.ast.side_tokens
+    }
+}
+
+/// Dir-facing query context.
+#[derive(Debug, Clone, Copy)]
+pub struct DirContext<'a> {
+    /// The module id for this dir view.
+    pub module_id: ModuleId,
+    /// The analyzed dir surface.
+    pub dir: &'a DirAnalyzed,
+}
+
+impl<'a> DirContext<'a> {
+    /// Return the DIR node tree.
+    pub fn tree(self) -> &'a dir::NodeTree {
+        &self.dir.tree
+    }
+
+    /// Return the DIR symbol table.
+    pub fn symbols(self) -> &'a dir::SymbolTable {
+        &self.dir.symbols
+    }
+
+    /// Return the DIR type table.
+    pub fn types(self) -> &'a dir::TypeTable {
+        &self.dir.types
+    }
+
+    /// Return the top level DIR roots.
+    pub fn roots(self) -> &'a [dir::LocalNodeId<dir::Expression>] {
+        self.dir.roots.as_ref()
+    }
+}
+
 impl<'a> QueryContext<'a> {
+    /// Return the source-facing query context.
+    pub fn source_context(&self) -> SourceContext<'_> {
+        SourceContext {
+            file_id: self.file_id,
+            ast: self.ast.as_ref(),
+        }
+    }
+
+    /// Return the ast-facing query context.
+    pub fn ast_context(&self) -> AstContext<'_> {
+        AstContext {
+            file_id: self.file_id,
+            ast: self.ast.as_ref(),
+        }
+    }
+
+    /// Return the dir-facing query context.
+    pub fn dir_context(&self) -> DirContext<'_> {
+        DirContext {
+            module_id: self.module_id,
+            dir: self.dir.as_ref(),
+        }
+    }
+
     /// Get a read guard on the DIR node tree.
     #[inline]
     pub fn tree(&self) -> &dir::NodeTree {

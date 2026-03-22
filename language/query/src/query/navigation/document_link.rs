@@ -159,7 +159,7 @@ fn document_links_with_dir(session: &Session, file: FileId) -> Option<Vec<Docume
                     let import_path = session.strings.get(*target).to_string();
                     let span = string_literal_span_in_enclosing(
                         &file,
-                        &ctx.ast.tokens,
+                        &ctx.ast_context().tokens(),
                         enclosing,
                         &import_path,
                     )

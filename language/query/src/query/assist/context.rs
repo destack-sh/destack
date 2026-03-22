@@ -138,11 +138,13 @@ fn unknown_context() -> ContextResult {
 
 /// Find the previous non-trivia token before the offset.
 fn previous_significant_token(ctx: &QueryContext<'_>, offset: u32) -> Option<ast::TokenSpan> {
+    let ast = ctx.ast_context();
+
     // track the last token ending before the offset
     let mut candidate = None;
 
     // scan tokens in order for the latest token ending before the offset
-    for token in &ctx.ast.tokens {
+    for token in ast.tokens() {
         if token.span.file != ctx.file_id {
             continue;
         }
@@ -166,11 +168,13 @@ fn previous_significant_token(ctx: &QueryContext<'_>, offset: u32) -> Option<ast
 
 /// Find the token that contains the offset (or ends at it).
 fn token_at_offset(ctx: &QueryContext<'_>, offset: u32) -> Option<ast::TokenSpan> {
+    let ast = ctx.ast_context();
+
     // track the last token starting before the offset
     let mut candidate = None;
 
     // scan tokens until we pass the offset
-    for token in &ctx.ast.tokens {
+    for token in ast.tokens() {
         if token.span.file != ctx.file_id {
             continue;
         }
@@ -273,6 +277,7 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
     let Some(ctx) = crate::query_context(session, module) else {
         return unknown_context();
     };
+    let ast = ctx.ast_context();
 
     // read the source text for this file
     let source_file = session.files.get(ctx.file_id);
@@ -293,7 +298,7 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
         // scan enclosing spans for a member expression at the cursor
         let dir_tree = ctx.tree();
         for enc in &enclosing {
-            let main_span = ctx.ast.tree.source_map.get_main(enc.idx);
+            let main_span = ast.tree().source_map.get_main(enc.idx);
             let is_in_member_name = main_span
                 .map(|span| span.contains(cursor_position))
                 .unwrap_or(true);
@@ -1011,19 +1016,19 @@ fn fallback_type_name_from_receiver_ast(
 ) -> Option<String> {
     let mut best_match = None;
 
-    for declarator_id in ctx.ast.tree.iter_nodes::<ast::Declarator>() {
-        let declarator = ctx.ast.tree.get(declarator_id);
-        let pattern = ctx.ast.tree.get(declarator.pattern);
+    for declarator_id in ctx.ast_context().tree().iter_nodes::<ast::Declarator>() {
+        let declarator = ctx.ast_context().tree().get(declarator_id);
+        let pattern = ctx.ast_context().tree().get(declarator.pattern);
         let ast::Pattern::Binding { name, .. } = pattern else {
             continue;
         };
 
-        let binding_name = ctx.ast.strings.get(*name);
+        let binding_name = ctx.ast_context().strings().get(*name);
         if binding_name != receiver_name {
             continue;
         }
 
-        let declarator_span = ctx.ast.tree.source_map.get(declarator_id.id);
+        let declarator_span = ctx.ast_context().tree().source_map.get(declarator_id.id);
         if declarator_span.file != ctx.file_id || declarator_span.start > receiver_offset {
             continue;
         }
@@ -1058,13 +1063,15 @@ fn nominal_type_name_for_ast_expression(
     ctx: &QueryContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<String> {
-    let expression = ctx.ast.tree.get(expression_id);
+    let expression = ctx.ast_context().tree().get(expression_id);
     match expression {
         ast::Expression::Path { path, .. } => path
             .segments
             .last()
-            .map(|name_id| ctx.ast.strings.get(*name_id).to_string()),
-        ast::Expression::Member { name, .. } => Some(ctx.ast.strings.get(*name).to_string()),
+            .map(|name_id| ctx.ast_context().strings().get(*name_id).to_string()),
+        ast::Expression::Member { name, .. } => {
+            Some(ctx.ast_context().strings().get(*name).to_string())
+        }
         ast::Expression::Instantiation { left, .. }
         | ast::Expression::Call { left, .. }
         | ast::Expression::New { left, .. } => nominal_type_name_for_ast_expression(ctx, *left),
@@ -1136,12 +1143,12 @@ fn detect_type_position(ctx: &QueryContext<'_>, source: &str, offset: u32) -> bo
 
     // check enclosing expressions that are known type expressions
     for enc in &enclosing {
-        if ctx.ast.tree.get_node_type(enc.idx) != ast::NodeType::Expression {
+        if ctx.ast_context().tree().get_node_type(enc.idx) != ast::NodeType::Expression {
             continue;
         }
 
         let expr_id = ast::LocalNodeId::<ast::Expression>::new(enc.idx);
-        let expr = ctx.ast.tree.get(expr_id);
+        let expr = ctx.ast_context().tree().get(expr_id);
 
         if is_type_expression(expr) {
             return true;
@@ -1195,18 +1202,18 @@ fn is_type_declaration_value_position(
 
     // scan enclosing declarations for type values
     for enc in enclosing {
-        if ctx.ast.tree.get_node_type(enc.idx) != ast::NodeType::Declaration {
+        if ctx.ast_context().tree().get_node_type(enc.idx) != ast::NodeType::Declaration {
             continue;
         }
 
         let declaration_id = ast::LocalNodeId::<ast::Declaration>::new(enc.idx);
-        let declaration = ctx.ast.tree.get(declaration_id);
+        let declaration = ctx.ast_context().tree().get(declaration_id);
 
         let ast::Declaration::Type { value, .. } = declaration else {
             continue;
         };
 
-        let span = ctx.ast.tree.source_map.get(value.id);
+        let span = ctx.ast_context().tree().source_map.get(value.id);
         if span.contains(offset) || span.contains(previous_offset) {
             return true;
         }
@@ -1227,20 +1234,20 @@ fn detect_import_context(
 
     // scan enclosing expressions for import nodes under the cursor
     for enc in &enclosing {
-        if ctx.ast.tree.get_node_type(enc.idx) != ast::NodeType::Expression {
+        if ctx.ast_context().tree().get_node_type(enc.idx) != ast::NodeType::Expression {
             continue;
         }
 
         let expr_id = ast::LocalNodeId::<ast::Expression>::new(enc.idx);
-        let expr = ctx.ast.tree.get(expr_id);
+        let expr = ctx.ast_context().tree().get(expr_id);
 
         if !matches!(expr, ast::Expression::Import { .. }) {
             continue;
         }
 
         // resolve the import span and detect path completions inside the string
-        let import_span = ctx.ast.tree.source_map.get(enc.idx);
-        let main_span = ctx.ast.tree.source_map.get_main(enc.idx);
+        let import_span = ctx.ast_context().tree().source_map.get(enc.idx);
+        let main_span = ctx.ast_context().tree().source_map.get_main(enc.idx);
         if let Some(span) = main_span
             && span.contains(offset)
         {
@@ -1263,7 +1270,7 @@ fn detect_import_context(
             };
 
             // resolve the target module from the import specifier
-            let target_specifier = ctx.ast.strings.get(*target).to_string();
+            let target_specifier = ctx.ast_context().strings().get(*target).to_string();
             let target_module = resolve_import_target_module(session, ctx, &target_specifier);
 
             return Some(CompletionContext::ImportClause {
@@ -1579,9 +1586,9 @@ fn find_scope_at_offset(
 
     // fallback: walk AST parents from the innermost node
     if let Some(start_id) = enclosing.first().map(|enc| enc.idx) {
-        for parent_id in ctx.ast.parents.walk_parents_by_id(start_id) {
+        for parent_id in ctx.ast_context().parents().walk_parents_by_id(start_id) {
             let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(parent_id) else {
-                if ctx.ast.tree.get_node_type(parent_id) == ast::NodeType::Declaration {
+                if ctx.ast_context().tree().get_node_type(parent_id) == ast::NodeType::Declaration {
                     let scope_id =
                         find_owned_scope_for_ast_declaration(symbols, dir_tree, parent_id);
                     if let Some(scope_id) = scope_id {
@@ -1686,13 +1693,13 @@ fn detect_object_literal_context(
     // look for object expression
     for enc in &enclosing {
         // skip non expression AST nodes
-        if ctx.ast.tree.get_node_type(enc.idx) != ast::NodeType::Expression {
+        if ctx.ast_context().tree().get_node_type(enc.idx) != ast::NodeType::Expression {
             continue;
         }
 
         // resolve the AST expression node
         let expr_id = ast::LocalNodeId::<ast::Expression>::new(enc.idx);
-        let expr = ctx.ast.tree.get(expr_id);
+        let expr = ctx.ast_context().tree().get(expr_id);
 
         // require an object literal expression
         let ast::Expression::ObjectExpression { properties, .. } = expr else {
@@ -1700,7 +1707,7 @@ fn detect_object_literal_context(
         };
 
         // require a key position inside the object literal
-        if !is_object_literal_key_position(&ctx.ast.tree, properties, offset) {
+        if !is_object_literal_key_position(&ctx.ast_context().tree(), properties, offset) {
             continue;
         }
 
@@ -1888,13 +1895,13 @@ fn detect_object_literal_value_scope(ctx: &QueryContext<'_>, offset: u32) -> Opt
     // scan enclosing expressions to detect object literal value positions
     for enc in &enclosing {
         // skip non expression AST nodes
-        if ctx.ast.tree.get_node_type(enc.idx) != ast::NodeType::Expression {
+        if ctx.ast_context().tree().get_node_type(enc.idx) != ast::NodeType::Expression {
             continue;
         }
 
         // resolve the AST expression node
         let expr_id = ast::LocalNodeId::<ast::Expression>::new(enc.idx);
-        let expr = ctx.ast.tree.get(expr_id);
+        let expr = ctx.ast_context().tree().get(expr_id);
 
         // require an object literal expression
         let ast::Expression::ObjectExpression { properties, .. } = expr else {
@@ -1902,7 +1909,7 @@ fn detect_object_literal_value_scope(ctx: &QueryContext<'_>, offset: u32) -> Opt
         };
 
         // skip key positions inside object literals
-        if is_object_literal_key_position(&ctx.ast.tree, properties, offset) {
+        if is_object_literal_key_position(&ctx.ast_context().tree(), properties, offset) {
             continue;
         }
 
@@ -1997,7 +2004,7 @@ fn new_expression_context_for_span(
     // ensure the cursor is inside the constructor region
     let left_node_id: dir::LocalNodeIdAny = (*left).into();
     let left_source_id = dir_tree.get_source(left_node_id.id);
-    let left_span = ctx.ast.tree.source_map.get(left_source_id);
+    let left_span = ctx.ast_context().tree().source_map.get(left_source_id);
 
     if offset > left_span.end {
         return None;
@@ -2077,8 +2084,8 @@ fn call_argument_context_for_span(
     // compute spans used for argument range checks
     let left_node_id: dir::LocalNodeIdAny = (*left).into();
     let left_source_id = dir_tree.get_source(left_node_id.id);
-    let left_span = ctx.ast.tree.source_map.get(left_source_id);
-    let call_span = ctx.ast.tree.source_map.get(enc.idx);
+    let left_span = ctx.ast_context().tree().source_map.get(left_source_id);
+    let call_span = ctx.ast_context().tree().source_map.get(enc.idx);
 
     // ensure the cursor is within the argument list
     if !cursor_in_argument_list(
@@ -2161,13 +2168,13 @@ fn statement_position_from_block(ctx: &QueryContext<'_>, offset: u32) -> Option<
 /// Check whether the cursor is in a statement gap within a block.
 fn statement_gap_in_block(ctx: &QueryContext<'_>, enc: &EnclosingSpan, offset: u32) -> bool {
     // only consider block nodes
-    if ctx.ast.tree.get_node_type(enc.idx) != ast::NodeType::Block {
+    if ctx.ast_context().tree().get_node_type(enc.idx) != ast::NodeType::Block {
         return false;
     }
 
     // resolve the block node
     let block_id = ast::LocalNodeId::<ast::Block>::new(enc.idx);
-    let block = ctx.ast.tree.get(block_id);
+    let block = ctx.ast_context().tree().get(block_id);
 
     // treat empty blocks as statement positions
     if block.expressions.is_empty() {
@@ -2176,7 +2183,7 @@ fn statement_gap_in_block(ctx: &QueryContext<'_>, enc: &EnclosingSpan, offset: u
 
     // check whether the cursor is inside any expression span
     for expr_id in &block.expressions {
-        let span = ctx.ast.tree.source_map.get(expr_id.id);
+        let span = ctx.ast_context().tree().source_map.get(expr_id.id);
         if span.contains(offset) {
             return false;
         }
@@ -2441,8 +2448,8 @@ fn import_clause_info(
     let mut in_item_kind = None;
 
     for item_id in items {
-        let item = ctx.ast.tree.get(*item_id);
-        let span = ctx.ast.tree.source_map.get(item_id.id);
+        let item = ctx.ast_context().tree().get(*item_id);
+        let span = ctx.ast_context().tree().source_map.get(item_id.id);
 
         if span.contains(offset) {
             in_item_kind = item.kind;
@@ -2450,10 +2457,15 @@ fn import_clause_info(
         }
 
         if let Some(name_id) = item.name {
-            existing_names.push(ctx.ast.strings.get(name_id.string()).to_string());
+            existing_names.push(
+                ctx.ast_context()
+                    .strings()
+                    .get(name_id.string())
+                    .to_string(),
+            );
         }
         if let Some(alias_id) = item.alias {
-            existing_names.push(ctx.ast.strings.get(alias_id).to_string());
+            existing_names.push(ctx.ast_context().strings().get(alias_id).to_string());
         }
     }
 
@@ -2507,12 +2519,12 @@ fn is_inside_object_literal_expression(ctx: &QueryContext<'_>, offset: u32) -> b
 
     // scan enclosing expressions for object literal nodes
     for enc in &enclosing {
-        if ctx.ast.tree.get_node_type(enc.idx) != ast::NodeType::Expression {
+        if ctx.ast_context().tree().get_node_type(enc.idx) != ast::NodeType::Expression {
             continue;
         }
 
         let expr_id = ast::LocalNodeId::<ast::Expression>::new(enc.idx);
-        let expr = ctx.ast.tree.get(expr_id);
+        let expr = ctx.ast_context().tree().get(expr_id);
 
         let ast::Expression::ObjectExpression { .. } = expr else {
             continue;

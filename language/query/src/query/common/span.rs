@@ -2,11 +2,11 @@ use std::collections::HashSet;
 use std::panic;
 use std::sync::Arc;
 
-use super::QueryContext;
+use super::{AstContext, DirContext, QueryContext};
 use destack_ast as ast;
 use destack_dir::{self as dir, LocalNodeIdAny};
 use destack_source::{EnclosingSpan, File, FileId, Span};
-use destack_workspace::{Ast, DirAnalyzed, Module, Session};
+use destack_workspace::{Module, Session};
 
 /// Get a module by FileId.
 pub fn get_module_by_file_id(session: &Session, file_id: FileId) -> Option<Arc<Module>> {
@@ -15,29 +15,29 @@ pub fn get_module_by_file_id(session: &Session, file_id: FileId) -> Option<Arc<M
 
 /// Get the span of a DIR node by mapping through AST source map.
 pub fn get_dir_node_span(
-    ast: &Ast,
-    dir: &DirAnalyzed,
+    ast: AstContext<'_>,
+    dir: DirContext<'_>,
     dir_node_id: LocalNodeIdAny,
 ) -> Option<Span> {
     // get the AST node id from the DIR node
-    let ast_node_id = dir.tree.get_source(dir_node_id.id);
+    let ast_node_id = dir.tree().get_source(dir_node_id.id);
 
     // get the span from AST source map
-    Some(ast.tree.source_map.get(ast_node_id))
+    Some(ast.source_map().get(ast_node_id))
 }
 
 /// Get the main span of a DIR node (e.g., identifier for declarations).
 /// Falls back to full span if no main span is set.
 pub fn get_dir_node_main_span(
-    ast: &Ast,
-    dir: &DirAnalyzed,
+    ast: AstContext<'_>,
+    dir: DirContext<'_>,
     dir_node_id: LocalNodeIdAny,
 ) -> Option<Span> {
     // get the AST node id from the DIR node
-    let ast_node_id = dir.tree.get_source(dir_node_id.id);
+    let ast_node_id = dir.tree().get_source(dir_node_id.id);
 
     // try to get the main span first (e.g., identifier span for declarations)
-    Some(ast.tree.source_map.get_main_or_enclosing(ast_node_id))
+    Some(ast.source_map().get_main_or_enclosing(ast_node_id))
 }
 
 /// Resolve the span for a DIR node within a query context.
@@ -46,11 +46,13 @@ pub(crate) fn span_for_dir_node(
     dir_tree: &dir::NodeTree,
     node_id: LocalNodeIdAny,
 ) -> Span {
+    let ast = ctx.ast_context();
+
     // resolve the source span for the node
     let source_id = dir_tree.get_source(node_id.id);
-    let ast_span = ctx.ast.tree.source_map.get(source_id);
+    let ast_span = ast.source_map().get(source_id);
 
-    Span::new(ctx.file_id, ast_span.start, ast_span.end)
+    Span::new(ast.file_id, ast_span.start, ast_span.end)
 }
 
 /// Resolve the main span for a DIR node when available
@@ -59,11 +61,13 @@ pub(crate) fn main_span_for_dir_node(
     dir_tree: &dir::NodeTree,
     node_id: LocalNodeIdAny,
 ) -> Option<Span> {
+    let ast = ctx.ast_context();
+
     // resolve the source span for the node
     let source_id = dir_tree.get_source(node_id.id);
-    let ast_span = ctx.ast.tree.source_map.get_main(source_id)?;
+    let ast_span = ast.source_map().get_main(source_id)?;
 
-    Some(Span::new(ctx.file_id, ast_span.start, ast_span.end))
+    Some(Span::new(ast.file_id, ast_span.start, ast_span.end))
 }
 
 /// Resolve the main or enclosing span for a DIR node
@@ -72,11 +76,13 @@ pub fn main_or_enclosing_span_for_dir_node(
     dir_tree: &dir::NodeTree,
     node_id: LocalNodeIdAny,
 ) -> Span {
+    let ast = ctx.ast_context();
+
     // resolve the source span for the node
     let source_id = dir_tree.get_source(node_id.id);
-    let ast_span = ctx.ast.tree.source_map.get_main_or_enclosing(source_id);
+    let ast_span = ast.source_map().get_main_or_enclosing(source_id);
 
-    Span::new(ctx.file_id, ast_span.start, ast_span.end)
+    Span::new(ast.file_id, ast_span.start, ast_span.end)
 }
 
 /// Resolve the span for a DIR node and guard against panics
@@ -85,16 +91,18 @@ pub(crate) fn span_for_dir_node_safe(
     dir_tree: &dir::NodeTree,
     node_id: u32,
 ) -> Option<Span> {
+    let ast = ctx.ast_context();
+
     // resolve the ast node id and guard source map access
     let ast_node_id = dir_tree.get_source(node_id);
     let full_span = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-        ctx.ast.tree.source_map.get(ast_node_id)
+        ast.source_map().get(ast_node_id)
     }));
     let Ok(full_span) = full_span else {
         return None;
     };
 
-    Some(Span::new(ctx.file_id, full_span.start, full_span.end))
+    Some(Span::new(ast.file_id, full_span.start, full_span.end))
 }
 
 /// Check whether a span fully contains another span
@@ -153,8 +161,10 @@ pub(crate) fn sorted_enclosing_spans(
     start: u32,
     end: u32,
 ) -> Vec<EnclosingSpan> {
+    let ast = ctx.ast_context();
+
     // collect enclosing spans from the source map
-    let mut enclosing = ctx.ast.tree.source_map.get_enclosing_spans(start, end);
+    let mut enclosing = ast.source_map().get_enclosing_spans(start, end);
 
     // sort by span length so innermost spans come first
     enclosing.sort_by_key(|span| span.length);
@@ -167,16 +177,16 @@ pub(crate) fn enclosing_spans_with_previous(
     ctx: &QueryContext<'_>,
     offset: u32,
 ) -> Vec<EnclosingSpan> {
+    let ast = ctx.ast_context();
+
     // collect enclosing spans at the cursor position
-    let mut enclosing = ctx.ast.tree.source_map.get_enclosing_spans(offset, offset);
+    let mut enclosing = ast.source_map().get_enclosing_spans(offset, offset);
 
     // include enclosing spans at the previous byte for boundary cases
     if offset > 0 {
         let previous_offset = offset - 1;
-        let mut previous = ctx
-            .ast
-            .tree
-            .source_map
+        let mut previous = ast
+            .source_map()
             .get_enclosing_spans(previous_offset, previous_offset);
         enclosing.append(&mut previous);
     }

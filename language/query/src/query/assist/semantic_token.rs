@@ -190,7 +190,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
     // collect parameter tokens
     for (parameter_id, parameter) in dir_tree.iter_nodes_of_type::<dir::Parameter>() {
         let ast_node_id = dir_tree.get_source(parameter_id.id);
-        let span = ctx.ast.tree.get_span_by_id(ast_node_id);
+        let span = ctx.ast_context().tree().get_span_by_id(ast_node_id);
 
         // for parameters, try to get just the name span if available
         let name_span = ctx
@@ -316,7 +316,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
     // collect expression tokens (references, literals, etc.)
     for (expression_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
         let ast_node_id = dir_tree.get_source(expression_id.id);
-        let span = ctx.ast.tree.get_span_by_id(ast_node_id);
+        let span = ctx.ast_context().tree().get_span_by_id(ast_node_id);
 
         match expression {
             // symbol references - look up the symbol to determine type
@@ -515,7 +515,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
     // collect annotation tokens (decorators, docs)
     for (annotation_id, annotation) in dir_tree.iter_nodes_of_type::<dir::Annotation>() {
         let ast_node_id = dir_tree.get_source(annotation_id.id);
-        let span = ctx.ast.tree.get_span_by_id(ast_node_id);
+        let span = ctx.ast_context().tree().get_span_by_id(ast_node_id);
 
         match annotation {
             dir::Annotation::Decorator { .. } => {

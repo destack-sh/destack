@@ -36,6 +36,8 @@ pub(crate) fn import_clause_brace_span(
     import_span: Span,
     target_span: Option<Span>,
 ) -> Option<(Span, Span)> {
+    let source = ctx.source_context();
+
     // resolve the limit before the target string
     let target_limit = target_span
         .map(|span| span.start)
@@ -46,8 +48,8 @@ pub(crate) fn import_clause_brace_span(
     let mut close_brace = None;
 
     // scan tokens inside the import span
-    for token in &ctx.ast.tokens {
-        if token.span.file != ctx.file_id {
+    for token in source.tokens() {
+        if token.span.file != source.file_id {
             continue;
         }
 
@@ -346,8 +348,8 @@ pub fn collect_existing_imports(session: &Session, file_id: FileId) -> Vec<Exist
     let mut imports = Vec::new();
 
     // iterate over import expressions in the AST
-    for node_id in ctx.ast.tree.iter_nodes::<Expression>() {
-        let expr = ctx.ast.tree.get(node_id);
+    for node_id in ctx.ast_context().tree().iter_nodes::<Expression>() {
+        let expr = ctx.ast_context().tree().get(node_id);
 
         if let Expression::Import {
             target,
@@ -361,13 +363,13 @@ pub fn collect_existing_imports(session: &Session, file_id: FileId) -> Vec<Exist
             };
 
             // resolve import path, span, and kind
-            let path = ctx.ast.strings.get(*target).to_string();
-            let span = ctx.ast.tree.source_map.get(node_id.id);
+            let path = ctx.ast_context().strings().get(*target).to_string();
+            let span = ctx.ast_context().tree().source_map.get(node_id.id);
             let is_type_only = *kind == DependencyKind::Type;
 
             // check if it's a namespace import
             let is_namespace = items.iter().any(|item_id| {
-                let item = ctx.ast.tree.get(*item_id);
+                let item = ctx.ast_context().tree().get(*item_id);
                 item.mode == DependencyMode::Namespace
             });
 
@@ -375,19 +377,19 @@ pub fn collect_existing_imports(session: &Session, file_id: FileId) -> Vec<Exist
             let specifiers: Vec<String> = items
                 .iter()
                 .filter_map(|item_id| {
-                    let item = ctx.ast.tree.get(*item_id);
+                    let item = ctx.ast_context().tree().get(*item_id);
                     if item.mode == DependencyMode::Namespace {
                         return None;
                     }
                     // use alias if present, otherwise name
                     item.alias
                         .or(item.name.map(|name| name.string()))
-                        .map(|id| ctx.ast.strings.get(id).to_string())
+                        .map(|id| ctx.ast_context().strings().get(id).to_string())
                 })
                 .collect();
 
             // find closing brace position by scanning tokens
-            let target_span = ctx.ast.tree.source_map.get_main(node_id.id);
+            let target_span = ctx.ast_context().tree().source_map.get_main(node_id.id);
             let closing_brace_pos = if is_namespace {
                 None
             } else {

@@ -3,12 +3,14 @@ use std::collections::HashMap;
 use destack_ast::{AnnotationPosition, Doc};
 use destack_dir as dir;
 
-use destack_workspace::{Ast, Session};
+use destack_workspace::Session;
+
+use super::AstContext;
 
 /// Collect documentation strings attached to a node.
-pub(crate) fn doc_strings_for_node(ast: &Ast, node_id: u32) -> Vec<String> {
+pub(crate) fn doc_strings_for_node(ast: AstContext<'_>, node_id: u32) -> Vec<String> {
     // get doc annotations attached to this AST node
-    let docs = ast.tree.get_docs_for(node_id);
+    let docs = ast.tree().get_docs_for(node_id);
 
     // bail when there are no docs
     if docs.is_empty() {
@@ -24,15 +26,15 @@ pub(crate) fn doc_strings_for_node(ast: &Ast, node_id: u32) -> Vec<String> {
             )
         })
         .map(|(doc_id, _)| {
-            let doc = ast.tree.get::<Doc>(doc_id);
-            ast.strings.get(doc.string).to_string()
+            let doc = ast.tree().get::<Doc>(doc_id);
+            ast.strings().get(doc.string).to_string()
         })
         .collect()
 }
 
 /// Collect documentation strings attached to a node or immediate line docs.
 pub(crate) fn doc_strings_for_node_with_fallback(
-    ast: &Ast,
+    ast: AstContext<'_>,
     source: &str,
     node_id: u32,
 ) -> Vec<String> {
@@ -41,7 +43,7 @@ pub(crate) fn doc_strings_for_node_with_fallback(
 
     // fall back to line docs when AST docs are missing
     if doc_strings.is_empty() {
-        let span = ast.tree.source_map.get_main_or_enclosing(node_id);
+        let span = ast.source_map().get_main_or_enclosing(node_id);
         doc_strings = line_doc_strings_before_span(source, span.start);
     }
 
@@ -51,7 +53,7 @@ pub(crate) fn doc_strings_for_node_with_fallback(
 
 /// Collect documentation strings from a node or enclosing nodes.
 pub(crate) fn doc_strings_for_node_or_enclosing(
-    ast: &Ast,
+    ast: AstContext<'_>,
     source: &str,
     node_id: u32,
 ) -> Vec<String> {
@@ -60,10 +62,9 @@ pub(crate) fn doc_strings_for_node_or_enclosing(
 
     // fall back to enclosing nodes when no docs are attached
     if doc_strings.is_empty() {
-        let span = ast.tree.source_map.get_main_or_enclosing(node_id);
+        let span = ast.source_map().get_main_or_enclosing(node_id);
         let mut enclosing = ast
-            .tree
-            .source_map
+            .source_map()
             .get_enclosing_spans(span.start, span.end.saturating_sub(1));
 
         // check innermost nodes first
@@ -81,7 +82,7 @@ pub(crate) fn doc_strings_for_node_or_enclosing(
 
     // fall back to line docs from source when AST docs are missing
     if doc_strings.is_empty() {
-        let span = ast.tree.source_map.get_main_or_enclosing(node_id);
+        let span = ast.source_map().get_main_or_enclosing(node_id);
         doc_strings = line_doc_strings_before_span(source, span.start);
     }
 
@@ -113,7 +114,7 @@ pub(crate) fn doc_text_for_symbol(
     let source = source_file.text();
 
     // collect docs from the declaration or its enclosing wrapper nodes
-    let doc_strings = doc_strings_for_node_or_enclosing(&ctx.ast, source, ast_node_id);
+    let doc_strings = doc_strings_for_node_or_enclosing(ctx.ast_context(), source, ast_node_id);
     if doc_strings.is_empty() {
         return None;
     }
@@ -123,7 +124,7 @@ pub(crate) fn doc_text_for_symbol(
 
 /// Join documentation strings with tag lines removed.
 pub(crate) fn doc_text_for_node_without_tags(
-    ast: &Ast,
+    ast: AstContext<'_>,
     source: &str,
     node_id: u32,
     tags: &[&str],
