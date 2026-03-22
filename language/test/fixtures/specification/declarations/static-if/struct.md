@@ -10,10 +10,10 @@ Tests for static if gating on struct members.
 
 ```ds
 struct Point {
-    @if(import.meta.output == "js" && import.meta.output == "native")
+    @if(import.meta.emit == "js" && import.meta.emit == "native")
     missing: MissingType;
 
-    @if(import.meta.output == "js" && import.meta.output == "native")
+    @if(import.meta.emit == "js" && import.meta.emit == "native")
     missingMethod(): MissingType {
         return missingSymbol;
     }

@@ -5,11 +5,11 @@
 	"include": ["src/**/*"],
 	"targets": {
 		"js": {
-			"output": "js",
+			"emit": "js",
 			"outDir": "dist/js"
 		},
 		"ts": {
-			"output": "ts",
+			"emit": "ts",
 			"outDir": "dist/ts"
 		}
 	}

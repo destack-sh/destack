@@ -108,7 +108,7 @@ fn parse_language_tag(language: &str) -> ParsedLanguageTag<'_> {
 fn normalize_test_option_key(key: &str) -> Option<&'static str> {
     match key {
         "lib" | "libs" => Some("libs"),
-        "output" | "format" => Some("output"),
+        "emit" | "format" => Some("emit"),
         "runtime" => Some("runtime"),
         "runtime_version" | "runtime-version" | "runtimeVersion" => Some("runtime_version"),
         "platform" => Some("platform"),
@@ -701,7 +701,7 @@ p.$0
 
 ### Case
 
-```ds libs=es2024,dom output=native line-width=40
+```ds libs=es2024,dom emit=native line-width=40
 const x = 1
 ```
 "#;
@@ -712,13 +712,13 @@ const x = 1
             tests[0].options.get("libs"),
             Some(&"es2024,dom".to_string())
         );
-        assert_eq!(tests[0].options.get("output"), Some(&"native".to_string()));
+        assert_eq!(tests[0].options.get("emit"), Some(&"native".to_string()));
         assert_eq!(
             tests[0].files[0].options.get("line-width"),
             Some(&"40".to_string())
         );
         assert!(!tests[0].files[0].options.contains_key("libs"));
-        assert!(!tests[0].files[0].options.contains_key("output"));
+        assert!(!tests[0].files[0].options.contains_key("emit"));
     }
 
     /// Reject conflicting test options across code blocks.

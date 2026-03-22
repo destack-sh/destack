@@ -75,7 +75,7 @@ fn emit_targets(label: &str, targets: &[CommandInfoTarget]) {
 
     for target in targets {
         console::info(&format!("{label}: {}", target.name));
-        console::info(&format!("  output: {}", target.output));
+        console::info(&format!("  emit: {}", target.emit));
         console::info(&format!("  runtime: {}", target.runtime));
         console::info(&format!("  platform: {}", target.platform));
         console::info(&format!("  out_dir: {}", target.out_dir));

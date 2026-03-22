@@ -10,7 +10,7 @@ Tests for static if gating on enum fields.
 
 ```ds
 enum Status {
-    @if(import.meta.output == "js" && import.meta.output == "native")
+    @if(import.meta.emit == "js" && import.meta.emit == "native")
     Missing = missingSymbol,
     Visible = 1,
 }

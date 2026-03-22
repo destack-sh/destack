@@ -9,7 +9,7 @@ Tests for static if gating on declarations.
 > Declarations with false static if conditions are removed before resolution.
 
 ```ds
-@if(import.meta.output == "js" && import.meta.output == "native")
+@if(import.meta.emit == "js" && import.meta.emit == "native")
 const hidden = missingSymbol;
 
 const visible = 1;
@@ -31,7 +31,7 @@ value satisfies number;
 > Gated function declarations are removed before resolution.
 
 ```ds
-@if(import.meta.output == "js" && import.meta.output == "native")
+@if(import.meta.emit == "js" && import.meta.emit == "native")
 function hidden(): MissingType {
     return missingSymbol;
 }
@@ -60,7 +60,7 @@ total satisfies number;
 > Gated type aliases are removed before resolution.
 
 ```ds
-@if(import.meta.output == "js" && import.meta.output == "native")
+@if(import.meta.emit == "js" && import.meta.emit == "native")
 type Hidden = MissingType;
 
 type Visible = number;
@@ -83,7 +83,7 @@ value satisfies number;
 > Multiple @if decorators combine with logical and semantics.
 
 ```ds
-@if(import.meta.output == "js")
-@if(import.meta.output == "native")
+@if(import.meta.emit == "js")
+@if(import.meta.emit == "native")
 const combined = missingSymbol;
 ```

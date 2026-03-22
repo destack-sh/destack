@@ -27,8 +27,8 @@ pub struct CommandInfoWorkspace {
 pub struct CommandInfoTarget {
     /// Target name.
     pub name: String,
-    /// Target output format.
-    pub output: String,
+    /// Target emit format.
+    pub emit: String,
     /// Target runtime.
     pub runtime: String,
     /// Target platform.
@@ -93,7 +93,7 @@ impl CommandContext<'_> {
                 .iter()
                 .map(|(name, target)| CommandInfoTarget {
                     name: name.clone(),
-                    output: format!("{:?}", target.output),
+                    emit: format!("{:?}", target.emit),
                     runtime: format!("{:?}", target.runtime),
                     platform: format!("{:?}", target.platform),
                     out_dir: target.out_dir.display().to_string(),
@@ -117,7 +117,7 @@ impl CommandContext<'_> {
                         .iter()
                         .map(|(name, target)| CommandInfoTarget {
                             name: name.clone(),
-                            output: format!("{:?}", target.output),
+                            emit: format!("{:?}", target.emit),
                             runtime: format!("{:?}", target.runtime),
                             platform: format!("{:?}", target.platform),
                             out_dir: target.out_dir.display().to_string(),

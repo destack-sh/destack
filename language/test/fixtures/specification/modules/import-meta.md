@@ -4,13 +4,13 @@
 
 Tests for module metadata available via `import.meta`.
 
-### output is a known union
+### emit is a known union
 
-> `import.meta.output` returns the output format for the profile.
+> `import.meta.emit` returns the emit format for the profile.
 
 ```ds
-const output = import.meta.output;
-output satisfies "js" | "ts" | "wasm" | "native";
+const emit = import.meta.emit;
+emit satisfies "js" | "ts" | "html" | "wasm" | "native";
 ```
 
 ### runtime is a known union

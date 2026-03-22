@@ -1,6 +1,7 @@
 use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use destack_compiler::{Compiler, CompilerOptions, ImportError, ResolveMode};
 use destack_parser::{Parser, ParserSettings};
@@ -8,10 +9,9 @@ use destack_source::{
     DiagnosticSeverity, File, FileId, FileType, LanguageType, MemoryFileSystem, ModuleId, Uri,
 };
 use destack_workspace::{
-    ArtifactKey, Destack, DestackOptions, OutputFormat, Program, Session, TargetId, TargetOptions,
+    ArtifactKey, Destack, DestackOptions, EmitFormat, MemoryCacheStore, Program, Session, TargetId,
+    TargetOptions,
 };
-
-use crate::core::SharedMemoryWorkspace;
 
 /// Outcome of checking a file for conformance testing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -134,25 +134,39 @@ pub(super) struct ParseOptions {
 
 #[derive(Debug)]
 struct SharedConformanceEnvironment {
-    /// The shared in memory workspace.
-    workspace: SharedMemoryWorkspace,
+    /// The shared test session.
+    session: Arc<Session>,
+    /// The shared in-memory file system.
+    fs: Arc<MemoryFileSystem>,
+    /// The next unique test id.
+    next_id: AtomicUsize,
 }
 
 impl SharedConformanceEnvironment {
     /// Create a new shared environment for conformance tests.
     fn new() -> Self {
+        let fs = Arc::new(MemoryFileSystem::new());
+        let cwd = PathBuf::from("/test/parser/conformance");
+        let session = Arc::new(
+            Session::new(cwd.clone())
+                .with_fs(fs.clone())
+                .with_cache_store(Arc::new(MemoryCacheStore::new())),
+        );
         Self {
-            workspace: SharedMemoryWorkspace::new("/test/conformance/ecma"),
+            session,
+            fs,
+            next_id: AtomicUsize::new(0),
         }
     }
 
     /// Allocate a unique root directory for a test case.
     fn root_for(&self, path: &Path) -> PathBuf {
+        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let stem = path
             .file_stem()
             .and_then(|name| name.to_str())
             .unwrap_or("case");
-        self.workspace.allocate_root(stem)
+        PathBuf::from("/test/parser/conformance").join(format!("{stem}-{id}"))
     }
 
     /// Build a synthetic file path for a test case.
@@ -162,16 +176,6 @@ impl SharedConformanceEnvironment {
             .and_then(|name| name.to_str())
             .unwrap_or("case.js");
         root.join(name)
-    }
-
-    /// Return the shared session.
-    fn session(&self) -> Arc<Session> {
-        self.workspace.session()
-    }
-
-    /// Return the shared file system.
-    fn fs(&self) -> Arc<MemoryFileSystem> {
-        self.workspace.fs()
     }
 }
 
@@ -258,7 +262,7 @@ fn apply_default_destack_config(program: &Program, module_id: ModuleId, root: &P
     options.compiler.check_ts = true;
     options.compiler.check_js = true;
     let target = TargetOptions {
-        output: OutputFormat::Js,
+        emit: EmitFormat::Js,
         ..Default::default()
     };
     options.targets.insert("default".to_string(), target);
@@ -299,10 +303,10 @@ fn parse_file_with_compiler(
         // allocate a fresh test root and file path
         let root = env.root_for(path);
         let file_path = env.file_for(&root, path);
-        let session = env.session();
+        let session = env.session.clone();
         let program = session.add_root(root.clone());
 
-        env.fs()
+        env.fs
             .add_file(&file_path, content.as_bytes())
             .expect("failed to add test file");
 

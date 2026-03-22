@@ -23,7 +23,7 @@ value;
     "noAny": false
   },
   "targets": {
-    "native": { "output": "native" }
+    "native": { "emit": "native" }
   },
   "defaultTarget": "native"
 }
@@ -50,7 +50,7 @@ value;
     "noImprecisePrimitives": false
   },
   "targets": {
-    "native": { "output": "native" }
+    "native": { "emit": "native" }
   },
   "defaultTarget": "native"
 }
@@ -77,7 +77,7 @@ value;
     "noImplicitConversions": false
   },
   "targets": {
-    "native": { "output": "native" }
+    "native": { "emit": "native" }
   },
   "defaultTarget": "native"
 }
@@ -105,7 +105,7 @@ cast;
     "noUnsafeTypeAssertions": false
   },
   "targets": {
-    "native": { "output": "native" }
+    "native": { "emit": "native" }
   },
   "defaultTarget": "native"
 }
@@ -137,7 +137,7 @@ value;
     "noManaged": false
   },
   "targets": {
-    "native": { "output": "native" }
+    "native": { "emit": "native" }
   },
   "defaultTarget": "native"
 }
@@ -166,7 +166,7 @@ value;
     "noAny": false
   },
   "targets": {
-    "wasm": { "output": "wasm" }
+    "wasm": { "emit": "wasm" }
   },
   "defaultTarget": "wasm"
 }

@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::Path;
 
-use destack_compiler::{Compiler};
+use destack_compiler::Compiler;
 use destack_source::{Diagnostic, DiagnosticStoreUpdate, FileId, ModuleId};
 use destack_workspace::{ArtifactKey, InvalidationKind, InvalidationPlan, Program};
 
@@ -47,9 +47,7 @@ impl LanguageService {
 
         // enqueue and run the module analysis task
         let profile_id = program.default_profile_id_for_module(module_id);
-        compiler.enqueue(ArtifactKey::dir_analyzed(
-            module_id, profile_id,
-        ));
+        compiler.enqueue(ArtifactKey::dir_analyzed(module_id, profile_id));
         compiler.compile();
 
         // group fresh diagnostics by file id
@@ -232,9 +230,7 @@ impl LanguageService {
         if !module_ids.is_empty() {
             for module_id in &module_ids {
                 let profile = program.default_profile_id_for_module(*module_id);
-                compiler.enqueue(ArtifactKey::dir_analyzed(
-                    *module_id, profile,
-                ));
+                compiler.enqueue(ArtifactKey::dir_analyzed(*module_id, profile));
             }
             compiler.compile();
 
@@ -302,9 +298,7 @@ impl LanguageService {
                 }
 
                 if queued.insert((module_id, profile_id)) {
-                    resolve_tasks.push(ArtifactKey::dir_resolved(
-                        module_id, profile_id,
-                    ));
+                    resolve_tasks.push(ArtifactKey::dir_resolved(module_id, profile_id));
                 }
 
                 continue;
@@ -320,9 +314,7 @@ impl LanguageService {
                 }
 
                 if queued.insert((module.id, profile_id)) {
-                    resolve_tasks.push(ArtifactKey::dir_resolved(
-                        module.id, profile_id,
-                    ));
+                    resolve_tasks.push(ArtifactKey::dir_resolved(module.id, profile_id));
                 }
             }
         }

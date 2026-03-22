@@ -10,25 +10,25 @@ Tests for static if gating on class members.
 
 ```ds
 class Box {
-    @if(import.meta.output == "js" && import.meta.output == "native")
+    @if(import.meta.emit == "js" && import.meta.emit == "native")
     missing: MissingType;
 
-    @if(import.meta.output == "js" && import.meta.output == "native")
+    @if(import.meta.emit == "js" && import.meta.emit == "native")
     missingMethod(): MissingType {
         return missingSymbol;
     }
 
-    @if(import.meta.output == "js" && import.meta.output == "native")
+    @if(import.meta.emit == "js" && import.meta.emit == "native")
     get missingAccessor(): MissingType {
         return missingSymbol;
     }
 
-    @if(import.meta.output == "js" && import.meta.output == "native")
+    @if(import.meta.emit == "js" && import.meta.emit == "native")
     set missingSetter(value: MissingType) {
         missingSymbol;
     }
 
-    @if(import.meta.output == "js" && import.meta.output == "native")
+    @if(import.meta.emit == "js" && import.meta.emit == "native")
     static missingStatic(): MissingType {
         return missingSymbol;
     }

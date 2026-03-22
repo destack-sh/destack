@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use destack_source::{DiagnosticOptions, FileType};
 use destack_workspace::{
-    DebugInfoLevel, EmitArtifact, LinkMode, LtoMode, OptimizeLevel, OutputFormat, Platform,
-    Runtime, RuntimeOptionsJson, StripLevel, Target,
+    DebugInfoLevel, EmitArtifact, EmitFormat, LinkMode, LtoMode, OptimizeLevel, Platform, Runtime,
+    RuntimeOptionsJson, StripLevel, Target,
 };
 use serde::{Deserialize, Serialize};
 
@@ -35,8 +35,8 @@ pub enum CommandInput {
 /// Target overrides for command execution.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct CommandTargetOverrides {
-    /// Output format override.
-    pub output: Option<OutputFormat>,
+    /// Emit format override.
+    pub emit: Option<EmitFormat>,
     /// Runtime override.
     pub runtime: Option<Runtime>,
     /// Platform override.
@@ -66,7 +66,7 @@ pub struct CommandTargetOverrides {
     /// Emit source maps override.
     pub source_map: bool,
     /// Additional artifacts to emit.
-    pub emit: Vec<EmitArtifact>,
+    pub artifacts: Vec<EmitArtifact>,
     /// Enable optimization override.
     pub optimize: bool,
     /// Optimization level override.
@@ -84,7 +84,7 @@ pub struct CommandTargetOverrides {
 impl CommandTargetOverrides {
     /// Return true when overrides contain any values.
     pub fn is_empty(&self) -> bool {
-        self.output.is_none()
+        self.emit.is_none()
             && self.runtime.is_none()
             && self.platform.is_none()
             && self.target_triple.is_none()
@@ -99,7 +99,7 @@ impl CommandTargetOverrides {
             && self.out_file.is_none()
             && !self.declaration
             && !self.source_map
-            && self.emit.is_empty()
+            && self.artifacts.is_empty()
             && !self.optimize
             && self.opt_level.is_none()
             && !self.debug
@@ -110,11 +110,12 @@ impl CommandTargetOverrides {
 
     /// Apply overrides to a target.
     pub fn apply_to_target(&self, target: &mut Target) {
-        if let Some(output) = self.output {
-            target.output = output;
+        if let Some(emit) = self.emit {
+            target.emit = emit;
         }
         if let Some(runtime) = self.runtime {
             target.runtime = runtime;
+            target.runtime_options.host = runtime;
         }
         if let Some(platform) = self.platform {
             target.platform = platform;
@@ -153,8 +154,8 @@ impl CommandTargetOverrides {
 
         target.declaration = self.declaration;
         target.source_map = self.source_map;
-        if !self.emit.is_empty() {
-            target.emit = self.emit.clone();
+        if !self.artifacts.is_empty() {
+            target.artifacts = self.artifacts.clone();
         }
 
         let profile = resolve_profile(self.debug, self.release);

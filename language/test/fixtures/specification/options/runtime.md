@@ -52,7 +52,7 @@ export const value = 1;
 
 > Internal protocol imports are rejected when noInternalImport is true.
 
-```ds:main.ds runtime=native output=native libs=es5
+```ds:main.ds runtime=native emit=native libs=es5
 import "platform:fs";
 ```
 
@@ -70,7 +70,7 @@ import "platform:fs";
 
 > Internal protocol imports are allowed when noInternalImport is false.
 
-```ds:main.ds runtime=native output=native libs=es5
+```ds:main.ds runtime=native emit=native libs=es5
 import "platform:fs";
 ```
 
@@ -86,7 +86,7 @@ import "platform:fs";
 
 > Internal protocol imports emit warnings when noInternalImport is warn.
 
-```ds:main.ds runtime=native output=native libs=es5
+```ds:main.ds runtime=native emit=native libs=es5
 import "platform:fs";
 ```
 
