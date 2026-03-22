@@ -15,10 +15,9 @@ impl Compiler {
         self.program
             .artifacts
             .publish(artifact_key.clone(), environment.clone());
-
-        if let Err(error) = self.store_intrinsic_environment_image(profile, environment) {
-            tracing::warn!(?error, ?artifact_key, "compiler.cache.image.store_failed");
-        }
+        self.store_artifact(&artifact_key, &environment, |compiler, environment| {
+            compiler.store_intrinsic_environment_image(profile, environment.clone())
+        });
 
         Ok(())
     }

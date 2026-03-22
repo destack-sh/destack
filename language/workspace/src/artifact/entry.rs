@@ -77,37 +77,72 @@ fn rebind_ast_file(ast: &mut Ast, file_id: FileId) {
 /// Serialized AST image.
 pub type AstArtifactImage = ArtifactImage<AstImage>;
 
-/// Persisted module graph image without live profile identity.
+/// Persisted module graph image without live profile or module identity.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModuleGraphImage {
-    /// Module dependencies keyed by module id.
-    pub dependencies:
-        indexmap::IndexMap<destack_source::ModuleId, indexmap::IndexSet<destack_source::ModuleId>>,
-    /// Reverse dependencies keyed by module id.
-    pub dependents:
-        indexmap::IndexMap<destack_source::ModuleId, indexmap::IndexSet<destack_source::ModuleId>>,
-    /// Versions of modules included in the graph.
-    pub module_versions: indexmap::IndexMap<destack_source::ModuleId, ModuleVersion>,
+    /// Module dependencies keyed by stable file key.
+    pub dependencies: indexmap::IndexMap<FileKey, indexmap::IndexSet<FileKey>>,
+    /// Versions of modules included in the graph keyed by stable file key.
+    pub module_versions: indexmap::IndexMap<FileKey, ModuleVersion>,
 }
 
 impl ModuleGraphImage {
     /// Lower one live module graph into a persisted payload.
-    pub fn from_graph(graph: &ModuleGraph) -> Self {
-        Self {
-            dependencies: graph.dependencies.clone(),
-            dependents: graph.dependents.clone(),
-            module_versions: graph.module_versions.clone(),
+    pub fn from_graph(
+        graph: &ModuleGraph,
+        file_key_for_module_id: impl Fn(destack_source::ModuleId) -> Option<FileKey>,
+    ) -> Option<Self> {
+        let mut dependencies = indexmap::IndexMap::new();
+        let mut module_versions = indexmap::IndexMap::new();
+
+        // snapshot stable dependency edges
+        for (module_id, dependency_ids) in &graph.dependencies {
+            let module_key = file_key_for_module_id(*module_id)?;
+            let mut dependency_keys = indexmap::IndexSet::new();
+            for dependency_id in dependency_ids {
+                dependency_keys.insert(file_key_for_module_id(*dependency_id)?);
+            }
+
+            dependencies.insert(module_key, dependency_keys);
         }
+
+        // snapshot stable version stamps
+        for (module_id, module_version) in &graph.module_versions {
+            module_versions.insert(file_key_for_module_id(*module_id)?, *module_version);
+        }
+
+        Some(Self {
+            dependencies,
+            module_versions,
+        })
     }
 
     /// Raise one persisted payload back into a live module graph.
-    pub fn into_graph(self, profile_id: ProfileId) -> ModuleGraph {
-        ModuleGraph {
-            profile_id,
-            dependencies: self.dependencies,
-            dependents: self.dependents,
-            module_versions: self.module_versions,
+    pub fn into_graph(
+        self,
+        profile_id: ProfileId,
+        module_id_for_file_key: impl Fn(FileKey) -> Option<destack_source::ModuleId>,
+    ) -> Option<ModuleGraph> {
+        let mut graph = ModuleGraph::new(profile_id);
+        let mut file_keys: Vec<_> = self.module_versions.keys().copied().collect();
+        file_keys.sort_unstable();
+
+        // rebuild the graph from stable nodes
+        for file_key in file_keys {
+            let module_id = module_id_for_file_key(file_key)?;
+            let module_version = *self.module_versions.get(&file_key)?;
+            let dependency_ids = self
+                .dependencies
+                .get(&file_key)
+                .into_iter()
+                .flat_map(|dependency_keys| dependency_keys.iter())
+                .map(|dependency_key| module_id_for_file_key(*dependency_key))
+                .collect::<Option<Vec<_>>>()?;
+
+            graph.update_module(module_id, module_version, dependency_ids);
         }
+
+        Some(graph)
     }
 }
 
@@ -528,8 +563,11 @@ mod tests {
     #[test]
     fn test_module_graph_image_payload_roundtrip_rebinds_profile() {
         let graph = ModuleGraph::new(ProfileId::new(9));
-        let payload = ModuleGraphImage::from_graph(&graph);
-        let rebound = payload.into_graph(ProfileId::new(11));
+        let payload = ModuleGraphImage::from_graph(&graph, |_| Some(FileKey::EPHEMERAL))
+            .unwrap_or_else(|| panic!("expected stable module graph image payload"));
+        let rebound = payload
+            .into_graph(ProfileId::new(11), |_| Some(ModuleId::EPHEMERAL))
+            .unwrap_or_else(|| panic!("expected live module graph from payload"));
 
         assert_eq!(rebound.profile_id, ProfileId::new(11));
         assert_eq!(rebound.dependencies, graph.dependencies);

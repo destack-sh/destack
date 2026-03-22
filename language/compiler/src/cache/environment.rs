@@ -1,8 +1,8 @@
 use crate::compile::Compiler;
 use destack_source::{ModuleId, ProfileVersion};
 use destack_workspace::{
-    ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, IntrinsicEnvironment,
-    LanguageEnvironment, LibraryEnvironment, ProfileId, ProfileKey,
+    ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ArtifactKey,
+    IntrinsicEnvironment, LanguageEnvironment, LibraryEnvironment, ProfileId, ProfileKey,
 };
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -35,6 +35,58 @@ impl EnvironmentImageContext {
 }
 
 impl Compiler {
+    /// Build the current expected language environment image header.
+    pub(crate) fn language_environment_image_header(
+        &self,
+        profile_id: ProfileId,
+    ) -> Option<ArtifactImageHeader> {
+        let context = self.language_environment_image_context(profile_id)?;
+        let image_key = ArtifactImageKey::LanguageEnvironment {
+            profile: context.profile_key.clone(),
+        };
+
+        Some(context.header(image_key))
+    }
+
+    /// Build the current expected intrinsic environment image header.
+    pub(crate) fn intrinsic_environment_image_header(
+        &self,
+        profile_id: ProfileId,
+    ) -> Option<ArtifactImageHeader> {
+        let context = self.intrinsic_environment_image_context(profile_id)?;
+        let image_key = ArtifactImageKey::IntrinsicEnvironment {
+            profile: context.profile_key.clone(),
+        };
+
+        Some(context.header(image_key))
+    }
+
+    /// Build the current expected library environment image header.
+    pub(crate) fn library_environment_image_header(
+        &self,
+        profile_id: ProfileId,
+    ) -> Option<ArtifactImageHeader> {
+        let context = self.library_environment_image_context(profile_id)?;
+        let image_key = ArtifactImageKey::LibraryEnvironment {
+            profile: context.profile_key.clone(),
+        };
+
+        Some(context.header(image_key))
+    }
+
+    /// Load one persisted profile environment image entry when disk mode is enabled.
+    fn load_environment_image_entry<T>(
+        &self,
+        context: &EnvironmentImageContext,
+        image_key: ArtifactImageKey,
+    ) -> Result<Option<ArtifactImage<T>>, ArtifactImageError>
+    where
+        T: DeserializeOwned + Serialize,
+    {
+        let expected = context.header(image_key);
+        self.load_image::<T>(expected)
+    }
+
     /// Build one persistent image context for a profile scoped environment artifact.
     fn environment_image_context(
         &self,
@@ -144,8 +196,7 @@ impl Compiler {
     where
         T: DeserializeOwned + Serialize,
     {
-        let expected = context.header(image_key);
-        let Some(image) = self.load_image::<T>(expected)? else {
+        let Some(image) = self.load_environment_image_entry::<T>(context, image_key)? else {
             return Ok(None);
         };
 
@@ -155,6 +206,7 @@ impl Compiler {
     /// Persist one profile environment image when disk mode is enabled.
     fn store_environment_image<T>(
         &self,
+        artifact_key: &ArtifactKey,
         context: &EnvironmentImageContext,
         image_key: ArtifactImageKey,
         payload: T,
@@ -164,7 +216,7 @@ impl Compiler {
     {
         let header = context.header(image_key);
 
-        self.store_image(header, payload)
+        self.store_image(artifact_key, header, payload)
     }
 
     /// Load one persisted language environment image.
@@ -194,8 +246,9 @@ impl Compiler {
         let image_key = ArtifactImageKey::LanguageEnvironment {
             profile: context.profile_key.clone(),
         };
+        let artifact_key = ArtifactKey::language_environment(profile_id);
 
-        self.store_environment_image(&context, image_key, environment)
+        self.store_environment_image(&artifact_key, &context, image_key, environment)
     }
 
     /// Load one persisted intrinsic environment image.
@@ -225,8 +278,9 @@ impl Compiler {
         let image_key = ArtifactImageKey::IntrinsicEnvironment {
             profile: context.profile_key.clone(),
         };
+        let artifact_key = ArtifactKey::intrinsic_environment(profile_id);
 
-        self.store_environment_image(&context, image_key, environment)
+        self.store_environment_image(&artifact_key, &context, image_key, environment)
     }
 
     /// Load one persisted library environment image.
@@ -256,7 +310,8 @@ impl Compiler {
         let image_key = ArtifactImageKey::LibraryEnvironment {
             profile: context.profile_key.clone(),
         };
+        let artifact_key = ArtifactKey::library_environment(profile_id);
 
-        self.store_environment_image(&context, image_key, environment)
+        self.store_environment_image(&artifact_key, &context, image_key, environment)
     }
 }

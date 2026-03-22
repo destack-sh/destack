@@ -4,7 +4,8 @@ use destack_source::{
     File, FileContent, FileKey, FileVersion, LanguageType, ModuleId, ModuleVersion,
 };
 use destack_workspace::{
-    ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, Ast, AstImage, hash_bytes,
+    ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ArtifactKey, Ast,
+    AstImage, hash_bytes,
 };
 
 use super::{CacheHasher, compiler_version};
@@ -12,8 +13,6 @@ use super::{CacheHasher, compiler_version};
 /// Persistent image context for one module scoped AST artifact.
 #[derive(Debug, Clone)]
 pub(crate) struct AstImageContext {
-    /// The module version used when producing the AST.
-    module_version: ModuleVersion,
     /// The stable source file key.
     file_key: FileKey,
     /// The source file version used when producing the AST.
@@ -27,11 +26,15 @@ pub(crate) struct AstImageContext {
 impl AstImageContext {
     /// Build one image header for a stable AST image key.
     fn header(&self, module_id: ModuleId) -> ArtifactImageHeader {
+        let mut hasher = CacheHasher::new();
+        hasher.hash_value(&self.config_hash);
+        hasher.hash_value(&self.source_hash);
+
         ArtifactImageHeader::new(
             ArtifactImageKey::Ast { module: module_id },
             compiler_version(),
             None,
-            self.config_hash,
+            hasher.finish(),
             None,
             0,
         )
@@ -39,11 +42,74 @@ impl AstImageContext {
 }
 
 impl Compiler {
+    /// Build the current expected AST image header.
+    pub(crate) fn ast_image_header(
+        &self,
+        module_id: ModuleId,
+        file: &File,
+        language_type: Option<LanguageType>,
+    ) -> Option<ArtifactImageHeader> {
+        let context = self.ast_image_context(module_id, file, language_type)?;
+
+        Some(context.header(module_id))
+    }
+
+    /// Build the current expected AST image header for one module.
+    pub(crate) fn current_ast_image_header(
+        &self,
+        module_id: ModuleId,
+    ) -> Option<ArtifactImageHeader> {
+        let module = self.program.modules.get(module_id);
+        let language_type = match module.loader {
+            destack_workspace::Loader::Destack
+            | destack_workspace::Loader::TypeScript
+            | destack_workspace::Loader::JavaScript => Some(module.language_type),
+            _ => None,
+        };
+        let file = self.program.files.get(module.file_id);
+        let file = if file.is_loaded() {
+            file.as_ref().clone()
+        } else {
+            let path = module.path.as_ref()?;
+            let content = self.program.fs.read_to_string(path).ok()?;
+
+            File::from_text(
+                module.file_id,
+                file.name.clone(),
+                file.uri.clone(),
+                file.path.clone(),
+                file.ty,
+                content,
+            )
+        };
+
+        self.ast_image_header(module_id, &file, language_type)
+    }
+
+    /// Load one persisted AST image entry when disk mode is enabled.
+    fn load_ast_image_entry(
+        &self,
+        module_id: ModuleId,
+        _module_version: ModuleVersion,
+        file: &File,
+        language_type: Option<LanguageType>,
+    ) -> Result<Option<ArtifactImage<AstImage>>, ArtifactImageError> {
+        let Some(context) = self.ast_image_context(module_id, file, language_type) else {
+            return Ok(None);
+        };
+
+        let expected = context.header(module_id);
+        let Some(image) = self.load_image::<AstImage>(expected)? else {
+            return Ok(None);
+        };
+
+        Ok(Some(image))
+    }
+
     /// Build one persistent image context for one parsed module.
     fn ast_image_context(
         &self,
         _module_id: ModuleId,
-        module_version: ModuleVersion,
         file: &File,
         language_type: Option<LanguageType>,
     ) -> Option<AstImageContext> {
@@ -61,7 +127,6 @@ impl Compiler {
         hasher.hash_value(&language_type);
 
         Some(AstImageContext {
-            module_version,
             file_key: file.key,
             file_version: file.version,
             source_hash,
@@ -77,23 +142,11 @@ impl Compiler {
         file: &File,
         language_type: Option<LanguageType>,
     ) -> Result<Option<Ast>, ArtifactImageError> {
-        let Some(context) = self.ast_image_context(module_id, module_version, file, language_type)
+        let Some(image) =
+            self.load_ast_image_entry(module_id, module_version, file, language_type)?
         else {
             return Ok(None);
         };
-
-        let expected = context.header(module_id);
-        let Some(image) = self.load_image::<AstImage>(expected)? else {
-            return Ok(None);
-        };
-
-        if image.payload.file_key != context.file_key
-            || image.payload.file_version != context.file_version
-            || image.payload.source_hash != context.source_hash
-            || image.payload.module_version != context.module_version
-        {
-            return Ok(None);
-        }
 
         Ok(Some(image.payload.into_ast(file.id)))
     }
@@ -105,10 +158,11 @@ impl Compiler {
         language_type: Option<LanguageType>,
         ast: &Ast,
     ) -> Result<(), ArtifactImageError> {
-        let Some(context) = self.ast_image_context(ast.id, ast.version, file, language_type) else {
+        let Some(context) = self.ast_image_context(ast.id, file, language_type) else {
             return Ok(());
         };
 
+        let artifact_key = ArtifactKey::ast(ast.id);
         let header = context.header(ast.id);
         let payload = AstImage::from_ast(
             ast,
@@ -117,6 +171,6 @@ impl Compiler {
             context.source_hash,
         );
 
-        self.store_image(header, payload)
+        self.store_image(&artifact_key, header, payload)
     }
 }

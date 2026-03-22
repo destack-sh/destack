@@ -2,8 +2,9 @@ use crate::compile::Compiler;
 
 use destack_source::{ModuleId, ModuleVersion, PackageId, ProfileVersion};
 use destack_workspace::{
-    ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ModuleOutput, PackageOutput,
-    ProfileId, Target, TargetDiscovery, TargetDiscoveryIssue, TargetId,
+    ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ArtifactKey,
+    ModuleOutput, PackageOutput, ProfileId, Target, TargetDiscovery, TargetDiscoveryIssue,
+    TargetId,
 };
 
 use super::{CacheHasher, compiler_version};
@@ -61,6 +62,68 @@ impl PackageOutputImageContext {
 }
 
 impl Compiler {
+    /// Build the current expected module output image header.
+    pub(crate) fn module_output_image_header(
+        &self,
+        module_id: ModuleId,
+        module_version: ModuleVersion,
+        profile_id: ProfileId,
+        target_id: &TargetId,
+    ) -> Option<ArtifactImageHeader> {
+        let context =
+            self.module_output_image_context(module_id, module_version, profile_id, target_id)?;
+
+        Some(context.header(module_id, target_id.clone()))
+    }
+
+    /// Build the current expected package output image header.
+    pub(crate) fn package_output_image_header(
+        &self,
+        package_id: PackageId,
+        target_id: &TargetId,
+    ) -> Option<ArtifactImageHeader> {
+        let context = self.package_output_image_context(package_id, target_id)?;
+
+        Some(context.header(package_id, target_id.clone()))
+    }
+
+    /// Load one module output image entry.
+    fn load_module_output_image_entry(
+        &self,
+        module_id: ModuleId,
+        module_version: ModuleVersion,
+        profile_id: ProfileId,
+        target_id: &TargetId,
+    ) -> Result<Option<ArtifactImage<ModuleOutput>>, ArtifactImageError> {
+        let Some(context) =
+            self.module_output_image_context(module_id, module_version, profile_id, target_id)
+        else {
+            return Ok(None);
+        };
+        let expected = context.header(module_id, target_id.clone());
+        let Some(image) = self.load_image::<ModuleOutput>(expected)? else {
+            return Ok(None);
+        };
+        if self.module_version(module_id) != context.module_version {
+            return Ok(None);
+        }
+
+        Ok(Some(image))
+    }
+
+    /// Load one package output image entry.
+    fn load_package_output_image_entry(
+        &self,
+        package_id: PackageId,
+        target_id: &TargetId,
+    ) -> Result<Option<ArtifactImage<PackageOutput>>, ArtifactImageError> {
+        let Some(context) = self.package_output_image_context(package_id, target_id) else {
+            return Ok(None);
+        };
+        let expected = context.header(package_id, target_id.clone());
+        self.load_image::<PackageOutput>(expected)
+    }
+
     /// Resolve the current target configuration for one module target.
     fn target_config_for_module_output(
         &self,
@@ -170,20 +233,9 @@ impl Compiler {
         profile_id: ProfileId,
         target_id: &TargetId,
     ) -> Result<Option<ModuleOutput>, ArtifactImageError> {
-        let Some(context) =
-            self.module_output_image_context(module_id, module_version, profile_id, target_id)
-        else {
-            return Ok(None);
-        };
-        let expected = context.header(module_id, target_id.clone());
-        let Some(image) = self.load_image::<ModuleOutput>(expected)? else {
-            return Ok(None);
-        };
-        if self.module_version(module_id) != context.module_version {
-            return Ok(None);
-        }
-
-        Ok(Some(image.payload))
+        Ok(self
+            .load_module_output_image_entry(module_id, module_version, profile_id, target_id)?
+            .map(|image| image.payload))
     }
 
     /// Persist one module output image.
@@ -202,9 +254,10 @@ impl Compiler {
         ) else {
             return Ok(());
         };
+        let artifact_key = ArtifactKey::module_output(module_id, target_id.clone());
         let header = context.header(module_id, target_id.clone());
 
-        self.store_image(header, output.clone())
+        self.store_image(&artifact_key, header, output.clone())
     }
 
     /// Load one package output image.
@@ -213,15 +266,9 @@ impl Compiler {
         package_id: PackageId,
         target_id: &TargetId,
     ) -> Result<Option<PackageOutput>, ArtifactImageError> {
-        let Some(context) = self.package_output_image_context(package_id, target_id) else {
-            return Ok(None);
-        };
-        let expected = context.header(package_id, target_id.clone());
-        let Some(image) = self.load_image::<PackageOutput>(expected)? else {
-            return Ok(None);
-        };
-
-        Ok(Some(image.payload))
+        Ok(self
+            .load_package_output_image_entry(package_id, target_id)?
+            .map(|image| image.payload))
     }
 
     /// Persist one package output image.
@@ -234,8 +281,9 @@ impl Compiler {
         let Some(context) = self.package_output_image_context(package_id, target_id) else {
             return Ok(());
         };
+        let artifact_key = ArtifactKey::package_output(package_id, target_id.clone());
         let header = context.header(package_id, target_id.clone());
 
-        self.store_image(header, output.clone())
+        self.store_image(&artifact_key, header, output.clone())
     }
 }

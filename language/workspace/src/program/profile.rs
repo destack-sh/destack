@@ -176,6 +176,11 @@ impl ProfileRegistry {
         id
     }
 
+    /// Get the profile id for one canonical key.
+    pub fn id_for_key(&self, key: &ProfileKey) -> Option<ProfileId> {
+        self.profile_by_key.get(key).map(|entry| *entry)
+    }
+
     /// Get a profile by id.
     pub fn get(&self, id: ProfileId) -> Option<Profile> {
         self.profile_by_id.get(&id).map(|entry| entry.clone())

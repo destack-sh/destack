@@ -1,13 +1,68 @@
 use crate::ArtifactTaskKeyExt;
 use crate::compile::Compiler;
 use destack_workspace::{
-    ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactKey, ArtifactPayload,
-    ArtifactStore, CacheMode, CacheValidate,
+    ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageRequirement, ArtifactKey,
+    ArtifactPayload, ArtifactStore, CacheMode, CacheValidate,
 };
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
 impl Compiler {
+    /// Build persisted requirement proofs for the current task attempt.
+    fn current_image_requirements(
+        &self,
+        artifact_key: &ArtifactKey,
+    ) -> Result<Vec<ArtifactImageRequirement>, ArtifactImageError> {
+        if artifact_key.family().persisted_image_validation()
+            == destack_workspace::PersistedImageValidation::SelfContained
+        {
+            return Ok(Vec::new());
+        }
+
+        let mut image_requirements = Vec::new();
+        for requirement in self.current_requirements() {
+            let image_key = requirement
+                .key
+                .image_key_with(|profile_id| self.program.profile(profile_id).key.clone());
+            let Some(validation_hash) =
+                self.load_expected_artifact_image_validation_hash(&image_key)?
+            else {
+                let error = std::io::Error::other(format!(
+                    "missing persisted dependency proof for '{}'",
+                    requirement.key.name()
+                ));
+                return Err(ArtifactImageError::Io(error));
+            };
+
+            image_requirements.push(ArtifactImageRequirement {
+                key: image_key,
+                validation_hash,
+            });
+        }
+
+        Ok(image_requirements)
+    }
+
+    /// Return whether one persisted requirement proof list is currently satisfied.
+    pub(crate) fn persisted_image_requirements_are_satisfied(
+        &self,
+        requirements: &[ArtifactImageRequirement],
+    ) -> Result<bool, ArtifactImageError> {
+        for requirement in requirements {
+            let Some(validation_hash) =
+                self.load_expected_artifact_image_validation_hash(&requirement.key)?
+            else {
+                return Ok(false);
+            };
+
+            if validation_hash != requirement.validation_hash {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
     /// Resolve the effective workspace cache mode.
     pub(crate) fn workspace_cache_mode(&self) -> CacheMode {
         self.session
@@ -58,7 +113,44 @@ impl Compiler {
             return Ok(None);
         }
 
+        if !self.persisted_image_requirements_are_satisfied(&image.header.requirements)? {
+            return Ok(None);
+        }
+
         Ok(Some(image))
+    }
+
+    /// Load one persisted image header when its header still matches.
+    pub(crate) fn load_image_header(
+        &self,
+        expected: &ArtifactImageHeader,
+    ) -> Result<Option<ArtifactImageHeader>, ArtifactImageError> {
+        let Some(artifact_store) = self.artifact_store() else {
+            return Ok(None);
+        };
+        let Some(header) = artifact_store.load_header(&expected.artifact_image_key)? else {
+            return Ok(None);
+        };
+
+        if !expected.matches(&header) {
+            return Ok(None);
+        }
+
+        if !self.persisted_image_requirements_are_satisfied(&header.requirements)? {
+            return Ok(None);
+        }
+
+        Ok(Some(header))
+    }
+
+    /// Load one persisted image validation hash when its header still matches.
+    pub(crate) fn load_image_validation_hash(
+        &self,
+        expected: &ArtifactImageHeader,
+    ) -> Result<Option<u64>, ArtifactImageError> {
+        Ok(self
+            .load_image_header(expected)?
+            .map(|header| header.validation_hash))
     }
 
     /// Load one cached artifact image.
@@ -107,6 +199,7 @@ impl Compiler {
     /// Store one persisted artifact image when disk mode is enabled.
     pub(crate) fn store_image<T>(
         &self,
+        artifact_key: &ArtifactKey,
         header: ArtifactImageHeader,
         payload: T,
     ) -> Result<(), ArtifactImageError>
@@ -116,7 +209,8 @@ impl Compiler {
         let Some(artifact_store) = self.artifact_store() else {
             return Ok(());
         };
-        let image = ArtifactImage::new(header, payload)?;
+        let requirements = self.current_image_requirements(artifact_key)?;
+        let image = ArtifactImage::new(header.with_requirements(requirements), payload)?;
 
         artifact_store.save(&image)
     }
