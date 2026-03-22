@@ -5,14 +5,13 @@ use serde_json::Value;
 use super::common::{
     StackCacheJson, StackCacheOptions, StackProviderJson, StackProviderOptions, merge_metadata,
 };
+use crate::config::targets::TargetOutputName;
 
 /// Publication options.
 #[derive(Debug, Clone, Default)]
 pub struct StackPublicationOptions {
-    /// Source asset collection name.
-    pub asset: Option<String>,
-    /// Optional named output within the source asset collection.
-    pub output: Option<String>,
+    /// Source publication input.
+    pub source: Option<StackPublicationSourceOptions>,
     /// Provider attachment.
     pub provider: StackProviderOptions,
     /// Backing origin configuration.
@@ -30,11 +29,12 @@ pub struct StackPublicationOptions {
 impl StackPublicationOptions {
     /// Inherit unset publication settings from one parent config.
     pub fn extend_from(&mut self, parent: &Self) {
-        if self.asset.is_none() {
-            self.asset = parent.asset.clone();
-        }
-        if self.output.is_none() {
-            self.output = parent.output.clone();
+        if let Some(parent_source) = &parent.source {
+            if let Some(source) = self.source.as_mut() {
+                source.extend_from(parent_source);
+            } else {
+                self.source = Some(parent_source.clone());
+            }
         }
         self.provider.extend_from(&parent.provider);
         if self.with.is_none() {
@@ -51,8 +51,10 @@ impl StackPublicationOptions {
 impl From<&StackPublicationJson> for StackPublicationOptions {
     fn from(json: &StackPublicationJson) -> Self {
         Self {
-            asset: json.asset.clone(),
-            output: json.output.clone(),
+            source: json
+                .source
+                .as_ref()
+                .map(StackPublicationSourceOptions::from),
             provider: json
                 .provider
                 .as_ref()
@@ -63,6 +65,71 @@ impl From<&StackPublicationJson> for StackPublicationOptions {
             labels: json.labels.clone().unwrap_or_default(),
             annotations: json.annotations.clone().unwrap_or_default(),
             with: json.with.clone(),
+        }
+    }
+}
+
+/// Publication source options.
+#[derive(Debug, Clone)]
+pub enum StackPublicationSourceOptions {
+    /// Publish one named asset collection.
+    Asset {
+        /// Asset collection name.
+        asset: String,
+        /// Optional named output within the source asset collection.
+        output: Option<String>,
+    },
+    /// Publish one named target output directly.
+    Target {
+        /// Target name.
+        target: String,
+        /// Optional named output within the source target.
+        output: Option<String>,
+    },
+}
+
+impl StackPublicationSourceOptions {
+    /// Inherit unset source settings from one parent config.
+    pub fn extend_from(&mut self, parent: &Self) {
+        match (self, parent) {
+            (
+                Self::Asset { output, .. },
+                Self::Asset {
+                    output: parent_output,
+                    ..
+                },
+            ) => {
+                if output.is_none() {
+                    *output = parent_output.clone();
+                }
+            }
+            (
+                Self::Target { output, .. },
+                Self::Target {
+                    output: parent_output,
+                    ..
+                },
+            ) => {
+                if output.is_none() {
+                    *output = parent_output.clone();
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+impl From<&StackPublicationSourceJson> for StackPublicationSourceOptions {
+    fn from(json: &StackPublicationSourceJson) -> Self {
+        match json {
+            StackPublicationSourceJson::Asset { asset, output } => Self::Asset {
+                asset: asset.clone(),
+                output: output.clone(),
+            },
+            StackPublicationSourceJson::Target { target, output } => Self::Target {
+                target: target.clone(),
+                output: output.map(|output| output.as_str().to_string()),
+            },
         }
     }
 }
@@ -102,10 +169,8 @@ impl From<&StackPublicationOriginJson> for StackPublicationOriginOptions {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct StackPublicationJson {
-    /// Source asset collection name.
-    pub asset: Option<String>,
-    /// Optional named output within the source asset collection.
-    pub output: Option<String>,
+    /// Source publication input.
+    pub source: Option<StackPublicationSourceJson>,
     /// Provider attachment.
     pub provider: Option<StackProviderJson>,
     /// Backing origin configuration.
@@ -120,6 +185,27 @@ pub struct StackPublicationJson {
     pub annotations: Option<IndexMap<String, String>>,
     /// Extra publication arguments.
     pub with: Option<Value>,
+}
+
+/// Publication source JSON.
+#[derive(Debug, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum StackPublicationSourceJson {
+    /// Publish one named asset collection.
+    Asset {
+        /// Asset collection name.
+        asset: String,
+        /// Optional named output within the source asset collection.
+        output: Option<String>,
+    },
+    /// Publish one named target output directly.
+    Target {
+        /// Target name.
+        target: String,
+        /// Optional named output within the source target.
+        output: Option<TargetOutputName>,
+    },
 }
 
 /// Publication origin JSON.

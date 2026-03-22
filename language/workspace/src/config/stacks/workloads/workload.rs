@@ -1,30 +1,30 @@
-mod binding;
-mod capacity;
-mod health;
-mod identity;
-mod run;
-mod timeout;
-
 use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::common::{StackProviderJson, StackProviderOptions, merge_metadata};
-use crate::config::runtime::RuntimeOptionsJson;
-pub use binding::*;
-pub use capacity::*;
-pub use health::*;
-pub use identity::*;
-pub use run::*;
-pub use timeout::*;
+use super::super::common::{StackProviderJson, StackProviderOptions, merge_metadata};
+use crate::config::runtime::{RuntimeConfigJson, RuntimeOptionsJson};
+use crate::{FeatureRefsJson, TelemetryRefsJson};
+
+use super::{
+    StackAvailabilityJson, StackAvailabilityOptions, StackBindingJson, StackBindingOptions,
+    StackCapacityJson, StackCapacityOptions, StackEnvVarJson, StackEnvVarOptions, StackHealthJson,
+    StackHealthOptions, StackIdentityJson, StackIdentityOptions, StackMountJson, StackMountOptions,
+    StackPlacementJson, StackPlacementOptions, StackRestartJson, StackRestartOptions,
+    StackRolloutJson, StackRolloutOptions, StackTimeoutJson, StackTimeoutOptions,
+};
 
 /// Destack workload configuration options.
 #[derive(Debug, Clone, Default)]
 pub struct StackWorkloadOptions {
     /// Artifact target consumed by this workload.
     pub target: Option<String>,
-    /// How this workload is run or triggered.
-    pub run: StackRunOptions,
+    /// Referenced runtime feature definitions.
+    pub features: Vec<String>,
+    /// Referenced telemetry definitions.
+    pub telemetry: Vec<String>,
+    /// Cron schedule for scheduled workloads.
+    pub schedule: Option<String>,
     /// Typed bindings exposed to this workload.
     pub bindings: IndexMap<String, StackBindingOptions>,
     /// Environment variable transport overrides.
@@ -47,8 +47,8 @@ pub struct StackWorkloadOptions {
     pub capacity: StackCapacityOptions,
     /// Generic workload and runtime time budgets.
     pub timeouts: StackTimeoutOptions,
-    /// Destack runtime overrides for this workload.
-    pub runtime: Option<RuntimeOptionsJson>,
+    /// Destack runtime shorthand or overrides for this workload.
+    pub runtime: Option<RuntimeConfigJson>,
     /// Extra workload arguments.
     pub with: Option<Value>,
     /// Rollout policy.
@@ -65,9 +65,17 @@ impl StackWorkloadOptions {
         if self.target.is_none() {
             self.target = parent.target.clone();
         }
+        if self.features.is_empty() {
+            self.features = parent.features.clone();
+        }
+        if self.telemetry.is_empty() {
+            self.telemetry = parent.telemetry.clone();
+        }
         self.provider.extend_from(&parent.provider);
 
-        self.run.extend_from(&parent.run);
+        if self.schedule.is_none() {
+            self.schedule = parent.schedule.clone();
+        }
 
         for (name, binding) in &parent.bindings {
             if let Some(current) = self.bindings.get_mut(name) {
@@ -114,7 +122,10 @@ impl StackWorkloadOptions {
     /// Return one effective runtime override set for this workload.
     pub fn effective_runtime_overrides(&self) -> Option<RuntimeOptionsJson> {
         let inferred = self.capacity.inferred_runtime_overrides();
-        let explicit = self.runtime.clone();
+        let explicit = self
+            .runtime
+            .as_ref()
+            .map(RuntimeConfigJson::as_options_json);
 
         match (explicit, inferred) {
             (Some(mut explicit), Some(inferred)) => {
@@ -132,7 +143,17 @@ impl From<&StackWorkloadJson> for StackWorkloadOptions {
     fn from(json: &StackWorkloadJson) -> Self {
         Self {
             target: json.target.clone(),
-            run: StackRunOptions::from(&json.run),
+            features: json
+                .features
+                .as_ref()
+                .map(FeatureRefsJson::names)
+                .unwrap_or_default(),
+            telemetry: json
+                .telemetry
+                .as_ref()
+                .map(TelemetryRefsJson::names)
+                .unwrap_or_default(),
+            schedule: json.schedule.clone(),
             bindings: json
                 .bindings
                 .as_ref()
@@ -185,7 +206,7 @@ impl From<&StackWorkloadJson> for StackWorkloadOptions {
 
 /// An executable compute node.
 ///
-/// Inputs: one target, bindings, mounts, env transport, and runtime policy.
+/// Inputs: one target, bindings, mounts, env transport, schedule, and runtime policy.
 /// Outputs: runtime instances that may back one or more services.
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -193,9 +214,12 @@ impl From<&StackWorkloadJson> for StackWorkloadOptions {
 pub struct StackWorkloadJson {
     /// Artifact target consumed by this workload.
     pub target: Option<String>,
-    /// How this workload is run or triggered.
-    #[serde(default)]
-    pub run: StackRunJson,
+    /// Referenced runtime feature definitions.
+    pub features: Option<FeatureRefsJson>,
+    /// Referenced telemetry definitions.
+    pub telemetry: Option<TelemetryRefsJson>,
+    /// Cron schedule for scheduled workloads.
+    pub schedule: Option<String>,
     /// Typed bindings exposed to this workload.
     pub bindings: Option<IndexMap<String, StackBindingJson>>,
     /// Environment variable transport overrides.
@@ -223,8 +247,8 @@ pub struct StackWorkloadJson {
     /// Generic workload and runtime time budgets.
     #[serde(default)]
     pub timeouts: StackTimeoutJson,
-    /// Destack runtime overrides for this workload.
-    pub runtime: Option<RuntimeOptionsJson>,
+    /// Destack runtime shorthand or overrides for this workload.
+    pub runtime: Option<RuntimeConfigJson>,
     /// Extra workload arguments.
     pub with: Option<Value>,
     /// Rollout policy.

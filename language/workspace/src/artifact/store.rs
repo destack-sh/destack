@@ -189,14 +189,14 @@ mod tests {
     use std::path::PathBuf;
 
     use crate::{
-        ArtifactImageKey, ArtifactStore, DiskCacheStore, EnvSnapshot, OutputFormat, Platform,
+        ArtifactImageKey, ArtifactStore, DiskCacheStore, EmitFormat, EnvSnapshot, Platform,
         ProfileFlags, ProfileKey, Runtime,
     };
 
     /// Build one stable profile key for artifact store path tests.
     fn test_profile_key() -> ProfileKey {
         ProfileKey::new(
-            OutputFormat::Js,
+            EmitFormat::Js,
             Runtime::Node,
             Platform::Web,
             None,

@@ -1,67 +1,90 @@
 use indexmap::IndexMap;
 use serde::Deserialize;
+use serde_json::Value;
 
-use super::asset::{StackAssetJson, StackAssetOptions};
-use super::common::merge_metadata;
-use super::component::{StackComponentJson, StackComponentOptions};
-use super::config::{StackConfigJson, StackConfigOptions};
+use super::common::{StackProviderJson, StackProviderOptions, merge_metadata};
 use super::domain::{StackDomainJson, StackDomainOptions};
 use super::ingress::{StackIngressJson, StackIngressOptions};
 use super::network::{StackNetworkJson, StackNetworkOptions};
 use super::publication::{StackPublicationJson, StackPublicationOptions};
-use super::secret::{StackSecretJson, StackSecretOptions};
 use super::service::{StackServiceJson, StackServiceOptions};
 use super::volume::{StackVolumeJson, StackVolumeOptions};
-use super::workload::{StackWorkloadJson, StackWorkloadOptions};
+use super::workloads::{StackWorkloadJson, StackWorkloadOptions};
+use crate::{AssetJson, AssetOptions, FeatureRefsJson, TelemetryRefsJson};
 
-/// Stack environment overlay options.
+/// Destack stack configuration options.
 #[derive(Debug, Clone, Default)]
-pub struct StackEnvironmentOptions {
+pub struct StackOptions {
     /// Selection labels.
     pub labels: IndexMap<String, String>,
     /// Non-identifying metadata.
     pub annotations: IndexMap<String, String>,
-    /// Whether this environment is ephemeral.
-    pub ephemeral: Option<bool>,
-    /// Component overrides.
-    pub components: IndexMap<String, StackComponentOptions>,
-    /// Workload overrides.
+    /// Provider attachment.
+    pub provider: StackProviderOptions,
+    /// Extra stack arguments.
+    pub with: Option<Value>,
+    /// Referenced runtime feature definitions.
+    pub features: Vec<String>,
+    /// Referenced telemetry definitions.
+    pub telemetry: Vec<String>,
+    /// Named deployable workloads.
     pub workloads: IndexMap<String, StackWorkloadOptions>,
-    /// Service overrides.
+    /// Named services.
     pub services: IndexMap<String, StackServiceOptions>,
-    /// Volume overrides.
+    /// Named attached volumes.
     pub volumes: IndexMap<String, StackVolumeOptions>,
-    /// Config overrides.
-    pub configs: IndexMap<String, StackConfigOptions>,
-    /// Secret overrides.
-    pub secrets: IndexMap<String, StackSecretOptions>,
-    /// Asset overrides.
-    pub assets: IndexMap<String, StackAssetOptions>,
-    /// Publication overrides.
+    /// Named asset collections.
+    pub assets: IndexMap<String, AssetOptions>,
+    /// Named publications over assets or target outputs.
     pub publications: IndexMap<String, StackPublicationOptions>,
-    /// Domain overrides.
+    /// Named domains and DNS ownership.
     pub domains: IndexMap<String, StackDomainOptions>,
-    /// Ingress overrides.
+    /// External traffic and asset ingress.
     pub ingress: StackIngressOptions,
-    /// Network overrides.
+    /// Internal network topology settings.
     pub network: StackNetworkOptions,
 }
 
-impl StackEnvironmentOptions {
-    /// Inherit unset environment settings from one parent config.
+impl StackOptions {
+    /// Apply stack-level provider defaults across resource nouns.
+    pub fn apply_provider_defaults(&mut self) {
+        let provider = self.provider.clone();
+
+        for workload in self.workloads.values_mut() {
+            workload.provider.extend_from(&provider);
+        }
+
+        for service in self.services.values_mut() {
+            service.provider.extend_from(&provider);
+        }
+
+        for volume in self.volumes.values_mut() {
+            volume.provider.extend_from(&provider);
+        }
+
+        for publication in self.publications.values_mut() {
+            publication.provider.extend_from(&provider);
+        }
+
+        for domain in self.domains.values_mut() {
+            domain.provider.extend_from(&provider);
+            domain.dns.provider.extend_from(&domain.provider);
+        }
+    }
+
+    /// Inherit unset stack settings from one parent config.
     pub fn extend_from(&mut self, parent: &Self) {
         merge_metadata(&mut self.labels, &parent.labels);
         merge_metadata(&mut self.annotations, &parent.annotations);
-        if self.ephemeral.is_none() {
-            self.ephemeral = parent.ephemeral;
+        self.provider.extend_from(&parent.provider);
+        if self.with.is_none() {
+            self.with = parent.with.clone();
         }
-
-        for (name, component) in &parent.components {
-            if let Some(current) = self.components.get_mut(name) {
-                current.extend_from(component);
-            } else {
-                self.components.insert(name.clone(), component.clone());
-            }
+        if self.features.is_empty() {
+            self.features = parent.features.clone();
+        }
+        if self.telemetry.is_empty() {
+            self.telemetry = parent.telemetry.clone();
         }
 
         for (name, workload) in &parent.workloads {
@@ -85,22 +108,6 @@ impl StackEnvironmentOptions {
                 current.extend_from(volume);
             } else {
                 self.volumes.insert(name.clone(), volume.clone());
-            }
-        }
-
-        for (name, config) in &parent.configs {
-            if let Some(current) = self.configs.get_mut(name) {
-                current.extend_from(config);
-            } else {
-                self.configs.insert(name.clone(), config.clone());
-            }
-        }
-
-        for (name, secret) in &parent.secrets {
-            if let Some(current) = self.secrets.get_mut(name) {
-                current.extend_from(secret);
-            } else {
-                self.secrets.insert(name.clone(), secret.clone());
             }
         }
 
@@ -133,23 +140,26 @@ impl StackEnvironmentOptions {
     }
 }
 
-impl From<&StackEnvironmentJson> for StackEnvironmentOptions {
-    fn from(json: &StackEnvironmentJson) -> Self {
-        Self {
+impl From<&StackJson> for StackOptions {
+    fn from(json: &StackJson) -> Self {
+        let mut options = Self {
             labels: json.labels.clone().unwrap_or_default(),
             annotations: json.annotations.clone().unwrap_or_default(),
-            ephemeral: json.ephemeral,
-            components: json
-                .components
+            provider: json
+                .provider
                 .as_ref()
-                .map(|components| {
-                    components
-                        .iter()
-                        .map(|(name, component)| {
-                            (name.clone(), StackComponentOptions::from(component))
-                        })
-                        .collect()
-                })
+                .map(StackProviderOptions::from)
+                .unwrap_or_default(),
+            with: json.with.clone(),
+            features: json
+                .features
+                .as_ref()
+                .map(FeatureRefsJson::names)
+                .unwrap_or_default(),
+            telemetry: json
+                .telemetry
+                .as_ref()
+                .map(TelemetryRefsJson::names)
                 .unwrap_or_default(),
             workloads: json
                 .workloads
@@ -183,33 +193,13 @@ impl From<&StackEnvironmentJson> for StackEnvironmentOptions {
                         .collect()
                 })
                 .unwrap_or_default(),
-            configs: json
-                .configs
-                .as_ref()
-                .map(|configs| {
-                    configs
-                        .iter()
-                        .map(|(name, config)| (name.clone(), StackConfigOptions::from(config)))
-                        .collect()
-                })
-                .unwrap_or_default(),
-            secrets: json
-                .secrets
-                .as_ref()
-                .map(|secrets| {
-                    secrets
-                        .iter()
-                        .map(|(name, secret)| (name.clone(), StackSecretOptions::from(secret)))
-                        .collect()
-                })
-                .unwrap_or_default(),
             assets: json
                 .assets
                 .as_ref()
                 .map(|assets| {
                     assets
                         .iter()
-                        .map(|(name, asset)| (name.clone(), StackAssetOptions::from(asset)))
+                        .map(|(name, asset)| (name.clone(), AssetOptions::from(asset)))
                         .collect()
                 })
                 .unwrap_or_default(),
@@ -237,46 +227,50 @@ impl From<&StackEnvironmentJson> for StackEnvironmentOptions {
                 .unwrap_or_default(),
             ingress: StackIngressOptions::from(&json.ingress),
             network: StackNetworkOptions::from(&json.network),
-        }
+        };
+
+        options.apply_provider_defaults();
+
+        options
     }
 }
 
-/// A partial environment overlay over one named stack.
+/// A deployment topology node.
 ///
-/// Inputs: explicit overrides for graph nodes and policy.
-/// Outputs: one environment-specific view of the same stack graph.
+/// Inputs: explicit graph nodes and references to build outputs.
+/// Outputs: one normalized stack graph.
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct StackEnvironmentJson {
+pub struct StackJson {
     /// Selection labels.
     pub labels: Option<IndexMap<String, String>>,
     /// Non-identifying metadata.
     pub annotations: Option<IndexMap<String, String>>,
-    /// Whether this environment is ephemeral.
-    pub ephemeral: Option<bool>,
-    /// Component overrides.
-    pub components: Option<IndexMap<String, StackComponentJson>>,
-    /// Workload overrides.
+    /// Provider attachment.
+    pub provider: Option<StackProviderJson>,
+    /// Extra stack arguments.
+    pub with: Option<Value>,
+    /// Referenced runtime feature definitions.
+    pub features: Option<FeatureRefsJson>,
+    /// Referenced telemetry definitions.
+    pub telemetry: Option<TelemetryRefsJson>,
+    /// Named deployable workloads.
     pub workloads: Option<IndexMap<String, StackWorkloadJson>>,
-    /// Service overrides.
+    /// Named services.
     pub services: Option<IndexMap<String, StackServiceJson>>,
-    /// Volume overrides.
+    /// Named attached volumes.
     pub volumes: Option<IndexMap<String, StackVolumeJson>>,
-    /// Config overrides.
-    pub configs: Option<IndexMap<String, StackConfigJson>>,
-    /// Secret overrides.
-    pub secrets: Option<IndexMap<String, StackSecretJson>>,
-    /// Asset overrides.
-    pub assets: Option<IndexMap<String, StackAssetJson>>,
-    /// Publication overrides.
+    /// Named asset collections.
+    pub assets: Option<IndexMap<String, AssetJson>>,
+    /// Named publications over assets or target outputs.
     pub publications: Option<IndexMap<String, StackPublicationJson>>,
-    /// Domain overrides.
+    /// Named domains and DNS ownership.
     pub domains: Option<IndexMap<String, StackDomainJson>>,
-    /// Ingress overrides.
+    /// External traffic and asset ingress.
     #[serde(default)]
     pub ingress: StackIngressJson,
-    /// Network overrides.
+    /// Internal network topology settings.
     #[serde(default)]
     pub network: StackNetworkJson,
 }

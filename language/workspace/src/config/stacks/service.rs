@@ -6,13 +6,16 @@ use super::common::{
     StackAccessMode, StackAccessModeJson, StackIssuerRefJson, StackIssuerRefOptions,
     StackProviderJson, StackProviderOptions, merge_metadata,
 };
-use super::workload::{StackPlacementJson, StackPlacementOptions};
+use super::workloads::{StackPlacementJson, StackPlacementOptions};
+use crate::{FeatureRefsJson, TelemetryRefsJson};
 
 /// Destack service configuration options.
 #[derive(Debug, Clone, Default)]
 pub struct StackServiceOptions {
-    /// Open semantic service type identifier.
-    pub r#type: Option<String>,
+    /// Referenced runtime feature definitions.
+    pub features: Vec<String>,
+    /// Referenced telemetry definitions.
+    pub telemetry: Vec<String>,
     /// Selection labels.
     pub labels: IndexMap<String, String>,
     /// Non-identifying metadata.
@@ -21,8 +24,6 @@ pub struct StackServiceOptions {
     pub provider: StackProviderOptions,
     /// Workloads that provide this service.
     pub workloads: Vec<String>,
-    /// External endpoint for unmanaged services.
-    pub endpoint: Option<String>,
     /// Service protocol.
     pub protocol: Option<String>,
     /// Externally visible service port.
@@ -40,15 +41,15 @@ pub struct StackServiceOptions {
 impl StackServiceOptions {
     /// Inherit unset service settings from one parent config.
     pub fn extend_from(&mut self, parent: &Self) {
-        if self.r#type.is_none() {
-            self.r#type = parent.r#type.clone();
+        if self.features.is_empty() {
+            self.features = parent.features.clone();
+        }
+        if self.telemetry.is_empty() {
+            self.telemetry = parent.telemetry.clone();
         }
         self.provider.extend_from(&parent.provider);
         if self.workloads.is_empty() {
             self.workloads = parent.workloads.clone();
-        }
-        if self.endpoint.is_none() {
-            self.endpoint = parent.endpoint.clone();
         }
         if self.protocol.is_none() {
             self.protocol = parent.protocol.clone();
@@ -73,7 +74,16 @@ impl StackServiceOptions {
 impl From<&StackServiceJson> for StackServiceOptions {
     fn from(json: &StackServiceJson) -> Self {
         Self {
-            r#type: json.r#type.clone(),
+            features: json
+                .features
+                .as_ref()
+                .map(FeatureRefsJson::names)
+                .unwrap_or_default(),
+            telemetry: json
+                .telemetry
+                .as_ref()
+                .map(TelemetryRefsJson::names)
+                .unwrap_or_default(),
             labels: json.labels.clone().unwrap_or_default(),
             annotations: json.annotations.clone().unwrap_or_default(),
             provider: json
@@ -82,7 +92,6 @@ impl From<&StackServiceJson> for StackServiceOptions {
                 .map(StackProviderOptions::from)
                 .unwrap_or_default(),
             workloads: json.workloads.clone().unwrap_or_default(),
-            endpoint: json.endpoint.clone(),
             protocol: json.protocol.clone(),
             port: json.port,
             target_port: json.target_port,
@@ -139,16 +148,18 @@ impl From<&StackServiceAccessJson> for StackServiceAccessOptions {
     }
 }
 
-/// A stable bindable capability or endpoint.
+/// A stable bindable capability backed by workloads.
 ///
-/// Inputs: either named workloads or one external endpoint, plus protocol, placement, and service config.
+/// Inputs: named workloads, protocol, placement, and service config.
 /// Outputs: addressable fields such as `url` for bindings and ingress.
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct StackServiceJson {
-    /// Open semantic service type identifier.
-    pub r#type: Option<String>,
+    /// Referenced runtime feature definitions.
+    pub features: Option<FeatureRefsJson>,
+    /// Referenced telemetry definitions.
+    pub telemetry: Option<TelemetryRefsJson>,
     /// Selection labels.
     pub labels: Option<IndexMap<String, String>>,
     /// Non-identifying metadata.
@@ -156,13 +167,7 @@ pub struct StackServiceJson {
     /// Provider attachment.
     pub provider: Option<StackProviderJson>,
     /// Workloads that provide this service.
-    ///
-    /// Exactly one of `workloads` or `endpoint` should be set.
     pub workloads: Option<Vec<String>>,
-    /// External endpoint for unmanaged services.
-    ///
-    /// Exactly one of `workloads` or `endpoint` should be set.
-    pub endpoint: Option<String>,
     /// Service protocol.
     pub protocol: Option<String>,
     /// Externally visible service port.

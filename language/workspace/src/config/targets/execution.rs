@@ -39,13 +39,13 @@ pub enum Runtime {
     /// Web Worker / Service Worker / Shared Worker
     Worker,
 
-    // WASM runtimes (for output=wasm)
+    // WASM runtimes (for emit=wasm)
     /// WASM running in a JS host (browser or Node)
     WasmJs,
     /// WASM with WASI (wasmtime, wasmer, etc.)
     WasmWasi,
 
-    // Native runtimes (for output=native)
+    // Native runtimes (for emit=native)
     /// Native hosted runtime (OS services available).
     NativeHosted,
     /// Native freestanding runtime (no OS services assumed).

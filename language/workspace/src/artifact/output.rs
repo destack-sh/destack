@@ -1,4 +1,4 @@
-use crate::{OutputFormat, Target, TargetDiscovery};
+use crate::{EmitFormat, Target};
 use destack_source::{FileContent, FileType, Uri};
 use serde::{Deserialize, Serialize};
 
@@ -52,6 +52,14 @@ impl OutputContent {
         Self::Text {
             code,
             file_type: FileType::TypeScriptDeclaration,
+        }
+    }
+
+    /// Create HTML content.
+    pub fn html(code: String) -> Self {
+        Self::Text {
+            code,
+            file_type: FileType::Html,
         }
     }
 
@@ -126,6 +134,8 @@ pub enum ModuleOutputKind {
     JavaScript,
     /// One TypeScript module output.
     TypeScript,
+    /// One HTML document output.
+    HtmlDocument,
     /// One WebAssembly module output.
     WebAssembly,
     /// One native object output.
@@ -135,11 +145,12 @@ pub enum ModuleOutputKind {
 impl ModuleOutputKind {
     /// Resolve one module output kind for one target.
     pub fn for_target(target: &Target) -> Self {
-        match target.output {
-            OutputFormat::Js => Self::JavaScript,
-            OutputFormat::Ts => Self::TypeScript,
-            OutputFormat::Wasm => Self::WebAssembly,
-            OutputFormat::Native => Self::NativeObject,
+        match target.emit {
+            EmitFormat::Js => Self::JavaScript,
+            EmitFormat::Ts => Self::TypeScript,
+            EmitFormat::Html => Self::HtmlDocument,
+            EmitFormat::Wasm => Self::WebAssembly,
+            EmitFormat::Native => Self::NativeObject,
         }
     }
 }
@@ -177,6 +188,8 @@ pub enum PackageOutputKind {
     JavaScriptBundle,
     /// One bundled TypeScript output.
     TypeScriptBundle,
+    /// One HTML document output.
+    HtmlDocument,
     /// One package WebAssembly output.
     WebAssembly,
     /// One native library output.
@@ -188,26 +201,30 @@ pub enum PackageOutputKind {
 impl PackageOutputKind {
     /// Resolve one package output kind for one target.
     pub fn for_target(target: &Target) -> Self {
-        match target.output {
-            OutputFormat::Js => {
-                if target.is_single_file() {
+        match target.emit {
+            EmitFormat::Js => {
+                if target.emits_assembled_output() {
                     Self::JavaScriptBundle
                 } else {
                     Self::JavaScript
                 }
             }
-            OutputFormat::Ts => {
-                if target.is_single_file() {
+            EmitFormat::Ts => {
+                if target.emits_assembled_output() {
                     Self::TypeScriptBundle
                 } else {
                     Self::TypeScript
                 }
             }
-            OutputFormat::Wasm => Self::WebAssembly,
-            OutputFormat::Native => match target.discovery {
-                TargetDiscovery::Entry => Self::Executable,
-                TargetDiscovery::Include => Self::NativeLibrary,
-            },
+            EmitFormat::Html => Self::HtmlDocument,
+            EmitFormat::Wasm => Self::WebAssembly,
+            EmitFormat::Native => {
+                if target.publishes_binary_output() {
+                    Self::Executable
+                } else {
+                    Self::NativeLibrary
+                }
+            }
         }
     }
 }
@@ -235,10 +252,10 @@ impl PackageOutput {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
     use super::{ModuleOutputKind, PackageOutputKind};
-    use crate::{Target, TargetDiscovery};
+    use crate::{
+        Target, TargetDiscovery, TargetOutputKind, TargetOutputOptions, TargetOutputTopology,
+    };
 
     /// Match module output kinds to target output formats.
     #[test]
@@ -265,20 +282,31 @@ mod tests {
     #[test]
     fn test_package_output_kind_matches_target_shape() {
         let mut js_bundle = Target::js("bundle");
-        js_bundle.out_file = Some(PathBuf::from("bundle.js"));
+        js_bundle.discovery = TargetDiscovery::Entry;
 
         let mut ts_bundle = Target::ts("bundle");
-        ts_bundle.out_file = Some(PathBuf::from("bundle.ts"));
+        ts_bundle.discovery = TargetDiscovery::Entry;
 
-        let native_library = Target::native("library");
+        let mut native_library = Target::native("library");
+        native_library.outputs = Default::default();
+        native_library.outputs.insert(
+            "module",
+            TargetOutputOptions {
+                kind: TargetOutputKind::Module,
+                topology: TargetOutputTopology::Directory,
+                is_public: true,
+            },
+        );
 
-        let mut native_executable = Target::native("app");
-        native_executable.discovery = TargetDiscovery::Entry;
+        let native_executable = Target::native("app");
 
+        // library style targets stay per module
         assert_eq!(
             PackageOutputKind::for_target(&Target::js("web")),
             PackageOutputKind::JavaScript
         );
+
+        // assembled targets use bundled package output kinds
         assert_eq!(
             PackageOutputKind::for_target(&js_bundle),
             PackageOutputKind::JavaScriptBundle
@@ -295,6 +323,8 @@ mod tests {
             PackageOutputKind::for_target(&Target::wasm_js("wasm")),
             PackageOutputKind::WebAssembly
         );
+
+        // native package shape now follows target intent, not discovery heuristics
         assert_eq!(
             PackageOutputKind::for_target(&native_library),
             PackageOutputKind::NativeLibrary

@@ -12,17 +12,128 @@ use super::super::policy::{
     TrustPolicy, TrustPolicyJson, UnwindFormat, UnwindFormatJson,
 };
 use super::super::runtime::{
-    RuntimeAppDeclaration, RuntimeOptions, RuntimeOptionsJson, runtime_options_with_base,
+    RuntimeAppDeclaration, RuntimeConfigJson, RuntimeOptions, runtime_options_with_base,
 };
 use super::super::tsconfig::{EsTarget, ModuleTarget};
+use super::super::{FeatureRefsJson, TelemetryRefsJson};
 
 use super::app::*;
+use super::bundle::*;
 use super::execution::*;
 use super::optimization::*;
 use super::output::*;
 
 /// Default output directory for targets.
 pub const DEFAULT_OUT_DIR: &str = "dist";
+
+fn default_target_outputs(
+    emit: EmitFormat,
+    is_assembled: bool,
+    declaration: bool,
+    source_map: bool,
+    has_manifest: bool,
+) -> TargetOutputs {
+    let mut outputs = TargetOutputs::new();
+
+    // primary emitted surface
+    let primary_name = match emit {
+        EmitFormat::Native | EmitFormat::Wasm => TargetOutputName::Binary,
+        EmitFormat::Html => TargetOutputName::Document,
+        EmitFormat::Js | EmitFormat::Ts => {
+            if is_assembled {
+                TargetOutputName::Entry
+            } else {
+                TargetOutputName::Module
+            }
+        }
+    };
+    let primary_topology = match emit {
+        EmitFormat::Native | EmitFormat::Wasm | EmitFormat::Html => TargetOutputTopology::File,
+        EmitFormat::Js | EmitFormat::Ts => {
+            if is_assembled {
+                TargetOutputTopology::Collection
+            } else {
+                TargetOutputTopology::Directory
+            }
+        }
+    };
+    outputs.insert(
+        primary_name.as_str(),
+        TargetOutputOptions {
+            kind: primary_name.kind(),
+            topology: primary_topology,
+            is_public: true,
+        },
+    );
+
+    // declarations
+    if declaration {
+        outputs.insert(
+            TargetOutputName::Types.as_str(),
+            TargetOutputOptions {
+                kind: TargetOutputKind::Types,
+                topology: primary_topology,
+                is_public: true,
+            },
+        );
+    }
+
+    // source maps
+    if source_map {
+        outputs.insert(
+            TargetOutputName::Maps.as_str(),
+            TargetOutputOptions {
+                kind: TargetOutputKind::Maps,
+                topology: primary_topology,
+                is_public: false,
+            },
+        );
+    }
+
+    // manifest sidecar
+    if has_manifest {
+        outputs.insert(
+            TargetOutputName::Manifest.as_str(),
+            TargetOutputOptions {
+                kind: TargetOutputKind::Manifest,
+                topology: TargetOutputTopology::Collection,
+                is_public: true,
+            },
+        );
+    }
+
+    outputs
+}
+
+fn is_assembled_target(
+    discovery: TargetDiscovery,
+    app: &TargetAppDeclaration,
+    emit: EmitFormat,
+    bundle: &TargetBundle,
+    out_file: bool,
+) -> bool {
+    if out_file || emit.is_single_file() {
+        return true;
+    }
+
+    if discovery == TargetDiscovery::Entry {
+        return true;
+    }
+
+    if !app.is_empty() {
+        return true;
+    }
+
+    bundle.format.is_some()
+        || bundle.splitting
+        || bundle.inline_dynamic_imports
+        || bundle.preserve_modules
+        || bundle.manifest
+        || bundle.minify
+        || bundle.minify_syntax
+        || bundle.minify_whitespace
+        || bundle.minify_identifiers
+}
 
 /// A build target configuration.
 ///
@@ -34,7 +145,6 @@ pub struct Target {
     pub name: String,
     /// Whether this target exists only for synthetic purposes.
     pub synthetic: bool,
-
     // discovery
     /// How modules are discovered for this target.
     pub discovery: TargetDiscovery,
@@ -56,10 +166,18 @@ pub struct Target {
     pub types: Option<Vec<String>>,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
+    /// Bundling options for assembled JavaScript and HTML outputs.
+    pub bundle: TargetBundle,
     /// App declaration for packaging and runtime capability planning.
     pub app: TargetAppDeclaration,
-    /// Output format (js, ts, wasm, native).
-    pub output: OutputFormat,
+    /// Referenced runtime feature definitions.
+    pub features: Vec<String>,
+    /// Referenced telemetry definitions.
+    pub telemetry: Vec<String>,
+    /// Formal named outputs published by this target.
+    pub outputs: TargetOutputs,
+    /// Emitted artifact family (js, ts, html, wasm, native).
+    pub emit: EmitFormat,
     /// Runtime environment (browser, node, wasm-wasi, native-hosted, etc.).
     pub runtime: Runtime,
     /// Runtime version for selecting versioned libs.
@@ -92,8 +210,8 @@ pub struct Target {
     pub declaration: bool,
     /// Emit source maps.
     pub source_map: bool,
-    /// Extra artifacts to emit.
-    pub emit: Vec<EmitArtifact>,
+    /// Extra sidecar artifacts to emit.
+    pub artifacts: Vec<EmitArtifact>,
 
     // optimization
     /// Whether this is a debug build.
@@ -116,8 +234,6 @@ pub struct Target {
     pub debug_info: DebugInfoLevel,
     /// Debug execution mode for VM/native targets.
     pub debug_mode: DebugMode,
-    /// OSR policy for native execution.
-    pub osr_mode: OsrMode,
     /// Safepoint insertion mode for native execution.
     pub safepoint_mode: SafepointMode,
     /// Instruction interval for safepoint polling (when enabled).
@@ -169,8 +285,13 @@ impl Target {
     pub fn js(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            output: OutputFormat::Js,
+            outputs: default_target_outputs(EmitFormat::Js, false, true, false, false),
+            emit: EmitFormat::Js,
             runtime: Runtime::Node,
+            runtime_options: RuntimeOptions {
+                host: Runtime::Node,
+                ..RuntimeOptions::default()
+            },
             platform: Platform::Web,
             declaration: true, // default to emitting declarations for JS
             ..Default::default()
@@ -181,8 +302,29 @@ impl Target {
     pub fn ts(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            output: OutputFormat::Ts,
+            outputs: default_target_outputs(EmitFormat::Ts, false, false, false, false),
+            emit: EmitFormat::Ts,
             runtime: Runtime::Node,
+            runtime_options: RuntimeOptions {
+                host: Runtime::Node,
+                ..RuntimeOptions::default()
+            },
+            platform: Platform::Web,
+            ..Default::default()
+        }
+    }
+
+    /// Create a new target with the given name and HTML document output.
+    pub fn html(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            outputs: default_target_outputs(EmitFormat::Html, true, false, false, false),
+            emit: EmitFormat::Html,
+            runtime: Runtime::Browser,
+            runtime_options: RuntimeOptions {
+                host: Runtime::Browser,
+                ..RuntimeOptions::default()
+            },
             platform: Platform::Web,
             ..Default::default()
         }
@@ -192,8 +334,13 @@ impl Target {
     pub fn node(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            output: OutputFormat::Js,
+            outputs: default_target_outputs(EmitFormat::Js, false, true, false, false),
+            emit: EmitFormat::Js,
             runtime: Runtime::Node,
+            runtime_options: RuntimeOptions {
+                host: Runtime::Node,
+                ..RuntimeOptions::default()
+            },
             platform: Platform::Universal,
             declaration: true,
             ..Default::default()
@@ -204,8 +351,13 @@ impl Target {
     pub fn wasm_js(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            output: OutputFormat::Wasm,
+            outputs: default_target_outputs(EmitFormat::Wasm, true, false, false, false),
+            emit: EmitFormat::Wasm,
             runtime: Runtime::WasmJs,
+            runtime_options: RuntimeOptions {
+                host: Runtime::WasmJs,
+                ..RuntimeOptions::default()
+            },
             platform: Platform::Web,
             optimize: true,
             ..Default::default()
@@ -216,8 +368,13 @@ impl Target {
     pub fn wasm_wasi(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            output: OutputFormat::Wasm,
+            outputs: default_target_outputs(EmitFormat::Wasm, true, false, false, false),
+            emit: EmitFormat::Wasm,
             runtime: Runtime::WasmWasi,
+            runtime_options: RuntimeOptions {
+                host: Runtime::WasmWasi,
+                ..RuntimeOptions::default()
+            },
             platform: Platform::Wasi,
             optimize: true,
             ..Default::default()
@@ -228,8 +385,13 @@ impl Target {
     pub fn native(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            output: OutputFormat::Native,
+            outputs: default_target_outputs(EmitFormat::Native, true, false, false, false),
+            emit: EmitFormat::Native,
             runtime: Runtime::NativeHosted,
+            runtime_options: RuntimeOptions {
+                host: Runtime::NativeHosted,
+                ..RuntimeOptions::default()
+            },
             platform: Platform::Universal,
             optimize: true,
             ..Default::default()
@@ -240,8 +402,13 @@ impl Target {
     pub fn comptime(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            output: OutputFormat::Native,
+            outputs: default_target_outputs(EmitFormat::Native, true, false, false, false),
+            emit: EmitFormat::Native,
             runtime: Runtime::NativeHosted,
+            runtime_options: RuntimeOptions {
+                host: Runtime::NativeHosted,
+                ..RuntimeOptions::default()
+            },
             platform: Platform::Universal,
             optimize: true,
             trust_policy: TrustPolicy::Internal,
@@ -253,8 +420,13 @@ impl Target {
     pub fn native_freestanding(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            output: OutputFormat::Native,
+            outputs: default_target_outputs(EmitFormat::Native, true, false, false, false),
+            emit: EmitFormat::Native,
             runtime: Runtime::NativeFreestanding,
+            runtime_options: RuntimeOptions {
+                host: Runtime::NativeFreestanding,
+                ..RuntimeOptions::default()
+            },
             platform: Platform::BareMetal,
             optimize: true,
             ..Default::default()
@@ -265,8 +437,13 @@ impl Target {
     pub fn native_embedded(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            output: OutputFormat::Native,
+            outputs: default_target_outputs(EmitFormat::Native, true, false, false, false),
+            emit: EmitFormat::Native,
             runtime: Runtime::NativeEmbedded,
+            runtime_options: RuntimeOptions {
+                host: Runtime::NativeEmbedded,
+                ..RuntimeOptions::default()
+            },
             platform: Platform::BareMetal,
             optimize: true,
             ..Default::default()
@@ -279,6 +456,7 @@ impl Target {
             "default" => Some(Self::js(name)),
             "js" => Some(Self::js(name)),
             "ts" => Some(Self::ts(name)),
+            "html" => Some(Self::html(name)),
             "node" => Some(Self::node(name)),
             "wasm" => Some(Self::wasm_js(name)),
             "wasm-wasi" | "wasi" => Some(Self::wasm_wasi(name)),
@@ -291,20 +469,25 @@ impl Target {
     pub fn synthetic_for(base: &Target, name: impl Into<String>) -> Self {
         let mut target = base.clone();
         target.name = name.into();
-        target.output = OutputFormat::Native;
+        target.emit = EmitFormat::Native;
+        target.runtime = Runtime::NativeHosted;
+        target.runtime_version = None;
+        target.runtime_options.host = Runtime::NativeHosted;
+        target.runtime_options.version = None;
+        target.outputs = default_target_outputs(EmitFormat::Native, true, false, false, false);
         target.optimize = false;
         target.optimize_level = OptimizeLevel::O0;
         target.lto_mode = LtoMode::None;
         target.declaration = false;
         target.source_map = false;
-        target.emit.clear();
+        target.artifacts.clear();
         target.synthetic = true;
         target
     }
 
     /// Derive the output mode from the target configuration.
     pub fn output_mode(&self) -> OutputMode {
-        if self.out_file.is_some() || self.output.is_single_file() {
+        if self.out_file.is_some() || self.emit.is_single_file() {
             OutputMode::File
         } else {
             OutputMode::Directory
@@ -319,6 +502,45 @@ impl Target {
     /// Whether this target produces directory output (one file per source file).
     pub fn is_directory(&self) -> bool {
         self.output_mode() == OutputMode::Directory
+    }
+
+    /// Return whether this target uses the JavaScript generation pipeline.
+    pub fn uses_js_generate_pipeline(&self) -> bool {
+        self.emit.is_js_family()
+    }
+
+    /// Return whether this target uses the native generation pipeline.
+    pub fn uses_native_generate_pipeline(&self) -> bool {
+        self.emit.is_native_family()
+    }
+
+    /// Return whether this target assembles one target level output shape.
+    pub fn emits_assembled_output(&self) -> bool {
+        is_assembled_target(
+            self.discovery,
+            &self.app,
+            self.emit,
+            &self.bundle,
+            self.out_file.is_some(),
+        )
+    }
+
+    /// Return whether this target emits one file per source module.
+    pub fn emits_per_module_output(&self) -> bool {
+        !self.emits_assembled_output()
+    }
+
+    /// Return whether this target should minify assembled JavaScript or HTML output.
+    pub fn should_minify_bundle_output(&self) -> bool {
+        self.bundle.minify
+            || self.bundle.minify_syntax
+            || self.bundle.minify_whitespace
+            || self.bundle.minify_identifiers
+    }
+
+    /// Return whether this target publishes one binary payload.
+    pub fn publishes_binary_output(&self) -> bool {
+        self.outputs.contains_kind(TargetOutputKind::Binary)
     }
 
     /// Resolve a target triple string from the target configuration.
@@ -408,12 +630,15 @@ impl Target {
     /// Set the runtime.
     pub fn with_runtime(mut self, runtime: Runtime) -> Self {
         self.runtime = runtime;
+        self.runtime_options.host = runtime;
         self
     }
 
     /// Set the runtime version.
     pub fn with_runtime_version(mut self, runtime_version: impl Into<String>) -> Self {
-        self.runtime_version = Some(runtime_version.into());
+        let runtime_version = runtime_version.into();
+        self.runtime_version = Some(runtime_version.clone());
+        self.runtime_options.version = Some(runtime_version);
         self
     }
 
@@ -625,7 +850,7 @@ impl Target {
             }
         }
 
-        if self.output.is_js() || self.output.is_ts() {
+        if self.emit.is_js() || self.emit.is_ts() || self.emit.is_html() {
             libs.push("js".to_string());
             libs.push(self.es_target.default_lib_name().to_string());
         }
@@ -747,7 +972,6 @@ pub struct TargetOptions {
     pub labels: IndexMap<String, String>,
     /// Non-identifying metadata.
     pub annotations: IndexMap<String, String>,
-
     // discovery
     /// How modules are discovered for this target.
     pub discovery: TargetDiscovery,
@@ -759,8 +983,8 @@ pub struct TargetOptions {
     pub exclude: Vec<String>,
 
     // output format
-    /// Output format (js, ts, wasm, native).
-    pub output: OutputFormat,
+    /// Emitted artifact family (js, ts, html, wasm, native).
+    pub emit: EmitFormat,
     /// Runtime environment (browser, node, wasm-wasi, native-hosted, etc.).
     pub runtime: Runtime,
     /// Runtime version for selecting versioned libs.
@@ -795,13 +1019,13 @@ pub struct TargetOptions {
     pub declaration: bool,
     /// Emit source maps.
     pub source_map: bool,
-    /// Extra artifacts to emit.
-    pub emit: Vec<EmitArtifact>,
+    /// Extra sidecar artifacts to emit.
+    pub artifacts: Vec<EmitArtifact>,
 
     // output paths
     /// Output directory for this target (defaults to "dist").
     pub out_dir: PathBuf,
-    /// Output file for single-file targets like wasm.
+    /// Output file for single-file targets like html or wasm.
     pub out_file: Option<PathBuf>,
     /// Separate directory for declaration files.
     pub declaration_dir: Option<PathBuf>,
@@ -817,8 +1041,16 @@ pub struct TargetOptions {
     pub types: Option<Vec<String>>,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
+    /// Bundling options for assembled JavaScript and HTML outputs.
+    pub bundle: TargetBundle,
     /// App declaration for packaging and runtime capability planning.
     pub app: TargetAppDeclaration,
+    /// Referenced runtime feature definitions.
+    pub features: Vec<String>,
+    /// Referenced telemetry definitions.
+    pub telemetry: Vec<String>,
+    /// Formal named outputs published by this target.
+    pub outputs: TargetOutputs,
 
     // optimization
     /// Whether this is a debug build.
@@ -841,8 +1073,6 @@ pub struct TargetOptions {
     pub debug_info: DebugInfoLevel,
     /// Debug execution mode for VM/native targets.
     pub debug_mode: DebugMode,
-    /// OSR mode for native execution.
-    pub osr_mode: OsrMode,
     /// Safepoint insertion mode for native execution.
     pub safepoint_mode: SafepointMode,
     /// Instruction interval for safepoint polling (when enabled).
@@ -890,7 +1120,7 @@ impl Default for TargetOptions {
             entry: Vec::new(),
             include: Vec::new(),
             exclude: Vec::new(),
-            output: OutputFormat::default(),
+            emit: EmitFormat::default(),
             runtime: Runtime::default(),
             runtime_version: None,
             platform: Platform::default(),
@@ -907,7 +1137,7 @@ impl Default for TargetOptions {
             sysroot: None,
             declaration: false,
             source_map: false,
-            emit: Vec::new(),
+            artifacts: Vec::new(),
             out_dir: PathBuf::from(DEFAULT_OUT_DIR),
             out_file: None,
             declaration_dir: None,
@@ -916,7 +1146,11 @@ impl Default for TargetOptions {
             lib: None,
             types: None,
             profile: None,
+            bundle: TargetBundle::default(),
             app: TargetAppDeclaration::default(),
+            features: Vec::new(),
+            telemetry: Vec::new(),
+            outputs: TargetOutputs::new(),
             debug: true,
             optimize: false,
             optimize_level: OptimizeLevel::O0,
@@ -927,7 +1161,6 @@ impl Default for TargetOptions {
             float_math: FloatMathPolicy::default(),
             debug_info: DebugInfoLevel::default(),
             debug_mode: DebugMode::default(),
-            osr_mode: OsrMode::default(),
             safepoint_mode: SafepointMode::default(),
             safepoint_interval: None,
             speculation_mode: SpeculationMode::default(),
@@ -953,7 +1186,7 @@ impl Default for TargetOptions {
 impl TargetOptions {
     /// Derive the output mode from the target configuration.
     pub fn output_mode(&self) -> OutputMode {
-        if self.out_file.is_some() || self.output.is_single_file() {
+        if self.out_file.is_some() || self.emit.is_single_file() {
             OutputMode::File
         } else {
             OutputMode::Directory
@@ -979,7 +1212,7 @@ impl TargetOptions {
             entry: self.entry.clone(),
             include: self.include.clone(),
             exclude: self.exclude.clone(),
-            output: self.output,
+            emit: self.emit,
             runtime: self.runtime,
             runtime_version: self.runtime_version.clone(),
             platform: self.platform,
@@ -996,7 +1229,7 @@ impl TargetOptions {
             sysroot: self.sysroot.clone(),
             declaration: self.declaration,
             source_map: self.source_map,
-            emit: self.emit.clone(),
+            artifacts: self.artifacts.clone(),
             out_dir: self.out_dir.clone(),
             out_file: self.out_file.clone(),
             declaration_dir: self.declaration_dir.clone(),
@@ -1005,7 +1238,11 @@ impl TargetOptions {
             lib: self.lib.clone(),
             types: self.types.clone(),
             profile: self.profile.clone(),
+            bundle: self.bundle.clone(),
             app: self.app.clone(),
+            features: self.features.clone(),
+            telemetry: self.telemetry.clone(),
+            outputs: self.outputs.clone(),
             debug: self.debug,
             optimize: self.optimize,
             optimize_level: self.optimize_level,
@@ -1016,7 +1253,6 @@ impl TargetOptions {
             float_math: self.float_math,
             debug_info: self.debug_info,
             debug_mode: self.debug_mode,
-            osr_mode: self.osr_mode,
             safepoint_mode: self.safepoint_mode,
             safepoint_interval: self.safepoint_interval,
             speculation_mode: self.speculation_mode,
@@ -1055,8 +1291,7 @@ impl TargetOptions {
         };
 
         // apply runtime overrides on top of the base runtime options
-        let mut runtime_options =
-            runtime_options_with_base(base_runtime, json.runtime_options.as_ref());
+        let mut runtime_options = runtime_options_with_base(base_runtime, json.runtime.as_ref());
 
         // align execution mode field with runtime options
         if let Some(execution_mode) = json.execution.map(ExecutionMode::from) {
@@ -1069,6 +1304,27 @@ impl TargetOptions {
             .as_ref()
             .map(TargetAppDeclaration::from)
             .unwrap_or_default();
+
+        // derive the emit family early so output defaults can reuse the target shape
+        let emit = json.emit.map(EmitFormat::from).unwrap_or_default();
+
+        // resolve one assembled output decision before deriving output groups
+        let bundle = json
+            .bundle
+            .as_ref()
+            .map(TargetBundle::from)
+            .unwrap_or_default();
+        let is_assembled =
+            is_assembled_target(discovery, &app, emit, &bundle, json.out_file.is_some());
+
+        // derive the formal target outputs from the target shape
+        let outputs = default_target_outputs(
+            emit,
+            is_assembled,
+            json.declaration,
+            json.source_map,
+            bundle.manifest,
+        );
 
         // seed runtime options with the resolved target app declaration
         runtime_options.app = RuntimeAppDeclaration::from(&app);
@@ -1088,13 +1344,9 @@ impl TargetOptions {
             entry,
             include: json.include.clone().unwrap_or_default(),
             exclude: json.exclude.clone().unwrap_or_default(),
-            output: json.output.map(OutputFormat::from).unwrap_or_default(),
-            runtime: json
-                .runtime
-                .as_deref()
-                .and_then(Runtime::parse)
-                .unwrap_or_default(),
-            runtime_version: json.runtime_version.clone(),
+            emit,
+            runtime: runtime_options.host,
+            runtime_version: runtime_options.version.clone(),
             platform: json
                 .platform
                 .as_deref()
@@ -1116,10 +1368,10 @@ impl TargetOptions {
             sysroot: json.sysroot.as_ref().map(PathBuf::from),
             declaration: json.declaration,
             source_map: json.source_map,
-            emit: json
-                .emit
+            artifacts: json
+                .artifacts
                 .as_ref()
-                .map(|emit| emit.iter().copied().map(EmitArtifact::from).collect())
+                .map(|artifacts| artifacts.iter().copied().map(EmitArtifact::from).collect())
                 .unwrap_or_default(),
             out_dir: json
                 .out_dir
@@ -1141,7 +1393,19 @@ impl TargetOptions {
             lib: json.lib.clone(),
             types: json.types.clone(),
             profile: json.profile.clone(),
+            bundle,
             app,
+            features: json
+                .features
+                .as_ref()
+                .map(FeatureRefsJson::names)
+                .unwrap_or_default(),
+            telemetry: json
+                .telemetry
+                .as_ref()
+                .map(TelemetryRefsJson::names)
+                .unwrap_or_default(),
+            outputs,
             debug: json.debug,
             optimize: json.optimize,
             optimize_level: json
@@ -1161,7 +1425,6 @@ impl TargetOptions {
                 .map(DebugInfoLevel::from)
                 .unwrap_or_default(),
             debug_mode: json.debug_mode.map(DebugMode::from).unwrap_or_default(),
-            osr_mode: json.osr_mode.map(OsrMode::from).unwrap_or_default(),
             safepoint_mode: json
                 .safepoint_mode
                 .map(SafepointMode::from)
@@ -1232,7 +1495,6 @@ pub struct TargetJson {
     pub labels: Option<IndexMap<String, String>>,
     /// Non-identifying metadata.
     pub annotations: Option<IndexMap<String, String>>,
-
     // discovery
     /// Entry points for entry-based discovery (bundled/executable targets).
     /// If set, discovery mode is Entry; otherwise it's Include.
@@ -1242,13 +1504,11 @@ pub struct TargetJson {
     /// Glob patterns for files to exclude.
     pub exclude: Option<Vec<String>>,
 
-    // output format
-    /// Output format (e.g., JavaScript, TypeScript, WebAssembly, Native).
-    pub output: Option<OutputFormatJson>,
-    /// Runtime for the built artifact (e.g., browser, node, edge, worker, native).
-    pub runtime: Option<String>,
-    /// Runtime version for selecting versioned libs.
-    pub runtime_version: Option<String>,
+    // emit family
+    /// Emitted artifact family (e.g., JavaScript, TypeScript, HTML, WebAssembly, Native).
+    pub emit: Option<EmitFormatJson>,
+    /// Runtime host shorthand or full runtime configuration.
+    pub runtime: Option<RuntimeConfigJson>,
     /// Host platform or packaging surface (e.g., browser, ios, android, macos, linux, windows).
     pub platform: Option<String>,
     /// Target triple for native codegen (e.g., "x86_64-unknown-linux-gnu").
@@ -1279,13 +1539,13 @@ pub struct TargetJson {
     /// Emit source maps.
     #[serde(default)]
     pub source_map: bool,
-    /// Extra artifacts to emit.
-    pub emit: Option<Vec<EmitArtifactJson>>,
+    /// Extra sidecar artifacts to emit.
+    pub artifacts: Option<Vec<EmitArtifactJson>>,
 
     // output paths
     /// Output directory for this target (overrides compilerOptions.outDir).
     pub out_dir: Option<String>,
-    /// Output file for single-file targets like wasm (e.g., "./dist/core.wasm").
+    /// Output file for single-file targets like html or wasm (e.g., "./dist/index.html").
     pub out_file: Option<String>,
     /// Separate directory for declaration files (overrides compilerOptions.declarationDir).
     pub declaration_dir: Option<String>,
@@ -1301,9 +1561,14 @@ pub struct TargetJson {
     pub types: Option<Vec<String>>,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
+    /// Bundling options for assembled JavaScript and HTML outputs.
+    pub bundle: Option<TargetBundleJson>,
     /// App declaration for packaging and runtime capability planning.
     pub app: Option<TargetAppDeclarationJson>,
-
+    /// Referenced runtime feature definitions.
+    pub features: Option<FeatureRefsJson>,
+    /// Referenced telemetry definitions.
+    pub telemetry: Option<TelemetryRefsJson>,
     // optimization
     /// Whether this is a debug build.
     #[serde(default)]
@@ -1312,6 +1577,7 @@ pub struct TargetJson {
     #[serde(default)]
     pub optimize: bool,
     /// Optimization level (0-4).
+    #[cfg_attr(feature = "schema", schemars(range(min = 0, max = 4)))]
     pub optimize_level: Option<u8>,
     /// Loop unroll threshold in instructions.
     pub unroll_threshold: Option<u64>,
@@ -1320,6 +1586,7 @@ pub struct TargetJson {
     /// Link time optimization mode.
     pub lto_mode: Option<LtoModeJson>,
     /// Shrink level (0-3).
+    #[cfg_attr(feature = "schema", schemars(range(min = 0, max = 3)))]
     pub shrink_level: Option<u8>,
     /// Floating point math optimization policy.
     pub float_math: Option<FloatMathPolicyJson>,
@@ -1327,8 +1594,6 @@ pub struct TargetJson {
     pub debug_info: Option<DebugInfoLevelJson>,
     /// Debug execution mode for VM/native targets.
     pub debug_mode: Option<DebugModeJson>,
-    /// OSR mode for native execution.
-    pub osr_mode: Option<OsrModeJson>,
     /// Safepoint insertion mode for native execution.
     pub safepoint_mode: Option<SafepointModeJson>,
     /// Instruction interval for safepoint polling (when enabled).
@@ -1341,8 +1606,6 @@ pub struct TargetJson {
     #[serde(alias = "executionMode")]
     #[serde(alias = "execution_mode")]
     pub execution: Option<ExecutionModeJson>,
-    /// Runtime options overrides for this target.
-    pub runtime_options: Option<RuntimeOptionsJson>,
     /// Trust policy for runtime execution.
     pub trust_policy: Option<TrustPolicyJson>,
     /// Sandbox policy for runtime isolation.

@@ -3,8 +3,8 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::config::target::{
-    TargetAppBackgroundMode, TargetAppDeclaration, TargetAppForegroundMode,
+use crate::config::targets::{
+    Runtime, TargetAppBackgroundMode, TargetAppDeclaration, TargetAppForegroundMode,
     TargetAppIdentityDeclaration, TargetAppNotificationCategoryDeclaration, TargetAppPermission,
 };
 
@@ -441,6 +441,10 @@ impl From<TargetAppPermission> for RuntimeAppPermission {
 /// Runtime execution options for scheduler, time, randomness, and heap behavior.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct RuntimeOptions {
+    /// Execution host semantics for this runtime.
+    pub host: Runtime,
+    /// Runtime version for versioned library selection.
+    pub version: Option<String>,
     /// Stable runtime name for policy selection.
     pub name: Option<String>,
     /// Runtime labels for policy selection.
@@ -512,31 +516,66 @@ pub struct RuntimeOptions {
     /// Platform-specific host runtime overrides.
     pub platform: PlatformOptions,
 }
-pub(crate) fn runtime_options_from_json(json: Option<&RuntimeOptionsJson>) -> RuntimeOptions {
+
+/// Runtime config JSON.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+pub enum RuntimeConfigJson {
+    /// Runtime host shorthand.
+    Host(String),
+    /// Full runtime configuration object.
+    Options(RuntimeOptionsJson),
+}
+
+impl Default for RuntimeConfigJson {
+    fn default() -> Self {
+        Self::Options(RuntimeOptionsJson::default())
+    }
+}
+
+impl RuntimeConfigJson {
+    /// Return this runtime config as object form.
+    pub fn as_options_json(&self) -> RuntimeOptionsJson {
+        match self {
+            Self::Host(host) => RuntimeOptionsJson {
+                host: Some(host.clone()),
+                ..RuntimeOptionsJson::default()
+            },
+            Self::Options(options) => options.clone(),
+        }
+    }
+}
+
+pub(crate) fn runtime_options_from_json(json: Option<&RuntimeConfigJson>) -> RuntimeOptions {
     runtime_options_with_base(&RuntimeOptions::default(), json)
 }
 
 /// Derive runtime options from a base set of options plus overrides.
 pub(crate) fn runtime_options_with_base(
     base: &RuntimeOptions,
-    overrides: Option<&RuntimeOptionsJson>,
+    overrides: Option<&RuntimeConfigJson>,
 ) -> RuntimeOptions {
     // start from the base options
     let mut options = base.clone();
 
     // apply overrides when present
     if let Some(overrides) = overrides {
-        overrides.apply_to(&mut options);
+        overrides.as_options_json().apply_to(&mut options);
     }
 
     options
 }
 
-/// Runtime options (top-level).
+/// Runtime options (object form).
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeOptionsJson {
+    /// Execution host semantics for this runtime.
+    pub host: Option<String>,
+    /// Runtime version for versioned library selection.
+    pub version: Option<String>,
     /// Stable runtime name for policy selection.
     pub name: Option<String>,
     /// Runtime labels for policy selection.
@@ -636,6 +675,12 @@ impl RuntimeAgentOptionsJson {
 impl RuntimeOptionsJson {
     /// Inherit unset runtime settings from one parent config.
     pub fn extend_from(&mut self, parent: &Self) {
+        if self.host.is_none() {
+            self.host = parent.host.clone();
+        }
+        if self.version.is_none() {
+            self.version = parent.version.clone();
+        }
         if self.name.is_none() {
             self.name = parent.name.clone();
         }
@@ -750,6 +795,16 @@ impl RuntimeOptionsJson {
 
     /// Apply runtime option overrides to a base set of options.
     pub fn apply_to(&self, options: &mut RuntimeOptions) {
+        // host and version
+        if let Some(host) = &self.host
+            && let Some(host) = Runtime::parse(host)
+        {
+            options.host = host;
+        }
+        if let Some(version) = &self.version {
+            options.version = Some(version.clone());
+        }
+
         // apply runtime identity overrides
         if let Some(name) = &self.name {
             options.name = Some(name.clone());

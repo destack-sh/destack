@@ -5,34 +5,6 @@ use serde_json::Value;
 /// Default first-party issuer service name.
 pub const DESTACK_ISSUER_UNIVERSE_SERVICE: &str = "universe";
 
-/// Workload run kinds.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum StackRunKind {
-    /// Serve HTTP traffic.
-    #[default]
-    Http,
-    /// Publish static assets.
-    Static,
-    /// Consume queue or stream messages.
-    Consumer,
-    /// Run on a cron-like schedule.
-    Schedule,
-    /// Run as a one-shot background job.
-    Job,
-}
-
-impl From<StackRunKindJson> for StackRunKind {
-    fn from(json: StackRunKindJson) -> Self {
-        match json {
-            StackRunKindJson::Http => Self::Http,
-            StackRunKindJson::Static => Self::Static,
-            StackRunKindJson::Consumer => Self::Consumer,
-            StackRunKindJson::Schedule => Self::Schedule,
-            StackRunKindJson::Job => Self::Job,
-        }
-    }
-}
-
 /// Scaling signal options.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum StackScalingMetric {
@@ -339,23 +311,6 @@ impl From<&StackCacheJson> for StackCacheOptions {
     }
 }
 
-/// Run kind JSON.
-#[derive(Debug, Deserialize, Clone, Copy)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub enum StackRunKindJson {
-    /// Serve HTTP traffic.
-    Http,
-    /// Publish static assets.
-    Static,
-    /// Consume queue or stream messages.
-    Consumer,
-    /// Run on a cron-like schedule.
-    Schedule,
-    /// Run as a one-shot background job.
-    Job,
-}
-
 /// Scaling metric JSON.
 #[derive(Debug, Deserialize, Clone, Copy)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -493,7 +448,7 @@ pub struct StackIssuerUrlRefJson {
 }
 
 /// Merge metadata maps with child precedence.
-pub(super) fn merge_metadata(
+pub(crate) fn merge_metadata(
     into: &mut IndexMap<String, String>,
     parent: &IndexMap<String, String>,
 ) {
