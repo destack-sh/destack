@@ -1,0 +1,675 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`long.md - {"proseWrap":"always"} format 1`] = `
+====================================options=====================================
+parsers: ["markdown"]
+proseWrap: "always"
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+[^hello]: this is a long long long long long long long long long long long long long paragraph.
+[^world]: this is a long long long long long long long long long long long long long paragraph.
+          this is a long long long long long long long long long long long long long paragraph.
+
+=====================================output=====================================
+[^hello]:
+    this is a long long long long long long long long long long long long long
+    paragraph.
+
+[^world]:
+    this is a long long long long long long long long long long long long long
+    paragraph. this is a long long long long long long long long long long long
+    long long paragraph.
+
+================================================================================
+`;
+
+exports[`long.md - {"proseWrap":"never"} format 1`] = `
+====================================options=====================================
+parsers: ["markdown"]
+proseWrap: "never"
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+[^hello]: this is a long long long long long long long long long long long long long paragraph.
+[^world]: this is a long long long long long long long long long long long long long paragraph.
+          this is a long long long long long long long long long long long long long paragraph.
+
+=====================================output=====================================
+[^hello]: this is a long long long long long long long long long long long long long paragraph.
+
+[^world]: this is a long long long long long long long long long long long long long paragraph. this is a long long long long long long long long long long long long long paragraph.
+
+================================================================================
+`;
+
+exports[`long.md - {"proseWrap":"preserve"} format 1`] = `
+====================================options=====================================
+parsers: ["markdown"]
+proseWrap: "preserve"
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+[^hello]: this is a long long long long long long long long long long long long long paragraph.
+[^world]: this is a long long long long long long long long long long long long long paragraph.
+          this is a long long long long long long long long long long long long long paragraph.
+
+=====================================output=====================================
+[^hello]: this is a long long long long long long long long long long long long long paragraph.
+
+[^world]:
+    this is a long long long long long long long long long long long long long paragraph.
+    this is a long long long long long long long long long long long long long paragraph.
+
+================================================================================
+`;
+
+exports[`long.md - {"tabWidth":3} format 1`] = `
+====================================options=====================================
+parsers: ["markdown"]
+tabWidth: 3
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+[^hello]: this is a long long long long long long long long long long long long long paragraph.
+[^world]: this is a long long long long long long long long long long long long long paragraph.
+          this is a long long long long long long long long long long long long long paragraph.
+
+=====================================output=====================================
+[^hello]: this is a long long long long long long long long long long long long long paragraph.
+
+[^world]:
+    this is a long long long long long long long long long long long long long paragraph.
+    this is a long long long long long long long long long long long long long paragraph.
+
+================================================================================
+`;
+
+exports[`multiline.md - {"proseWrap":"always"} format 1`] = `
+====================================options=====================================
+parsers: ["markdown"]
+proseWrap: "always"
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+[^fn1]:
+
+    > \`\`\`rs
+    > fn main() {
+    >     println!("this is some Rust!");
+    > }
+    > \`\`\`
+
+[^fn2]: Here is a footnote which includes code.
+
+    \`\`\`rs
+    fn main() {
+        println!("this is some Rust!");
+    }
+    \`\`\`
+
+[^fn2]: Here is a footnote which includes code. Here is a footnote which includes code. Here is a footnote which includes code.
+
+    \`\`\`rs
+    fn main() {
+        println!("this is some Rust!");
+    }
+    \`\`\`
+
+=====================================output=====================================
+[^fn1]:
+    > \`\`\`rs
+    > fn main() {
+    >     println!("this is some Rust!");
+    > }
+    > \`\`\`
+
+[^fn2]: Here is a footnote which includes code.
+
+    \`\`\`rs
+    fn main() {
+        println!("this is some Rust!");
+    }
+    \`\`\`
+
+[^fn2]:
+    Here is a footnote which includes code. Here is a footnote which includes
+    code. Here is a footnote which includes code.
+
+    \`\`\`rs
+    fn main() {
+        println!("this is some Rust!");
+    }
+    \`\`\`
+
+================================================================================
+`;
+
+exports[`multiline.md - {"proseWrap":"never"} format 1`] = `
+====================================options=====================================
+parsers: ["markdown"]
+proseWrap: "never"
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+[^fn1]:
+
+    > \`\`\`rs
+    > fn main() {
+    >     println!("this is some Rust!");
+    > }
+    > \`\`\`
+
+[^fn2]: Here is a footnote which includes code.
+
+    \`\`\`rs
+    fn main() {
+        println!("this is some Rust!");
+    }
+    \`\`\`
+
+[^fn2]: Here is a footnote which includes code. Here is a footnote which includes code. Here is a footnote which includes code.
+
+    \`\`\`rs
+    fn main() {
+        println!("this is some Rust!");
+    }
+    \`\`\`
+
+=====================================output=====================================
+[^fn1]:
+    > \`\`\`rs
+    > fn main() {
+    >     println!("this is some Rust!");
+    > }
+    > \`\`\`
+
+[^fn2]: Here is a footnote which includes code.
+
+    \`\`\`rs
+    fn main() {
+        println!("this is some Rust!");
+    }
+    \`\`\`
+
+[^fn2]:
+    Here is a footnote which includes code. Here is a footnote which includes code. Here is a footnote which includes code.
+
+    \`\`\`rs
+    fn main() {
+        println!("this is some Rust!");
+    }
+    \`\`\`
+
+================================================================================
+`;
+
+exports[`multiline.md - {"proseWrap":"preserve"} format 1`] = `
+====================================options=====================================
+parsers: ["markdown"]
+proseWrap: "preserve"
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+[^fn1]:
+
+    > \`\`\`rs
+    > fn main() {
+    >     println!("this is some Rust!");
+    > }
+    > \`\`\`
+
+[^fn2]: Here is a footnote which includes code.
+
+    \`\`\`rs
+    fn main() {
+        println!("this is some Rust!");
+    }
+    \`\`\`
+
+[^fn2]: Here is a footnote which includes code. Here is a footnote which includes code. Here is a footnote which includes code.
+
+    \`\`\`rs
+    fn main() {
+        println!("this is some Rust!");
+    }
+    \`\`\`
+
+=====================================output=====================================
+[^fn1]:
+    > \`\`\`rs
+    > fn main() {
+    >     println!("this is some Rust!");
+    > }
+    > \`\`\`
+
+[^fn2]: Here is a footnote which includes code.
+
+    \`\`\`rs
+    fn main() {
+        println!("this is some Rust!");
+    }
+    \`\`\`
+
+[^fn2]:
+    Here is a footnote which includes code. Here is a footnote which includes code. Here is a footnote which includes code.
+
+    \`\`\`rs
+    fn main() {
+        println!("this is some Rust!");
+    }
+    \`\`\`
+
+================================================================================
+`;
+
+exports[`multiline.md - {"tabWidth":3} format 1`] = `
+====================================options=====================================
+parsers: ["markdown"]
+tabWidth: 3
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+[^fn1]:
+
+    > \`\`\`rs
+    > fn main() {
+    >     println!("this is some Rust!");
+    > }
+    > \`\`\`
+
+[^fn2]: Here is a footnote which includes code.
+
+    \`\`\`rs
+    fn main() {
+        println!("this is some Rust!");
+    }
+    \`\`\`
+
+[^fn2]: Here is a footnote which includes code. Here is a footnote which includes code. Here is a footnote which includes code.
+
+    \`\`\`rs
+    fn main() {
+        println!("this is some Rust!");
+    }
+    \`\`\`
+
+=====================================output=====================================
+[^fn1]:
+    > \`\`\`rs
+    > fn main() {
+    >     println!("this is some Rust!");
+    > }
+    > \`\`\`
+
+[^fn2]: Here is a footnote which includes code.
+
+    \`\`\`rs
+    fn main() {
+        println!("this is some Rust!");
+    }
+    \`\`\`
+
+[^fn2]:
+    Here is a footnote which includes code. Here is a footnote which includes code. Here is a footnote which includes code.
+
+    \`\`\`rs
+    fn main() {
+        println!("this is some Rust!");
+    }
+    \`\`\`
+
+================================================================================
+`;
+
+exports[`sibling.md - {"proseWrap":"always"} format 1`] = `
+====================================options=====================================
+parsers: ["markdown"]
+proseWrap: "always"
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+[^a]: a
+[^a]: a
+[^a]: a
+[^a]: > 123
+[^a]: a
+[^a]: > 123
+[^a]: a
+[^a]: a
+[^a]: a
+
+---
+
+[^a]: a
+[^a]: a
+[^a]: a
+[^a]: > 123\\
+      > 456
+[^a]: a
+[^a]: > 123\\
+      > 456
+[^a]: a
+[^a]: a
+[^a]: a
+
+=====================================output=====================================
+[^a]: a
+
+[^a]: a
+
+[^a]: a
+
+[^a]: > 123
+
+[^a]: a
+
+[^a]: > 123
+
+[^a]: a
+
+[^a]: a
+
+[^a]: a
+
+---
+
+[^a]: a
+
+[^a]: a
+
+[^a]: a
+
+[^a]:
+    > 123\\
+    > 456
+
+[^a]: a
+
+[^a]:
+    > 123\\
+    > 456
+
+[^a]: a
+
+[^a]: a
+
+[^a]: a
+
+================================================================================
+`;
+
+exports[`sibling.md - {"proseWrap":"never"} format 1`] = `
+====================================options=====================================
+parsers: ["markdown"]
+proseWrap: "never"
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+[^a]: a
+[^a]: a
+[^a]: a
+[^a]: > 123
+[^a]: a
+[^a]: > 123
+[^a]: a
+[^a]: a
+[^a]: a
+
+---
+
+[^a]: a
+[^a]: a
+[^a]: a
+[^a]: > 123\\
+      > 456
+[^a]: a
+[^a]: > 123\\
+      > 456
+[^a]: a
+[^a]: a
+[^a]: a
+
+=====================================output=====================================
+[^a]: a
+
+[^a]: a
+
+[^a]: a
+
+[^a]: > 123
+
+[^a]: a
+
+[^a]: > 123
+
+[^a]: a
+
+[^a]: a
+
+[^a]: a
+
+---
+
+[^a]: a
+
+[^a]: a
+
+[^a]: a
+
+[^a]:
+    > 123\\
+    > 456
+
+[^a]: a
+
+[^a]:
+    > 123\\
+    > 456
+
+[^a]: a
+
+[^a]: a
+
+[^a]: a
+
+================================================================================
+`;
+
+exports[`sibling.md - {"proseWrap":"preserve"} format 1`] = `
+====================================options=====================================
+parsers: ["markdown"]
+proseWrap: "preserve"
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+[^a]: a
+[^a]: a
+[^a]: a
+[^a]: > 123
+[^a]: a
+[^a]: > 123
+[^a]: a
+[^a]: a
+[^a]: a
+
+---
+
+[^a]: a
+[^a]: a
+[^a]: a
+[^a]: > 123\\
+      > 456
+[^a]: a
+[^a]: > 123\\
+      > 456
+[^a]: a
+[^a]: a
+[^a]: a
+
+=====================================output=====================================
+[^a]: a
+
+[^a]: a
+
+[^a]: a
+
+[^a]: > 123
+
+[^a]: a
+
+[^a]: > 123
+
+[^a]: a
+
+[^a]: a
+
+[^a]: a
+
+---
+
+[^a]: a
+
+[^a]: a
+
+[^a]: a
+
+[^a]:
+    > 123\\
+    > 456
+
+[^a]: a
+
+[^a]:
+    > 123\\
+    > 456
+
+[^a]: a
+
+[^a]: a
+
+[^a]: a
+
+================================================================================
+`;
+
+exports[`sibling.md - {"tabWidth":3} format 1`] = `
+====================================options=====================================
+parsers: ["markdown"]
+tabWidth: 3
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+[^a]: a
+[^a]: a
+[^a]: a
+[^a]: > 123
+[^a]: a
+[^a]: > 123
+[^a]: a
+[^a]: a
+[^a]: a
+
+---
+
+[^a]: a
+[^a]: a
+[^a]: a
+[^a]: > 123\\
+      > 456
+[^a]: a
+[^a]: > 123\\
+      > 456
+[^a]: a
+[^a]: a
+[^a]: a
+
+=====================================output=====================================
+[^a]: a
+
+[^a]: a
+
+[^a]: a
+
+[^a]: > 123
+
+[^a]: a
+
+[^a]: > 123
+
+[^a]: a
+
+[^a]: a
+
+[^a]: a
+
+---
+
+[^a]: a
+
+[^a]: a
+
+[^a]: a
+
+[^a]:
+    > 123\\
+    > 456
+
+[^a]: a
+
+[^a]:
+    > 123\\
+    > 456
+
+[^a]: a
+
+[^a]: a
+
+[^a]: a
+
+================================================================================
+`;
+
+exports[`simple.md - {"proseWrap":"always"} format 1`] = `
+====================================options=====================================
+parsers: ["markdown"]
+proseWrap: "always"
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+[^hello]: world
+
+=====================================output=====================================
+[^hello]: world
+
+================================================================================
+`;
+
+exports[`simple.md - {"proseWrap":"never"} format 1`] = `
+====================================options=====================================
+parsers: ["markdown"]
+proseWrap: "never"
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+[^hello]: world
+
+=====================================output=====================================
+[^hello]: world
+
+================================================================================
+`;
+
+exports[`simple.md - {"proseWrap":"preserve"} format 1`] = `
+====================================options=====================================
+parsers: ["markdown"]
+proseWrap: "preserve"
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+[^hello]: world
+
+=====================================output=====================================
+[^hello]: world
+
+================================================================================
+`;
+
+exports[`simple.md - {"tabWidth":3} format 1`] = `
+====================================options=====================================
+parsers: ["markdown"]
+tabWidth: 3
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+[^hello]: world
+
+=====================================output=====================================
+[^hello]: world
+
+================================================================================
+`;

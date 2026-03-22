@@ -1,0 +1,73 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`order.js - {"trailingComma":"all"} format 1`] = `
+====================================options=====================================
+parsers: ["flow"]
+trailingComma: "all"
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+type Foo = {
+  // a
+  alpha: 'hello',
+
+  // b
+  [key: string]: void,
+  // c
+
+  beta: 10,
+
+  // d
+}
+
+=====================================output=====================================
+type Foo = {
+  // a
+  alpha: "hello",
+
+  // b
+  [key: string]: void,
+  // c
+
+  beta: 10,
+
+  // d
+};
+
+================================================================================
+`;
+
+exports[`order.js - {"trailingComma":"es5"} format 1`] = `
+====================================options=====================================
+parsers: ["flow"]
+trailingComma: "es5"
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+type Foo = {
+  // a
+  alpha: 'hello',
+
+  // b
+  [key: string]: void,
+  // c
+
+  beta: 10,
+
+  // d
+}
+
+=====================================output=====================================
+type Foo = {
+  // a
+  alpha: "hello",
+
+  // b
+  [key: string]: void,
+  // c
+
+  beta: 10,
+
+  // d
+};
+
+================================================================================
+`;

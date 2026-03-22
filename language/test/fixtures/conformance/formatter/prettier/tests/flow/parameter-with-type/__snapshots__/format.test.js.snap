@@ -1,0 +1,35 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`param.js - {"trailingComma":"all"} format 1`] = `
+====================================options=====================================
+parsers: ["flow"]
+trailingComma: "all"
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+const f = ({}: MyVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryLongType) => {};
+function g({}: Foo) {}
+
+=====================================output=====================================
+const f =
+  ({}: MyVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryLongType) => {};
+function g({}: Foo) {}
+
+================================================================================
+`;
+
+exports[`param.js - {"trailingComma":"es5"} format 1`] = `
+====================================options=====================================
+parsers: ["flow"]
+trailingComma: "es5"
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+const f = ({}: MyVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryLongType) => {};
+function g({}: Foo) {}
+
+=====================================output=====================================
+const f =
+  ({}: MyVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryLongType) => {};
+function g({}: Foo) {}
+
+================================================================================
+`;

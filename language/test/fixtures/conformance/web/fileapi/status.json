@@ -1,4 +1,5 @@
 {
+  "$schema": "../../schema/status.schema.json",
   "entries": [
     {
       "source_file": "blob/Blob-array-buffer.any.js",

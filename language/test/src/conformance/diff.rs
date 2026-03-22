@@ -67,8 +67,6 @@ struct TestRegion {
     title: Option<String>,
     /// The optional ordinal selector for repeated titles.
     ordinal: Option<usize>,
-    /// The optional source title selector when it differs from the target title.
-    source_title: Option<String>,
     /// The optional semantic source selector kind.
     source_kind: Option<SourceSelectorKind>,
     /// The optional semantic source selector key.
@@ -77,10 +75,6 @@ struct TestRegion {
     source_hash: Option<String>,
     /// The optional source ordinal selector when it differs from the target ordinal.
     source_ordinal: Option<usize>,
-    /// The optional starting line for one explicit source span.
-    source_line: Option<usize>,
-    /// The optional ending line for one explicit source span.
-    source_end_line: Option<usize>,
     /// The region body text without marker lines.
     text: String,
 }
@@ -429,33 +423,20 @@ fn parse_test_regions(path: &str, source: &str, text: &str) -> Result<Vec<TestRe
             .and_then(|source_kind| parse_source_kind(source_kind));
         let source_key = metadata.get("source_key").cloned();
         let source_hash = metadata.get("source_hash").cloned();
-        let source_title = metadata
-            .get("source_title")
-            .cloned()
-            .or_else(|| region_title.clone());
         let source_ordinal = metadata
             .get("source_ordinal")
             .and_then(|ordinal| ordinal.parse::<usize>().ok())
             .or(region_ordinal);
-        let source_line = metadata
-            .get("source_line")
-            .and_then(|line| line.parse::<usize>().ok());
-        let source_end_line = metadata
-            .get("source_end_line")
-            .and_then(|line| line.parse::<usize>().ok());
 
         regions.push(TestRegion {
             path: path.to_string(),
             source: region_source,
             title: region_title,
             ordinal: region_ordinal,
-            source_title,
             source_kind,
             source_key,
             source_hash,
             source_ordinal,
-            source_line,
-            source_end_line,
             text: region_lines,
         });
     }
@@ -586,10 +567,7 @@ fn extract_source_region_for_region(
         &region.source,
         region.source_kind,
         region.source_key.as_deref(),
-        region.source_title.as_deref(),
         region.source_ordinal,
-        region.source_line,
-        region.source_end_line,
     )
 }
 
@@ -608,84 +586,33 @@ fn extract_source_region_for_entry(
     } else {
         region.and_then(|region| region.source_key.as_deref())
     };
-    let source_title = if !entry.source_subcase.is_empty() {
-        Some(entry.source_subcase.as_str())
-    } else {
-        region.and_then(|region| region.source_title.as_deref())
-    };
     let source_ordinal = entry
         .source_ordinal
         .or_else(|| region.and_then(|region| region.source_ordinal));
-    let source_line = entry
-        .source_line
-        .or_else(|| region.and_then(|region| region.source_line));
-    let source_end_line = entry
-        .source_end_line
-        .or_else(|| region.and_then(|region| region.source_end_line));
 
     extract_source_region(
         source_text,
         &source_path,
         source_kind,
         source_key,
-        source_title,
         source_ordinal,
-        source_line,
-        source_end_line,
     )
 }
 
-/// Extract one matching source region by selector or explicit line span.
+/// Extract one matching source region by semantic selector.
 fn extract_source_region(
     source_text: &str,
     source_path: &str,
     source_kind: Option<SourceSelectorKind>,
     source_key: Option<&str>,
-    title: Option<&str>,
     ordinal: Option<usize>,
-    source_line: Option<usize>,
-    source_end_line: Option<usize>,
 ) -> Result<String, String> {
-    if let Some(source_kind) = source_kind {
-        let source_key = source_key.ok_or_else(|| {
-            format!("missing source_key for {source_kind} selector in {source_path}")
-        })?;
+    let source_kind =
+        source_kind.ok_or_else(|| format!("missing source_kind selector in {source_path}"))?;
+    let source_key =
+        source_key.ok_or_else(|| format!("missing source_key selector in {source_path}"))?;
 
-        return extract_source_region_by_kind(
-            source_text,
-            source_path,
-            source_kind,
-            source_key,
-            ordinal,
-        );
-    }
-
-    if let Some(source_line) = source_line {
-        return extract_line_span(source_text, source_path, source_line, source_end_line);
-    }
-
-    if let Some(title) = title {
-        let ordinal = ordinal.unwrap_or(1);
-
-        if let Some(source_test) = extract_named_test_call(source_text, title, ordinal) {
-            return Ok(source_test.text);
-        }
-
-        if let Some(source_test) = extract_single_test_call(source_text, ordinal) {
-            return Ok(source_test.text);
-        }
-
-        if let Some(source_test) = extract_named_statement(source_text, title, ordinal) {
-            return Ok(source_test.text);
-        }
-
-        return Err(format!(
-            "failed to extract source test '{}' from {}",
-            title, source_path
-        ));
-    }
-
-    Ok(source_text.to_string())
+    extract_source_region_by_kind(source_text, source_path, source_kind, source_key, ordinal)
 }
 
 /// Extract one matching source region by semantic selector kind.
@@ -1000,15 +927,6 @@ fn validate_region_matches_entry(region: &TestRegion, entry: &StatusEntry) -> Re
         ));
     }
 
-    if !entry.source_subcase.is_empty()
-        && region.source_title.as_deref() != Some(entry.source_subcase.as_str())
-    {
-        return Err(format!(
-            "source title mismatch for {}: {:?} != {:?}",
-            region.path, region.source_title, entry.source_subcase
-        ));
-    }
-
     if entry.source_ordinal.is_some() && region.source_ordinal != entry.source_ordinal {
         return Err(format!(
             "source ordinal mismatch for {}: {:?} != {:?}",
@@ -1038,20 +956,6 @@ fn validate_region_matches_entry(region: &TestRegion, entry: &StatusEntry) -> Re
         return Err(format!(
             "source hash mismatch for {}: {:?} != {:?}",
             region.path, region.source_hash, entry.source_hash
-        ));
-    }
-
-    if entry.source_line.is_some() && region.source_line != entry.source_line {
-        return Err(format!(
-            "source line mismatch for {}: {:?} != {:?}",
-            region.path, region.source_line, entry.source_line
-        ));
-    }
-
-    if entry.source_end_line.is_some() && region.source_end_line != entry.source_end_line {
-        return Err(format!(
-            "source end line mismatch for {}: {:?} != {:?}",
-            region.path, region.source_end_line, entry.source_end_line
         ));
     }
 
@@ -1091,35 +995,6 @@ fn build_selector(file: &str, title: Option<&str>, ordinal: Option<usize>) -> St
     }
 
     selector
-}
-
-/// Extract one explicit 1-based line span from one source file.
-fn extract_line_span(
-    source_text: &str,
-    source_path: &str,
-    start_line: usize,
-    end_line: Option<usize>,
-) -> Result<String, String> {
-    let end_line = end_line.unwrap_or(start_line);
-    if start_line == 0 || end_line < start_line {
-        return Err(format!(
-            "invalid source line span {start_line}..={end_line} in {source_path}"
-        ));
-    }
-
-    let line_ranges = collect_line_ranges(source_text);
-    if end_line > line_ranges.len() {
-        return Err(format!(
-            "source line span {start_line}..={end_line} exceeds {source_path}"
-        ));
-    }
-
-    let mut extracted = String::new();
-    for range in &line_ranges[start_line - 1..end_line] {
-        extracted.push_str(&source_text[range.start..range.end]);
-    }
-
-    Ok(extracted)
 }
 
 /// Extract one expanded loop or template item.
@@ -1901,6 +1776,7 @@ fn extract_named_test_call(
         .find(|test| test.title == title && test.ordinal == ordinal)
 }
 
+#[cfg(test)]
 /// Extract the sole titled `test(...)` call from one source file.
 fn extract_single_test_call(source_text: &str, ordinal: usize) -> Option<TitledSourceTest> {
     let tests = extract_test_calls(source_text);

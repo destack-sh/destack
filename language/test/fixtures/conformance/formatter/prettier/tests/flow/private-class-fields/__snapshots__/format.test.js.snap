@@ -1,0 +1,23 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`quotes.js - {"quoteProps":"consistent"} format 1`] = `
+====================================options=====================================
+parsers: ["flow"]
+quoteProps: "consistent"
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+class Foo
+{
+a:a;
+  'q-w': ee;
+#privateProp: number;}
+
+=====================================output=====================================
+class Foo {
+  "a": a;
+  "q-w": ee;
+  #privateProp: number;
+}
+
+================================================================================
+`;

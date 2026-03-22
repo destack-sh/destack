@@ -141,6 +141,6 @@ pub struct ConformanceSuiteResult {
     pub result: ConformanceResult,
     /// The elapsed suite duration.
     pub duration: Duration,
-    /// Whether known failures were included as normal failures.
-    pub include_known_failures: bool,
+    /// Whether known failures were run as normal cases.
+    pub ran_known_failures: bool,
 }

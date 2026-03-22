@@ -1,0 +1,23 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`display.html format 1`] = `
+====================================options=====================================
+parsers: ["html"]
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+<div>
+    <!-- display: inline -->
+    <p>Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long</p>
+</div>
+
+=====================================output=====================================
+<div>
+  <!-- display: inline -->
+  <p
+    >Long Long Long Long Long Long Long Long Long Long Long Long Long Long Long
+    Long Long Long</p
+  >
+</div>
+
+================================================================================
+`;

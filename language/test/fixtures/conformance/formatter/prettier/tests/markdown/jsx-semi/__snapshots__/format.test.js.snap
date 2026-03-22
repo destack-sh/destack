@@ -1,0 +1,59 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`semi.md - {"semi":false,"proseWrap":"always"} format 1`] = `
+====================================options=====================================
+parsers: ["markdown"]
+proseWrap: "always"
+semi: false
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+\`\`\`jsx
+<div>foo</div>
+\`\`\`
+
+\`\`\`jsx
+const a = 1;
+<div>foo</div>;
+\`\`\`
+
+=====================================output=====================================
+\`\`\`jsx
+<div>foo</div>
+\`\`\`
+
+\`\`\`jsx
+const a = 1
+;<div>foo</div>
+\`\`\`
+
+================================================================================
+`;
+
+exports[`semi.md - {"semi":true,"proseWrap":"always"} format 1`] = `
+====================================options=====================================
+parsers: ["markdown"]
+proseWrap: "always"
+semi: true
+                                                      printWidth: 80 (default) |
+=====================================input======================================
+\`\`\`jsx
+<div>foo</div>
+\`\`\`
+
+\`\`\`jsx
+const a = 1;
+<div>foo</div>;
+\`\`\`
+
+=====================================output=====================================
+\`\`\`jsx
+<div>foo</div>
+\`\`\`
+
+\`\`\`jsx
+const a = 1;
+<div>foo</div>;
+\`\`\`
+
+================================================================================
+`;

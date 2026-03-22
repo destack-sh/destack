@@ -1,4 +1,5 @@
 {
+  "$schema": "../../schema/suite.schema.json",
   "id": "node.crypto",
   "domain": "node",
   "suite": "crypto",
