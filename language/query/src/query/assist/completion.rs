@@ -1189,12 +1189,12 @@ fn ast_type_name_from_receiver_node(
 ) -> Option<String> {
     let dir_tree = ctx.tree();
     let source_id = dir_tree.get_source(receiver_node.id);
-    if ctx.ast.tree.get_node_type(source_id) != ast::NodeType::Expression {
+    if ctx.ast_context().tree().get_node_type(source_id) != ast::NodeType::Expression {
         return None;
     }
 
     ast_type_name_from_expression_ast(
-        &ctx.ast,
+        ctx.ast.as_ref(),
         ast::LocalNodeId::<ast::Expression>::new(source_id),
     )
 }
@@ -1555,8 +1555,8 @@ fn complete_types(
 
     // ast fallback for incomplete type positions where dir visibility may be missing
     if results.is_empty() {
-        for declaration_id in ctx.ast.tree.iter_nodes::<ast::Declaration>() {
-            let declaration = ctx.ast.tree.get(declaration_id);
+        for declaration_id in ctx.ast_context().tree().iter_nodes::<ast::Declaration>() {
+            let declaration = ctx.ast_context().tree().get(declaration_id);
             let kind = match declaration {
                 ast::Declaration::Class { .. } => CompletionKind::Class,
                 ast::Declaration::Struct { .. } => CompletionKind::Struct,
@@ -1569,7 +1569,7 @@ fn complete_types(
             let Some(name) = declaration.name() else {
                 continue;
             };
-            let name = ctx.ast.strings.get(name.string()).to_string();
+            let name = ctx.ast_context().strings().get(name.string()).to_string();
             if !seen_names.insert(name.clone()) {
                 continue;
             }
@@ -1823,8 +1823,8 @@ fn complete_new_expression(
     // ast fallback for incomplete new expressions
     if results.is_empty() {
         let mut seen = HashSet::new();
-        for declaration_id in ctx.ast.tree.iter_nodes::<ast::Declaration>() {
-            let declaration = ctx.ast.tree.get(declaration_id);
+        for declaration_id in ctx.ast_context().tree().iter_nodes::<ast::Declaration>() {
+            let declaration = ctx.ast_context().tree().get(declaration_id);
             let kind = match declaration {
                 ast::Declaration::Class { .. } => CompletionKind::Class,
                 ast::Declaration::Struct { .. } => CompletionKind::Struct,
@@ -1834,7 +1834,7 @@ fn complete_new_expression(
             let Some(name) = declaration.name() else {
                 continue;
             };
-            let name = ctx.ast.strings.get(name.string()).to_string();
+            let name = ctx.ast_context().strings().get(name.string()).to_string();
             if !seen.insert(name.clone()) {
                 continue;
             }

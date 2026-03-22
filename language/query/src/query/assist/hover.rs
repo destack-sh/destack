@@ -304,7 +304,7 @@ fn hover_range_for_symbol(
 ) -> Span {
     // preserve full declaration ranges for member declarations
     if node_id.ty == NodeType::Member
-        && let Some(span) = get_dir_node_span(&ctx.ast, &ctx.dir, node_id)
+        && let Some(span) = get_dir_node_span(ctx.ast_context(), ctx.dir_context(), node_id)
     {
         return span;
     }

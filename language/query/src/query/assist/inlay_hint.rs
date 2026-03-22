@@ -105,7 +105,7 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
 
             // get the span of this call expression
             let ast_node_id = dir_tree.get_source(expression_id.id);
-            let call_span = ctx.ast.tree.source_map.get(ast_node_id);
+            let call_span = ctx.ast_context().tree().source_map.get(ast_node_id);
 
             // skip if outside the requested range
             if call_span.end < range.start || call_span.start > range.end {
@@ -147,7 +147,7 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
 
                 // get the span of the argument expression
                 let arg_ast_id = dir_tree.get_source(argument.value().id);
-                let arg_span = ctx.ast.tree.source_map.get(arg_ast_id);
+                let arg_span = ctx.ast_context().tree().source_map.get(arg_ast_id);
 
                 // add a parameter hint at the start of the argument
                 hints.push(InlayHint::parameter_hint(arg_span.start, param_name));
@@ -171,7 +171,8 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
             {
                 // get the span of the binding name
                 let ast_node_id = dir_tree.get_source(declarator.pattern.id);
-                let Some(name_span) = ctx.ast.tree.source_map.get_main(ast_node_id) else {
+                let Some(name_span) = ctx.ast_context().tree().source_map.get_main(ast_node_id)
+                else {
                     continue;
                 };
 

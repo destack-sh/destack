@@ -120,7 +120,7 @@ fn folding_ranges_with_dir(session: &Session, file: FileId) -> Option<Vec<Foldin
 
             // resolve the declaration span
             let ast_node_id = dir_tree.get_source(decl_id.id);
-            let span = ctx.ast.tree.source_map.get(ast_node_id);
+            let span = ctx.ast_context().tree().source_map.get(ast_node_id);
 
             // convert the span to line numbers
             let Some((start_line, _)) = source_file.get_position(span.start) else {
@@ -137,7 +137,7 @@ fn folding_ranges_with_dir(session: &Session, file: FileId) -> Option<Vec<Foldin
         }
 
         // collect folding ranges for comment blocks
-        add_comment_folding_ranges(&mut ranges, &ctx.ast.side_tokens, &source_file);
+        add_comment_folding_ranges(&mut ranges, &ctx.ast_context().side_tokens(), &source_file);
 
         // sort ranges by start and end line
         ranges.sort_by_key(|range| (range.start_line, range.end_line));

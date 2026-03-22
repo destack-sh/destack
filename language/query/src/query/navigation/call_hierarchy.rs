@@ -210,7 +210,9 @@ pub fn incoming_calls(
                     continue;
                 }
 
-                let Some(call_span) = get_dir_node_span(&ctx.ast, &ctx.dir, expr_id.into()) else {
+                let Some(call_span) =
+                    get_dir_node_span(ctx.ast_context(), ctx.dir_context(), expr_id.into())
+                else {
                     continue;
                 };
 
@@ -294,7 +296,9 @@ pub fn outgoing_calls(
         // get spans for collected calls
         let mut calls_with_spans: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
         for (target_id, expr_id) in collector.calls {
-            if let Some(span) = get_dir_node_span(&ctx.ast, &ctx.dir, expr_id.into()) {
+            if let Some(span) =
+                get_dir_node_span(ctx.ast_context(), ctx.dir_context(), expr_id.into())
+            {
                 calls_with_spans.entry(target_id).or_default().push(span);
             }
         }

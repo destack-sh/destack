@@ -3,8 +3,8 @@ use destack_dir::{self as dir, Expression, GlobalSymbolId, SymbolType};
 use destack_source::{FileId, NodeSpanType, Span, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::common::{get_canonical_symbol, get_module_by_file_id, resolve_symbol_name};
-use destack_workspace::{Ast, Session};
+use crate::common::{AstContext, get_canonical_symbol, get_module_by_file_id, resolve_symbol_name};
+use destack_workspace::Session;
 
 /// A code lens (inline annotation with optional command).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -140,6 +140,7 @@ pub fn code_lenses(session: &Session, file: FileId) -> Vec<CodeLens> {
     let Some(ctx) = crate::query_context(session, module) else {
         return Vec::new();
     };
+    let ast = ctx.ast_context();
     let module_id = ctx.module_id;
     let mut lenses = Vec::new();
 
@@ -163,7 +164,7 @@ pub fn code_lenses(session: &Session, file: FileId) -> Vec<CodeLens> {
                         .tree
                         .get_side_span_by_id(ast_node_id, NodeSpanType::Main);
                     let name = resolve_symbol_name(session, global_symbol_id);
-                    let is_test = has_decorator_named(&ctx.ast, ast_node_id, "test");
+                    let is_test = has_decorator_named(ast, ast_node_id, "test");
                     let symbol_type = symbols.get_symbol(symbol_id).ty;
                     (
                         decl.clone(),
@@ -316,17 +317,16 @@ fn count_subclasses(session: &Session, symbol_id: GlobalSymbolId) -> usize {
 }
 
 /// Check whether a node has a decorator with the given name.
-fn has_decorator_named(ast: &Ast, node_id: u32, name: &str) -> bool {
+fn has_decorator_named(ast: AstContext<'_>, node_id: u32, name: &str) -> bool {
     // scan annotations attached to the node
     if decorator_on_node(ast, node_id, name) {
         return true;
     }
 
     // fall back to enclosing nodes for annotations attached higher up
-    let span = ast.tree.source_map.get_main_or_enclosing(node_id);
+    let span = ast.source_map().get_main_or_enclosing(node_id);
     let mut enclosing = ast
-        .tree
-        .source_map
+        .source_map()
         .get_enclosing_spans(span.start, span.end.saturating_sub(1));
     enclosing.sort_by_key(|entry| entry.length);
 
@@ -343,20 +343,20 @@ fn has_decorator_named(ast: &Ast, node_id: u32, name: &str) -> bool {
 }
 
 /// Check whether a decorator is attached directly to a node.
-fn decorator_on_node(ast: &Ast, node_id: u32, name: &str) -> bool {
+fn decorator_on_node(ast: AstContext<'_>, node_id: u32, name: &str) -> bool {
     // scan annotations attached to the node
-    let annotations = ast.tree.get_annotations(node_id);
+    let annotations = ast.tree().get_annotations(node_id);
     for annotation_id in annotations {
-        let annotation = ast.tree.get::<ast::Annotation>(annotation_id);
+        let annotation = ast.tree().get::<ast::Annotation>(annotation_id);
         let ast::Annotation::Decorator { node, .. } = annotation else {
             continue;
         };
 
-        let decorator = ast.tree.get::<ast::Decorator>(*node);
+        let decorator = ast.tree().get::<ast::Decorator>(*node);
         let Some(decorator_name_id) = decorator_name_id(ast, decorator) else {
             continue;
         };
-        let decorator_name = ast.strings.get(decorator_name_id);
+        let decorator_name = ast.strings().get(decorator_name_id);
         if decorator_name == name {
             return true;
         }
@@ -366,10 +366,13 @@ fn decorator_on_node(ast: &Ast, node_id: u32, name: &str) -> bool {
 }
 
 /// Resolve the last segment of a decorator name when it is path-like.
-fn decorator_name_id(ast: &Ast, decorator: &ast::Decorator) -> Option<destack_core::StringId> {
+fn decorator_name_id(
+    ast: AstContext<'_>,
+    decorator: &ast::Decorator,
+) -> Option<destack_core::StringId> {
     let mut expression_id = decorator.expression;
     loop {
-        match ast.tree.get(expression_id) {
+        match ast.tree().get(expression_id) {
             ast::Expression::Parenthesized { expression } => {
                 expression_id = *expression;
             }

@@ -139,8 +139,10 @@ fn resolve_import_definition_at_offset(
         let item = dir_tree.get::<DependencyItem>(item_id);
 
         // resolve the main declaration span for coarse overlap checks
-        let fallback_span = get_dir_node_main_span(&ctx.ast, &ctx.dir, item_id.into())
-            .or_else(|| get_dir_node_span(&ctx.ast, &ctx.dir, item_id.into()));
+        let fallback_span =
+            get_dir_node_main_span(ctx.ast_context(), ctx.dir_context(), item_id.into()).or_else(
+                || get_dir_node_span(ctx.ast_context(), ctx.dir_context(), item_id.into()),
+            );
 
         // skip items that do not cover the cursor
         if !fallback_span.is_some_and(|span| span.contains(offset)) {
@@ -222,8 +224,8 @@ fn get_declaration_span(session: &Session, symbol_id: dir::GlobalSymbolId) -> Op
         symbol.primary_declaration?
     };
 
-    get_dir_node_main_span(&ctx.ast, &ctx.dir, declaration.local_id)
-        .or_else(|| get_dir_node_span(&ctx.ast, &ctx.dir, declaration.local_id))
+    get_dir_node_main_span(ctx.ast_context(), ctx.dir_context(), declaration.local_id)
+        .or_else(|| get_dir_node_span(ctx.ast_context(), ctx.dir_context(), declaration.local_id))
 }
 
 /// Find the type definition of the symbol at the given position.
@@ -465,8 +467,14 @@ fn overload_declaration_span_for_signature(
             .zip(dynamic_parameter_types.iter())
             .all(|(left, right)| left == right)
         {
-            return get_dir_node_main_span(&ctx.ast, &ctx.dir, declaration.local_id)
-                .or_else(|| get_dir_node_span(&ctx.ast, &ctx.dir, declaration.local_id));
+            return get_dir_node_main_span(
+                ctx.ast_context(),
+                ctx.dir_context(),
+                declaration.local_id,
+            )
+            .or_else(|| {
+                get_dir_node_span(ctx.ast_context(), ctx.dir_context(), declaration.local_id)
+            });
         }
     }
 
@@ -523,7 +531,11 @@ fn resolve_type_definition_from_imports(
     let ctx = crate::query_context(session, module)?;
 
     // find the smallest enclosing AST node at the cursor
-    let mut enclosing = ctx.ast.tree.source_map.get_enclosing_spans(offset, offset);
+    let mut enclosing = ctx
+        .ast_context()
+        .tree()
+        .source_map
+        .get_enclosing_spans(offset, offset);
     if enclosing.is_empty() {
         return None;
     }
