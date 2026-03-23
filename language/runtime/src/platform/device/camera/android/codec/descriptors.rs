@@ -43,7 +43,7 @@ pub(crate) fn read_camera_device_descriptors(
     binding: &BindingCallContext,
     operation: &'static str,
 ) -> RuntimeResult<Vec<CameraDeviceDescriptorValue>> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
     let mut headers =
         vec![AndroidHostCameraDeviceDescriptorHeader::default(); INITIAL_CAMERA_ROW_CAPACITY];
     let mut string_bytes = vec![0u8; INITIAL_CAMERA_STRING_CAPACITY];
@@ -110,7 +110,7 @@ pub(crate) fn read_camera_stream_configs(
     session_id: u64,
     operation: &'static str,
 ) -> RuntimeResult<Vec<CameraStreamConfigValue>> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
     let mut headers =
         vec![AndroidHostCameraStreamConfigHeader::default(); INITIAL_CAMERA_ROW_CAPACITY];
 
@@ -172,7 +172,7 @@ pub(crate) fn read_camera_stream_capabilities(
     session_id: u64,
     operation: &'static str,
 ) -> RuntimeResult<Vec<CameraStreamCapabilityValue>> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
     let mut headers =
         vec![AndroidHostCameraStreamCapabilityHeader::default(); INITIAL_CAMERA_ROW_CAPACITY];
 
@@ -234,7 +234,7 @@ pub(crate) fn current_camera_stream_config(
     stream_id: u64,
     operation: &'static str,
 ) -> RuntimeResult<CameraStreamConfigValue> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
     let mut header = AndroidHostCameraStreamConfigHeader::default();
 
     let status =

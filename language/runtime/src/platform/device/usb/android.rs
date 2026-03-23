@@ -5,17 +5,17 @@ use super::service::{
     ensure_usb_service_runtime, invalid_usb_handle,
 };
 use super::transfer::hotplug_event_from_record;
-use crate::host::abi::HostStatus;
-use crate::host::android::usb::ffi::{
+use crate::host::android::abi::usb::ffi::{
     destack_host_android_usb_device_list, destack_host_android_usb_open,
     destack_host_android_usb_watch_close, destack_host_android_usb_watch_open,
     destack_host_android_usb_watch_read, destack_host_android_usb_watch_try_read,
 };
-use crate::host::android::usb::types::{
+use crate::host::android::abi::usb::types::{
     AndroidHostUsbDeviceDescriptorHeader, AndroidHostUsbHotplugEventHeader,
 };
+use crate::host::core::HostStatus;
 use crate::platform::core::android::{
-    checked_u32_length, host_runtime_id, host_status_result, invalid_data,
+    checked_u32_length, host_session_id, host_status_result, invalid_data,
 };
 use crate::platform::core::{
     self as core_platform, decode_optional_string, decode_required_string,
@@ -228,7 +228,7 @@ fn read_android_usb_descriptors(
     binding: &BindingCallContext,
     operation: &'static str,
 ) -> RuntimeResult<Vec<UsbDeviceDescriptorValue>> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
     let mut rows = vec![AndroidHostUsbDeviceDescriptorHeader::default(); INITIAL_USB_ROW_CAPACITY];
     let mut string_bytes = vec![0u8; INITIAL_USB_STRING_CAPACITY];
     let mut port_bytes = vec![0u8; INITIAL_USB_PORT_CAPACITY];
@@ -325,7 +325,7 @@ fn read_android_usb_hotplug_record(
     timeout_ns: Option<u64>,
     operation: &'static str,
 ) -> RuntimeResult<UsbHotplugEventRecord> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
     let mut event = AndroidHostUsbHotplugEventHeader::default();
     let mut string_bytes = vec![0u8; INITIAL_USB_STRING_CAPACITY];
     let mut port_bytes = vec![0u8; INITIAL_USB_PORT_CAPACITY];
@@ -464,7 +464,7 @@ pub(crate) unsafe fn destack_device_usb_watch_open(
     core_platform::ensure_out(out, "out")?;
 
     // create one host watch and store per stream sequence state
-    let runtime_id = host_runtime_id(binding, "destack.device.usb.watchOpen")?;
+    let runtime_id = host_session_id(binding, "destack.device.usb.watchOpen")?;
     let mut watch_id = 0u64;
     let status = unsafe { destack_host_android_usb_watch_open(runtime_id, &mut watch_id) };
     host_status_result(status, "destack.device.usb.watchOpen", "usb watch open")?;
@@ -601,7 +601,7 @@ pub(crate) unsafe fn destack_device_usb_open(
     core_platform::ensure_out(out, "out")?;
 
     // open one permission checked host device and wrap its system handle in libusb
-    let runtime_id = host_runtime_id(binding, "destack.device.usb.open")?;
+    let runtime_id = host_session_id(binding, "destack.device.usb.open")?;
     let id = unsafe { id.as_str()? };
     let mut file_descriptor = -1i32;
     let status = unsafe {

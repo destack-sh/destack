@@ -2,8 +2,7 @@ pub(super) use std::path::PathBuf;
 pub(super) use std::sync::Arc;
 
 pub(super) use crate::diagnostic::{RuntimeError, RuntimeResult};
-pub(super) use crate::host::abi::HostStatus;
-pub(super) use crate::host::android::camera::ffi::{
+pub(super) use crate::host::android::abi::camera::ffi::{
     destack_host_android_camera_device_close, destack_host_android_camera_device_list,
     destack_host_android_camera_device_open,
     destack_host_android_camera_device_stream_capability_list,
@@ -22,13 +21,14 @@ pub(super) use crate::host::android::camera::ffi::{
     destack_host_android_camera_stream_stop_recording,
     destack_host_android_camera_stream_take_photo, destack_host_android_camera_stream_try_read,
 };
-pub(super) use crate::host::android::camera::types::{
+pub(super) use crate::host::android::abi::camera::types::{
     AndroidHostCameraDeviceDescriptorHeader, AndroidHostCameraFrameHeader,
     AndroidHostCameraRecordingCapabilitiesHeader, AndroidHostCameraRecordingOptionsHeader,
     AndroidHostCameraStreamCapabilityHeader, AndroidHostCameraStreamConfigHeader,
 };
+pub(super) use crate::host::core::HostStatus;
 pub(super) use crate::platform::core::android::{
-    checked_u32_length, host_runtime_id, host_status_result, invalid_data,
+    checked_u32_length, host_session_id, host_status_result, invalid_data,
 };
 pub(super) use crate::platform::core::{
     self as core_platform, NativeAbiCodec, decode_optional_string, decode_required_string,

@@ -1,18 +1,18 @@
 use openssl::x509::X509;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::abi::HostStatus;
-use crate::host::android::bridge::crypto::ffi::{
+use crate::host::android::abi::crypto::ffi::{
     destack_host_android_crypto_delete_certificate, destack_host_android_crypto_import_certificate,
     destack_host_android_crypto_supports_certificate_write,
 };
+use crate::host::core::HostStatus;
 use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::crypto::host::unix::core as unix_core;
 use crate::runtime::{BindingCallContext, NativeSlice};
 
 use super::core::{
     configured_system_certificate_directories, configured_system_certificate_files,
-    host_runtime_id, host_status_result, host_store_kind, invalid_data,
+    host_session_id, host_status_result, host_store_kind, invalid_data,
 };
 
 /// Return whether one host store lane supports certificate write operations.
@@ -47,7 +47,7 @@ pub(crate) fn host_store_import_certificate(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // resolve runtime id
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
 
     // encode host arguments
     let encoded_kind = host_store_kind(kind, operation)?;
@@ -74,7 +74,7 @@ pub(crate) fn host_store_delete_certificate(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // resolve runtime id
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
 
     // encode host arguments
     let encoded_kind = host_store_kind(kind, operation)?;

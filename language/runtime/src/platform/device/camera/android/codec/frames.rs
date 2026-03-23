@@ -84,7 +84,7 @@ pub(crate) fn read_camera_frame_from_host(
     timeout_ns: Option<u64>,
     operation: &'static str,
 ) -> RuntimeResult<CameraFrameValue> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
     let mut header = AndroidHostCameraFrameHeader::default();
     let mut bytes = vec![0u8; INITIAL_CAMERA_FRAME_CAPACITY];
 
@@ -149,7 +149,7 @@ pub(crate) fn read_camera_photo_from_host(
     timeout_ns: u64,
     operation: &'static str,
 ) -> RuntimeResult<CameraFrameValue> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
     let mut header = AndroidHostCameraFrameHeader::default();
     let mut bytes = vec![0u8; INITIAL_CAMERA_FRAME_CAPACITY];
 

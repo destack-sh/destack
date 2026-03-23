@@ -1,9 +1,9 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::HostRuntimeRegistry;
+use crate::host::core::HostSessionRegistry;
 use crate::host::{
     HostBackgroundEvent, HostEvent, HostIntentEvent, HostIntentPayload, HostLifecycleEvent,
-    HostLifecycleState, HostMemoryPressureEvent, HostMemoryPressureLevel, HostNotificationEvent,
-    HostPermissionEvent, HostPowerMode, HostPowerModeEvent,
+    HostLifecycleSourceKind, HostLifecycleState, HostMemoryPressureEvent, HostMemoryPressureLevel,
+    HostNotificationEvent, HostPermissionEvent, HostPowerMode, HostPowerModeEvent,
 };
 use crate::platform::os::abi_generated::{BackgroundEventValue, NotificationEventValue};
 
@@ -12,9 +12,9 @@ use super::harness::HarnessContext;
 impl HarnessContext<'_> {
     /// Enqueue one host event through the runtime-owned host queue when available.
     pub(crate) fn dispatch_host_event(&self, event: HostEvent) -> RuntimeResult<()> {
-        let runtime_id = self.call_context.host().host_runtime_id();
+        let runtime_id = self.call_context.host().host_session_id();
         let platform = self.call_context.host().platform();
-        let queue = HostRuntimeRegistry::queue_for_runtime(runtime_id, platform);
+        let queue = HostSessionRegistry::queue_for_session(runtime_id, platform);
 
         // prefer one queued host delivery so bootstrap and live observers share one path
         if let Ok(queue) = queue {
@@ -22,13 +22,16 @@ impl HarnessContext<'_> {
             return Ok(());
         }
 
-        let queue = HostRuntimeRegistry::queue_for_runtime(runtime_id, platform)?;
+        let queue = HostSessionRegistry::queue_for_session(runtime_id, platform)?;
         queue.dispatch_host_event(&event)
     }
 
     /// Enqueue one host lifecycle transition for this harness runtime.
     pub(crate) fn enqueue_lifecycle_event(&self, state: HostLifecycleState) -> RuntimeResult<()> {
-        self.dispatch_host_event(HostEvent::Lifecycle(HostLifecycleEvent { state }))
+        self.dispatch_host_event(HostEvent::Lifecycle(HostLifecycleEvent {
+            source_kind: HostLifecycleSourceKind::Application,
+            state,
+        }))
     }
 
     /// Enqueue one host memory-pressure event for this harness runtime.
@@ -51,6 +54,7 @@ impl HarnessContext<'_> {
         granted: bool,
     ) -> RuntimeResult<()> {
         self.dispatch_host_event(HostEvent::Permission(HostPermissionEvent {
+            request_id: None,
             permission: permission.to_string(),
             granted,
         }))

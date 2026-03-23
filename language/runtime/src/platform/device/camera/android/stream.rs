@@ -197,7 +197,7 @@ pub(crate) unsafe fn destack_device_camera_stream_open(
     }
 
     // host open
-    let runtime_id = host_runtime_id(binding, "destack.device.camera.stream.open")?;
+    let runtime_id = host_session_id(binding, "destack.device.camera.stream.open")?;
     let host_config =
         encode_camera_stream_config_header(&config, "destack.device.camera.stream.open")?;
     let mut stream_id = 0u64;
@@ -271,7 +271,7 @@ pub(crate) unsafe fn destack_device_camera_stream_start(
     )?;
 
     // host start
-    let runtime_id = host_runtime_id(binding, "destack.device.camera.stream.start")?;
+    let runtime_id = host_session_id(binding, "destack.device.camera.stream.start")?;
     let status =
         unsafe { destack_host_android_camera_stream_start(runtime_id, resource.stream_id) };
     host_status_result(
@@ -294,7 +294,7 @@ pub(crate) unsafe fn destack_device_camera_stream_stop(
     )?;
 
     // host stop
-    let runtime_id = host_runtime_id(binding, "destack.device.camera.stream.stop")?;
+    let runtime_id = host_session_id(binding, "destack.device.camera.stream.stop")?;
     let status = unsafe { destack_host_android_camera_stream_stop(runtime_id, resource.stream_id) };
     host_status_result(
         status,
@@ -508,7 +508,7 @@ pub(crate) unsafe fn destack_device_camera_stream_recording_capabilities(
         handle,
         "destack.device.camera.stream.recordingCapabilities",
     )?;
-    let runtime_id = host_runtime_id(
+    let runtime_id = host_session_id(
         binding,
         "destack.device.camera.stream.recordingCapabilities",
     )?;
@@ -593,7 +593,7 @@ pub(crate) unsafe fn destack_device_camera_stream_start_recording(
         ))
         .boxed()
     })?;
-    let runtime_id = host_runtime_id(binding, "destack.device.camera.stream.startRecording")?;
+    let runtime_id = host_session_id(binding, "destack.device.camera.stream.startRecording")?;
 
     // host start
     let status = unsafe {
@@ -641,7 +641,7 @@ pub(crate) unsafe fn destack_device_camera_stream_pause_recording(
         return Err(camera_invalid_state("camera recording is not active"));
     }
 
-    let runtime_id = host_runtime_id(binding, "destack.device.camera.stream.pauseRecording")?;
+    let runtime_id = host_session_id(binding, "destack.device.camera.stream.pauseRecording")?;
 
     // host pause
     let status = unsafe {
@@ -675,7 +675,7 @@ pub(crate) unsafe fn destack_device_camera_stream_resume_recording(
         return Err(camera_invalid_state("camera recording is not active"));
     }
 
-    let runtime_id = host_runtime_id(binding, "destack.device.camera.stream.resumeRecording")?;
+    let runtime_id = host_session_id(binding, "destack.device.camera.stream.resumeRecording")?;
 
     // host resume
     let status = unsafe {
@@ -729,7 +729,7 @@ pub(crate) unsafe fn destack_device_camera_stream_stop_recording(
         "destack.device.camera.stream.stopRecording",
     )?;
 
-    let runtime_id = host_runtime_id(binding, "destack.device.camera.stream.stopRecording")?;
+    let runtime_id = host_session_id(binding, "destack.device.camera.stream.stopRecording")?;
 
     // host stop
     let status = unsafe {

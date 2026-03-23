@@ -2,8 +2,7 @@ use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::abi::HostStatus;
-use crate::host::android::bridge::crypto::ffi::{
+use crate::host::android::abi::crypto::ffi::{
     destack_host_android_crypto_compute_hardware_mac,
     destack_host_android_crypto_decrypt_hardware_key,
     destack_host_android_crypto_decrypt_hardware_secret_key,
@@ -17,6 +16,7 @@ use crate::host::android::bridge::crypto::ffi::{
     destack_host_android_crypto_supports_hardware_key_pair,
     destack_host_android_crypto_supports_hardware_secret_key,
 };
+use crate::host::core::HostStatus;
 use crate::platform::core as core_platform;
 use crate::platform::crypto::core::{
     self as crypto_core, HostGeneratedKeyPair, HostKeyBackend, HostKeyMaterial,
@@ -30,7 +30,7 @@ use crate::platform::crypto::{
 };
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
-use super::core::{host_runtime_id, host_status_result, host_store_kind, invalid_data};
+use super::core::{host_session_id, host_status_result, host_store_kind, invalid_data};
 
 /// Supported software host-key backends for Android key operations.
 const ANDROID_SOFTWARE_BACKENDS: [HostKeyBackend; 2] = [
@@ -302,7 +302,7 @@ pub(crate) fn host_generate_hardware_backed_secret_key(
     }
 
     // resolve runtime id
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
 
     // encode host arguments
     let encoded_kind = host_store_kind(kind, operation)?;
@@ -542,7 +542,7 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
     }
 
     // resolve runtime id
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
 
     // encode host arguments
     let encoded_kind = host_store_kind(kind, operation)?;
@@ -729,7 +729,7 @@ pub(crate) fn host_key_sign(
             return Err(core_platform::not_supported(operation));
         }
 
-        let runtime_id = host_runtime_id(binding, operation)?;
+        let runtime_id = host_session_id(binding, operation)?;
 
         // encode host arguments
         let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
@@ -791,7 +791,7 @@ pub(crate) fn host_key_decrypt(
             return Err(core_platform::not_supported(operation));
         }
 
-        let runtime_id = host_runtime_id(binding, operation)?;
+        let runtime_id = host_session_id(binding, operation)?;
 
         // encode host arguments
         let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
@@ -858,7 +858,7 @@ pub(crate) fn host_key_delete(
             return Err(core_platform::not_supported(operation));
         }
 
-        let runtime_id = host_runtime_id(binding, operation)?;
+        let runtime_id = host_session_id(binding, operation)?;
 
         let encoded_algorithm = match key.backend {
             HostKeyBackend::AndroidHardwareKeystoreRsa => {
@@ -907,7 +907,7 @@ pub(crate) fn host_key_derive_shared_secret(
             return Err(core_platform::not_supported(operation));
         }
 
-        let runtime_id = host_runtime_id(binding, operation)?;
+        let runtime_id = host_session_id(binding, operation)?;
 
         let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
         let encoded_curve = host_named_curve(named_curve, operation)?;
@@ -964,7 +964,7 @@ pub(crate) fn host_key_cipher_encrypt(
         return Err(core_platform::not_supported(operation));
     }
 
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
 
     let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
     let encoded_cipher_algorithm = host_cipher_algorithm(parameters.algorithm, operation)?;
@@ -1023,7 +1023,7 @@ pub(crate) fn host_key_cipher_decrypt(
         return Err(core_platform::not_supported(operation));
     }
 
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
 
     let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
     let encoded_cipher_algorithm = host_cipher_algorithm(parameters.algorithm, operation)?;
@@ -1083,7 +1083,7 @@ pub(crate) fn host_key_mac_compute(
         return Err(core_platform::not_supported(operation));
     }
 
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
 
     // encode host arguments
     let encoded_algorithm = host_key_algorithm(algorithm, operation)?;

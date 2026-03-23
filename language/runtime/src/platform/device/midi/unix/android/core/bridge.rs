@@ -1,6 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::abi::HostStatus;
-use crate::host::android::bridge::midi::ffi::{
+use crate::host::android::abi::midi::ffi::{
     destack_host_android_midi_describe_backend, destack_host_android_midi_event_close,
     destack_host_android_midi_event_open, destack_host_android_midi_event_read,
     destack_host_android_midi_input_port_close, destack_host_android_midi_input_port_list,
@@ -9,10 +8,11 @@ use crate::host::android::bridge::midi::ffi::{
     destack_host_android_midi_output_port_list, destack_host_android_midi_output_port_open,
     destack_host_android_midi_output_virtual_create, destack_host_android_midi_output_write,
 };
-use crate::host::android::bridge::midi::types::{
+use crate::host::android::abi::midi::types::{
     AndroidHostMidiEventHeader, AndroidHostMidiInputRecordHeader, AndroidHostMidiOpenedPortHeader,
     AndroidHostMidiPortDescriptorHeader,
 };
+use crate::host::core::HostStatus;
 use crate::platform::core::android::host_status_result;
 use crate::platform::device::midi::core::{
     MidiEventValue, MidiInputRecordValue, MidiOutputRecordValue, MidiPortDescriptorValue,
@@ -50,7 +50,7 @@ const MAX_INPUT_RECORD_CAPACITY: usize = 4096;
 const MAX_RECORD_BLOB_CAPACITY: usize = 4 * 1024 * 1024;
 
 /// Return one runtime id for Android host callback routing.
-fn host_runtime_id(
+fn host_session_id(
     binding: &BindingCallContext,
     _operation: &'static str,
 ) -> Result<u64, Box<RuntimeError>> {
@@ -70,7 +70,7 @@ pub(crate) fn describe_backend(
     binding: &BindingCallContext,
     operation: &'static str,
 ) -> RuntimeResult<AndroidBackendDescription> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
 
     let mut capability_flags = 0u64;
     let mut supported_data_formats = 0u32;
@@ -100,7 +100,7 @@ pub(crate) fn read_input_port_descriptors(
     flags: u32,
     operation: &'static str,
 ) -> RuntimeResult<Vec<MidiPortDescriptorValue>> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
 
     let mut headers =
         vec![AndroidHostMidiPortDescriptorHeader::default(); INITIAL_DESCRIPTOR_CAPACITY];
@@ -171,7 +171,7 @@ pub(crate) fn read_output_port_descriptors(
     flags: u32,
     operation: &'static str,
 ) -> RuntimeResult<Vec<MidiPortDescriptorValue>> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
 
     let mut headers =
         vec![AndroidHostMidiPortDescriptorHeader::default(); INITIAL_DESCRIPTOR_CAPACITY];
@@ -245,7 +245,7 @@ pub(crate) fn open_input_session(
     queue_capacity: u32,
     operation: &'static str,
 ) -> RuntimeResult<(u64, MidiPortDescriptorValue)> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
 
     let mut opened_port = AndroidHostMidiOpenedPortHeader::default();
     let mut string_bytes = vec![0u8; INITIAL_DESCRIPTOR_STRING_CAPACITY];
@@ -305,7 +305,7 @@ pub(crate) fn open_output_session(
     protocol: Option<MidiProtocol>,
     operation: &'static str,
 ) -> RuntimeResult<(u64, MidiPortDescriptorValue)> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
 
     let mut opened_port = AndroidHostMidiOpenedPortHeader::default();
     let mut string_bytes = vec![0u8; INITIAL_DESCRIPTOR_STRING_CAPACITY];
@@ -368,7 +368,7 @@ pub(crate) fn create_virtual_input_session(
     queue_capacity: u32,
     operation: &'static str,
 ) -> RuntimeResult<(u64, MidiPortDescriptorValue)> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
 
     let mut opened_port = AndroidHostMidiOpenedPortHeader::default();
     let mut string_bytes = vec![0u8; INITIAL_DESCRIPTOR_STRING_CAPACITY];
@@ -434,7 +434,7 @@ pub(crate) fn create_virtual_output_session(
     protocol: Option<MidiProtocol>,
     operation: &'static str,
 ) -> RuntimeResult<(u64, MidiPortDescriptorValue)> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
 
     let mut opened_port = AndroidHostMidiOpenedPortHeader::default();
     let mut string_bytes = vec![0u8; INITIAL_DESCRIPTOR_STRING_CAPACITY];
@@ -496,7 +496,7 @@ pub(crate) fn read_input_records(
     timeout_ns: u64,
     operation: &'static str,
 ) -> RuntimeResult<Vec<MidiInputRecordValue>> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
 
     let mut headers =
         vec![AndroidHostMidiInputRecordHeader::default(); INITIAL_INPUT_RECORD_CAPACITY];
@@ -564,7 +564,7 @@ pub(crate) fn open_event_session(
     direction_mask: MidiPortDirectionFlags,
     operation: &'static str,
 ) -> RuntimeResult<u64> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
     let mut session_id = 0u64;
     let status = unsafe {
         destack_host_android_midi_event_open(runtime_id, flags.0, direction_mask.0, &mut session_id)
@@ -584,7 +584,7 @@ pub(crate) fn read_native_events(
     next_sequence: &mut u64,
     operation: &'static str,
 ) -> RuntimeResult<Vec<MidiEventValue>> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
 
     let mut headers = vec![AndroidHostMidiEventHeader::default(); INITIAL_DESCRIPTOR_CAPACITY];
     let mut string_bytes = vec![0u8; INITIAL_DESCRIPTOR_STRING_CAPACITY];
@@ -650,7 +650,7 @@ pub(crate) fn write_output_records(
     records: &[MidiOutputRecordValue],
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
 
     let (headers, blob_bytes): (Vec<_>, Vec<u8>) = encode_output_records(records, operation)?;
     let header_count = checked_u32_length(headers.len(), operation, "record headers")?;
@@ -692,7 +692,7 @@ pub(crate) fn close_input_session(
     session_id: u64,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
     let status = unsafe { destack_host_android_midi_input_port_close(runtime_id, session_id) };
 
     host_status_result(status, operation, "close input port")
@@ -704,7 +704,7 @@ pub(crate) fn close_event_session(
     session_id: u64,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
     let status = unsafe { destack_host_android_midi_event_close(runtime_id, session_id) };
 
     host_status_result(status, operation, "close event subscription")
@@ -716,7 +716,7 @@ pub(crate) fn close_output_session(
     session_id: u64,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
     let status = unsafe { destack_host_android_midi_output_port_close(runtime_id, session_id) };
 
     host_status_result(status, operation, "close output port")
@@ -853,7 +853,7 @@ fn checked_u32_length(
 
 #[cfg(test)]
 mod tests {
-    use crate::host::abi::HostStatus;
+    use crate::host::core::HostStatus;
     use crate::platform::diagnostic::PlatformErrorCode;
     use crate::tests::platform::error_code_from_result;
 

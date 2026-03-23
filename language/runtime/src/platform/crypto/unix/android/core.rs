@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::diagnostic::RuntimeError;
-use crate::host::abi::HostStatus;
+use crate::host::core::HostStatus;
 use crate::platform::core as core_platform;
 use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::crypto::host::unix::core as unix_core;
@@ -50,7 +50,7 @@ pub(super) use unix_core::invalid_data;
 pub(super) use unix_core::permission_denied;
 
 /// Resolve one runtime identifier for Android host callback routing.
-pub(super) fn host_runtime_id(
+pub(super) fn host_session_id(
     binding: &BindingCallContext,
     _operation: &'static str,
 ) -> Result<u64, Box<RuntimeError>> {

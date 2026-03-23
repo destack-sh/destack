@@ -30,7 +30,7 @@ pub(crate) unsafe fn destack_device_bluetooth_open(
     ensure_android_primary_adapter(binding, adapter_id, "destack.device.bluetooth.session.open")?;
 
     // open the host device session
-    let runtime_id = host_runtime_id(binding, "destack.device.bluetooth.session.open")?;
+    let runtime_id = host_session_id(binding, "destack.device.bluetooth.session.open")?;
     let mut descriptor = AndroidHostBluetoothDeviceDescriptorHeader::default();
     let mut string_bytes = vec![0u8; INITIAL_BLUETOOTH_STRING_CAPACITY];
     let mut session_id = 0u64;
@@ -156,7 +156,7 @@ pub(crate) unsafe fn destack_device_bluetooth_pair(
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     let resource = device_resource(binding, handle, "destack.device.bluetooth.session.pair")?;
-    let runtime_id = host_runtime_id(binding, "destack.device.bluetooth.session.pair")?;
+    let runtime_id = host_session_id(binding, "destack.device.bluetooth.session.pair")?;
     let status =
         unsafe { destack_host_android_bluetooth_pair(runtime_id, resource.session_id, timeoutns) };
 
@@ -186,7 +186,7 @@ pub(crate) unsafe fn destack_device_bluetooth_unpair(
         adapter_id,
         "destack.device.bluetooth.session.unpair",
     )?;
-    let runtime_id = host_runtime_id(binding, "destack.device.bluetooth.session.unpair")?;
+    let runtime_id = host_session_id(binding, "destack.device.bluetooth.session.unpair")?;
     let status = unsafe {
         destack_host_android_bluetooth_unpair(
             runtime_id,
@@ -214,7 +214,7 @@ pub(crate) unsafe fn destack_device_bluetooth_read_rssi(
     core_platform::ensure_out(out, "out")?;
 
     let resource = device_resource(binding, handle, "destack.device.bluetooth.session.rssi")?;
-    let runtime_id = host_runtime_id(binding, "destack.device.bluetooth.session.rssi")?;
+    let runtime_id = host_session_id(binding, "destack.device.bluetooth.session.rssi")?;
     let mut rssi_dbm = 0i16;
     let status = unsafe {
         destack_host_android_bluetooth_read_rssi(

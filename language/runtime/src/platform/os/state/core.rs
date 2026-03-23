@@ -6,7 +6,7 @@ pub(crate) use std::sync::atomic::{AtomicU64, Ordering};
 pub(crate) use std::time::Duration;
 
 pub(crate) use crate::diagnostic::{RuntimeError, RuntimeResult};
-pub(crate) use crate::host::core::{HostEventObserver, HostQueue, HostRuntimeRegistry};
+pub(crate) use crate::host::core::{HostEventObserver, HostQueue, HostSessionRegistry};
 pub(crate) use crate::host::operation::{
     background as host_background, location as host_location, notification as host_notification,
     permission as host_permission,

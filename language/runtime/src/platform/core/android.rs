@@ -1,12 +1,12 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::abi::HostStatus;
+use crate::host::core::HostStatus;
 use crate::platform::PlatformError;
 use crate::runtime::BindingCallContext;
 
 use super::{io_not_found, io_operation_error, io_would_block, not_supported};
 
 /// Return one runtime id for Android host callback routing.
-pub(crate) fn host_runtime_id(
+pub(crate) fn host_session_id(
     binding: &BindingCallContext,
     _operation: &'static str,
 ) -> RuntimeResult<u64> {
