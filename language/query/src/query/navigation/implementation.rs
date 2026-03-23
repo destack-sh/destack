@@ -1,18 +1,14 @@
-use destack_dir as dir;
 use std::collections::HashSet;
 
 use destack_dir::{
-    Declaration, DependencyItem, Expression, GlobalSymbolId, LocalNodeIdAny, NodeType, SymbolSpace,
-    SymbolType,
+    DependencyItem, Expression, GlobalSymbolId, LocalNodeIdAny, NodeType, SymbolType,
 };
 use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::common::{
     find_symbol_at_offset, get_canonical_symbol, get_dir_node_main_span,
-    get_symbol_definition_span, resolve_nominal_symbol_from_type_expression,
-    resolve_type_symbol_from_dependency_symbol, resolve_type_symbol_from_module,
-    sort_and_dedup_spans,
+    get_symbol_definition_span, resolve_nominal_symbol_from_type_expression, sort_and_dedup_spans,
 };
 use destack_workspace::Session;
 
@@ -92,22 +88,13 @@ pub fn goto_implementation(
     };
 
     // collect canonical targets reachable from the cursor symbol
-    let mut target_symbols = collect_target_symbols(session, target_symbol_id);
+    let target_symbols = collect_target_symbols(session, target_symbol_id);
 
     // select an implementable symbol from the target set
-    let mut canonical_id = target_symbols
+    let canonical_id = target_symbols
         .iter()
         .copied()
         .find(|symbol_id| symbol_is_implementable(session, *symbol_id));
-
-    // fall back to type definition resolution when needed
-    if canonical_id.is_none()
-        && let Some((fallback_symbols, fallback_id)) =
-            fallback_target_symbols_from_type_definition(session, file, offset)
-    {
-        target_symbols = fallback_symbols;
-        canonical_id = Some(fallback_id);
-    }
 
     let Some(canonical_id) = canonical_id else {
         return Some(ImplementationResult::empty());
@@ -178,102 +165,6 @@ pub fn goto_implementation(
                 }
             }
         }
-
-        // scan syntactic heritage when lineages are incomplete
-        let dir_tree = ctx.tree();
-        for (_decl_id, declaration) in dir_tree.iter_nodes_of_type::<Declaration>() {
-            // extract declaration heritage and symbol
-            let (descriptor, heritage) = match declaration {
-                Declaration::Struct {
-                    descriptor,
-                    heritage,
-                    ..
-                }
-                | Declaration::Class {
-                    descriptor,
-                    heritage,
-                    ..
-                } => (descriptor, heritage),
-                _ => continue,
-            };
-
-            // select the relevant heritage clause
-            let related_types = if is_interface {
-                heritage.implements_types.as_ref()
-            } else {
-                heritage.extends_types.as_ref()
-            };
-            let Some(related_types) = related_types else {
-                continue;
-            };
-
-            // resolve heritage types to nominal symbols
-            let mut matches = false;
-            for type_expr_id in related_types {
-                let mut matches_target = false;
-                let mut symbol_id =
-                    resolve_nominal_symbol_from_type_expression(session, &ctx, *type_expr_id);
-
-                // try to match the nominally resolved symbol first
-                if let Some(symbol_id) = symbol_id {
-                    let candidates = collect_target_symbols(session, symbol_id);
-                    if candidates
-                        .iter()
-                        .any(|candidate| target_symbols.contains(candidate))
-                    {
-                        matches_target = true;
-                    }
-                }
-
-                // fall back to goto_type_definition when nominal resolution misses
-                if !matches_target {
-                    let span = get_dir_node_main_span(
-                        ctx.ast_context(),
-                        ctx.dir_context(),
-                        (*type_expr_id).into(),
-                    );
-                    if let Some(span) = span
-                        && let Some(result) =
-                            super::goto_type_definition(session, span.file, span.start)
-                        && let Some(location) = result.locations.first()
-                        && let Some(def_symbol) =
-                            find_symbol_at_offset(session, location.file, location.start)
-                    {
-                        symbol_id = Some(def_symbol.symbol_id);
-                    }
-
-                    if let Some(symbol_id) = symbol_id {
-                        let candidates = collect_target_symbols(session, symbol_id);
-                        if candidates
-                            .iter()
-                            .any(|candidate| target_symbols.contains(candidate))
-                        {
-                            matches_target = true;
-                        }
-                    }
-                }
-
-                // record when a related type matches the target
-                if matches_target {
-                    matches = true;
-                    break;
-                }
-            }
-
-            // skip unrelated declarations
-            if !matches {
-                continue;
-            }
-
-            // record the implementing declaration span
-            let symbol_id = GlobalSymbolId {
-                module_id: ctx.module_id,
-                local_id: descriptor.symbol,
-            };
-            if let Some(span) = get_symbol_definition_span(session, symbol_id) {
-                locations.push(span);
-            }
-        }
     }
 
     // normalize spans for stable ordering and deduplication
@@ -292,9 +183,11 @@ fn resolve_type_symbol_at_offset(
         // scan expression nodes to find a type reference under the cursor
         let dir_tree = ctx.tree();
         for (expression_id, _expression) in dir_tree.iter_nodes_of_type::<Expression>() {
-            let Some(span) =
-                get_dir_node_main_span(ctx.ast_context(), ctx.dir_context(), expression_id.into())
-            else {
+            let Some(span) = get_dir_node_main_span(
+                ctx.ast_context(),
+                ctx.dir_analyzed_context(),
+                expression_id.into(),
+            ) else {
                 continue;
             };
 
@@ -392,61 +285,6 @@ fn collect_target_symbols(session: &Session, symbol_id: GlobalSymbolId) -> HashS
             }
         }
 
-        // resolve dependency items to their target symbols when possible
-        if target_symbol.is_none()
-            && let Some(name_id) = symbol.name()
-            && let Some(resolved_symbol) =
-                resolve_type_symbol_from_dependency_symbol(session, &ctx, canonical_id, name_id)
-        {
-            target_symbol = Some(resolved_symbol);
-        }
-
-        // fall back to export table resolution when no target is recorded
-        if target_symbol.is_none()
-            && let Some(name_id) = symbol.name()
-        {
-            let exports = &ctx.resolved.exported_symbols;
-            let dir_tree = ctx.tree();
-            for ((space, key), export) in exports.iter() {
-                let dir::StaticKey::Name(export_name) = *key else {
-                    continue;
-                };
-
-                if export_name != name_id {
-                    continue;
-                }
-
-                if !matches!(*space, SymbolSpace::Type | SymbolSpace::TypeValue) {
-                    continue;
-                }
-
-                if let Some(target) = export.target.resolved() {
-                    target_symbol = Some(target);
-                    break;
-                }
-
-                if let Some(item_id) = export.item {
-                    let item = dir_tree.get::<DependencyItem>(item_id);
-                    if let Some(target) = item.target_symbol() {
-                        target_symbol = Some(target);
-                        break;
-                    }
-                }
-            }
-        }
-
-        if target_symbol.is_none()
-            && let Some(name_id) = symbol.name()
-            && let Some(resolved_symbol) = resolve_type_symbol_from_module(
-                session,
-                ctx.module_id,
-                name_id,
-                &mut HashSet::new(),
-            )
-        {
-            target_symbol = Some(resolved_symbol);
-        }
-
         // continue walking when a dependency target exists
         if let Some(target_symbol) = target_symbol {
             pending.push(target_symbol);
@@ -455,29 +293,6 @@ fn collect_target_symbols(session: &Session, symbol_id: GlobalSymbolId) -> HashS
 
     // return the collected canonical targets
     visited
-}
-
-/// Resolve target symbols by consulting goto_type_definition results.
-fn fallback_target_symbols_from_type_definition(
-    session: &Session,
-    file: FileId,
-    offset: u32,
-) -> Option<(HashSet<GlobalSymbolId>, GlobalSymbolId)> {
-    // resolve the type definition location
-    let result = super::goto_type_definition(session, file, offset)?;
-    let location = result.locations.first()?;
-
-    // resolve the symbol at the type definition
-    let symbol_at = find_symbol_at_offset(session, location.file, location.start)?;
-    let target_symbols = collect_target_symbols(session, symbol_at.symbol_id);
-
-    // select an implementable target from the resolved set
-    let canonical_id = target_symbols
-        .iter()
-        .copied()
-        .find(|symbol_id| symbol_is_implementable(session, *symbol_id))?;
-
-    Some((target_symbols, canonical_id))
 }
 
 /// Check whether a symbol is an interface or class.
