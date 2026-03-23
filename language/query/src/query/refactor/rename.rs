@@ -202,7 +202,7 @@ fn rename_reference_options<'a>(target_name: &'a str) -> ReferenceCollectionOpti
         include_expressions: true,
         include_members: true,
         include_dependencies: true,
-        include_namespace_members: true,
+        include_namespace_receivers: true,
         skip_dependency_aliases: true,
         use_dependency_name_spans: true,
         target_name: Some(target_name),

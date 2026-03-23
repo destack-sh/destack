@@ -1,15 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
 use destack_ast::TokenType;
-use destack_core::StringId;
 use destack_dir as dir;
 use destack_source::{BatchEdit, Edit, FileEdit, FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::common::{
     QueryContext, find_symbol_at_offset, get_canonical_symbol, get_module_by_file_id,
-    resolve_member_access_symbol, resolve_symbol_name_id, resolve_value_symbol_from_module,
-    span_for_dir_node,
+    resolve_expression_symbol, resolve_member_access_symbol, span_for_dir_node,
 };
 use destack_workspace::Session;
 
@@ -233,7 +231,7 @@ fn call_target_symbol(
     dir_tree: &dir::NodeTree,
     call_left: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalSymbolId> {
-    // resolve the call target symbol without panicking on unresolved paths
+    // unwrap call-target wrappers to the underlying expression
     let mut current = call_left;
     loop {
         let expression = dir_tree.get::<dir::Expression>(current);
@@ -253,221 +251,13 @@ fn call_target_symbol(
         break;
     }
 
-    let left_expr = dir_tree.get::<dir::Expression>(current);
-    match left_expr {
-        dir::Expression::LocalReference {
-            path,
-            target_symbol,
-            ..
-        }
-        | dir::Expression::ModuleReference {
-            path,
-            target_symbol,
-            ..
-        }
-        | dir::Expression::GlobalReference {
-            path,
-            target_symbol,
-            ..
-        } => {
-            if path.segments.len() > 1 {
-                let last_name_id = path.last_segment();
-                if let Some(last_name_id) = last_name_id {
-                    if let Some(target_name_id) =
-                        resolve_symbol_name_id(session, ctx, *target_symbol)
-                        && target_name_id == last_name_id
-                    {
-                        return Some(*target_symbol);
-                    }
-
-                    if let Some(symbol_id) =
-                        resolve_namespace_member_symbol(session, *target_symbol, last_name_id)
-                    {
-                        return Some(symbol_id);
-                    }
-                }
-            }
-
-            Some(*target_symbol)
-        }
-        dir::Expression::Member { left, name, .. } => {
-            if let Some(symbol_id) =
-                resolve_member_access_symbol(session, ctx, current, *left, *name)
-            {
-                return Some(symbol_id);
-            }
-
-            // resolve the receiver as a namespace alias symbol when possible
-            let left_expr = dir_tree.get::<dir::Expression>(*left);
-            let name_id = match left_expr {
-                dir::Expression::UnresolvedPath { path, .. }
-                | dir::Expression::LocalReference { path, .. }
-                | dir::Expression::ModuleReference { path, .. }
-                | dir::Expression::GlobalReference { path, .. } => path.last_segment(),
-                _ => None,
-            };
-
-            let left_symbol = left_expr
-                .target_symbol()
-                .or_else(|| resolve_namespace_alias_symbol(ctx, name_id?));
-
-            if let Some(left_symbol) = left_symbol
-                && let Some(symbol_id) =
-                    resolve_namespace_member_symbol(session, left_symbol, *name)
-            {
-                return Some(symbol_id);
-            }
-
-            // fall back to resolving namespace member symbols by alias name
-            resolve_namespace_member_symbol_from_name(session, ctx, name_id?, *name)
-        }
-        _ => None,
-    }
-}
-
-/// Resolve a namespace alias symbol by name from import items.
-fn resolve_namespace_alias_symbol(
-    ctx: &QueryContext<'_>,
-    name_id: StringId,
-) -> Option<dir::GlobalSymbolId> {
-    let dir_tree = ctx.tree();
-    for item_id in dir_tree.iter_node_ids_of_type::<dir::DependencyItem>() {
-        let item = dir_tree.get::<dir::DependencyItem>(item_id);
-        let (mode, kind, name, alias, symbol) = match item {
-            dir::DependencyItem::Remote {
-                mode,
-                kind,
-                name,
-                alias,
-                symbol,
-                ..
-            } => (*mode, *kind, *name, *alias, *symbol),
-            _ => continue,
-        };
-
-        if mode != dir::DependencyMode::Namespace || kind != dir::DependencyKind::Value {
-            continue;
-        }
-
-        let name_matches =
-            alias == Some(name_id) || name.map(|name| name.string()) == Some(name_id);
-        if !name_matches {
-            continue;
-        }
-
-        let symbol = symbol?;
-        return Some(dir::GlobalSymbolId::new(ctx.module_id, symbol));
+    let expression = dir_tree.get::<dir::Expression>(current);
+    if let dir::Expression::Member { left, name, .. } = expression {
+        return resolve_member_access_symbol(session, ctx, current, *left, *name)
+            .or_else(|| resolve_expression_symbol(ctx, current));
     }
 
-    None
-}
-
-/// Resolve a namespace member symbol for a qualified import alias.
-fn resolve_namespace_member_symbol(
-    session: &Session,
-    alias_symbol: dir::GlobalSymbolId,
-    member_name: StringId,
-) -> Option<dir::GlobalSymbolId> {
-    // resolve the owning module for the alias symbol
-    let module = session.modules.get(alias_symbol.module_id);
-    let module = module.as_ref();
-    let alias_ctx = crate::query_context(session, module)?;
-
-    // resolve the dependency item that introduced the alias
-    let declaration = {
-        let symbols = alias_ctx.symbols();
-        let symbol = symbols.get_symbol(alias_symbol.local_id);
-        symbol.primary_declaration?
-    };
-
-    if declaration.local_id.ty != dir::NodeType::DependencyItem {
-        return None;
-    }
-    let Ok(item_id) = declaration.local_id.try_into() else {
-        return None;
-    };
-
-    // resolve the target module for a namespace import
-    let dir_tree = alias_ctx.tree();
-    let item = dir_tree.get::<dir::DependencyItem>(item_id);
-    let (mode, kind, target_module) = match item {
-        dir::DependencyItem::Remote {
-            mode,
-            kind,
-            target_module,
-            ..
-        } => (*mode, *kind, Some(*target_module)),
-        _ => return None,
-    };
-
-    if mode != dir::DependencyMode::Namespace || kind != dir::DependencyKind::Value {
-        return None;
-    }
-
-    let target_module_id = target_module
-        .and_then(|targets| targets.value.or(targets.ty))
-        .and_then(|target| target.module_id());
-    let target_module_id = target_module_id?;
-    let mut visited = HashSet::new();
-    resolve_value_symbol_from_module(session, target_module_id, member_name, &mut visited)
-}
-
-/// Resolve a namespace member symbol directly from a namespace import name.
-fn resolve_namespace_member_symbol_from_name(
-    session: &Session,
-    ctx: &QueryContext<'_>,
-    alias_name: StringId,
-    member_name: StringId,
-) -> Option<dir::GlobalSymbolId> {
-    // resolve the dependency items for namespace import lookup
-    let dir_tree = ctx.tree();
-
-    // scan namespace imports for a matching alias name
-    for item_id in dir_tree.iter_node_ids_of_type::<dir::DependencyItem>() {
-        let item = dir_tree.get::<dir::DependencyItem>(item_id);
-        let (mode, kind, name, alias, target_module) = match item {
-            dir::DependencyItem::Remote {
-                mode,
-                kind,
-                name,
-                alias,
-                target_module,
-                ..
-            } => (*mode, *kind, *name, *alias, Some(*target_module)),
-            _ => continue,
-        };
-
-        // require a namespace value import
-        if mode != dir::DependencyMode::Namespace || kind != dir::DependencyKind::Value {
-            continue;
-        }
-
-        // require the alias or name to match
-        let name_matches =
-            alias == Some(alias_name) || name.map(|name| name.string()) == Some(alias_name);
-        if !name_matches {
-            continue;
-        }
-
-        // resolve the target module for the namespace import
-        let target_module_id = target_module
-            .and_then(|targets| targets.value.or(targets.ty))
-            .and_then(|target| target.module_id());
-        // skip unresolved targets
-        let Some(target_module_id) = target_module_id else {
-            continue;
-        };
-
-        // resolve the member symbol from the target module exports
-        let mut visited = HashSet::new();
-        if let Some(symbol_id) =
-            resolve_value_symbol_from_module(session, target_module_id, member_name, &mut visited)
-        {
-            return Some(symbol_id);
-        }
-    }
-
-    None
+    resolve_expression_symbol(ctx, current)
 }
 
 /// Resolve the parameter span for the primary declaration of a symbol.

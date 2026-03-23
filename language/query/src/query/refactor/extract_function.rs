@@ -339,7 +339,7 @@ fn resolve_statement_selection(
         let block = dir_tree.get::<dir::Block>(block_id);
         block.expressions.clone()
     } else {
-        ctx.dir_context().roots().to_vec()
+        ctx.dir_analyzed_context().roots().to_vec()
     };
     if container_expressions.is_empty() {
         return None;

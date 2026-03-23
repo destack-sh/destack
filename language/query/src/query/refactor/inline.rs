@@ -131,7 +131,7 @@ pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<Inl
         include_expressions: true,
         include_members: true,
         include_dependencies: true,
-        include_namespace_members: true,
+        include_namespace_receivers: true,
         skip_dependency_aliases: false,
         use_dependency_name_spans: false,
         target_name: None,
