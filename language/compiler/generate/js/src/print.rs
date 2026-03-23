@@ -21,9 +21,9 @@ pub fn print_module_output(
     Vec<crate::CodegenJsWarning>,
     Vec<crate::CodegenJsError>,
 )> {
-    let strings = emit.strings.into_immutable();
-    let roots = emit.roots;
-    let tree = emit.tree;
+    let strings = emit.module.strings.into_immutable();
+    let roots = emit.module.roots;
+    let tree = emit.module.tree;
     let warnings = emit.warnings;
     let errors = emit.errors;
     let mut entries = Vec::new();
@@ -80,7 +80,7 @@ pub fn print_module_output(
 }
 
 /// Wrap one emitted module body in a minimal HTML document shell.
-fn wrap_html_document(code: &str) -> String {
+pub fn wrap_html_document(code: &str) -> String {
     format!(
         "<!doctype html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n</head>\n<body>\n<script type=\"module\">\n{code}\n</script>\n</body>\n</html>\n"
     )

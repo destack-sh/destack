@@ -9,8 +9,9 @@ use destack_dir as dir;
 use destack_dir::{SymbolTable, TypeTable};
 use destack_workspace::{Module, Target};
 
-use crate::tree::NodeTree as JsTree;
-use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning, LocalNodeIdAny};
+use crate::{
+    CodegenJsError, CodegenJsResult, CodegenJsWarning, LocalNodeIdAny, NodeTree as JsTree,
+};
 
 /// Context for lowering a DIR module to JS AST.
 #[derive(Debug)]
