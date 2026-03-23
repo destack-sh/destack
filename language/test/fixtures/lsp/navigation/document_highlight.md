@@ -10,4 +10,3 @@ Document highlights should mark the local occurrences of the selected value.
 const [|/*highlight*/value|] = 1;
 const next = [|value|] + [|value|];
 ```
-
