@@ -28,6 +28,32 @@ pub enum OutputMode {
     File,
 }
 
+/// Source map emission mode for one target.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum SourceMapMode {
+    /// Emit external source map files and reference them from outputs.
+    #[default]
+    External,
+    /// Inline source maps into the emitted output text.
+    Inline,
+    /// Emit external source map files without referencing them from outputs.
+    Hidden,
+}
+
+impl SourceMapMode {
+    /// Return whether this mode emits standalone map outputs.
+    pub fn emits_output(self) -> bool {
+        matches!(self, Self::External | Self::Hidden)
+    }
+
+    /// Return whether this mode inlines maps into emitted text.
+    pub fn is_inline(self) -> bool {
+        matches!(self, Self::Inline)
+    }
+}
+
 /// Extra artifacts to emit for debugging or inspection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EmitArtifact {

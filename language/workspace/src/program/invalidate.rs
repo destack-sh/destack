@@ -606,8 +606,8 @@ mod tests {
 
     use destack_artifact::{
         ArtifactKey, ArtifactStore, Ast, DirAnalyzed, DirBase, DirDeclared, DirInterface,
-        DirPrepared, DirResolved, EmitFormat, ExportedSymbolTable, ImportedModuleTable, Loader,
-        ModuleBindingExportTable, ProfileFlags,
+        DirPrepared, DirResolved, EmitFormat, EnvSnapshot, ExportedSymbolTable,
+        ImportedModuleTable, Loader, ModuleBindingExportTable, ProfileFlags, ProfileKey,
     };
     use destack_source::{
         File, FileContent, FileRegistry, FileType, LanguageType, MemoryFileSystem, ModuleId,
@@ -615,9 +615,8 @@ mod tests {
     };
 
     use crate::{
-        Destack, EnvSnapshot, Module, ModuleDetection, ModuleFormat, ModuleSource, ModuleTarget,
-        Package, PackageKind, PackageManifest, Platform, ProfileId, ProfileKey, Program, Runtime,
-        SourceType, TsConfig,
+        Destack, Module, ModuleDetection, ModuleFormat, ModuleSource, ModuleTarget, Package,
+        PackageKind, PackageManifest, Platform, ProfileId, Program, Runtime, SourceType, TsConfig,
     };
 
     use super::{FileUpdate, InvalidationError};

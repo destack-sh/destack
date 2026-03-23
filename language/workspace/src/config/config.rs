@@ -3,7 +3,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::config::source::{SourceLocation, SourceOptions, SourceSelectorOptions};
-use crate::config::stacks::{StackProviderJson, StackProviderOptions, merge_metadata};
+use crate::config::stack::{StackProviderJson, StackProviderOptions, merge_metadata};
 
 /// Structured config source format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

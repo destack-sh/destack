@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use clap::{Args, ValueEnum};
 use destack_artifact::{EmitFormat, Platform, Runtime};
 use destack_workspace::{
-    DebugInfoLevel, EmitArtifact, LinkMode, LtoMode, OptimizeLevel, StripLevel, Target,
+    DebugInfoLevel, EmitArtifact, LinkMode, LtoMode, OptimizeLevel, SourceMapMode, StripLevel,
+    Target,
 };
 
 /// Emit format for CLI (maps to workspace EmitFormat).
@@ -376,19 +377,19 @@ impl TargetArgs {
             target.cpu_features = self.cpu_features.clone();
         }
         if let Some(link_mode) = self.link_mode {
-            target.link_mode = link_mode.into();
+            target.native.link_mode = link_mode.into();
         }
         if let Some(lto) = self.lto {
             target.lto_mode = lto.into();
         }
         if let Some(ref linker) = self.linker {
-            target.linker = Some(linker.clone());
+            target.native.linker = Some(linker.clone());
         }
         if !self.link_args.is_empty() {
-            target.link_args = self.link_args.clone();
+            target.native.link_args = self.link_args.clone();
         }
         if let Some(ref sysroot) = self.sysroot {
-            target.sysroot = Some(sysroot.clone());
+            target.native.sysroot = Some(sysroot.clone());
         }
 
         // apply output paths
@@ -401,7 +402,7 @@ impl TargetArgs {
 
         // apply emission flags
         target.declaration = self.declaration;
-        target.source_map = self.source_map;
+        target.source_map_mode = self.source_map.then_some(SourceMapMode::External);
         if !self.artifacts.is_empty() {
             target.artifacts = self
                 .artifacts

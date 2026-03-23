@@ -2,7 +2,7 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::config::stacks::merge_metadata;
+use crate::config::stack::merge_metadata;
 
 /// Telemetry sink kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]

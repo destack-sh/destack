@@ -2,7 +2,7 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::config::stacks::merge_metadata;
+use crate::config::stack::merge_metadata;
 
 /// Dynamic runtime feature options.
 #[derive(Debug, Clone, Default)]
