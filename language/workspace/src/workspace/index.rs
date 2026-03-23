@@ -3,6 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use destack_artifact::{hash_bytes, hash_json_value};
 use indexmap::IndexMap;
 use postcard::Error as PostcardError;
 use rustc_hash::FxHasher;
@@ -14,10 +15,8 @@ use destack_source::{
     ModuleVersion, strip_json,
 };
 
-use crate::{
-    CacheScope, CacheValidate, Destack, Program, Workspace, hash_bytes, hash_json_value,
-    resolve_cache_dir, resolve_cache_root_for_scope,
-};
+use crate::cache::{resolve_cache_dir, resolve_cache_root_for_scope};
+use crate::{CacheScope, CacheValidate, Destack, Program, Workspace};
 
 /// Magic prefix for workspace index snapshots.
 const WORKSPACE_INDEX_MAGIC: [u8; 4] = *b"DSWI";
@@ -640,10 +639,11 @@ mod tests {
     use filetime::FileTime;
     use indexmap::IndexMap;
 
+    use destack_artifact::{DiskCacheStore, hash_bytes};
+
     use crate::{
-        CacheValidate, DiskCacheStore, FormatterOptions, LinterOptions, ModuleRegistry,
-        PackageRegistry, Program, Session, TsConfigRegistry, Workspace, WorkspaceConfigError,
-        WorkspaceStore, hash_bytes,
+        CacheValidate, FormatterOptions, LinterOptions, ModuleRegistry, PackageRegistry, Program,
+        Session, TsConfigRegistry, Workspace, WorkspaceConfigError, WorkspaceStore,
     };
 
     use super::{

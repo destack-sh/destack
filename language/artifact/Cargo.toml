@@ -1,6 +1,6 @@
 [package]
-name = "destack_workspace"
-description = "Destack Workspace"
+name = "destack_artifact"
+description = "Destack Artifact"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -11,24 +11,10 @@ rust-version.workspace = true
 path = "src/lib.rs"
 doctest = false
 
-[[bin]]
-name = "generate-schema"
-path = "src/schema.rs"
-required-features = ["schema"]
-
-[features]
-default = ["full"]
-builtin-full = ["destack_builtin/full"]
-builtin-core = ["destack_builtin/core"]
-full = ["builtin-full"]
-core = ["builtin-core"]
-schema = ["schemars"]
-
 [dependencies]
 # language
-destack_artifact = { workspace = true }
 destack_ast = { workspace = true }
-destack_builtin = { path = "../builtin", default-features = false }
+destack_builtin = { workspace = true }
 destack_core = { workspace = true }
 destack_dir = { workspace = true }
 destack_mir = { workspace = true }
@@ -39,19 +25,14 @@ dashmap = { workspace = true }
 filetime = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 parking_lot = { workspace = true }
+postcard = { workspace = true }
 rustc-hash = { workspace = true }
-schemars = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive", "rc"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
-smallvec = { workspace = true }
 tracing = { workspace = true }
-postcard = { workspace = true }
 
 [target.'cfg(all(not(target_os = "wasi"), not(target_arch = "wasm32")))'.dependencies]
 fs2 = { workspace = true }
-
-[dev-dependencies]
-tracing-subscriber = { workspace = true }
 
 [lints]
 workspace = true

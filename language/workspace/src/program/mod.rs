@@ -1,12 +1,7 @@
-mod ast;
 mod comptime;
-mod dir;
 mod discovery;
-mod graph;
 mod import;
 mod invalidate;
-mod loader;
-mod mir;
 mod module;
 mod package;
 mod profile;
@@ -14,15 +9,10 @@ mod program;
 mod specifier;
 mod target;
 
-pub use ast::*;
 pub use comptime::*;
-pub use dir::*;
 pub use discovery::*;
-pub use graph::*;
 pub use import::*;
 pub use invalidate::*;
-pub use loader::*;
-pub use mir::*;
 pub use module::*;
 pub use package::*;
 pub use profile::*;

@@ -1,10 +1,56 @@
 use serde::{Deserialize, Serialize};
 
-use destack_source::{ModuleId, PackageId};
+use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
 
-use crate::{ProfileId, ProfileKey, TargetId};
+use crate::{ArtifactFamily, ProfileKey};
 
-use super::ArtifactFamily;
+/// Dependency stamp captured for one artifact build.
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+pub struct ArtifactDependency(pub u64);
+
+impl std::fmt::Debug for ArtifactDependency {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "d{:016x}", self.0)
+    }
+}
+
+impl std::fmt::Display for ArtifactDependency {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "d{:016x}", self.0)
+    }
+}
+
+impl ArtifactDependency {
+    /// Create a new artifact dependency.
+    pub fn new(value: u64) -> Self {
+        Self(value)
+    }
+}
+
+/// Digest of a published semantic artifact.
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+pub struct ArtifactDigest(pub u64);
+
+impl std::fmt::Debug for ArtifactDigest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "a{:016x}", self.0)
+    }
+}
+
+impl std::fmt::Display for ArtifactDigest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "a{:016x}", self.0)
+    }
+}
+
+impl ArtifactDigest {
+    /// Create a new artifact digest.
+    pub fn new(value: u64) -> Self {
+        Self(value)
+    }
+}
 
 /// Semantic artifact identity.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

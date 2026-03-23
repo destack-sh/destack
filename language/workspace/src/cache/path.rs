@@ -3,19 +3,9 @@ use std::path::{Path, PathBuf};
 use crate::{CacheScope, resolve_global_cache_root};
 
 /// Default cache directory name for workspace scoped caches.
-pub const DEFAULT_CACHE_DIR: &str = ".destack";
-/// Default cache directory name under home when xdg is missing.
-pub const DEFAULT_HOME_CACHE_DIR: &str = ".cache";
+pub(crate) const DEFAULT_CACHE_DIR: &str = ".destack";
 /// Default cache directory name for global caches.
-pub const DEFAULT_GLOBAL_CACHE_DIR: &str = "destack";
-/// Namespace for language cache entries.
-pub const DEFAULT_LANGUAGE_CACHE_NAMESPACE: &str = "language";
-/// Directory name for persisted compiler cache entries.
-pub const DEFAULT_LANGUAGE_CACHE_DIR_NAME: &str = "cache";
-/// Workspace index file name.
-pub const WORKSPACE_INDEX_FILE_NAME: &str = "workspace-index.bin";
-/// Workspace index lock file name.
-pub const WORKSPACE_INDEX_LOCK_FILE_NAME: &str = "workspace-index.lock";
+pub(crate) const DEFAULT_GLOBAL_CACHE_DIR: &str = "destack";
 
 /// Resolve a cache root for the provided scope and cache dir.
 pub fn resolve_cache_root_for_scope(
@@ -49,7 +39,7 @@ pub fn resolve_cache_root_for_scope(
 }
 
 /// Resolve a path relative to a base directory.
-pub fn resolve_cache_dir(path: &Path, base_dir: &Path) -> PathBuf {
+pub(crate) fn resolve_cache_dir(path: &Path, base_dir: &Path) -> PathBuf {
     // resolve relative paths against the base directory
     if path.is_absolute() {
         path.to_path_buf()

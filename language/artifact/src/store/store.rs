@@ -2,15 +2,15 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_source::{ModuleId, PackageId};
+use destack_ast as ast;
+use destack_core::StringPool;
+use destack_source::{FileId, ModuleId, ModuleVersion, PackageId, ProfileId, TargetId};
 
 use crate::{
     ArtifactDependency, ArtifactKey, Ast, DirAnalyzed, DirBase, DirDeclared, DirElaborated,
-    DirInterface, DirPatched, DirPrepared, DirResolved, MirBase, MirOptimized, ModuleGraph,
-    ModuleOutput, PackageOutput, ProfileId, TargetId,
+    DirInterface, DirPatched, DirPrepared, DirResolved, IntrinsicEnvironment, LanguageEnvironment,
+    LibraryEnvironment, MirBase, MirOptimized, ModuleGraph, ModuleOutput, PackageOutput,
 };
-
-use super::{IntrinsicEnvironment, LanguageEnvironment, LibraryEnvironment};
 
 /// One published artifact payload.
 #[derive(Debug, Clone)]
@@ -255,9 +255,9 @@ impl From<Arc<PackageOutput>> for ArtifactPayload {
     }
 }
 
-/// Registry of published semantic artifacts.
+/// Store of published semantic artifacts.
 #[derive(Debug, Default)]
-pub struct ArtifactRegistry {
+pub struct ArtifactStore {
     /// Dependency stamps by artifact key.
     dependencies: DashMap<ArtifactKey, ArtifactDependency>,
     /// Module dependency graphs by profile.
@@ -296,7 +296,7 @@ pub struct ArtifactRegistry {
     package_output: DashMap<(PackageId, TargetId), Arc<PackageOutput>>,
 }
 
-impl ArtifactRegistry {
+impl ArtifactStore {
     /// Collect profile ids from one module/profile map.
     fn collect_profile_ids<T>(
         &self,
@@ -327,7 +327,7 @@ impl ArtifactRegistry {
         }
     }
 
-    /// Create a new semantic artifact registry.
+    /// Create a new semantic artifact store.
     pub fn new() -> Self {
         Self {
             dependencies: DashMap::new(),
@@ -349,6 +349,27 @@ impl ArtifactRegistry {
             module_output: DashMap::new(),
             package_output: DashMap::new(),
         }
+    }
+
+    /// Publish the synthetic root AST for one program.
+    pub fn publish_root_ast(&self, root_module_id: ModuleId, fallback_file_id: FileId) {
+        let root_ast = ast::NodeTree::new();
+        let mut root_module_ast = Ast::from_tree(
+            root_module_id,
+            ModuleVersion::INITIAL,
+            root_ast,
+            Vec::new(),
+            StringPool::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+        root_module_ast.ensure_anchor_expression(fallback_file_id);
+        self.publish(
+            ArtifactKey::Ast {
+                module: root_module_id,
+            },
+            root_module_ast,
+        );
     }
 
     /// Get the dependency stamp for one artifact key.
@@ -658,7 +679,7 @@ impl ArtifactRegistry {
     }
 
     /// Return all target ids with MIR products for one module and profile.
-    pub(crate) fn target_ids_for_mir(&self, module: ModuleId, profile: ProfileId) -> Vec<TargetId> {
+    pub fn target_ids_for_mir(&self, module: ModuleId, profile: ProfileId) -> Vec<TargetId> {
         let mut targets = Vec::new();
 
         for entry in self.mir_bases.iter() {
@@ -771,12 +792,12 @@ mod tests {
 
     use crate::{ArtifactDependency, ArtifactKey, ModuleGraph, ModuleOutput, PackageOutput};
 
-    use super::ArtifactRegistry;
+    use super::ArtifactStore;
 
     /// Clear every published artifact family from the registry.
     #[test]
     fn test_clear_removes_all_published_artifact_families() {
-        let registry = ArtifactRegistry::new();
+        let registry = ArtifactStore::new();
         let profile = ProfileId::new(1);
         let module = ModuleId::EPHEMERAL;
         let package = PackageId::EPHEMERAL;

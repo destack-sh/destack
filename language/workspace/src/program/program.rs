@@ -2,6 +2,9 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_artifact::{
+    ArtifactKey, ArtifactStore, EnvSnapshot, Loader, Platform, ProfileKey, Runtime,
+};
 use destack_ast as ast;
 use destack_core::StringPool;
 use destack_source::{
@@ -11,13 +14,13 @@ use destack_source::{
 use indexmap::IndexMap;
 
 use crate::{
-    ArtifactKey, ArtifactRegistry, Ast, Builtins, CompilerOptions, DestackOptions, DsPathAliases,
-    EnvSnapshot, FormatterOptions, LinterOptions, Loader, Module, ModuleDetection, ModuleFormat,
-    ModuleRegistry, ModuleSource, Package, PackageKind, PackageRegistry, Platform, Profile,
-    ProfileConfig, ProfileEnv, ProfileFlags, ProfileId, ProfileKey, ProfileRegistry, Runtime,
-    SourceType, Target, TargetId, TsConfig, TsConfigId, TsConfigOptions, TsConfigRegistry,
+    Builtins, CompilerOptions, DestackOptions, DsPathAliases, FormatterOptions, LinterOptions,
+    Module, ModuleDetection, ModuleFormat, ModuleRegistry, ModuleSource, Package, PackageKind,
+    PackageRegistry, Profile, ProfileConfig, ProfileEnv, ProfileId, ProfileRegistry, SourceType,
+    Target, TargetId, TsConfig, TsConfigId, TsConfigOptions, TsConfigRegistry,
     builtin_libs_for_type_entries, discover_typescript_type_entries,
-    normalize_typescript_lib_names, normalize_typescript_type_entries, typescript_default_libs,
+    normalize_typescript_lib_names, normalize_typescript_type_entries,
+    profile_flags_for_compiler_options, typescript_default_libs,
 };
 
 /// Tsconfig context for one module profile decision.
@@ -53,8 +56,6 @@ pub struct Program {
     pub tsconfigs: Arc<TsConfigRegistry>,
     /// The combined string pool.
     pub strings: Arc<StringPool>,
-    /// Semantic compiler products.
-    pub artifacts: Arc<ArtifactRegistry>,
     /// The profiles in this program.
     pub profiles: Arc<ProfileRegistry>,
     /// The diagnostic collector.
@@ -98,16 +99,12 @@ impl Program {
         let modules = Arc::new(ModuleRegistry::new());
         let packages = Arc::new(PackageRegistry::new());
         let tsconfigs = Arc::new(TsConfigRegistry::new());
-        let artifacts = Arc::new(ArtifactRegistry::new());
         let profiles = Arc::new(ProfileRegistry::new());
         let strings = Arc::new(StringPool::new());
         let diagnostics = DiagnosticCollector::new();
         let diagnostic_store = DiagnosticStore::new();
 
-        // create and insert the root package and module (for global caching)
-        let (root_module_id, fallback_file_id) =
-            Self::make_root(&modules, &packages, &artifacts, files.clone());
-
+        // create the semantic program
         Self {
             formatter,
             linter,
@@ -118,16 +115,16 @@ impl Program {
             modules,
             packages,
             tsconfigs,
-            artifacts,
             profiles,
             strings,
             diagnostics,
             diagnostic_store,
             builtins: None,
 
-            root_module_id,
-            fallback_file_id,
+            root_module_id: ModuleId::EPHEMERAL,
+            fallback_file_id: FileId::new(0),
         }
+        .with_root()
     }
 
     /// Create a new Program with shared registries (for use with Session).
@@ -146,10 +143,6 @@ impl Program {
         let diagnostics = DiagnosticCollector::new();
         let profiles = Arc::new(ProfileRegistry::new());
         let diagnostic_store = DiagnosticStore::new();
-        let artifacts = Arc::new(ArtifactRegistry::new());
-        // create and insert the root package and module
-        let (root_module_id, fallback_file_id) =
-            Self::make_root(&modules, &packages, &artifacts, files.clone());
 
         Self {
             formatter,
@@ -161,23 +154,32 @@ impl Program {
             modules,
             packages,
             tsconfigs,
-            artifacts,
             profiles,
             strings,
             diagnostics,
             diagnostic_store,
             builtins,
 
-            root_module_id,
-            fallback_file_id,
+            root_module_id: ModuleId::EPHEMERAL,
+            fallback_file_id: FileId::new(0),
         }
+        .with_root()
     }
 
-    /// Create and insert the root file, AST, module, and package for caching.
+    /// Attach one synthetic root package and module to the program.
+    fn with_root(mut self) -> Self {
+        let (root_module_id, fallback_file_id) =
+            Self::make_root(&self.modules, &self.packages, self.files.clone());
+
+        self.root_module_id = root_module_id;
+        self.fallback_file_id = fallback_file_id;
+        self
+    }
+
+    /// Create and insert the root file and module for caching.
     fn make_root(
         modules: &ModuleRegistry,
         packages: &Arc<PackageRegistry>,
-        artifacts: &Arc<ArtifactRegistry>,
         files: Arc<FileRegistry>,
     ) -> (ModuleId, FileId) {
         // ephemeral package for root
@@ -210,21 +212,8 @@ impl Program {
         );
         files.insert(root_file);
 
-        // root AST (empty)
-        let root_ast = ast::NodeTree::new();
-
         // root module (uses ephemeral module id)
         let root_module_id = ModuleId::EPHEMERAL;
-        let mut root_module_ast = Ast::from_tree(
-            root_module_id,
-            ModuleVersion::INITIAL,
-            root_ast,
-            Vec::new(),
-            StringPool::new(),
-            Vec::new(),
-            Vec::new(),
-        );
-        root_module_ast.ensure_anchor_expression(root_file_id);
         let root_file = files.get(root_file_id);
         let root_module = Module::blank(
             root_module_id,
@@ -245,19 +234,12 @@ impl Program {
             SourceType::Script,
             ModuleFormat::Esm,
         );
-        artifacts.publish(
-            ArtifactKey::Ast {
-                module: root_module_id,
-            },
-            root_module_ast,
-        );
         (root_module_id, root_file_id)
     }
 
     /// Drop cached module graphs for a profile.
-    pub fn drop_module_graph(&self, profile_id: ProfileId) {
-        self.artifacts
-            .invalidate(&ArtifactKey::module_graph(profile_id));
+    pub fn drop_module_graph(&self, artifacts: &ArtifactStore, profile_id: ProfileId) {
+        artifacts.invalidate(&ArtifactKey::module_graph(profile_id));
     }
 
     /// Register a module with inline content (pre-loaded, no filesystem read needed).
@@ -379,7 +361,7 @@ impl Program {
     }
 
     /// Recompute source type and module format for one module.
-    pub fn refresh_module_semantics(&self, module_id: ModuleId) {
+    pub fn refresh_module_semantics(&self, artifacts: &ArtifactStore, module_id: ModuleId) {
         // capture current module state and detection inputs
         let module = self.modules.get(module_id);
         let (
@@ -400,7 +382,7 @@ impl Program {
                 self.modules.module_format(module_id),
             )
         };
-        let has_import_export = self.module_has_import_export_syntax(module_id);
+        let has_import_export = self.module_has_import_export_syntax(artifacts, module_id);
 
         // detect fresh semantics from current workspace state
         let source_type = self.detect_module_source_type(
@@ -880,7 +862,7 @@ impl Program {
             .map(|keys| EnvSnapshot::from_env_whitelist(keys))
             .unwrap_or_else(EnvSnapshot::from_env_all);
 
-        let flags = ProfileFlags::from(&compiler_options);
+        let flags = profile_flags_for_compiler_options(&compiler_options);
         let (_, _, _, test) = ProfileEnv::mode_from_snapshot(&env, debug);
 
         ProfileKey::new(
@@ -960,8 +942,12 @@ impl Program {
     }
 
     /// Return true when a module AST contains top-level module syntax.
-    fn module_has_import_export_syntax(&self, module_id: ModuleId) -> bool {
-        let Some(ast) = self.artifacts.ast(module_id) else {
+    fn module_has_import_export_syntax(
+        &self,
+        artifacts: &ArtifactStore,
+        module_id: ModuleId,
+    ) -> bool {
+        let Some(ast) = artifacts.ast(module_id) else {
             return false;
         };
 
@@ -1030,7 +1016,9 @@ impl Program {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{BorrowMode, DiagnosticPolicy, EmitFormat, EsTarget, Platform, Runtime};
+    use destack_artifact::{EmitFormat, Platform, Runtime};
+
+    use crate::{BorrowMode, DiagnosticPolicy, EsTarget};
 
     #[test]
     fn test_profile_key_for_target_appends_types() {
