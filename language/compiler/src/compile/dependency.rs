@@ -56,7 +56,7 @@ impl Compiler {
                 self.profile_version(*profile),
                 target,
             ))),
-            ArtifactKey::ModuleOutput { module, target } => {
+            ArtifactKey::ModuleArtifact { module, target } => {
                 ArtifactDependency::new(self.hash_build_dependency(&(
                     artifact_key,
                     self.module_source_version(*module),

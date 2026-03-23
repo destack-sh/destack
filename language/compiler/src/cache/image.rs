@@ -127,18 +127,7 @@ impl Compiler {
                     target,
                 )
             }
-            ArtifactImageKey::ModuleOutput { module, target } => {
-                let Some(profile_id) = self.program.profile_id_for_target(*module, target) else {
-                    return Ok(None);
-                };
-
-                self.module_output_image_header(
-                    *module,
-                    self.module_version(*module),
-                    profile_id,
-                    target,
-                )
-            }
+            ArtifactImageKey::ModuleArtifact { .. } => None,
             ArtifactImageKey::PackageOutput { package, target } => {
                 self.package_output_image_header(*package, target)
             }

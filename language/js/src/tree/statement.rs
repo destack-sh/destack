@@ -3,6 +3,7 @@ use crate::{
     DependencyItem, DependencyKind, Expression, LocalNodeId, Mutability, Node, NodeType, Pattern,
     StringId,
 };
+use destack_source::ModuleId;
 
 /// A Statement is a JS/TS top-level statement in some container/block.
 #[derive(Debug, Clone, PartialEq)]
@@ -11,6 +12,7 @@ pub enum Statement {
     Import {
         kind: DependencyKind,
         target: StringId,
+        target_module: Option<ModuleId>,
         items: Vec<LocalNodeId<DependencyItem>>,
         arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
@@ -18,6 +20,7 @@ pub enum Statement {
     Export {
         kind: DependencyKind,
         target: Option<StringId>,
+        target_module: Option<ModuleId>,
         items: Vec<LocalNodeId<DependencyItem>>,
     },
     /// Export value.

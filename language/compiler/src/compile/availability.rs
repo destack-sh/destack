@@ -193,8 +193,8 @@ impl Compiler {
                 .artifacts
                 .mir_optimized(*module, *profile, target)
                 .is_some(),
-            ArtifactKey::ModuleOutput { module, target } => {
-                self.artifacts.module_output(*module, target).is_some()
+            ArtifactKey::ModuleArtifact { module, target } => {
+                self.artifacts.module_artifact(*module, target).is_some()
             }
             ArtifactKey::PackageOutput { package, target } => {
                 self.artifacts.package_output(*package, target).is_some()

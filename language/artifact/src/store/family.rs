@@ -31,8 +31,8 @@ pub enum ArtifactFamily {
     MirBase,
     /// Optimized MIR.
     MirOptimized,
-    /// Output entries for one module target.
-    ModuleOutput,
+    /// One generated module artifact for one target.
+    ModuleArtifact,
     /// Output entries for one package target.
     PackageOutput,
 }
@@ -66,7 +66,7 @@ impl ArtifactFamily {
             | Self::DirPatched
             | Self::MirBase
             | Self::MirOptimized
-            | Self::ModuleOutput
+            | Self::ModuleArtifact
             | Self::PackageOutput => PersistedImageValidation::DependencyValidated,
         }
     }

@@ -117,6 +117,7 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
         Statement::Import {
             kind: _,
             target: _,
+            target_module: _,
             items,
             arguments,
         } => {
@@ -134,6 +135,7 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
         Statement::Export {
             kind: _,
             target: _,
+            target_module: _,
             items,
         } => {
             for item_id in items {

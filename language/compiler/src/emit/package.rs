@@ -48,7 +48,7 @@ impl Compiler {
             })?;
 
         // emit each file using its precomputed output path
-        for entry in &emit.entries {
+        for entry in emit.files() {
             let output_path =
                 entry
                     .uri
@@ -57,7 +57,7 @@ impl Compiler {
                         uri: entry.uri.clone(),
                     })?;
 
-            self.write_output_entry(entry, &output_path)?;
+            self.write_output_file(entry, &output_path)?;
         }
 
         Ok(())

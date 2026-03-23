@@ -175,6 +175,7 @@ impl ModuleLowerer<'_> {
                     let statement = Statement::Import {
                         kind,
                         target,
+                        target_module: None,
                         items,
                         arguments,
                     };
@@ -187,7 +188,7 @@ impl ModuleLowerer<'_> {
                 source,
                 kind,
                 target,
-                target_module: _,
+                target_module,
                 items,
                 arguments,
             } => {
@@ -256,6 +257,7 @@ impl ModuleLowerer<'_> {
                     let statement = Statement::Import {
                         kind,
                         target,
+                        target_module: target_module.module_id(),
                         items,
                         arguments,
                     };
@@ -269,11 +271,24 @@ impl ModuleLowerer<'_> {
                 target,
                 items,
                 arguments: _,
+            } => {
+                let target = self.strings.intern_from(&self.ast.strings, *target);
+                let items = self.lower_dependency_items(*kind, items.as_slice())?;
+                let kind = self.lower_dependency_kind(*kind);
+                let statement = Statement::Export {
+                    kind,
+                    target: Some(target),
+                    target_module: None,
+                    items,
+                };
+                self.tree
+                    .insert_from_source(statement, self.module.id, expression_id)
+                    .into_any()
             }
-            | dir::Expression::ReExport {
+            dir::Expression::ReExport {
                 kind,
                 target,
-                target_module: _,
+                target_module,
                 items,
                 arguments: _,
             } => {
@@ -283,6 +298,7 @@ impl ModuleLowerer<'_> {
                 let statement = Statement::Export {
                     kind,
                     target: Some(target),
+                    target_module: target_module.module_id(),
                     items,
                 };
                 self.tree
@@ -295,6 +311,7 @@ impl ModuleLowerer<'_> {
                 let statement = Statement::Export {
                     kind,
                     target: None,
+                    target_module: None,
                     items,
                 };
                 self.tree

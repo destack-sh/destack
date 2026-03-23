@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::config::target::TargetOutputName;
+use destack_artifact::TargetOutputName;
 
 /// Stack attachment source kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]

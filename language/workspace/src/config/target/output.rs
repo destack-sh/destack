@@ -1,6 +1,6 @@
 use std::hash::{Hash, Hasher};
 
-use destack_artifact::EmitFormat;
+use destack_artifact::{EmitFormat, TargetOutputKind};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
@@ -88,95 +88,6 @@ impl EmitArtifact {
     /// Parse from a string value.
     pub fn parse(s: &str) -> Option<Self> {
         s.parse().ok()
-    }
-}
-
-/// Formal target output group kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub enum TargetOutputKind {
-    /// Per-module library output.
-    #[default]
-    Module,
-    /// Primary runnable entry output.
-    Entry,
-    /// Primary document output.
-    Document,
-    /// Declaration or type surface.
-    Types,
-    /// Asset collection emitted by this target.
-    Assets,
-    /// Build manifest or output index.
-    Manifest,
-    /// Source maps or debug maps.
-    Maps,
-    /// Binary or wasm payload.
-    Binary,
-    /// Debug symbol or debug sidecar output.
-    Debug,
-    /// Additional metadata sidecar output.
-    Metadata,
-}
-
-/// Builtin target output surface name.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub enum TargetOutputName {
-    /// Per-module library output.
-    Module,
-    /// Primary runnable entry output.
-    Entry,
-    /// Primary document output.
-    Document,
-    /// Declaration or type surface.
-    Types,
-    /// Asset collection emitted by this target.
-    Assets,
-    /// Build manifest or output index.
-    Manifest,
-    /// Source maps or debug maps.
-    Maps,
-    /// Binary or wasm payload.
-    Binary,
-    /// Debug symbol or debug sidecar output.
-    Debug,
-    /// Additional metadata sidecar output.
-    Metadata,
-}
-
-impl TargetOutputName {
-    /// Return the stable output name.
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Module => "module",
-            Self::Entry => "entry",
-            Self::Document => "document",
-            Self::Types => "types",
-            Self::Assets => "assets",
-            Self::Manifest => "manifest",
-            Self::Maps => "maps",
-            Self::Binary => "binary",
-            Self::Debug => "debug",
-            Self::Metadata => "metadata",
-        }
-    }
-
-    /// Return the semantic kind for this builtin output surface.
-    pub fn kind(&self) -> TargetOutputKind {
-        match self {
-            Self::Module => TargetOutputKind::Module,
-            Self::Entry => TargetOutputKind::Entry,
-            Self::Document => TargetOutputKind::Document,
-            Self::Types => TargetOutputKind::Types,
-            Self::Assets => TargetOutputKind::Assets,
-            Self::Manifest => TargetOutputKind::Manifest,
-            Self::Maps => TargetOutputKind::Maps,
-            Self::Binary => TargetOutputKind::Binary,
-            Self::Debug => TargetOutputKind::Debug,
-            Self::Metadata => TargetOutputKind::Metadata,
-        }
     }
 }
 

@@ -2,7 +2,7 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::config::target::TargetOutputName;
+use destack_artifact::TargetOutputName;
 
 /// Asset source location.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

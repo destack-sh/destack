@@ -3,27 +3,18 @@ use std::sync::Arc;
 
 use cranelift_codegen::isa::TargetIsa;
 use cranelift_codegen::settings::{self, Configurable};
-use destack_artifact::{ArtifactStore, EmitFormat, OutputContent, OutputEntry};
+use destack_artifact::{
+    ArtifactStore, BinaryArtifact, EmitFormat, ObjectArtifact, WasmArtifact, WasmInterface,
+};
 use destack_codegen_lib::CodegenBackend;
 use destack_core::StringPool;
 use destack_mir as mir;
-use destack_source::{FileType, ModuleId};
+use destack_source::ModuleId;
 use destack_workspace::{Program, Target, TargetId};
 use target_lexicon::Triple;
 
 use crate::lower::{ModuleLowerOutput, ModuleLowerer};
 use crate::{CodegenCraneliftError, CodegenCraneliftResult, CodegenCraneliftWarning};
-
-/// Output from Cranelift code generation.
-#[derive(Debug)]
-pub struct CodegenCraneliftOutput {
-    /// Generated output entries.
-    pub entries: Vec<OutputEntry>,
-    /// Warnings encountered during generation.
-    pub warnings: Vec<CodegenCraneliftWarning>,
-    /// Non-fatal errors encountered during generation.
-    pub errors: Vec<CodegenCraneliftError>,
-}
 
 /// Cranelift-based code generation backend.
 ///
@@ -184,16 +175,17 @@ impl CodegenBackend for CodegenCraneliftBackend {
     }
 }
 
-/// Generate code for a module using Cranelift.
-///
-/// This is the main entry point for native/WASM code generation from the compiler.
-/// Returns outputs and any warnings encountered during generation.
-pub fn generate_module(
+/// Generate one binary artifact for a module using Cranelift.
+pub fn generate_artifact(
     program: Arc<Program>,
     artifacts: Arc<ArtifactStore>,
     module_id: ModuleId,
     target: &Target,
-) -> CodegenCraneliftResult<CodegenCraneliftOutput> {
+) -> CodegenCraneliftResult<(
+    BinaryArtifact,
+    Vec<CodegenCraneliftWarning>,
+    Vec<CodegenCraneliftError>,
+)> {
     // validate target
     match target.emit {
         EmitFormat::Wasm | EmitFormat::Native => {}
@@ -209,10 +201,9 @@ pub fn generate_module(
     let backend = CodegenCraneliftBackend::new(target)?;
 
     // get module and its MIR
+    // compile
     let module_ref = program.modules.get(module_id);
     let module = module_ref.as_ref();
-
-    // compile
     let name = module.uri.last_segment().unwrap_or("module");
     let profile_id = program.default_profile_id_for_module(module_id);
     let target_id = TargetId::new(module.package_id, target.name.clone());
@@ -225,33 +216,18 @@ pub fn generate_module(
             panic!("codegen requires committed MIR artifact");
         };
 
-    // determine file type and create output
-    let (file_type, content) = match target.emit {
-        EmitFormat::Wasm => (FileType::Wasm, OutputContent::wasm(compile_output.bytes)),
-        EmitFormat::Native => (
-            FileType::Object,
-            OutputContent::object(compile_output.bytes),
-        ),
-        _ => {
-            return Err(CodegenCraneliftError::UnsupportedTarget {
-                triple: format!("{:?}", target.emit),
-                message: Some("expected Wasm or Native".to_string()),
-            });
-        }
+    let artifact = match target.emit {
+        EmitFormat::Native => BinaryArtifact::Object(ObjectArtifact {
+            bytes: Arc::from(compile_output.bytes),
+            debug: Vec::new(),
+        }),
+        EmitFormat::Wasm => BinaryArtifact::Wasm(WasmArtifact {
+            bytes: Arc::from(compile_output.bytes),
+            interface: WasmInterface::default(),
+            source_map: None,
+        }),
+        _ => unreachable!(),
     };
 
-    let extension = file_type.extension().unwrap_or("o");
-    let uri = module.uri.without_extension().with_extension(extension);
-
-    let output = OutputEntry {
-        uri,
-        content,
-        source: None,
-    };
-
-    Ok(CodegenCraneliftOutput {
-        entries: vec![output],
-        warnings: compile_output.warnings,
-        errors: compile_output.errors,
-    })
+    Ok((artifact, compile_output.warnings, compile_output.errors))
 }

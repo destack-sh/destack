@@ -114,8 +114,8 @@ pub enum ArtifactKey {
         profile: ProfileId,
         target: TargetId,
     },
-    /// Output entries for one module target.
-    ModuleOutput { module: ModuleId, target: TargetId },
+    /// One generated module artifact for one target.
+    ModuleArtifact { module: ModuleId, target: TargetId },
     /// Output entries for one package target.
     PackageOutput {
         package: PackageId,
@@ -179,8 +179,8 @@ pub enum ArtifactImageKey {
         profile: ProfileKey,
         target: TargetId,
     },
-    /// Output entries for one module target.
-    ModuleOutput { module: ModuleId, target: TargetId },
+    /// One generated module artifact for one target.
+    ModuleArtifact { module: ModuleId, target: TargetId },
     /// Output entries for one package target.
     PackageOutput {
         package: PackageId,
@@ -278,9 +278,9 @@ impl ArtifactKey {
         }
     }
 
-    /// Build one module output artifact key.
-    pub fn module_output(module: ModuleId, target: TargetId) -> Self {
-        Self::ModuleOutput { module, target }
+    /// Build one module artifact key.
+    pub fn module_artifact(module: ModuleId, target: TargetId) -> Self {
+        Self::ModuleArtifact { module, target }
     }
 
     /// Build one package output artifact key.
@@ -306,7 +306,7 @@ impl ArtifactKey {
             Self::DirPatched { .. } => ArtifactFamily::DirPatched,
             Self::MirBase { .. } => ArtifactFamily::MirBase,
             Self::MirOptimized { .. } => ArtifactFamily::MirOptimized,
-            Self::ModuleOutput { .. } => ArtifactFamily::ModuleOutput,
+            Self::ModuleArtifact { .. } => ArtifactFamily::ModuleArtifact,
             Self::PackageOutput { .. } => ArtifactFamily::PackageOutput,
         }
     }
@@ -325,7 +325,7 @@ impl ArtifactKey {
             | Self::DirPatched { module, .. }
             | Self::MirBase { module, .. }
             | Self::MirOptimized { module, .. }
-            | Self::ModuleOutput { module, .. } => Some(*module),
+            | Self::ModuleArtifact { module, .. } => Some(*module),
             Self::ModuleGraph { .. }
             | Self::LanguageEnvironment { .. }
             | Self::IntrinsicEnvironment { .. }
@@ -352,7 +352,7 @@ impl ArtifactKey {
             | Self::MirOptimized { profile, .. } => Some(*profile),
             Self::Ast { .. }
             | Self::DirBase { .. }
-            | Self::ModuleOutput { .. }
+            | Self::ModuleArtifact { .. }
             | Self::PackageOutput { .. } => None,
         }
     }
@@ -423,7 +423,7 @@ impl ArtifactKey {
                 profile: profile_key_for_id(*profile),
                 target: target.clone(),
             },
-            Self::ModuleOutput { module, target } => ArtifactImageKey::ModuleOutput {
+            Self::ModuleArtifact { module, target } => ArtifactImageKey::ModuleArtifact {
                 module: *module,
                 target: target.clone(),
             },
@@ -451,7 +451,7 @@ impl ArtifactImageKey {
             Self::DirPatched { .. } => ArtifactFamily::DirPatched,
             Self::MirBase { .. } => ArtifactFamily::MirBase,
             Self::MirOptimized { .. } => ArtifactFamily::MirOptimized,
-            Self::ModuleOutput { .. } => ArtifactFamily::ModuleOutput,
+            Self::ModuleArtifact { .. } => ArtifactFamily::ModuleArtifact,
             Self::PackageOutput { .. } => ArtifactFamily::PackageOutput,
             Self::LanguageEnvironment { .. } => ArtifactFamily::LanguageEnvironment,
             Self::IntrinsicEnvironment { .. } => ArtifactFamily::IntrinsicEnvironment,

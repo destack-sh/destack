@@ -6,7 +6,7 @@ use super::ArtifactImage;
 use crate::{
     Ast, DirAnalyzed, DirBase, DirDeclared, DirElaborated, DirInterface, DirPatched, DirPrepared,
     DirResolved, IntrinsicEnvironment, LanguageEnvironment, LibraryEnvironment, MirBase,
-    MirOptimized, ModuleGraph, ModuleOutput, PackageOutput,
+    MirOptimized, ModuleGraph, PackageOutput,
 };
 
 /// Serialized language environment image.
@@ -340,9 +340,6 @@ pub type MirBaseArtifactImage = ArtifactImage<MirBase>;
 /// Serialized optimized MIR image.
 pub type MirOptimizedArtifactImage = ArtifactImage<MirOptimized>;
 
-/// Serialized module output image.
-pub type ModuleOutputArtifactImage = ArtifactImage<ModuleOutput>;
-
 /// Serialized package output image.
 pub type PackageOutputArtifactImage = ArtifactImage<PackageOutput>;
 
@@ -356,8 +353,8 @@ pub type LibraryEnvironmentArtifactImage = ArtifactImage<LibraryEnvironment>;
 mod tests {
     use crate::{
         ArtifactFamily, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, EmitFormat,
-        EnvSnapshot, ExportedSymbolTable, ImportedModuleTable, ModuleBindingExportTable, Platform,
-        ProfileFlags, ProfileKey, Runtime,
+        EnvSnapshot, ExportedSymbolTable, ImportedModuleTable, ModuleBindingExportTable,
+        PackageAssembly, Platform, ProfileFlags, ProfileKey, Runtime,
     };
     use destack_source::{
         FileKey, FileVersion, ModuleId, ModuleVersion, PackageId, ProfileVersion, TargetId,
@@ -440,7 +437,7 @@ mod tests {
                 profile,
                 target: test_target_id(),
             },
-            ArtifactFamily::ModuleOutput => ArtifactImageKey::ModuleOutput {
+            ArtifactFamily::ModuleArtifact => ArtifactImageKey::ModuleArtifact {
                 module: ModuleId::EPHEMERAL,
                 target: test_target_id(),
             },
@@ -599,32 +596,16 @@ mod tests {
         assert_eq!(loaded.payload.target, image.payload.target);
     }
 
-    /// Roundtrip one module output image through bytes.
-    #[test]
-    fn test_module_output_image_roundtrip() {
-        let image = ModuleOutputArtifactImage::new(
-            test_header(ArtifactFamily::ModuleOutput),
-            ModuleOutput::new(EmitFormat::Js, Vec::new()),
-        )
-        .expect("build module output image");
-        let bytes = image.serialize().expect("serialize module output image");
-        let loaded = ModuleOutputArtifactImage::deserialize(&bytes)
-            .expect("deserialize module output image");
-
-        loaded
-            .validate_for_family(ArtifactFamily::ModuleOutput)
-            .expect("validate module output image");
-        assert_eq!(loaded.header, image.header);
-        assert_eq!(loaded.payload.emit, image.payload.emit);
-        assert_eq!(loaded.payload.entries.len(), image.payload.entries.len());
-    }
-
     /// Roundtrip one package output image through bytes.
     #[test]
     fn test_package_output_image_roundtrip() {
         let image = PackageOutputArtifactImage::new(
             test_header(ArtifactFamily::PackageOutput),
-            PackageOutput::new(EmitFormat::Js, true, Vec::new()),
+            PackageOutput::new(
+                EmitFormat::Js,
+                PackageAssembly::SingleFile,
+                indexmap::IndexMap::new(),
+            ),
         )
         .expect("build package output image");
         let bytes = image.serialize().expect("serialize package output image");
@@ -636,8 +617,8 @@ mod tests {
             .expect("validate package output image");
         assert_eq!(loaded.header, image.header);
         assert_eq!(loaded.payload.emit, image.payload.emit);
-        assert_eq!(loaded.payload.assembled, image.payload.assembled);
-        assert_eq!(loaded.payload.entries.len(), image.payload.entries.len());
+        assert_eq!(loaded.payload.assembly, image.payload.assembly);
+        assert_eq!(loaded.payload.outputs.len(), image.payload.outputs.len());
     }
 
     /// Roundtrip one language environment image through bytes.
