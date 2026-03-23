@@ -5,9 +5,8 @@ use {destack_ast as ast, destack_dir as dir};
 
 use crate::common::{
     QueryContext, enclosing_spans_with_previous, extract_string_literal_prefix,
-    find_symbol_at_offset, get_module_by_file_id, import_clause_brace_span,
-    resolve_nominal_symbol_from_initializer, sorted_enclosing_spans, span_for_dir_node,
-    visible_symbols,
+    get_module_by_file_id, import_clause_brace_span, resolve_expression_symbol,
+    sorted_enclosing_spans, span_for_dir_node, visible_symbols,
 };
 use destack_workspace::Session;
 
@@ -22,8 +21,8 @@ pub enum CompletionContext {
         receiver_symbol: Option<dir::GlobalSymbolId>,
         /// The resolved receiver type when available.
         receiver_type: Option<dir::LocalTypeId>,
-        /// The fallback receiver type name when DIR type resolution is unavailable.
-        fallback_type_name: Option<String>,
+        /// The source-derived receiver type name when semantic type resolution is unavailable.
+        source_type_name: Option<String>,
     },
     /// Type position context such as annotations or type expressions.
     TypePosition {
@@ -324,15 +323,14 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
                     let receiver_symbol = get_expression_symbol(dir_tree, *left);
 
                     // resolve the receiver type after the tree borrow ends
-                    let receiver_type =
-                        get_receiver_type(session, &ctx, receiver_global, receiver_symbol);
+                    let receiver_type = get_receiver_type(&ctx, receiver_global, receiver_symbol);
 
                     return ContextResult {
                         context: CompletionContext::MemberAccess {
                             receiver_node: receiver_local,
                             receiver_symbol,
                             receiver_type,
-                            fallback_type_name: None,
+                            source_type_name: None,
                         },
                         token,
                     };
@@ -346,7 +344,7 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
         // resolve position inside the receiver expression
         let receiver_position = offset.saturating_sub(2);
 
-        let offset_context = member_access_context_at_offset(session, &ctx, receiver_position);
+        let offset_context = member_access_context_at_offset(&ctx, receiver_position);
         let token_context = member_access_context_from_tokens(session, &ctx, offset);
         if let Some(context) = merge_member_access_contexts(offset_context, token_context) {
             return ContextResult { context, token };
@@ -359,7 +357,7 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
         && prev.token.ty == ast::TokenType::Dot
     {
         let receiver_position = prev.span.start.saturating_sub(1);
-        if let Some(context) = member_access_context_at_offset(session, &ctx, receiver_position) {
+        if let Some(context) = member_access_context_at_offset(&ctx, receiver_position) {
             return ContextResult { context, token };
         }
     }
@@ -452,7 +450,7 @@ fn merge_member_access_contexts(
         receiver_node,
         receiver_symbol,
         receiver_type,
-        fallback_type_name,
+        source_type_name,
     } = offset_context
     else {
         return Some(offset_context);
@@ -462,33 +460,33 @@ fn merge_member_access_contexts(
         receiver_node: token_receiver_node,
         receiver_symbol: token_receiver_symbol,
         receiver_type: token_receiver_type,
-        fallback_type_name: token_fallback_type_name,
+        source_type_name: token_source_type_name,
     } = token_context
     else {
         return Some(CompletionContext::MemberAccess {
             receiver_node,
             receiver_symbol,
             receiver_type,
-            fallback_type_name,
+            source_type_name,
         });
     };
 
-    // prefer token derived context only when the offset context lacks symbol and fallback info
-    if receiver_symbol.is_none() && fallback_type_name.is_none() {
+    // prefer token derived context only when the offset context lacks symbol and source hints
+    if receiver_symbol.is_none() && source_type_name.is_none() {
         return Some(CompletionContext::MemberAccess {
             receiver_node: token_receiver_node,
             receiver_symbol: token_receiver_symbol,
             receiver_type: token_receiver_type,
-            fallback_type_name: token_fallback_type_name,
+            source_type_name: token_source_type_name,
         });
     }
 
-    // merge fallback type names when the offset context is otherwise usable
+    // merge source-derived type names when the offset context is otherwise usable
     Some(CompletionContext::MemberAccess {
         receiver_node,
         receiver_symbol,
         receiver_type,
-        fallback_type_name: fallback_type_name.or(token_fallback_type_name),
+        source_type_name: source_type_name.or(token_source_type_name),
     })
 }
 
@@ -509,7 +507,6 @@ fn get_expression_symbol(
 /// If the expression is a reference, use `get_type_id_for_symbol` which checks cached value
 /// types for symbols and declared or inferred types from the primary declaration.
 fn get_receiver_type(
-    session: &Session,
     ctx: &QueryContext<'_>,
     receiver_global: dir::GlobalNodeIdAny,
     receiver_symbol: Option<dir::GlobalSymbolId>,
@@ -590,16 +587,6 @@ fn get_receiver_type(
                 }
             }
         }
-
-        // fourth try: resolve a nominal type from the initializer
-        if let Some(type_symbol) = resolve_nominal_symbol_from_initializer(session, ctx, symbol_id)
-        {
-            let types = ctx.types();
-            let symbols = ctx.symbols();
-            if let Some(type_id) = types.get_type_id_for_symbol(symbols, type_symbol) {
-                return Some(type_id);
-            }
-        }
     }
 
     // return none when no type is available
@@ -608,7 +595,6 @@ fn get_receiver_type(
 
 /// Resolve member access context for a receiver position.
 fn member_access_context_at_offset(
-    session: &Session,
     ctx: &QueryContext<'_>,
     receiver_position: u32,
 ) -> Option<CompletionContext> {
@@ -617,7 +603,7 @@ fn member_access_context_at_offset(
 
     // resolve the dir tree for span to dir lookup
     let dir_tree = ctx.tree();
-    let mut fallback_context = None;
+    let mut partial_context = None;
 
     // scan for the nearest enclosing expression
     for enc in &enclosing {
@@ -644,37 +630,37 @@ fn member_access_context_at_offset(
             let receiver_global = receiver_local.into_global(ctx.module_id);
             let receiver_symbol = get_expression_symbol(dir_tree, *left);
             if receiver_symbol.is_none() {
-                if fallback_context.is_none() {
-                    fallback_context = Some(CompletionContext::MemberAccess {
+                if partial_context.is_none() {
+                    partial_context = Some(CompletionContext::MemberAccess {
                         receiver_node: receiver_local,
                         receiver_symbol,
                         receiver_type: None,
-                        fallback_type_name: None,
+                        source_type_name: None,
                     });
                 }
                 continue;
             }
 
             // resolve the receiver type
-            let receiver_type = get_receiver_type(session, ctx, receiver_global, receiver_symbol);
+            let receiver_type = get_receiver_type(ctx, receiver_global, receiver_symbol);
 
             return Some(CompletionContext::MemberAccess {
                 receiver_node: receiver_local,
                 receiver_symbol,
                 receiver_type,
-                fallback_type_name: None,
+                source_type_name: None,
             });
         }
 
         // otherwise treat the expression itself as the receiver
         let receiver_symbol = actual_expr.target_symbol();
         if receiver_symbol.is_none() {
-            if fallback_context.is_none() {
-                fallback_context = Some(CompletionContext::MemberAccess {
+            if partial_context.is_none() {
+                partial_context = Some(CompletionContext::MemberAccess {
                     receiver_node: actual_node_id,
                     receiver_symbol,
                     receiver_type: None,
-                    fallback_type_name: None,
+                    source_type_name: None,
                 });
             }
             continue;
@@ -682,17 +668,17 @@ fn member_access_context_at_offset(
         let receiver_global = actual_node_id.into_global(ctx.module_id);
 
         // resolve the receiver type
-        let receiver_type = get_receiver_type(session, ctx, receiver_global, receiver_symbol);
+        let receiver_type = get_receiver_type(ctx, receiver_global, receiver_symbol);
 
         return Some(CompletionContext::MemberAccess {
             receiver_node: actual_node_id,
             receiver_symbol,
             receiver_type,
-            fallback_type_name: None,
+            source_type_name: None,
         });
     }
 
-    fallback_context
+    partial_context
 }
 
 /// Resolve member access context using token lookups.
@@ -728,8 +714,8 @@ fn member_access_context_from_tokens(
 
     let mut receiver_node = None;
     let mut receiver_symbol = None;
-    let mut fallback_receiver_node = None;
-    let mut fallback_type_name = None;
+    let mut partial_receiver_node = None;
+    let mut source_type_name = None;
 
     // resolve the receiver node from enclosing AST spans
     if receiver_node.is_none() {
@@ -753,8 +739,8 @@ fn member_access_context_from_tokens(
                 let receiver_local: dir::LocalNodeIdAny = (*left).into();
                 let receiver_local_symbol = get_expression_symbol(dir_tree, *left);
 
-                if fallback_receiver_node.is_none() {
-                    fallback_receiver_node = Some(receiver_local);
+                if partial_receiver_node.is_none() {
+                    partial_receiver_node = Some(receiver_local);
                 }
                 if receiver_local_symbol.is_some() {
                     receiver_node = Some(receiver_local);
@@ -765,8 +751,8 @@ fn member_access_context_from_tokens(
                 continue;
             }
 
-            if fallback_receiver_node.is_none() {
-                fallback_receiver_node = Some(actual_node_id);
+            if partial_receiver_node.is_none() {
+                partial_receiver_node = Some(actual_node_id);
             }
 
             let actual_symbol = actual_expr.target_symbol();
@@ -779,7 +765,7 @@ fn member_access_context_from_tokens(
     }
 
     if receiver_node.is_none() {
-        receiver_node = fallback_receiver_node;
+        receiver_node = partial_receiver_node;
     }
 
     // resolve the receiver symbol from visible scopes when direct expression symbols are missing
@@ -806,51 +792,23 @@ fn member_access_context_from_tokens(
             );
         }
     }
-    // resolve the receiver from structural symbol lookup when scope matching misses
-    if (receiver_node.is_none() || receiver_symbol.is_none())
-        && let Some(symbol_at) = find_symbol_at_offset(session, ctx.file_id, receiver_offset)
-    {
-        if receiver_node.is_none() {
-            receiver_node = Some(symbol_at.node_id);
-        }
-        if receiver_symbol.is_none() {
-            receiver_symbol = Some(symbol_at.symbol_id);
-        }
-    }
-
-    // recover a receiver node from the resolved symbol declaration
-    if receiver_node.is_none()
-        && let Some(symbol_id) = receiver_symbol
-        && symbol_id.module_id == ctx.module_id
-    {
-        let symbols = ctx.symbols();
-        let symbol = symbols.get_symbol(symbol_id.local_id);
-        receiver_node = symbol
-            .primary_declaration
-            .map(|declaration| declaration.local_id);
-    }
-
-    // derive a nominal receiver type name from local declarators when symbols are unavailable
-    if fallback_type_name.is_none() {
-        fallback_type_name =
-            fallback_type_name_from_receiver_binding(session, ctx, receiver_name, receiver_offset);
-    }
-
-    if receiver_node.is_none() && receiver_symbol.is_some() {
-        receiver_node = Some(ctx.dir.anchor_node);
+    // derive a nominal receiver type name from local source when symbols are unavailable
+    if source_type_name.is_none() {
+        source_type_name =
+            source_type_name_from_receiver_binding(session, ctx, receiver_name, receiver_offset);
     }
 
     let receiver_node = receiver_node?;
 
     // resolve receiver type for member completions
     let receiver_global = receiver_node.into_global(ctx.module_id);
-    let receiver_type = get_receiver_type(session, ctx, receiver_global, receiver_symbol);
+    let receiver_type = get_receiver_type(ctx, receiver_global, receiver_symbol);
 
     Some(CompletionContext::MemberAccess {
         receiver_node,
         receiver_symbol,
         receiver_type,
-        fallback_type_name,
+        source_type_name,
     })
 }
 
@@ -914,8 +872,8 @@ fn unwrap_statement_expression<'a>(
     (node_id, expr)
 }
 
-/// Resolve a fallback nominal type name for a receiver binding at an offset.
-fn fallback_type_name_from_receiver_binding(
+/// Resolve a source-derived nominal type name for a receiver binding at an offset.
+fn source_type_name_from_receiver_binding(
     session: &Session,
     ctx: &QueryContext<'_>,
     receiver_name: &str,
@@ -964,7 +922,7 @@ fn fallback_type_name_from_receiver_binding(
         return Some(type_name);
     }
 
-    fallback_type_name_from_receiver_ast(ctx, receiver_name, receiver_offset)
+    source_type_name_from_receiver_ast(ctx, receiver_name, receiver_offset)
 }
 
 /// Resolve the binding name for a simple declarator pattern.
@@ -1008,8 +966,8 @@ fn nominal_type_name_for_expression(
     }
 }
 
-/// Resolve a fallback nominal type name from AST declarators near the cursor.
-fn fallback_type_name_from_receiver_ast(
+/// Resolve a source-derived nominal type name from AST declarators near the cursor.
+fn source_type_name_from_receiver_ast(
     ctx: &QueryContext<'_>,
     receiver_name: &str,
     receiver_offset: u32,
@@ -1850,8 +1808,7 @@ fn expected_type_for_object_literal(
                     | dir::Expression::AssignBinary { left, right, .. } => {
                         if *right == expr_id {
                             // prefer the resolved symbol type for assignments
-                            let left_expression = dir_tree.get(*left);
-                            if let Some(target_symbol) = left_expression.target_symbol() {
+                            if let Some(target_symbol) = resolve_expression_symbol(ctx, *left) {
                                 let ty = types.get_type_id_for_symbol(symbols, target_symbol);
                                 if let Some(ty) = ty {
                                     return Some(ty);

@@ -15,8 +15,8 @@ use crate::common::{
     get_canonical_symbol, get_module_by_file_id, matches_symbol_space_filter,
     module_name_from_path, owned_scope_for_symbol, path_component_count, path_distance,
     program_for_file, query_context, resolve_extension_members_for_symbol,
-    resolve_nominal_symbol_from_initializer, resolve_reference_members, resolve_symbol_name,
-    resolve_type_members, score_completion, search_importable_symbols_for_program, visible_symbols,
+    resolve_reference_members, resolve_type_members, score_completion,
+    search_importable_symbols_for_program, visible_symbols, with_ast_context_for_module,
 };
 use crate::format::format_local_type;
 use destack_workspace::{ArtifactRegistry, Loader, Session};
@@ -875,14 +875,14 @@ pub fn completions(
             receiver_node,
             receiver_symbol,
             receiver_type,
-            fallback_type_name,
+            source_type_name,
         } => complete_members(
             session,
             file,
             *receiver_node,
             *receiver_type,
             *receiver_symbol,
-            fallback_type_name.as_deref(),
+            source_type_name.as_deref(),
         ),
 
         CompletionContext::TypePosition {
@@ -981,7 +981,7 @@ fn complete_members(
     receiver_node: dir::LocalNodeIdAny,
     receiver_type: Option<dir::LocalTypeId>,
     receiver_symbol: Option<dir::GlobalSymbolId>,
-    fallback_type_name: Option<&str>,
+    source_type_name: Option<&str>,
 ) -> Vec<Completion> {
     // prepare the completion buffer
     let mut results = Vec::new();
@@ -995,18 +995,9 @@ fn complete_members(
         return Vec::new();
     };
     let current_module_id = ctx.module_id;
-    let fallback_type_name = fallback_type_name
+    let source_type_name = source_type_name
         .map(ToOwned::to_owned)
-        .or_else(|| ast_type_name_from_receiver_node(&ctx, receiver_node))
-        .or_else(|| {
-            let symbol_id = receiver_symbol?;
-            if symbol_id.module_id != current_module_id {
-                return None;
-            }
-
-            let type_symbol = resolve_nominal_symbol_from_initializer(session, &ctx, symbol_id)?;
-            resolve_symbol_name(session, type_symbol)
-        });
+        .or_else(|| ast_type_name_from_receiver_node(&ctx, receiver_node));
 
     // primary path: use receiver type for type aware completions
     if let Some(type_id) = receiver_type {
@@ -1030,7 +1021,7 @@ fn complete_members(
         }
     }
 
-    // fallback path: resolve members directly from the receiver symbol
+    // symbol-directed path
     if let Some(symbol_id) = receiver_symbol {
         let members = resolve_reference_members(symbol_id, session, current_module_id);
         for member in members {
@@ -1048,37 +1039,7 @@ fn complete_members(
         }
     }
 
-    // fallback path: resolve nominal type from the receiver initializer
-    let type_symbol = if let Some(symbol_id) = receiver_symbol {
-        if symbol_id.module_id == ctx.module_id {
-            resolve_nominal_symbol_from_initializer(session, &ctx, symbol_id)
-        } else {
-            let symbol_module = session.modules.get(symbol_id.module_id);
-            let symbol_module = symbol_module.as_ref();
-            let symbol_ctx = query_context(session, symbol_module);
-            symbol_ctx.and_then(|symbol_ctx| {
-                resolve_nominal_symbol_from_initializer(session, &symbol_ctx, symbol_id)
-            })
-        }
-    } else {
-        None
-    };
-    if let Some(type_symbol) = type_symbol {
-        let members = resolve_reference_members(type_symbol, session, current_module_id);
-        for member in members {
-            let Some(completion) =
-                completion_for_member(session, &ctx.program.artifacts, member, None)
-            else {
-                continue;
-            };
-
-            results.push(completion);
-        }
-
-        return results;
-    }
-
-    // fallback path: use receiver symbol (for cases where type inference hasn't run)
+    // declaration-directed path
     if let Some(symbol_id) = receiver_symbol {
         let symbol_module = session.modules.get(symbol_id.module_id);
         let symbol_module = symbol_module.as_ref();
@@ -1171,9 +1132,9 @@ fn complete_members(
         }
     }
 
-    // ast fallback for incomplete member access states
+    // partial-source path
     if results.is_empty()
-        && let Some(type_name) = fallback_type_name.as_deref()
+        && let Some(type_name) = source_type_name.as_deref()
     {
         return complete_members_from_ast_type(session, file, type_name);
     }
@@ -1182,7 +1143,7 @@ fn complete_members(
     results
 }
 
-/// Resolve a fallback type name from a receiver DIR node.
+/// Resolve a source-derived type name from a receiver DIR node.
 fn ast_type_name_from_receiver_node(
     ctx: &QueryContext<'_>,
     receiver_node: dir::LocalNodeIdAny,
@@ -1194,12 +1155,12 @@ fn ast_type_name_from_receiver_node(
     }
 
     ast_type_name_from_expression_ast(
-        ctx.ast.as_ref(),
+        ctx.ast_context().ast,
         ast::LocalNodeId::<ast::Expression>::new(source_id),
     )
 }
 
-/// Complete members from AST declarations for a fallback type name.
+/// Complete members from AST declarations for a source-derived type name.
 fn complete_members_from_ast_type(
     session: &Session,
     file: FileId,
@@ -1209,68 +1170,79 @@ fn complete_members_from_ast_type(
         return Vec::new();
     };
     let module = module.as_ref();
-    let program = program_for_file(session, file);
-    let Some(ast) = program.artifacts.ast(module.id) else {
-        return Vec::new();
-    };
 
-    // collect declaration members for the target type
-    let mut results = Vec::new();
-    let mut seen = HashSet::new();
-    for declaration_id in ast.tree.iter_nodes::<ast::Declaration>() {
-        let declaration = ast.tree.get(declaration_id);
-        let declaration_name = declaration
-            .name()
-            .map(|name| ast.strings.get(name.string()).to_string());
+    with_ast_context_for_module(session, module, |ast| {
+        // collect declaration members for the target type
+        let mut results = Vec::new();
+        let mut seen = HashSet::new();
+        for declaration_id in ast.tree().iter_nodes::<ast::Declaration>() {
+            let declaration = ast.tree().get(declaration_id);
+            let declaration_name = declaration
+                .name()
+                .map(|name| ast.strings().get(name.string()).to_string());
 
-        let matches_target = declaration_name
-            .as_ref()
-            .is_some_and(|name| name == type_name);
+            let matches_target = declaration_name
+                .as_ref()
+                .is_some_and(|name| name == type_name);
 
-        match declaration {
-            ast::Declaration::Struct { members, .. }
-            | ast::Declaration::Class { members, .. }
-            | ast::Declaration::Interface { members, .. }
-                if matches_target =>
-            {
-                collect_member_completions_from_ast(&ast, members, false, &mut seen, &mut results);
-            }
-            ast::Declaration::Enum {
-                fields, members, ..
-            } if matches_target => {
-                for field_id in fields {
-                    let field = ast.tree.get(*field_id);
-                    let name = ast.strings.get(field.name.string()).to_string();
-                    if seen.insert(name.clone()) {
-                        results.push(
-                            Completion::new(name, CompletionKind::EnumMember)
-                                .with_sort_order(SORT_LOCAL_SYMBOL),
-                        );
-                    }
-                }
-                collect_member_completions_from_ast(&ast, members, true, &mut seen, &mut results);
-            }
-            ast::Declaration::Extension {
-                target_type,
-                members,
-                ..
-            } => {
-                let extension_target = ast_type_name_from_expression_ast(&ast, *target_type);
-                if extension_target.as_deref() == Some(type_name) {
+            match declaration {
+                ast::Declaration::Struct { members, .. }
+                | ast::Declaration::Class { members, .. }
+                | ast::Declaration::Interface { members, .. }
+                    if matches_target =>
+                {
                     collect_member_completions_from_ast(
-                        &ast,
+                        ast.ast,
                         members,
                         false,
                         &mut seen,
                         &mut results,
                     );
                 }
+                ast::Declaration::Enum {
+                    fields, members, ..
+                } if matches_target => {
+                    for field_id in fields {
+                        let field = ast.tree().get(*field_id);
+                        let name = ast.strings().get(field.name.string()).to_string();
+                        if seen.insert(name.clone()) {
+                            results.push(
+                                Completion::new(name, CompletionKind::EnumMember)
+                                    .with_sort_order(SORT_LOCAL_SYMBOL),
+                            );
+                        }
+                    }
+                    collect_member_completions_from_ast(
+                        ast.ast,
+                        members,
+                        true,
+                        &mut seen,
+                        &mut results,
+                    );
+                }
+                ast::Declaration::Extension {
+                    target_type,
+                    members,
+                    ..
+                } => {
+                    let extension_target = ast_type_name_from_expression_ast(ast.ast, *target_type);
+                    if extension_target.as_deref() == Some(type_name) {
+                        collect_member_completions_from_ast(
+                            ast.ast,
+                            members,
+                            false,
+                            &mut seen,
+                            &mut results,
+                        );
+                    }
+                }
+                _ => {}
             }
-            _ => {}
         }
-    }
 
-    results
+        results
+    })
+    .unwrap_or_default()
 }
 
 /// Collect member completions from AST member lists.
@@ -1325,7 +1297,7 @@ fn member_key_name_ast(ast: &destack_workspace::Ast, key: &ast::Key) -> Option<S
     }
 }
 
-/// Resolve a fallback type name from an AST expression.
+/// Resolve a source-derived type name from an AST expression.
 fn ast_type_name_from_expression_ast(
     ast: &destack_workspace::Ast,
     expression_id: ast::LocalNodeId<ast::Expression>,
@@ -1553,7 +1525,7 @@ fn complete_types(
         results.push(completion);
     }
 
-    // ast fallback for incomplete type positions where dir visibility may be missing
+    // source-driven support for incomplete type positions
     if results.is_empty() {
         for declaration_id in ctx.ast_context().tree().iter_nodes::<ast::Declaration>() {
             let declaration = ctx.ast_context().tree().get(declaration_id);
@@ -1788,7 +1760,7 @@ fn complete_new_expression(
         }
     }
 
-    // fall back to all active constructable symbols when scoped lookup is unavailable
+    // broaden to all active constructable symbols when scoped lookup is unavailable
     if results.is_empty() {
         for symbol_id in symbols.active_symbol_ids() {
             let symbol = symbols.get_symbol(symbol_id);
@@ -1820,7 +1792,7 @@ fn complete_new_expression(
         }
     }
 
-    // ast fallback for incomplete new expressions
+    // source-driven support for incomplete new expressions
     if results.is_empty() {
         let mut seen = HashSet::new();
         for declaration_id in ctx.ast_context().tree().iter_nodes::<ast::Declaration>() {
@@ -1915,7 +1887,7 @@ fn complete_imports(
     results
 }
 
-/// Complete all symbols (fallback for unknown context).
+/// Complete all symbols for an unknown context.
 fn complete_all(_session: &Session, _file: FileId, include_keywords: bool) -> Vec<Completion> {
     if include_keywords {
         keyword_completions()
