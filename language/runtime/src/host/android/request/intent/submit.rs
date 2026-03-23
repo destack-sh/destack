@@ -1,9 +1,9 @@
-use super::{
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::host::android::abi::intent::{
     destack_host_android_intent_can_open_url, destack_host_android_intent_open_path,
     destack_host_android_intent_open_url, destack_host_android_intent_share_paths,
     destack_host_android_intent_share_text,
 };
-use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::core::error::not_supported;
 use crate::host::core::{
     HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_FAILED, HOST_STATUS_INVALID_ARGUMENT,

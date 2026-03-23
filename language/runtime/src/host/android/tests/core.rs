@@ -1,18 +1,18 @@
 use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::host::Platform;
-use crate::host::android::bluetooth::types::AndroidHostBluetoothCallbacks;
-use crate::host::android::bridge::bindings::{
+use crate::host::android::abi::bindings::{
     AndroidHostBindings, destack_host_android_register_bindings,
 };
-use crate::host::android::bridge::credentials::AndroidHostCredentialsCallbacks;
-use crate::host::android::bridge::crypto::AndroidHostCryptoCallbacks;
-use crate::host::android::bridge::midi::types::AndroidHostMidiCallbacks;
-use crate::host::android::camera::types::AndroidHostCameraCallbacks;
-use crate::host::android::unregister_android_bindings;
-use crate::host::android::usb::types::AndroidHostUsbCallbacks;
-use crate::host::core::registry::{HostRegistrationGuard, next_host_runtime_id};
-use crate::host::core::{HostQueue, HostRuntimeId, HostRuntimeRegistry};
+use crate::host::android::abi::bluetooth::types::AndroidHostBluetoothCallbacks;
+use crate::host::android::abi::camera::types::AndroidHostCameraCallbacks;
+use crate::host::android::abi::credentials::callbacks::AndroidHostCredentialsCallbacks;
+use crate::host::android::abi::crypto::callbacks::AndroidHostCryptoCallbacks;
+use crate::host::android::abi::midi::types::AndroidHostMidiCallbacks;
+use crate::host::android::abi::registry::unregister_android_bindings;
+use crate::host::android::abi::usb::types::AndroidHostUsbCallbacks;
+use crate::host::core::registry::HostSessionRegistrationGuard;
+use crate::host::core::{HostQueue, HostSessionId, HostSessionRegistry};
 
 /// Return the shared test lock for Android bindings registration.
 pub(crate) fn callback_test_lock() -> &'static Mutex<()> {
@@ -22,23 +22,23 @@ pub(crate) fn callback_test_lock() -> &'static Mutex<()> {
 }
 
 /// Register one temporary Android host queue and keep registration state alive.
-pub(crate) fn register_android_runtime() -> (Arc<HostQueue>, HostRegistrationGuard, u64) {
+pub(crate) fn register_android_runtime() -> (Arc<HostQueue>, HostSessionRegistrationGuard, u64) {
     // allocate one host queue and register it under one unique Android runtime id
-    let runtime_id = next_host_runtime_id();
+    let runtime_id = HostSessionRegistry::allocate_session_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
-    let registration = HostRuntimeRegistry::register_queue(
+    let registration = HostSessionRegistry::register_queue(
         Platform::Android,
         runtime_id,
         Arc::clone(&queue),
         Some(unregister_android_bindings_for_runtime),
     );
-    let runtime_id = registration.host_runtime_id().0;
+    let runtime_id = registration.host_session_id().0;
 
     (queue, registration, runtime_id)
 }
 
 /// Unregister one Android bindings payload for one host runtime id.
-fn unregister_android_bindings_for_runtime(runtime_id: HostRuntimeId) {
+fn unregister_android_bindings_for_runtime(runtime_id: HostSessionId) {
     unregister_android_bindings(runtime_id.0);
 }
 

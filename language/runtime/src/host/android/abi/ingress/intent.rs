@@ -1,0 +1,140 @@
+use crate::diagnostic::RuntimeStatus;
+use crate::host::android::ingress::{
+    android_notify_intent_custom_action, android_notify_intent_open_file,
+    android_notify_intent_open_url, android_notify_intent_share_files,
+    android_notify_intent_share_text,
+};
+use crate::runtime::{NativeStringRef, NativeStringSlice};
+
+use super::core::{decode_optional_string, decode_string, decode_string_slice, runtime_status};
+
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_notify_intent_open_url(
+    runtime_id: u64,
+    has_source: bool,
+    source: NativeStringRef,
+    url: NativeStringRef,
+) -> RuntimeStatus {
+    let result = decode_optional_string(has_source, source, "source").and_then(|source| {
+        decode_string(url, "url")
+            .and_then(|url| android_notify_intent_open_url(runtime_id, source.as_deref(), &url))
+    });
+
+    runtime_status(result)
+}
+
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_notify_intent_open_file(
+    runtime_id: u64,
+    has_source: bool,
+    source: NativeStringRef,
+    path: NativeStringRef,
+    has_mime_type: bool,
+    mime_type: NativeStringRef,
+) -> RuntimeStatus {
+    let result = decode_optional_string(has_source, source, "source").and_then(|source| {
+        decode_string(path, "path").and_then(|path| {
+            decode_optional_string(has_mime_type, mime_type, "mime_type").and_then(|mime_type| {
+                android_notify_intent_open_file(
+                    runtime_id,
+                    source.as_deref(),
+                    &path,
+                    mime_type.as_deref(),
+                )
+            })
+        })
+    });
+
+    runtime_status(result)
+}
+
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_notify_intent_share_text(
+    runtime_id: u64,
+    has_source: bool,
+    source: NativeStringRef,
+    text: NativeStringRef,
+    has_mime_type: bool,
+    mime_type: NativeStringRef,
+) -> RuntimeStatus {
+    let result = decode_optional_string(has_source, source, "source").and_then(|source| {
+        decode_string(text, "text").and_then(|text| {
+            decode_optional_string(has_mime_type, mime_type, "mime_type").and_then(|mime_type| {
+                android_notify_intent_share_text(
+                    runtime_id,
+                    source.as_deref(),
+                    &text,
+                    mime_type.as_deref(),
+                )
+            })
+        })
+    });
+
+    runtime_status(result)
+}
+
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_notify_intent_share_files(
+    runtime_id: u64,
+    has_source: bool,
+    source: NativeStringRef,
+    paths: NativeStringSlice,
+    has_mime_type: bool,
+    mime_type: NativeStringRef,
+) -> RuntimeStatus {
+    let result = decode_optional_string(has_source, source, "source").and_then(|source| {
+        decode_string_slice(paths, "paths").and_then(|paths| {
+            decode_optional_string(has_mime_type, mime_type, "mime_type").and_then(|mime_type| {
+                android_notify_intent_share_files(
+                    runtime_id,
+                    source.as_deref(),
+                    &paths,
+                    mime_type.as_deref(),
+                )
+            })
+        })
+    });
+
+    runtime_status(result)
+}
+
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_notify_intent_custom_action(
+    runtime_id: u64,
+    has_source: bool,
+    source: NativeStringRef,
+    action: NativeStringRef,
+    has_url: bool,
+    url: NativeStringRef,
+    paths: NativeStringSlice,
+    has_text: bool,
+    text: NativeStringRef,
+    has_mime_type: bool,
+    mime_type: NativeStringRef,
+) -> RuntimeStatus {
+    let result = decode_optional_string(has_source, source, "source").and_then(|source| {
+        decode_string(action, "action").and_then(|action| {
+            decode_optional_string(has_url, url, "url").and_then(|url| {
+                decode_string_slice(paths, "paths").and_then(|paths| {
+                    decode_optional_string(has_text, text, "text").and_then(|text| {
+                        decode_optional_string(has_mime_type, mime_type, "mime_type").and_then(
+                            |mime_type| {
+                                android_notify_intent_custom_action(
+                                    runtime_id,
+                                    source.as_deref(),
+                                    &action,
+                                    url.as_deref(),
+                                    &paths,
+                                    text.as_deref(),
+                                    mime_type.as_deref(),
+                                )
+                            },
+                        )
+                    })
+                })
+            })
+        })
+    });
+
+    runtime_status(result)
+}

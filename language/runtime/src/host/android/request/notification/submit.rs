@@ -1,4 +1,5 @@
-use super::{
+use crate::diagnostic::RuntimeResult;
+use crate::host::android::abi::notification::{
     destack_host_android_notification_cancel, destack_host_android_notification_cancel_all,
     destack_host_android_notification_category_list,
     destack_host_android_notification_category_set,
@@ -8,8 +9,7 @@ use super::{
     destack_host_android_notification_request_permission,
     destack_host_android_notification_schedule,
 };
-use crate::diagnostic::RuntimeResult;
-use crate::host::callback::{
+use crate::host::core::callback::{
     decode_callback_host_status, encode_callback_host_json, read_buffered_callback_host_json,
     read_buffered_callback_host_string,
 };

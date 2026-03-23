@@ -1,10 +1,10 @@
-use super::{
+use crate::diagnostic::RuntimeResult;
+use crate::host::android::abi::contact::{
     destack_host_android_contact_create, destack_host_android_contact_delete,
     destack_host_android_contact_list, destack_host_android_contact_read,
     destack_host_android_contact_search, destack_host_android_contact_update,
 };
-use crate::diagnostic::RuntimeResult;
-use crate::host::callback::{
+use crate::host::core::callback::{
     decode_callback_host_status, encode_callback_host_json, read_buffered_callback_host_json,
     read_buffered_callback_host_string,
 };
