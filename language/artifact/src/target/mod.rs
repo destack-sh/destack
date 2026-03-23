@@ -1,7 +1,13 @@
+mod binary;
 mod emit;
-mod identity;
+mod map;
 mod output;
+mod script;
+mod target;
 
+pub use binary::*;
 pub use emit::*;
-pub use identity::*;
+pub use map::*;
 pub use output::*;
+pub use script::*;
+pub use target::*;

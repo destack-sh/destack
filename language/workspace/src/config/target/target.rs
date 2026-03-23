@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use destack_artifact::EmitFormat;
+use destack_artifact::{EmitFormat, TargetOutputKind, TargetOutputName};
 use indexmap::IndexMap;
 use serde::Deserialize;
 

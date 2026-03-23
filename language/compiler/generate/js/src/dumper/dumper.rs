@@ -662,22 +662,32 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Statement::Import {
                 kind,
                 target,
+                target_module,
                 items: _,
                 arguments: _,
             } => {
                 self.node("Statement::Import", id.id)
                     .field("kind", kind)
                     .field("target", target)
+                    .field_optional(
+                        "target_module",
+                        &target_module.map(|module| format!("{module:?}")),
+                    )
                     .end();
             }
             Statement::Export {
                 kind,
                 target,
+                target_module,
                 items: _,
             } => {
                 self.node("Statement::Export", id.id)
                     .field("kind", kind)
                     .field_optional("target", target)
+                    .field_optional(
+                        "target_module",
+                        &target_module.map(|module| format!("{module:?}")),
+                    )
                     .end();
             }
             Statement::ExportValue { value: _ } => {

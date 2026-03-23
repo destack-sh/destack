@@ -682,7 +682,7 @@ fn artifact_image_file_prefix(artifact_image_key: &ArtifactImageKey) -> &'static
         ArtifactImageKey::DirPatched { .. } => "dir-patched",
         ArtifactImageKey::MirBase { .. } => "mir-base",
         ArtifactImageKey::MirOptimized { .. } => "mir-optimized",
-        ArtifactImageKey::ModuleOutput { .. } => "module-output",
+        ArtifactImageKey::ModuleArtifact { .. } => "module-artifact",
         ArtifactImageKey::PackageOutput { .. } => "package-output",
         ArtifactImageKey::LanguageEnvironment { .. } => "language-environment",
         ArtifactImageKey::IntrinsicEnvironment { .. } => "intrinsic-environment",

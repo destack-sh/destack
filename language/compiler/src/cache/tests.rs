@@ -636,7 +636,7 @@ fn test_artifact_families_classify_persisted_image_validation() {
         PersistedImageValidation::DependencyValidated
     );
     assert_eq!(
-        ArtifactFamily::ModuleOutput.persisted_image_validation(),
+        ArtifactFamily::ModuleArtifact.persisted_image_validation(),
         PersistedImageValidation::DependencyValidated
     );
     assert_eq!(

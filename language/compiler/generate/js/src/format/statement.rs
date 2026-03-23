@@ -47,6 +47,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
             Statement::Import {
                 kind,
                 target,
+                target_module: _,
                 items,
                 arguments,
             } => {
@@ -70,6 +71,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
             Statement::Export {
                 kind,
                 target,
+                target_module: _,
                 items,
             } => {
                 write!(f, [Keyword::Export, space()])?;

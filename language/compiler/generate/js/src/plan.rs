@@ -89,11 +89,28 @@ fn planned_file_types(target: &Target) -> Result<Vec<FileType>, CodegenJsError> 
             if target.declaration {
                 file_types.push(FileType::TypeScriptDeclaration);
             }
+            if target.emits_source_map_output() {
+                file_types.push(FileType::SourceMap);
+            }
 
             Ok(file_types)
         }
-        EmitFormat::Ts => Ok(vec![FileType::TypeScript]),
-        EmitFormat::Html => Ok(vec![FileType::Html]),
+        EmitFormat::Ts => {
+            let mut file_types = vec![FileType::TypeScript];
+            if target.emits_source_map_output() {
+                file_types.push(FileType::SourceMap);
+            }
+
+            Ok(file_types)
+        }
+        EmitFormat::Html => {
+            let mut file_types = vec![FileType::Html];
+            if target.emits_source_map_output() {
+                file_types.push(FileType::SourceMap);
+            }
+
+            Ok(file_types)
+        }
         _ => Err(CodegenJsError::UnsupportedTarget {
             format: format!("{:?}", target.emit),
             message: Some("expected JS, TS, or HTML".to_string()),

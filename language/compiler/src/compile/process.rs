@@ -409,7 +409,7 @@ impl Compiler {
             } => self
                 .process_mir_optimized(*module, *profile, target.clone())
                 .into(),
-            ArtifactKey::ModuleOutput { module, target } => {
+            ArtifactKey::ModuleArtifact { module, target } => {
                 let profile = self
                     .program
                     .profile_id_for_target(*module, target)
@@ -420,7 +420,7 @@ impl Compiler {
                         )
                     });
 
-                self.process_module_output(*module, profile, target.clone())
+                self.process_module_artifact(*module, profile, target.clone())
                     .into()
             }
             ArtifactKey::PackageOutput { package, target } => {

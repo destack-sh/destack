@@ -22,7 +22,7 @@ builtin-full = ["destack_builtin/full"]
 builtin-core = ["destack_builtin/core"]
 full = ["builtin-full"]
 core = ["builtin-core"]
-schema = ["schemars"]
+schema = ["schemars", "destack_artifact/schema"]
 
 [dependencies]
 # language

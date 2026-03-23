@@ -138,7 +138,7 @@ impl ArtifactTaskKeyExt for ArtifactKey {
             ArtifactKey::DirPatched { .. } => TaskPhase::Execute,
             ArtifactKey::MirBase { .. } => TaskPhase::Lower,
             ArtifactKey::MirOptimized { .. } => TaskPhase::Optimize,
-            ArtifactKey::ModuleOutput { .. } => TaskPhase::Generate,
+            ArtifactKey::ModuleArtifact { .. } => TaskPhase::Generate,
             ArtifactKey::PackageOutput { .. } => TaskPhase::Link,
         }
     }
@@ -158,7 +158,7 @@ impl ArtifactTaskKeyExt for ArtifactKey {
             | ArtifactKey::DirPatched { module, .. }
             | ArtifactKey::MirBase { module, .. }
             | ArtifactKey::MirOptimized { module, .. }
-            | ArtifactKey::ModuleOutput { module, .. } => DiagnosticAnchor::from(*module),
+            | ArtifactKey::ModuleArtifact { module, .. } => DiagnosticAnchor::from(*module),
             ArtifactKey::LanguageEnvironment { .. }
             | ArtifactKey::IntrinsicEnvironment { .. }
             | ArtifactKey::LibraryEnvironment { .. } => DiagnosticAnchor::Global,
@@ -184,7 +184,7 @@ impl ArtifactTaskKeyExt for ArtifactKey {
             ArtifactKey::DirPatched { .. } => "dir_patched",
             ArtifactKey::MirBase { .. } => "mir_base",
             ArtifactKey::MirOptimized { .. } => "mir_optimized",
-            ArtifactKey::ModuleOutput { .. } => "module_output",
+            ArtifactKey::ModuleArtifact { .. } => "module_artifact",
             ArtifactKey::PackageOutput { .. } => "package_output",
         }
     }
@@ -232,7 +232,7 @@ impl ArtifactTaskKeyExt for ArtifactKey {
                 let target = target.diagnostic_fmt(program, artifacts);
                 format!("module={module} profile={profile} target={target}")
             }
-            ArtifactKey::ModuleOutput { module, target } => {
+            ArtifactKey::ModuleArtifact { module, target } => {
                 let target = target.diagnostic_fmt(program, artifacts);
                 let module = module.diagnostic_fmt(program, artifacts);
                 format!("module={module} target={target}")

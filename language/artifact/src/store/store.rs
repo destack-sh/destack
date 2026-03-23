@@ -9,7 +9,7 @@ use destack_source::{FileId, ModuleId, ModuleVersion, PackageId, ProfileId, Targ
 use crate::{
     ArtifactDependency, ArtifactKey, Ast, DirAnalyzed, DirBase, DirDeclared, DirElaborated,
     DirInterface, DirPatched, DirPrepared, DirResolved, IntrinsicEnvironment, LanguageEnvironment,
-    LibraryEnvironment, MirBase, MirOptimized, ModuleGraph, ModuleOutput, PackageOutput,
+    LibraryEnvironment, MirBase, MirOptimized, ModuleArtifact, ModuleGraph, PackageOutput,
 };
 
 /// One published artifact payload.
@@ -45,8 +45,8 @@ pub enum ArtifactPayload {
     MirBase(Arc<MirBase>),
     /// One optimized MIR payload.
     MirOptimized(Arc<MirOptimized>),
-    /// One module output payload.
-    ModuleOutput(Arc<ModuleOutput>),
+    /// One module artifact payload.
+    ModuleArtifact(Arc<ModuleArtifact>),
     /// One package output payload.
     PackageOutput(Arc<PackageOutput>),
 }
@@ -231,15 +231,15 @@ impl From<Arc<MirOptimized>> for ArtifactPayload {
     }
 }
 
-impl From<ModuleOutput> for ArtifactPayload {
-    fn from(value: ModuleOutput) -> Self {
-        Self::ModuleOutput(Arc::new(value))
+impl From<ModuleArtifact> for ArtifactPayload {
+    fn from(value: ModuleArtifact) -> Self {
+        Self::ModuleArtifact(Arc::new(value))
     }
 }
 
-impl From<Arc<ModuleOutput>> for ArtifactPayload {
-    fn from(value: Arc<ModuleOutput>) -> Self {
-        Self::ModuleOutput(value)
+impl From<Arc<ModuleArtifact>> for ArtifactPayload {
+    fn from(value: Arc<ModuleArtifact>) -> Self {
+        Self::ModuleArtifact(value)
     }
 }
 
@@ -290,8 +290,8 @@ pub struct ArtifactStore {
     mir_bases: DashMap<(ModuleId, ProfileId, TargetId), Arc<MirBase>>,
     /// Optimized MIR artifacts by module, profile, and target.
     mir_optimized: DashMap<(ModuleId, ProfileId, TargetId), Arc<MirOptimized>>,
-    /// Output entries by module and target.
-    module_output: DashMap<(ModuleId, TargetId), Arc<ModuleOutput>>,
+    /// Generated module artifacts by module and target.
+    module_artifact: DashMap<(ModuleId, TargetId), Arc<ModuleArtifact>>,
     /// Output entries by package and target.
     package_output: DashMap<(PackageId, TargetId), Arc<PackageOutput>>,
 }
@@ -346,7 +346,7 @@ impl ArtifactStore {
             dir_patched: DashMap::new(),
             mir_bases: DashMap::new(),
             mir_optimized: DashMap::new(),
-            module_output: DashMap::new(),
+            module_artifact: DashMap::new(),
             package_output: DashMap::new(),
         }
     }
@@ -441,8 +441,8 @@ impl ArtifactStore {
                 self.mir_optimized
                     .remove(&(*module, *profile, target.clone()));
             }
-            ArtifactKey::ModuleOutput { module, target } => {
-                self.module_output.remove(&(*module, target.clone()));
+            ArtifactKey::ModuleArtifact { module, target } => {
+                self.module_artifact.remove(&(*module, target.clone()));
             }
             ArtifactKey::PackageOutput { package, target } => {
                 self.package_output.remove(&(*package, target.clone()));
@@ -528,8 +528,11 @@ impl ArtifactStore {
             ) => {
                 self.mir_optimized.insert((module, profile, target), mir);
             }
-            (ArtifactKey::ModuleOutput { module, target }, ArtifactPayload::ModuleOutput(emit)) => {
-                self.module_output.insert((module, target), emit);
+            (
+                ArtifactKey::ModuleArtifact { module, target },
+                ArtifactPayload::ModuleArtifact(artifact),
+            ) => {
+                self.module_artifact.insert((module, target), artifact);
             }
             (
                 ArtifactKey::PackageOutput { package, target },
@@ -660,9 +663,13 @@ impl ArtifactStore {
             .map(|entry| entry.value().clone())
     }
 
-    /// Get one module output artifact.
-    pub fn module_output(&self, module: ModuleId, target: &TargetId) -> Option<Arc<ModuleOutput>> {
-        self.module_output
+    /// Get one module artifact.
+    pub fn module_artifact(
+        &self,
+        module: ModuleId,
+        target: &TargetId,
+    ) -> Option<Arc<ModuleArtifact>> {
+        self.module_artifact
             .get(&(module, target.clone()))
             .map(|entry| entry.value().clone())
     }
@@ -781,7 +788,7 @@ impl ArtifactStore {
         self.dir_patched.clear();
         self.mir_bases.clear();
         self.mir_optimized.clear();
-        self.module_output.clear();
+        self.module_artifact.clear();
         self.package_output.clear();
     }
 }
@@ -790,7 +797,10 @@ impl ArtifactStore {
 mod tests {
     use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
 
-    use crate::{ArtifactDependency, ArtifactKey, ModuleGraph, ModuleOutput, PackageOutput};
+    use crate::{
+        ArtifactDependency, ArtifactKey, BinaryArtifact, ModuleArtifact, ModuleGraph,
+        ObjectArtifact, PackageOutput,
+    };
 
     use super::ArtifactStore;
 
@@ -813,18 +823,21 @@ mod tests {
             ModuleGraph::new(profile),
         );
         registry.set_dependency(
-            ArtifactKey::ModuleOutput {
+            ArtifactKey::ModuleArtifact {
                 module,
                 target: target.clone(),
             },
             ArtifactDependency::new(2),
         );
         registry.publish(
-            ArtifactKey::ModuleOutput {
+            ArtifactKey::ModuleArtifact {
                 module,
                 target: target.clone(),
             },
-            ModuleOutput::default(),
+            ModuleArtifact::Binary(BinaryArtifact::Object(ObjectArtifact {
+                bytes: Vec::new().into(),
+                debug: Vec::new(),
+            })),
         );
         registry.set_dependency(
             ArtifactKey::PackageOutput {
@@ -851,7 +864,7 @@ mod tests {
                 .is_none()
         );
         assert!(registry.module_graph(profile).is_none());
-        assert!(registry.module_output(module, &target).is_none());
+        assert!(registry.module_artifact(module, &target).is_none());
         assert!(registry.package_output(package, &target).is_none());
     }
 }

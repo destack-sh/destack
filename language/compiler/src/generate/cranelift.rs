@@ -1,5 +1,5 @@
 use crate::{Compiler, GenerateError, GenerateResult, GenerateWarning};
-use destack_artifact::{ArtifactKey, ModuleOutput};
+use destack_artifact::{ArtifactKey, ModuleArtifact};
 use destack_codegen_native::{CodegenCraneliftError, CodegenCraneliftWarning};
 use destack_dir::{AnchoredGlobalNodeId, LocalNodeIdAny};
 use destack_source::ModuleId;
@@ -22,7 +22,7 @@ impl Compiler {
         self.require_mir_optimized(module_id, profile, &target_id)?;
 
         // generate artifact
-        let output = destack_codegen_native::generate_module(
+        let (artifact, warnings, errors) = destack_codegen_native::generate_artifact(
             self.program.clone(),
             self.artifacts.clone(),
             module_id,
@@ -30,16 +30,16 @@ impl Compiler {
         )
         .map_err(|e| self.map_cranelift_error(module_id, &target.name, profile, e))?;
         self.artifacts.publish(
-            ArtifactKey::module_output(module_id, target_id.clone()),
-            ModuleOutput::new(target.emit, output.entries),
+            ArtifactKey::module_artifact(module_id, target_id.clone()),
+            ModuleArtifact::Binary(artifact),
         );
 
         // map warnings/errors
-        for warning in output.warnings {
+        for warning in warnings {
             let warning = self.map_cranelift_warning(module_id, &target.name, profile, warning);
             self.warning(warning);
         }
-        for error in output.errors {
+        for error in errors {
             let error = self.map_cranelift_error(module_id, &target.name, profile, error);
             self.error(error);
         }

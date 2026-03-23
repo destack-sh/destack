@@ -64,4 +64,11 @@ pub enum EmitError {
         path: PathBuf,
         message: Option<String>,
     },
+
+    // -------------------------------------------------------------------------
+    // 9xx: Internal issues
+    // -------------------------------------------------------------------------
+    /// Internal emit failure.
+    #[error(code = "EW900", message = "{message}")]
+    Internal { message: String },
 }

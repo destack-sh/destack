@@ -1,9 +1,122 @@
 use destack_source::{FileContent, FileType, Uri};
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::EmitFormat;
+use crate::{EmitFormat, SourceMapArtifact};
 
-/// One derived output entry payload.
+/// Formal target output group kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum TargetOutputKind {
+    /// Per-module library output.
+    #[default]
+    Module,
+    /// Primary runnable entry output.
+    Entry,
+    /// Primary document output.
+    Document,
+    /// Declaration or type surface.
+    Types,
+    /// Asset collection emitted by this target.
+    Assets,
+    /// Build manifest or output index.
+    Manifest,
+    /// Source maps or debug maps.
+    Maps,
+    /// Binary or wasm payload.
+    Binary,
+    /// Debug symbol output.
+    Debug,
+    /// Additional metadata output.
+    Metadata,
+}
+
+/// Builtin target output name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum TargetOutputName {
+    /// Per-module library output.
+    Module,
+    /// Primary runnable entry output.
+    Entry,
+    /// Primary document output.
+    Document,
+    /// Declaration or type surface.
+    Types,
+    /// Asset collection emitted by this target.
+    Assets,
+    /// Build manifest or output index.
+    Manifest,
+    /// Source maps or debug maps.
+    Maps,
+    /// Binary or wasm payload.
+    Binary,
+    /// Debug symbol output.
+    Debug,
+    /// Additional metadata output.
+    Metadata,
+}
+
+impl TargetOutputName {
+    /// Return the stable output name.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Module => "module",
+            Self::Entry => "entry",
+            Self::Document => "document",
+            Self::Types => "types",
+            Self::Assets => "assets",
+            Self::Manifest => "manifest",
+            Self::Maps => "maps",
+            Self::Binary => "binary",
+            Self::Debug => "debug",
+            Self::Metadata => "metadata",
+        }
+    }
+
+    /// Return the semantic kind for this builtin output.
+    pub fn kind(&self) -> TargetOutputKind {
+        match self {
+            Self::Module => TargetOutputKind::Module,
+            Self::Entry => TargetOutputKind::Entry,
+            Self::Document => TargetOutputKind::Document,
+            Self::Types => TargetOutputKind::Types,
+            Self::Assets => TargetOutputKind::Assets,
+            Self::Manifest => TargetOutputKind::Manifest,
+            Self::Maps => TargetOutputKind::Maps,
+            Self::Binary => TargetOutputKind::Binary,
+            Self::Debug => TargetOutputKind::Debug,
+            Self::Metadata => TargetOutputKind::Metadata,
+        }
+    }
+}
+
+/// The assembly mode for one package output.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum PackageAssembly {
+    /// Per-module outputs without target-level assembly.
+    #[default]
+    PreserveModules,
+    /// One assembled output file.
+    SingleFile,
+    /// Multiple assembled output files.
+    Chunked,
+}
+
+impl PackageAssembly {
+    /// Return the stable assembly tag.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::PreserveModules => "preserveModules",
+            Self::SingleFile => "singleFile",
+            Self::Chunked => "chunked",
+        }
+    }
+}
+
+/// One derived output file payload.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum OutputContent {
     /// Text output.
@@ -65,13 +178,14 @@ impl OutputContent {
     }
 
     /// Create source map content.
-    pub fn source_map(value: serde_json::Value) -> Self {
-        let content = serde_json::to_string(&value).unwrap_or_default();
-        Self::Json {
+    pub fn source_map(value: &SourceMapArtifact) -> Result<Self, serde_json::Error> {
+        let content = serde_json::to_string(value)?;
+        let value = value.to_json_value()?;
+        Ok(Self::Json {
             content,
             value,
             file_type: FileType::SourceMap,
-        }
+        })
     }
 
     /// Create WebAssembly content.
@@ -116,9 +230,9 @@ impl OutputContent {
     }
 }
 
-/// One derived output entry.
+/// One derived output file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct OutputEntry {
+pub struct OutputFile {
     /// The output URI.
     pub uri: Uri,
     /// The output content.
@@ -127,40 +241,33 @@ pub struct OutputEntry {
     pub source: Option<Uri>,
 }
 
-/// One module target output.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ModuleOutput {
-    /// The emitted artifact family.
-    pub emit: EmitFormat,
-    /// The output entries.
-    pub entries: Vec<OutputEntry>,
-}
-
-impl ModuleOutput {
-    /// Create one module output.
-    pub fn new(emit: EmitFormat, entries: Vec<OutputEntry>) -> Self {
-        Self { emit, entries }
-    }
-}
-
 /// One package target output.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PackageOutput {
     /// The emitted artifact family.
     pub emit: EmitFormat,
-    /// Whether this output was assembled across modules.
-    pub assembled: bool,
-    /// The output entries.
-    pub entries: Vec<OutputEntry>,
+    /// The target-level assembly mode.
+    pub assembly: PackageAssembly,
+    /// The named output groups.
+    pub outputs: IndexMap<TargetOutputName, Vec<OutputFile>>,
 }
 
 impl PackageOutput {
     /// Create one package output.
-    pub fn new(emit: EmitFormat, assembled: bool, entries: Vec<OutputEntry>) -> Self {
+    pub fn new(
+        emit: EmitFormat,
+        assembly: PackageAssembly,
+        outputs: IndexMap<TargetOutputName, Vec<OutputFile>>,
+    ) -> Self {
         Self {
             emit,
-            assembled,
-            entries,
+            assembly,
+            outputs,
         }
+    }
+
+    /// Return an iterator over all output files.
+    pub fn files(&self) -> impl Iterator<Item = &OutputFile> {
+        self.outputs.values().flatten()
     }
 }
