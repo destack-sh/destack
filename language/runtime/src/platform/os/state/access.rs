@@ -23,9 +23,9 @@ fn bootstrap_live_state(
     state: &PlatformOsState,
 ) -> RuntimeResult<()> {
     let observer: Arc<dyn HostEventObserver> = Arc::new(state.clone());
-    let host_runtime_id = binding.host().host_runtime_id();
+    let host_session_id = binding.host().host_session_id();
     let platform = binding.host().platform();
-    let queue = HostRuntimeRegistry::queue_for_runtime(host_runtime_id, platform);
+    let queue = HostSessionRegistry::queue_for_session(host_session_id, platform);
 
     // lifecycle state can still function without queue catchup if ingress routing
     // is not registered yet, or if tests are dispatching host events directly

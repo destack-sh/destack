@@ -220,7 +220,7 @@ mod tests {
     use destack_workspace::SchedulerOptions;
 
     use super::EventLoop;
-    use crate::host::{HostEvent, HostLifecycleEvent, HostLifecycleState};
+    use crate::host::{HostEvent, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState};
     use crate::platform::ResourceId;
     use crate::runtime::DropReason;
     use crate::runtime::poller::{
@@ -246,6 +246,7 @@ mod tests {
 
         event_loop.enqueue_events(vec![io_poller_event(8)]);
         event_loop.enqueue_host_events(vec![HostEvent::Lifecycle(HostLifecycleEvent {
+            source_kind: HostLifecycleSourceKind::Application,
             state: HostLifecycleState::Running,
         })]);
 
@@ -256,6 +257,7 @@ mod tests {
             first,
             Some(Runnable::HostEvent(HostEvent::Lifecycle(
                 HostLifecycleEvent {
+                    source_kind: HostLifecycleSourceKind::Application,
                     state: HostLifecycleState::Running
                 }
             )))
@@ -275,9 +277,11 @@ mod tests {
 
         event_loop.enqueue_host_events(vec![
             HostEvent::Lifecycle(HostLifecycleEvent {
+                source_kind: HostLifecycleSourceKind::Application,
                 state: HostLifecycleState::Running,
             }),
             HostEvent::Lifecycle(HostLifecycleEvent {
+                source_kind: HostLifecycleSourceKind::Application,
                 state: HostLifecycleState::Stopped,
             }),
         ]);

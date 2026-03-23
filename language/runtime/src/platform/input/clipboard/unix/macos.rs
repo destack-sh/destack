@@ -3,7 +3,7 @@ use objc2_app_kit::{NSPasteboard, NSPasteboardTypeHTML, NSPasteboardTypeString};
 use objc2_foundation::{NSArray, NSCopying, NSData, NSString};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::apple::execution::call_process_main_context_if_needed;
+use crate::host::apple::core::execution::call_process_main_context_if_needed;
 use crate::platform::core::{invalid_argument, io_not_found, io_operation_error};
 use crate::platform::input::clipboard::core::{
     CLIPBOARD_READ_ITEM_BYTES_OPERATION, CLIPBOARD_READ_TEXT_OPERATION,

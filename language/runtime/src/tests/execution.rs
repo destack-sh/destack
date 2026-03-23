@@ -16,7 +16,7 @@ use std::sync::{Mutex, OnceLock};
 use std::{panic, thread};
 
 #[cfg(feature = "execution")]
-use crate::host::apple::message as apple_host_message;
+use crate::host::apple::core::message as apple_host_message;
 #[cfg(feature = "execution")]
 use crate::tests::registry as execution_registry;
 

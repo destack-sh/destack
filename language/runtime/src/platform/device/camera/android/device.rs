@@ -31,7 +31,7 @@ pub(crate) unsafe fn destack_device_camera_device_open(
     core_platform::ensure_out(out, "out")?;
 
     // host open
-    let runtime_id = host_runtime_id(binding, "destack.device.camera.device.open")?;
+    let runtime_id = host_session_id(binding, "destack.device.camera.device.open")?;
     let id = unsafe { id.as_str()? };
     let mut session_id = 0u64;
     let status = unsafe {

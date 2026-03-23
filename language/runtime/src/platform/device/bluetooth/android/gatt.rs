@@ -23,7 +23,7 @@ fn read_android_bluetooth_bytes(
     action: &'static str,
     call: impl Fn(NativeSlice<u8>, &mut u32) -> u32,
 ) -> RuntimeResult<Vec<u8>> {
-    let _runtime_id = host_runtime_id(binding, operation)?;
+    let _runtime_id = host_session_id(binding, operation)?;
     let mut bytes = vec![0u8; INITIAL_BLUETOOTH_STRING_CAPACITY];
 
     loop {
@@ -191,7 +191,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_mtu(
     core_platform::ensure_out(out, "out")?;
 
     let resource = device_resource(binding, handle, "destack.device.bluetooth.gatt.mtu")?;
-    let runtime_id = host_runtime_id(binding, "destack.device.bluetooth.gatt.mtu")?;
+    let runtime_id = host_session_id(binding, "destack.device.bluetooth.gatt.mtu")?;
     let mut mtu = 0u16;
     let status = unsafe {
         destack_host_android_bluetooth_gatt_mtu(runtime_id, resource.session_id, &mut mtu)
@@ -221,7 +221,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_read(
 
     let resource = device_resource(binding, handle, "destack.device.bluetooth.gatt.read")?;
     let characteristic_id = unsafe { characteristicid.as_str()? };
-    let runtime_id = host_runtime_id(binding, "destack.device.bluetooth.gatt.read")?;
+    let runtime_id = host_session_id(binding, "destack.device.bluetooth.gatt.read")?;
     let bytes = read_android_bluetooth_bytes(
         binding,
         "destack.device.bluetooth.gatt.read",
@@ -261,7 +261,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_read_descriptor(
         "destack.device.bluetooth.gatt.readDescriptor",
     )?;
     let descriptor_id = unsafe { descriptorid.as_str()? };
-    let runtime_id = host_runtime_id(binding, "destack.device.bluetooth.gatt.readDescriptor")?;
+    let runtime_id = host_session_id(binding, "destack.device.bluetooth.gatt.readDescriptor")?;
     let bytes = read_android_bluetooth_bytes(
         binding,
         "destack.device.bluetooth.gatt.readDescriptor",
@@ -297,7 +297,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_write(
     let resource = device_resource(binding, handle, "destack.device.bluetooth.gatt.write")?;
     let characteristic_id = unsafe { characteristicid.as_str()? };
     let bytes = unsafe { value.as_slice()? };
-    let runtime_id = host_runtime_id(binding, "destack.device.bluetooth.gatt.write")?;
+    let runtime_id = host_session_id(binding, "destack.device.bluetooth.gatt.write")?;
     let mode_code = match mode {
         BluetoothGattWriteMode::WithResponse => 1,
         BluetoothGattWriteMode::WithoutResponse => 2,
@@ -338,7 +338,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_write_descriptor(
     )?;
     let descriptor_id = unsafe { descriptorid.as_str()? };
     let bytes = unsafe { value.as_slice()? };
-    let runtime_id = host_runtime_id(binding, "destack.device.bluetooth.gatt.writeDescriptor")?;
+    let runtime_id = host_session_id(binding, "destack.device.bluetooth.gatt.writeDescriptor")?;
     let status = unsafe {
         destack_host_android_bluetooth_gatt_write_descriptor(
             runtime_id,
@@ -376,7 +376,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_subscribe(
         characteristic_id,
         "destack.device.bluetooth.gatt.subscribe",
     )?;
-    let runtime_id = host_runtime_id(binding, "destack.device.bluetooth.gatt.subscribe")?;
+    let runtime_id = host_session_id(binding, "destack.device.bluetooth.gatt.subscribe")?;
     let mut subscription_id = 0u64;
     let status = unsafe {
         destack_host_android_bluetooth_gatt_subscribe(
@@ -445,7 +445,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_read_event(
 
     let resource =
         subscription_resource(binding, handle, "destack.device.bluetooth.gatt.readEvent")?;
-    let runtime_id = host_runtime_id(binding, "destack.device.bluetooth.gatt.readEvent")?;
+    let runtime_id = host_session_id(binding, "destack.device.bluetooth.gatt.readEvent")?;
     let mut event = NativeSlice {
         data: std::ptr::null_mut(),
         len: 0,
@@ -495,7 +495,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_try_read_event(
         handle,
         "destack.device.bluetooth.gatt.tryReadEvent",
     )?;
-    let runtime_id = host_runtime_id(binding, "destack.device.bluetooth.gatt.tryReadEvent")?;
+    let runtime_id = host_session_id(binding, "destack.device.bluetooth.gatt.tryReadEvent")?;
     let mut event = NativeSlice {
         data: std::ptr::null_mut(),
         len: 0,

@@ -8,7 +8,7 @@ pub(crate) fn read_scan_event_from_host(
     try_read: bool,
     operation: &'static str,
 ) -> RuntimeResult<(AndroidHostBluetoothScanEventHeader, Vec<u8>)> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
     let mut string_bytes = vec![0u8; INITIAL_BLUETOOTH_STRING_CAPACITY];
 
     loop {
@@ -77,7 +77,7 @@ pub(crate) fn read_session_event_from_host(
     try_read: bool,
     operation: &'static str,
 ) -> RuntimeResult<AndroidHostBluetoothSessionEventHeader> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
     let mut header = AndroidHostBluetoothSessionEventHeader::default();
     let status = if try_read {
         unsafe {

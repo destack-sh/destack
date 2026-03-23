@@ -26,7 +26,7 @@ pub(crate) type HarnessContext<'call> = OsHarnessContext<'call>;
 impl OsHarnessContext<'_> {
     /// Return the host runtime id for this harness context.
     pub(crate) fn runtime_id(&self) -> u64 {
-        self.call_context.host().host_runtime_id().0
+        self.call_context.host().host_session_id().0
     }
 }
 

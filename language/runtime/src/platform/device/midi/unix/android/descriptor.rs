@@ -1,5 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::android::bridge::midi::types::{
+use crate::host::android::abi::midi::types::{
     AndroidHostMidiEventHeader, AndroidHostMidiInputRecordHeader, AndroidHostMidiOpenedPortHeader,
     AndroidHostMidiOutputRecordHeader, AndroidHostMidiPortDescriptorHeader,
 };
@@ -363,7 +363,7 @@ pub(super) fn decode_native_events(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::host::android::bridge::midi::types::{
+    use crate::host::android::abi::midi::types::{
         AndroidHostMidiEventHeader, AndroidHostMidiInputRecordHeader,
         AndroidHostMidiPortDescriptorHeader,
     };

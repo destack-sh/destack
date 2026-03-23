@@ -1,5 +1,5 @@
 use crate::diagnostic::RuntimeError;
-use crate::host::abi::HostStatus;
+use crate::host::core::HostStatus;
 use crate::platform::core as core_platform;
 use crate::platform::os::CredentialAuthenticationMechanism;
 use crate::platform::os::credentials::core::{invalid_data, permission_denied};
@@ -13,7 +13,7 @@ const AUTHENTICATION_MECHANISM_BIOMETRIC_CODE: u32 = 2;
 const AUTHENTICATION_MECHANISM_DEVICE_CREDENTIAL_CODE: u32 = 3;
 
 /// Return one runtime identifier for Android host callback routing.
-pub(super) fn host_runtime_id(
+pub(super) fn host_session_id(
     binding: &BindingCallContext,
     _operation: &'static str,
 ) -> Result<u64, Box<RuntimeError>> {

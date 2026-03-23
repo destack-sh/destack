@@ -4,8 +4,7 @@ pub(super) use std::sync::Arc;
 pub(super) use parking_lot::Mutex;
 
 pub(super) use crate::diagnostic::{RuntimeError, RuntimeResult};
-pub(super) use crate::host::abi::HostStatus;
-pub(super) use crate::host::android::bluetooth::ffi::{
+pub(super) use crate::host::android::abi::bluetooth::ffi::{
     destack_host_android_bluetooth_adapter_list, destack_host_android_bluetooth_close,
     destack_host_android_bluetooth_gatt_characteristic_list,
     destack_host_android_bluetooth_gatt_descriptor_list, destack_host_android_bluetooth_gatt_mtu,
@@ -23,14 +22,15 @@ pub(super) use crate::host::android::bluetooth::ffi::{
     destack_host_android_bluetooth_session_read_event,
     destack_host_android_bluetooth_session_try_read_event, destack_host_android_bluetooth_unpair,
 };
-pub(super) use crate::host::android::bluetooth::types::{
+pub(super) use crate::host::android::abi::bluetooth::types::{
     AndroidHostBluetoothAdapterDescriptorHeader, AndroidHostBluetoothDeviceDescriptorHeader,
     AndroidHostBluetoothGattCharacteristicHeader, AndroidHostBluetoothGattDescriptorHeader,
     AndroidHostBluetoothGattServiceHeader, AndroidHostBluetoothScanEventHeader,
     AndroidHostBluetoothScanFilterHeader, AndroidHostBluetoothSessionEventHeader,
 };
+pub(super) use crate::host::core::HostStatus;
 pub(super) use crate::platform::core::android::{
-    checked_u32_length, host_runtime_id, host_status_result, invalid_data,
+    checked_u32_length, host_session_id, host_status_result, invalid_data,
 };
 pub(super) use crate::platform::core::{
     self as core_platform, NativeAbiCodec, decode_optional_string, decode_required_string,

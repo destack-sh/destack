@@ -7,7 +7,10 @@ use destack_workspace::{RuntimeOptions, SchedulerOptions};
 use {destack_heap as heap, destack_vm as vm};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::{HostEvent, HostEventKind, HostLifecycleEvent, HostLifecycleState, HostSession};
+use crate::host::{
+    HostEvent, HostEventKind, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState,
+    HostSession,
+};
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
 use crate::runtime::engine::{
@@ -846,7 +849,10 @@ impl TestRuntime {
     pub(super) fn enqueue_lifecycle_host_event(&mut self, state: HostLifecycleState) {
         self.agent
             .event_loop
-            .enqueue_host_events(vec![HostEvent::Lifecycle(HostLifecycleEvent { state })]);
+            .enqueue_host_events(vec![HostEvent::Lifecycle(HostLifecycleEvent {
+                source_kind: HostLifecycleSourceKind::Application,
+                state,
+            })]);
     }
 
     /// Tick once and fail loudly on runtime errors.

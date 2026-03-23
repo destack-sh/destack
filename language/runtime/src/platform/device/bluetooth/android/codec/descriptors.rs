@@ -6,7 +6,7 @@ pub(crate) fn read_adapter_descriptors(
     binding: &BindingCallContext,
     operation: &'static str,
 ) -> RuntimeResult<Vec<BluetoothAdapterDescriptorValue>> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
     let mut headers = vec![
         AndroidHostBluetoothAdapterDescriptorHeader::default();
         INITIAL_BLUETOOTH_ROW_CAPACITY
@@ -71,7 +71,7 @@ fn read_services(
     session_id: u64,
     operation: &'static str,
 ) -> RuntimeResult<Vec<BluetoothGattServiceValue>> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
     let mut headers =
         vec![AndroidHostBluetoothGattServiceHeader::default(); INITIAL_BLUETOOTH_ROW_CAPACITY];
     let mut string_bytes = vec![0u8; INITIAL_BLUETOOTH_STRING_CAPACITY];
@@ -136,7 +136,7 @@ pub(crate) fn read_characteristics(
     service_id: &str,
     operation: &'static str,
 ) -> RuntimeResult<Vec<BluetoothGattCharacteristicValue>> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
     let mut headers = vec![
         AndroidHostBluetoothGattCharacteristicHeader::default();
         INITIAL_BLUETOOTH_ROW_CAPACITY
@@ -209,7 +209,7 @@ pub(crate) fn read_descriptors(
     cache: &AndroidBluetoothGattCache,
     operation: &'static str,
 ) -> RuntimeResult<Vec<BluetoothGattDescriptorValue>> {
-    let runtime_id = host_runtime_id(binding, operation)?;
+    let runtime_id = host_session_id(binding, operation)?;
     let mut headers =
         vec![AndroidHostBluetoothGattDescriptorHeader::default(); INITIAL_BLUETOOTH_ROW_CAPACITY];
     let mut string_bytes = vec![0u8; INITIAL_BLUETOOTH_STRING_CAPACITY];

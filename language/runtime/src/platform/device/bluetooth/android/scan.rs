@@ -53,7 +53,7 @@ pub(crate) unsafe fn destack_device_bluetooth_scan_open(
     let (encoded_filter, mut filter_bytes) = encode_android_scan_filter(&filter);
 
     // open the host scan session
-    let runtime_id = host_runtime_id(binding, "destack.device.bluetooth.scan.open")?;
+    let runtime_id = host_session_id(binding, "destack.device.bluetooth.scan.open")?;
     let mut session_id = 0u64;
     let status = unsafe {
         destack_host_android_bluetooth_scan_open(
