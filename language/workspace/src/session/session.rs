@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use dashmap::DashMap;
+use destack_artifact::{ArtifactStore, CacheStore, DiskCacheStore, ProfileKey};
 use destack_core::StringPool;
 use destack_source::{
     File, FileKey, FileRegistry, FileSystem, FileType, FileVersion, ModuleId, ModuleVersion,
@@ -10,11 +11,20 @@ use destack_source::{
 use parking_lot::RwLock;
 
 use crate::{
-    Builtins, CacheStore, Destack, DiskCacheStore, FormatterOptions, LinterOptions, ModuleRegistry,
-    PackageRegistry, ProfileKey, Program, SessionOptions, TsConfigRegistry, Workspace,
-    WorkspaceFileEntry, WorkspaceIndexHeader, WorkspaceIndexSnapshot, WorkspaceModuleEntry,
-    file_content_hash_for_path, resolve_workspace_cache_root,
+    Builtins, Destack, FormatterOptions, LinterOptions, ModuleRegistry, PackageRegistry, Program,
+    SessionOptions, TsConfigRegistry, Workspace, WorkspaceFileEntry, WorkspaceIndexHeader,
+    WorkspaceIndexSnapshot, WorkspaceModuleEntry, file_content_hash_for_path,
+    resolve_workspace_cache_root,
 };
+
+/// One session root with its semantic program and derived artifacts.
+#[derive(Debug)]
+struct SessionRoot {
+    /// The semantic program for this root.
+    program: Arc<Program>,
+    /// The live artifact store for this root.
+    artifacts: Arc<ArtifactStore>,
+}
 
 /// A session is the persistent state for a workspace.
 #[derive(Debug)]
@@ -32,8 +42,8 @@ pub struct Session {
     /// The files in the session.
     pub files: Arc<FileRegistry>,
 
-    /// The programs in the session, keyed by root path.
-    pub programs: DashMap<PathBuf, Arc<Program>>,
+    /// The session roots, keyed by root path.
+    roots: DashMap<PathBuf, Arc<SessionRoot>>,
     /// The package registry (for builtins and cross-program sharing).
     pub packages: Arc<PackageRegistry>,
     /// The module registry (for builtins).
@@ -83,7 +93,7 @@ impl Session {
             cache_store: Arc::new(DiskCacheStore::new()),
             files,
 
-            programs: DashMap::new(),
+            roots: DashMap::new(),
             packages,
             modules,
             tsconfigs,
@@ -379,24 +389,57 @@ impl Session {
             self.strings.clone(),
             Some(self.builtins.clone()),
         ));
-        self.programs.insert(root.clone(), program.clone());
+        let artifacts = Arc::new(ArtifactStore::new());
+        artifacts.publish_root_ast(program.root_module_id, program.fallback_file_id);
+
+        let root_entry = Arc::new(SessionRoot {
+            program: program.clone(),
+            artifacts,
+        });
+        self.roots.insert(root.clone(), root_entry);
         program
     }
 
     /// Remove a root from the session.
     pub fn remove_root(&self, root: &Path) -> Option<Arc<Program>> {
-        self.programs.remove(root).map(|(_, program)| program)
+        self.roots
+            .remove(root)
+            .map(|(_, root)| root.program.clone())
     }
 
     /// Get a program by root path.
     pub fn get_program(&self, root: &Path) -> Option<Arc<Program>> {
-        self.programs.get(root).map(|p| p.clone())
+        self.roots.get(root).map(|root| root.program.clone())
+    }
+
+    /// Get the artifact store for one root path.
+    pub fn get_artifacts(&self, root: &Path) -> Option<Arc<ArtifactStore>> {
+        self.roots.get(root).map(|root| root.artifacts.clone())
+    }
+
+    /// Get the artifact store for one program.
+    pub fn get_artifacts_for_program(&self, program: &Program) -> Option<Arc<ArtifactStore>> {
+        self.roots.iter().find_map(|entry| {
+            if std::ptr::eq(entry.program.as_ref(), program) {
+                return Some(entry.artifacts.clone());
+            }
+
+            None
+        })
+    }
+
+    /// Return all tracked programs.
+    pub fn programs(&self) -> Vec<Arc<Program>> {
+        self.roots
+            .iter()
+            .map(|entry| entry.program.clone())
+            .collect()
     }
 
     /// Get or create a program for the given root path.
     pub fn get_or_create_program(&self, root: PathBuf) -> Arc<Program> {
-        if let Some(program) = self.programs.get(&root) {
-            return program.clone();
+        if let Some(root_entry) = self.roots.get(&root) {
+            return root_entry.program.clone();
         }
         self.add_root(root)
     }
@@ -405,7 +448,7 @@ impl Session {
     pub fn find_program_for_path_maybe(&self, path: &Path) -> Option<Arc<Program>> {
         // track the best matching root by depth
         let mut best_match: Option<(usize, Arc<Program>)> = None;
-        for entry in self.programs.iter() {
+        for entry in self.roots.iter() {
             if !path.starts_with(entry.key()) {
                 continue;
             }
@@ -416,7 +459,7 @@ impl Session {
                 .map(|(best_depth, _)| depth > *best_depth)
                 .unwrap_or(true);
             if replace {
-                best_match = Some((depth, entry.value().clone()));
+                best_match = Some((depth, entry.program.clone()));
             }
         }
 
@@ -442,10 +485,10 @@ mod tests {
     use std::path::PathBuf;
     use std::sync::Arc;
 
+    use destack_artifact::MemoryCacheStore;
     use destack_source::MemoryFileSystem;
 
     use super::Session;
-    use crate::MemoryCacheStore;
 
     /// Removes roots from the session program map.
     #[test]

@@ -3,10 +3,11 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 
+use destack_artifact::Loader;
 use destack_builtin::BuiltinLibraryKind;
 use destack_source::{FileId, FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, Uri};
 
-use crate::{Loader, ModuleTarget, SourceType, TsConfigId};
+use crate::{ModuleTarget, SourceType, TsConfigId};
 
 /// The source/origin of a module.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

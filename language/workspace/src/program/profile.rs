@@ -1,112 +1,13 @@
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicU32, Ordering};
 
+use destack_artifact::{EnvSnapshot, ProfileFlags, ProfileKey};
 use serde::{Deserialize, Serialize};
 
+use crate::CompilerOptions;
 use dashmap::DashMap;
-
-use crate::{CompilerOptions, EmitFormat, Platform, Runtime, TargetArch, TargetEnv, TargetVendor};
 
 // Re-export ProfileId and ProfileVersion from destack_source
 pub use destack_source::{ProfileId, ProfileVersion};
-
-/// Comptime environment snapshot used for profile identity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum EnvSnapshot {
-    /// Represents a full environment snapshot with keys and hashed values.
-    All { keys: Vec<String>, hash: u64 },
-    /// Represents a whitelisted environment snapshot with keys and hashed values.
-    Whitelist { keys: Vec<String>, hash: u64 },
-}
-
-/// Flags that affect profile identity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct ProfileFlags {
-    /// Forbid use of `any`.
-    pub no_any: bool,
-    /// Forbid use of `unknown`.
-    pub no_unknown: bool,
-    /// Require precise primitive types.
-    pub no_imprecise_primitives: bool,
-    /// Require explicit conversions.
-    pub no_implicit_conversions: bool,
-    /// Forbid unsafe type assertions.
-    pub no_unsafe_type_assertions: bool,
-    /// Forbid must assertions.
-    pub no_must_assertions: bool,
-    /// Forbid definite assignment assertions.
-    pub no_definite_assignment_assertions: bool,
-    /// Forbid custom type guards.
-    pub no_custom_type_guards: bool,
-    /// Forbid unsound variance.
-    pub no_unsound_variance: bool,
-    /// Forbid unsound narrowing.
-    pub no_unsound_narrowing: bool,
-    /// Require deep readonly semantics.
-    pub deep_readonly: bool,
-    /// Forbid untrusted declaration files.
-    pub no_untrusted_declarations: bool,
-    /// Forbid redeclaration of locals.
-    pub no_redeclared_locals: bool,
-    /// Require explicit managed ownership.
-    pub no_implicit_managed: bool,
-    /// Forbid managed memory features.
-    pub no_managed: bool,
-    /// Forbid runtime features.
-    pub no_runtime: bool,
-    /// Forbid referential equality.
-    pub no_referential_equality: bool,
-    /// Forbid dynamic evaluation.
-    pub no_dynamic_evaluation: bool,
-    /// Forbid `globalThis`.
-    pub no_global_this: bool,
-    /// Forbid dynamic imports.
-    pub no_dynamic_import: bool,
-    /// Forbid low level internal protocol imports (`platform:`).
-    pub no_internal_import: bool,
-    /// Forbid dynamic shapes.
-    pub no_dynamic_shapes: bool,
-    /// Forbid computed property access.
-    pub no_computed_property_access: bool,
-    /// Forbid Proxy usage.
-    pub no_proxy: bool,
-    /// Require static dispatch.
-    pub no_implicit_dynamic_dispatch: bool,
-    /// Forbid exceptions.
-    pub no_exceptions: bool,
-    /// Enable strict checking of built in iterator return types.
-    pub strict_builtin_iterator_return: bool,
-}
-
-/// Canonical profile key for semantic identity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ProfileKey {
-    /// Emit format for the profile.
-    pub emit: EmitFormat,
-    /// Runtime environment for the profile.
-    pub runtime: Runtime,
-    /// Target platform for the profile.
-    pub platform: Platform,
-    /// Target architecture for the profile.
-    pub target_arch: Option<TargetArch>,
-    /// Target vendor for the profile.
-    pub target_vendor: Option<TargetVendor>,
-    /// Target environment for the profile.
-    pub target_env: Option<TargetEnv>,
-    /// Normalized library set for the profile.
-    pub lib: Vec<String>,
-    /// Debug flag exposed to `import.meta`.
-    pub debug: bool,
-    /// Test flag exposed to `import.meta`.
-    pub test: bool,
-    /// Skip declaration diagnostics in JavaScript and TypeScript compatibility mode.
-    pub skip_lib_check: bool,
-    /// Comptime environment snapshot for `import.meta.env`.
-    pub env: EnvSnapshot,
-    /// Flags that affect semantic behavior.
-    pub flags: ProfileFlags,
-}
 
 /// A registered profile.
 #[derive(Debug, Clone)]
@@ -179,6 +80,17 @@ impl ProfileRegistry {
         self.profile_by_key.get(key).map(|entry| *entry)
     }
 
+    /// Get the profile id for one stable key hash.
+    pub fn id_for_stable_hash(&self, stable_hash: u64) -> Option<ProfileId> {
+        for entry in self.profile_by_id.iter() {
+            if entry.value().key.stable_hash() == stable_hash {
+                return Some(*entry.key());
+            }
+        }
+
+        None
+    }
+
     /// Get a profile by id.
     pub fn get(&self, id: ProfileId) -> Option<Profile> {
         self.profile_by_id.get(&id).map(|entry| entry.clone())
@@ -215,122 +127,37 @@ impl ProfileRegistry {
     }
 }
 
-impl EnvSnapshot {
-    /// Snapshot all environment keys and values.
-    pub fn from_env_all() -> Self {
-        let mut entries: Vec<(String, String)> = std::env::vars().collect();
-        entries.sort_by(|left, right| left.0.cmp(&right.0));
-        let keys = entries.iter().map(|(key, _)| key.clone()).collect();
-        let hash = hash_env_entries(&entries);
-        Self::All { keys, hash }
+/// Derive profile identity flags from compiler options.
+pub fn profile_flags_for_compiler_options(options: &CompilerOptions) -> ProfileFlags {
+    ProfileFlags {
+        no_any: !options.no_any.is_allow(),
+        no_unknown: !options.no_unknown.is_allow(),
+        no_imprecise_primitives: !options.no_imprecise_primitives.is_allow(),
+        no_implicit_conversions: !options.no_implicit_conversions.is_allow(),
+        no_unsafe_type_assertions: !options.no_unsafe_type_assertions.is_allow(),
+        no_must_assertions: !options.no_must_assertions.is_allow(),
+        no_definite_assignment_assertions: !options.no_definite_assignment_assertions.is_allow(),
+        no_custom_type_guards: !options.no_custom_type_guards.is_allow(),
+        no_unsound_variance: !options.no_unsound_variance.is_allow(),
+        no_unsound_narrowing: !options.no_unsound_narrowing.is_allow(),
+        deep_readonly: !options.deep_readonly.is_allow(),
+        no_untrusted_declarations: !options.no_untrusted_declarations.is_allow(),
+        no_redeclared_locals: !options.no_redeclared_locals.is_allow(),
+        no_implicit_managed: !options.no_implicit_managed.is_allow(),
+        no_managed: !options.no_managed.is_allow(),
+        no_runtime: !options.no_runtime.is_allow(),
+        no_referential_equality: !options.no_referential_equality.is_allow(),
+        no_dynamic_evaluation: !options.no_dynamic_evaluation.is_allow(),
+        no_global_this: !options.no_global_this.is_allow(),
+        no_dynamic_import: !options.no_dynamic_import.is_allow(),
+        no_internal_import: !options.no_internal_import.is_allow(),
+        no_dynamic_shapes: !options.no_dynamic_shapes.is_allow(),
+        no_computed_property_access: !options.no_computed_property_access.is_allow(),
+        no_proxy: !options.no_proxy.is_allow(),
+        no_implicit_dynamic_dispatch: !options.no_implicit_dynamic_dispatch.is_allow(),
+        no_exceptions: !options.no_exceptions.is_allow(),
+        strict_builtin_iterator_return: options.strict_builtin_iterator_return,
     }
-
-    /// Snapshot only whitelisted environment keys and values.
-    pub fn from_env_whitelist(keys: &[String]) -> Self {
-        let keys = normalize_keys(keys.to_vec());
-        let mut entries = Vec::with_capacity(keys.len());
-        for key in &keys {
-            let value = std::env::var(key).unwrap_or_default();
-            entries.push((key.clone(), value));
-        }
-        let hash = hash_env_entries(&entries);
-        Self::Whitelist { keys, hash }
-    }
-
-    /// Return the environment keys included in this snapshot.
-    pub fn keys(&self) -> &[String] {
-        match self {
-            Self::All { keys, .. } | Self::Whitelist { keys, .. } => keys,
-        }
-    }
-}
-
-impl From<&CompilerOptions> for ProfileFlags {
-    fn from(options: &CompilerOptions) -> Self {
-        Self {
-            no_any: !options.no_any.is_allow(),
-            no_unknown: !options.no_unknown.is_allow(),
-            no_imprecise_primitives: !options.no_imprecise_primitives.is_allow(),
-            no_implicit_conversions: !options.no_implicit_conversions.is_allow(),
-            no_unsafe_type_assertions: !options.no_unsafe_type_assertions.is_allow(),
-            no_must_assertions: !options.no_must_assertions.is_allow(),
-            no_definite_assignment_assertions: !options
-                .no_definite_assignment_assertions
-                .is_allow(),
-            no_custom_type_guards: !options.no_custom_type_guards.is_allow(),
-            no_unsound_variance: !options.no_unsound_variance.is_allow(),
-            no_unsound_narrowing: !options.no_unsound_narrowing.is_allow(),
-            deep_readonly: !options.deep_readonly.is_allow(),
-            no_untrusted_declarations: !options.no_untrusted_declarations.is_allow(),
-            no_redeclared_locals: !options.no_redeclared_locals.is_allow(),
-            no_implicit_managed: !options.no_implicit_managed.is_allow(),
-            no_managed: !options.no_managed.is_allow(),
-            no_runtime: !options.no_runtime.is_allow(),
-            no_referential_equality: !options.no_referential_equality.is_allow(),
-            no_dynamic_evaluation: !options.no_dynamic_evaluation.is_allow(),
-            no_global_this: !options.no_global_this.is_allow(),
-            no_dynamic_import: !options.no_dynamic_import.is_allow(),
-            no_internal_import: !options.no_internal_import.is_allow(),
-            no_dynamic_shapes: !options.no_dynamic_shapes.is_allow(),
-            no_computed_property_access: !options.no_computed_property_access.is_allow(),
-            no_proxy: !options.no_proxy.is_allow(),
-            no_implicit_dynamic_dispatch: !options.no_implicit_dynamic_dispatch.is_allow(),
-            no_exceptions: !options.no_exceptions.is_allow(),
-            strict_builtin_iterator_return: options.strict_builtin_iterator_return,
-        }
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-impl ProfileKey {
-    /// Create a profile key with normalized library entries.
-    pub fn new(
-        emit: EmitFormat,
-        runtime: Runtime,
-        platform: Platform,
-        target_arch: Option<TargetArch>,
-        target_vendor: Option<TargetVendor>,
-        target_env: Option<TargetEnv>,
-        lib: Vec<String>,
-        debug: bool,
-        test: bool,
-        skip_lib_check: bool,
-        env: EnvSnapshot,
-        flags: ProfileFlags,
-    ) -> Self {
-        let lib = normalize_keys(lib);
-        Self {
-            emit,
-            runtime,
-            platform,
-            target_arch,
-            target_vendor,
-            target_env,
-            lib,
-            debug,
-            test,
-            skip_lib_check,
-            env,
-            flags,
-        }
-    }
-}
-
-/// Normalize a list of keys by sorting and deduplicating.
-fn normalize_keys(mut keys: Vec<String>) -> Vec<String> {
-    keys.sort();
-    keys.dedup();
-    keys
-}
-
-/// Hash a list of environment entries by hashing the key and value.
-fn hash_env_entries(entries: &[(String, String)]) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    for (key, value) in entries {
-        key.hash(&mut hasher);
-        value.hash(&mut hasher);
-    }
-    hasher.finish()
 }
 
 /// Resolved environment values for a profile.

@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use destack_core::StringId;
 use destack_dir::{self as dir};
-use destack_source::{ModuleId, ModuleVersion};
+use destack_source::{ModuleId, ModuleVersion, ProfileId};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{ImportEdgeKind, Loader, ProfileId};
+use crate::{ImportEdgeKind, Loader};
 
 /// The module-binding export table keyed by the owning declaration node.
 pub type ModuleBindingExportTable = IndexMap<dir::LocalNodeIdAny, dir::ModuleBindingExports>;

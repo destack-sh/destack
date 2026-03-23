@@ -1,8 +1,9 @@
 use std::collections::HashSet;
 
+use destack_artifact::{ArtifactKey, ArtifactStore};
 use destack_source::{File, FileId, FileType, FileVersion, ModuleId, PackageId, ProfileId};
 
-use crate::{ArtifactKey, PackageManifest, Program, TsConfigId};
+use crate::{PackageManifest, Program, TsConfigId};
 
 /// Content update payload for an invalidated file.
 #[derive(Debug, Clone)]
@@ -85,6 +86,7 @@ impl Program {
     /// Invalidate program state based on a file update.
     pub fn invalidate_file(
         &self,
+        artifacts: &ArtifactStore,
         file_id: FileId,
         update: FileUpdate,
     ) -> Result<InvalidationPlan, InvalidationError> {
@@ -123,7 +125,7 @@ impl Program {
 
             // invalidate module caches and collect profiles
             let module_profiles =
-                self.invalidate_module_source(module_id, file_version, is_removed);
+                self.invalidate_module_source(artifacts, module_id, file_version, is_removed);
             profiles.extend(module_profiles);
 
             // track packages for module source invalidation
@@ -140,10 +142,11 @@ impl Program {
             // collect modules for config invalidation
             let config_modules = self.modules_for_packages(&destack_config_packages);
             modules.extend(config_modules.iter().copied());
-            self.refresh_module_semantics_for_modules(&config_modules);
+            self.refresh_module_semantics_for_modules(artifacts, &config_modules);
 
             // invalidate profile data for config modules
-            let config_profiles = self.invalidate_profile_data_for_modules(&config_modules);
+            let config_profiles =
+                self.invalidate_profile_data_for_modules(artifacts, &config_modules);
             profiles.extend(config_profiles.iter().copied());
             graphs_dropped.extend(config_profiles);
         } else if is_destack_config {
@@ -154,10 +157,11 @@ impl Program {
                 config_modules.push(module.id);
             }
             modules.extend(config_modules.iter().copied());
-            self.refresh_module_semantics_for_modules(&config_modules);
+            self.refresh_module_semantics_for_modules(artifacts, &config_modules);
 
             // invalidate profile data for config modules
-            let config_profiles = self.invalidate_profile_data_for_modules(&config_modules);
+            let config_profiles =
+                self.invalidate_profile_data_for_modules(artifacts, &config_modules);
             profiles.extend(config_profiles.iter().copied());
             graphs_dropped.extend(config_profiles);
         }
@@ -172,10 +176,11 @@ impl Program {
             // collect modules for package invalidation
             let config_modules = self.modules_for_packages(&package_ids);
             modules.extend(config_modules.iter().copied());
-            self.refresh_module_semantics_for_modules(&config_modules);
+            self.refresh_module_semantics_for_modules(artifacts, &config_modules);
 
             // invalidate profile data for config modules
-            let config_profiles = self.invalidate_profile_data_for_modules(&config_modules);
+            let config_profiles =
+                self.invalidate_profile_data_for_modules(artifacts, &config_modules);
             profiles.extend(config_profiles.iter().copied());
             graphs_dropped.extend(config_profiles);
         } else if is_package_manifest {
@@ -190,10 +195,11 @@ impl Program {
             // collect modules for config invalidation
             let config_modules = self.modules_for_tsconfigs(&tsconfig_ids);
             modules.extend(config_modules.iter().copied());
-            self.refresh_module_semantics_for_modules(&config_modules);
+            self.refresh_module_semantics_for_modules(artifacts, &config_modules);
 
             // invalidate profile data for config modules
-            let config_profiles = self.invalidate_profile_data_for_modules(&config_modules);
+            let config_profiles =
+                self.invalidate_profile_data_for_modules(artifacts, &config_modules);
             profiles.extend(config_profiles.iter().copied());
             graphs_dropped.extend(config_profiles);
         }
@@ -303,29 +309,33 @@ impl Program {
     /// Invalidate module data for a source change.
     fn invalidate_module_source(
         &self,
+        artifacts: &ArtifactStore,
         module_id: ModuleId,
         file_version: FileVersion,
         _is_removed: bool,
     ) -> HashSet<ProfileId> {
         // collect profiles touched by the module
-        let module_profiles = self.collect_module_profiles(module_id);
+        let module_profiles = self.collect_module_profiles(artifacts, module_id);
 
         // update module versions and clear cached data
         self.modules.bump_version(module_id);
         self.modules.set_source_version(module_id, file_version);
 
-        self.artifacts
-            .invalidate(&ArtifactKey::Ast { module: module_id });
+        artifacts.invalidate(&ArtifactKey::Ast { module: module_id });
 
         module_profiles
     }
 
     /// Invalidate profile data for the provided modules.
-    fn invalidate_profile_data_for_modules(&self, modules: &[ModuleId]) -> HashSet<ProfileId> {
+    fn invalidate_profile_data_for_modules(
+        &self,
+        artifacts: &ArtifactStore,
+        modules: &[ModuleId],
+    ) -> HashSet<ProfileId> {
         // collect profiles touched by the modules
         let mut profile_ids = HashSet::new();
         for module_id in modules {
-            profile_ids.extend(self.collect_module_profiles(*module_id));
+            profile_ids.extend(self.collect_module_profiles(artifacts, *module_id));
         }
 
         // bump profile versions to invalidate caches
@@ -335,36 +345,39 @@ impl Program {
 
         // drop module graphs for affected profiles
         for profile_id in &profile_ids {
-            self.drop_module_graph(*profile_id);
-            self.artifacts
-                .invalidate(&ArtifactKey::LanguageEnvironment {
-                    profile: *profile_id,
-                });
-            self.artifacts
-                .invalidate(&ArtifactKey::IntrinsicEnvironment {
-                    profile: *profile_id,
-                });
-            self.artifacts.invalidate(&ArtifactKey::LibraryEnvironment {
+            self.drop_module_graph(artifacts, *profile_id);
+            artifacts.invalidate(&ArtifactKey::LanguageEnvironment {
+                profile: *profile_id,
+            });
+            artifacts.invalidate(&ArtifactKey::IntrinsicEnvironment {
+                profile: *profile_id,
+            });
+            artifacts.invalidate(&ArtifactKey::LibraryEnvironment {
                 profile: *profile_id,
             });
         }
 
         // collect modules that share the profile ids
-        let mut modules_to_clear = self.modules_for_profiles(&profile_ids);
+        let mut modules_to_clear = self.modules_for_profiles(artifacts, &profile_ids);
         for module_id in modules {
             modules_to_clear.insert(*module_id);
         }
 
         // clear profile scoped data for each module
         for module_id in modules_to_clear {
-            self.clear_module_profiles(module_id, &profile_ids);
+            self.clear_module_profiles(artifacts, module_id, &profile_ids);
         }
 
         profile_ids
     }
 
     /// Clear profile scoped data for a module.
-    fn clear_module_profiles(&self, module_id: ModuleId, profiles: &HashSet<ProfileId>) {
+    fn clear_module_profiles(
+        &self,
+        artifacts: &ArtifactStore,
+        module_id: ModuleId,
+        profiles: &HashSet<ProfileId>,
+    ) {
         // skip when no profiles are specified
         if profiles.is_empty() {
             return;
@@ -372,42 +385,42 @@ impl Program {
 
         // clear matching dir and mir artifacts
         for profile_id in profiles {
-            self.artifacts.invalidate(&ArtifactKey::DirPrepared {
+            artifacts.invalidate(&ArtifactKey::DirPrepared {
                 module: module_id,
                 profile: *profile_id,
             });
-            self.artifacts.invalidate(&ArtifactKey::DirResolved {
+            artifacts.invalidate(&ArtifactKey::DirResolved {
                 module: module_id,
                 profile: *profile_id,
             });
-            self.artifacts.invalidate(&ArtifactKey::DirDeclared {
+            artifacts.invalidate(&ArtifactKey::DirDeclared {
                 module: module_id,
                 profile: *profile_id,
             });
-            self.artifacts.invalidate(&ArtifactKey::DirInterface {
+            artifacts.invalidate(&ArtifactKey::DirInterface {
                 module: module_id,
                 profile: *profile_id,
             });
-            self.artifacts.invalidate(&ArtifactKey::DirAnalyzed {
+            artifacts.invalidate(&ArtifactKey::DirAnalyzed {
                 module: module_id,
                 profile: *profile_id,
             });
-            self.artifacts.invalidate(&ArtifactKey::DirElaborated {
+            artifacts.invalidate(&ArtifactKey::DirElaborated {
                 module: module_id,
                 profile: *profile_id,
             });
-            self.artifacts.invalidate(&ArtifactKey::DirPatched {
+            artifacts.invalidate(&ArtifactKey::DirPatched {
                 module: module_id,
                 profile: *profile_id,
             });
 
-            for target in self.artifacts.target_ids_for_mir(module_id, *profile_id) {
-                self.artifacts.invalidate(&ArtifactKey::MirBase {
+            for target in artifacts.target_ids_for_mir(module_id, *profile_id) {
+                artifacts.invalidate(&ArtifactKey::MirBase {
                     module: module_id,
                     profile: *profile_id,
                     target: target.clone(),
                 });
-                self.artifacts.invalidate(&ArtifactKey::MirOptimized {
+                artifacts.invalidate(&ArtifactKey::MirOptimized {
                     module: module_id,
                     profile: *profile_id,
                     target,
@@ -417,20 +430,28 @@ impl Program {
     }
 
     /// Collect profile ids referenced by a module.
-    fn collect_module_profiles(&self, module_id: ModuleId) -> HashSet<ProfileId> {
+    fn collect_module_profiles(
+        &self,
+        artifacts: &ArtifactStore,
+        module_id: ModuleId,
+    ) -> HashSet<ProfileId> {
         // collect profiles from published artifacts
-        self.artifacts.profile_ids_for_module(module_id)
+        artifacts.profile_ids_for_module(module_id)
     }
 
     /// Collect modules that have data for any of the provided profiles.
-    fn modules_for_profiles(&self, profiles: &HashSet<ProfileId>) -> HashSet<ModuleId> {
+    fn modules_for_profiles(
+        &self,
+        artifacts: &ArtifactStore,
+        profiles: &HashSet<ProfileId>,
+    ) -> HashSet<ModuleId> {
         // skip empty profile sets
         if profiles.is_empty() {
             return HashSet::new();
         }
 
         // collect modules with published profile scoped data
-        self.artifacts.module_ids_for_profiles(profiles)
+        artifacts.module_ids_for_profiles(profiles)
     }
 
     /// Find packages that own the given config file id.
@@ -559,7 +580,11 @@ impl Program {
     }
 
     /// Refresh module source and format semantics for modules.
-    fn refresh_module_semantics_for_modules(&self, modules: &[ModuleId]) {
+    fn refresh_module_semantics_for_modules(
+        &self,
+        artifacts: &ArtifactStore,
+        modules: &[ModuleId],
+    ) {
         // deduplicate modules before refreshing
         let mut visited = HashSet::new();
         for module_id in modules {
@@ -567,7 +592,7 @@ impl Program {
                 continue;
             }
 
-            self.refresh_module_semantics(*module_id);
+            self.refresh_module_semantics(artifacts, *module_id);
         }
     }
 }
@@ -579,17 +604,20 @@ mod tests {
 
     use indexmap::IndexMap;
 
+    use destack_artifact::{
+        ArtifactKey, ArtifactStore, Ast, DirAnalyzed, DirBase, DirDeclared, DirInterface,
+        DirPrepared, DirResolved, EmitFormat, ExportedSymbolTable, ImportedModuleTable, Loader,
+        ModuleBindingExportTable, ProfileFlags,
+    };
     use destack_source::{
         File, FileContent, FileRegistry, FileType, LanguageType, MemoryFileSystem, ModuleId,
         ModuleVersion, PackageId, PackageVersion, Uri,
     };
 
     use crate::{
-        ArtifactKey, Ast, Destack, DirAnalyzed, DirBase, DirDeclared, DirInterface, DirPrepared,
-        DirResolved, EmitFormat, EnvSnapshot, ExportedSymbolTable, ImportedModuleTable, Loader,
-        Module, ModuleBindingExportTable, ModuleDetection, ModuleFormat, ModuleSource,
-        ModuleTarget, Package, PackageKind, PackageManifest, Platform, ProfileFlags, ProfileId,
-        ProfileKey, Program, Runtime, SourceType, TsConfig,
+        Destack, EnvSnapshot, Module, ModuleDetection, ModuleFormat, ModuleSource, ModuleTarget,
+        Package, PackageKind, PackageManifest, Platform, ProfileId, ProfileKey, Program, Runtime,
+        SourceType, TsConfig,
     };
 
     use super::{FileUpdate, InvalidationError};
@@ -601,6 +629,7 @@ mod tests {
         let fs = Arc::new(MemoryFileSystem::new());
         let files = Arc::new(FileRegistry::new());
         let program = Program::from_fs(PathBuf::from("/workspace"), fs, files.clone());
+        let artifacts = Arc::new(ArtifactStore::new());
 
         let file_id = files.next_id();
         let path = PathBuf::from("/workspace/src/main.ts");
@@ -618,6 +647,7 @@ mod tests {
 
         // attempt to write invalid utf8 bytes
         let result = program.invalidate_file(
+            artifacts.as_ref(),
             file_id,
             FileUpdate::Bytes {
                 content: vec![0xff, 0xfe],
@@ -637,6 +667,7 @@ mod tests {
         let fs = Arc::new(MemoryFileSystem::new());
         let files = Arc::new(FileRegistry::new());
         let program = Program::from_fs(PathBuf::from("/workspace"), fs, files.clone());
+        let artifacts = Arc::new(ArtifactStore::new());
 
         let file_id = files.next_id();
         let path = PathBuf::from("/workspace/src/main.ts");
@@ -653,7 +684,7 @@ mod tests {
         files.insert(file);
 
         program
-            .invalidate_file(file_id, FileUpdate::Removed)
+            .invalidate_file(artifacts.as_ref(), file_id, FileUpdate::Removed)
             .expect("failed to remove file");
 
         // check that the file is marked as missing
@@ -670,6 +701,7 @@ mod tests {
         let fs = Arc::new(MemoryFileSystem::new());
         let files = Arc::new(FileRegistry::new());
         let program = Program::from_fs(PathBuf::from("/workspace"), fs, files.clone());
+        let artifacts = Arc::new(ArtifactStore::new());
 
         let package_a_id = PackageId::new(1);
         let package_b_id = PackageId::new(2);
@@ -755,41 +787,25 @@ mod tests {
         );
         let profile_id = program.profiles.get_or_create(profile_key);
 
-        attach_profile_dir(&program, module_a_id, profile_id);
-        attach_profile_dir(&program, module_b_id, profile_id);
+        attach_profile_dir(&program, artifacts.as_ref(), module_a_id, profile_id);
+        attach_profile_dir(&program, artifacts.as_ref(), module_b_id, profile_id);
 
         // ensure profile data exists before invalidation
-        assert!(
-            program
-                .artifacts
-                .dir_analyzed(module_a_id, profile_id)
-                .is_some()
-        );
-        assert!(
-            program
-                .artifacts
-                .dir_analyzed(module_b_id, profile_id)
-                .is_some()
-        );
+        assert!(artifacts.dir_analyzed(module_a_id, profile_id).is_some());
+        assert!(artifacts.dir_analyzed(module_b_id, profile_id).is_some());
 
         // invalidate the config file and expect shared profile data to drop
         program
-            .invalidate_file(destack_config_file_id, FileUpdate::Touch)
+            .invalidate_file(
+                artifacts.as_ref(),
+                destack_config_file_id,
+                FileUpdate::Touch,
+            )
             .unwrap_or_else(|error| panic!("failed to invalidate config: {error}"));
 
         // check that the profile data is cleared
-        assert!(
-            program
-                .artifacts
-                .dir_analyzed(module_a_id, profile_id)
-                .is_none()
-        );
-        assert!(
-            program
-                .artifacts
-                .dir_analyzed(module_b_id, profile_id)
-                .is_none()
-        );
+        assert!(artifacts.dir_analyzed(module_a_id, profile_id).is_none());
+        assert!(artifacts.dir_analyzed(module_b_id, profile_id).is_none());
     }
 
     /// Refresh module semantics when package manifest module type changes.
@@ -798,6 +814,7 @@ mod tests {
         let fs = Arc::new(MemoryFileSystem::new());
         let files = Arc::new(FileRegistry::new());
         let program = Program::from_fs(PathBuf::from("/workspace"), fs, files.clone());
+        let artifacts = Arc::new(ArtifactStore::new());
 
         // insert package manifest file with commonjs module type
         let package_json_file_id = files.next_id();
@@ -872,6 +889,7 @@ mod tests {
         // update package manifest module type to module and invalidate
         let result = program
             .invalidate_file(
+                artifacts.as_ref(),
                 package_json_file_id,
                 FileUpdate::Text {
                     content: r#"{ "name": "pkg", "version": "0.2.0", "type": "module" }"#
@@ -898,6 +916,7 @@ mod tests {
         let fs = Arc::new(MemoryFileSystem::new());
         let files = Arc::new(FileRegistry::new());
         let program = Program::from_fs(PathBuf::from("/workspace"), fs, files.clone());
+        let artifacts = Arc::new(ArtifactStore::new());
 
         // insert package
         let package_id = PackageId::from_path(Path::new("/workspace/pkg"));
@@ -973,7 +992,7 @@ mod tests {
 
         // invalidate the tsconfig file and assert semantics are refreshed
         let result = program
-            .invalidate_file(tsconfig_file_id, FileUpdate::Touch)
+            .invalidate_file(artifacts.as_ref(), tsconfig_file_id, FileUpdate::Touch)
             .unwrap_or_else(|error| panic!("failed to invalidate tsconfig: {error}"));
         assert!(result.kinds.contains(&super::InvalidationKind::TsConfig));
 
@@ -1043,7 +1062,12 @@ mod tests {
     }
 
     /// Attach a profile scoped dir to a module.
-    fn attach_profile_dir(program: &Program, module_id: ModuleId, profile_id: ProfileId) {
+    fn attach_profile_dir(
+        program: &Program,
+        artifacts: &ArtifactStore,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+    ) {
         // add a minimal dir entry for the profile
         let module = program.modules.get(module_id);
         let module = module.as_ref();
@@ -1051,15 +1075,13 @@ mod tests {
         let module_version = program.modules.version(module.id);
 
         // anchor expression
-        let anchor_id = if let Some(ast) = program.artifacts.ast(module_id) {
+        let anchor_id = if let Some(ast) = artifacts.ast(module_id) {
             ast.anchor_expression
                 .expect("missing anchor expression on AST")
         } else {
             let mut ast = Ast::new(module_id, module_version);
             let anchor_id = ast.ensure_anchor_expression(file_id);
-            program
-                .artifacts
-                .publish(ArtifactKey::Ast { module: module_id }, ast);
+            artifacts.publish(ArtifactKey::Ast { module: module_id }, ast);
             anchor_id
         };
         let base_dir = DirBase::new_base(module_id, module_version, anchor_id.id);
@@ -1097,7 +1119,7 @@ mod tests {
             interface_dir.types.as_ref().clone(),
             declared_dir.captures.as_ref().clone(),
         );
-        program.artifacts.publish(
+        artifacts.publish(
             ArtifactKey::DirAnalyzed {
                 module: module_id,
                 profile: profile_id,

@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
-use crate::DEFAULT_HOME_CACHE_DIR;
 use crate::config::{DESTACK_CACHE_DIR, HOME, LOCAL_APPDATA, USERPROFILE, XDG_CACHE_HOME};
+
+const DEFAULT_HOME_CACHE_DIR: &str = ".cache";
 
 /// Return an explicit cache directory from the environment.
 pub fn cache_dir_from_env() -> Option<PathBuf> {

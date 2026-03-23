@@ -3,10 +3,12 @@ use std::path::Path;
 use std::sync::Arc;
 
 use dashmap::DashMap;
+use destack_artifact::{
+    EmitFormat, Loader, Platform, ProfileKey, Runtime, TargetArch, TargetEnv, TargetVendor,
+};
 use destack_builtin::{
-    BuiltinLibraryKind, BuiltinLibrarySource, BuiltinOutputFormat, BuiltinPlatform, BuiltinRuntime,
-    INTRINSIC_SOURCES, LanguageSymbol, PRELUDE_BUILTIN_SOURCE, builtin_library,
-    resolve_profile_builtin_library_name,
+    BuiltinLibraryKind, BuiltinLibrarySource, BuiltinPlatform, BuiltinRuntime, INTRINSIC_SOURCES,
+    LanguageSymbol, PRELUDE_BUILTIN_SOURCE, builtin_library, resolve_profile_builtin_library_name,
 };
 use destack_source::{
     File, FileRegistry, FileType, LanguageType, ModuleId, ModuleVersion, PackageId, PackageVersion,
@@ -16,9 +18,8 @@ use indexmap::IndexMap;
 use parking_lot::Mutex;
 
 use crate::{
-    EmitFormat, Loader, Module, ModuleFormat, ModuleRegistry, ModuleSource, Package, PackageKind,
-    PackageRegistry, Platform, ProfileKey, Runtime, SourceType, TargetArch, TargetEnv,
-    TargetVendor,
+    Module, ModuleFormat, ModuleRegistry, ModuleSource, Package, PackageKind, PackageRegistry,
+    SourceType,
 };
 
 /// Resolve a file type for a builtin source name.
@@ -236,7 +237,7 @@ impl Builtins {
         };
 
         let runtime = BuiltinRuntime::from(profile_key.runtime);
-        let emit = BuiltinOutputFormat::from(profile_key.emit);
+        let emit = profile_key.emit.builtin_output_format();
         let platform = BuiltinPlatform::from(profile_key.platform);
 
         lib.sources
@@ -301,7 +302,7 @@ impl Builtins {
 
         // check if the library has any sources for this target
         let runtime = BuiltinRuntime::from(profile_key.runtime);
-        let emit = BuiltinOutputFormat::from(profile_key.emit);
+        let emit = profile_key.emit.builtin_output_format();
         let platform = BuiltinPlatform::from(profile_key.platform);
         let filtered_sources = lib
             .sources

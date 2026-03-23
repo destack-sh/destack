@@ -1,6 +1,7 @@
+use destack_artifact::Platform;
 use serde::Deserialize;
 
-use crate::{Platform, RuntimeConfigJson, RuntimeOptions, runtime_options_from_json};
+use crate::{RuntimeConfigJson, RuntimeOptions, runtime_options_from_json};
 
 /// Normalized profile configuration.
 #[derive(Debug, Clone, Default)]

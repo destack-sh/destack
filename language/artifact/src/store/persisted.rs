@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
 
-use destack_source::{FileId, FileKey, FileVersion, ModuleVersion};
+use destack_source::{FileId, FileKey, FileVersion, ModuleVersion, ProfileId};
 
+use super::ArtifactImage;
 use crate::{
     Ast, DirAnalyzed, DirBase, DirDeclared, DirElaborated, DirInterface, DirPatched, DirPrepared,
-    DirResolved, MirBase, MirOptimized, ModuleGraph, ModuleOutput, PackageOutput, ProfileId,
+    DirResolved, IntrinsicEnvironment, LanguageEnvironment, LibraryEnvironment, MirBase,
+    MirOptimized, ModuleGraph, ModuleOutput, PackageOutput,
 };
-
-use super::{ArtifactImage, IntrinsicEnvironment, LanguageEnvironment, LibraryEnvironment};
 
 /// Serialized language environment image.
 pub type LanguageEnvironmentArtifactImage = ArtifactImage<LanguageEnvironment>;
@@ -356,21 +356,21 @@ pub type LibraryEnvironmentArtifactImage = ArtifactImage<LibraryEnvironment>;
 mod tests {
     use crate::{
         ArtifactFamily, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, EmitFormat,
-        EnvSnapshot, ExportedSymbolTable, ImportedModuleTable, ModuleBindingExportTable,
-        ModuleOutputKind, PackageOutputKind, Platform, ProfileFlags, ProfileKey, Runtime, TargetId,
+        EnvSnapshot, ExportedSymbolTable, ImportedModuleTable, ModuleBindingExportTable, Platform,
+        ProfileFlags, ProfileKey, Runtime,
     };
     use destack_source::{
-        FileKey, FileVersion, ModuleId, ModuleVersion, PackageId, ProfileVersion,
+        FileKey, FileVersion, ModuleId, ModuleVersion, PackageId, ProfileVersion, TargetId,
     };
 
     use super::*;
 
-    /// Build one stable profile key for artifact image tests.
+    /// Build one test profile key for artifact image tests.
     fn test_profile_key() -> ProfileKey {
         ProfileKey::new(
             EmitFormat::Js,
             Runtime::Node,
-            Platform::Web,
+            Platform::default(),
             None,
             None,
             None,
@@ -604,7 +604,7 @@ mod tests {
     fn test_module_output_image_roundtrip() {
         let image = ModuleOutputArtifactImage::new(
             test_header(ArtifactFamily::ModuleOutput),
-            ModuleOutput::new(ModuleOutputKind::JavaScript, Vec::new()),
+            ModuleOutput::new(EmitFormat::Js, Vec::new()),
         )
         .expect("build module output image");
         let bytes = image.serialize().expect("serialize module output image");
@@ -615,7 +615,7 @@ mod tests {
             .validate_for_family(ArtifactFamily::ModuleOutput)
             .expect("validate module output image");
         assert_eq!(loaded.header, image.header);
-        assert_eq!(loaded.payload.kind, image.payload.kind);
+        assert_eq!(loaded.payload.emit, image.payload.emit);
         assert_eq!(loaded.payload.entries.len(), image.payload.entries.len());
     }
 
@@ -624,7 +624,7 @@ mod tests {
     fn test_package_output_image_roundtrip() {
         let image = PackageOutputArtifactImage::new(
             test_header(ArtifactFamily::PackageOutput),
-            PackageOutput::new(PackageOutputKind::Executable, Vec::new()),
+            PackageOutput::new(EmitFormat::Js, true, Vec::new()),
         )
         .expect("build package output image");
         let bytes = image.serialize().expect("serialize package output image");
@@ -635,7 +635,8 @@ mod tests {
             .validate_for_family(ArtifactFamily::PackageOutput)
             .expect("validate package output image");
         assert_eq!(loaded.header, image.header);
-        assert_eq!(loaded.payload.kind, image.payload.kind);
+        assert_eq!(loaded.payload.emit, image.payload.emit);
+        assert_eq!(loaded.payload.assembled, image.payload.assembled);
         assert_eq!(loaded.payload.entries.len(), image.payload.entries.len());
     }
 

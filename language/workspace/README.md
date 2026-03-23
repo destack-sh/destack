@@ -201,7 +201,7 @@ Session
     │               ├── Package
     │               │       └── Module
     │               │
-    │               ├── ArtifactRegistry
+    │               ├── ArtifactStore
     │               └── OutputRegistry
 ```
 

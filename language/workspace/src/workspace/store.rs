@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::{
+use destack_artifact::{
     CacheStore, CacheStoreError, DEFAULT_LANGUAGE_CACHE_DIR_NAME, DEFAULT_LANGUAGE_CACHE_NAMESPACE,
     WORKSPACE_INDEX_FILE_NAME, WORKSPACE_INDEX_LOCK_FILE_NAME,
 };
@@ -120,7 +120,9 @@ impl<'a> WorkspaceStore<'a> {
 mod tests {
     use std::path::PathBuf;
 
-    use crate::{DiskCacheStore, WorkspaceStore};
+    use destack_artifact::DiskCacheStore;
+
+    use crate::WorkspaceStore;
 
     /// Place workspace snapshots under the language namespace.
     #[test]

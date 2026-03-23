@@ -3,17 +3,6 @@ use std::hash::{Hash, Hasher};
 use rustc_hash::FxHasher;
 use serde_json::Value;
 
-/// Dsconfig keys ignored when hashing cache inputs.
-pub const DSCONFIG_CACHE_IGNORED_KEYS: [&str; 7] = [
-    "cache",
-    "watch",
-    "formatter",
-    "linter",
-    "runtime",
-    "targets",
-    "defaultTarget",
-];
-
 /// Hash bytes with a stable hasher.
 pub fn hash_bytes(bytes: &[u8]) -> u64 {
     let mut hasher = FxHasher::default();
@@ -74,7 +63,8 @@ pub fn hash_json_value(value: &Value) -> u64 {
 }
 
 /// Trim ignored keys from a JSON object value.
-pub fn trim_json_object(value: &Value, ignored_keys: &[&str]) -> Value {
+#[cfg(test)]
+fn trim_json_object(value: &Value, ignored_keys: &[&str]) -> Value {
     let Value::Object(map) = value else {
         return value.clone();
     };
@@ -94,7 +84,17 @@ pub fn trim_json_object(value: &Value, ignored_keys: &[&str]) -> Value {
 mod tests {
     use serde_json::json;
 
-    use super::{DSCONFIG_CACHE_IGNORED_KEYS, hash_json_value, trim_json_object};
+    use super::{hash_json_value, trim_json_object};
+
+    const DS_CONFIG_CACHE_IGNORED_KEYS: [&str; 7] = [
+        "cache",
+        "watch",
+        "formatter",
+        "linter",
+        "runtime",
+        "targets",
+        "defaultTarget",
+    ];
 
     /// Hashing ignores key order for cache invalidation.
     #[test]
@@ -130,9 +130,9 @@ mod tests {
         assert_ne!(hash_json_value(&first), hash_json_value(&second));
     }
 
-    /// Hashing ignores tooling only sections when trimmed.
+    /// Hashing ignores non-semantic dsconfig sections when trimmed.
     #[test]
-    fn test_json_trim_ignores_tooling_sections() {
+    fn test_json_trim_ignores_dsconfig_tooling_sections() {
         let first = json!({
             "compiler": { "strict": true },
             "cache": { "mode": "disk" },
@@ -149,45 +149,11 @@ mod tests {
         });
 
         // check that the hashes are equal
-        let trimmed_first = trim_json_object(&first, &DSCONFIG_CACHE_IGNORED_KEYS);
-        let trimmed_second = trim_json_object(&second, &DSCONFIG_CACHE_IGNORED_KEYS);
+        let trimmed_first = trim_json_object(&first, &DS_CONFIG_CACHE_IGNORED_KEYS);
+        let trimmed_second = trim_json_object(&second, &DS_CONFIG_CACHE_IGNORED_KEYS);
         assert_eq!(
             hash_json_value(&trimmed_first),
             hash_json_value(&trimmed_second)
         );
-    }
-
-    /// Hashing ignores key order for cache invalidation.
-    #[test]
-    fn test_tsconfig_hash_is_order_invariant() {
-        let first = json!({
-            "compilerOptions": { "strict": true, "target": "ES2022" },
-            "include": ["src"],
-            "exclude": ["dist"],
-        });
-        let second = json!({
-            "exclude": ["dist"],
-            "include": ["src"],
-            "compilerOptions": { "target": "ES2022", "strict": true },
-        });
-
-        // check that the hashes are equal
-        assert_eq!(hash_json_value(&first), hash_json_value(&second));
-    }
-
-    /// Hashing changes when tsconfig values change.
-    #[test]
-    fn test_tsconfig_hash_changes_on_value_change() {
-        let first = json!({
-            "compilerOptions": { "strict": true },
-            "include": ["src"],
-        });
-        let second = json!({
-            "compilerOptions": { "strict": false },
-            "include": ["src"],
-        });
-
-        // check that the hashes are different
-        assert_ne!(hash_json_value(&first), hash_json_value(&second));
     }
 }

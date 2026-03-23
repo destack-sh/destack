@@ -1,9 +1,17 @@
-use destack_source::{ModuleId, ModuleVersion};
+use destack_source::{ModuleId, ModuleVersion, ProfileId};
 use indexmap::map::Entry;
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 
-use crate::ProfileId;
+/// The resolution semantics for one import edge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum ImportEdgeKind {
+    /// Import-like edge semantics (`import`, `export from`, `import()`).
+    #[default]
+    Import,
+    /// Require-like edge semantics (`require`, `import = require`).
+    Require,
+}
 
 /// Module dependency graph for a profile.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -1,19 +1,10 @@
 use std::path::PathBuf;
 
+use destack_artifact::{EmitFormat, Platform, Runtime};
 use destack_source::Uri;
 use serde::{Deserialize, Serialize};
 
-use crate::{EmitFormat, Platform, ProfileEnv, Runtime};
-
-/// The resolution semantics for one import edge.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub enum ImportEdgeKind {
-    /// Import-like edge semantics (`import`, `export from`, `import()`).
-    #[default]
-    Import,
-    /// Require-like edge semantics (`require`, `import = require`).
-    Require,
-}
+use crate::ProfileEnv;
 
 /// Structured target metadata exposed to `import.meta.target`.
 #[derive(Debug, Clone, Serialize, Deserialize)]

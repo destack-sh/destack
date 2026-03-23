@@ -2,10 +2,8 @@ use std::sync::Arc;
 
 use destack_core::StringPool;
 use destack_mir::{self as mir};
-use destack_source::{ModuleId, ModuleVersion};
+use destack_source::{ModuleId, ModuleVersion, TargetId};
 use serde::{Deserialize, Serialize};
-
-use crate::TargetId;
 
 /// Base MIR payload before optimization.
 #[derive(Debug, Clone, Serialize, Deserialize)]

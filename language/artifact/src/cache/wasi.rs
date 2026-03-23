@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::cache::{CacheLock, CacheMetadata, CacheStore, CacheStoreError, CacheStoreKind};
 
-/// Cache store backed by disk on WASI.
+/// Cache store backed by disk on unsupported targets.
 #[derive(Debug, Default, Clone)]
 pub struct DiskCacheStore;
 
@@ -28,6 +28,10 @@ impl CacheStore for DiskCacheStore {
     }
 
     fn read(&self, _path: &Path) -> Result<Option<Vec<u8>>, CacheStoreError> {
+        Err(unsupported())
+    }
+
+    fn read_prefix(&self, _path: &Path, _limit: usize) -> Result<Option<Vec<u8>>, CacheStoreError> {
         Err(unsupported())
     }
 
@@ -56,6 +60,6 @@ impl CacheStore for DiskCacheStore {
 fn unsupported() -> CacheStoreError {
     CacheStoreError::Io(std::io::Error::new(
         ErrorKind::Unsupported,
-        "disk cache is not supported on WASI",
+        "disk cache is not supported on this target",
     ))
 }
