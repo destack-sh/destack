@@ -19,6 +19,7 @@ destack_codegen_lib = { workspace = true }
 destack_core = { workspace = true }
 destack_dir = { workspace = true }
 destack_fir = { workspace = true }
+destack_js = { workspace = true }
 destack_mir = { workspace = true }
 destack_source = { workspace = true }
 destack_workspace = { path = "../../../workspace", default-features = false }

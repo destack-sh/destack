@@ -1232,6 +1232,7 @@ dependencies = [
  "destack_builtin",
  "destack_core",
  "destack_dir",
+ "destack_js",
  "destack_mir",
  "destack_source",
  "filetime",
@@ -1325,6 +1326,7 @@ dependencies = [
  "destack_core",
  "destack_dir",
  "destack_fir",
+ "destack_js",
  "destack_mir",
  "destack_source",
  "destack_workspace",
@@ -1527,6 +1529,16 @@ dependencies = [
  "destack_core",
  "destack_mir",
  "serde",
+]
+
+[[package]]
+name = "destack_js"
+version = "0.55.4"
+dependencies = [
+ "destack_core",
+ "destack_dir",
+ "destack_source",
+ "smallvec",
 ]
 
 [[package]]
