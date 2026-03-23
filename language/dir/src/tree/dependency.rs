@@ -61,6 +61,8 @@ pub enum DependencyKind {
 /// A DependencyItem is an item to use in a import clause.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DependencyItem {
+    /// Malformed dependency item slot.
+    Error,
     /// Unresolved remote item aliased to a local item from a target.
     UnresolvedRemote {
         source: DependencySource,
@@ -135,6 +137,7 @@ impl DependencyItem {
     /// Get the symbol of the dependency item.
     pub fn symbol(&self) -> Option<LocalSymbolId> {
         match self {
+            DependencyItem::Error => None,
             DependencyItem::UnresolvedRemote { symbol, .. } => *symbol,
             DependencyItem::UnresolvedLocal { symbol, .. } => *symbol,
             DependencyItem::Value { .. } => None,
@@ -146,6 +149,7 @@ impl DependencyItem {
     /// Get the target symbol of the dependency item.
     pub fn target_symbol(&self) -> Option<GlobalSymbolId> {
         match self {
+            DependencyItem::Error => None,
             DependencyItem::UnresolvedRemote { .. } => None,
             DependencyItem::UnresolvedLocal { .. } => None,
             DependencyItem::Value { .. } => None,
@@ -157,6 +161,7 @@ impl DependencyItem {
     /// Get the resolved target module for a dependency kind.
     pub fn target_module_for_kind(&self, kind: DependencyKind) -> Option<ModuleTarget> {
         match self {
+            DependencyItem::Error => None,
             DependencyItem::Remote { target_module, .. } => target_module.for_kind(kind),
             DependencyItem::UnresolvedRemote { target_module, .. } => {
                 target_module.and_then(|targets| targets.for_kind(kind))

@@ -1803,6 +1803,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
         dependency_item: &DependencyItem,
     ) {
         match dependency_item {
+            DependencyItem::Error => {
+                self.node("DependencyItem::Error", id.id).end();
+            }
             DependencyItem::UnresolvedRemote {
                 source,
                 mode,

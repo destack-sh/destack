@@ -24,26 +24,31 @@ pub enum DependencyKind {
 }
 
 /// A DependencyItem is an item to import / export from a target.
-///
-/// Examples:
-/// ```
-/// baz
-/// qux as quux
-/// default
-/// default as bar
-/// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct DependencyItem {
-    /// The type of the item.
-    pub mode: DependencyMode,
-    /// The type of the item (if specified).
-    pub kind: Option<DependencyKind>,
-    /// The name of the item (like `foo` in `foo as bar`, None if default).
-    pub name: Option<Name>,
-    /// The alias to use for the item (like `bar` in `foo as bar`)
-    pub alias: Option<StringId>,
-    /// The value of the item (for namespace exports)
-    pub value: Option<LocalNodeId<Expression>>,
+pub enum DependencyItem {
+    /// One valid dependency item.
+    ///
+    /// Examples:
+    /// ```
+    /// baz
+    /// qux as quux
+    /// default
+    /// default as bar
+    /// ```
+    Item {
+        /// The type of the item.
+        mode: DependencyMode,
+        /// The type of the item (if specified).
+        kind: Option<DependencyKind>,
+        /// The name of the item (like `foo` in `foo as bar`, None if default).
+        name: Option<Name>,
+        /// The alias to use for the item (like `bar` in `foo as bar`)
+        alias: Option<StringId>,
+        /// The value of the item (for namespace exports)
+        value: Option<LocalNodeId<Expression>>,
+    },
+    /// One malformed dependency item slot.
+    Error,
 }
 
 impl Node for DependencyItem {
