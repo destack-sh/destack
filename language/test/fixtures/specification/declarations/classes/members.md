@@ -47,7 +47,7 @@ class Counter {
 const value = Counter.value;
 ```
 
-- does not exist
+- contains: does not exist
 
 ## static members
 
@@ -90,7 +90,7 @@ const counter = new Counter();
 const value = counter.defaultValue;
 ```
 
-- does not exist
+- contains: does not exist
 
 ### static method call yields return type
 
@@ -126,7 +126,7 @@ const counter = new Counter();
 const value = counter.make();
 ```
 
-- does not exist
+- contains: does not exist
 
 ### static blocks can access static members
 
@@ -189,7 +189,7 @@ const counter = new Counter();
 counter.count = "bad";
 ```
 
-- not assignable
+- contains: not assignable
 
 ## parameter properties
 
@@ -217,7 +217,7 @@ class Counter {
 }
 ```
 
-- parameter property
+- contains: parameter property
 
 ### parameter properties cannot be rest parameters
 
@@ -229,7 +229,7 @@ class Counter {
 }
 ```
 
-- parameter property
+- contains: parameter property
 
 ### readonly parameter properties reject assignment
 
@@ -245,7 +245,7 @@ class Counter {
 }
 ```
 
-- readonly
+- contains: readonly
 
 ### private parameter properties are inaccessible outside the class
 
@@ -260,7 +260,7 @@ const counter = new Counter(1);
 counter.value;
 ```
 
-- is private
+- contains: is private
 
 ### protected parameter properties are accessible in subclasses
 
@@ -294,7 +294,7 @@ const base = new Base(1);
 base.value;
 ```
 
-- is protected
+- contains: is protected
 
 ### parameter properties support default values
 
@@ -319,7 +319,7 @@ class Counter {
 }
 ```
 
-- parameter property
+- contains: parameter property
 
 ### private parameter properties keep classes nominally distinct
 
@@ -338,7 +338,7 @@ declare const right: Right;
 const left: Left = right;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### protected parameter properties keep classes nominally distinct
 
@@ -357,7 +357,7 @@ declare const right: Right;
 const left: Left = right;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### parameter property fields are inherited by subclasses
 
@@ -394,7 +394,7 @@ class Derived extends Base {
 }
 ```
 
-- readonly
+- contains: readonly
 
 ## invalid members
 
@@ -438,7 +438,7 @@ class Counter {
 }
 ```
 
-- readonly
+- contains: readonly
 
 ### declare fields cannot include initializers
 

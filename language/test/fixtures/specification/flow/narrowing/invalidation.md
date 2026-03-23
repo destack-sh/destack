@@ -39,7 +39,7 @@ if (box.state.kind == "ready") {
 box.state.payload;
 ```
 
-- does not exist
+- contains: does not exist
 
 ## loops and joins
 
@@ -80,7 +80,7 @@ if (true) {
 value satisfies string;
 ```
 
-- not assignable
+- contains: not assignable
 
 ## closure capture
 
@@ -98,7 +98,7 @@ if (value != null) {
 }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### closure-returned values keep union contracts after mutation
 
@@ -114,7 +114,7 @@ const current = read();
 current satisfies string;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### nested closure writes invalidate prior narrows
 
@@ -133,7 +133,7 @@ if (value != null) {
 }
 ```
 
-- not assignable
+- contains: not assignable
 
 ## alias and member writes
 
@@ -154,7 +154,7 @@ if (box.state.kind == "ready") {
 }
 ```
 
-- does not exist
+- contains: does not exist
 
 ### index writes invalidate prior tuple element narrows
 
@@ -170,4 +170,4 @@ if (pair[0] != null) {
 }
 ```
 
-- not assignable
+- contains: not assignable

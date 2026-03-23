@@ -42,7 +42,7 @@ type B<T> = A<T>;
 declare let value: A<number>;
 ```
 
-- recursive
+- contains: recursive
 
 ### recursive aliases through mapped projections are rejected
 
@@ -54,7 +54,7 @@ type Remap<T> = { [K in keyof T]: Remap<T[K]> };
 declare let value: Remap<{ name: string }>;
 ```
 
-- recursive
+- contains: recursive
 
 ### recursive aliases across modules are rejected
 
@@ -78,4 +78,4 @@ import type { A } from "./a";
 declare let value: A<number>;
 ```
 
-- recursive
+- contains: recursive

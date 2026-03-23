@@ -136,7 +136,7 @@ make<number>.value;
 ```
 
 - instantiation expressions must be parenthesized before member or index access
-- property 'value' does not exist
+- contains: property 'value' does not exist
 
 ### parenthesized instantiation expressions allow member access
 

@@ -37,7 +37,7 @@ let value = hold({ kind: "ready" });
 value.kind satisfies "ready";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### mutable spread targets widen readonly source literals
 
@@ -50,7 +50,7 @@ let value = { ...base };
 value.kind satisfies "ready";
 ```
 
-- not assignable
+- contains: not assignable
 
 ## freshness and excess
 
@@ -66,7 +66,7 @@ declare function accept(value: Ready): void;
 accept({ kind: "ready", payload: "ok", extra: true });
 ```
 
-- excess property
+- contains: excess property
 
 ### stale values remain assignable after variable commitment
 

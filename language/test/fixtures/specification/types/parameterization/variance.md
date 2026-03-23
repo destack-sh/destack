@@ -153,7 +153,7 @@ echo("ok") satisfies string;
 function bad(in value: string) {}
 ```
 
-- expected identifier
+- contains: expected identifier
 
 ### variance modifiers require parameter names
 
@@ -163,7 +163,7 @@ function bad(in value: string) {}
 interface Bad<in, out T> {}
 ```
 
-- unexpected , in expression
+- contains: unexpected , in expression
 
 ### variance in d.ts declarations
 

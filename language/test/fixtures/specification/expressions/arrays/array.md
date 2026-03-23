@@ -46,7 +46,7 @@ values satisfies (int32 | string)[];
 let values: int32[] = [1, "two", 3];
 ```
 
-- not assignable
+- contains: not assignable
 
 ### nested array literals preserve nested element unions
 

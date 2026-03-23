@@ -13,7 +13,7 @@ Tests for static if validation errors.
 missingSymbol;
 ```
 
-- missing symbol
+- contains: missing symbol
 
 ### static if requires boolean
 
@@ -24,7 +24,7 @@ missingSymbol;
 const value = 1;
 ```
 
-- static if condition must be boolean
+- contains: static if condition must be boolean
 
 ### static if requires an argument
 
@@ -35,7 +35,7 @@ const value = 1;
 const value = 1;
 ```
 
-- static if requires a condition argument
+- contains: static if requires a condition argument
 
 ### static if rejects extra arguments
 
@@ -46,7 +46,7 @@ const value = 1;
 const value = 1;
 ```
 
-- static if requires exactly one argument
+- contains: static if requires exactly one argument
 
 ### static if rejects parameter placement
 

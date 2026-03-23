@@ -78,7 +78,7 @@ const box = makeBox();
 box.missing() satisfies number;
 ```
 
-- does not exist
+- contains: does not exist
 
 ### static if gated extension members do not interfere with remaining members
 

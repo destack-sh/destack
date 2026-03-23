@@ -20,7 +20,7 @@ let dynamic: int32[] = [1, 2, 3];
 let fixed: int32[3] = dynamic;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### sized arrays require compatible element types
 
@@ -31,7 +31,7 @@ let fixed: int32[2] = [1, 2];
 let dynamic: string[] = fixed;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### sized arrays are usable in function arguments
 
@@ -61,7 +61,7 @@ let source: int32[2] = [1, 2];
 let target: int32[3] = source;
 ```
 
-- not assignable
+- contains: not assignable
 
 ## builtin fixed array alias
 
@@ -82,4 +82,4 @@ lane satisfies int32[2];
 const lane: FixedArray<int32, 2> = [1, 2, 3];
 ```
 
-- not assignable
+- contains: not assignable

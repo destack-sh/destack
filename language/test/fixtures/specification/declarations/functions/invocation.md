@@ -24,7 +24,7 @@ function add(this: { base: number }, value: number): number {
 add.call({ base: "no" }, 1);
 ```
 
-- not assignable
+- contains: not assignable
 
 ### strict apply checks argument tuples
 
@@ -46,7 +46,7 @@ function add(this: { base: number }, value: number): number {
 add.apply({ base: 1 }, ["no"]);
 ```
 
-- not assignable
+- contains: not assignable
 
 ### strict bind preserves parameter types
 
@@ -111,7 +111,7 @@ const bound = add.bind({ base: 1 });
 bound("no");
 ```
 
-- not assignable
+- contains: not assignable
 
 ### strict call checks argument arity
 

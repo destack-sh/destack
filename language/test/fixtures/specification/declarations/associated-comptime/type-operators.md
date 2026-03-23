@@ -91,7 +91,7 @@ function unresolved<Row>(): number {
 }
 ```
 
-- resolvable
+- contains: resolvable
 
 ### associated comptime defaults can feed mapped envelopes with fixed windows
 

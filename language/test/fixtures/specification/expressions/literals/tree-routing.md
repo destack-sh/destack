@@ -37,7 +37,7 @@ const node = <div className="card" />;
 node;
 ```
 
-- intrinsic
+- contains: intrinsic
 
 ### fragment requires configured TreeTagBuilder
 
@@ -63,7 +63,7 @@ const node = <svg:path />;
 node;
 ```
 
-- intrinsic
+- contains: intrinsic
 - svg:path
 
 ## Attributes And Spread

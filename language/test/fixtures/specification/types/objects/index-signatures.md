@@ -150,7 +150,7 @@ let mixed: Mixed = { x: 1, y: "two" };
 let bag: Bag = mixed;
 ```
 
-- not assignable
+- contains: not assignable
 
 ## noUncheckedIndexedAccess
 
@@ -175,7 +175,7 @@ let value: int32 = bag["a"];
 { "compiler": { "noUncheckedIndexedAccess": true } }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### noUncheckedIndexedAccess leaves index access unchanged when false
 
@@ -219,7 +219,7 @@ const bag: Bag = { a: 1 }
 let value = bag.missing
 ```
 
-- only available via index signature
+- contains: only available via index signature
 
 ### noPropertyAccessFromIndexSignature allows dot access when false
 

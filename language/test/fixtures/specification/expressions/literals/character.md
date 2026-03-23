@@ -20,7 +20,7 @@ const value: character = 'a';
 const text: string = value;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### character literals are not assignable to integers
 
@@ -30,7 +30,7 @@ const text: string = value;
 const value: int32 = 'a';
 ```
 
-- not assignable
+- contains: not assignable
 
 ### character literals compose with character unions
 

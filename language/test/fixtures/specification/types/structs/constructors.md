@@ -50,7 +50,7 @@ struct Point {
 const point = Point { x: 1 };
 ```
 
-- not assignable
+- contains: not assignable
 
 ### tagged struct literal rejects extra fields
 
@@ -65,7 +65,7 @@ struct Point {
 const point = Point { x: 1, y: 2, z: 3 };
 ```
 
-- excess property
+- contains: excess property
 
 ## struct constructors
 
@@ -96,7 +96,7 @@ struct Point {
 const point = new Point("a", 2);
 ```
 
-- not assignable
+- contains: not assignable
 
 ### new struct constructor rejects missing arguments
 
@@ -111,7 +111,7 @@ struct Point {
 const point = new Point(1);
 ```
 
-- no matching overload
+- contains: no matching overload
 
 ### new struct constructor rejects extra arguments
 
@@ -126,7 +126,7 @@ struct Point {
 const point = new Point(1, 2, 3);
 ```
 
-- no matching overload
+- contains: no matching overload
 
 ### struct methods can mutate this
 
@@ -161,4 +161,4 @@ struct Counter {
 const counter: Counter = { value: 1 };
 ```
 
-- is not assignable
+- contains: is not assignable

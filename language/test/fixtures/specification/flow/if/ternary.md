@@ -30,7 +30,7 @@ value satisfies int;
 const value: int = true ? 1 : "hi";
 ```
 
-- not assignable
+- contains: not assignable
 
 ## literal precision
 
@@ -54,7 +54,7 @@ let value = true ? "api" : "admin";
 value satisfies "api" | "admin";
 ```
 
-- not assignable
+- contains: not assignable
 
 ## cross-module literal precision
 
@@ -100,7 +100,7 @@ import { route } from "./values";
 route satisfies "api" | "admin";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### const ternary literal unions preserve literal unions
 
@@ -132,7 +132,7 @@ const route = true ? { kind: "api" } : { kind: "admin" };
 route.kind satisfies "api" | "admin";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### contextual ternary unions reject narrowed expectations
 
@@ -144,7 +144,7 @@ const value: "api" | "admin" = true ? "api" : "admin";
 value satisfies "api";
 ```
 
-- expected "api"
+- contains: expected "api"
 
 ### let ternary object members widen without const context
 
@@ -166,7 +166,7 @@ let route = true ? { kind: "api" } : { kind: "admin" };
 route.kind satisfies "api" | "admin";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### exported const ternary object members widen across modules
 
@@ -196,7 +196,7 @@ import { route } from "./values";
 route.kind satisfies "api" | "admin";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### branch const assertions preserve ternary object member literal unions
 
@@ -281,7 +281,7 @@ const result = identity(value);
 result satisfies "api" | "admin";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### const ternary templates preserve span unions in generic template inference
 

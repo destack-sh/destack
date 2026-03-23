@@ -39,7 +39,7 @@ withReader(tuple, read => {
 });
 ```
 
-- not assignable
+- contains: not assignable
 
 ## overload and contextual routing
 
@@ -71,7 +71,7 @@ const selected = run((input: string) => choose(input));
 selected satisfies number;
 ```
 
-- not assignable
+- contains: not assignable
 
 ## module routing
 
@@ -128,7 +128,7 @@ useReader(tuple, read => {
 });
 ```
 
-- not assignable
+- contains: not assignable
 
 ```json:destack.json
 { "compiler": { "allowTs": true, "checkTs": true } }

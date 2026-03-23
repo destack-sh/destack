@@ -38,7 +38,7 @@ const result = match (value) {
 result satisfies string;
 ```
 
-- likely and unlikely decorators cannot be combined
+- contains: likely and unlikely decorators cannot be combined
 
 ### wildcard match arm decorators are accepted
 

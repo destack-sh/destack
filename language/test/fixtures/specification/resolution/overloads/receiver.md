@@ -47,7 +47,7 @@ const selected = counter + 1;
 selected satisfies "int32";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### receiver overloads can be ordered for specificity
 
@@ -91,7 +91,7 @@ const selected = counter + 1;
 selected satisfies "number";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### receiver overload order is preserved through exported extension modules
 
@@ -153,7 +153,7 @@ const selected = counter + 1;
 selected satisfies "int32";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### receiver overload order survives export-star plus rename chains
 

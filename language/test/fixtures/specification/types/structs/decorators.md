@@ -44,7 +44,7 @@ struct User {
 }
 ```
 
-- likely and unlikely decorators cannot be combined
+- contains: likely and unlikely decorators cannot be combined
 
 ### struct field decorators reject conflicting likely and unlikely
 
@@ -58,7 +58,7 @@ struct User {
 }
 ```
 
-- likely and unlikely decorators cannot be combined
+- contains: likely and unlikely decorators cannot be combined
 
 ### struct field decorators can stack non-conflicting attributes
 

@@ -13,7 +13,7 @@ const value: number = 1;
 value = 2;
 ```
 
-- immutable binding
+- contains: immutable binding
 
 ### const bindings reject compound assignment
 
@@ -24,7 +24,7 @@ const value: number = 1;
 value += 1;
 ```
 
-- immutable binding
+- contains: immutable binding
 
 ### const destructuring rejects assignment
 
@@ -35,7 +35,7 @@ const { count }: { count: number } = { count: 0 };
 count = 1;
 ```
 
-- immutable binding
+- contains: immutable binding
 
 ## Members
 

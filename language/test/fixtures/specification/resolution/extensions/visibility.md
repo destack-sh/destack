@@ -167,7 +167,7 @@ const vector = getVector();
 const m = vector.magnitude();
 ```
 
-- does not exist
+- contains: does not exist
 
 ## Named Extensions
 
@@ -242,7 +242,7 @@ const point = getPoint();
 point.distance();
 ```
 
-- does not exist
+- contains: does not exist
 
 ## Overlapping Extensions
 

@@ -176,7 +176,7 @@ if let UserId(value = missing_default) = id {
 }
 ```
 
-- missing symbol
+- contains: missing symbol
 
 
 ### if let object newtype patterns require tags
@@ -207,7 +207,7 @@ if let { debug } = config {
 }
 ```
 
-- not assignable
+- contains: not assignable
 
 ## Struct patterns
 
@@ -246,7 +246,7 @@ if let { x, y } = point {
 }
 ```
 
-- not assignable
+- contains: not assignable
 
 ## Enum patterns
 

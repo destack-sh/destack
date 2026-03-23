@@ -98,7 +98,7 @@ let value: int32 = null;
 { "compiler": { "strict": true } }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### strict false allows null assignments by default
 
@@ -134,7 +134,7 @@ let value: int32 = null;
 { "compiler": { "strict": false, "strictNullChecks": true } }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### strictNullChecks allows null assignments when false
 
@@ -251,7 +251,7 @@ let wide: FnWide = narrow;
 { "compiler": { "strict": true } }
 ```
 
-- not assignable
+- contains: not assignable
 
 ## strictFunctionTypes
 
@@ -276,7 +276,7 @@ let wide: FnWide = narrow;
 { "compiler": { "strict": false, "strictFunctionTypes": true } }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### strictFunctionTypes rejects narrow method parameters when true
 
@@ -302,7 +302,7 @@ let value: Wide = new Narrow();
 { "compiler": { "strict": false, "strictFunctionTypes": true } }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### strictFunctionTypes allows narrow parameter types when false
 
@@ -369,7 +369,7 @@ add.call({ base: "no" }, 1);
 { "compiler": { "strict": true } }
 ```
 
-- not assignable
+- contains: not assignable
 
 ## strictBindCallApply
 
@@ -393,7 +393,7 @@ add.call({ base: "no" }, 1);
 { "compiler": { "strict": false, "strictBindCallApply": true } }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### strictBindCallApply allows invalid call arguments when false
 
@@ -435,7 +435,7 @@ const value: ReturnValue = 1;
 }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### strict enables strictPropertyInitialization by default
 
@@ -479,7 +479,7 @@ value satisfies int;
 { "compiler": { "strict": true } }
 ```
 
-- expected string
+- contains: expected string
 
 ## useUnknownInCatchVariables
 
@@ -503,7 +503,7 @@ try {
 { "compiler": { "strict": false, "useUnknownInCatchVariables": true } }
 ```
 
-- expected string
+- contains: expected string
 
 ### useUnknownInCatchVariables allows any when false
 
@@ -556,7 +556,7 @@ type ReturnValue = BuiltinIteratorReturn;
 const value: ReturnValue = 1;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### non-strict builtin iterator return is any
 

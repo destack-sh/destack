@@ -92,7 +92,7 @@ function unresolved<Row>() {
 }
 ```
 
-- resolvable
+- contains: resolvable
 
 ### associated comptime projections can drive fixed array aliases
 

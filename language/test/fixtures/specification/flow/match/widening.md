@@ -90,7 +90,7 @@ let value = match (1) {
 value satisfies 1;
 ```
 
-- not assignable
+- contains: not assignable
 
 ## Match results
 

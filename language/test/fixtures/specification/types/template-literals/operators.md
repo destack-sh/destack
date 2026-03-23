@@ -42,7 +42,7 @@ const handlers: HandlerMap<Events> = {
 };
 ```
 
-- not assignable
+- contains: not assignable
 
 ### indexed access can target remapped template literal keys
 

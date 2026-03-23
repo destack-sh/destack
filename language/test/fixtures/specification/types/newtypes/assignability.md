@@ -12,7 +12,7 @@ newtype UserId = int64;
 const id: UserId = 42;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### newtypes are not assignable to backing values
 
@@ -24,7 +24,7 @@ newtype UserId = int64;
 const raw: int64 = UserId(42);
 ```
 
-- not assignable
+- contains: not assignable
 
 ## nominal identity
 
@@ -51,4 +51,4 @@ const user = UserId(42);
 const order: OrderId = user;
 ```
 
-- not assignable
+- contains: not assignable

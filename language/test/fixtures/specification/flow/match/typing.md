@@ -18,7 +18,7 @@ function matchUnion(value: int32): string {
 }
 ```
 
-- not assignable
+- contains: not assignable
 
 ## Pattern typing
 
@@ -35,7 +35,7 @@ function invalidMatchPattern(value: int32): int32 {
 }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### struct patterns destructure tagged structs
 
@@ -72,7 +72,7 @@ function sum(value: Point): int32 {
 }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### match arm result types must satisfy contextual annotations
 
@@ -88,7 +88,7 @@ function choose(value: int32): string {
 }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### match literal patterns can narrow union primitives
 

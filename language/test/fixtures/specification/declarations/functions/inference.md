@@ -174,7 +174,7 @@ callIt({
 { "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
-- unknown
+- contains: unknown
 
 ## this-less contextual inference torture
 
@@ -220,7 +220,7 @@ build({
 { "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
-- unknown
+- contains: unknown
 
 ### this-less arrow callbacks preserve inference through renamed re-exports
 
@@ -305,7 +305,7 @@ head satisfies 1;
 { "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### generic callback inference stays precise through renamed re-exports
 
@@ -369,7 +369,7 @@ withValue("ready", read => read().toFixed());
 { "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
-- tofixed
+- contains: tofixed
 
 ### nested this-less arrows remain order-insensitive in contextual object inference
 
@@ -416,4 +416,4 @@ wire({
 { "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
-- unknown
+- contains: unknown

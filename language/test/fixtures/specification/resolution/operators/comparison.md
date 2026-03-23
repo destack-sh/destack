@@ -58,7 +58,7 @@ const right = Point { x: 1 };
 const value = left === right;
 ```
 
-- strict equality not supported
+- contains: strict equality not supported
 
 ### strict equality allows classes
 

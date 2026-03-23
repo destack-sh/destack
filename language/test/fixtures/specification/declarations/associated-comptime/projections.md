@@ -47,7 +47,7 @@ class Columnar<Row, N> {
 }
 ```
 
-- ambiguous
+- contains: ambiguous
 
 ### type level projections can use associated comptime constants
 
@@ -96,7 +96,7 @@ function unresolved<Row>(): number {
 }
 ```
 
-- resolvable
+- contains: resolvable
 
 ### associated comptime projections reject dynamic instance access
 
@@ -113,7 +113,7 @@ const plan = new SegmentPlan<string>();
 const bytes = plan.SegmentBytes;
 ```
 
-- does not exist
+- contains: does not exist
 
 ### associated comptime projections reject assignment in value space
 
@@ -146,7 +146,7 @@ class CyclicPlan {
 }
 ```
 
-- cycle
+- contains: cycle
 
 ### associated comptime projections compose with associated types
 
@@ -198,7 +198,7 @@ class RuntimeOnly {
 }
 ```
 
-- static expression
+- contains: static expression
 
 ### associated comptime constants cannot be declared in type aliases
 

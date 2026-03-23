@@ -49,7 +49,7 @@ export function parse(value: number): number {
 { "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
-- overload
+- contains: overload
 
 ## Duplicate signatures
 
@@ -109,7 +109,7 @@ declare let input: string | int32;
 const result = parse(input);
 ```
 
-- no matching overload
+- contains: no matching overload
 
 ### union overloads accept union arguments
 

@@ -15,7 +15,7 @@ type Buffer<N: number> = uint8[N];
 declare let value: Buffer<4>;
 ```
 
-- comptime
+- contains: comptime
 
 ### static value parameters apply to sized arrays
 
@@ -131,7 +131,7 @@ type Tagged<comptime Tag: "fast" | "slow"> = { tag: Tag };
 declare let value: Tagged<"medium">;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### static value parameters reject mismatched string arguments
 
@@ -143,7 +143,7 @@ type Tagged<comptime Tag: string> = { tag: Tag };
 declare let value: Tagged<1>;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### static value parameters reject mismatched boolean arguments
 
@@ -155,7 +155,7 @@ type Flagged<comptime Enabled: boolean> = { enabled: Enabled };
 declare let value: Flagged<1>;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### static value parameters reject mismatched bigint arguments
 
@@ -167,7 +167,7 @@ type BigLimit<comptime N: bigint> = { limit: N };
 declare let value: BigLimit<1>;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### static value parameters reject non static expressions
 
@@ -234,7 +234,7 @@ type Run<comptime N: int32> = { value: N };
 declare let value: Run<Mode.Fast>;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### static value parameters accept tuple expressions
 
@@ -257,7 +257,7 @@ type Sized<comptime Size: (int32, int32)> = { size: Size };
 declare let value: Sized<(4, "no")>;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### static value parameters accept array expressions
 
@@ -280,7 +280,7 @@ type Listed<comptime Values: int32[]> = { values: Values };
 declare let value: Listed<[1, true]>;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### static value parameters accept object expressions
 
@@ -303,7 +303,7 @@ type Tagged<comptime Tag: { name: string, count: int32 }> = { tag: Tag };
 declare let value: Tagged<{ name: "alpha", count: true }>;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### static value inference uses literal arguments
 

@@ -19,7 +19,7 @@ value satisfies int32;
 const value: int32 = if (comptime true) { 1 } else { "nope" };
 ```
 
-- is not assignable
+- contains: is not assignable
 
 ### comptime condition accepts type relations
 

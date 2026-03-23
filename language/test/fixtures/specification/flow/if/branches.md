@@ -48,7 +48,7 @@ const result: int32 = if let 1 = value {
 };
 ```
 
-- not assignable
+- contains: not assignable
 
 ## Scoping
 
@@ -66,7 +66,7 @@ const result = if let (left, right) = pair {
 };
 ```
 
-- missing symbol
+- contains: missing symbol
 
 ### if let bindings do not escape the if expression
 
@@ -82,7 +82,7 @@ if let x = value {
 x
 ```
 
-- missing symbol
+- contains: missing symbol
 
 ## Flow
 

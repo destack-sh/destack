@@ -66,7 +66,7 @@ function compute(value: int): int {
 }
 ```
 
-- static expression
+- contains: static expression
 
 ### nested comptime helpers reject try unwrap outside try contexts
 

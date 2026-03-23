@@ -95,7 +95,7 @@ function example(value: number): number {
 ```
 
 - missing return
-- not assignable
+- contains: not assignable
 
 ### noImplicitReturns allows implicit return expression
 
@@ -323,7 +323,7 @@ const parse = (value: string): string => value;
 parse satisfies Fn;
 ```
 
-- expected
+- contains: expected
 
 ### call signature object type accepts function value
 
@@ -343,7 +343,7 @@ const fn = (): string => "no";
 fn satisfies { (): number };
 ```
 
-- expected
+- contains: expected
 
 ### callable interface satisfies call signature object type
 
@@ -393,7 +393,7 @@ function narrow(value: string): void {}
 let wide: FnWide = narrow
 ```
 
-- not assignable
+- contains: not assignable
 
 ### strictFunctionTypes false allows bivariant parameters
 

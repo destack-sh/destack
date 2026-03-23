@@ -63,7 +63,7 @@ class Counter {
 const value = 1;
 ```
 
-- capture decorator is only supported on function declarations
+- contains: capture decorator is only supported on function declarations
 
 ### capture rejects unknown policy strings
 
@@ -90,7 +90,7 @@ function make() {
 }
 ```
 
-- capture decorator argument must be a string or object literal
+- contains: capture decorator argument must be a string or object literal
 
 ### capture rejects non string rule values
 

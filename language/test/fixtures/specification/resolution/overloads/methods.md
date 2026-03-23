@@ -56,7 +56,7 @@ export class Parser {
 { "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
-- overload
+- contains: overload
 
 ## Destack overload order
 

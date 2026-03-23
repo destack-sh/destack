@@ -43,7 +43,7 @@ repeat("ok");
 repeat(1);
 ```
 
-- is not assignable
+- contains: is not assignable
 
 ### tuple rest parameters infer element types
 
@@ -100,7 +100,7 @@ function sized(comptime value: int32): int32 {
 sized(width);
 ```
 
-- static expression
+- contains: static expression
 
 ### typescript tuple rest destructuring supports nested defaults
 
@@ -128,7 +128,7 @@ function build(public value: number) {
 }
 ```
 
-- parameter property
+- contains: parameter property
 
 ## invalid optional parameters
 

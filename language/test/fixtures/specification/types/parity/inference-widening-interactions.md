@@ -39,7 +39,7 @@ forward(tuple, payload => {
 });
 ```
 
-- not assignable
+- contains: not assignable
 
 ### returned generic callback preserves const tuple precision
 
@@ -67,7 +67,7 @@ const head = run(tuple => tuple[0]);
 head satisfies 1;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### returned generic callback precision survives renamed re exports
 
@@ -108,7 +108,7 @@ consume({ kind: "ready", payload: "ok", extra: true }, value => {
 });
 ```
 
-- not assignable
+- contains: not assignable
 
 ### stale discriminant object values allow extra fields through variable indirection
 
@@ -137,7 +137,7 @@ declare function accept(input: Ready | Idle): void;
 accept({ kind: "ready", payload: "ok", extra: true });
 ```
 
-- excess property
+- contains: excess property
 
 ### generic wrapping keeps stale discriminant values assignable
 
@@ -189,7 +189,7 @@ const maybe: Value = undefined;
 maybe satisfies number | string;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### indexed access over optional union members rejects unrelated values
 
@@ -205,7 +205,7 @@ type Value = Input["value"];
 const bad: Value = true;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### distributive conditional argument extraction preserves union members
 
@@ -232,7 +232,7 @@ type Input = Argument<((value: string) => void) | ((value: number) => void)>;
 const bad: Input = false;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### recursive template literal parameter extraction keeps all path params
 
@@ -270,7 +270,7 @@ declare const key: RouteParams;
 key satisfies "userId" | "postId" | "commentId";
 ```
 
-- not assignable
+- contains: not assignable
 
 ```json:destack.json
 { "compiler": { "allowTs": true, "checkTs": true } }

@@ -190,7 +190,7 @@ let value: float64 = 1;
 { "compiler": { "noImplicitConversions": true } }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### noImplicitConversions allows implicit conversions when false
 
@@ -229,7 +229,7 @@ const bad: Box = { value: undefined };
 { "compiler": { "exactOptionalPropertyTypes": true, "checkTs": true } }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### exactOptionalPropertyTypes allows explicit undefined when declared
 
@@ -292,7 +292,7 @@ const value: int32 = bag["missing"];
 { "compiler": { "noUncheckedIndexedAccess": true } }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### noUncheckedIndexedAccess allows index access when false
 
@@ -355,7 +355,7 @@ const value = bag.missing;
 { "compiler": { "noPropertyAccessFromIndexSignature": true } }
 ```
 
-- index signature
+- contains: index signature
 
 ### noPropertyAccessFromIndexSignature allows property access
 
@@ -827,7 +827,7 @@ wrapped[0][0] = 2;
 { "compiler": { "deepReadonly": true } }
 ```
 
-- cannot assign to readonly property
+- contains: cannot assign to readonly property
 
 ### deepReadonly allows shallow readonly when false
 

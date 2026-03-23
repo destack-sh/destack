@@ -18,7 +18,7 @@ let value: character = 'a';
 let value: string = 'a';
 ```
 
-- not assignable
+- contains: not assignable
 
 ### string literals do not satisfy character
 
@@ -28,7 +28,7 @@ let value: string = 'a';
 let value: character = "a";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### character values are not assignable to numbers
 
@@ -38,7 +38,7 @@ let value: character = "a";
 let value: int32 = 'a';
 ```
 
-- not assignable
+- contains: not assignable
 
 ### character values can flow through character unions
 

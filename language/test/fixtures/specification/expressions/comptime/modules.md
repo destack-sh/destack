@@ -78,4 +78,4 @@ const computed = comptime {
 };
 ```
 
-- static expression
+- contains: static expression

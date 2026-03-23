@@ -26,7 +26,7 @@ declare let combo: Combo;
 let bad: FooOnly = combo;
 ```
 
-- not assignable to type fooonly
+- contains: not assignable to type fooonly
 
 ### template literal type rejects assignment to narrower template
 
@@ -78,7 +78,7 @@ declare let value: StringId;
 let bad: NumericId = value;
 ```
 
-- not assignable to type numericid
+- contains: not assignable to type numericid
 
 ### template literal type assigns to string
 

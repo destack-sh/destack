@@ -65,7 +65,7 @@ function run(flag: boolean): void {
 }
 ```
 
-- may have been moved
+- contains: may have been moved
 
 ### moving twice is rejected
 

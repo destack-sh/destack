@@ -83,7 +83,7 @@ value;
 }
 ```
 
-- type 1 is not assignable
+- contains: type 1 is not assignable
 
 ### native targets enforce noUnsafeTypeAssertions
 

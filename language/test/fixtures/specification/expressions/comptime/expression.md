@@ -56,4 +56,4 @@ function compute(value: int): int {
 }
 ```
 
-- static expression
+- contains: static expression

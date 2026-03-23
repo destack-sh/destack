@@ -20,7 +20,7 @@ type Bad = intrinsic["foo"];
 const value: intrinsic = "x";
 ```
 
-- intrinsic
+- contains: intrinsic
 
 ### intrinsic types cannot be used in conditional operators
 
@@ -30,7 +30,7 @@ const value: intrinsic = "x";
 type Select<T> = intrinsic extends T ? true : false;
 ```
 
-- intrinsic
+- contains: intrinsic
 
 ### intrinsic types cannot be passed as generic arguments
 
@@ -41,7 +41,7 @@ type Box<T> = T;
 type Bad = Box<intrinsic>;
 ```
 
-- intrinsic
+- contains: intrinsic
 
 ### intrinsic types cannot appear in union members
 
@@ -51,4 +51,4 @@ type Bad = Box<intrinsic>;
 type Bad = intrinsic | string;
 ```
 
-- intrinsic
+- contains: intrinsic

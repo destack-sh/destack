@@ -93,7 +93,7 @@ let nonCanonical = parse("1e3");
 let bad: 1000 = nonCanonical;
 ```
 
-- not assignable to type 1000
+- contains: not assignable to type 1000
 
 ### template literal infers constrained bigint literal for parseBig
 
@@ -128,7 +128,7 @@ let nonCanonical = parseBig("0x1");
 let bad: 1n = nonCanonical;
 ```
 
-- not assignable to type 1n
+- contains: not assignable to type 1n
 
 ### template literal rejects invalid bigint string
 

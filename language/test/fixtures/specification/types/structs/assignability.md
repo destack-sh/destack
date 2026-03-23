@@ -19,7 +19,7 @@ const point = Point { x: 1 };
 const value: PointClass = point;
 ```
 
-- is not assignable
+- contains: is not assignable
 
 ### class is not assignable to struct with same fields
 
@@ -38,7 +38,7 @@ const point = new PointClass();
 const value: Point = point;
 ```
 
-- is not assignable
+- contains: is not assignable
 
 ### struct satisfies interface with same fields
 
@@ -126,7 +126,7 @@ struct Point {
 const point: Drawable = Point { x: 1 };
 ```
 
-- is not assignable
+- contains: is not assignable
 
 ### struct rejects interface when field types mismatch
 
@@ -144,7 +144,7 @@ struct Point {
 const point: HasX = Point { x: 1.5 };
 ```
 
-- is not assignable
+- contains: is not assignable
 
 ## inheritance
 

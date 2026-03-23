@@ -41,7 +41,7 @@ let point = Point { x: 1, y: 2 };
 let { x, y } = point;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### object destructuring requires an initializer
 

@@ -23,7 +23,7 @@ type ObjectLike = { label: string };
 type Missing = ObjectLike[5];
 ```
 
-- does not exist
+- contains: does not exist
 
 ### as comptime forces fixed array construction for static values
 
@@ -44,7 +44,7 @@ When both object-style and fixed-array indexing are plausible, `.ds` should requ
 type Resolve<T, N> = T[N];
 ```
 
-- ambiguous
+- contains: ambiguous
 
 ### imported associated comptime lengths need as comptime when indexed access is admissible
 

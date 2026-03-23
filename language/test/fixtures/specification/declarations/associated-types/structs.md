@@ -74,7 +74,7 @@ function project<P: Pair<int32, string>>(value: P.Swap): P.Swap {
 }
 ```
 
-- argument
+- contains: argument
 
 ### struct associated type parameters can reference outer parameters
 
@@ -118,7 +118,7 @@ struct SizedBox {
 }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### struct associated type projection composes across aliases
 
@@ -151,7 +151,7 @@ function take<M: Matrix<4>>(value: M.Row): M.Row {
 }
 ```
 
-- argument
+- contains: argument
 
 ### struct associated type supports mixed type and value parameters
 
@@ -229,7 +229,7 @@ function project<P: PairBox<boolean>>(value: P.Item<int32>): P.Item<int32> {
 }
 ```
 
-- argument
+- contains: argument
 
 ### struct associated projections work through type aliases
 

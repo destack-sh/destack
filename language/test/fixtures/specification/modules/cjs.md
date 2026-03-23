@@ -105,7 +105,7 @@ import cjs from "./cjs";
 cjs.buildValue();
 ```
 
-- does not exist on type unknown
+- contains: does not exist on type unknown
 
 ### es module interop enables synthetic default imports from named only commonjs exports
 
@@ -425,7 +425,7 @@ import { buildValue } from "./cjs";
 buildValue();
 ```
 
-- missing symbol
+- contains: missing symbol
 
 ### aliased exports object assignment does not synthesize named exports
 
@@ -445,7 +445,7 @@ import { buildValue } from "./cjs";
 buildValue();
 ```
 
-- missing symbol
+- contains: missing symbol
 
 ### branch dependent writes do not synthesize named exports
 
@@ -465,7 +465,7 @@ import { buildValue } from "./cjs";
 buildValue();
 ```
 
-- missing symbol
+- contains: missing symbol
 
 ### defineproperty writes do not synthesize named exports
 
@@ -485,4 +485,4 @@ import { buildValue } from "./cjs";
 buildValue();
 ```
 
-- missing symbol
+- contains: missing symbol

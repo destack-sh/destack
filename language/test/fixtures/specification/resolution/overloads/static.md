@@ -83,7 +83,7 @@ const selected = make(data);
 selected satisfies "static";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### static overloads can infer comptime arguments from as comptime aliases
 

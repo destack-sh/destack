@@ -21,7 +21,7 @@ const point = getPoint();
 point.nonexistent();
 ```
 
-- does not exist
+- contains: does not exist
 
 ### method exists on different type
 
@@ -41,7 +41,7 @@ const vector = getVector();
 vector.magnitude();
 ```
 
-- does not exist
+- contains: does not exist
 
 ## Type Errors
 
@@ -62,7 +62,7 @@ const calculator = getCalculator();
 calculator.add("one", 2);
 ```
 
-- not assignable
+- contains: not assignable
 
 ## Visibility Errors
 
@@ -91,7 +91,7 @@ const vector = getVector();
 vector.magnitude();
 ```
 
-- does not exist
+- contains: does not exist
 
 ## Duplicate Method Handling
 
