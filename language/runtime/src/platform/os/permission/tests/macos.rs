@@ -3,7 +3,8 @@ use std::sync::{Mutex, OnceLock};
 use destack_workspace::{RuntimeAppPermission, RuntimeOptions};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::macos::{MacosLocationHooks, set_macos_location_test_hooks};
+use crate::host::core::HostSessionId;
+use crate::host::macos::request::location::{MacosLocationHooks, set_macos_location_test_hooks};
 use crate::platform::os::tests::with_configured_harness_context;
 use crate::platform::os::{Permission, PermissionState};
 
@@ -53,7 +54,7 @@ fn enable_location_declaration(options: &mut RuntimeOptions) {
 
 /// Report one granted location permission result from the macOS host hook.
 fn test_location_permission_request_hook(
-    _host_runtime_id: crate::host::core::HostRuntimeId,
+    _host_runtime_id: HostSessionId,
     permission: Permission,
 ) -> RuntimeResult<PermissionState> {
     assert_eq!(permission, Permission::Location);

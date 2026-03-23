@@ -1,6 +1,6 @@
 use super::{HostOperation, decode};
 
-use crate::host::core::request::HostRequest;
+use crate::host::core::HostRequest;
 use crate::platform::fs;
 use crate::platform::os::MediaAssetKind;
 use crate::platform::os::abi_generated::{

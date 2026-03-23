@@ -6,7 +6,7 @@ use x11rb::connection::Connection;
 use super::connection::X11ConnectionState;
 use super::ingress;
 use crate::diagnostic::{DiagnosticStore, RuntimeResult};
-use crate::host::core::{HostRuntimeRegistry, RuntimeIngressHandler};
+use crate::host::core::{HostSessionRegistry, RuntimeIngressHandler};
 use crate::platform::display::unix::x11::event::{
     self as x11_event, DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
 };
@@ -62,7 +62,7 @@ pub(crate) struct X11RuntimeIngressHandler {
 
 impl RuntimeIngressHandler for X11RuntimeIngressHandler {
     /// Service X11 ingress and publish runtime-owned event deltas.
-    fn service_runtime_ingress(&self) -> RuntimeResult<()> {
+    fn service_session_ingress(&self) -> RuntimeResult<()> {
         let Some(runtime_state) = self.runtime_state.upgrade() else {
             return Ok(());
         };
@@ -240,7 +240,7 @@ impl X11RuntimeState {
         self: &Arc<Self>,
         context: &BindingCallContext,
     ) -> RuntimeResult<()> {
-        let host_runtime_id = context.host().host_runtime_id();
+        let host_session_id = context.host().host_session_id();
 
         let observer = self
             .runtime_ingress_handler
@@ -252,7 +252,7 @@ impl X11RuntimeState {
             .clone();
         let handler: Arc<dyn RuntimeIngressHandler> = observer;
 
-        HostRuntimeRegistry::register_runtime_ingress_handler(host_runtime_id, &handler)
+        HostSessionRegistry::register_session_ingress_handler(host_session_id, &handler)
     }
 
     /// Register this runtime with the x11 display service once.

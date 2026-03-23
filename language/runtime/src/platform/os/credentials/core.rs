@@ -697,7 +697,7 @@ fn credential_create_guard(binding: &BindingCallContext) -> Arc<CredentialCreate
     let registry = CREDENTIAL_CREATE_GUARDS.get_or_init(|| Mutex::new(HashMap::new()));
 
     // resolve the current host runtime id
-    let runtime_id = binding.host().host_runtime_id().0;
+    let runtime_id = binding.host().host_session_id().0;
     let mut registry = registry.lock();
 
     // reuse the live guard when this runtime already owns one
@@ -714,11 +714,11 @@ fn credential_create_guard(binding: &BindingCallContext) -> Arc<CredentialCreate
 
 /// Remove one runtime-local credential create guard.
 #[cfg(any(target_os = "linux", target_os = "windows"))]
-pub(crate) fn unregister_credential_runtime(host_runtime_id: u64) {
+pub(crate) fn unregister_credential_runtime(host_session_id: u64) {
     let registry = CREDENTIAL_CREATE_GUARDS.get_or_init(|| Mutex::new(HashMap::new()));
     let mut registry = registry.lock();
 
-    registry.remove(&host_runtime_id);
+    registry.remove(&host_session_id);
 }
 
 /// Execute one closure under one runtime-local create-only write guard.

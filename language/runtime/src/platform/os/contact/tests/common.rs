@@ -3,13 +3,17 @@ use std::sync::{Mutex, OnceLock};
 use destack_vm::{ExternalCallContext, StringHandle};
 use destack_workspace::{RuntimeAppPermission, RuntimeOptions};
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 #[cfg(target_os = "linux")]
-use crate::host::linux::{LinuxContactHooks as DesktopContactHooks, set_linux_contact_test_hooks};
+use crate::host::linux::tests::{
+    LinuxContactHooks as DesktopContactHooks, set_linux_contact_test_hooks,
+};
 #[cfg(target_os = "macos")]
-use crate::host::macos::{MacosContactHooks as DesktopContactHooks, set_macos_contact_test_hooks};
+use crate::host::macos::request::contact::{
+    MacosContactHooks as DesktopContactHooks, set_macos_contact_test_hooks,
+};
 #[cfg(windows)]
-use crate::host::windows::{
+use crate::host::windows::request::contact::{
     WindowsContactHooks as DesktopContactHooks, set_windows_contact_test_hooks,
 };
 use crate::platform::os::abi_generated::{
@@ -378,7 +382,7 @@ pub(super) fn decode_string_value(
 
             vm_context
                 .string_value(value.value())
-                .map_err(|error| crate::diagnostic::RuntimeError::from(error).boxed())
+                .map_err(|error| RuntimeError::from(error).boxed())
         }
     }
 }

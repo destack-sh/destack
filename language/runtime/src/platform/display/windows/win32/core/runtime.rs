@@ -8,7 +8,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::diagnostic::{DiagnosticStore, RuntimeResult};
-use crate::host::core::{HostRuntimeId, HostRuntimeRegistry, RuntimeIngressHandler};
+use crate::host::core::{HostSessionId, HostSessionRegistry, RuntimeIngressHandler};
 use crate::platform::display::WindowCursorMode;
 use crate::platform::display::windows::win32::event::{
     DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
@@ -261,7 +261,7 @@ struct Win32RuntimeIngressHandler {
 
 impl RuntimeIngressHandler for Win32RuntimeIngressHandler {
     /// Publish monitor-topology deltas after one host ingress service step.
-    fn service_runtime_ingress(&self) -> RuntimeResult<()> {
+    fn service_session_ingress(&self) -> RuntimeResult<()> {
         let Some(runtime_state) = self.runtime_state.upgrade() else {
             return Ok(());
         };
@@ -279,7 +279,7 @@ impl Win32RuntimeState {
     /// Register one host-owned ingress observer for this runtime.
     pub(crate) fn register_runtime_ingress(
         self: &Arc<Self>,
-        host_runtime_id: HostRuntimeId,
+        host_session_id: HostSessionId,
     ) -> RuntimeResult<()> {
         let observer = self
             .runtime_ingress_handler
@@ -291,7 +291,7 @@ impl Win32RuntimeState {
             .clone();
         let handler: Arc<dyn RuntimeIngressHandler> = observer;
 
-        HostRuntimeRegistry::register_runtime_ingress_handler(host_runtime_id, &handler)
+        HostSessionRegistry::register_session_ingress_handler(host_session_id, &handler)
     }
 
     /// Register this runtime with the Win32 display service once.
