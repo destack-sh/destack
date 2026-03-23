@@ -117,8 +117,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     }
 
     // compare marker expectations against actual references
-    let actual_spans = normalized_spans(&refs.references, declaration_span);
-    let expected_spans = normalized_spans(&expected_spans, declaration_span);
+    let actual_spans = normalized_spans(session, &refs.references, declaration_span);
+    let expected_spans = normalized_spans(session, &expected_spans, declaration_span);
 
     if actual_spans.len() != expected_spans.len() {
         return CaseResult::Failed {
@@ -186,7 +186,7 @@ fn validate_reference_invariants(
     }
 
     // normalize spans before duplicate checks
-    let normalized = normalized_spans(references, declaration_span);
+    let normalized = normalized_spans(session, references, declaration_span);
 
     // check for duplicate references
     for window in normalized.windows(2) {
@@ -222,7 +222,11 @@ fn validate_reference_invariants(
 }
 
 /// Normalize spans into a deterministic order.
-fn normalized_spans(spans: &[Span], declaration_span: Option<Span>) -> Vec<Span> {
+fn normalized_spans(
+    session: &QueryTestSession,
+    spans: &[Span],
+    declaration_span: Option<Span>,
+) -> Vec<Span> {
     let mut spans = spans.to_vec();
 
     // keep the declaration first while sorting all other references
@@ -237,7 +241,7 @@ fn normalized_spans(spans: &[Span], declaration_span: Option<Span>) -> Vec<Span>
         });
     }
 
-    spans.sort_by_key(|span| (span.file.0, span.start, span.end));
+    spans.sort_by_key(|span| reference_sort_key(session, *span));
     spans.dedup_by(|left, right| {
         left.file == right.file && left.start == right.start && left.end == right.end
     });
@@ -249,6 +253,15 @@ fn normalized_spans(spans: &[Span], declaration_span: Option<Span>) -> Vec<Span>
     spans
 }
 
+/// Build a stable snapshot sort key for a reference span.
+fn reference_sort_key(session: &QueryTestSession, span: Span) -> (String, u32, u32, u32) {
+    let file_name = file_for(session, span.file)
+        .map(|file| file.name.clone())
+        .unwrap_or_else(|| "<unknown>".to_string());
+
+    (file_name, span.start, span.end, span.file.0)
+}
+
 /// Format references into a protocol shaped snapshot.
 fn format_reference_snapshot(
     session: &QueryTestSession,
@@ -256,7 +269,7 @@ fn format_reference_snapshot(
     declaration_span: Option<Span>,
 ) -> Vec<String> {
     // normalize spans so snapshot output is deterministic
-    let references = normalized_spans(references, declaration_span);
+    let references = normalized_spans(session, references, declaration_span);
 
     // allocate snapshot lines for each reference
     let mut lines = Vec::new();

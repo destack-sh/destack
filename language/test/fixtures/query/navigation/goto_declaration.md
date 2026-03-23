@@ -96,7 +96,7 @@ Goto declaration should stop at the type-only import specifier.
 
 ```ds:types.ds
 export struct Thing {
-    value: int32,
+    value: int32
 }
 ```
 
