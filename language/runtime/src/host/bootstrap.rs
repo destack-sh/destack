@@ -6,8 +6,7 @@ use destack_workspace::{PlatformHostOptions, RuntimeOptions};
 #[cfg(target_os = "android")]
 use crate::host::android::AndroidHost;
 #[cfg(target_os = "android")]
-use crate::host::android::unregister_android_bindings;
-use crate::host::app::ingress::unregister_app_runtime;
+use crate::host::android::abi::registry::unregister_android_bindings;
 use crate::host::core::HostAdapter;
 use crate::host::core::registry::HostCleanup;
 #[cfg(target_os = "dragonfly")]
@@ -21,11 +20,15 @@ use crate::host::illumos::IllumosHost;
 #[cfg(target_os = "ios")]
 use crate::host::ios::IosHost;
 #[cfg(target_os = "ios")]
-use crate::host::ios::unregister_ios_bindings;
+use crate::host::ios::abi::registry::unregister_ios_bindings;
 #[cfg(target_os = "linux")]
 use crate::host::linux::LinuxHost;
+#[cfg(target_os = "linux")]
+use crate::host::linux::ingress::unregister_linux_runtime;
 #[cfg(target_os = "macos")]
 use crate::host::macos::MacosHost;
+#[cfg(target_os = "macos")]
+use crate::host::macos::ingress::unregister_macos_runtime;
 #[cfg(target_os = "netbsd")]
 use crate::host::netbsd::NetBsdHost;
 #[cfg(target_os = "openbsd")]
@@ -49,6 +52,8 @@ use crate::host::solaris::SolarisHost;
 use crate::host::unsupported::UnsupportedHost;
 #[cfg(windows)]
 use crate::host::windows::WindowsHost;
+#[cfg(windows)]
+use crate::host::windows::ingress::unregister_windows_runtime;
 
 /// Return the default host integration parts for the active compile target.
 pub(crate) fn default_compile_target_parts() -> (Platform, Arc<dyn HostAdapter>, Option<HostCleanup>)
@@ -83,14 +88,14 @@ pub(crate) fn default_compile_target_parts() -> (Platform, Arc<dyn HostAdapter>,
     return (
         Platform::Linux,
         Arc::new(LinuxHost::new()),
-        Some(unregister_app_runtime),
+        Some(unregister_linux_runtime),
     );
 
     #[cfg(target_os = "macos")]
     return (
         Platform::MacOS,
         Arc::new(MacosHost::new()),
-        Some(unregister_app_runtime),
+        Some(unregister_macos_runtime),
     );
 
     #[cfg(target_os = "netbsd")]
@@ -106,7 +111,7 @@ pub(crate) fn default_compile_target_parts() -> (Platform, Arc<dyn HostAdapter>,
     return (
         Platform::Windows,
         Arc::new(WindowsHost::new()),
-        Some(unregister_app_runtime),
+        Some(unregister_windows_runtime),
     );
 
     #[cfg(not(any(

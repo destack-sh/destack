@@ -3,12 +3,9 @@
 pub(crate) mod abi;
 #[cfg(any(test, target_os = "android"))]
 pub(crate) mod android;
-pub(crate) mod app;
 #[cfg(any(target_os = "ios", target_os = "macos"))]
 pub(crate) mod apple;
 mod bootstrap;
-#[cfg(any(test, target_os = "android", target_os = "ios"))]
-pub(crate) mod callback;
 pub(crate) mod core;
 #[cfg(target_os = "dragonfly")]
 mod dragonfly;
@@ -43,7 +40,7 @@ mod solaris;
     target_os = "openbsd",
     target_os = "solaris"
 ))]
-pub mod unix;
+pub(crate) mod unix;
 #[cfg(not(any(
     target_os = "android",
     target_os = "dragonfly",
@@ -67,11 +64,11 @@ pub use core::{
     HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_FAILED, HOST_STATUS_INVALID_ARGUMENT,
     HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
     HOST_STATUS_PERMISSION_DENIED, HostBackgroundEvent, HostEvent, HostEventKind, HostIntentEvent,
-    HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState,
-    HostLocationEvent, HostMemoryPressureEvent, HostMemoryPressureLevel, HostNotificationEvent,
-    HostPermissionEvent, HostPollOutcome, HostPowerMode, HostPowerModeEvent, HostSession,
-    HostThermalEvent, HostThermalState, HostWallClockEvent,
+    HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleSourceKind,
+    HostLifecycleState, HostLocationEvent, HostMemoryPressureEvent, HostMemoryPressureLevel,
+    HostNotificationEvent, HostPermissionEvent, HostPollOutcome, HostPowerMode, HostPowerModeEvent,
+    HostRequestId, HostSession, HostThermalEvent, HostThermalState, HostWallClockEvent,
 };
 pub use destack_artifact::Platform;
 #[cfg(windows)]
-pub(crate) use windows::process_ingress_loop;
+pub(crate) use windows::ingress::process_ingress_loop;

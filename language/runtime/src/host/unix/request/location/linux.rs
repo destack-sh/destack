@@ -9,12 +9,12 @@ use zbus::Error as ZbusError;
 use zbus::blocking::{Connection, Proxy};
 use zbus::zvariant::OwnedObjectPath;
 
-use crate::diagnostic::RuntimeResult;
-use crate::host::app::identity::resolved_application_identifier;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::core::{
-    HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult, HostRuntimeId,
+    HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult, HostSessionId,
 };
-use crate::host::linux::linux_notify_location_sample;
+use crate::host::linux::ingress::notify::linux_notify_location_sample;
+use crate::host::unix::identity::resolved_application_identifier;
 use crate::platform::core::{io_not_found, io_operation_error};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{
@@ -58,7 +58,7 @@ const GEOCLUE_POLL_SLICE: Duration = Duration::from_millis(250);
 
 struct LinuxLocationService {
     /// Active runtimes keyed by runtime id.
-    runtimes: Mutex<HashMap<HostRuntimeId, LinuxLocationRuntime>>,
+    runtimes: Mutex<HashMap<HostSessionId, LinuxLocationRuntime>>,
 }
 
 /// One runtime-owned Linux location service loop.
@@ -115,7 +115,7 @@ impl LinuxLocationService {
         let mut runtimes = self.runtimes.lock();
 
         // attach one new watch to the active runtime
-        if let Some(runtime) = runtimes.get_mut(&context.host_runtime_id) {
+        if let Some(runtime) = runtimes.get_mut(&context.host_session_id) {
             let mut state = runtime.state.lock();
 
             if state.watches.contains_key(&watch_id) {
@@ -154,10 +154,10 @@ impl LinuxLocationService {
         let worker_state = Arc::clone(&runtime_state);
         let worker_shutdown = Arc::clone(&stop);
         let worker_stop = Arc::clone(&stop);
-        let host_runtime_id = context.host_runtime_id;
+        let host_session_id = context.host_session_id;
 
         let worker = WorkerLoop::open(
-            &format!("destack-linux-location-{}", host_runtime_id.0),
+            &format!("destack-linux-location-{}", host_session_id.0),
             LOCATION_WATCH_OPEN_OPERATION,
             ExecutionPolicy::global(ExecutionMode::Loop),
             move || {
@@ -182,7 +182,7 @@ impl LinuxLocationService {
                     }),
                     Box::new(move || {
                         run_location_runtime(
-                            host_runtime_id,
+                            host_session_id,
                             worker_state,
                             stop,
                             client,
@@ -195,7 +195,7 @@ impl LinuxLocationService {
         )?;
 
         runtimes.insert(
-            host_runtime_id,
+            host_session_id,
             LinuxLocationRuntime {
                 stop,
                 state: runtime_state,
@@ -207,10 +207,10 @@ impl LinuxLocationService {
     }
 
     /// Close one active Linux location watch.
-    fn close_watch(&self, host_runtime_id: HostRuntimeId, watch_id: &str) -> RuntimeResult<()> {
+    fn close_watch(&self, host_session_id: HostSessionId, watch_id: &str) -> RuntimeResult<()> {
         let runtime = {
             let mut runtimes = self.runtimes.lock();
-            let Some(runtime) = runtimes.get_mut(&host_runtime_id) else {
+            let Some(runtime) = runtimes.get_mut(&host_session_id) else {
                 return Err(io_not_found(
                     LOCATION_WATCH_CLOSE_OPERATION,
                     "location watch was not found",
@@ -232,7 +232,7 @@ impl LinuxLocationService {
             }
 
             drop(state);
-            runtimes.remove(&host_runtime_id)
+            runtimes.remove(&host_session_id)
         };
 
         if let Some(runtime) = runtime {
@@ -243,10 +243,10 @@ impl LinuxLocationService {
     }
 
     /// Remove all active Linux location watches for one runtime.
-    fn unregister_runtime(&self, host_runtime_id: HostRuntimeId) {
+    fn unregister_runtime(&self, host_session_id: HostSessionId) {
         let runtime = {
             let mut runtimes = self.runtimes.lock();
-            runtimes.remove(&host_runtime_id)
+            runtimes.remove(&host_session_id)
         };
 
         if let Some(runtime) = runtime {
@@ -303,7 +303,7 @@ pub(crate) fn submit_location_request(
 
         // close one runtime-scoped watch
         HostRequest::OsLocationWatchClose { watch_id } => {
-            close_location_watch(context.host_runtime_id, watch_id)?;
+            close_location_watch(context.host_session_id, watch_id)?;
 
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
         }
@@ -313,9 +313,9 @@ pub(crate) fn submit_location_request(
 }
 
 /// Remove all active Linux location watches for one runtime.
-pub(crate) fn unregister_location_runtime(host_runtime_id: HostRuntimeId) {
+pub(crate) fn unregister_location_runtime(host_session_id: HostSessionId) {
     if let Some(service) = LinuxLocationService::active() {
-        service.unregister_runtime(host_runtime_id);
+        service.unregister_runtime(host_session_id);
     }
 }
 
@@ -389,10 +389,10 @@ fn open_location_watch(
 }
 
 /// Close one active Linux location watch worker.
-fn close_location_watch(host_runtime_id: HostRuntimeId, watch_id: &str) -> RuntimeResult<()> {
+fn close_location_watch(host_session_id: HostSessionId, watch_id: &str) -> RuntimeResult<()> {
     let service = linux_location_service()?;
 
-    service.close_watch(host_runtime_id, watch_id)
+    service.close_watch(host_session_id, watch_id)
 }
 
 /// Stop one active Linux location runtime.
@@ -403,7 +403,7 @@ fn stop_location_runtime(runtime: LinuxLocationRuntime) {
 
 /// Run one Linux location runtime loop on a dedicated worker.
 fn run_location_runtime(
-    host_runtime_id: HostRuntimeId,
+    host_session_id: HostSessionId,
     runtime_state: Arc<Mutex<LinuxLocationRuntimeState>>,
     stop: Arc<AtomicBool>,
     mut client: GeoClueClient,
@@ -433,7 +433,7 @@ fn run_location_runtime(
         }
 
         match client.read_sample(LOCATION_WATCH_OPEN_OPERATION) {
-            Ok(Some(sample)) => publish_location_sample(host_runtime_id, &runtime_state, &sample),
+            Ok(Some(sample)) => publish_location_sample(host_session_id, &runtime_state, &sample),
             Ok(None) => {}
             Err(error) => {
                 stop_geoclue_client(&client, LOCATION_WATCH_OPEN_OPERATION);
@@ -497,7 +497,7 @@ fn runtime_watch_configuration_if_changed(
 
 /// Publish one raw location sample to every matching runtime watch.
 fn publish_location_sample(
-    host_runtime_id: HostRuntimeId,
+    host_session_id: HostSessionId,
     runtime_state: &Arc<Mutex<LinuxLocationRuntimeState>>,
     sample: &LocationSampleValue,
 ) {
@@ -524,7 +524,7 @@ fn publish_location_sample(
     };
 
     for (watch_id, sample) in notifications {
-        if let Err(error) = linux_notify_location_sample(host_runtime_id.0, &watch_id, sample) {
+        if let Err(error) = linux_notify_location_sample(host_session_id.0, &watch_id, sample) {
             tracing::warn!(
                 target: "destack.runtime.host.linux.location",
                 ?error,
@@ -791,11 +791,7 @@ fn geoclue_distance_threshold(options: Option<LocationWatchOptionsValue>) -> u32
 }
 
 /// Build one loud GeoClue backend error.
-fn geoclue_error(
-    operation: &str,
-    action: &str,
-    error: &ZbusError,
-) -> Box<crate::diagnostic::RuntimeError> {
+fn geoclue_error(operation: &str, action: &str, error: &ZbusError) -> Box<RuntimeError> {
     // map missing GeoClue services to one honest unsupported error
     if let ZbusError::MethodError(name, detail, _) = error
         && (**name == *"org.freedesktop.DBus.Error.ServiceUnknown"

@@ -1,9 +1,6 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::app::background::submit_background_request;
-use crate::host::app::media::submit_media_request;
-use crate::host::app::notification::submit_notification_request;
 #[cfg(target_os = "linux")]
-use crate::host::core::HostRuntimeId;
+use crate::host::core::HostSessionId;
 use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome};
 use crate::runtime::capability::PlatformCapabilitySet;
 
@@ -52,13 +49,14 @@ pub(crate) fn submit_request(
     context: &HostRequestContext,
     request: HostRequest,
 ) -> RuntimeResult<HostRequestOutcome> {
+    #[cfg(target_os = "linux")]
     // service shared desktop background requests first
-    if let Some(outcome) = submit_background_request(context, &request)? {
+    if let Some(outcome) = super::background::submit_background_request(context, &request)? {
         return Ok(outcome);
     }
 
     // then service shared desktop media requests
-    if let Some(outcome) = submit_media_request(context, &request)? {
+    if let Some(outcome) = super::media::submit_media_request(context, &request)? {
         return Ok(outcome);
     }
 
@@ -85,8 +83,9 @@ pub(crate) fn submit_request(
         return Ok(outcome);
     }
 
+    #[cfg(all(unix, not(target_vendor = "apple")))]
     // then service shared desktop notification requests
-    if let Some(outcome) = submit_notification_request(context, &request)? {
+    if let Some(outcome) = super::notification::submit_notification_request(context, &request)? {
         return Ok(outcome);
     }
 
@@ -96,6 +95,6 @@ pub(crate) fn submit_request(
 
 /// Remove one Unix location runtime from the active backend.
 #[cfg(target_os = "linux")]
-pub(crate) fn unregister_location_runtime(host_runtime_id: HostRuntimeId) {
-    super::location::unregister_location_runtime(host_runtime_id);
+pub(crate) fn unregister_location_runtime(host_session_id: HostSessionId) {
+    super::location::unregister_location_runtime(host_session_id);
 }

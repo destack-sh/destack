@@ -1,11 +1,8 @@
 use std::sync::{Mutex, OnceLock};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::app::document::pick::{
-    validate_document_pick_options, validated_document_content_types, validated_document_extensions,
-};
 use crate::host::core::{
-    HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult, HostRuntimeId,
+    HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult, HostSessionId,
 };
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -13,6 +10,9 @@ use crate::platform::os::abi_generated::{
     CalendarDescriptorValue, CalendarEventDraftValue, CalendarEventQueryValue, CalendarEventValue,
     ContactDraftValue, ContactPageValue, ContactQueryValue, ContactValue, DocumentDescriptorValue,
     DocumentPickOptionsValue, LocationSampleValue, LocationWatchOptionsValue,
+};
+use crate::platform::os::document::{
+    validate_document_pick_options, validated_document_content_types, validated_document_extensions,
 };
 use crate::platform::os::{Permission, PermissionState};
 
@@ -64,12 +64,12 @@ pub(crate) struct MacosLocationHooks {
     pub(crate) last_known: Option<fn() -> RuntimeResult<LocationSampleValue>>,
     /// Hook for `locationWatchOpen`.
     pub(crate) watch_open:
-        Option<fn(HostRuntimeId, String, LocationWatchOptionsValue) -> RuntimeResult<()>>,
+        Option<fn(HostSessionId, String, LocationWatchOptionsValue) -> RuntimeResult<()>>,
     /// Hook for `locationWatchClose`.
-    pub(crate) watch_close: Option<fn(HostRuntimeId, String) -> RuntimeResult<()>>,
+    pub(crate) watch_close: Option<fn(HostSessionId, String) -> RuntimeResult<()>>,
     /// Hook for `permission.request(location*)`.
     pub(crate) request_permission:
-        Option<fn(HostRuntimeId, Permission) -> RuntimeResult<PermissionState>>,
+        Option<fn(HostSessionId, Permission) -> RuntimeResult<PermissionState>>,
 }
 
 /// Return the shared macOS document-pick hook slot for tests.
@@ -361,7 +361,7 @@ pub(crate) fn submit_location_request(
                 return Err(missing_location_test_hook("location watch open"));
             };
 
-            hook(context.host_runtime_id, watch_id.clone(), *options)?;
+            hook(context.host_session_id, watch_id.clone(), *options)?;
 
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
         }
@@ -372,7 +372,7 @@ pub(crate) fn submit_location_request(
                 return Err(missing_location_test_hook("location watch close"));
             };
 
-            hook(context.host_runtime_id, watch_id.clone())?;
+            hook(context.host_session_id, watch_id.clone())?;
 
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
         }
@@ -397,13 +397,13 @@ pub(crate) fn request_location_permission(
         return Ok(None);
     }
 
-    let state = hook(context.host_runtime_id, permission)?;
+    let state = hook(context.host_session_id, permission)?;
 
     Ok(Some(state))
 }
 
 /// Remove one macOS runtime from the active location test lane.
-pub(crate) fn unregister_location_runtime(_host_runtime_id: HostRuntimeId) {}
+pub(crate) fn unregister_location_runtime(_host_runtime_id: HostSessionId) {}
 
 /// Build one missing-hook error for macOS location tests.
 fn missing_location_test_hook(kind: &str) -> Box<RuntimeError> {

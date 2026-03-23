@@ -3,16 +3,15 @@ use objc2_foundation::{NSArray, NSString};
 use objc2_uniform_type_identifiers::UTType;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::app::document::pick::{
-    HOST_DOCUMENT_PICK_OPERATION, document_descriptor_value_from_path,
-    validate_document_pick_options, validated_document_content_types,
-    validated_document_extensions,
-};
-use crate::host::apple::execution::with_process_main_context_marker_if_needed;
+use crate::host::apple::core::execution::with_process_main_context_marker_if_needed;
 use crate::host::core::HostRequestContext;
 use crate::platform::core::io_operation_error;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{DocumentDescriptorValue, DocumentPickOptionsValue};
+use crate::platform::os::document::{
+    DOCUMENT_PICK_OPERATION, document_descriptor_value_from_path, validate_document_pick_options,
+    validated_document_content_types, validated_document_extensions,
+};
 
 /// Build one Cocoa array for allowed content types.
 fn allowed_content_types(
@@ -33,7 +32,7 @@ fn allowed_content_types(
 
             UTType::typeWithMIMEType(&content_type).ok_or_else(|| {
                 io_operation_error(
-                    HOST_DOCUMENT_PICK_OPERATION,
+                    DOCUMENT_PICK_OPERATION,
                     Some(PlatformErrorCode::IoInvalidData),
                     "document picker content type is not recognized on this macOS backend",
                 )
@@ -48,7 +47,7 @@ fn allowed_content_types(
 
             UTType::typeWithFilenameExtension(&extension).ok_or_else(|| {
                 io_operation_error(
-                    HOST_DOCUMENT_PICK_OPERATION,
+                    DOCUMENT_PICK_OPERATION,
                     Some(PlatformErrorCode::IoInvalidData),
                     "document picker extension is not recognized on this macOS backend",
                 )
@@ -103,7 +102,7 @@ fn pick_documents_on_main(
         for url in urls.iter() {
             let path = url.path().ok_or_else(|| {
                 io_operation_error(
-                    HOST_DOCUMENT_PICK_OPERATION,
+                    DOCUMENT_PICK_OPERATION,
                     Some(PlatformErrorCode::IoInvalidData),
                     "document picker returned one url without one local path",
                 )

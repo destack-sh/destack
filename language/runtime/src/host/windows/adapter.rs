@@ -1,7 +1,9 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRuntimeId};
+use crate::host::core::{
+    HostRequest, HostRequestContext, HostRequestOutcome, HostSessionContext, HostSessionId,
+};
 use crate::host::windows::ingress::message as windows_message;
-use crate::host::windows::{submit_windows_request, windows_request_capabilities};
+use crate::host::windows::{ingress, request};
 use crate::host::{HostAdapter, Platform};
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
 
@@ -33,8 +35,8 @@ impl HostAdapter for WindowsHost {
         host_capabilities
     }
 
-    fn session_capabilities(&self, _host_runtime_id: HostRuntimeId) -> PlatformCapabilitySet {
-        windows_request_capabilities()
+    fn session_capabilities(&self, _host_runtime_id: HostSessionId) -> PlatformCapabilitySet {
+        request::request_capabilities()
     }
 
     fn process_native_ingress(&self) -> RuntimeResult<()> {
@@ -44,11 +46,15 @@ impl HostAdapter for WindowsHost {
         Ok(())
     }
 
+    fn process_runtime_ingress(&self, context: &HostSessionContext) -> RuntimeResult<()> {
+        ingress::service_windows_ingress(context)
+    }
+
     fn submit_request(
         &self,
         context: &HostRequestContext,
         request: HostRequest,
     ) -> RuntimeResult<HostRequestOutcome> {
-        submit_windows_request(context, request)
+        request::submit_request(context, request)
     }
 }

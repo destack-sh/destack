@@ -1,7 +1,4 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::app::background::submit_background_request;
-use crate::host::app::media::submit_media_request;
-use crate::host::app::notification::submit_notification_request;
 use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
 use crate::platform::core::not_supported;
 use crate::platform::os::PermissionEntry;
@@ -41,12 +38,12 @@ pub(crate) fn submit_request(
     let operation_name = request.operation_name();
 
     // service shared desktop background requests first
-    if let Some(outcome) = submit_background_request(context, &request)? {
+    if let Some(outcome) = super::background::submit_background_request(context, &request)? {
         return Ok(outcome);
     }
 
     // then service shared desktop media requests
-    if let Some(outcome) = submit_media_request(context, &request)? {
+    if let Some(outcome) = super::media::submit_media_request(context, &request)? {
         return Ok(outcome);
     }
 
@@ -56,7 +53,7 @@ pub(crate) fn submit_request(
     }
 
     // then service shared desktop notification requests
-    if let Some(outcome) = submit_notification_request(context, &request)? {
+    if let Some(outcome) = super::notification::submit_notification_request(context, &request)? {
         return Ok(outcome);
     }
 

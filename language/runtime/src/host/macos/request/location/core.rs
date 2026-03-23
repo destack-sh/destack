@@ -1,6 +1,6 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::{
-    HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult, HostRuntimeId,
+    HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult, HostSessionId,
 };
 use crate::platform::os::{Permission, PermissionState};
 
@@ -39,7 +39,7 @@ pub(crate) fn submit_location_request(
 
         // read the most recent sample
         HostRequest::OsLocationLastKnown => {
-            let sample = read_last_known_location(context.host_runtime_id)?;
+            let sample = read_last_known_location(context.host_session_id)?;
 
             Ok(Some(HostRequestOutcome::immediate(
                 HostRequestResult::LocationSample(sample),
@@ -48,14 +48,14 @@ pub(crate) fn submit_location_request(
 
         // open one live watch
         HostRequest::OsLocationWatchOpen { watch_id, options } => {
-            open_location_watch(context.host_runtime_id, watch_id, options)?;
+            open_location_watch(context.host_session_id, watch_id, options)?;
 
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
         }
 
         // close one live watch
         HostRequest::OsLocationWatchClose { watch_id } => {
-            close_location_watch(context.host_runtime_id, watch_id)?;
+            close_location_watch(context.host_session_id, watch_id)?;
 
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
         }
@@ -74,12 +74,12 @@ pub(crate) fn request_location_permission(
         _ => return Ok(None),
     };
     let permission_state =
-        request_location_permission_on_main(context.host_runtime_id, permission, request_kind)?;
+        request_location_permission_on_main(context.host_session_id, permission, request_kind)?;
 
     Ok(Some(permission_state))
 }
 
 /// Remove one macOS runtime from the active location backend.
-pub(crate) fn unregister_location_runtime(host_runtime_id: HostRuntimeId) {
-    unregister_location_runtime_on_main(host_runtime_id);
+pub(crate) fn unregister_location_runtime(host_session_id: HostSessionId) {
+    unregister_location_runtime_on_main(host_session_id);
 }

@@ -1,11 +1,8 @@
 use std::sync::{Mutex, OnceLock};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::app::document::pick::{
-    HOST_DOCUMENT_PICK_OPERATION, normalized_document_extensions, validate_document_pick_options,
-};
 use crate::host::core::{
-    HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult, HostRuntimeId,
+    HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult, HostSessionId,
 };
 use crate::platform::PlatformError;
 use crate::platform::core::not_supported;
@@ -14,6 +11,9 @@ use crate::platform::os::abi_generated::{
     CalendarDescriptorValue, CalendarEventDraftValue, CalendarEventQueryValue, CalendarEventValue,
     ContactDraftValue, ContactPageValue, ContactQueryValue, ContactValue, DocumentDescriptorValue,
     DocumentPickOptionsValue, LocationSampleValue, LocationWatchOptionsValue,
+};
+use crate::platform::os::document::{
+    DOCUMENT_PICK_OPERATION, validate_document_pick_options, validated_document_extensions,
 };
 use crate::platform::os::{Permission, PermissionState};
 
@@ -103,14 +103,14 @@ pub(crate) type WindowsLocationLastKnownHook = fn() -> RuntimeResult<LocationSam
 
 /// Shared location watch-open hook used by Windows tests.
 pub(crate) type WindowsLocationWatchOpenHook =
-    fn(HostRuntimeId, String, LocationWatchOptionsValue) -> RuntimeResult<()>;
+    fn(HostSessionId, String, LocationWatchOptionsValue) -> RuntimeResult<()>;
 
 /// Shared location watch-close hook used by Windows tests.
-pub(crate) type WindowsLocationWatchCloseHook = fn(HostRuntimeId, String) -> RuntimeResult<()>;
+pub(crate) type WindowsLocationWatchCloseHook = fn(HostSessionId, String) -> RuntimeResult<()>;
 
 /// Shared location permission hook used by Windows tests.
 pub(crate) type WindowsLocationPermissionHook =
-    fn(HostRuntimeId, Permission) -> RuntimeResult<PermissionState>;
+    fn(HostSessionId, Permission) -> RuntimeResult<PermissionState>;
 
 /// Installed Windows location hooks for tests.
 #[derive(Debug, Clone, Copy, Default)]
@@ -376,10 +376,10 @@ pub(crate) fn submit_contact_request(
 fn normalized_options(options: &DocumentPickOptionsValue) -> RuntimeResult<()> {
     validate_document_pick_options(options)?;
 
-    let extensions = normalized_document_extensions(options)?;
+    let extensions = validated_document_extensions(options)?;
 
     if options.allow_directories && !extensions.is_empty() {
-        return Err(not_supported(HOST_DOCUMENT_PICK_OPERATION));
+        return Err(not_supported(DOCUMENT_PICK_OPERATION));
     }
 
     Ok(())
@@ -428,7 +428,7 @@ pub(crate) fn submit_location_request(
                 return Err(missing_location_test_hook("location watch open"));
             };
 
-            hook(context.host_runtime_id, watch_id.clone(), *options)?;
+            hook(context.host_session_id, watch_id.clone(), *options)?;
 
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
         }
@@ -437,7 +437,7 @@ pub(crate) fn submit_location_request(
                 return Err(missing_location_test_hook("location watch close"));
             };
 
-            hook(context.host_runtime_id, watch_id.clone())?;
+            hook(context.host_session_id, watch_id.clone())?;
 
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
         }
@@ -459,16 +459,16 @@ pub(crate) fn request_location_permission(
         return Ok(None);
     };
 
-    let state = hook(context.host_runtime_id, permission)?;
+    let state = hook(context.host_session_id, permission)?;
 
     Ok(Some(state))
 }
 
 /// Remove one Windows runtime from the active location test lane.
-pub(crate) fn unregister_location_runtime(_host_runtime_id: HostRuntimeId) {}
+pub(crate) fn unregister_location_runtime(_host_runtime_id: HostSessionId) {}
 
 /// Build one missing-hook error for Windows location tests.
-fn missing_location_test_hook(kind: &str) -> Box<crate::diagnostic::RuntimeError> {
+fn missing_location_test_hook(kind: &str) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::generic(
         Some(PlatformErrorCode::Generic),
         format!("Windows location tests must install one {kind} hook before calling the host lane"),
@@ -477,7 +477,7 @@ fn missing_location_test_hook(kind: &str) -> Box<crate::diagnostic::RuntimeError
 }
 
 /// Build one missing-hook error for Windows calendar tests.
-fn missing_calendar_test_hook(kind: &str) -> Box<crate::diagnostic::RuntimeError> {
+fn missing_calendar_test_hook(kind: &str) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::generic(
         Some(PlatformErrorCode::Generic),
         format!("Windows calendar tests must install one {kind} hook before calling the host lane"),
@@ -486,7 +486,7 @@ fn missing_calendar_test_hook(kind: &str) -> Box<crate::diagnostic::RuntimeError
 }
 
 /// Build one missing-hook error for Windows contact tests.
-fn missing_contact_test_hook(kind: &str) -> Box<crate::diagnostic::RuntimeError> {
+fn missing_contact_test_hook(kind: &str) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::generic(
         Some(PlatformErrorCode::Generic),
         format!("Windows contact tests must install one {kind} hook before calling the host lane"),

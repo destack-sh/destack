@@ -1,6 +1,6 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRuntimeId};
-use crate::host::linux::{submit_test_location_request, unregister_test_location_runtime};
+use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostSessionId};
+use crate::host::linux::tests::{submit_test_location_request, unregister_test_location_runtime};
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
 
 /// Return dynamic Unix location capabilities for Linux tests.
@@ -20,6 +20,6 @@ pub(crate) fn submit_location_request(
 }
 
 /// Remove one Linux runtime from the active location test lane.
-pub(crate) fn unregister_location_runtime(host_runtime_id: HostRuntimeId) {
-    unregister_test_location_runtime(host_runtime_id);
+pub(crate) fn unregister_location_runtime(host_session_id: HostSessionId) {
+    unregister_test_location_runtime(host_session_id);
 }

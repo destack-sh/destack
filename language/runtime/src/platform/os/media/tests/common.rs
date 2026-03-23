@@ -7,12 +7,12 @@ use destack_vm as vm;
 use destack_workspace::{RuntimeAppPermission, RuntimeOptions};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::app::media::{MediaTestRoots, set_media_test_roots};
 use crate::platform::abi::VmAbi;
 use crate::platform::fs::core as core_fs;
 use crate::platform::os::abi_generated::{
     MediaAssetDescriptorValue, MediaPageValue, MediaQueryValue,
 };
+use crate::platform::os::media::{MediaTestRoots, set_media_test_roots};
 use crate::platform::os::tests::{HarnessContext, HarnessValue, with_configured_harness_context};
 use crate::platform::os::{
     MediaAssetDescriptor, MediaAssetDescriptorVm, MediaPage, MediaPageVm, MediaQuery, MediaQueryVm,

@@ -1,5 +1,5 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRuntimeId};
+use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostSessionId};
 use crate::platform::os::{Permission, PermissionState};
 
 /// Fall through on non-macOS builds that only compile the macOS host tree.
@@ -19,4 +19,4 @@ pub(crate) fn submit_location_request(
 }
 
 /// Remove one macOS runtime from non-macOS test builds.
-pub(crate) fn unregister_location_runtime(_host_runtime_id: HostRuntimeId) {}
+pub(crate) fn unregister_location_runtime(_host_runtime_id: HostSessionId) {}

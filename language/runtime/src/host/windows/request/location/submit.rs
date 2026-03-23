@@ -23,7 +23,7 @@ pub(crate) fn submit_location_request(
         // one last-known read
         HostRequest::OsLocationLastKnown => {
             let sample = service
-                .read_last_known_location(context.host_runtime_id, request.operation_name())?;
+                .read_last_known_location(context.host_session_id, request.operation_name())?;
 
             Ok(Some(HostRequestOutcome::immediate(
                 HostRequestResult::LocationSample(sample),
@@ -33,7 +33,7 @@ pub(crate) fn submit_location_request(
         // one watch-open request
         HostRequest::OsLocationWatchOpen { watch_id, options } => {
             service.open_location_watch(
-                context.host_runtime_id,
+                context.host_session_id,
                 watch_id.clone(),
                 *options,
                 request.operation_name(),
@@ -45,7 +45,7 @@ pub(crate) fn submit_location_request(
         // one watch-close request
         HostRequest::OsLocationWatchClose { watch_id } => {
             service.close_location_watch(
-                context.host_runtime_id,
+                context.host_session_id,
                 watch_id,
                 request.operation_name(),
             )?;
@@ -67,7 +67,7 @@ pub(crate) fn request_location_permission(
 
     let service = windows_location_service("destack.os.permission.request")?;
     let state = service.request_location_permission(
-        context.host_runtime_id,
+        context.host_session_id,
         permission,
         "destack.os.permission.request",
     )?;

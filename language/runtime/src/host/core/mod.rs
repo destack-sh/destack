@@ -1,4 +1,6 @@
 mod adapter;
+#[allow(dead_code)]
+pub(crate) mod callback;
 pub(crate) mod error;
 mod event;
 mod queue;
@@ -7,20 +9,28 @@ pub(crate) mod request;
 mod runtime;
 mod status;
 
+#[allow(unused_imports)]
+pub(crate) use crate::host::abi::core::{HostSessionHandle, HostStatus};
 pub(crate) use adapter::HostAdapter;
 pub use adapter::HostPollOutcome;
 pub(crate) use destack_artifact::Platform;
+#[cfg(test)]
+pub(crate) use adapter::without_native_ingress;
 pub use event::{
     HostBackgroundEvent, HostEvent, HostEventKind, HostIntentEvent, HostIntentPayload,
-    HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState, HostLocationEvent,
-    HostMemoryPressureEvent, HostMemoryPressureLevel, HostNotificationEvent, HostPermissionEvent,
-    HostPowerMode, HostPowerModeEvent, HostThermalEvent, HostThermalState, HostWallClockEvent,
+    HostInterruptionEvent, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState,
+    HostLocationEvent, HostMemoryPressureEvent, HostMemoryPressureLevel, HostNotificationEvent,
+    HostPermissionEvent, HostPowerMode, HostPowerModeEvent, HostThermalEvent, HostThermalState,
+    HostWallClockEvent,
 };
 pub(crate) use queue::HostQueue;
 pub(crate) use registry::{
-    HostEventObserver, HostRuntimeId, HostRuntimeRegistry, RuntimeIngressHandler,
+    HostEventObserver, HostSessionId, HostSessionRegistry, RuntimeIngressHandler,
 };
-pub(crate) use request::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
+pub use request::HostRequestId;
+pub(crate) use request::{
+    HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult, HostSessionContext,
+};
 pub use runtime::HostSession;
 pub use status::{
     HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_FAILED, HOST_STATUS_INVALID_ARGUMENT,

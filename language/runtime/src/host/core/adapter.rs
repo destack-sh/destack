@@ -1,7 +1,12 @@
+#[cfg(test)]
+use std::sync::Arc;
+
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::error::not_supported;
-use crate::host::core::registry::HostRuntimeId;
-use crate::host::core::request::{HostRequest, HostRequestContext, HostRequestOutcome};
+use crate::host::core::registry::HostSessionId;
+use crate::host::core::request::{
+    HostRequest, HostRequestContext, HostRequestOutcome, HostSessionContext,
+};
 use crate::host::{HostEvent, Platform};
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
 
@@ -14,7 +19,9 @@ pub struct HostPollOutcome {
     pub dropped_event_count: u64,
 }
 
-/// Shared process-global host adapter contract for runtime integrations.
+/// Shared process-global host adapter contract for one host integration family.
+///
+/// This is the runtime-facing attachment boundary above host modules and transport glue.
 pub(crate) trait HostAdapter: std::fmt::Debug + Send + Sync {
     /// Return the host platform for this adapter.
     fn platform(&self) -> Platform;
@@ -29,8 +36,8 @@ pub(crate) trait HostAdapter: std::fmt::Debug + Send + Sync {
         capabilities
     }
 
-    /// Return dynamic session capabilities for one specific runtime.
-    fn session_capabilities(&self, _host_runtime_id: HostRuntimeId) -> PlatformCapabilitySet {
+    /// Return dynamic session capabilities for one attached runtime session.
+    fn session_capabilities(&self, _host_runtime_id: HostSessionId) -> PlatformCapabilitySet {
         PlatformCapabilitySet::new()
     }
 
@@ -39,12 +46,17 @@ pub(crate) trait HostAdapter: std::fmt::Debug + Send + Sync {
         false
     }
 
-    /// Service immediately ready native host ingress without blocking.
+    /// Service immediately ready native ingress without blocking.
     fn process_native_ingress(&self) -> RuntimeResult<()> {
         Ok(())
     }
 
-    /// Submit one host request through this adapter.
+    /// Service runtime-owned host ingress for one attached session.
+    fn process_runtime_ingress(&self, _context: &HostSessionContext) -> RuntimeResult<()> {
+        Ok(())
+    }
+
+    /// Submit one runtime-owned host request through this adapter.
     fn submit_request(
         &self,
         _context: &HostRequestContext,
@@ -52,4 +64,49 @@ pub(crate) trait HostAdapter: std::fmt::Debug + Send + Sync {
     ) -> RuntimeResult<HostRequestOutcome> {
         Err(not_supported(request.operation_name()))
     }
+}
+
+/// Adapter wrapper that suppresses ambient native ingress.
+#[cfg(test)]
+#[derive(Debug)]
+struct NativeIngressDisabledHostAdapter {
+    /// Wrapped host adapter.
+    adapter: Arc<dyn HostAdapter>,
+}
+
+#[cfg(test)]
+impl HostAdapter for NativeIngressDisabledHostAdapter {
+    fn platform(&self) -> Platform {
+        self.adapter.platform()
+    }
+
+    fn static_capabilities(&self) -> PlatformCapabilitySet {
+        self.adapter.static_capabilities()
+    }
+
+    fn session_capabilities(&self, host_runtime_id: HostSessionId) -> PlatformCapabilitySet {
+        self.adapter.session_capabilities(host_runtime_id)
+    }
+
+    fn is_process_main_context(&self) -> bool {
+        self.adapter.is_process_main_context()
+    }
+
+    fn process_native_ingress(&self) -> RuntimeResult<()> {
+        Ok(())
+    }
+
+    fn submit_request(
+        &self,
+        context: &HostRequestContext,
+        request: HostRequest,
+    ) -> RuntimeResult<HostRequestOutcome> {
+        self.adapter.submit_request(context, request)
+    }
+}
+
+/// Wrap one host adapter so ambient native ingress is suppressed.
+#[cfg(test)]
+pub(crate) fn without_native_ingress(adapter: Arc<dyn HostAdapter>) -> Arc<dyn HostAdapter> {
+    Arc::new(NativeIngressDisabledHostAdapter { adapter })
 }

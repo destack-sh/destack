@@ -1,5 +1,4 @@
-use crate::host::unix::UnixApplicationLifecycle;
-use crate::host::unix::ingress::ffi::{
+use crate::host::unix::abi::ingress::{
     UNIX_LIFECYCLE_CREATED, UNIX_LIFECYCLE_DESTROYED, UNIX_LIFECYCLE_PAUSED,
     UNIX_LIFECYCLE_RUNNING, UNIX_LIFECYCLE_STOPPED, UNIX_MEMORY_PRESSURE_CRITICAL,
     UNIX_MEMORY_PRESSURE_NORMAL, UNIX_MEMORY_PRESSURE_WARNING, UNIX_POWER_MODE_LOW_POWER,
@@ -7,6 +6,7 @@ use crate::host::unix::ingress::ffi::{
     UNIX_THERMAL_SERIOUS, decode_unix_application_lifecycle, decode_unix_memory_pressure_level,
     decode_unix_power_mode, decode_unix_thermal_state,
 };
+use crate::host::unix::ingress::notify::UnixApplicationLifecycle;
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 
 #[test]

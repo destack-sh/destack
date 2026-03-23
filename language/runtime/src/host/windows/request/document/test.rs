@@ -2,6 +2,7 @@ use crate::diagnostic::RuntimeResult;
 use crate::host::core::HostRequestContext;
 #[cfg(windows)]
 use crate::host::windows::tests::pick_documents as pick_documents_from_tests;
+#[cfg(windows)]
 pub(crate) use crate::host::windows::tests::set_windows_document_test_pick_hook;
 #[cfg(not(windows))]
 use crate::platform::core::not_supported;
