@@ -27,8 +27,8 @@ use super::formatter::FormatterJson;
 use super::linter::LinterJson;
 use super::runtime::{RuntimeConfigJson, runtime_options_from_json, runtime_options_with_base};
 use super::secret::{SecretJson, SecretOptions, extend_secret_options, secret_options_from_json};
-use super::stacks::{StackJson, StackOptions};
-use super::targets::{TargetJson, TargetOptions};
+use super::stack::{StackJson, StackOptions};
+use super::target::{TargetJson, TargetOptions};
 use super::task::{TaskJson, TaskOptions};
 use super::telemetry::{
     TelemetryJson, TelemetryOptions, extend_telemetry_options, telemetry_options_from_json,

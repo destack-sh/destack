@@ -21,6 +21,7 @@ use super::super::{FeatureRefsJson, TelemetryRefsJson};
 use super::app::*;
 use super::bundle::*;
 use super::execution::*;
+use super::native::*;
 use super::optimization::*;
 use super::output::*;
 
@@ -31,7 +32,7 @@ fn default_target_outputs(
     emit: EmitFormat,
     is_assembled: bool,
     declaration: bool,
-    source_map: bool,
+    source_map_mode: Option<SourceMapMode>,
     has_manifest: bool,
 ) -> TargetOutputs {
     let mut outputs = TargetOutputs::new();
@@ -80,7 +81,7 @@ fn default_target_outputs(
     }
 
     // source maps
-    if source_map {
+    if source_map_mode.is_some_and(SourceMapMode::emits_output) {
         outputs.insert(
             TargetOutputName::Maps.as_str(),
             TargetOutputOptions {
@@ -125,15 +126,7 @@ fn is_assembled_target(
         return true;
     }
 
-    bundle.format.is_some()
-        || bundle.splitting
-        || bundle.inline_dynamic_imports
-        || bundle.preserve_modules
-        || bundle.manifest
-        || bundle.minify
-        || bundle.minify_syntax
-        || bundle.minify_whitespace
-        || bundle.minify_identifiers
+    bundle.is_assembled()
 }
 
 /// A build target configuration.
@@ -199,18 +192,12 @@ pub struct Target {
     pub cpu_features: Vec<String>,
     /// Relocation model for native codegen.
     pub relocation_model: RelocationModel,
-    /// Link mode for native targets.
-    pub link_mode: LinkMode,
-    /// Explicit linker executable for native targets.
-    pub linker: Option<String>,
-    /// Extra linker arguments for native targets.
-    pub link_args: Vec<String>,
-    /// Sysroot path for native targets.
-    pub sysroot: Option<PathBuf>,
+    /// Native code generation and link options.
+    pub native: TargetNative,
     /// Emit declaration files (e.g., `.d.ts` alongside `.js` output).
     pub declaration: bool,
-    /// Emit source maps.
-    pub source_map: bool,
+    /// Source map emission mode.
+    pub source_map_mode: Option<SourceMapMode>,
     /// Extra sidecar artifacts to emit.
     pub artifacts: Vec<EmitArtifact>,
 
@@ -286,7 +273,7 @@ impl Target {
     pub fn js(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            outputs: default_target_outputs(EmitFormat::Js, false, true, false, false),
+            outputs: default_target_outputs(EmitFormat::Js, false, true, None, false),
             emit: EmitFormat::Js,
             runtime: Runtime::Node,
             runtime_options: RuntimeOptions {
@@ -303,7 +290,7 @@ impl Target {
     pub fn ts(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            outputs: default_target_outputs(EmitFormat::Ts, false, false, false, false),
+            outputs: default_target_outputs(EmitFormat::Ts, false, false, None, false),
             emit: EmitFormat::Ts,
             runtime: Runtime::Node,
             runtime_options: RuntimeOptions {
@@ -319,7 +306,7 @@ impl Target {
     pub fn html(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            outputs: default_target_outputs(EmitFormat::Html, true, false, false, false),
+            outputs: default_target_outputs(EmitFormat::Html, true, false, None, false),
             emit: EmitFormat::Html,
             runtime: Runtime::Browser,
             runtime_options: RuntimeOptions {
@@ -335,7 +322,7 @@ impl Target {
     pub fn node(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            outputs: default_target_outputs(EmitFormat::Js, false, true, false, false),
+            outputs: default_target_outputs(EmitFormat::Js, false, true, None, false),
             emit: EmitFormat::Js,
             runtime: Runtime::Node,
             runtime_options: RuntimeOptions {
@@ -352,7 +339,7 @@ impl Target {
     pub fn wasm_js(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            outputs: default_target_outputs(EmitFormat::Wasm, true, false, false, false),
+            outputs: default_target_outputs(EmitFormat::Wasm, true, false, None, false),
             emit: EmitFormat::Wasm,
             runtime: Runtime::WasmJs,
             runtime_options: RuntimeOptions {
@@ -369,7 +356,7 @@ impl Target {
     pub fn wasm_wasi(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            outputs: default_target_outputs(EmitFormat::Wasm, true, false, false, false),
+            outputs: default_target_outputs(EmitFormat::Wasm, true, false, None, false),
             emit: EmitFormat::Wasm,
             runtime: Runtime::WasmWasi,
             runtime_options: RuntimeOptions {
@@ -386,7 +373,7 @@ impl Target {
     pub fn native(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            outputs: default_target_outputs(EmitFormat::Native, true, false, false, false),
+            outputs: default_target_outputs(EmitFormat::Native, true, false, None, false),
             emit: EmitFormat::Native,
             runtime: Runtime::NativeHosted,
             runtime_options: RuntimeOptions {
@@ -403,7 +390,7 @@ impl Target {
     pub fn comptime(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            outputs: default_target_outputs(EmitFormat::Native, true, false, false, false),
+            outputs: default_target_outputs(EmitFormat::Native, true, false, None, false),
             emit: EmitFormat::Native,
             runtime: Runtime::NativeHosted,
             runtime_options: RuntimeOptions {
@@ -421,7 +408,7 @@ impl Target {
     pub fn native_freestanding(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            outputs: default_target_outputs(EmitFormat::Native, true, false, false, false),
+            outputs: default_target_outputs(EmitFormat::Native, true, false, None, false),
             emit: EmitFormat::Native,
             runtime: Runtime::NativeFreestanding,
             runtime_options: RuntimeOptions {
@@ -438,7 +425,7 @@ impl Target {
     pub fn native_embedded(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            outputs: default_target_outputs(EmitFormat::Native, true, false, false, false),
+            outputs: default_target_outputs(EmitFormat::Native, true, false, None, false),
             emit: EmitFormat::Native,
             runtime: Runtime::NativeEmbedded,
             runtime_options: RuntimeOptions {
@@ -475,12 +462,12 @@ impl Target {
         target.runtime_version = None;
         target.runtime_options.host = Runtime::NativeHosted;
         target.runtime_options.version = None;
-        target.outputs = default_target_outputs(EmitFormat::Native, true, false, false, false);
+        target.outputs = default_target_outputs(EmitFormat::Native, true, false, None, false);
         target.optimize = false;
         target.optimize_level = OptimizeLevel::O0;
         target.lto_mode = LtoMode::None;
         target.declaration = false;
-        target.source_map = false;
+        target.source_map_mode = None;
         target.artifacts.clear();
         target.synthetic = true;
         target
@@ -533,10 +520,23 @@ impl Target {
 
     /// Return whether this target should minify assembled JavaScript or HTML output.
     pub fn should_minify_bundle_output(&self) -> bool {
-        self.bundle.minify
-            || self.bundle.minify_syntax
-            || self.bundle.minify_whitespace
-            || self.bundle.minify_identifiers
+        self.bundle.minify.is_enabled()
+    }
+
+    /// Return whether this target emits any source map data.
+    pub fn emits_source_maps(&self) -> bool {
+        self.source_map_mode.is_some()
+    }
+
+    /// Return whether this target emits standalone source map outputs.
+    pub fn emits_source_map_output(&self) -> bool {
+        self.source_map_mode
+            .is_some_and(SourceMapMode::emits_output)
+    }
+
+    /// Return whether this target inlines source maps into text outputs.
+    pub fn uses_inline_source_maps(&self) -> bool {
+        self.source_map_mode.is_some_and(SourceMapMode::is_inline)
     }
 
     /// Return whether this target publishes one binary payload.
@@ -594,7 +594,13 @@ impl Target {
 
     /// Set whether to emit source maps.
     pub fn with_source_map(mut self, source_map: bool) -> Self {
-        self.source_map = source_map;
+        self.source_map_mode = source_map.then_some(SourceMapMode::External);
+        self
+    }
+
+    /// Set the source map emission mode.
+    pub fn with_source_map_mode(mut self, source_map_mode: Option<SourceMapMode>) -> Self {
+        self.source_map_mode = source_map_mode;
         self
     }
 
@@ -705,7 +711,7 @@ impl Target {
 
     /// Set link mode for native targets.
     pub fn with_link_mode(mut self, link_mode: LinkMode) -> Self {
-        self.link_mode = link_mode;
+        self.native.link_mode = link_mode;
         self
     }
 
@@ -993,33 +999,25 @@ pub struct TargetOptions {
     /// Target platform / operating system.
     pub platform: Platform,
     /// Target triple for native codegen.
-    /// This selects the ABI and CPU architecture for native targets.
-    /// Target triple for native codegen (e.g., "x86_64-unknown-linux-gnu").
     pub target_triple: Option<String>,
-    /// Target architecture for native codegen (e.g., "x86_64", "aarch64").
+    /// Target architecture for native codegen.
     pub target_arch: Option<TargetArch>,
-    /// Target vendor for native codegen (e.g., "apple", "pc", "unknown").
+    /// Target vendor for native codegen.
     pub target_vendor: Option<TargetVendor>,
-    /// Target environment / ABI for native codegen (e.g., "gnu", "musl", "msvc").
+    /// Target environment or ABI for native codegen.
     pub target_env: Option<TargetEnv>,
-    /// CPU name for native codegen (e.g., "native", "x86-64", "znver3").
+    /// CPU name for native codegen.
     pub cpu: Option<String>,
-    /// CPU feature flags for native codegen (e.g., "+sse4.2", "+aes").
+    /// CPU feature flags for native codegen.
     pub cpu_features: Vec<String>,
     /// Relocation model for native codegen.
     pub relocation_model: RelocationModel,
-    /// Link mode for native targets.
-    pub link_mode: LinkMode,
-    /// Explicit linker executable for native targets.
-    pub linker: Option<String>,
-    /// Extra linker arguments for native targets.
-    pub link_args: Vec<String>,
-    /// Sysroot path for native targets.
-    pub sysroot: Option<PathBuf>,
+    /// Native code generation and link options.
+    pub native: TargetNative,
     /// Emit declaration files (e.g., `.d.ts` alongside `.js` output).
     pub declaration: bool,
-    /// Emit source maps.
-    pub source_map: bool,
+    /// Source map emission mode.
+    pub source_map_mode: Option<SourceMapMode>,
     /// Extra sidecar artifacts to emit.
     pub artifacts: Vec<EmitArtifact>,
 
@@ -1132,12 +1130,9 @@ impl Default for TargetOptions {
             cpu: None,
             cpu_features: Vec::new(),
             relocation_model: RelocationModel::default(),
-            link_mode: LinkMode::default(),
-            linker: None,
-            link_args: Vec::new(),
-            sysroot: None,
+            native: TargetNative::default(),
             declaration: false,
-            source_map: false,
+            source_map_mode: None,
             artifacts: Vec::new(),
             out_dir: PathBuf::from(DEFAULT_OUT_DIR),
             out_file: None,
@@ -1224,12 +1219,9 @@ impl TargetOptions {
             cpu: self.cpu.clone(),
             cpu_features: self.cpu_features.clone(),
             relocation_model: self.relocation_model,
-            link_mode: self.link_mode,
-            linker: self.linker.clone(),
-            link_args: self.link_args.clone(),
-            sysroot: self.sysroot.clone(),
+            native: self.native.clone(),
             declaration: self.declaration,
-            source_map: self.source_map,
+            source_map_mode: self.source_map_mode,
             artifacts: self.artifacts.clone(),
             out_dir: self.out_dir.clone(),
             out_file: self.out_file.clone(),
@@ -1315,6 +1307,14 @@ impl TargetOptions {
             .as_ref()
             .map(TargetBundle::from)
             .unwrap_or_default();
+        let native = json
+            .native
+            .as_ref()
+            .map(TargetNative::from)
+            .unwrap_or_default();
+        let source_map_mode = json
+            .source_map_mode
+            .or_else(|| json.source_map.then_some(SourceMapMode::External));
         let is_assembled =
             is_assembled_target(discovery, &app, emit, &bundle, json.out_file.is_some());
 
@@ -1323,8 +1323,8 @@ impl TargetOptions {
             emit,
             is_assembled,
             json.declaration,
-            json.source_map,
-            bundle.manifest,
+            source_map_mode,
+            bundle.output.manifest,
         );
 
         // seed runtime options with the resolved target app declaration
@@ -1363,12 +1363,9 @@ impl TargetOptions {
                 .relocation_model
                 .map(RelocationModel::from)
                 .unwrap_or_default(),
-            link_mode: json.link_mode.map(LinkMode::from).unwrap_or_default(),
-            linker: json.linker.clone(),
-            link_args: json.link_args.clone().unwrap_or_default(),
-            sysroot: json.sysroot.as_ref().map(PathBuf::from),
+            native,
             declaration: json.declaration,
-            source_map: json.source_map,
+            source_map_mode,
             artifacts: json
                 .artifacts
                 .as_ref()
@@ -1526,20 +1523,16 @@ pub struct TargetJson {
     pub cpu_features: Option<Vec<String>>,
     /// Relocation model.
     pub relocation_model: Option<RelocationModelJson>,
-    /// Link mode.
-    pub link_mode: Option<LinkModeJson>,
-    /// Explicit linker executable.
-    pub linker: Option<String>,
-    /// Extra linker arguments.
-    pub link_args: Option<Vec<String>>,
-    /// Sysroot path for native toolchains.
-    pub sysroot: Option<String>,
+    /// Native code generation and link options.
+    pub native: Option<TargetNativeJson>,
     /// Emit declaration files (e.g., `.d.ts` alongside `.js` output).
     #[serde(default)]
     pub declaration: bool,
-    /// Emit source maps.
+    /// Emit external source maps.
     #[serde(default)]
     pub source_map: bool,
+    /// Source map emission mode.
+    pub source_map_mode: Option<SourceMapMode>,
     /// Extra sidecar artifacts to emit.
     pub artifacts: Option<Vec<EmitArtifactJson>>,
 

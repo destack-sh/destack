@@ -5,7 +5,7 @@ use serde_json::Value;
 use super::common::{
     StackCacheJson, StackCacheOptions, StackProviderJson, StackProviderOptions, merge_metadata,
 };
-use crate::config::targets::TargetOutputName;
+use crate::config::target::TargetOutputName;
 
 /// Publication options.
 #[derive(Debug, Clone, Default)]

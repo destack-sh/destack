@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::config::targets::{
+use crate::config::target::{
     Runtime, TargetAppBackgroundMode, TargetAppDeclaration, TargetAppForegroundMode,
     TargetAppIdentityDeclaration, TargetAppNotificationCategoryDeclaration, TargetAppPermission,
 };

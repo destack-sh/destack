@@ -7,7 +7,7 @@ use crate::config::config::{ConfigJson, ConfigOptions};
 use crate::config::feature::FeatureRefsJson;
 use crate::config::runtime::RuntimeConfigJson;
 use crate::config::secret::{SecretJson, SecretOptions};
-use crate::config::stacks::{
+use crate::config::stack::{
     StackAvailabilityJson, StackAvailabilityOptions, StackBindingJson, StackBindingOptions,
     StackCacheJson, StackCacheOptions, StackCapacityJson, StackCapacityOptions, StackDomainJson,
     StackDomainOptions, StackEnvVarJson, StackEnvVarOptions, StackHealthJson, StackHealthOptions,

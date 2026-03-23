@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use destack_artifact::{EmitFormat, Platform, Runtime};
 use destack_source::{DiagnosticOptions, FileType};
 use destack_workspace::{
-    DebugInfoLevel, EmitArtifact, LinkMode, LtoMode, OptimizeLevel, RuntimeOptionsJson, StripLevel,
-    Target,
+    DebugInfoLevel, EmitArtifact, LinkMode, LtoMode, OptimizeLevel, RuntimeOptionsJson,
+    SourceMapMode, StripLevel, Target,
 };
 use serde::{Deserialize, Serialize};
 
@@ -131,19 +131,19 @@ impl CommandTargetOverrides {
             target.cpu_features = self.cpu_features.clone();
         }
         if let Some(link_mode) = self.link_mode {
-            target.link_mode = link_mode;
+            target.native.link_mode = link_mode;
         }
         if let Some(lto) = self.lto {
             target.lto_mode = lto;
         }
         if let Some(ref linker) = self.linker {
-            target.linker = Some(linker.clone());
+            target.native.linker = Some(linker.clone());
         }
         if !self.link_args.is_empty() {
-            target.link_args = self.link_args.clone();
+            target.native.link_args = self.link_args.clone();
         }
         if let Some(ref sysroot) = self.sysroot {
-            target.sysroot = Some(sysroot.clone());
+            target.native.sysroot = Some(sysroot.clone());
         }
 
         if let Some(ref out_dir) = self.out_dir {
@@ -154,7 +154,7 @@ impl CommandTargetOverrides {
         }
 
         target.declaration = self.declaration;
-        target.source_map = self.source_map;
+        target.source_map_mode = self.source_map.then_some(SourceMapMode::External);
         if !self.artifacts.is_empty() {
             target.artifacts = self.artifacts.clone();
         }
