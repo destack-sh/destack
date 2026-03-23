@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
-use crate::host::core::registry::next_host_runtime_id;
-use crate::host::core::{HostQueue, HostRuntimeRegistry};
-use crate::host::ios::ingress::callback::host_lifecycle_state_for_application_lifecycle;
-use crate::host::ios::{
+use crate::host::core::{HostQueue, HostSessionRegistry};
+use crate::host::ios::ingress::lifecycle::host_lifecycle_state_for_application_lifecycle;
+use crate::host::ios::ingress::{
     IosApplicationLifecycle, ios_notify_background_event, ios_notify_intent_open_url,
     ios_notify_location_sample, ios_notify_notification_event, ios_notify_permission_result,
 };
@@ -57,18 +56,19 @@ fn test_map_application_lifecycle_to_destroyed() {
 
 #[test]
 fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() {
-    let runtime_id = next_host_runtime_id();
+    let runtime_id = HostSessionRegistry::allocate_session_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
     let registration =
-        HostRuntimeRegistry::register_queue(Platform::IOS, runtime_id, Arc::clone(&queue), None);
-    let runtime_id = registration.host_runtime_id();
+        HostSessionRegistry::register_queue(Platform::IOS, runtime_id, Arc::clone(&queue), None);
+    let runtime_id = registration.host_session_id();
 
-    ios_notify_permission_result(runtime_id.0, "camera", true).unwrap();
+    ios_notify_permission_result(runtime_id.0, Some(7), "camera", true).unwrap();
 
     let events = queue.poll_events(Some(0)).unwrap();
     assert_eq!(
         events.as_slice(),
         [HostEvent::Permission(HostPermissionEvent {
+            request_id: Some(crate::host::core::HostRequestId(7)),
             permission: "camera".to_string(),
             granted: true,
         })],
@@ -77,11 +77,11 @@ fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() 
 
 #[test]
 fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
-    let runtime_id = next_host_runtime_id();
+    let runtime_id = HostSessionRegistry::allocate_session_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
     let registration =
-        HostRuntimeRegistry::register_queue(Platform::IOS, runtime_id, Arc::clone(&queue), None);
-    let runtime_id = registration.host_runtime_id();
+        HostSessionRegistry::register_queue(Platform::IOS, runtime_id, Arc::clone(&queue), None);
+    let runtime_id = registration.host_session_id();
 
     ios_notify_intent_open_url(
         runtime_id.0,
@@ -104,11 +104,11 @@ fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
 
 #[test]
 fn test_notify_notification_event_enqueues_notification_event_for_runtime_bridge() {
-    let runtime_id = next_host_runtime_id();
+    let runtime_id = HostSessionRegistry::allocate_session_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
     let registration =
-        HostRuntimeRegistry::register_queue(Platform::IOS, runtime_id, Arc::clone(&queue), None);
-    let runtime_id = registration.host_runtime_id();
+        HostSessionRegistry::register_queue(Platform::IOS, runtime_id, Arc::clone(&queue), None);
+    let runtime_id = registration.host_session_id();
     let event = test_notification_event();
 
     ios_notify_notification_event(runtime_id.0, event.clone()).unwrap();
@@ -124,11 +124,11 @@ fn test_notify_notification_event_enqueues_notification_event_for_runtime_bridge
 
 #[test]
 fn test_notify_background_event_enqueues_background_event_for_runtime_bridge() {
-    let runtime_id = next_host_runtime_id();
+    let runtime_id = HostSessionRegistry::allocate_session_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
     let registration =
-        HostRuntimeRegistry::register_queue(Platform::IOS, runtime_id, Arc::clone(&queue), None);
-    let runtime_id = registration.host_runtime_id();
+        HostSessionRegistry::register_queue(Platform::IOS, runtime_id, Arc::clone(&queue), None);
+    let runtime_id = registration.host_session_id();
     let event = test_background_event();
 
     ios_notify_background_event(runtime_id.0, event.clone()).unwrap();
@@ -144,11 +144,11 @@ fn test_notify_background_event_enqueues_background_event_for_runtime_bridge() {
 
 #[test]
 fn test_notify_location_sample_enqueues_location_event_for_runtime_bridge() {
-    let runtime_id = next_host_runtime_id();
+    let runtime_id = HostSessionRegistry::allocate_session_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
     let registration =
-        HostRuntimeRegistry::register_queue(Platform::IOS, runtime_id, Arc::clone(&queue), None);
-    let runtime_id = registration.host_runtime_id();
+        HostSessionRegistry::register_queue(Platform::IOS, runtime_id, Arc::clone(&queue), None);
+    let runtime_id = registration.host_session_id();
     let sample = test_location_sample();
 
     ios_notify_location_sample(runtime_id.0, "watch-1", sample).unwrap();

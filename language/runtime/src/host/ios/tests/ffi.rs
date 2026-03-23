@@ -1,13 +1,16 @@
-use crate::host::ios::IosApplicationLifecycle;
-use crate::host::ios::ingress::ffi::{
+use crate::host::ios::abi::ingress::lifecycle::{
     IOS_LIFECYCLE_DID_BECOME_ACTIVE, IOS_LIFECYCLE_DID_ENTER_BACKGROUND,
     IOS_LIFECYCLE_DID_FINISH_LAUNCHING, IOS_LIFECYCLE_WILL_ENTER_FOREGROUND,
-    IOS_LIFECYCLE_WILL_RESIGN_ACTIVE, IOS_LIFECYCLE_WILL_TERMINATE, IOS_MEMORY_PRESSURE_CRITICAL,
-    IOS_MEMORY_PRESSURE_NORMAL, IOS_MEMORY_PRESSURE_WARNING, IOS_POWER_MODE_LOW_POWER,
-    IOS_POWER_MODE_NORMAL, IOS_THERMAL_CRITICAL, IOS_THERMAL_FAIR, IOS_THERMAL_NOMINAL,
-    IOS_THERMAL_SERIOUS, decode_ios_application_lifecycle, decode_ios_memory_pressure_level,
+    IOS_LIFECYCLE_WILL_RESIGN_ACTIVE, IOS_LIFECYCLE_WILL_TERMINATE,
+    decode_ios_application_lifecycle,
+};
+use crate::host::ios::abi::ingress::system::{
+    IOS_MEMORY_PRESSURE_CRITICAL, IOS_MEMORY_PRESSURE_NORMAL, IOS_MEMORY_PRESSURE_WARNING,
+    IOS_POWER_MODE_LOW_POWER, IOS_POWER_MODE_NORMAL, IOS_THERMAL_CRITICAL, IOS_THERMAL_FAIR,
+    IOS_THERMAL_NOMINAL, IOS_THERMAL_SERIOUS, decode_ios_memory_pressure_level,
     decode_ios_power_mode, decode_ios_thermal_state,
 };
+use crate::host::ios::ingress::IosApplicationLifecycle;
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 
 #[test]

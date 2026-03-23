@@ -1,14 +1,14 @@
-use super::{
-    destack_host_ios_contact_create, destack_host_ios_contact_delete,
-    destack_host_ios_contact_list, destack_host_ios_contact_read, destack_host_ios_contact_search,
-    destack_host_ios_contact_update,
-};
 use crate::diagnostic::RuntimeResult;
-use crate::host::callback::{
+use crate::host::core::callback::{
     decode_callback_host_status, encode_callback_host_json, read_buffered_callback_host_json,
     read_buffered_callback_host_string,
 };
 use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
+use crate::host::ios::abi::contact::{
+    destack_host_ios_contact_create, destack_host_ios_contact_delete,
+    destack_host_ios_contact_list, destack_host_ios_contact_read, destack_host_ios_contact_search,
+    destack_host_ios_contact_update,
+};
 use crate::platform::os::abi_generated::{
     ContactDraftValue, ContactPageValue, ContactQueryValue, ContactValue,
 };
