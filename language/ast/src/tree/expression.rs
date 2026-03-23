@@ -751,7 +751,7 @@ pub enum Expression {
     /// ```
     Member {
         left: LocalNodeId<Expression>,
-        name: StringId,
+        name: Option<StringId>,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
 
@@ -764,7 +764,7 @@ pub enum Expression {
     /// ```
     PrivateMember {
         left: LocalNodeId<Expression>,
-        name: StringId,
+        name: Option<StringId>,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
 

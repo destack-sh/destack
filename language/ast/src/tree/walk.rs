@@ -1200,7 +1200,10 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
     dependency_item: &DependencyItem,
 ) {
     visitor.visit_any(tree, NodeType::DependencyItem, id.id);
-    if let Some(value) = &dependency_item.value {
+    if let DependencyItem::Item {
+        value: Some(value), ..
+    } = dependency_item
+    {
         let value_expr = tree.get(*value);
         visitor.visit_expression(tree, *value, value_expr);
     }

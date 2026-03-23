@@ -204,13 +204,13 @@ pub enum Expression {
     /// Member access (like `a.foo` or `a.foo<T>`).
     Member {
         left: LocalNodeId<Expression>,
-        name: StringId,
+        name: Option<StringId>,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Private member access (like `a.#foo` or `a.#foo<T>`).
     PrivateMember {
         left: LocalNodeId<Expression>,
-        name: StringId,
+        name: Option<StringId>,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Call to a function.

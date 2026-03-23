@@ -1475,12 +1475,25 @@ impl<'a> NodeVisitor for Dumper<'a> {
         _id: LocalNodeId<DependencyItem>,
         item: &DependencyItem,
     ) {
-        self.node("DependencyItem", _id.id)
-            .field("mode", &item.mode)
-            .field_optional("kind", &item.kind)
-            .field_optional("name", &item.name)
-            .field_optional("alias", &item.alias)
-            .end();
+        match item {
+            DependencyItem::Item {
+                mode,
+                kind,
+                name,
+                alias,
+                value: _,
+            } => {
+                self.node("DependencyItem::Item", _id.id)
+                    .field("mode", mode)
+                    .field_optional("kind", kind)
+                    .field_optional("name", name)
+                    .field_optional("alias", alias)
+                    .end();
+            }
+            DependencyItem::Error => {
+                self.node("DependencyItem::Error", _id.id).end();
+            }
+        }
         self.with_depth(|dumper| {
             walk_dependency_item(dumper, _tree, _id, item);
         });

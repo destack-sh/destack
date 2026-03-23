@@ -1258,6 +1258,7 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::DependencyItem, id.id);
     match dependency_item {
+        DependencyItem::Error => {}
         DependencyItem::UnresolvedRemote {
             source: _,
             mode: _,
