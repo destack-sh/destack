@@ -9,9 +9,9 @@ use {destack_ast as ast, destack_dir as dir};
 use crate::common::{
     QueryContext, build_import_display_path_with_options, common_suffix_len, is_alias_specifier,
     module_specifier_in_expression, normalize_separators, relative_path,
-    resolve_module_id_for_import_target, rewrite_path_with_common_suffix, split_alias_prefix,
-    string_literal_span_in_enclosing, strip_module_extension, strip_path_extension,
-    strip_path_suffix,
+    resolve_module_id_for_import_target, resolve_module_id_for_import_target_path,
+    rewrite_path_with_common_suffix, split_alias_prefix, string_literal_span_in_enclosing,
+    strip_module_extension, strip_path_extension, strip_path_suffix, with_ast_context_for_module,
 };
 use destack_workspace::{ImportEdgeKind, ModuleSpecifier, Session};
 
@@ -97,180 +97,196 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
     // scan modules for import and re export targets
     for module_ref in session.modules.iter() {
         let module = module_ref.as_ref();
-        let Some(ctx) = crate::query_context(session, module) else {
-            continue;
-        };
+        let query_context = crate::query_context(session, module);
 
         // resolve file content for literal edits
-        let Some(file) = file_for_rename(session, ctx.file_id) else {
+        let Some(file) = file_for_rename(session, module.file_id) else {
             continue;
         };
 
-        // scan import and re export expressions
-        let dir_tree = ctx.tree();
-        let mut dir_targets = HashMap::new();
-        for (expr_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
-            // collect resolved targets from dir expressions
-            let target_module = match expression {
-                dir::Expression::Import { target_module, .. }
-                | dir::Expression::ReExport { target_module, .. } => Some(*target_module),
-                _ => None,
-            };
-            let Some(target_module) = target_module else {
-                continue;
-            };
-
-            let source_id = dir_tree.get_source(expr_id.id);
-            dir_targets.insert(source_id, target_module);
-        }
-
-        for expr_id in ctx.ast_context().tree().iter_nodes::<ast::Expression>() {
-            // resolve the module specifier and dependency kind
-            let expression = ctx.ast_context().tree().get(expr_id);
-            let Some((target, kind)) =
-                module_specifier_in_expression(&ctx.ast_context().tree(), expression)
-            else {
-                continue;
-            };
-
-            // resolve the specifier text
-            let specifier_text = ctx.ast_context().strings().get(target).to_string();
-
-            // resolve the target module id
-            let target_module_id = resolve_rename_target_module_id(
-                session,
-                &ctx,
-                &dir_targets,
-                expr_id.id,
-                &specifier_text,
-                kind,
-            );
-            // resolve the updated specifier text
-            let updated_specifier = if let Some(target_module_id) = target_module_id {
-                // resolve the target path and rename entry
-                let target_module = session.modules.get(target_module_id);
-                let target_module = target_module.as_ref();
-                let (target_path, new_path) = if let Some(target_path) = target_module.path.as_ref()
-                {
-                    let target_path = target_path.normalize();
-                    if let Some(new_path) = rename_map.get(&target_path) {
-                        (target_path, new_path.clone())
-                    } else if let Some((target_path, new_path)) =
-                        match_directory_rename_target(session, &rename_map, &target_path)
-                    {
-                        (target_path, new_path)
-                    } else if let Some((target_path, new_path)) =
-                        match_file_uri_rename_entry(session, &rename_map, &specifier_text)
-                    {
-                        (target_path, new_path)
-                    } else if let Some((target_path, new_path)) =
-                        match_absolute_rename_entry(session, &rename_map, &specifier_text)
-                    {
-                        (target_path, new_path)
-                    } else {
+        let Some(()) = with_ast_context_for_module(session, module, |ast| {
+            let mut dir_targets = HashMap::new();
+            if let Some(ctx) = query_context.as_ref() {
+                let dir_tree = ctx.tree();
+                for (expr_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
+                    let target_module = match expression {
+                        dir::Expression::Import { target_module, .. }
+                        | dir::Expression::ReExport { target_module, .. } => Some(*target_module),
+                        _ => None,
+                    };
+                    let Some(target_module) = target_module else {
                         continue;
-                    }
-                } else if let Some((target_path, new_path)) =
-                    match_file_uri_rename_entry(session, &rename_map, &specifier_text)
-                {
-                    (target_path, new_path)
-                } else if let Some((target_path, new_path)) =
-                    match_absolute_rename_entry(session, &rename_map, &specifier_text)
-                {
-                    (target_path, new_path)
-                } else {
-                    continue;
-                };
+                    };
 
-                // resolve package metadata for package specifiers
-                let package = session.packages.get(target_module.package_id);
-                let package = package.read();
-                let package_name = package.name.as_deref();
-                let package_dir = package.path.as_deref();
+                    let source_id = dir_tree.get_source(expr_id.id);
+                    dir_targets.insert(source_id, target_module);
+                }
+            }
 
-                rewrite_import_specifier(
-                    session,
-                    &file,
-                    &specifier_text,
-                    &target_path,
-                    &new_path,
-                    package_name,
-                    package_dir,
-                )
-            } else if let Some((target_path, new_path)) =
-                match_file_uri_rename_entry(session, &rename_map, &specifier_text)
-            {
-                rewrite_import_specifier(
-                    session,
-                    &file,
-                    &specifier_text,
-                    &target_path,
-                    &new_path,
-                    None,
-                    None,
-                )
-            } else if let Some((target_path, new_path)) =
-                match_absolute_rename_entry(session, &rename_map, &specifier_text)
-            {
-                rewrite_import_specifier(
-                    session,
-                    &file,
-                    &specifier_text,
-                    &target_path,
-                    &new_path,
-                    None,
-                    None,
-                )
-            } else {
-                let Some((target_path, new_path)) =
-                    match_alias_rename_entry(&rename_map, &specifier_text)
+            for expr_id in ast.tree().iter_nodes::<ast::Expression>() {
+                // resolve the module specifier and dependency kind
+                let expression = ast.tree().get(expr_id);
+                let Some((target, kind)) = module_specifier_in_expression(ast.tree(), expression)
                 else {
                     continue;
                 };
 
-                rewrite_import_specifier(
-                    session,
+                // resolve the specifier text
+                let specifier_text = ast.strings().get(target).to_string();
+
+                // resolve the target module id
+                let target_module_id = if let Some(ctx) = query_context.as_ref() {
+                    resolve_rename_target_module_id(
+                        session,
+                        ctx,
+                        &dir_targets,
+                        expr_id.id,
+                        &specifier_text,
+                        kind,
+                    )
+                } else {
+                    resolve_ast_only_rename_target_module_id(session, &file, &specifier_text)
+                };
+
+                // resolve the updated specifier text
+                let updated_specifier = if let Some(target_module_id) = target_module_id {
+                    // resolve the target path and rename entry
+                    let target_module = session.modules.get(target_module_id);
+                    let target_module = target_module.as_ref();
+                    let (target_path, new_path) =
+                        if let Some(target_path) = target_module.path.as_ref() {
+                            let target_path = target_path.normalize();
+                            if let Some((target_path, new_path)) =
+                                match_path_rename_entry(session, &rename_map, &target_path)
+                            {
+                                (target_path, new_path)
+                            } else if let Some((target_path, new_path)) =
+                                match_directory_rename_target(session, &rename_map, &target_path)
+                            {
+                                (target_path, new_path)
+                            } else if let Some((target_path, new_path)) =
+                                match_file_uri_rename_entry(session, &rename_map, &specifier_text)
+                            {
+                                (target_path, new_path)
+                            } else if let Some((target_path, new_path)) =
+                                match_absolute_rename_entry(session, &rename_map, &specifier_text)
+                            {
+                                (target_path, new_path)
+                            } else {
+                                continue;
+                            }
+                        } else if let Some((target_path, new_path)) =
+                            match_file_uri_rename_entry(session, &rename_map, &specifier_text)
+                        {
+                            (target_path, new_path)
+                        } else if let Some((target_path, new_path)) =
+                            match_absolute_rename_entry(session, &rename_map, &specifier_text)
+                        {
+                            (target_path, new_path)
+                        } else {
+                            continue;
+                        };
+
+                    // resolve package metadata for package specifiers
+                    let package = session.packages.get(target_module.package_id);
+                    let package = package.read();
+                    let package_name = package.name.as_deref();
+                    let package_dir = package.path.as_deref();
+
+                    rewrite_import_specifier(
+                        session,
+                        &file,
+                        &specifier_text,
+                        &target_path,
+                        &new_path,
+                        package_name,
+                        package_dir,
+                    )
+                } else if let Some((target_path, new_path)) =
+                    match_file_uri_rename_entry(session, &rename_map, &specifier_text)
+                {
+                    rewrite_import_specifier(
+                        session,
+                        &file,
+                        &specifier_text,
+                        &target_path,
+                        &new_path,
+                        None,
+                        None,
+                    )
+                } else if let Some((target_path, new_path)) =
+                    match_absolute_rename_entry(session, &rename_map, &specifier_text)
+                {
+                    rewrite_import_specifier(
+                        session,
+                        &file,
+                        &specifier_text,
+                        &target_path,
+                        &new_path,
+                        None,
+                        None,
+                    )
+                } else if let Some((target_path, new_path, package_name, package_dir)) =
+                    match_package_rename_entry(&rename_map, &specifier_text)
+                {
+                    rewrite_import_specifier(
+                        session,
+                        &file,
+                        &specifier_text,
+                        &target_path,
+                        &new_path,
+                        Some(&package_name),
+                        Some(&package_dir),
+                    )
+                } else {
+                    let Some((target_path, new_path)) =
+                        match_alias_rename_entry(&rename_map, &specifier_text)
+                    else {
+                        continue;
+                    };
+
+                    rewrite_import_specifier(
+                        session,
+                        &file,
+                        &specifier_text,
+                        &target_path,
+                        &new_path,
+                        None,
+                        None,
+                    )
+                };
+                let Some(updated_specifier) = updated_specifier else {
+                    continue;
+                };
+                if updated_specifier == specifier_text {
+                    continue;
+                }
+
+                // resolve the string literal span for the import target
+                let ast_span = ast.source_map().get_main_or_enclosing(expr_id.id);
+                let enclosing = Span::new(module.file_id, ast_span.start, ast_span.end);
+                let span = string_literal_span_in_enclosing(
                     &file,
+                    ast.tokens(),
+                    enclosing,
                     &specifier_text,
-                    &target_path,
-                    &new_path,
-                    None,
-                    None,
                 )
-            };
-            let Some(updated_specifier) = updated_specifier else {
-                continue;
-            };
-            if updated_specifier == specifier_text {
-                continue;
-            }
+                .unwrap_or(enclosing);
+                let literal = file.span_str(span);
+                if literal.is_empty() {
+                    continue;
+                }
 
-            // resolve the string literal span for the import target
-            let ast_span = ctx
-                .ast_context()
-                .tree()
-                .source_map
-                .get_main_or_enclosing(expr_id.id);
-            let enclosing = Span::new(ctx.file_id, ast_span.start, ast_span.end);
-            let span = string_literal_span_in_enclosing(
-                &file,
-                &ctx.ast_context().tokens(),
-                enclosing,
-                &specifier_text,
-            )
-            .unwrap_or(enclosing);
-            let literal = file.span_str(span);
-            if literal.is_empty() {
-                continue;
+                // build and store the edit
+                let new_text = wrap_string_literal(literal, &updated_specifier);
+                edits_by_file
+                    .entry(span.file)
+                    .or_default()
+                    .push(Edit::replace(span, new_text));
             }
-
-            // build and store the edit
-            let new_text = wrap_string_literal(literal, &updated_specifier);
-            edits_by_file
-                .entry(span.file)
-                .or_default()
-                .push(Edit::replace(span, new_text));
-        }
+        }) else {
+            continue;
+        };
     }
 
     // return early when no edits exist
@@ -287,6 +303,17 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
     }
 
     Some(FileRenameResult::from_edits(batch_edit))
+}
+
+/// Resolve a module id for rename queries without DIR context.
+fn resolve_ast_only_rename_target_module_id(
+    session: &Session,
+    file: &File,
+    specifier: &str,
+) -> Option<ModuleId> {
+    let source_path = file.path.as_ref()?;
+
+    resolve_module_id_for_import_target_path(session, source_path, specifier)
 }
 
 /// Resolve a module id for a rename target.
@@ -313,7 +340,7 @@ fn resolve_rename_target_module_id(
     };
     let target_id = session.strings.intern(specifier);
     let cache_key = (relative_module, target_id, ImportEdgeKind::Import, None);
-    if let Some(targets) = ctx.resolved.imported_modules.get(&cache_key).copied() {
+    if let Some(targets) = ctx.dir_resolved().imported_modules.get(&cache_key).copied() {
         let dependency_kind = match kind {
             ast::DependencyKind::Type => dir::DependencyKind::Type,
             ast::DependencyKind::Value => dir::DependencyKind::Value,
@@ -325,16 +352,8 @@ fn resolve_rename_target_module_id(
         }
     }
 
-    // resolve relative and absolute specifiers directly
-    if specifier.starts_with("./")
-        || specifier.starts_with("../")
-        || specifier.starts_with('/')
-        || specifier.starts_with("file://")
-    {
-        return resolve_module_id_for_import_target(session, ctx, specifier);
-    }
-
-    None
+    // resolve remaining specifiers through the shared import resolver
+    resolve_module_id_for_import_target(session, ctx, specifier)
 }
 
 /// Resolve a rename entry for file uri specifiers.
@@ -400,6 +419,117 @@ fn match_alias_rename_entry(
                 return Some((old_path.clone(), new_path.clone()));
             }
         }
+    }
+
+    None
+}
+
+/// Resolve a rename entry for package specifiers when module resolution is unavailable.
+fn match_package_rename_entry(
+    rename_map: &HashMap<PathBuf, PathBuf>,
+    specifier: &str,
+) -> Option<(PathBuf, PathBuf, String, PathBuf)> {
+    let (package_name, suffix) = split_package_specifier(specifier)?;
+    let suffix = suffix.trim_start_matches('/');
+    if suffix.is_empty() {
+        return None;
+    }
+
+    let suffix_path = Path::new(suffix);
+    for (old_path, new_path) in rename_map {
+        let Some(package_dir) = package_root_for_path(old_path, &package_name) else {
+            continue;
+        };
+
+        let Ok(relative) = old_path.strip_prefix(&package_dir) else {
+            continue;
+        };
+        if relative == suffix_path {
+            return Some((
+                old_path.clone(),
+                new_path.clone(),
+                package_name.clone(),
+                package_dir,
+            ));
+        }
+
+        if suffix_path.extension().is_none()
+            && let Some(relative_no_extension) = strip_path_extension(relative)
+            && relative_no_extension == suffix_path
+        {
+            return Some((
+                old_path.clone(),
+                new_path.clone(),
+                package_name.clone(),
+                package_dir,
+            ));
+        }
+    }
+
+    None
+}
+
+/// Split a package specifier into the package name and path suffix.
+fn split_package_specifier(specifier: &str) -> Option<(String, String)> {
+    let parsed = ModuleSpecifier::parse(specifier);
+    let path = parsed.path();
+    if path.is_empty() || path.starts_with('.') || path.starts_with('/') || is_alias_specifier(path)
+    {
+        return None;
+    }
+
+    let mut segments = path.split('/');
+    let first = segments.next()?;
+    if first.is_empty() {
+        return None;
+    }
+
+    let package_name = if first.starts_with('@') {
+        let second = segments.next()?;
+        format!("{first}/{second}")
+    } else {
+        first.to_string()
+    };
+
+    let suffix = path.strip_prefix(&package_name)?;
+    if !suffix.starts_with('/') {
+        return None;
+    }
+
+    Some((package_name, suffix.to_string()))
+}
+
+/// Resolve the package root directory for a renamed path.
+fn package_root_for_path(path: &Path, package_name: &str) -> Option<PathBuf> {
+    let package_path = Path::new(package_name);
+    let path_components = path.components().collect::<Vec<_>>();
+    let package_components = package_path.components().collect::<Vec<_>>();
+    for index in 0..path_components.len() {
+        if path_components[index].as_os_str() != "node_modules" {
+            continue;
+        }
+
+        let end = index + 1 + package_components.len();
+        if end > path_components.len() {
+            continue;
+        }
+
+        let package_matches = package_components
+            .iter()
+            .enumerate()
+            .all(|(offset, component)| path_components[index + 1 + offset] == *component);
+        if !package_matches {
+            continue;
+        }
+
+        let package_dir =
+            path_components[..end]
+                .iter()
+                .fold(PathBuf::new(), |mut current, component| {
+                    current.push(component.as_os_str());
+                    current
+                });
+        return Some(package_dir);
     }
 
     None
@@ -745,4 +875,135 @@ fn rewrite_alias_specifier(specifier: &str, old_path: &Path, new_path: &Path) ->
 
     let relative_str = normalize_separators(&relative.to_string_lossy());
     Some(format!("{prefix}{relative_str}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use destack_source::{File, FileType, Uri};
+    use destack_workspace::Session;
+
+    /// Split package specifiers into package names and suffixes.
+    #[test]
+    fn test_split_package_specifier() {
+        assert_eq!(
+            split_package_specifier("my_pkg/utils/foo"),
+            Some(("my_pkg".to_string(), "/utils/foo".to_string()))
+        );
+        assert_eq!(
+            split_package_specifier("@scope/pkg/utils/foo"),
+            Some(("@scope/pkg".to_string(), "/utils/foo".to_string()))
+        );
+        assert_eq!(split_package_specifier("./utils/foo"), None);
+        assert_eq!(split_package_specifier("@/utils/foo"), None);
+    }
+
+    /// Resolve package roots from renamed paths under node_modules.
+    #[test]
+    fn test_resolve_package_root_for_path() {
+        let path = Path::new("node_modules/my_pkg/utils/foo.ds");
+        assert_eq!(
+            package_root_for_path(path, "my_pkg"),
+            Some(PathBuf::from("node_modules/my_pkg"))
+        );
+
+        let scoped_path = Path::new("node_modules/@scope/pkg/utils/foo.ds");
+        assert_eq!(
+            package_root_for_path(scoped_path, "@scope/pkg"),
+            Some(PathBuf::from("node_modules/@scope/pkg"))
+        );
+
+        assert_eq!(package_root_for_path(path, "other_pkg"), None);
+    }
+
+    /// Match package rename entries without module resolution.
+    #[test]
+    fn test_match_package_rename_entry() {
+        let rename_map = HashMap::from([(
+            PathBuf::from("node_modules/my_pkg/utils/foo.ds"),
+            PathBuf::from("node_modules/my_pkg/utils/bar.ds"),
+        )]);
+
+        assert_eq!(
+            match_package_rename_entry(&rename_map, "my_pkg/utils/foo"),
+            Some((
+                PathBuf::from("node_modules/my_pkg/utils/foo.ds"),
+                PathBuf::from("node_modules/my_pkg/utils/bar.ds"),
+                "my_pkg".to_string(),
+                PathBuf::from("node_modules/my_pkg"),
+            ))
+        );
+    }
+
+    /// Match absolute target paths against workspace relative rename entries.
+    #[test]
+    fn test_match_path_rename_entry_for_absolute_target() {
+        let session = Session::new(PathBuf::from("/test"));
+        let rename_map = HashMap::from([(
+            PathBuf::from("src/utils/foo.ds"),
+            PathBuf::from("src/utils/bar.ds"),
+        )]);
+
+        assert_eq!(
+            match_path_rename_entry(&session, &rename_map, Path::new("/test/src/utils/foo.ds"),),
+            Some((
+                PathBuf::from("/test/src/utils/foo.ds"),
+                PathBuf::from("/test/src/utils/bar.ds"),
+            ))
+        );
+    }
+
+    /// Rewrite alias specifiers from renamed workspace targets.
+    #[test]
+    fn test_rewrite_import_specifier_for_alias() {
+        let session = Session::new(PathBuf::from("/test"));
+        let file = File::from_text(
+            FileId(1),
+            "main.ds".to_string(),
+            Uri::from_string("file:///test/src/main.ds"),
+            Some(PathBuf::from("/test/src/main.ds")),
+            FileType::Destack,
+            "import { foo } from \"@/utils/foo\";".to_string(),
+        );
+
+        assert_eq!(
+            rewrite_import_specifier(
+                &session,
+                &file,
+                "@/utils/foo",
+                Path::new("src/utils/foo.ds"),
+                Path::new("src/utils/bar.ds"),
+                None,
+                None,
+            ),
+            Some("@/utils/bar".to_string())
+        );
+    }
+
+    /// Rewrite package specifiers from renamed package targets.
+    #[test]
+    fn test_rewrite_import_specifier_for_package() {
+        let session = Session::new(PathBuf::from("/test"));
+        let file = File::from_text(
+            FileId(1),
+            "main.ds".to_string(),
+            Uri::from_string("file:///test/src/main.ds"),
+            Some(PathBuf::from("/test/src/main.ds")),
+            FileType::Destack,
+            "import { foo } from \"my_pkg/utils/foo\";".to_string(),
+        );
+
+        assert_eq!(
+            rewrite_import_specifier(
+                &session,
+                &file,
+                "my_pkg/utils/foo",
+                Path::new("node_modules/my_pkg/utils/foo.ds"),
+                Path::new("node_modules/my_pkg/utils/bar.ds"),
+                Some("my_pkg"),
+                Some(Path::new("node_modules/my_pkg")),
+            ),
+            Some("my_pkg/utils/bar".to_string())
+        );
+    }
 }
