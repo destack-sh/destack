@@ -11,9 +11,9 @@ use destack_workspace::{
 };
 use serde_json::json;
 
-use crate::harness::print::color;
-use crate::harness::{
-    RunContext, Suite, TestCase, TestOptions, TestResult, fixtures_dir, format_diagnostics,
+use crate::core::print::color;
+use crate::core::{
+    Case, CaseResult, RunContext, RunOptions, Suite, fixtures_dir, format_diagnostics,
     save_expected_failures,
 };
 use crate::mdtest::{
@@ -27,7 +27,7 @@ pub struct SpecificationSuite {
     /// Map from test full name to the parsed test case.
     tests: HashMap<String, MdTestCase>,
     /// List of discovered test cases.
-    cases: Vec<TestCase>,
+    cases: Vec<Case>,
     /// Known failing tests for baseline tracking.
     expected_failures: HashSet<String>,
     /// Location of the known failures file.
@@ -72,9 +72,8 @@ impl SpecificationSuite {
                 slug(&case.section),
                 slug(&case.name)
             );
-            let test_case =
-                TestCase::file(name, md_path.to_path_buf(), "destack_test::specification")
-                    .with_skipped(case.skip);
+            let test_case = Case::file(name, md_path.to_path_buf(), "destack_test::specification")
+                .with_skipped(case.skip);
 
             self.tests.insert(test_case.full_name(), case);
             self.cases.push(test_case);
@@ -87,11 +86,11 @@ impl Suite for SpecificationSuite {
         "specification"
     }
 
-    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+    fn discover(&self, _options: &RunOptions) -> Vec<Case> {
         self.cases.clone()
     }
 
-    fn expected_failures(&self, _options: &TestOptions) -> Option<&HashSet<String>> {
+    fn expected_failures(&self, _options: &RunOptions) -> Option<&HashSet<String>> {
         if self.expected_failures.is_empty() {
             None
         } else {
@@ -99,10 +98,10 @@ impl Suite for SpecificationSuite {
         }
     }
 
-    fn run(&self, case: &TestCase, context: &RunContext<'_>) -> TestResult {
+    fn run(&self, case: &Case, context: &RunContext<'_>) -> CaseResult {
         // resolve the parsed md test
         let Some(md_test) = self.tests.get(&case.full_name()) else {
-            return TestResult::Failed {
+            return CaseResult::Failed {
                 message: "test not found".to_string(),
             };
         };
@@ -110,7 +109,7 @@ impl Suite for SpecificationSuite {
         // select timeout and run the test
         let timeout = context
             .timeout
-            .unwrap_or_else(|| context.options.mdtest_timeout());
+            .unwrap_or_else(|| context.options.case_timeout());
         run_with_timeout(md_test.clone(), timeout, run_specification_test)
     }
 
@@ -119,7 +118,7 @@ impl Suite for SpecificationSuite {
         None
     }
 
-    fn report(&self, results: &[(TestCase, TestResult)], context: &RunContext<'_>) {
+    fn report(&self, results: &[(Case, CaseResult)], context: &RunContext<'_>) {
         if !context.options.update_known_failures {
             return;
         }
@@ -149,7 +148,7 @@ impl Suite for SpecificationSuite {
 }
 
 /// Run a single spec test: compile the code and compare errors against expectations.
-fn run_specification_test(test: &MdTestCase) -> TestResult {
+fn run_specification_test(test: &MdTestCase) -> CaseResult {
     // build one isolated in-memory environment per test
     let (session, program, root, main_path) = {
         let root = specification_root_for(test);
@@ -183,7 +182,7 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
         let module_id = match compiler.resolve_path_to_module(&main_path) {
             Ok(id) => id,
             Err(e) => {
-                return TestResult::Failed {
+                return CaseResult::Failed {
                     message: format!("failed to resolve module: {e:?}"),
                 };
             }
@@ -193,7 +192,7 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
         if let Err(error) =
             apply_destack_config_for_spec(&program, module_id, &main_path, prefer_native)
         {
-            return TestResult::Failed { message: error };
+            return CaseResult::Failed { message: error };
         }
 
         // select profile and lib loading
@@ -254,7 +253,7 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
         // compare against expected diagnostics
         let error_result = compare_expected("error", &expected_errors, &actual_errors);
         let warning_result = if expected_warnings.is_empty() {
-            TestResult::Passed
+            CaseResult::Passed
         } else {
             compare_expected("warning", &expected_warnings, &actual_warnings)
         };
@@ -262,7 +261,7 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
 
         // append rendered diagnostics for failures
         match result {
-            TestResult::Failed { mut message } => {
+            CaseResult::Failed { mut message } => {
                 let options = PrintOptions::new().with_colorizer(source_colorizer());
                 let rendered = format_diagnostics(&program.files, &diagnostics, options);
                 if !rendered.is_empty() {
@@ -272,7 +271,7 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
                     }
                     message.push_str(&rendered);
                 }
-                TestResult::Failed { message }
+                CaseResult::Failed { message }
             }
             other => other,
         }
@@ -463,7 +462,7 @@ fn split_expected_diagnostics(items: &[String]) -> (Vec<String>, Vec<String>) {
 }
 
 /// Compare expected diagnostics against actual diagnostics.
-fn compare_expected(kind: &str, expected: &[String], actual: &[String]) -> TestResult {
+fn compare_expected(kind: &str, expected: &[String], actual: &[String]) -> CaseResult {
     // normalize expected and actual diagnostics
     let expected_patterns: Vec<ExpectedError> =
         expected.iter().map(|s| ExpectedError::parse(s)).collect();
@@ -487,7 +486,7 @@ fn compare_expected(kind: &str, expected: &[String], actual: &[String]) -> TestR
 
     // return success when nothing is missing or unexpected
     if missing.is_empty() && unexpected.is_empty() {
-        return TestResult::Passed;
+        return CaseResult::Passed;
     }
 
     // build failure message
@@ -515,24 +514,24 @@ fn compare_expected(kind: &str, expected: &[String], actual: &[String]) -> TestR
         }
     }
 
-    TestResult::Failed { message }
+    CaseResult::Failed { message }
 }
 
 /// Merge two diagnostic comparison results.
-fn merge_results(first: TestResult, second: TestResult) -> TestResult {
+fn merge_results(first: CaseResult, second: CaseResult) -> CaseResult {
     // merge two diagnostic comparison results
     match (first, second) {
-        (TestResult::Passed, TestResult::Passed) => TestResult::Passed,
-        (TestResult::Failed { message }, TestResult::Passed)
-        | (TestResult::Passed, TestResult::Failed { message }) => TestResult::Failed { message },
-        (TestResult::Failed { message: left }, TestResult::Failed { message: right }) => {
+        (CaseResult::Passed, CaseResult::Passed) => CaseResult::Passed,
+        (CaseResult::Failed { message }, CaseResult::Passed)
+        | (CaseResult::Passed, CaseResult::Failed { message }) => CaseResult::Failed { message },
+        (CaseResult::Failed { message: left }, CaseResult::Failed { message: right }) => {
             let message = format!("{left}\n\n{right}");
-            TestResult::Failed { message }
+            CaseResult::Failed { message }
         }
-        (TestResult::Skipped { reason }, _) | (_, TestResult::Skipped { reason }) => {
-            TestResult::Skipped { reason }
+        (CaseResult::Skipped { reason }, _) | (_, CaseResult::Skipped { reason }) => {
+            CaseResult::Skipped { reason }
         }
-        (TestResult::Suite { .. }, other) | (other, TestResult::Suite { .. }) => other,
+        (CaseResult::Suite { .. }, other) | (other, CaseResult::Suite { .. }) => other,
     }
 }
 

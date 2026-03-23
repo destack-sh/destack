@@ -11,7 +11,7 @@ use destack_workspace::{
     Target,
 };
 
-use crate::harness::{TestResult, discover_test_files, load_expected_failures};
+use crate::core::{CaseResult, discover_file_cases, load_expected_failures};
 
 use super::parser::MdTestCase;
 
@@ -297,9 +297,9 @@ pub fn setup_test_environment(
 
 /// Run a test function with a timeout.
 /// Returns a failed result if the test times out or panics.
-pub fn run_with_timeout<F>(test: MdTestCase, timeout: Duration, f: F) -> TestResult
+pub fn run_with_timeout<F>(test: MdTestCase, timeout: Duration, f: F) -> CaseResult
 where
-    F: FnOnce(&MdTestCase) -> TestResult + Send + 'static,
+    F: FnOnce(&MdTestCase) -> CaseResult + Send + 'static,
 {
     // allocate the communication channel
     let (tx, rx) = mpsc::channel();
@@ -320,11 +320,11 @@ where
 
                 // skip tests marked with #Incomplete
                 if msg.contains("#Incomplete") {
-                    TestResult::Skipped {
+                    CaseResult::Skipped {
                         reason: msg.to_string(),
                     }
                 } else {
-                    TestResult::Failed {
+                    CaseResult::Failed {
                         message: format!("panic: {msg}"),
                     }
                 }
@@ -338,13 +338,13 @@ where
     // wait for the test result or timeout
     match rx.recv_timeout(timeout) {
         Ok(result) => result,
-        Err(mpsc::RecvTimeoutError::Timeout) => TestResult::Failed {
+        Err(mpsc::RecvTimeoutError::Timeout) => CaseResult::Failed {
             message: format!(
                 "test timed out after {}s (likely deadlock or infinite loop)",
                 timeout.as_secs()
             ),
         },
-        Err(mpsc::RecvTimeoutError::Disconnected) => TestResult::Failed {
+        Err(mpsc::RecvTimeoutError::Disconnected) => CaseResult::Failed {
             message: "test thread disconnected unexpectedly".to_string(),
         },
     }
@@ -362,7 +362,7 @@ pub fn discover_md_files(dir: &Path) -> io::Result<Vec<PathBuf>> {
     }
 
     // collect direct md files excluding readme
-    let direct_files = discover_test_files(dir, &["md"], "mdtest")?;
+    let direct_files = discover_file_cases(dir, &["md"], "mdtest")?;
     for test in direct_files {
         if test.name.to_lowercase() == "readme" {
             continue;
