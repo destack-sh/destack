@@ -1693,7 +1693,7 @@ impl Compiler {
                 view.module.id,
                 symbol.module_id,
                 view.profile,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
             )
             .is_err()
         {

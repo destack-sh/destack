@@ -1,9 +1,10 @@
 use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use destack_artifact::ArtifactKey;
 use destack_compiler::{Compiler, CompilerOptions};
 use destack_linter::Linter;
 use destack_source::{FileType, ModuleId, ModuleStamp, ProfileStamp, Uri, glob};
-use destack_workspace::{ArtifactKey, ProfileId, Session};
+use destack_workspace::{ProfileId, Session};
 use pprof::ProfilerGuard;
 use pprof::flamegraph::Options as FlamegraphOptions;
 use std::fs;

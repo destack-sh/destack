@@ -3,12 +3,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
+use destack_artifact::{ArtifactKey, EmitFormat, MemoryCacheStore};
 use destack_compiler::{Compiler, CompilerOptions};
 use destack_parser::source_colorizer;
 use destack_source::{File, FileType, MemoryFileSystem, ModuleId, PrintOptions, Uri};
-use destack_workspace::{
-    ArtifactKey, Destack, EmitFormat, MemoryCacheStore, Session, TargetId, TargetOptions,
-};
+use destack_workspace::{Destack, Session, TargetId, TargetOptions};
 use serde_json::json;
 
 use crate::core::print::color;

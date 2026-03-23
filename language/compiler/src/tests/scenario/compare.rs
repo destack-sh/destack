@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
+use destack_artifact::{Ast, DirPrepared, DirResolved};
 use destack_core::StringPool;
 use destack_dir::{Dumper, DumperOptions, NodeVisitor};
 use destack_source::{FileId, ModuleId, ModuleVersion};
-use destack_workspace::{Ast, DirPrepared, DirResolved};
 
 /// Build one stable profile key for scenario cache tests.
-pub(crate) fn test_profile_key() -> destack_workspace::ProfileKey {
-    use destack_workspace::{EmitFormat, EnvSnapshot, Platform, ProfileFlags, ProfileKey, Runtime};
+pub(crate) fn test_profile_key() -> destack_artifact::ProfileKey {
+    use destack_artifact::{EmitFormat, EnvSnapshot, Platform, ProfileFlags, ProfileKey, Runtime};
 
     ProfileKey::new(
         EmitFormat::Js,

@@ -273,7 +273,7 @@ fn signature_info_for_symbol(
     let formatted = format_call_signature(
         function_name,
         signature,
-        &ctx.program.artifacts,
+        &ctx.artifacts,
         ctx.module_id,
         dir_tree,
         types,

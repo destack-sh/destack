@@ -1,9 +1,10 @@
 use crate::ArtifactTaskKeyExt;
 use crate::compile::Compiler;
-use destack_workspace::{
-    ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageRequirement, ArtifactKey,
-    ArtifactPayload, ArtifactStore, CacheMode, CacheValidate,
+use destack_artifact::{
+    ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageRequirement,
+    ArtifactImageStore, ArtifactKey, ArtifactPayload,
 };
+use destack_workspace::{CacheMode, CacheValidate};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
@@ -14,7 +15,7 @@ impl Compiler {
         artifact_key: &ArtifactKey,
     ) -> Result<Vec<ArtifactImageRequirement>, ArtifactImageError> {
         if artifact_key.family().persisted_image_validation()
-            == destack_workspace::PersistedImageValidation::SelfContained
+            == destack_artifact::PersistedImageValidation::SelfContained
         {
             return Ok(Vec::new());
         }
@@ -82,13 +83,13 @@ impl Compiler {
     }
 
     /// Resolve the persisted artifact store when disk mode is enabled.
-    pub(crate) fn artifact_store(&self) -> Option<ArtifactStore<'_>> {
+    pub(crate) fn artifact_store(&self) -> Option<ArtifactImageStore<'_>> {
         if self.workspace_cache_mode() != CacheMode::Disk {
             return None;
         }
 
         let cache_root = self.session.workspace_cache_dir();
-        Some(ArtifactStore::new(
+        Some(ArtifactImageStore::new(
             self.session.cache_store.as_ref(),
             &cache_root,
         ))
@@ -189,9 +190,7 @@ impl Compiler {
         F: FnOnce(&Self) -> Result<Option<T>, ArtifactImageError>,
     {
         let payload = self.load_artifact(&artifact_key, load)?;
-        self.program
-            .artifacts
-            .publish(artifact_key, payload.clone());
+        self.artifacts.publish(artifact_key, payload.clone());
 
         Some(payload)
     }

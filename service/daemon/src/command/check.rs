@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
+use destack_artifact::ArtifactKey;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactKey, Program};
+use destack_workspace::Program;
 use serde::{Deserialize, Serialize};
 
 use super::context::CommandContext;
@@ -48,7 +49,7 @@ impl CommandContext<'_> {
         // compile and collect diagnostics
         self.compiler.compile();
         if lint_enabled {
-            run_module_lints(&self.program, &modules)?;
+            run_module_lints(&self.program, &self.compiler, &modules)?;
         }
         let raw_diagnostics = self.collect_raw_diagnostics();
         self.commit_diagnostics_for_modules(&modules, &raw_diagnostics)?;
@@ -86,7 +87,7 @@ impl CommandContext<'_> {
         // compile and collect diagnostics
         self.compiler.compile();
         if lint_enabled {
-            run_module_lints(&self.program, &modules)?;
+            run_module_lints(&self.program, &self.compiler, &modules)?;
         }
         let raw_diagnostics = self.collect_raw_diagnostics();
         self.commit_diagnostics_for_modules(&modules, &raw_diagnostics)?;
@@ -119,9 +120,10 @@ fn enqueue_check_tasks(program: &Arc<Program>, compiler: &Arc<Compiler>, modules
 /// Run module scoped lints over already-built compiler products.
 fn run_module_lints(
     program: &Arc<Program>,
+    compiler: &Arc<Compiler>,
     modules: &[ModuleId],
 ) -> Result<(), DaemonCommandError> {
-    let linter = Linter::new(program.clone());
+    let linter = Linter::new(program.clone(), compiler.artifacts.clone());
 
     // lint each requested module against its default profile
     for module_id in modules {

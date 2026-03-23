@@ -1,12 +1,13 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use destack_artifact::ArtifactKey;
 use destack_compiler::{Compiler, CompilerOptions};
 use destack_parser::Parser;
 use destack_source::{
     File, FileRegistry, FileSystem, FileType, LanguageType, MemoryFileSystem, Uri,
 };
-use destack_workspace::{ArtifactKey, FormatterOptions, LinterOptions, Program, Session};
+use destack_workspace::{FormatterOptions, LinterOptions, Program, Session};
 
 use crate::core::{
     Case, CaseResult, RunContext, RunOptions, Suite, discover_file_cases, fixtures_dir,

@@ -598,9 +598,19 @@ impl LanguageService {
             .map(|module| {
                 let module = module.as_ref();
                 let profile_id = program.default_profile_id_for_module(module.id);
-                let ast_ready = program.artifacts.ast(module.id).is_some();
-                let base_dir_ready = program.artifacts.dir_base(module.id).is_some();
-                let dir_ready = program.artifacts.dir_analyzed(module.id, profile_id).is_some();
+                let artifacts = session.get_artifacts_for_program(program);
+                let ast_ready = artifacts
+                    .as_ref()
+                    .and_then(|artifacts| artifacts.ast(module.id))
+                    .is_some();
+                let base_dir_ready = artifacts
+                    .as_ref()
+                    .and_then(|artifacts| artifacts.dir_base(module.id))
+                    .is_some();
+                let dir_ready = artifacts
+                    .as_ref()
+                    .and_then(|artifacts| artifacts.dir_analyzed(module.id, profile_id))
+                    .is_some();
                 let path = module
                     .path
                     .as_ref()
@@ -628,8 +638,11 @@ impl LanguageService {
         // require both ast and profile dir state
         let module = module.as_ref();
         let profile = program.default_profile_id_for_module(module.id);
-        program.artifacts.ast(module.id).is_some()
-            && program.artifacts.dir_analyzed(module.id, profile).is_some()
+        let Some(artifacts) = session.get_artifacts_for_program(program) else {
+            return false;
+        };
+
+        artifacts.ast(module.id).is_some() && artifacts.dir_analyzed(module.id, profile).is_some()
     }
 
     /// Build a span from offsets for a file.

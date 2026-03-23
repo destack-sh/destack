@@ -2,8 +2,9 @@ use indexmap::IndexMap;
 
 use crate::{ArtifactRequirementCollector, Compiler, ExecuteError, ExecuteResult};
 
+use destack_artifact::DirPatched;
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ComptimeOutput, DirPatched, ProfileId, TrustPolicy};
+use destack_workspace::{ComptimeOutput, ProfileId, TrustPolicy};
 
 use super::{ComptimePatch, collect_comptime_dependencies};
 use vm::{Heap, MemoryContext, SharedSpace};

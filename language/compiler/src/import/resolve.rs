@@ -1,13 +1,13 @@
 use std::path::{Path, PathBuf};
 
+use destack_artifact::{ImportEdgeKind, Loader, ProfileKey};
 use destack_builtin::{builtin_library, resolve_profile_builtin_library_name};
 use destack_core::StringId;
 use destack_dir::{DependencyKind, ModuleResolution, ModuleTarget};
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri};
 use destack_workspace::{
-    ImportEdgeKind, Loader, Module, ModuleSource, NodeLinker, Package, PackageKind, ProfileId,
-    ProfileKey, TsCompilerOptions,
+    Module, ModuleSource, NodeLinker, Package, PackageKind, ProfileId, TsCompilerOptions,
 };
 
 use crate::import::{
@@ -427,7 +427,7 @@ impl Compiler {
     fn resolve_protocol_specifier(
         &self,
         specifier: &str,
-        profile_key: &destack_workspace::ProfileKey,
+        profile_key: &ProfileKey,
     ) -> Option<ModuleId> {
         let (protocol, raw_path) = specifier.split_once(':')?;
         let raw_path = raw_path.trim_start_matches('/');

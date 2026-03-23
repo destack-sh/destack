@@ -40,6 +40,7 @@ required-features = ["schema"]
 
 [dependencies]
 # language
+destack_artifact = { workspace = true }
 destack_ast = { workspace = true }
 destack_codegen_js = { workspace = true }
 destack_compiler = { workspace = true }
@@ -50,11 +51,11 @@ destack_json = { workspace = true }
 destack_linter = { workspace = true }
 destack_parser = { workspace = true }
 destack_query = { workspace = true }
-destack_source = { workspace = true }
 destack_resolver = { workspace = true }
-destack_workspace = { workspace = true }
 destack_runtime = { workspace = true }
+destack_source = { workspace = true }
 destack_vm = { workspace = true }
+destack_workspace = { workspace = true }
 
 # platform
 destack_daemon = { workspace = true }

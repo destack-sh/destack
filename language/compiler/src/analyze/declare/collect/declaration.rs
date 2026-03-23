@@ -162,14 +162,14 @@ impl Compiler {
                 .declaration_symbol_id_for_artifact(
                     view,
                     symbol,
-                    destack_workspace::ArtifactKey::dir_resolved,
+                    destack_artifact::ArtifactKey::dir_resolved,
                 )
                 .map_err(AnalyzeError::from)?
                 .unwrap_or(self.canonical_symbol_id_for_artifact(
                     view,
                     symbol,
                     CanonicalSymbolMode::PreserveAliases,
-                    destack_workspace::ArtifactKey::dir_resolved,
+                    destack_artifact::ArtifactKey::dir_resolved,
                 )?);
             let mut current_symbol = root_symbol;
             let mut visited = HashSet::new();
@@ -190,7 +190,7 @@ impl Compiler {
                         ctx.profile,
                         current_symbol.module_id,
                         ctx.symbols,
-                        destack_workspace::ArtifactKey::dir_resolved,
+                        destack_artifact::ArtifactKey::dir_resolved,
                         |_owner_module, owner_symbols| {
                             let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
                             if !matches!(
@@ -212,14 +212,14 @@ impl Compiler {
                     .declaration_symbol_id_for_artifact(
                         view,
                         next_symbol,
-                        destack_workspace::ArtifactKey::dir_resolved,
+                        destack_artifact::ArtifactKey::dir_resolved,
                     )
                     .map_err(AnalyzeError::from)?
                     .unwrap_or(self.canonical_symbol_id_for_artifact(
                         view,
                         next_symbol,
                         CanonicalSymbolMode::PreserveAliases,
-                        destack_workspace::ArtifactKey::dir_resolved,
+                        destack_artifact::ArtifactKey::dir_resolved,
                     )?);
                 if next_symbol == root_symbol {
                     self.report_recursive_declared_alias_error(

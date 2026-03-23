@@ -544,7 +544,7 @@ impl Compiler {
                     ctx.profile,
                     target_symbol.module_id,
                     ctx.types,
-                    destack_workspace::ArtifactKey::dir_declared,
+                    destack_artifact::ArtifactKey::dir_declared,
                     |_owner_module, owner_types| {
                         owner_types.query_artifact_static_parameter_kind(target_symbol)
                     },
@@ -1096,7 +1096,7 @@ impl Compiler {
                         projected_symbol.module_id,
                         ctx.tree,
                         ctx.symbols,
-                        destack_workspace::ArtifactKey::dir_declared,
+                        destack_artifact::ArtifactKey::dir_declared,
                         |view| {
                             let symbol_entry = view.symbols.get_symbol(projected_symbol.local_id);
                             let Some(primary_declaration) = symbol_entry.primary_declaration else {
@@ -1391,7 +1391,7 @@ impl Compiler {
             view.profile,
             target_symbol.module_id,
             view.symbols,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
             |_owner_module, owner_symbols| {
                 let symbol_entry = owner_symbols.get_symbol(target_symbol.local_id);
                 Some(symbol_entry.space)

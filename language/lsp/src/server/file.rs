@@ -240,7 +240,8 @@ pub(super) fn format_file(
     } else {
         session.get_or_create_program(session.cwd.clone())
     };
-    let ast = program.artifacts.ast(module.id)?;
+    let artifacts = session.get_artifacts_for_program(program.as_ref())?;
+    let ast = artifacts.ast(module.id)?;
 
     // build format context from committed semantic state
     let side_span = Parser::compute_side_span_from_tree(&ast.tree);

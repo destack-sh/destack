@@ -307,6 +307,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
 
             let Some(initializer_id) = symbol_initializer_expression(
                 &self.ctx.program,
+                &self.ctx.artifacts,
                 self.ctx.profile_id,
                 self.ctx.module_id(),
                 self.ctx.symbols,
@@ -406,6 +407,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
 
         let initializer_id = symbol_initializer_expression(
             &self.ctx.program,
+            &self.ctx.artifacts,
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,

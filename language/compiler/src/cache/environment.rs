@@ -1,9 +1,10 @@
 use crate::compile::Compiler;
-use destack_source::{ModuleId, ProfileVersion};
-use destack_workspace::{
+use destack_artifact::{
     ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ArtifactKey,
-    IntrinsicEnvironment, LanguageEnvironment, LibraryEnvironment, ProfileId, ProfileKey,
+    IntrinsicEnvironment, LanguageEnvironment, LibraryEnvironment, ProfileKey,
 };
+use destack_source::{ModuleId, ProfileVersion};
+use destack_workspace::ProfileId;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
@@ -12,7 +13,7 @@ use super::{CacheHasher, compiler_version};
 /// Persistent image context for one profile scoped environment artifact.
 #[derive(Debug, Clone)]
 pub(crate) struct EnvironmentImageContext {
-    /// The stable profile key for the image.
+    /// The profile key for the image.
     profile_key: ProfileKey,
     /// The profile version used when producing the image.
     profile_version: ProfileVersion,

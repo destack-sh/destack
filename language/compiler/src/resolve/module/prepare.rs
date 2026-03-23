@@ -1,11 +1,12 @@
 use crate::timing::tags;
 use crate::{Compiler, ResolveError, ResolveResult};
+use destack_artifact::{
+    ArtifactKey, DirPrepared, ExportedSymbolTable, ImportedModuleTable, ModuleBindingExportTable,
+    TargetEnv, TargetVendor,
+};
 use destack_dir::{DependencyItem, Export, GlobalSymbolId, LocalSymbolId};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{
-    ArtifactKey, DirPrepared, ExportedSymbolTable, ImportMeta, ImportMetaTarget,
-    ImportedModuleTable, ModuleBindingExportTable, ProfileId, TargetEnv, TargetVendor,
-};
+use destack_workspace::{ImportMeta, ImportMetaTarget, ProfileId};
 impl Compiler {
     /// Prepare the per profile DIR by cloning from the base DIR.
     pub(crate) fn resolve_module_prepare(
@@ -187,9 +188,7 @@ impl Compiler {
             exported_symbols,
         );
 
-        self.program
-            .artifacts
-            .publish(artifact_key.clone(), dir.clone());
+        self.artifacts.publish(artifact_key.clone(), dir.clone());
         self.store_artifact(&artifact_key, &dir, |compiler, dir| {
             compiler.store_dir_prepared_image(module_id, profile_id, dir)
         });
@@ -379,7 +378,7 @@ impl Compiler {
             exported_symbols,
         );
 
-        self.program.artifacts.publish(
+        self.artifacts.publish(
             ArtifactKey::DirPrepared {
                 module: module_id,
                 profile: profile_id,

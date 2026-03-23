@@ -268,7 +268,7 @@ fn collect_occurrences(
         if !file.ty.is_code() || is_declaration_file(file.ty, ctx) {
             continue;
         }
-        let Some(module_ast) = ctx.program.artifacts.ast(module.id) else {
+        let Some(module_ast) = ctx.artifacts.ast(module.id) else {
             continue;
         };
 
@@ -312,7 +312,7 @@ fn collect_occurrences(
         let candidate = &candidates[candidate_index];
         let module_ref = ctx.program.modules.get(candidate.module_id);
         let module = module_ref.as_ref();
-        let Some(module_ast) = ctx.program.artifacts.ast(module.id) else {
+        let Some(module_ast) = ctx.artifacts.ast(module.id) else {
             continue;
         };
 

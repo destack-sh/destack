@@ -1,4 +1,4 @@
-use destack_workspace::Platform;
+use destack_artifact::Platform;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::unix::{

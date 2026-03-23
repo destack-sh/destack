@@ -48,7 +48,7 @@ impl LintRule for NoLayerViolation {
         }
 
         // resolve module graph for this profile
-        let Some(graph) = ctx.program.artifacts.module_graph(ctx.profile_id) else {
+        let Some(graph) = ctx.artifacts.module_graph(ctx.profile_id) else {
             return;
         };
 
@@ -156,7 +156,7 @@ fn collect_forbidden_dependency_diagnostics(
     rule_severity: LintSeverity,
     descriptors: &[ModuleDescriptor],
     descriptor_index: &HashMap<ModuleId, usize>,
-    graph: &destack_workspace::ModuleGraph,
+    graph: &destack_artifact::ModuleGraph,
 ) -> Vec<LintDiagnostic> {
     let mut diagnostics = Vec::new();
 

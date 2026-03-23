@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use destack_artifact::MemoryCacheStore;
 use destack_compiler::CompilerOptions;
 use destack_lsp_server::UriExt;
 use destack_lsp_server::jsonrpc::{ErrorCode, Response};
@@ -10,7 +11,7 @@ use destack_service::LanguageService as LspLanguageService;
 use destack_source::{
     FileSystem, OverlayFileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem,
 };
-use destack_workspace::{MemoryCacheStore, Session, Workspace};
+use destack_workspace::{Session, Workspace};
 
 use super::fixture::TestLsp;
 use super::harness::{LspHarness, harness_for_fs, request_with_params, test_fs, uri_for_path};

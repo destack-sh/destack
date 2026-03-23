@@ -3,8 +3,9 @@ use crate::timing::tags;
 use crate::{
     AnalyzeError, AnalyzeResult, ArtifactRequirementCollector, ArtifactRequirementError, Compiler,
 };
+use destack_artifact::{ArtifactKey, DirInterface};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ArtifactKey, DirInterface, ProfileId};
+use destack_workspace::ProfileId;
 use std::sync::Arc;
 
 impl Compiler {
@@ -32,7 +33,6 @@ impl Compiler {
             let current_anchor = self.interface_component_anchor_module_id(current_module, profile);
             if current_anchor == current_module {
                 let shares_component = self
-                    .program
                     .artifacts
                     .module_graph(profile)
                     .and_then(|_| self.interface_component_graph_index(profile))

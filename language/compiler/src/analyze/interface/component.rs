@@ -1,11 +1,12 @@
 use crate::analyze::common::{SymbolTypeView, TreeSymbolView, TypeView};
 use crate::{AnalyzeError, AnalyzeResult, AnalyzeWarning, Compiler};
+use destack_artifact::{ArtifactKey, DirInterface, ModuleGraph};
 use destack_dir::{
     Declarator, Export, Expression, GlobalSymbolId, LocalNodeId, NodeTree, StaticKey, SymbolSpace,
     SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ArtifactKey, DirInterface, ModuleGraph, ModuleSource, ProfileId};
+use destack_workspace::{ModuleSource, ProfileId};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::VecDeque;
@@ -85,8 +86,7 @@ impl Compiler {
         )?;
 
         // resolve the strict component ownership from the graph snapshot
-        self.program
-            .artifacts
+        self.artifacts
             .module_graph(profile)
             .ok_or(AnalyzeError::Internal {
                 message: format!("missing interface graph snapshot for profile {profile:?}"),
@@ -167,7 +167,6 @@ impl Compiler {
     ) -> AnalyzeResult<FxHashSet<ModuleId>> {
         let component_set: FxHashSet<_> = component_modules.iter().copied().collect();
         let graph = self
-            .program
             .artifacts
             .module_graph(profile)
             .ok_or(AnalyzeError::Internal {
@@ -211,7 +210,7 @@ impl Compiler {
                 resolved.as_ref(),
                 declared.as_ref(),
             ));
-            self.program.artifacts.publish(
+            self.artifacts.publish(
                 ArtifactKey::DirInterface {
                     module: module_id,
                     profile,
@@ -250,7 +249,7 @@ impl Compiler {
             )?;
             let next_snapshot =
                 self.interface_module_value_snapshot(component_module_id, profile, dir.as_ref());
-            self.program.artifacts.publish(
+            self.artifacts.publish(
                 ArtifactKey::DirInterface {
                     module: component_module_id,
                     profile,

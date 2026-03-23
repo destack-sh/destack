@@ -2105,8 +2105,7 @@ impl LanguageServer for DestackLanguageServer {
 
         let mut diagnostics_by_file = std::collections::HashMap::new();
         let mut collected = 0usize;
-        for entry in session.programs.iter() {
-            let program = entry.value();
+        for program in session.programs() {
             for (file_id, diagnostics) in program.diagnostic_store.snapshot_by_file() {
                 diagnostics_by_file.entry(file_id).or_insert(diagnostics);
 

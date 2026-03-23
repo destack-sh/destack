@@ -3,10 +3,11 @@
 //! The `ModuleLowerer` converts elaborated DIR (Destack IR) into a JavaScript AST.
 //! This is the emission stage for JS and TS targets.
 
+use destack_artifact::Ast;
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_dir::{SymbolTable, TypeTable};
-use destack_workspace::{Ast, Module, Target};
+use destack_workspace::{Module, Target};
 
 use crate::tree::NodeTree as JsTree;
 use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning, LocalNodeIdAny};

@@ -3,8 +3,9 @@ use std::sync::{Arc, mpsc};
 use std::thread;
 use std::time::Duration;
 
+use destack_artifact::{ArtifactKey, CacheStore, MemoryCacheStore};
 use destack_source::{DiagnosticSeverity, ModuleId, ProfileStamp, ProfileVersion};
-use destack_workspace::{ArtifactKey, CacheStore, MemoryCacheStore, ProfileId, Program, Session};
+use destack_workspace::{ProfileId, Program, Session};
 
 use crate::{Compiler, CompilerOptions, TaskPhase};
 

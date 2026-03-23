@@ -335,7 +335,7 @@ impl Compiler {
                 ctx.profile,
                 symbol.module_id,
                 ctx.symbols,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
                 |owner_module, owner_symbols| {
                     let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
                     GlobalSymbolId::new(owner_module.id, symbol.local_id.with_type(symbol_entry.ty))

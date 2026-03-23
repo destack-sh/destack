@@ -3,8 +3,9 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use super::types::format_local_type;
+use destack_artifact::ArtifactStore;
 use destack_source::ProfileId;
-use destack_workspace::{ArtifactRegistry, Module, ModuleRegistry};
+use destack_workspace::{Module, ModuleRegistry};
 
 /// Formatted declaration signature.
 #[derive(Debug, Clone)]
@@ -31,7 +32,7 @@ pub struct FormattedCallSignature {
 pub fn format_declaration_signature(
     declaration: &dir::Declaration,
     module: &Module,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     modules: &ModuleRegistry,
     strings: &StringPool,
     profile: ProfileId,
@@ -116,7 +117,7 @@ fn format_function(
     name: &str,
     signature: &dir::FunctionSignature,
     declaration_prefix: &str,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     module_id: ModuleId,
     dir_tree: &dir::NodeTree,
     types: &dir::TypeTable,
@@ -209,7 +210,7 @@ fn format_import_alias(name: &str, kind: dir::DependencyKind, export_prefix: &st
 pub fn format_call_signature(
     name: &str,
     signature: &dir::FunctionSignature,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     module_id: ModuleId,
     dir_tree: &dir::NodeTree,
     types: &dir::TypeTable,
@@ -281,7 +282,7 @@ pub fn format_call_signature(
 /// Format generic type parameters.
 fn format_generics(
     generics: &dir::Generics,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     module_id: ModuleId,
     dir_tree: &dir::NodeTree,
     types: &dir::TypeTable,
@@ -320,7 +321,7 @@ fn format_generics(
 fn format_parameters(
     this_parameter: Option<dir::LocalNodeId<dir::Parameter>>,
     parameters: &[dir::LocalNodeId<dir::Parameter>],
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     module_id: ModuleId,
     dir_tree: &dir::NodeTree,
     types: &dir::TypeTable,
@@ -347,7 +348,7 @@ fn format_parameters(
 fn format_parameter_labels(
     this_parameter: Option<dir::LocalNodeId<dir::Parameter>>,
     parameters: &[dir::LocalNodeId<dir::Parameter>],
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     module_id: ModuleId,
     dir_tree: &dir::NodeTree,
     types: &dir::TypeTable,
@@ -391,7 +392,7 @@ fn format_parameter_labels(
 /// Format a single parameter with its type annotation.
 fn format_parameter(
     parameter_id: dir::LocalNodeId<dir::Parameter>,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     module_id: ModuleId,
     dir_tree: &dir::NodeTree,
     types: &dir::TypeTable,
@@ -429,7 +430,7 @@ fn format_parameter(
 /// Format a symbol's signature for hover display.
 pub fn format_symbol_signature(
     symbol_id: dir::GlobalSymbolId,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     modules: &ModuleRegistry,
     strings: &StringPool,
     profile: ProfileId,

@@ -1,5 +1,6 @@
+use destack_artifact::ArtifactKey;
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactKey, ProfileId, TargetId};
+use destack_workspace::{ProfileId, TargetId};
 
 use crate::{ArtifactRequirementError, Compiler, OptimizeError, OptimizeResult};
 

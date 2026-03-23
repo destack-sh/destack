@@ -1,11 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
+use destack_artifact::{
+    ArtifactKey, CanonicalStaticKey, LibraryEnvironment, LibrarySymbolKey, ProfileKey,
+};
 use destack_builtin::builtin_library;
 use destack_dir::GlobalSymbolId;
-use destack_workspace::{
-    ArtifactKey, BuiltinLibrarySelection, Builtins, CanonicalStaticKey, LibraryEnvironment,
-    LibrarySymbolKey, ProfileId, ProfileKey,
-};
+use destack_workspace::{BuiltinLibrarySelection, Builtins, ProfileId};
 use indexmap::IndexMap;
 
 use crate::resolve::module::globals::GlobalSymbolTable;
@@ -180,7 +180,7 @@ impl Compiler {
                 continue;
             };
 
-            if !declared_names.contains(name) {
+            if !declared_names.contains(name.as_str()) {
                 continue;
             }
 

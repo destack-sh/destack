@@ -73,6 +73,7 @@ impl LintRule for UseUnknownInCatchCallbackVariable {
             };
             let is_promise_receiver = expression_type_map(
                 &ctx.program,
+                &ctx.artifacts,
                 ctx.profile_id,
                 ctx.module_id(),
                 ctx.tree,
@@ -229,7 +230,7 @@ fn catch_callback_uses_any_parameter(
 ) -> bool {
     // prefer direct parameter analysis for local callback declarations
     if let Some(parameter_id) = callback_parameter_id {
-        let Some(ast) = ctx.program.artifacts.ast(ctx.module_id()) else {
+        let Some(ast) = ctx.artifacts.ast(ctx.module_id()) else {
             return false;
         };
         return parameter_uses_explicit_any(
@@ -259,6 +260,7 @@ fn callback_type_uses_any_parameter(
 ) -> bool {
     let Some(callback_type_id) = expression_type_map(
         &ctx.program,
+        &ctx.artifacts,
         ctx.profile_id,
         ctx.module_id(),
         ctx.tree,
@@ -293,6 +295,7 @@ fn callback_primary_declaration(
     let target_symbol = callback_expression.target_symbol()?;
     symbol_primary_declaration_for(
         &ctx.program,
+        &ctx.artifacts,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,
@@ -306,13 +309,12 @@ fn callback_declaration_uses_any_parameter(
     declaration_id: dir::GlobalNodeIdAny,
 ) -> bool {
     let Some(module_dir) = ctx
-        .program
         .artifacts
         .dir_analyzed(declaration_id.module_id, ctx.profile_id)
     else {
         return false;
     };
-    let Some(ast) = ctx.program.artifacts.ast(declaration_id.module_id) else {
+    let Some(ast) = ctx.artifacts.ast(declaration_id.module_id) else {
         return false;
     };
 

@@ -1,11 +1,12 @@
 use crate::resolve::binding::cache::ResolveExpressionCache;
 use crate::{Compiler, ResolveResult};
+use destack_artifact::{ExportedSymbolTable, ImportedModuleTable};
 use destack_dir::{
     Declaration, DependencyKind, Expression, GlobalSymbolId, ImportAliasTarget, LocalNodeId,
     NodeTree, NodeVisitor, NodeVisitorOptions, SymbolTable, Type, TypeKind, TypeTable,
     walk_expression,
 };
-use destack_workspace::{ExportedSymbolTable, ImportedModuleTable, Module, ProfileId};
+use destack_workspace::{Module, ProfileId};
 
 impl Compiler {
     /// Resolve a Declaration node (updates target_symbol if applicable).

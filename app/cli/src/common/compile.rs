@@ -2,9 +2,10 @@ use std::fmt;
 use std::io::Read;
 use std::sync::Arc;
 
+use destack_artifact::ArtifactKey;
 use destack_compiler::{Compiler, CompilerEventHandler, CompilerOptions, StatsSnapshot};
 use destack_source::{DiagnosticOptions, FileType, ModuleId, Uri};
-use destack_workspace::{ArtifactKey, Program, Session, TargetId};
+use destack_workspace::{Program, Session, TargetId};
 
 use crate::common::{DiagnosticArgs, InputArgs, InputSource, ProgramArgs, print_diagnostics};
 use crate::console;
@@ -131,10 +132,9 @@ impl CompilerContext {
 
         // get the program from the session (created during setup)
         let program = session
-            .programs
-            .iter()
+            .programs()
+            .into_iter()
             .next()
-            .map(|entry| entry.value().clone())
             .expect("session should have a program after setup");
 
         let compiler = Compiler::new(

@@ -287,6 +287,7 @@ fn callback_primary_declaration(
     let target_symbol = callback_expression.target_symbol()?;
     symbol_primary_declaration_for(
         &ctx.program,
+        &ctx.artifacts,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,

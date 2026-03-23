@@ -1,13 +1,11 @@
 use std::sync::Arc;
 
+use destack_artifact::{ArtifactStore, ImportEdgeKind, Loader, WellKnownSymbols};
 use destack_ast::StringId;
 use destack_builtin::LanguageSymbol;
 use destack_dir::WellKnownSymbol;
 use destack_source::{EditBuilder, File, ModuleId, Span};
-use destack_workspace::{
-    ImportEdgeKind, LintSeverity, LinterOptions, Loader, Module, ProfileId, Program,
-    WellKnownSymbols,
-};
+use destack_workspace::{LintSeverity, LinterOptions, Module, ProfileId, Program};
 use indexmap::IndexMap;
 use {destack_ast as ast, destack_dir as dir};
 
@@ -37,6 +35,8 @@ struct DecoratorCall<'a> {
 pub struct LintModuleDirContext<'a> {
     /// The program containing this module.
     pub program: Arc<Program>,
+    /// The live artifact store for the program.
+    pub artifacts: Arc<ArtifactStore>,
     /// The module being linted.
     pub module: &'a Module,
     /// The profile for this module.
@@ -97,6 +97,7 @@ impl<'a> LintModuleDirContext<'a> {
     /// Create a new DIR lint context for a module.
     pub fn new(
         program: Arc<Program>,
+        artifacts: Arc<ArtifactStore>,
         module: &'a Module,
         profile_id: ProfileId,
         file: Arc<File>,
@@ -119,6 +120,7 @@ impl<'a> LintModuleDirContext<'a> {
     ) -> Self {
         Self {
             program,
+            artifacts,
             module,
             profile_id,
             file,
@@ -190,10 +192,7 @@ impl<'a> LintModuleDirContext<'a> {
 
     /// Get a language item from the cache, returning None if not found.
     pub fn get_language_symbol(&self, item: LanguageSymbol) -> Option<dir::GlobalSymbolId> {
-        let environment = self
-            .program
-            .artifacts
-            .language_environment(self.profile_id)?;
+        let environment = self.artifacts.language_environment(self.profile_id)?;
         environment.item(item)
     }
 
@@ -205,10 +204,7 @@ impl<'a> LintModuleDirContext<'a> {
 
     /// Get a cached declared library symbol for the module profile and name.
     pub fn get_declared_library_symbol(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
-        let environment = self
-            .program
-            .artifacts
-            .library_environment(self.profile_id)?;
+        let environment = self.artifacts.library_environment(self.profile_id)?;
         let name = self.program.strings.get(name);
         environment.declared_symbol_from(name.as_ref(), dir::SymbolSpaceOrder::ValueThenType)
     }
@@ -223,10 +219,7 @@ impl<'a> LintModuleDirContext<'a> {
 
     /// Get well-known symbols for the module profile.
     pub fn get_well_known_symbols(&self) -> Option<WellKnownSymbols> {
-        let environment = self
-            .program
-            .artifacts
-            .library_environment(self.profile_id)?;
+        let environment = self.artifacts.library_environment(self.profile_id)?;
         Some(environment.well_known_symbols())
     }
 
@@ -291,7 +284,7 @@ impl<'a> LintModuleDirContext<'a> {
         let Some(builtins) = self.program.builtins.as_ref() else {
             return false;
         };
-        let Some(environment) = self.program.artifacts.library_environment(self.profile_id) else {
+        let Some(environment) = self.artifacts.library_environment(self.profile_id) else {
             return false;
         };
 

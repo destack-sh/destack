@@ -6,7 +6,8 @@ use destack_dir::{
 use crate::resolve::binding::cache::{ResolveExpressionCache, ResolvePathCacheKey};
 use crate::resolve::dependency::loader::LoaderAttribute;
 use crate::{Compiler, ResolveError, ResolveResult};
-use destack_workspace::{ExportedSymbolTable, ImportedModuleTable, Module, ProfileId};
+use destack_artifact::{ExportedSymbolTable, ImportedModuleTable};
+use destack_workspace::{Module, ProfileId};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {

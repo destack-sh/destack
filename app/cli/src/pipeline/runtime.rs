@@ -1,3 +1,4 @@
+use destack_artifact::ArtifactStore;
 use destack_runtime::runtime::bindings::BindingPolicy;
 use destack_source::ModuleId;
 use destack_vm::{ExecutionMode, Isolate, IsolateOptions, TrustPolicy as VmTrustPolicy, Value};
@@ -45,24 +46,23 @@ pub fn binding_policy_for_target(target: &Target) -> BindingPolicy {
 /// Create a VM isolate from the module MIR.
 pub fn create_isolate(
     program: &Program,
+    artifacts: &ArtifactStore,
     module_id: ModuleId,
     target_id: &TargetId,
     options: IsolateOptions,
 ) -> CliResult<Isolate> {
     // resolve lowered mir for the target
     let profile_id = program.default_profile_id_for_module(module_id);
-    let (tree, strings) = if let Some(mir) = program
-        .artifacts
-        .mir_optimized(module_id, profile_id, target_id)
-    {
-        (mir.tree.clone(), mir.strings.clone().into_immutable())
-    } else if let Some(mir) = program.artifacts.mir_base(module_id, profile_id, target_id) {
-        (mir.tree.clone(), mir.strings.clone().into_immutable())
-    } else {
-        return Err(CliError::message(format!(
-            "missing MIR for target {target_id:?} (run requires lowering)"
-        )));
-    };
+    let (tree, strings) =
+        if let Some(mir) = artifacts.mir_optimized(module_id, profile_id, target_id) {
+            (mir.tree.clone(), mir.strings.clone().into_immutable())
+        } else if let Some(mir) = artifacts.mir_base(module_id, profile_id, target_id) {
+            (mir.tree.clone(), mir.strings.clone().into_immutable())
+        } else {
+            return Err(CliError::message(format!(
+                "missing MIR for target {target_id:?} (run requires lowering)"
+            )));
+        };
 
     // construct the isolate from mir state
     Isolate::build_with_options(tree, strings, options)

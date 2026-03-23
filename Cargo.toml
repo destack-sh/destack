@@ -3,6 +3,7 @@ resolver = "2"
 members = [
 	# language
 	"language/ast",
+	"language/artifact",
 	"language/builtin",
 	"language/test/mirbench",
 	"language/compiler",
@@ -72,6 +73,7 @@ rust-version = "1.88.0"
 
 [workspace.dependencies]
 # language
+destack_artifact = { path = "language/artifact" }
 destack_ast = { path = "language/ast" }
 destack_builtin = { path = "language/builtin" }
 destack_codegen_js = { path = "language/compiler/generate/js" }

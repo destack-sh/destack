@@ -1,9 +1,10 @@
+use destack_artifact::{DirAnalyzed, DirDeclared};
 use destack_dir::{
     self as dir, Declaration, Member, SymbolSpaceOrder, SymbolType, TypeKind, WellKnownSymbol,
 };
 use destack_mir as mir;
 use destack_source::ModuleId;
-use destack_workspace::{DirAnalyzed, DirDeclared, ProfileId};
+use destack_workspace::ProfileId;
 use std::sync::Arc;
 
 use crate::{ArtifactRequirementError, Compiler, LowerError, LowerResult};
@@ -59,7 +60,6 @@ impl<'a> BuiltinTypeLayouts<'a> {
     /// Read one committed declared DIR snapshot for a module when available.
     fn artifact_dir_data_if_present(&self, module_id: ModuleId) -> Option<Arc<DirDeclared>> {
         self.compiler
-            .program
             .artifacts
             .dir_declared(module_id, self.profile)
     }
@@ -189,7 +189,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
         let mut field_lowerer = TypeLowerer::new(
             self.builder,
             pointer_bytes,
-            self.compiler.program.artifacts.clone(),
+            self.compiler.artifacts.clone(),
             self.compiler.program.modules.clone(),
             self.compiler.program.packages.clone(),
             vector_symbol,

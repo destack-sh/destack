@@ -480,7 +480,7 @@ impl Compiler {
                 ctx.profile,
                 symbol.module_id,
                 ctx.symbols,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
                 |owner_module, owner_symbols| {
                     let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
                     (
@@ -549,7 +549,7 @@ impl Compiler {
                     ctx.profile,
                     group_symbol.module_id,
                     ctx.symbols,
-                    destack_workspace::ArtifactKey::dir_declared,
+                    destack_artifact::ArtifactKey::dir_declared,
                     |owner_module, owner_symbols| {
                         let group_entry = owner_symbols.get_symbol(group_symbol.local_id);
                         GlobalSymbolId::new(

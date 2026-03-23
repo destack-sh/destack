@@ -1,7 +1,8 @@
 use crate::analyze::common::{CanonicalSymbolMode, InferContext};
 use crate::{AnalyzeError, Compiler};
+use destack_artifact::SymbolGroup;
 use destack_dir::{Expression, GlobalSymbolId, LocalNodeId, WellKnownSymbol};
-use destack_workspace::{ModuleSource, SymbolGroup};
+use destack_workspace::ModuleSource;
 
 impl Compiler {
     /// Validate call expressions against runtime restriction options.

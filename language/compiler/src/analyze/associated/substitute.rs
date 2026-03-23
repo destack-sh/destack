@@ -204,7 +204,7 @@ impl Compiler {
                     heritage_expression_id.module_id,
                     ctx.tree,
                     ctx.symbols,
-                    destack_workspace::ArtifactKey::dir_declared,
+                    destack_artifact::ArtifactKey::dir_declared,
                     |view| -> AnalyzeResult<Option<(GlobalSymbolId, Vec<StaticArgument>)>> {
                         let owner_options = self.analyze_context_options_for_module(view.module.id);
                         let mut ctx = TypeContext::new(
@@ -331,7 +331,7 @@ impl Compiler {
             symbol.module_id,
             ctx.tree,
             ctx.symbols,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
             |view| {
                 let symbol_entry = view.symbols.get_symbol(symbol.local_id);
                 let Some(primary_declaration) = symbol_entry.primary_declaration else {
@@ -422,7 +422,7 @@ impl Compiler {
                 canonical_receiver_symbol.module_id,
                 ctx.tree,
                 ctx.symbols,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
                 |view| {
                     let mut declared = Vec::new();
                     for declaration_id in view.tree.iter_node_ids_of_type::<Declaration>() {
@@ -473,7 +473,7 @@ impl Compiler {
                     extension_symbol.module_id,
                     ctx.tree,
                     ctx.symbols,
-                    destack_workspace::ArtifactKey::dir_declared,
+                    destack_artifact::ArtifactKey::dir_declared,
                     |view| -> AnalyzeResult<Option<HashMap<GlobalSymbolId, LocalTypeId>>> {
                         let symbol_entry = view.symbols.get_symbol(extension_symbol.local_id);
                         let Some(primary_declaration) = symbol_entry.primary_declaration else {
@@ -536,7 +536,7 @@ impl Compiler {
             receiver_symbol.module_id,
             ctx.tree,
             ctx.symbols,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
             |view| {
                 // resolve receiver declaration and heritage
                 let symbol_entry = view.symbols.get_symbol(receiver_symbol.local_id);
@@ -911,7 +911,7 @@ impl Compiler {
                 owner_symbol.module_id,
                 ctx.tree,
                 ctx.symbols,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
                 |view| {
                     let mut members = Vec::new();
                     let symbol_entry = view.symbols.get_symbol(owner_symbol.local_id);
@@ -974,7 +974,7 @@ impl Compiler {
                     canonical_receiver_symbol.module_id,
                     ctx.tree,
                     ctx.symbols,
-                    destack_workspace::ArtifactKey::dir_interface,
+                    destack_artifact::ArtifactKey::dir_interface,
                     |view| {
                         self.query_static_member_symbol(
                             view.module,
@@ -1898,7 +1898,7 @@ impl Compiler {
                 target_symbol.module_id,
                 ctx.tree,
                 ctx.symbols,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
                 |view| -> AnalyzeResult<LocalTypeId> {
                     let owner_view =
                         TreeSymbolView::new(view.module, ctx.profile, view.tree, view.symbols);

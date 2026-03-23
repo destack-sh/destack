@@ -1,3 +1,4 @@
+use destack_artifact::DirPrepared;
 use destack_builtin::builtin_library;
 use destack_core::StringId;
 use destack_dir::{
@@ -6,7 +7,7 @@ use destack_dir::{
     SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
 use destack_source::ModuleId;
-use destack_workspace::{DirPrepared, Module, ProfileId};
+use destack_workspace::{Module, ProfileId};
 use indexmap::IndexMap;
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -104,7 +105,7 @@ impl Compiler {
         profile_id: ProfileId,
     ) -> ResolveResult<Arc<GlobalSymbolTable>> {
         let roots = self.select_global_symbol_table(module_id, profile_id)?;
-        let Some(module_graph) = self.program.artifacts.module_graph(profile_id) else {
+        let Some(module_graph) = self.artifacts.module_graph(profile_id) else {
             return Ok(Arc::new(
                 self.build_global_symbol_table(&roots, profile_id)?,
             ));
@@ -643,7 +644,7 @@ impl Compiler {
         symbols: &SymbolTable,
         cache: &mut GlobalSymbolTable,
     ) {
-        let Some(dir_base) = self.program.artifacts.dir_base(module.id) else {
+        let Some(dir_base) = self.artifacts.dir_base(module.id) else {
             return;
         };
         let symbol_id = dir_base.namespace_symbol.into_global(module.id);

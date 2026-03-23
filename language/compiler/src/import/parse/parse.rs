@@ -3,10 +3,10 @@ use std::sync::Arc;
 use crate::timing::tags;
 use crate::{Compiler, ImportError, ImportResult};
 
+use destack_artifact::{ArtifactKey, Ast, Loader};
 use destack_core::StringPool;
 use destack_parser::{Parser, ParserSettings};
 use destack_source::{File, FileContent, FileType, LanguageType, ModuleId, ModuleVersion, Span};
-use destack_workspace::{ArtifactKey, Ast, Loader};
 
 impl Compiler {
     /// Parse a module (load file and parse into AST).
@@ -26,7 +26,7 @@ impl Compiler {
             let module = module.as_ref();
 
             // check if already parsed/loaded based on module type
-            let needs_load = self.program.artifacts.ast(module_id).is_none();
+            let needs_load = self.artifacts.ast(module_id).is_none();
             if !needs_load {
                 return Ok(());
             }
@@ -78,7 +78,8 @@ impl Compiler {
             })
             .is_some()
         {
-            self.program.refresh_module_semantics(module_id);
+            self.program
+                .refresh_module_semantics(self.artifacts.as_ref(), module_id);
             tracing::trace!(?module_id, "import.module.parse.cache_hit");
             return Ok(());
         }
@@ -179,10 +180,9 @@ impl Compiler {
     ) {
         // publish the live artifact
         let artifact_key = ArtifactKey::Ast { module: module_id };
+        self.artifacts.publish(artifact_key.clone(), ast.clone());
         self.program
-            .artifacts
-            .publish(artifact_key.clone(), ast.clone());
-        self.program.refresh_module_semantics(module_id);
+            .refresh_module_semantics(self.artifacts.as_ref(), module_id);
 
         // persist the canonical image when possible
         self.store_artifact(&artifact_key, &ast, |compiler, ast| {

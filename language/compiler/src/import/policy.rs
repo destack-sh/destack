@@ -1,14 +1,13 @@
 use std::path::{Path, PathBuf};
 
+use destack_artifact::ImportEdgeKind;
 use destack_dir::DependencyKind;
 use destack_resolver::{
     ResolveOptions, TypeScriptOptionsDiscovery, TypeScriptOptionsLocation,
     TypeScriptOptionsReferences,
 };
 use destack_source::LanguageType;
-use destack_workspace::{
-    ImportEdgeKind, ModuleFormat, ModuleResolution, NodeLinker, TsCompilerOptions,
-};
+use destack_workspace::{ModuleFormat, ModuleResolution, NodeLinker, TsCompilerOptions};
 use indexmap::IndexMap;
 
 /// Extension alias order for TypeScript source imports.
@@ -324,12 +323,11 @@ mod tests {
     };
     use std::path::{Path, PathBuf};
 
+    use destack_artifact::ImportEdgeKind;
     use destack_dir::DependencyKind;
     use destack_resolver::{ResolveOptions, TypeScriptOptionsDiscovery};
     use destack_source::LanguageType;
-    use destack_workspace::{
-        ImportEdgeKind, ModuleFormat, ModuleResolution, NodeLinker, TsCompilerOptions,
-    };
+    use destack_workspace::{ModuleFormat, ModuleResolution, NodeLinker, TsCompilerOptions};
 
     /// Build default import options for value dependencies.
     #[test]

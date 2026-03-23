@@ -156,7 +156,7 @@ impl<'a> OverrideAssociatedTypeRewriter<'a> {
                 receiver_symbol.module_id,
                 self.tree,
                 self.symbols,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
                 |view| {
                     let symbol_entry = view.symbols.get_symbol(receiver_symbol.local_id);
                     let mut declaration_ids = Vec::new();
@@ -994,7 +994,7 @@ impl Compiler {
             contract_symbol.module_id,
             view.tree,
             view.symbols,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
             |remote_view| {
                 self.query_static_member_symbol(
                     remote_view.module,
@@ -1056,7 +1056,7 @@ impl Compiler {
                     ctx.profile,
                     contract_symbol.module_id,
                     ctx.types,
-                    destack_workspace::ArtifactKey::dir_declared,
+                    destack_artifact::ArtifactKey::dir_declared,
                     |module, _| matches!(module.source, ModuleSource::User),
                 )
                 .map_err(AnalyzeError::from)?;
@@ -3613,7 +3613,6 @@ impl Compiler {
         use crate::analyze::r#type::json_value_to_type;
 
         let ast = self
-            .program
             .artifacts
             .ast(target_module.id)
             .ok_or_else(|| AnalyzeError::Internal {

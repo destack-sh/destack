@@ -2,9 +2,10 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_artifact::ArtifactKey;
 use destack_compiler::{Compiler, CompilerOptions};
 use destack_source::{File, FileId, FileSystem, FileType, MemoryFileSystem, Uri};
-use destack_workspace::{ArtifactKey, ProfileId, Session};
+use destack_workspace::{ProfileId, Session};
 
 use super::{TestMarkers, parse_markers};
 use crate::core::SharedMemoryWorkspace;

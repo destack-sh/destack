@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use destack_workspace::{ArtifactDependency, ArtifactKey};
+use destack_artifact::{ArtifactDependency, ArtifactKey};
 
 #[cfg(test)]
 use crate::tests::scenario::CompilerScenarioEvent;
@@ -104,7 +104,7 @@ impl Compiler {
             artifact_key.phase().name(),
             artifact_key.name()
         );
-        let args = artifact_key.trace_args(&self.program);
+        let args = artifact_key.trace_args(&self.program, &self.artifacts);
 
         // reuse existing queued or running tasks directly
         if let Some(handle) = self.queue.find_task_handle(&artifact_key) {
@@ -286,7 +286,9 @@ impl Compiler {
         let handle = self.queue.get_task(task_id);
 
         // get task description for events
-        let description = handle.artifact_key.trace_args(&self.program);
+        let description = handle
+            .artifact_key
+            .trace_args(&self.program, &self.artifacts);
 
         // emit task started event
         self.emit_event(CompilerEvent::TaskStarted {
@@ -346,7 +348,7 @@ impl Compiler {
         // trace
         let artifact_key = &handle.artifact_key;
         let task_id = handle.id;
-        let args = artifact_key.trace_args(&self.program);
+        let args = artifact_key.trace_args(&self.program, &self.artifacts);
         let event_name = if handle.last_outcome.is_some() {
             "resume"
         } else {
@@ -467,7 +469,7 @@ impl Compiler {
                     attempt_dependency,
                     &final_requirements,
                 ) {
-                    self.program.artifacts.invalidate(&handle.artifact_key);
+                    self.artifacts.invalidate(&handle.artifact_key);
                     self.queue.clear_final_requirements(task_id);
                     self.queue.set_status(task_id, TaskStatus::Skipped);
                     self.stats.record_skip();

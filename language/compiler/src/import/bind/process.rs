@@ -1,8 +1,8 @@
 use crate::timing::tags;
 use crate::{Compiler, ImportError, ImportResult};
+use destack_artifact::Ast;
 use destack_dir::{LocalScopeId, ModuleBinding, NodeTree, SymbolTable, TypeTable};
 use destack_source::{ModuleId, ModuleVersion};
-use destack_workspace::Ast;
 
 impl Compiler {
     /// Bind a module's AST to DIR (create symbols, scopes, and base DIR).

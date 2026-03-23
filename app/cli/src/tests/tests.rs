@@ -5,10 +5,11 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use destack_artifact::MemoryCacheStore;
 use destack_daemon::WatchPolicy;
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{FileSystem, MemoryFileSystem, MemoryFileWatcher};
-use destack_workspace::{MemoryCacheStore, Session};
+use destack_workspace::Session;
 use serde_json::{Value, json};
 
 use crate::common::{InputArgs, ProgramArgs};

@@ -121,7 +121,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
     // try rich signature formatting first (for top level declarations)
     if let Some(formatted) = format_symbol_signature(
         canonical_id,
-        &ctx.program.artifacts,
+        ctx.artifacts.as_ref(),
         &session.modules,
         &session.strings,
         profile,
@@ -168,7 +168,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
                 // format member hover with full signature
                 let member = dir_tree.get::<Member>(member_id);
                 format_member_hover(
-                    &ctx.program.artifacts,
+                    &ctx.artifacts,
                     &session.strings,
                     &session.modules,
                     member,
@@ -187,7 +187,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
                 // format enum field hover
                 let field = dir_tree.get::<EnumField>(field_id);
                 format_enum_field_hover(
-                    &ctx.program.artifacts,
+                    &ctx.artifacts,
                     &session.strings,
                     &session.modules,
                     field,
@@ -205,7 +205,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
                 // format parameter hover
                 let param = dir_tree.get::<Parameter>(param_id);
                 format_parameter_hover(
-                    &ctx.program.artifacts,
+                    &ctx.artifacts,
                     &session.strings,
                     &session.modules,
                     param,
@@ -220,7 +220,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
         NodeType::Pattern => {
             // local variable or destructuring pattern
             format_local_variable_hover(
-                &ctx.program.artifacts,
+                &ctx.artifacts,
                 name.as_deref(),
                 symbol_at.symbol_id,
                 symbols,
@@ -271,7 +271,7 @@ fn resolve_hover_type_text(
     // format the local type for display
     Some(format_local_type(
         type_id,
-        &ctx.program.artifacts,
+        &ctx.artifacts,
         types,
         &session.modules,
         &session.strings,

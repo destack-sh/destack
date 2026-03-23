@@ -324,7 +324,7 @@ impl Compiler {
             ctx.module.id,
             global_symbol.module_id,
             ctx.profile,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
         )
         .map_err(AnalyzeError::from)?;
         let snapshot = self
@@ -671,7 +671,7 @@ impl Compiler {
                 ctx.profile,
                 symbol,
                 ctx.types,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
             )
             .map_err(AnalyzeError::from)?
         {

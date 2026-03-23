@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
+use destack_artifact::ArtifactKey;
 use destack_dir::{DependencySource, StaticKey};
-use destack_workspace::{ArtifactKey, TargetId};
+use destack_workspace::TargetId;
 
 use crate::{ResolveError, TestProgram};
 
@@ -64,14 +65,14 @@ export {};
 
     // publish a distinct module graph snapshot for the same profile
     let mut graph = test
-        .program
+        .compiler
         .artifacts
         .module_graph(profile)
         .unwrap_or_else(|| panic!("expected module graph for test profile"))
         .as_ref()
         .clone();
     graph.update_module(module_id, test.module_version(module_id), vec![module_id]);
-    test.program
+    test.compiler
         .artifacts
         .publish(ArtifactKey::module_graph(profile), graph);
 

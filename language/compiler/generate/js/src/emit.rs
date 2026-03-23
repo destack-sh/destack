@@ -1,7 +1,8 @@
+use destack_artifact::Ast;
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_dir::{SymbolTable, TypeTable};
-use destack_workspace::{Ast, Module, Target};
+use destack_workspace::{Module, Target};
 
 use crate::lower::ModuleLowerer;
 use crate::tree::NodeTree as JsTree;

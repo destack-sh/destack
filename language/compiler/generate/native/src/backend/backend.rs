@@ -3,11 +3,12 @@ use std::sync::Arc;
 
 use cranelift_codegen::isa::TargetIsa;
 use cranelift_codegen::settings::{self, Configurable};
+use destack_artifact::{ArtifactStore, EmitFormat, OutputContent, OutputEntry};
 use destack_codegen_lib::CodegenBackend;
 use destack_core::StringPool;
 use destack_mir as mir;
 use destack_source::{FileType, ModuleId};
-use destack_workspace::{EmitFormat, OutputContent, OutputEntry, Program, Target, TargetId};
+use destack_workspace::{Program, Target, TargetId};
 use target_lexicon::Triple;
 
 use crate::lower::{ModuleLowerOutput, ModuleLowerer};
@@ -189,6 +190,7 @@ impl CodegenBackend for CodegenCraneliftBackend {
 /// Returns outputs and any warnings encountered during generation.
 pub fn generate_module(
     program: Arc<Program>,
+    artifacts: Arc<ArtifactStore>,
     module_id: ModuleId,
     target: &Target,
 ) -> CodegenCraneliftResult<CodegenCraneliftOutput> {
@@ -214,19 +216,14 @@ pub fn generate_module(
     let name = module.uri.last_segment().unwrap_or("module");
     let profile_id = program.default_profile_id_for_module(module_id);
     let target_id = TargetId::new(module.package_id, target.name.clone());
-    let compile_output = if let Some(mir) = program
-        .artifacts
-        .mir_optimized(module_id, profile_id, &target_id)
-    {
-        backend.compile_module(&mir.tree, &mir.strings, name)?
-    } else if let Some(mir) = program
-        .artifacts
-        .mir_base(module_id, profile_id, &target_id)
-    {
-        backend.compile_module(&mir.tree, &mir.strings, name)?
-    } else {
-        panic!("codegen requires committed MIR artifact");
-    };
+    let compile_output =
+        if let Some(mir) = artifacts.mir_optimized(module_id, profile_id, &target_id) {
+            backend.compile_module(&mir.tree, &mir.strings, name)?
+        } else if let Some(mir) = artifacts.mir_base(module_id, profile_id, &target_id) {
+            backend.compile_module(&mir.tree, &mir.strings, name)?
+        } else {
+            panic!("codegen requires committed MIR artifact");
+        };
 
     // determine file type and create output
     let (file_type, content) = match target.emit {

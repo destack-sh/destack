@@ -38,7 +38,7 @@ impl LintRule for NoCircularDependency {
         }
 
         // resolve module graph for this profile
-        let Some(graph) = ctx.program.artifacts.module_graph(ctx.profile_id) else {
+        let Some(graph) = ctx.artifacts.module_graph(ctx.profile_id) else {
             return;
         };
 
@@ -204,7 +204,7 @@ fn is_declaration_file(file_type: FileType, ctx: &LintProgramDirContext) -> bool
 
 /// Build a dependency adjacency filtered to eligible modules.
 fn build_adjacency(
-    graph: &destack_workspace::ModuleGraph,
+    graph: &destack_artifact::ModuleGraph,
     eligible_modules: &HashSet<ModuleId>,
 ) -> HashMap<ModuleId, Vec<ModuleId>> {
     let mut adjacency = HashMap::new();

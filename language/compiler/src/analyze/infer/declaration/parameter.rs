@@ -28,7 +28,7 @@ impl Compiler {
                 ctx.profile,
                 symbol.module_id,
                 ctx.types,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
                 |_owner_module, owner_types| {
                     let owner_constraint_type_id =
                         owner_types.query_artifact_static_parameter_constraint_type(symbol)?;
@@ -114,7 +114,7 @@ impl Compiler {
             ctx.profile,
             symbol.module_id,
             ctx.types,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
             |_owner_module, owner_types| owner_types.query_artifact_static_parameter_kind(symbol),
         ) {
             ctx.types.set_static_parameter_kind(symbol, kind);
@@ -152,7 +152,7 @@ impl Compiler {
             ctx.profile,
             symbol.module_id,
             ctx.types,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
             |_owner_module, owner_types| {
                 owner_types
                     .query_artifact_static_parameter_variance(symbol)
@@ -317,7 +317,7 @@ impl Compiler {
                 ctx.profile,
                 symbol.module_id,
                 ctx.types,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
                 |_, owner_types| owner_types.query_artifact_static_parameter_symbols(symbol),
             )
             .ok()
@@ -474,7 +474,7 @@ impl Compiler {
                 symbol_id.module_id,
                 ctx.tree,
                 ctx.symbols,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
                 |view| {
                     let owner_options = self.analyze_context_options_for_module(view.module.id);
                     let mut ctx = TypeContext::new(

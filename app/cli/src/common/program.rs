@@ -4,11 +4,12 @@ use std::sync::Arc;
 use std::thread;
 
 use clap::{Args, ValueEnum};
+use destack_artifact::MemoryCacheStore;
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
 use destack_workspace::{
     ArrowParentheses, FormatterOptions, ImportSortOrder, LintPreset, LintSeverity, LinterOptions,
-    MemoryCacheStore, OrganizeImports, QuoteProperty, QuoteStyle, Session, TrailingComma,
+    OrganizeImports, QuoteProperty, QuoteStyle, Session, TrailingComma,
 };
 
 use crate::common::{ReportArgs, report_error};

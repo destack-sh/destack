@@ -1,4 +1,4 @@
-use destack_workspace::{ArtifactDependency, ArtifactKey};
+use destack_artifact::{ArtifactDependency, ArtifactKey};
 
 use crate::Compiler;
 
@@ -14,8 +14,7 @@ impl Compiler {
 
     /// Record one dependency stamp for one completed artifact key.
     fn set_artifact_dependency(&self, artifact_key: &ArtifactKey, dependency: ArtifactDependency) {
-        self.program
-            .artifacts
+        self.artifacts
             .set_dependency(artifact_key.clone(), dependency);
     }
 }

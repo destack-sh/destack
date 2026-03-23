@@ -2,9 +2,10 @@
 
 use std::sync::Arc;
 
+use destack_artifact::{ArtifactStore, OutputEntry};
 use destack_codegen_lib::CodegenBackend;
 use destack_source::ModuleId;
-use destack_workspace::{OutputEntry, ProfileId, Program, Target};
+use destack_workspace::{ProfileId, Program, Target};
 
 use crate::{CodegenJsError, CodegenJsResult};
 
@@ -39,6 +40,7 @@ impl CodegenBackend for JsBackend {
 /// Returns outputs and any warnings encountered during generation.
 pub fn generate_module(
     program: Arc<Program>,
+    artifacts: Arc<ArtifactStore>,
     module_id: ModuleId,
     target: &Target,
     profile: ProfileId,
@@ -54,12 +56,10 @@ pub fn generate_module(
     // get module
     let module_ref = program.modules.get(module_id);
     let module = module_ref.as_ref();
-    let ast = program
-        .artifacts
+    let ast = artifacts
         .ast(module_id)
         .unwrap_or_else(|| panic!("missing committed AST artifact for {module_id:?}"));
-    let dir = program
-        .artifacts
+    let dir = artifacts
         .dir_analyzed(module_id, profile)
         .unwrap_or_else(|| panic!("missing committed dir artifact for {module_id:?}"));
     let dir_tree = &dir.tree;

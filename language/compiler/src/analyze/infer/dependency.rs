@@ -177,7 +177,6 @@ impl Compiler {
     ) -> AnalyzeResult<()> {
         // require the module graph snapshot before infer dependency preconditions
         let graph = self
-            .program
             .artifacts
             .module_graph(profile)
             .ok_or(AnalyzeError::Internal {
@@ -227,7 +226,6 @@ impl Compiler {
     ) -> AnalyzeResult<()> {
         // require the module graph snapshot before infer dependency preconditions
         let graph = self
-            .program
             .artifacts
             .module_graph(profile)
             .ok_or(AnalyzeError::Internal {

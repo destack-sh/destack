@@ -1,6 +1,6 @@
 use crate::tests::TestProgram;
+use destack_artifact::EmitFormat;
 use destack_dir as dir;
-use destack_workspace::EmitFormat;
 use dir::{Expression, Resolution};
 
 #[test]

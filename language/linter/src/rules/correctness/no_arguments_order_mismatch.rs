@@ -144,6 +144,7 @@ fn swapped_pair_type_compatible(
     let callee_expression = ctx.tree.get(callee_expression_id);
     let candidate_symbols = expression_candidate_symbols(
         &ctx.program,
+        &ctx.artifacts,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,
@@ -159,6 +160,7 @@ fn swapped_pair_type_compatible(
     for symbol_id in candidate_symbols {
         let Some(declaration_id) = symbol_primary_declaration_for(
             &ctx.program,
+            &ctx.artifacts,
             ctx.profile_id,
             ctx.module_id(),
             ctx.symbols,
@@ -303,6 +305,7 @@ fn stable_parameter_names_for_call_target(
     let callee_expression = ctx.tree.get(callee_expression_id);
     let candidate_symbols = expression_candidate_symbols(
         &ctx.program,
+        &ctx.artifacts,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,
@@ -339,6 +342,7 @@ fn parameter_names_for_symbol(
 ) -> Option<Vec<Option<StringId>>> {
     let declaration_id = symbol_primary_declaration_for(
         &ctx.program,
+        &ctx.artifacts,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,
@@ -350,7 +354,6 @@ fn parameter_names_for_symbol(
     }
 
     let module_dir = ctx
-        .program
         .artifacts
         .dir_analyzed(declaration_id.module_id, ctx.profile_id)?;
     declaration_parameter_names(&module_dir.tree, declaration_id.local_id)

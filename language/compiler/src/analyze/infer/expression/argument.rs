@@ -97,7 +97,7 @@ impl Compiler {
             ctx.profile,
             target_symbol.module_id,
             ctx.symbols,
-            destack_workspace::ArtifactKey::dir_resolved,
+            destack_artifact::ArtifactKey::dir_resolved,
             |owner_module, owner_symbols| {
                 if self.symbol_is_static_parameter(
                     SymbolTypeView::new(owner_module, ctx.profile, owner_symbols, ctx.types),
@@ -1422,7 +1422,7 @@ impl Compiler {
                 ctx.module.id,
                 enum_symbol.module_id,
                 ctx.profile,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
             )
             .map_err(AnalyzeError::from)?;
             let snapshot = self
@@ -1965,7 +1965,7 @@ impl Compiler {
             module.id,
             extension_symbol.module_id,
             profile,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
         )?;
 
         let remote_snapshot;

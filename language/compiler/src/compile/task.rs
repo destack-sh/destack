@@ -1,4 +1,5 @@
-use destack_workspace::{ArtifactKey, Program};
+use destack_artifact::{ArtifactKey, ArtifactStore};
+use destack_workspace::Program;
 
 use crate::{
     ArtifactRequirement, ArtifactRequirementSet, DiagnosticAnchor, DiagnosticFormat, TaskError,
@@ -116,7 +117,7 @@ pub trait ArtifactTaskKeyExt {
     fn name(&self) -> &'static str;
 
     /// Return trace arguments for this artifact key.
-    fn trace_args(&self, program: &Program) -> String;
+    fn trace_args(&self, program: &Program, artifacts: &ArtifactStore) -> String;
 }
 
 impl ArtifactTaskKeyExt for ArtifactKey {
@@ -189,20 +190,20 @@ impl ArtifactTaskKeyExt for ArtifactKey {
     }
 
     /// Return trace arguments for this artifact key.
-    fn trace_args(&self, program: &Program) -> String {
+    fn trace_args(&self, program: &Program, artifacts: &ArtifactStore) -> String {
         match self {
             ArtifactKey::ModuleGraph { profile } => {
-                let profile = profile.diagnostic_fmt(program);
+                let profile = profile.diagnostic_fmt(program, artifacts);
                 format!("profile={profile}")
             }
             ArtifactKey::Ast { module } | ArtifactKey::DirBase { module } => {
-                let module = module.diagnostic_fmt(program);
+                let module = module.diagnostic_fmt(program, artifacts);
                 format!("module={module}")
             }
             ArtifactKey::LanguageEnvironment { profile }
             | ArtifactKey::IntrinsicEnvironment { profile }
             | ArtifactKey::LibraryEnvironment { profile } => {
-                let profile = profile.diagnostic_fmt(program);
+                let profile = profile.diagnostic_fmt(program, artifacts);
                 format!("profile={profile}")
             }
             ArtifactKey::DirPrepared { module, profile }
@@ -212,8 +213,8 @@ impl ArtifactTaskKeyExt for ArtifactKey {
             | ArtifactKey::DirAnalyzed { module, profile }
             | ArtifactKey::DirElaborated { module, profile }
             | ArtifactKey::DirPatched { module, profile } => {
-                let module = module.diagnostic_fmt(program);
-                let profile = profile.diagnostic_fmt(program);
+                let module = module.diagnostic_fmt(program, artifacts);
+                let profile = profile.diagnostic_fmt(program, artifacts);
                 format!("module={module} profile={profile}")
             }
             ArtifactKey::MirBase {
@@ -226,19 +227,19 @@ impl ArtifactTaskKeyExt for ArtifactKey {
                 profile,
                 target,
             } => {
-                let module = module.diagnostic_fmt(program);
-                let profile = profile.diagnostic_fmt(program);
-                let target = target.diagnostic_fmt(program);
+                let module = module.diagnostic_fmt(program, artifacts);
+                let profile = profile.diagnostic_fmt(program, artifacts);
+                let target = target.diagnostic_fmt(program, artifacts);
                 format!("module={module} profile={profile} target={target}")
             }
             ArtifactKey::ModuleOutput { module, target } => {
-                let target = target.diagnostic_fmt(program);
-                let module = module.diagnostic_fmt(program);
+                let target = target.diagnostic_fmt(program, artifacts);
+                let module = module.diagnostic_fmt(program, artifacts);
                 format!("module={module} target={target}")
             }
             ArtifactKey::PackageOutput { package, target } => {
-                let package = package.diagnostic_fmt(program);
-                let target = target.diagnostic_fmt(program);
+                let package = package.diagnostic_fmt(program, artifacts);
+                let target = target.diagnostic_fmt(program, artifacts);
                 format!("package={package} target={target}")
             }
         }

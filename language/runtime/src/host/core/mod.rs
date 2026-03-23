@@ -9,7 +9,7 @@ mod status;
 
 pub(crate) use adapter::HostAdapter;
 pub use adapter::HostPollOutcome;
-pub(crate) use destack_workspace::Platform;
+pub(crate) use destack_artifact::Platform;
 pub use event::{
     HostBackgroundEvent, HostEvent, HostEventKind, HostIntentEvent, HostIntentPayload,
     HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState, HostLocationEvent,

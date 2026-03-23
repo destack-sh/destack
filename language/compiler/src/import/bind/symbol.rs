@@ -5,7 +5,8 @@ use destack_dir::{
 
 use crate::Compiler;
 
-use destack_workspace::{Ast, Module};
+use destack_artifact::Ast;
+use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 #[allow(dead_code)]

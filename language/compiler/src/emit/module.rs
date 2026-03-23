@@ -53,7 +53,6 @@ impl Compiler {
 
         // get output entries for this module + target
         let emit = self
-            .program
             .artifacts
             .module_output(module_id, target_id)
             .ok_or_else(|| EmitError::TargetNotFound {

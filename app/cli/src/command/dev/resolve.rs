@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
 use clap::Args;
+use destack_artifact::ImportEdgeKind;
 use destack_compiler::{ImportResolveContext, materialize_import_resolve_options};
 use destack_dir::DependencyKind;
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::LanguageType;
-use destack_workspace::ImportEdgeKind;
 
 use crate::common::ProgramArgs;
 use crate::console;
@@ -56,8 +56,8 @@ pub fn run(args: &ResolveArgs) -> i32 {
     let session = args.program.setup();
 
     // get the program from the session
-    let program = match session.programs.iter().next() {
-        Some(entry) => entry.value().clone(),
+    let program = match session.programs().into_iter().next() {
+        Some(program) => program,
         None => {
             console::error("error: session did not create a program");
             return 1;

@@ -2,14 +2,14 @@ use crate::resolve::binding::cache::ResolveExpressionCache;
 use crate::resolve::dependency::cache::ResolveDependencyItemCache;
 use crate::timing::tags;
 use crate::{ArtifactRequirementCollector, Compiler, ResolveError, ResolveResult};
+use destack_artifact::{
+    DirPrepared, ExportedSymbolTable, ImportedModuleTable, ModuleBindingExportTable,
+};
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, Expression, GlobalSymbolId, LocalNodeId,
     LocalScopeId, NamespaceExport, NodeTree, SymbolSpace, SymbolTable,
 };
-use destack_workspace::{
-    DirPrepared, ExportedSymbolTable, ImportedModuleTable, Module, ModuleBindingExportTable,
-    ProfileId,
-};
+use destack_workspace::{Module, ProfileId};
 use rustc_hash::FxHashMap;
 
 /// Collect node ids needed for resolve passes.

@@ -164,7 +164,7 @@ fn extract_expression(
         let ty = types.get_type(type_id);
         format_type_for_inlay_hint(
             ty,
-            &ctx.program.artifacts,
+            &ctx.artifacts,
             types,
             &session.modules,
             &session.strings,
@@ -488,7 +488,7 @@ fn collect_output_symbols(
                 let ty = types.get_type(type_id);
                 format_type_for_inlay_hint(
                     ty,
-                    &ctx.program.artifacts,
+                    &ctx.artifacts,
                     types,
                     &session.modules,
                     &session.strings,
@@ -690,7 +690,7 @@ fn collect_free_variables(
                 let ty = types.get_type(type_id);
                 format_type_for_inlay_hint(
                     ty,
-                    &ctx.program.artifacts,
+                    &ctx.artifacts,
                     types,
                     &session.modules,
                     &session.strings,
@@ -733,7 +733,7 @@ fn symbol_type_text(
         let type_id = ctx.get_node_type(declaration.local_id)?;
         let type_text = format_local_type(
             type_id,
-            &ctx.program.artifacts,
+            &ctx.artifacts,
             ctx.types(),
             &session.modules,
             &session.strings,
@@ -758,7 +758,7 @@ fn symbol_type_text(
     let type_id = ctx.get_node_type(declaration.local_id)?;
     let type_text = format_local_type(
         type_id,
-        &ctx.program.artifacts,
+        &ctx.artifacts,
         ctx.types(),
         &session.modules,
         &session.strings,

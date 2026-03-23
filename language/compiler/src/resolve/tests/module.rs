@@ -71,7 +71,7 @@ value;
 
     let profile = test.default_profile_id(main_module_id);
     let graph = test
-        .program
+        .compiler
         .artifacts
         .module_graph(profile)
         .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
@@ -105,7 +105,7 @@ value;
 
     let profile = test.default_profile_id(main_module_id);
     let graph = test
-        .program
+        .compiler
         .artifacts
         .module_graph(profile)
         .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
@@ -175,7 +175,7 @@ type Wrapped = TaskResultPack;
 
     let profile = test.default_profile_id(main_module_id);
     let graph = test
-        .program
+        .compiler
         .artifacts
         .module_graph(profile)
         .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
@@ -319,7 +319,7 @@ value;
 
     let profile = test.default_profile_id(consumer_module_id);
     let graph = test
-        .program
+        .compiler
         .artifacts
         .module_graph(profile)
         .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
@@ -351,7 +351,7 @@ export * from "./dep.ts";
 
     let profile = test.default_profile_id(export_module_id);
     let graph = test
-        .program
+        .compiler
         .artifacts
         .module_graph(profile)
         .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
@@ -390,7 +390,7 @@ value;
 
     let profile = test.default_profile_id(main_module_id);
     let graph = test
-        .program
+        .compiler
         .artifacts
         .module_graph(profile)
         .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));

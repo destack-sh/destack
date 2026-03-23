@@ -2,13 +2,12 @@ use crate::{
     Compiler, ImportResolveContext, ResolveError, ResolveMode, ResolveResult, ResolveWarning,
     typescript_commonjs_default_interop_is_enabled,
 };
+use destack_artifact::{DirPrepared, DirResolved, ImportEdgeKind, ImportedModuleTable, Runtime};
 use destack_ast::StringId;
 use destack_builtin::resolve_profile_builtin_library_name;
 use destack_dir::{DependencyKind, DependencySource, ModuleResolution, ModuleTarget};
 use destack_source::ModuleId;
-use destack_workspace::{
-    DirPrepared, DirResolved, ImportEdgeKind, ImportedModuleTable, Module, ProfileId, Runtime,
-};
+use destack_workspace::{Module, ProfileId};
 
 /// The uncached result of resolving one import edge.
 struct ImportResolutionResult {
@@ -127,7 +126,7 @@ impl Compiler {
         resolve_target: StringId,
         source_module: Option<ModuleId>,
         edge_kind: ImportEdgeKind,
-        loader_override: Option<destack_workspace::Loader>,
+        loader_override: Option<destack_artifact::Loader>,
         kind: DependencyKind,
     ) -> Option<(ModuleTarget, ModuleResolution)> {
         let resolved_targets = self
@@ -286,7 +285,7 @@ impl Compiler {
         imported_modules: Option<&ImportedModuleTable>,
         target: StringId,
         edge_kind: ImportEdgeKind,
-        loader_override: Option<destack_workspace::Loader>,
+        loader_override: Option<destack_artifact::Loader>,
     ) -> Option<ModuleResolution> {
         if let Some(imported_modules) = imported_modules {
             let source_module = Some(module_id);
@@ -296,7 +295,7 @@ impl Compiler {
 
         let source_module = Some(module_id);
         let cache_key = (source_module, target, edge_kind, loader_override);
-        let snapshot = self.program.artifacts.dir_resolved(module_id, profile)?;
+        let snapshot = self.artifacts.dir_resolved(module_id, profile)?;
         snapshot.imported_modules.get(&cache_key).copied()
     }
 
@@ -332,7 +331,7 @@ impl Compiler {
         source: DependencySource,
         target: StringId,
         kind: DependencyKind,
-        loader_override: Option<destack_workspace::Loader>,
+        loader_override: Option<destack_artifact::Loader>,
     ) -> ResolveResult<Option<ModuleTarget>> {
         let resolved = if let Some(loader_override) = loader_override {
             self.resolve_import_with_loader(
@@ -376,7 +375,7 @@ impl Compiler {
         source: DependencySource,
         target: StringId,
         kind: DependencyKind,
-        loader_override: Option<destack_workspace::Loader>,
+        loader_override: Option<destack_artifact::Loader>,
     ) -> ResolveResult<Option<ModuleTarget>> {
         let resolved = if let Some(loader_override) = loader_override {
             self.resolve_import_with_loader_from_artifact(
@@ -479,7 +478,7 @@ impl Compiler {
         source: DependencySource,
         target: StringId,
         kind: DependencyKind,
-        loader_override: Option<destack_workspace::Loader>,
+        loader_override: Option<destack_artifact::Loader>,
     ) -> ResolveResult<ModuleTarget> {
         let source_module = Some(module.id);
         let edge_kind = self.import_edge_kind(module, source);
@@ -516,7 +515,7 @@ impl Compiler {
         source: DependencySource,
         target: StringId,
         kind: DependencyKind,
-        loader_override: Option<destack_workspace::Loader>,
+        loader_override: Option<destack_artifact::Loader>,
     ) -> ResolveResult<ModuleTarget> {
         let source_module = Some(module.id);
         let edge_kind = self.import_edge_kind(module, source);
@@ -551,7 +550,7 @@ impl Compiler {
         source: DependencySource,
         target: StringId,
         kind: DependencyKind,
-        loader_override: Option<destack_workspace::Loader>,
+        loader_override: Option<destack_artifact::Loader>,
     ) -> ResolveResult<ImportResolutionResult> {
         let source_module = Some(module.id);
         let edge_kind = self.import_edge_kind(module, source);

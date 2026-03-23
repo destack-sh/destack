@@ -13,6 +13,7 @@ use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, AnalyzeWarning, Assignability, BreakTargetKind,
     Compiler, FlowContext, InferState,
 };
+use destack_artifact::ImportEdgeKind;
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Addressability, Argument, BindingKind, BindingOperator, Block, CastOperator, CastSource,
@@ -27,7 +28,7 @@ use destack_dir::{
     TypeUnaryOperator, WellKnownSymbol, YieldCardinality,
 };
 use destack_source::ModuleId;
-use destack_workspace::{ImportEdgeKind, Module, ModuleSource, ProfileId};
+use destack_workspace::{Module, ModuleSource, ProfileId};
 
 /// Object literal field metadata for excess property checks.
 #[derive(Debug, Clone)]
@@ -4255,7 +4256,7 @@ impl Compiler {
             view.profile,
             symbol.module_id,
             view.symbols,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
             |_, symbols| symbols.get_symbol(symbol.local_id).name(),
         )
         .ok()

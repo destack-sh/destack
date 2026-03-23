@@ -1,4 +1,4 @@
-use destack_workspace::{ArtifactDependency, ArtifactKey};
+use destack_artifact::{ArtifactDependency, ArtifactKey};
 
 use crate::{
     ArtifactRequirement, ArtifactRequirementError, ArtifactRequirementSet, ArtifactTaskKeyExt,
@@ -142,94 +142,63 @@ impl Compiler {
         artifact_key: &ArtifactKey,
         dependency: ArtifactDependency,
     ) -> bool {
-        if self.program.artifacts.dependency(artifact_key) != Some(dependency) {
+        if self.artifacts.dependency(artifact_key) != Some(dependency) {
             return false;
         }
 
         match artifact_key {
-            ArtifactKey::ModuleGraph { profile } => {
-                self.program.artifacts.module_graph(*profile).is_some()
+            ArtifactKey::ModuleGraph { profile } => self.artifacts.module_graph(*profile).is_some(),
+            ArtifactKey::LanguageEnvironment { profile } => {
+                self.artifacts.language_environment(*profile).is_some()
             }
-            ArtifactKey::LanguageEnvironment { profile } => self
-                .program
-                .artifacts
-                .language_environment(*profile)
-                .is_some(),
-            ArtifactKey::IntrinsicEnvironment { profile } => self
-                .program
-                .artifacts
-                .intrinsic_environment(*profile)
-                .is_some(),
-            ArtifactKey::LibraryEnvironment { profile } => self
-                .program
-                .artifacts
-                .library_environment(*profile)
-                .is_some(),
-            ArtifactKey::Ast { module } => self.program.artifacts.ast(*module).is_some(),
-            ArtifactKey::DirBase { module } => self.program.artifacts.dir_base(*module).is_some(),
-            ArtifactKey::DirPrepared { module, profile } => self
-                .program
-                .artifacts
-                .dir_prepared(*module, *profile)
-                .is_some(),
-            ArtifactKey::DirResolved { module, profile } => self
-                .program
-                .artifacts
-                .dir_resolved(*module, *profile)
-                .is_some(),
-            ArtifactKey::DirDeclared { module, profile } => self
-                .program
-                .artifacts
-                .dir_declared(*module, *profile)
-                .is_some(),
-            ArtifactKey::DirInterface { module, profile } => self
-                .program
-                .artifacts
-                .dir_interface(*module, *profile)
-                .is_some(),
-            ArtifactKey::DirAnalyzed { module, profile } => self
-                .program
-                .artifacts
-                .dir_analyzed(*module, *profile)
-                .is_some(),
-            ArtifactKey::DirElaborated { module, profile } => self
-                .program
-                .artifacts
-                .dir_elaborated(*module, *profile)
-                .is_some(),
-            ArtifactKey::DirPatched { module, profile } => self
-                .program
-                .artifacts
-                .dir_patched(*module, *profile)
-                .is_some(),
+            ArtifactKey::IntrinsicEnvironment { profile } => {
+                self.artifacts.intrinsic_environment(*profile).is_some()
+            }
+            ArtifactKey::LibraryEnvironment { profile } => {
+                self.artifacts.library_environment(*profile).is_some()
+            }
+            ArtifactKey::Ast { module } => self.artifacts.ast(*module).is_some(),
+            ArtifactKey::DirBase { module } => self.artifacts.dir_base(*module).is_some(),
+            ArtifactKey::DirPrepared { module, profile } => {
+                self.artifacts.dir_prepared(*module, *profile).is_some()
+            }
+            ArtifactKey::DirResolved { module, profile } => {
+                self.artifacts.dir_resolved(*module, *profile).is_some()
+            }
+            ArtifactKey::DirDeclared { module, profile } => {
+                self.artifacts.dir_declared(*module, *profile).is_some()
+            }
+            ArtifactKey::DirInterface { module, profile } => {
+                self.artifacts.dir_interface(*module, *profile).is_some()
+            }
+            ArtifactKey::DirAnalyzed { module, profile } => {
+                self.artifacts.dir_analyzed(*module, *profile).is_some()
+            }
+            ArtifactKey::DirElaborated { module, profile } => {
+                self.artifacts.dir_elaborated(*module, *profile).is_some()
+            }
+            ArtifactKey::DirPatched { module, profile } => {
+                self.artifacts.dir_patched(*module, *profile).is_some()
+            }
             ArtifactKey::MirBase {
                 module,
                 profile,
                 target,
-            } => self
-                .program
-                .artifacts
-                .mir_base(*module, *profile, target)
-                .is_some(),
+            } => self.artifacts.mir_base(*module, *profile, target).is_some(),
             ArtifactKey::MirOptimized {
                 module,
                 profile,
                 target,
             } => self
-                .program
                 .artifacts
                 .mir_optimized(*module, *profile, target)
                 .is_some(),
-            ArtifactKey::ModuleOutput { module, target } => self
-                .program
-                .artifacts
-                .module_output(*module, target)
-                .is_some(),
-            ArtifactKey::PackageOutput { package, target } => self
-                .program
-                .artifacts
-                .package_output(*package, target)
-                .is_some(),
+            ArtifactKey::ModuleOutput { module, target } => {
+                self.artifacts.module_output(*module, target).is_some()
+            }
+            ArtifactKey::PackageOutput { package, target } => {
+                self.artifacts.package_output(*package, target).is_some()
+            }
         }
     }
 }

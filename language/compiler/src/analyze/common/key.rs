@@ -1,12 +1,13 @@
 use std::collections::HashSet;
 
+use destack_artifact::WellKnownSymbols;
 use destack_core::StringId;
 use destack_dir::{
     DynamicKey, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeTree, NodeType,
     PrimitiveType, ScalarLiteral, StaticKey, SymbolKey, SymbolTable, Type, TypeLiteral, TypeTable,
     WellKnownSymbol,
 };
-use destack_workspace::{ProfileId, WellKnownSymbols};
+use destack_workspace::ProfileId;
 
 use super::mapped::MappedIndexKind;
 use crate::Compiler;
@@ -300,7 +301,7 @@ impl Compiler {
                     symbols.module_id,
                     symbol.module_id,
                     profile,
-                    destack_workspace::ArtifactKey::dir_declared,
+                    destack_artifact::ArtifactKey::dir_declared,
                 )
                 .ok()?;
                 let snapshot = self

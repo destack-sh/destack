@@ -43,7 +43,7 @@ impl LintRule for NoUnusedModules {
         }
 
         // resolve the module graph for the active profile
-        let Some(graph) = ctx.program.artifacts.module_graph(ctx.profile_id) else {
+        let Some(graph) = ctx.artifacts.module_graph(ctx.profile_id) else {
             return;
         };
 
@@ -195,11 +195,7 @@ fn is_declaration_file(file_type: FileType, ctx: &LintProgramDirContext) -> bool
 
 /// Return true when the module has exports in the active profile DIR.
 fn module_has_exports(ctx: &LintProgramDirContext, module_id: ModuleId) -> bool {
-    let Some(dir) = ctx
-        .program
-        .artifacts
-        .dir_resolved(module_id, ctx.profile_id)
-    else {
+    let Some(dir) = ctx.artifacts.dir_resolved(module_id, ctx.profile_id) else {
         return false;
     };
 
@@ -265,8 +261,8 @@ mod tests {
             let target_id = destack_workspace::TargetId::new(package_id, "lint-entry");
             let target = destack_workspace::Target::js("lint-entry")
                 .with_discovery(TargetDiscovery::Entry)
-                .with_runtime(destack_workspace::Runtime::Browser)
-                .with_platform(destack_workspace::Platform::Web)
+                .with_runtime(destack_artifact::Runtime::Browser)
+                .with_platform(destack_artifact::Platform::Web)
                 .with_lib(vec!["es2024".to_string()])
                 .with_entry(entry_paths.iter().map(PathBuf::from).collect());
             package.targets.insert(target_id, target);

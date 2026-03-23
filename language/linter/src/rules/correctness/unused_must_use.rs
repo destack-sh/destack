@@ -85,6 +85,7 @@ impl<'a, 'b> UnusedMustUseVisitor<'a, 'b> {
 
         let has_must_use = expression_has_decorator(
             &self.ctx.program,
+            &self.ctx.artifacts,
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,
@@ -138,6 +139,7 @@ fn call_like_callee_has_must_use(
 
     expression_has_decorator(
         &ctx.program,
+        &ctx.artifacts,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,

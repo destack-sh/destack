@@ -1,8 +1,9 @@
 use crate::{Compiler, GenerateError, GenerateResult, GenerateWarning};
+use destack_artifact::{ArtifactKey, ModuleOutput};
 use destack_codegen_native::{CodegenCraneliftError, CodegenCraneliftWarning};
 use destack_dir::{AnchoredGlobalNodeId, LocalNodeIdAny};
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactKey, ModuleOutput, ProfileId, Target, TargetId};
+use destack_workspace::{ProfileId, Target, TargetId};
 
 impl Compiler {
     /// Generate native/WASM code for a module using Cranelift.
@@ -21,12 +22,16 @@ impl Compiler {
         self.require_mir_optimized(module_id, profile, &target_id)?;
 
         // generate artifact
-        let output =
-            destack_codegen_native::generate_module(self.program.clone(), module_id, target)
-                .map_err(|e| self.map_cranelift_error(module_id, &target.name, profile, e))?;
-        self.program.artifacts.publish(
+        let output = destack_codegen_native::generate_module(
+            self.program.clone(),
+            self.artifacts.clone(),
+            module_id,
+            target,
+        )
+        .map_err(|e| self.map_cranelift_error(module_id, &target.name, profile, e))?;
+        self.artifacts.publish(
             ArtifactKey::module_output(module_id, target_id.clone()),
-            ModuleOutput::for_target(target, output.entries),
+            ModuleOutput::new(target.emit, output.entries),
         );
 
         // map warnings/errors
@@ -120,22 +125,15 @@ impl Compiler {
         let module = self.program.modules.get(module_id);
         let module = module.as_ref();
         let target_id = TargetId::new(module.package_id, target_name);
-        let dir_node_id = if let Some(mir) = self
-            .program
-            .artifacts
-            .mir_optimized(module_id, profile, &target_id)
-        {
-            mir.tree.get_source(mir_node.id)?
-        } else if let Some(mir) = self
-            .program
-            .artifacts
-            .mir_base(module_id, profile, &target_id)
-        {
-            mir.tree.get_source(mir_node.id)?
-        } else {
-            panic!("code generation requires MIR artifact");
-        };
-        let dir = self.program.artifacts.dir_patched(module_id, profile)?;
+        let dir_node_id =
+            if let Some(mir) = self.artifacts.mir_optimized(module_id, profile, &target_id) {
+                mir.tree.get_source(mir_node.id)?
+            } else if let Some(mir) = self.artifacts.mir_base(module_id, profile, &target_id) {
+                mir.tree.get_source(mir_node.id)?
+            } else {
+                panic!("code generation requires MIR artifact");
+            };
+        let dir = self.artifacts.dir_patched(module_id, profile)?;
         let dir_node_type = dir.tree.get_node_type(dir_node_id);
 
         let node = LocalNodeIdAny {

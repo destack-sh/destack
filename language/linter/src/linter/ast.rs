@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use destack_artifact::ArtifactStore;
 use destack_ast::{self as ast, Annotation, Argument, Expression, ScalarLiteral, StringPool};
 use destack_source::{EditBuilder, File};
 use destack_workspace::{LintSeverity, LinterOptions, Module, Program};
@@ -31,6 +32,8 @@ pub(crate) struct DecoratorCall<'a> {
 pub struct LintAstContext<'a> {
     /// The program containing this module.
     pub program: Arc<Program>,
+    /// The live artifact store for the program.
+    pub artifacts: Arc<ArtifactStore>,
     /// The module being linted.
     pub module: &'a Module,
     /// The source file.
@@ -71,6 +74,7 @@ impl<'a> LintAstContext<'a> {
     /// Create a new AST lint context for a module.
     pub fn new(
         program: Arc<Program>,
+        artifacts: Arc<ArtifactStore>,
         module: &'a Module,
         file: Arc<File>,
         tree: &'a ast::NodeTree,
@@ -82,6 +86,7 @@ impl<'a> LintAstContext<'a> {
     ) -> Self {
         Self {
             program,
+            artifacts,
             module,
             file,
             tree,

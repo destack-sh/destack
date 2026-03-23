@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
+use destack_artifact::{
+    ArtifactKey, CanonicalStaticKey, LanguageEnvironment, LibraryEnvironment, WellKnownSymbols,
+};
 use destack_builtin::{LanguageSymbol, builtin_library};
 use destack_core::StringId;
 use destack_dir::{
     GlobalSymbolId, LocalSymbolId, StaticKey, SymbolSpace, SymbolSpaceOrder, WellKnownSymbol,
 };
 use destack_source::ModuleId;
-use destack_workspace::{
-    ArtifactKey, BuiltinLibrarySelection, CanonicalStaticKey, LanguageEnvironment,
-    LibraryEnvironment, ProfileId, WellKnownSymbols,
-};
+use destack_workspace::{BuiltinLibrarySelection, ProfileId};
 use std::collections::HashSet;
 
 use crate::timing::tags;
@@ -106,12 +106,12 @@ impl Compiler {
 
     /// Return the language environment for one profile.
     pub fn language_environment(&self, profile: ProfileId) -> Option<Arc<LanguageEnvironment>> {
-        self.program.artifacts.language_environment(profile)
+        self.artifacts.language_environment(profile)
     }
 
     /// Return the library environment for one profile.
     pub fn library_environment(&self, profile: ProfileId) -> Option<Arc<LibraryEnvironment>> {
-        self.program.artifacts.library_environment(profile)
+        self.artifacts.library_environment(profile)
     }
 
     /// Return the selected library modules for one profile.

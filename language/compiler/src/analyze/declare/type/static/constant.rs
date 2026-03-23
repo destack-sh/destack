@@ -1,13 +1,14 @@
 use super::{StaticEvaluationDiagnosticMode, StaticEvaluationMode};
 use crate::analyze::common::{AnalyzeIndex, RelationMode, TypeContext, TypeRewriteCache};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
+use destack_artifact::ArtifactKey;
 use destack_dir::{
     DependencyItem, Expression, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Member, Mutability,
     NodeTree, NodeType, NormalizationMode, StaticExpression, SymbolTable, Type, TypeLiteral,
     TypeTable,
 };
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactKey, ProfileId};
+use destack_workspace::ProfileId;
 use std::collections::{HashMap, HashSet};
 
 /// One declared static-constant lookup result for one module-local symbol graph walk.
@@ -56,9 +57,9 @@ impl StaticConstantResolutionMode {
     fn remote_dependency_artifact(self) -> fn(ModuleId, ProfileId) -> ArtifactKey {
         match self {
             Self::Parametric | Self::InstantiatedInfer => {
-                destack_workspace::ArtifactKey::dir_analyzed
+                destack_artifact::ArtifactKey::dir_analyzed
             }
-            Self::InstantiatedDeclare => destack_workspace::ArtifactKey::dir_interface,
+            Self::InstantiatedDeclare => destack_artifact::ArtifactKey::dir_interface,
         }
     }
 
@@ -93,7 +94,7 @@ impl Compiler {
                 symbol_id,
                 StaticEvaluationMode::Parametric,
                 None,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
                 StaticCycleDiagnosticMode::Suppress,
                 &mut visited,
             ) {

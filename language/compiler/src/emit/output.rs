@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::{Compiler, EmitError, EmitResult};
-use destack_workspace::{OutputContent, OutputEntry};
+use destack_artifact::{OutputContent, OutputEntry};
 
 impl Compiler {
     /// Write one output entry to disk.

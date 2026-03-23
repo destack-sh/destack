@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use destack_workspace::ArtifactKey;
+use destack_artifact::ArtifactKey;
 
 use crate::{StatsSnapshot, TaskError, TaskId, TaskPhase};
 

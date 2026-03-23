@@ -37,7 +37,7 @@ export const value: number = dep;
                 .unwrap_or_else(|error| panic!("failed to resolve stressed module: {error:?}"));
 
             // report whether the resolved artifact published
-            run.program()
+            run.compiler()
                 .artifacts
                 .dir_resolved(module_id, profile_id)
                 .is_some()

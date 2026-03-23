@@ -1,3 +1,4 @@
+use destack_artifact::ArtifactStore;
 use destack_workspace::Program;
 
 use crate::{
@@ -89,17 +90,17 @@ impl TaskWarning {
     }
 
     /// Get the message of the warning.
-    pub fn message(&self, program: &Program) -> String {
+    pub fn message(&self, program: &Program, artifacts: &ArtifactStore) -> String {
         match self {
-            Self::Import(warning) => warning.message(program),
-            Self::Resolve(warning) => warning.message(program),
-            Self::Analyze(warning) => warning.message(program),
-            Self::Elaborate(warning) => warning.message(program),
-            Self::Execute(warning) => warning.message(program),
-            Self::Lower(warning) => warning.message(program),
-            Self::Optimize(warning) => warning.message(program),
-            Self::Generate(warning) => warning.message(program),
-            Self::Link(warning) => warning.message(program),
+            Self::Import(warning) => warning.message(program, artifacts),
+            Self::Resolve(warning) => warning.message(program, artifacts),
+            Self::Analyze(warning) => warning.message(program, artifacts),
+            Self::Elaborate(warning) => warning.message(program, artifacts),
+            Self::Execute(warning) => warning.message(program, artifacts),
+            Self::Lower(warning) => warning.message(program, artifacts),
+            Self::Optimize(warning) => warning.message(program, artifacts),
+            Self::Generate(warning) => warning.message(program, artifacts),
+            Self::Link(warning) => warning.message(program, artifacts),
         }
     }
 }

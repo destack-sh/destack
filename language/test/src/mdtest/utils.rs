@@ -5,11 +5,9 @@ use std::sync::{Arc, mpsc};
 use std::time::Duration;
 use std::{io, thread};
 
+use destack_artifact::{EmitFormat, MemoryCacheStore, Platform, Runtime};
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId};
-use destack_workspace::{
-    EmitFormat, MemoryCacheStore, Platform, ProfileEnv, ProfileId, Program, Runtime, Session,
-    Target,
-};
+use destack_workspace::{ProfileEnv, ProfileId, Program, Session, Target};
 
 use crate::core::{CaseResult, discover_file_cases, load_expected_failures};
 

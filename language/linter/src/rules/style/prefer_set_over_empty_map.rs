@@ -217,6 +217,7 @@ fn expression_is_void_or_never_type(
 
     expression_type_map(
         &ctx.program,
+        &ctx.artifacts,
         ctx.profile_id,
         ctx.module_id(),
         ctx.tree,
@@ -236,6 +237,7 @@ fn symbol_is_map(
 ) -> bool {
     symbol_matches_any_or_canonical(
         &ctx.program,
+        &ctx.artifacts,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,

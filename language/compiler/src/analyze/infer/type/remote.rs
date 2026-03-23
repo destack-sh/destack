@@ -108,13 +108,13 @@ impl Compiler {
                 // interface frame for that remote module
                 RemoteValueTypeReadDomain::Surface => {
                     if candidate_symbol.module_id == ctx.module.id {
-                        destack_workspace::ArtifactKey::dir_declared
+                        destack_artifact::ArtifactKey::dir_declared
                     } else {
-                        destack_workspace::ArtifactKey::dir_interface
+                        destack_artifact::ArtifactKey::dir_interface
                     }
                 }
                 RemoteValueTypeReadDomain::Interface => {
-                    destack_workspace::ArtifactKey::dir_interface
+                    destack_artifact::ArtifactKey::dir_interface
                 }
             };
 

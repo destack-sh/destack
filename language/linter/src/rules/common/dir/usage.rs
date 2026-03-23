@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use destack_artifact::ArtifactStore;
 use destack_dir as dir;
 use destack_dir::{NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_source::ModuleId;
@@ -177,6 +178,7 @@ pub fn collect_module_resolved_read_symbol_usage(
 #[allow(clippy::too_many_arguments)]
 pub fn collect_assigned_symbol_usage(
     program: &Program,
+    artifacts: &ArtifactStore,
     profile_id: ProfileId,
     module_id: ModuleId,
     tree: &dir::NodeTree,
@@ -204,6 +206,7 @@ pub fn collect_assigned_symbol_usage(
         let assigned_expression = tree.get(assigned_expression_id);
         let candidate_symbols = expression_candidate_symbols(
             program,
+            artifacts,
             profile_id,
             module_id,
             symbols,

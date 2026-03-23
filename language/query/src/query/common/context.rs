@@ -1,11 +1,12 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
 
+use destack_artifact::{ArtifactStore, Ast, DirAnalyzed, DirResolved};
 use destack_ast as ast;
 use destack_core::StringPool;
 use destack_dir::{self as dir};
 use destack_source::{FileId, ModuleId, NodeSourceMap, ProfileId};
-use destack_workspace::{Ast, DirAnalyzed, DirResolved, Module, Program, Session};
+use destack_workspace::{Module, Program, Session};
 
 use super::{get_module_by_file_id, program_for_module};
 
@@ -17,6 +18,8 @@ use super::{get_module_by_file_id, program_for_module};
 pub struct QueryContext<'a> {
     /// The owning program.
     pub program: Arc<Program>,
+    /// The live artifact store for the program.
+    pub artifacts: Arc<ArtifactStore>,
     /// The module AST (syntax tree and strings).
     pub ast: Arc<Ast>,
     /// The module DIR (semantic IR).
@@ -253,7 +256,7 @@ pub fn query_context<'a>(session: &Session, module: &'a Module) -> Option<QueryC
     let profile = program.default_profile_id_for_module(module.id);
 
     // build query context
-    query_context_with_program_and_profile(module, program, profile)
+    query_context_with_program_and_profile(session, module, program, profile)
 }
 
 /// Get query context for a module with an explicit profile.
@@ -266,23 +269,26 @@ pub fn query_context_with_profile<'a>(
 ) -> Option<QueryContext<'a>> {
     // resolve the owning program and profile dir artifact
     let program = program_for_module(session, module);
-    query_context_with_program_and_profile(module, program, profile)
+    query_context_with_program_and_profile(session, module, program, profile)
 }
 
 /// Get query context for a module with an explicit program and profile.
 fn query_context_with_program_and_profile<'a>(
+    session: &Session,
     module: &'a Module,
     program: Arc<Program>,
     profile: ProfileId,
 ) -> Option<QueryContext<'a>> {
-    // resolve module ast and semantic artifacts
-    let ast = program.artifacts.ast(module.id)?;
-    let dir = program.artifacts.dir_analyzed(module.id, profile)?;
-    let resolved = program.artifacts.dir_resolved(module.id, profile)?;
+    // resolve module ast and profile dir artifact
+    let artifacts = session.get_artifacts_for_program(program.as_ref())?;
+    let ast = artifacts.ast(module.id)?;
+    let dir = artifacts.dir_analyzed(module.id, profile)?;
+    let resolved = artifacts.dir_resolved(module.id, profile)?;
 
     // build query context
     Some(QueryContext {
         program,
+        artifacts,
         ast,
         dir,
         resolved,
@@ -332,7 +338,8 @@ pub fn with_ast_context_for_module<T>(
 ) -> Option<T> {
     // resolve the AST while the module guard is held
     let program = program_for_module(session, module);
-    let ast = program.artifacts.ast(module.id)?;
+    let artifacts = session.get_artifacts_for_program(program.as_ref())?;
+    let ast = artifacts.ast(module.id)?;
     let ctx = AstContext {
         file_id: module.file_id,
         ast: ast.as_ref(),
@@ -364,7 +371,8 @@ pub fn with_source_context_for_module<T>(
 ) -> Option<T> {
     // resolve the AST while the module guard is held
     let program = program_for_module(session, module);
-    let ast = program.artifacts.ast(module.id)?;
+    let artifacts = session.get_artifacts_for_program(program.as_ref())?;
+    let ast = artifacts.ast(module.id)?;
     let ctx = SourceContext {
         file_id: module.file_id,
         ast: ast.as_ref(),
@@ -397,7 +405,8 @@ pub fn with_dir_analyzed_context_for_module<T>(
     // resolve the program and default profile while the module guard is held
     let program = program_for_module(session, module);
     let profile = program.default_profile_id_for_module(module.id);
-    let dir = program.artifacts.dir_analyzed(module.id, profile)?;
+    let artifacts = session.get_artifacts_for_program(program.as_ref())?;
+    let dir = artifacts.dir_analyzed(module.id, profile)?;
     let ctx = DirAnalyzedContext {
         module_id: module.id,
         dir: dir.as_ref(),
@@ -430,7 +439,8 @@ pub fn with_dir_resolved_context_for_module<T>(
     // resolve the program and default profile while the module guard is held
     let program = program_for_module(session, module);
     let profile = program.default_profile_id_for_module(module.id);
-    let resolved = program.artifacts.dir_resolved(module.id, profile)?;
+    let artifacts = session.get_artifacts_for_program(program.as_ref())?;
+    let resolved = artifacts.dir_resolved(module.id, profile)?;
     let ctx = DirResolvedContext {
         module_id: module.id,
         dir: resolved.as_ref(),
@@ -463,8 +473,9 @@ pub fn with_ast_and_dir_resolved_context_for_module<T>(
     // resolve the program and default profile while the module guard is held
     let program = program_for_module(session, module);
     let profile = program.default_profile_id_for_module(module.id);
-    let ast = program.artifacts.ast(module.id)?;
-    let resolved = program.artifacts.dir_resolved(module.id, profile)?;
+    let artifacts = session.get_artifacts_for_program(program.as_ref())?;
+    let ast = artifacts.ast(module.id)?;
+    let resolved = artifacts.dir_resolved(module.id, profile)?;
 
     let ast = AstContext {
         file_id: module.file_id,

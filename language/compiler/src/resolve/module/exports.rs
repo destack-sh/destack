@@ -3,6 +3,7 @@ use std::collections::HashSet;
 
 use crate::import::{SymbolDescriptor, can_merge_declarations};
 use crate::{Compiler, ImportError};
+use destack_artifact::{ExportedSymbolTable, ModuleBindingExportTable};
 use destack_builtin::builtin_library;
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, Export, ExportKind, Expression,
@@ -11,7 +12,7 @@ use destack_dir::{
     SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, walk_expression,
 };
 use destack_source::{LanguageType, ModuleId};
-use destack_workspace::{ExportedSymbolTable, Module, ModuleBindingExportTable, ProfileId};
+use destack_workspace::{Module, ProfileId};
 use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 
@@ -1518,7 +1519,6 @@ impl Compiler {
         symbol: GlobalSymbolId,
     ) -> SymbolSpace {
         let dir = self
-            .program
             .artifacts
             .dir_prepared(symbol.module_id, profile)
             .unwrap_or_else(|| {
@@ -1537,7 +1537,6 @@ impl Compiler {
         symbol: GlobalSymbolId,
     ) -> SymbolType {
         let dir = self
-            .program
             .artifacts
             .dir_prepared(symbol.module_id, profile)
             .unwrap_or_else(|| {
@@ -1558,17 +1557,12 @@ impl Compiler {
         profile: ProfileId,
         symbol: GlobalSymbolId,
     ) -> bool {
-        if let Some(dir) = self
-            .program
-            .artifacts
-            .dir_resolved(symbol.module_id, profile)
-        {
+        if let Some(dir) = self.artifacts.dir_resolved(symbol.module_id, profile) {
             let entry = dir.symbols.get_symbol(symbol.local_id);
             return symbol_entry_is_value_capable(entry);
         }
 
         let dir = self
-            .program
             .artifacts
             .dir_prepared(symbol.module_id, profile)
             .unwrap_or_else(|| {

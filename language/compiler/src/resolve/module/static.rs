@@ -1,12 +1,13 @@
 use std::collections::HashSet;
 
+use destack_artifact::{EmitFormat, Platform, Runtime};
 use destack_dir::{
     Annotation, BinaryOperator, Block, Declaration, Expression, LocalNodeId, LocalNodeIdAny,
     NodeTree, NodeType, NodeVisitor, NodeVisitorOptions, ScalarLiteral, SymbolTable, Type,
     TypeLiteral, TypeTable, walk_any,
 };
 use destack_source::ModuleId;
-use destack_workspace::{EmitFormat, ImportMeta, Platform, ProfileEnv, ProfileId, Runtime};
+use destack_workspace::{ImportMeta, ProfileEnv, ProfileId};
 
 use crate::{Compiler, ResolveError, ResolveResult, evaluate_binary_scalar, evaluate_unary_scalar};
 

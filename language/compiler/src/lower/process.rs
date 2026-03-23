@@ -4,10 +4,9 @@ use std::str::FromStr;
 use crate::timing::tags;
 use crate::{ArtifactRequirementError, Compiler, LowerError, LowerResult, ModuleLowerer};
 
+use destack_artifact::{ArtifactKey, EmitFormat, MirBase, TargetArch};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{
-    ArtifactKey, EmitFormat, MirBase, ProfileId, Target, TargetArch, TargetId,
-};
+use destack_workspace::{ProfileId, Target, TargetId};
 use target_lexicon::Triple;
 
 impl Compiler {
@@ -49,8 +48,7 @@ impl Compiler {
             self.stats.record_lower();
         }
 
-        self.program
-            .artifacts
+        self.artifacts
             .publish(artifact_key.clone(), payload.clone());
         self.store_artifact(&artifact_key, &payload, |compiler, mir| {
             compiler.store_mir_base_image(module, profile, &target, mir)
@@ -119,7 +117,6 @@ impl Compiler {
 
         // load the patched DIR artifact
         let dir = self
-            .program
             .artifacts
             .dir_patched(module_id, profile)
             .ok_or_else(|| LowerError::Internal {

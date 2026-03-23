@@ -3,9 +3,10 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use destack_artifact::DirDeclared;
 use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace};
 use destack_source::ModuleId;
-use destack_workspace::{DirDeclared, ProfileId};
+use destack_workspace::ProfileId;
 
 use crate::analyze::module::GlobalMergeCategory;
 

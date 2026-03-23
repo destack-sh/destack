@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use destack_artifact::ArtifactStore;
 use destack_linter::{Fixability, LintDiagnostic, LintLevel, LintRunner};
 use destack_source::{DiagnosticOptions, DiffOptions, FileId, ModuleId, print_diff};
 use destack_workspace::Program;
@@ -30,6 +31,7 @@ pub struct FixResult {
 /// Run linting and optionally apply fixes.
 pub fn run_with_fixes(
     program: Arc<Program>,
+    artifacts: Arc<ArtifactStore>,
     modules: &[ModuleId],
     diagnostic_options: &DiagnosticOptions,
     fix_options: &FixOptions,
@@ -46,6 +48,7 @@ pub fn run_with_fixes(
         let profile = program.default_profile_id_for_module(*module_id);
         let ast_diagnostics = runner.lint_module(
             program.clone(),
+            artifacts.clone(),
             module.clone(),
             profile,
             &linter_options,
@@ -53,6 +56,7 @@ pub fn run_with_fixes(
         );
         let dir_diagnostics = runner.lint_module(
             program.clone(),
+            artifacts.clone(),
             module.clone(),
             profile,
             &linter_options,

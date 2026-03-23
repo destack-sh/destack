@@ -1,4 +1,5 @@
-use destack_workspace::{ArtifactKey, ProfileId, Program};
+use destack_artifact::{ArtifactKey, ArtifactStore};
+use destack_workspace::{ProfileId, Program};
 
 use crate::{
     AnalyzeError, ArtifactRequirementSet, ArtifactTaskKeyExt, DiagnosticAnchor, ElaborateError,
@@ -74,7 +75,7 @@ impl InternalError {
     }
 
     /// Get the message of the error.
-    pub fn message(&self, _program: &Program) -> String {
+    pub fn message(&self, _program: &Program, _artifacts: &ArtifactStore) -> String {
         match self {
             Self::SuspiciousYield { task_id, .. } => {
                 format!("internal error: task {task_id} yielded to the same requirement twice")
@@ -194,19 +195,19 @@ impl TaskError {
     }
 
     /// Get the message of the error.
-    pub fn message(&self, program: &Program) -> String {
+    pub fn message(&self, program: &Program, artifacts: &ArtifactStore) -> String {
         match self {
-            Self::Import(error) => error.message(program),
-            Self::Resolve(error) => error.message(program),
-            Self::Analyze(error) => error.message(program),
-            Self::Elaborate(error) => error.message(program),
-            Self::Execute(error) => error.message(program),
-            Self::Lower(error) => error.message(program),
-            Self::Optimize(error) => error.message(program),
-            Self::Generate(error) => error.message(program),
-            Self::Link(error) => error.message(program),
-            Self::Emit(error) => error.message(program),
-            Self::Internal(error) => error.message(program),
+            Self::Import(error) => error.message(program, artifacts),
+            Self::Resolve(error) => error.message(program, artifacts),
+            Self::Analyze(error) => error.message(program, artifacts),
+            Self::Elaborate(error) => error.message(program, artifacts),
+            Self::Execute(error) => error.message(program, artifacts),
+            Self::Lower(error) => error.message(program, artifacts),
+            Self::Optimize(error) => error.message(program, artifacts),
+            Self::Generate(error) => error.message(program, artifacts),
+            Self::Link(error) => error.message(program, artifacts),
+            Self::Emit(error) => error.message(program, artifacts),
+            Self::Internal(error) => error.message(program, artifacts),
         }
     }
 

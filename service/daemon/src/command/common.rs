@@ -1,9 +1,10 @@
 use std::path::PathBuf;
 
+use destack_artifact::{EmitFormat, Platform, Runtime};
 use destack_source::{DiagnosticOptions, FileType};
 use destack_workspace::{
-    DebugInfoLevel, EmitArtifact, EmitFormat, LinkMode, LtoMode, OptimizeLevel, Platform, Runtime,
-    RuntimeOptionsJson, StripLevel, Target,
+    DebugInfoLevel, EmitArtifact, LinkMode, LtoMode, OptimizeLevel, RuntimeOptionsJson, StripLevel,
+    Target,
 };
 use serde::{Deserialize, Serialize};
 

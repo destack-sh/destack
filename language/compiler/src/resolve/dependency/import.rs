@@ -1,10 +1,11 @@
+use destack_artifact::DirPrepared;
 use destack_ast::StringId;
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, DependencySource, Expression, GlobalNodeIdAny,
     GlobalSymbolId, LocalScopeId, ModuleTarget, NodeTree, StaticKey, SymbolTable,
 };
 use destack_source::ModuleId;
-use destack_workspace::{DirPrepared, ProfileId};
+use destack_workspace::ProfileId;
 use rustc_hash::FxHashMap;
 
 use crate::resolve::dependency::cache::{
@@ -558,7 +559,7 @@ impl Compiler {
                         profile,
                         *target,
                         Some(module_id),
-                        destack_workspace::ImportEdgeKind::Require,
+                        destack_artifact::ImportEdgeKind::Require,
                         None,
                     ) && let Some(target_module) = targets.for_kind(*kind)
                     {
@@ -640,7 +641,7 @@ impl Compiler {
                         profile,
                         *target,
                         Some(module_id),
-                        destack_workspace::ImportEdgeKind::Require,
+                        destack_artifact::ImportEdgeKind::Require,
                         None,
                     ) {
                         return Ok(targets.for_kind(*kind));

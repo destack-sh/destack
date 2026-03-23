@@ -3,10 +3,10 @@ use crate::{ArtifactRequirementError, Compiler, OptimizeError, OptimizeResult};
 use std::mem;
 use std::str::FromStr;
 
+use destack_artifact::{ArtifactKey, EmitFormat, MirOptimized, TargetArch};
 use destack_source::{ModuleId, ModuleVersion, PackageId, ProfileVersion};
 use destack_workspace::{
-    ArtifactKey, DebugMode, EmitFormat, MirOptimized, Module,
-    OptimizeLevel as WorkspaceOptimizeLevel, ProfileId, Target, TargetArch, TargetId,
+    DebugMode, Module, OptimizeLevel as WorkspaceOptimizeLevel, ProfileId, Target, TargetId,
 };
 use target_lexicon::Triple;
 
@@ -55,8 +55,7 @@ impl Compiler {
             profile_stamp.version,
             &target,
         )?;
-        self.program
-            .artifacts
+        self.artifacts
             .publish(artifact_key.clone(), payload.clone());
         self.store_artifact(&artifact_key, &payload, |compiler, mir| {
             compiler.store_mir_optimized_image(module, profile, &target, mir)
@@ -130,7 +129,6 @@ impl Compiler {
 
         // read committed MIR artifact truth
         let mir = self
-            .program
             .artifacts
             .mir_base(module, profile, target)
             .unwrap_or_else(|| unreachable!("missing MIR artifact for target '{target}'"));

@@ -1,13 +1,14 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_artifact::MemoryCacheStore;
 use destack_compiler::CompilerOptions;
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{
     FileSystem, FileWatchEvent, FileWatchEventKind, OverlayFileSystem, PhysicalFileSystem,
     TemporaryPhysicalFileSystem, Uri,
 };
-use destack_workspace::{MemoryCacheStore, Session, Workspace};
+use destack_workspace::{Session, Workspace};
 
 use crate::{LanguageService, LanguageServiceResult};
 

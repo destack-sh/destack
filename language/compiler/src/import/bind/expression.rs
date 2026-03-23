@@ -1,3 +1,4 @@
+use destack_artifact::Ast;
 use destack_ast::{self as ast};
 use destack_dir::{
     Argument, BindingCategory, DeclarationKind, Declarator, DependencyMode, DependencySource,
@@ -7,7 +8,7 @@ use destack_dir::{
     SymbolSpaceOrder, SymbolTable, SymbolType, Type, TypeMappedParameterExpression,
     TypePredicateSubject, TypeTable, YieldCardinality,
 };
-use destack_workspace::{Ast, Module};
+use destack_workspace::Module;
 
 use crate::Compiler;
 

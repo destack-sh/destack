@@ -4,6 +4,7 @@ use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::{CanonicalSymbolMode, RelationMode, TypeContext, TypeRewriteCache};
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler};
+use destack_artifact::ArtifactKey;
 use destack_dir::{
     BinaryOperator, DependencyItem, EnumFieldValue, Expression, GlobalSymbolId, IfCondition,
     IfKind, LocalNodeId, LocalTypeId, NodeType, NormalizationMode, Property, Resolution,
@@ -11,7 +12,7 @@ use destack_dir::{
     TypeBinaryOperator, UnaryOperator,
 };
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactKey, ProfileId};
+use destack_workspace::ProfileId;
 use std::collections::{HashMap, HashSet};
 
 #[allow(clippy::too_many_arguments)]
@@ -33,7 +34,7 @@ impl Compiler {
             StaticEvaluationMode::Parametric,
             StaticEvaluationDiagnosticMode::Report,
             None,
-            destack_workspace::ArtifactKey::dir_analyzed,
+            destack_artifact::ArtifactKey::dir_analyzed,
             &mut visited,
         )
     }
@@ -57,7 +58,7 @@ impl Compiler {
             StaticEvaluationMode::Instantiated,
             StaticEvaluationDiagnosticMode::Report,
             Some(substitutions),
-            destack_workspace::ArtifactKey::dir_interface,
+            destack_artifact::ArtifactKey::dir_interface,
             &mut visited,
         )
     }
@@ -80,7 +81,7 @@ impl Compiler {
             StaticEvaluationMode::Parametric,
             StaticEvaluationDiagnosticMode::Suppress,
             None,
-            destack_workspace::ArtifactKey::dir_analyzed,
+            destack_artifact::ArtifactKey::dir_analyzed,
             &mut visited,
         )
     }

@@ -2,8 +2,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use destack_artifact::MemoryCacheStore;
 use destack_source::MemoryFileSystem;
-use destack_workspace::{MemoryCacheStore, Session};
+use destack_workspace::Session;
 
 /// One shared in memory workspace for suite execution.
 #[derive(Debug)]

@@ -223,6 +223,7 @@ fn expression_is_array_semantic(
 
     expression_type_map(
         &ctx.program,
+        &ctx.artifacts,
         ctx.profile_id,
         ctx.module_id(),
         ctx.tree,

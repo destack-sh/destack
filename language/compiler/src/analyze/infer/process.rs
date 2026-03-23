@@ -281,7 +281,7 @@ impl Compiler {
         let module_ref = self.program.modules.get(module_id);
         let module = module_ref.as_ref();
         if module.loader.is_data() {
-            let ast = match self.program.artifacts.ast(module_id) {
+            let ast = match self.artifacts.ast(module_id) {
                 Some(ast) => ast,
                 None => return Ok(()),
             };

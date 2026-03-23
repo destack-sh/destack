@@ -1,5 +1,5 @@
+use destack_artifact::ArtifactKey;
 use destack_compiler::{Compiler, CompilerOptions};
-use destack_workspace::ArtifactKey;
 
 use crate::core::{
     Case, CaseResult, RunContext, RunOptions, Runner, SharedMemoryWorkspace, Suite,

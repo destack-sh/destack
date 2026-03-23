@@ -1,14 +1,12 @@
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
+use destack_artifact::{DirAnalyzed, DirDeclared, WellKnownIntrinsics};
 use destack_ast::StringId;
 use destack_core::StringPool;
 use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, LocalNodeId};
 use destack_source::ModuleId;
-use destack_workspace::{
-    CheckFailurePolicy, DirAnalyzed, DirDeclared, Module, ProfileId, Target, TargetId,
-    WellKnownIntrinsics,
-};
+use destack_workspace::{CheckFailurePolicy, Module, ProfileId, Target, TargetId};
 use indexmap::IndexSet;
 use {destack_dir as dir, destack_mir as mir};
 
@@ -165,7 +163,7 @@ impl<'a> ModuleLowerer<'a> {
         let type_lowerer = TypeLowerer::new(
             &mut builder,
             pointer_bytes,
-            compiler.program.artifacts.clone(),
+            compiler.artifacts.clone(),
             compiler.program.modules.clone(),
             compiler.program.packages.clone(),
             vector_symbol,
@@ -183,7 +181,6 @@ impl<'a> ModuleLowerer<'a> {
         let binding_abi_lowering = target_config.emit.is_native();
 
         let well_known_intrinsics = compiler
-            .program
             .artifacts
             .intrinsic_environment(profile)
             .map(|environment| environment.intrinsics.clone());
@@ -245,7 +242,6 @@ impl<'a> ModuleLowerer<'a> {
         module_id: ModuleId,
     ) -> Option<Arc<DirDeclared>> {
         self.compiler
-            .program
             .artifacts
             .dir_declared(module_id, self.profile)
     }

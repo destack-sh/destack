@@ -1174,7 +1174,7 @@ impl Compiler {
                 ctx.profile,
                 symbol.module_id,
                 ctx.symbols,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
                 |_, owner_symbols| owner_symbols.get_symbol(symbol.local_id).clone(),
             )
             .ok()
@@ -1565,7 +1565,7 @@ impl Compiler {
                     view.profile,
                     current_symbol.module_id,
                     view.symbols,
-                    destack_workspace::ArtifactKey::dir_declared,
+                    destack_artifact::ArtifactKey::dir_declared,
                     |_owner_module, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
                         symbol_entry.target_symbol.or(symbol_entry.canonical_symbol)
@@ -1736,7 +1736,7 @@ impl Compiler {
                 ctx.profile,
                 current.module_id,
                 ctx.symbols,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
                 |_owner_module, owner_symbols| {
                     let symbol_entry = owner_symbols.get_symbol(current.local_id);
                     let typed_symbol = GlobalSymbolId::new(
@@ -1762,7 +1762,7 @@ impl Compiler {
                         ctx.profile,
                         current.module_id,
                         ctx.types,
-                        destack_workspace::ArtifactKey::dir_declared,
+                        destack_artifact::ArtifactKey::dir_declared,
                         |_owner_module, owner_types| {
                             owner_types.get_alias_target_type_id(typed_symbol)
                         },
@@ -2352,7 +2352,7 @@ impl Compiler {
                         parameter_symbol.module_id,
                         ctx.tree,
                         ctx.symbols,
-                        destack_workspace::ArtifactKey::dir_declared,
+                        destack_artifact::ArtifactKey::dir_declared,
                         |view| {
                             self.static_parameter_metadata_for_symbol_in_module(
                                 view,

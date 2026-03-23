@@ -1,4 +1,5 @@
 use crate::Compiler;
+use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
     BindingCategory, DependencyMode, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
@@ -6,7 +7,7 @@ use destack_dir::{
     StaticKey, StringId, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
     SymbolType, TypeTable,
 };
-use destack_workspace::{Ast, Module};
+use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {

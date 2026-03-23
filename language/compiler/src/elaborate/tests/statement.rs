@@ -1,5 +1,5 @@
 use crate::tests::TestProgram;
-use destack_workspace::EmitFormat;
+use destack_artifact::EmitFormat;
 
 #[test]
 fn test_normalize_if_in_let_with_blocks() {

@@ -1159,8 +1159,11 @@ impl ProtocolServer {
         root: &Path,
         profile_id: ProfileId,
     ) -> Result<BinaryPayload, ProtocolError> {
-        let program = self.program_for_root(root)?;
-        let graph = program.artifacts.module_graph(profile_id).ok_or_else(|| {
+        let _program = self.program_for_root(root)?;
+        let artifacts = self.daemon.session.get_artifacts(root).ok_or_else(|| {
+            self.protocol_error(ProtocolErrorCode::NotFound, "artifact store missing")
+        })?;
+        let graph = artifacts.module_graph(profile_id).ok_or_else(|| {
             self.protocol_error(ProtocolErrorCode::NotFound, "module graph missing")
         })?;
         let bytes = postcard::to_allocvec(graph.as_ref()).map_err(|error| {

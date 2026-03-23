@@ -13,7 +13,8 @@ use crate::common::{
     rewrite_path_with_common_suffix, split_alias_prefix, string_literal_span_in_enclosing,
     strip_module_extension, strip_path_extension, strip_path_suffix, with_ast_context_for_module,
 };
-use destack_workspace::{ImportEdgeKind, ModuleSpecifier, Session};
+use destack_artifact::ImportEdgeKind;
+use destack_workspace::{ModuleSpecifier, Session};
 
 /// A file rename entry for refactor queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -354,6 +354,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
         // prefer declarations to identify method symbols and skip static members
         let Some(primary_declaration) = symbol_primary_declaration_for(
             &self.ctx.program,
+            &self.ctx.artifacts,
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,
@@ -366,7 +367,6 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
         if primary_declaration.local_id.ty == dir::NodeType::Member {
             let Some(module_dir) = self
                 .ctx
-                .program
                 .artifacts
                 .dir_analyzed(primary_declaration.module_id, self.ctx.profile_id)
             else {
@@ -389,7 +389,6 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
         if primary_declaration.local_id.ty == dir::NodeType::Property {
             let Some(module_dir) = self
                 .ctx
-                .program
                 .artifacts
                 .dir_analyzed(primary_declaration.module_id, self.ctx.profile_id)
             else {
@@ -408,6 +407,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
     fn symbol_has_this_parameter(&self, symbol_id: dir::GlobalSymbolId) -> bool {
         let Some(symbol_type_id) = symbol_value_type_id_for(
             &self.ctx.program,
+            &self.ctx.artifacts,
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,
@@ -425,7 +425,6 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
         // load foreign module types for the `this` parameter check
         let Some(module_dir) = self
             .ctx
-            .program
             .artifacts
             .dir_analyzed(symbol_type_id.module_id, self.ctx.profile_id)
         else {

@@ -36,9 +36,9 @@ impl Daemon {
     /// Create a daemon with explicit compiler options.
     pub fn with_options(session: Arc<Session>, compiler_options: CompilerOptions) -> Self {
         let mut roots: Vec<PathBuf> = session
-            .programs
-            .iter()
-            .map(|entry| entry.key().clone())
+            .programs()
+            .into_iter()
+            .map(|program| program.cwd.clone())
             .collect();
         if roots.is_empty() {
             roots.push(session.workspace_root());

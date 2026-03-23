@@ -1,4 +1,4 @@
-use destack_workspace::{ArtifactDependency, ArtifactKey};
+use destack_artifact::{ArtifactDependency, ArtifactKey};
 
 use crate::{DiagnosticAnchor, TaskError};
 

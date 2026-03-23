@@ -82,7 +82,7 @@ fn validate_warning_code(code: &LitStr, expected_letter: char) -> Result<u16> {
 
 /// Generate the formatting expression for a field using DiagnosticFormat trait.
 fn format_field_expr(field_name: &Ident) -> TokenStream2 {
-    quote! { #field_name.diagnostic_fmt(program) }
+    quote! { #field_name.diagnostic_fmt(program, artifacts) }
 }
 
 /// Parse a format string and generate the formatting code.
@@ -464,7 +464,11 @@ fn define_warning_inner(input: DeriveInput) -> Result<TokenStream2> {
 
             /// Get the message for this warning.
             #[allow(unused_variables)]
-            pub fn message(&self, program: &Program) -> String {
+            pub fn message(
+                &self,
+                program: &Program,
+                artifacts: &destack_artifact::ArtifactStore,
+            ) -> String {
                 match self {
                     #(#message_arms),*
                 }

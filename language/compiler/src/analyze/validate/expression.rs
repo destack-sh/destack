@@ -3162,7 +3162,6 @@ impl Compiler {
 
         // check symbols from dependent modules
         let Some(target_dir) = self
-            .program
             .artifacts
             .dir_declared(symbol_id.module_id, ctx.profile)
         else {

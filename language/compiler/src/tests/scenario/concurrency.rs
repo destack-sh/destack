@@ -1,4 +1,4 @@
-use destack_workspace::ArtifactKey;
+use destack_artifact::ArtifactKey;
 
 use crate::tests::scenario::{CompilerScenario, ScenarioStress, assert_ast_eq};
 
@@ -29,7 +29,7 @@ fn test_parallel_enqueues_share_one_ast_task() {
     run.compiler().compile();
 
     // verify the artifact was published
-    assert!(run.program().artifacts.ast(module_id).is_some());
+    assert!(run.compiler().artifacts.ast(module_id).is_some());
 
     // verify the queue only created one ast task
     let task_count = run
@@ -72,8 +72,8 @@ fn test_parallel_enqueues_share_one_ast_prerequisite() {
     run.compiler().compile();
 
     // verify both artifacts were published
-    assert!(run.program().artifacts.ast(module_id).is_some());
-    assert!(run.program().artifacts.dir_base(module_id).is_some());
+    assert!(run.compiler().artifacts.ast(module_id).is_some());
+    assert!(run.compiler().artifacts.dir_base(module_id).is_some());
 
     // verify the shared ast prerequisite only exists once
     let ast_task_count = run
@@ -115,7 +115,7 @@ fn test_parallel_fresh_ast_runs_stay_equivalent() {
         run.compiler()
             .run_to_completion(|compiler| compiler.process_ast(module_id))
             .unwrap_or_else(|error| panic!("failed to build baseline ast: {error:?}"));
-        run.program()
+        run.compiler()
             .artifacts
             .ast(module_id)
             .unwrap_or_else(|| panic!("expected baseline ast"))
@@ -135,7 +135,7 @@ fn test_parallel_fresh_ast_runs_stay_equivalent() {
             run.compiler()
                 .run_to_completion(|compiler| compiler.process_ast(module_id))
                 .unwrap_or_else(|error| panic!("failed to build repeated ast: {error:?}"));
-            run.program()
+            run.compiler()
                 .artifacts
                 .ast(module_id)
                 .unwrap_or_else(|| panic!("expected repeated ast"))

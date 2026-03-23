@@ -1,7 +1,6 @@
 use crate::compile::Compiler;
-use destack_workspace::{
-    ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ProfileId, ProfileKey,
-};
+use destack_artifact::{ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ProfileKey};
+use destack_workspace::ProfileId;
 
 impl Compiler {
     /// Return the live profile id for one stable image profile key.

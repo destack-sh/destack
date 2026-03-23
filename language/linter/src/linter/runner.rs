@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use destack_artifact::ArtifactStore;
 use destack_source::ModuleId;
 use destack_workspace::{LintCategory, LintPreset, LinterOptions, Module, ProfileId, Program};
 
@@ -222,12 +223,13 @@ impl LintRunner {
     pub fn lint_module(
         &self,
         program: Arc<Program>,
+        artifacts: Arc<ArtifactStore>,
         module: Arc<Module>,
         profile: ProfileId,
         options: &LinterOptions,
         level: LintLevel,
     ) -> Vec<LintDiagnostic> {
-        self.lint_module_profiled(program, module, profile, options, level)
+        self.lint_module_profiled(program, artifacts, module, profile, options, level)
             .diagnostics
     }
 
@@ -235,6 +237,7 @@ impl LintRunner {
     pub fn lint_module_profiled(
         &self,
         program: Arc<Program>,
+        artifacts: Arc<ArtifactStore>,
         module: Arc<Module>,
         profile: ProfileId,
         options: &LinterOptions,
@@ -246,12 +249,22 @@ impl LintRunner {
         let mut performance = LintPerformanceReport::default();
 
         let diagnostics = match level {
-            LintLevel::Ast => {
-                self.lint_module_ast(program, module, profile, options, Some(&mut performance))
-            }
-            LintLevel::Dir => {
-                self.lint_module_dir(program, module, profile, options, Some(&mut performance))
-            }
+            LintLevel::Ast => self.lint_module_ast(
+                program,
+                artifacts,
+                module,
+                profile,
+                options,
+                Some(&mut performance),
+            ),
+            LintLevel::Dir => self.lint_module_dir(
+                program,
+                artifacts,
+                module,
+                profile,
+                options,
+                Some(&mut performance),
+            ),
             LintLevel::Mir => todo!("MIR rules not yet supported"),
         };
 
@@ -265,19 +278,20 @@ impl LintRunner {
     fn lint_module_ast(
         &self,
         program: Arc<Program>,
+        artifacts: Arc<ArtifactStore>,
         module: Arc<Module>,
         _profile: ProfileId,
         options: &LinterOptions,
         mut performance: Option<&mut LintPerformanceReport>,
     ) -> Vec<LintDiagnostic> {
         let module = module.as_ref();
-        let ast = program
-            .artifacts
+        let ast = artifacts
             .ast(module.id)
             .expect("lint AST pass requires committed AST artifact");
         let file = program.files.get(module.file_id);
         let mut ctx = LintAstContext::new(
             program,
+            artifacts,
             &module,
             file,
             &ast.tree,
@@ -327,6 +341,7 @@ impl LintRunner {
     fn lint_module_dir(
         &self,
         program: Arc<Program>,
+        artifacts: Arc<ArtifactStore>,
         module: Arc<Module>,
         profile: ProfileId,
         options: &LinterOptions,
@@ -334,22 +349,20 @@ impl LintRunner {
     ) -> Vec<LintDiagnostic> {
         // context
         let module = module.as_ref();
-        let ast = program
-            .artifacts
+        let ast = artifacts
             .ast(module.id)
             .expect("lint DIR pass requires committed AST artifact");
         let file = program.files.get(module.file_id);
-        let dir = program
-            .artifacts
+        let dir = artifacts
             .dir_analyzed(module.id, profile)
             .expect("lint DIR pass requires committed analyzed DIR artifact");
-        let resolved = program
-            .artifacts
+        let resolved = artifacts
             .dir_resolved(module.id, profile)
             .expect("lint DIR pass requires committed resolved DIR artifact");
 
         let mut ctx = LintModuleDirContext::new(
             program,
+            artifacts,
             &module,
             profile,
             file,
@@ -411,23 +424,25 @@ impl LintRunner {
     pub fn lint_module_by_id(
         &self,
         program: Arc<Program>,
+        artifacts: Arc<ArtifactStore>,
         module_id: ModuleId,
         profile: ProfileId,
         options: &LinterOptions,
         level: LintLevel,
     ) -> Vec<LintDiagnostic> {
         let module = program.modules.get(module_id);
-        self.lint_module(program, module, profile, options, level)
+        self.lint_module(program, artifacts, module, profile, options, level)
     }
 
     /// Lint all modules at a specific level.
     pub fn lint_all_modules(
         &self,
         program: Arc<Program>,
+        artifacts: Arc<ArtifactStore>,
         options: &LinterOptions,
         level: LintLevel,
     ) -> Vec<LintDiagnostic> {
-        self.lint_all_modules_profiled(program, options, level)
+        self.lint_all_modules_profiled(program, artifacts, options, level)
             .diagnostics
     }
 
@@ -435,6 +450,7 @@ impl LintRunner {
     pub fn lint_all_modules_profiled(
         &self,
         program: Arc<Program>,
+        artifacts: Arc<ArtifactStore>,
         options: &LinterOptions,
         level: LintLevel,
     ) -> LintRunReport {
@@ -446,8 +462,14 @@ impl LintRunner {
         let mut performance = LintPerformanceReport::default();
         for module in program.modules.iter() {
             let profile = program.default_profile_id_for_module(module.id);
-            let report =
-                self.lint_module_profiled(program.clone(), module, profile, options, level);
+            let report = self.lint_module_profiled(
+                program.clone(),
+                artifacts.clone(),
+                module,
+                profile,
+                options,
+                level,
+            );
             diagnostics.extend(report.diagnostics);
             performance.merge(&report.performance);
         }
@@ -462,15 +484,18 @@ impl LintRunner {
     pub fn lint_program_ast(
         &self,
         program: Arc<Program>,
+        artifacts: Arc<ArtifactStore>,
         options: &LinterOptions,
     ) -> Vec<LintDiagnostic> {
-        self.lint_program_ast_profiled(program, options).diagnostics
+        self.lint_program_ast_profiled(program, artifacts, options)
+            .diagnostics
     }
 
     /// Lint the entire program at AST level and collect performance metrics.
     pub fn lint_program_ast_profiled(
         &self,
         program: Arc<Program>,
+        artifacts: Arc<ArtifactStore>,
         options: &LinterOptions,
     ) -> LintRunReport {
         if !options.enabled {
@@ -478,7 +503,7 @@ impl LintRunner {
         }
 
         let mut performance = LintPerformanceReport::default();
-        let mut ctx = LintProgramAstContext::new(program, options.clone());
+        let mut ctx = LintProgramAstContext::new(program, artifacts, options.clone());
 
         for rule in &self.rules {
             let meta = rule.meta();
@@ -518,10 +543,11 @@ impl LintRunner {
     pub fn lint_program_dir(
         &self,
         program: Arc<Program>,
+        artifacts: Arc<ArtifactStore>,
         profile: ProfileId,
         options: &LinterOptions,
     ) -> Vec<LintDiagnostic> {
-        self.lint_program_dir_profiled(program, profile, options)
+        self.lint_program_dir_profiled(program, artifacts, profile, options)
             .diagnostics
     }
 
@@ -529,6 +555,7 @@ impl LintRunner {
     pub fn lint_program_dir_profiled(
         &self,
         program: Arc<Program>,
+        artifacts: Arc<ArtifactStore>,
         profile: ProfileId,
         options: &LinterOptions,
     ) -> LintRunReport {
@@ -537,7 +564,7 @@ impl LintRunner {
         }
 
         let mut performance = LintPerformanceReport::default();
-        let mut ctx = LintProgramDirContext::new(program, profile, options.clone());
+        let mut ctx = LintProgramDirContext::new(program, artifacts, profile, options.clone());
 
         for rule in &self.rules {
             let meta = rule.meta();

@@ -152,6 +152,7 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
     ) -> bool {
         expression_type_map(
             &self.ctx.program,
+            &self.ctx.artifacts,
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.tree,
