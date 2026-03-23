@@ -100,7 +100,7 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
         };
 
         // check method name
-        if *name != self.foreach_name {
+        if *name != Some(self.foreach_name) {
             return;
         }
 
@@ -210,7 +210,7 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
         else {
             return None;
         };
-        if *name != self.foreach_name {
+        if *name != Some(self.foreach_name) {
             return None;
         }
 

@@ -48,7 +48,14 @@ impl LintRule for NoReExportAll {
             // check if any item is a namespace re-export (export *)
             for item_id in items {
                 let item = ctx.tree.get(*item_id);
-                if item.mode == DependencyMode::Namespace && item.alias.is_none() {
+                if matches!(
+                    item,
+                    ast::DependencyItem::Item {
+                        mode: DependencyMode::Namespace,
+                        alias: None,
+                        ..
+                    }
+                ) {
                     let severity = ctx.get_effective_severity(meta, node_id);
                     if !severity.is_enabled() {
                         break;

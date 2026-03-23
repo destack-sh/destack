@@ -1148,6 +1148,14 @@ pub fn is_any_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::Any)
 }
 
+/// Return true when the type is `Error`.
+pub fn is_error_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
+    matches!(
+        types.get_type(normalized_flow_type_id(types, type_id)),
+        dir::Type::Error
+    )
+}
+
 /// Return true when the type tree contains explicit `any` (but not `unknown`).
 pub fn is_explicit_any_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::ExplicitAny)

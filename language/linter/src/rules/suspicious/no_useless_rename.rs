@@ -102,16 +102,18 @@ impl LintRule for NoUselessRename {
             // inspect each renamed item in the clause
             for item_id in items {
                 let item = ctx.tree.get(*item_id);
-                let Some(alias_id) = item.alias else {
-                    continue;
-                };
-                let Some(name) = item.name else {
+                let ast::DependencyItem::Item {
+                    alias: Some(alias_id),
+                    name: Some(name),
+                    ..
+                } = item
+                else {
                     continue;
                 };
                 let ast::Name::Identifier(name_id) = name else {
                     continue;
                 };
-                if name_id != alias_id {
+                if *name_id != *alias_id {
                     continue;
                 }
 
@@ -122,7 +124,7 @@ impl LintRule for NoUselessRename {
                 }
 
                 // build one diagnostic for this dependency item
-                let name_text: String = ctx.strings.get(name_id).as_ref().to_string();
+                let name_text: String = ctx.strings.get(*name_id).as_ref().to_string();
                 let item_span = ctx.tree.get_span(*item_id);
                 let mut diagnostic = LintDiagnostic::new(
                     NO_USELESS_RENAME.id,

@@ -144,6 +144,7 @@ fn parameter_has_default(parameter: &Parameter) -> bool {
                     .is_some_and(|kind| kind == ast::BindingKind::Maybe)
         }
         Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => true,
+        Parameter::Error => true,
     }
 }
 

@@ -149,6 +149,7 @@ fn property_key_kind(
     let dynamic_key = match property {
         dir::Property::Field { key, .. } | dir::Property::Method { key, .. } => *key,
         dir::Property::Spread { .. } => None,
+        dir::Property::Error { .. } => None,
     }?;
 
     let key_kind = match dynamic_key {

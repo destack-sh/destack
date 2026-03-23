@@ -400,6 +400,7 @@ impl<'a> TaintAnalysis<'a> {
                             );
                             labels.merge(&value_labels);
                         }
+                        dir::Property::Error { .. } => {}
                     }
                 }
             }
@@ -484,6 +485,7 @@ impl<'a> TaintAnalysis<'a> {
                             );
                             labels.merge(&value_labels);
                         }
+                        dir::Property::Error { .. } => {}
                     }
                 }
             }

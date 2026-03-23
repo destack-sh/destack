@@ -351,6 +351,7 @@ fn parameter_default_expression(
     match parameter {
         dir::Parameter::Named { default, .. } | dir::Parameter::Pattern { default, .. } => *default,
         dir::Parameter::VariadicNamed { .. } | dir::Parameter::VariadicPattern { .. } => None,
+        dir::Parameter::Error { .. } => None,
     }
 }
 

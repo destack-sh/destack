@@ -121,9 +121,9 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
                 name,
                 ..
             } = left_expression
-                && (*name == self.then_name
-                    || *name == self.catch_name
-                    || *name == self.finally_name)
+                && (*name == Some(self.then_name)
+                    || *name == Some(self.catch_name)
+                    || *name == Some(self.finally_name))
             {
                 return self.is_promise_expression(*receiver);
             }
@@ -159,12 +159,12 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
         };
 
         // `.catch(...)` and `.finally(...)` always handle rejection paths
-        if *name == self.catch_name || *name == self.finally_name {
+        if *name == Some(self.catch_name) || *name == Some(self.finally_name) {
             return true;
         }
 
         // `.then(...)` only handles rejection when a function rejection handler is provided
-        if *name != self.then_name {
+        if *name != Some(self.then_name) {
             return false;
         }
 

@@ -125,7 +125,7 @@ fn dependency_item_is_default(item: &dir::DependencyItem, default_name: StringId
             alias.is_some_and(|alias| alias == default_name)
                 || name.is_some_and(|name| name.string() == default_name)
         }
-        dir::DependencyItem::Value { .. } => false,
+        dir::DependencyItem::Value { .. } | dir::DependencyItem::Error => false,
     }
 }
 

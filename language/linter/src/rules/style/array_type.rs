@@ -195,6 +195,7 @@ fn argument_value_expression(
         | ast::Argument::Labeled { value, .. }
         | ast::Argument::Positional { value, .. }
         | ast::Argument::Spread { value, .. } => Some(*value),
+        ast::Argument::Error => None,
     }
 }
 

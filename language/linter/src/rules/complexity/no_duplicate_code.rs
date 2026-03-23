@@ -1494,10 +1494,18 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                 self.push_debug_optional("expr_pointer_of_mutability", *mutability);
             }
             ast::Expression::Member { name, .. } => {
-                self.push_identifier_id("expr_member_name", *name);
+                if let Some(name) = *name {
+                    self.push_identifier_id("expr_member_name", name);
+                } else {
+                    self.push_same("expr_member_name", "None");
+                }
             }
             ast::Expression::PrivateMember { name, .. } => {
-                self.push_identifier_id("expr_private_member_name", *name);
+                if let Some(name) = *name {
+                    self.push_identifier_id("expr_private_member_name", name);
+                } else {
+                    self.push_same("expr_private_member_name", "None");
+                }
             }
             ast::Expression::Index { position, .. } => {
                 self.push_debug("expr_index_position", *position);
@@ -1592,6 +1600,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
             ast::Property::Spread { modifiers, .. } => {
                 self.push_debug_optional("property_modifiers", *modifiers);
             }
+            ast::Property::Error => {}
         }
 
         ast::walk_property(self, tree, id, property);
@@ -1644,6 +1653,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
             | ast::Member::ComptimeBlock { modifiers, .. } => {
                 self.push_debug_optional("member_modifiers", *modifiers);
             }
+            ast::Member::Error => {}
         }
 
         ast::walk_member(self, tree, id, member);
@@ -1665,17 +1675,33 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
         id: ast::LocalNodeId<ast::DependencyItem>,
         dependency_item: &ast::DependencyItem,
     ) {
-        self.push_debug("dependency_mode", dependency_item.mode);
-        self.push_debug_optional("dependency_kind", dependency_item.kind);
-        if let Some(name) = dependency_item.name {
-            self.push_name("dependency_name", name);
-        } else {
-            self.push_same("dependency_name", "None");
-        }
-        if let Some(alias) = dependency_item.alias {
-            self.push_identifier_id("dependency_alias", alias);
-        } else {
-            self.push_same("dependency_alias", "None");
+        match dependency_item {
+            ast::DependencyItem::Item {
+                mode,
+                kind,
+                name,
+                alias,
+                ..
+            } => {
+                self.push_debug("dependency_mode", *mode);
+                self.push_debug_optional("dependency_kind", *kind);
+                if let Some(name) = *name {
+                    self.push_name("dependency_name", name);
+                } else {
+                    self.push_same("dependency_name", "None");
+                }
+                if let Some(alias) = *alias {
+                    self.push_identifier_id("dependency_alias", alias);
+                } else {
+                    self.push_same("dependency_alias", "None");
+                }
+            }
+            ast::DependencyItem::Error => {
+                self.push_same("dependency_mode", "Error");
+                self.push_same("dependency_kind", "Error");
+                self.push_same("dependency_name", "Error");
+                self.push_same("dependency_alias", "Error");
+            }
         }
 
         ast::walk_dependency_item(self, tree, id, dependency_item);
@@ -1702,6 +1728,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
             | ast::Parameter::VariadicPattern { modifiers, .. } => {
                 self.push_debug_optional("parameter_modifiers", *modifiers);
             }
+            ast::Parameter::Error => {}
         }
 
         ast::walk_parameter(self, tree, id, parameter);
@@ -1740,6 +1767,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                     self.push_same("argument_label", "None");
                 }
             }
+            ast::Argument::Error => {}
         }
 
         ast::walk_argument(self, tree, id, argument);

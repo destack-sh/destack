@@ -380,7 +380,7 @@ fn bind_call_shape(
     else {
         return None;
     };
-    if *name != bind_name {
+    if *name != Some(bind_name) {
         return None;
     }
 

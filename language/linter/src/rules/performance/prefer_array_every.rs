@@ -164,7 +164,7 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         let dir::Expression::Member { left, name, .. } = expression else {
             return None;
         };
-        if *name != self.length_name {
+        if *name != Some(self.length_name) {
             return None;
         }
 
@@ -190,7 +190,7 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         let dir::Expression::Member { left, name, .. } = member_expression else {
             return None;
         };
-        if *name != self.filter_name {
+        if *name != Some(self.filter_name) {
             return None;
         }
 
@@ -226,7 +226,7 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         let dir::Expression::Member { left, name, .. } = expression else {
             return false;
         };
-        if *name != self.length_name {
+        if *name != Some(self.length_name) {
             return false;
         }
 

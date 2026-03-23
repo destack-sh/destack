@@ -145,9 +145,9 @@ impl<'a, 'b> PreferObjectHasOwnVisitor<'a, 'b> {
         else {
             return None;
         };
-        let invocation_kind = if *call_kind_name == self.call_name {
+        let invocation_kind = if *call_kind_name == Some(self.call_name) {
             HasOwnInvocationKind::Call
-        } else if *call_kind_name == self.apply_name {
+        } else if *call_kind_name == Some(self.apply_name) {
             HasOwnInvocationKind::Apply
         } else {
             return None;
@@ -165,7 +165,7 @@ impl<'a, 'b> PreferObjectHasOwnVisitor<'a, 'b> {
         else {
             return None;
         };
-        if *has_own_property_name != self.has_own_property_name {
+        if *has_own_property_name != Some(self.has_own_property_name) {
             return None;
         }
 
@@ -180,7 +180,7 @@ impl<'a, 'b> PreferObjectHasOwnVisitor<'a, 'b> {
         else {
             return None;
         };
-        if *prototype_name != self.prototype_name {
+        if *prototype_name != Some(self.prototype_name) {
             return None;
         }
 

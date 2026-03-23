@@ -323,12 +323,18 @@ fn dependency_item_sort_name(
 ) -> String {
     let item = ctx.tree.get(item_id);
     // prefer alias names because that is what downstream code references
-    if let Some(alias) = item.alias {
-        return ctx.strings.get(alias).to_string();
+    if let ast::DependencyItem::Item {
+        alias: Some(alias), ..
+    } = item
+    {
+        return ctx.strings.get(*alias).to_string();
     }
 
     // otherwise use the imported member name
-    if let Some(name) = item.name {
+    if let ast::DependencyItem::Item {
+        name: Some(name), ..
+    } = item
+    {
         return ctx.strings.get(name.string()).to_string();
     }
 
@@ -345,8 +351,20 @@ fn compare_dependency_items(
     let right_item = ctx.tree.get(right_id);
 
     // place type imports before value imports
-    let left_is_type = left_item.kind == Some(ast::DependencyKind::Type);
-    let right_is_type = right_item.kind == Some(ast::DependencyKind::Type);
+    let left_is_type = matches!(
+        left_item,
+        ast::DependencyItem::Item {
+            kind: Some(ast::DependencyKind::Type),
+            ..
+        }
+    );
+    let right_is_type = matches!(
+        right_item,
+        ast::DependencyItem::Item {
+            kind: Some(ast::DependencyKind::Type),
+            ..
+        }
+    );
     match (left_is_type, right_is_type) {
         (true, false) => return std::cmp::Ordering::Less,
         (false, true) => return std::cmp::Ordering::Greater,

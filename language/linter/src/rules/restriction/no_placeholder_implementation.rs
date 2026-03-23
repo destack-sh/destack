@@ -119,7 +119,7 @@ fn extract_placeholder_message(
         return None;
     }
     let first_argument_id = dynamic_arguments.first().copied()?;
-    let first_value_expression_id = argument_value_expression_id(ctx.tree, first_argument_id);
+    let first_value_expression_id = argument_value_expression_id(ctx.tree, first_argument_id)?;
     let first_value_expression = ctx.tree.get(first_value_expression_id);
 
     // enforce this lint guard

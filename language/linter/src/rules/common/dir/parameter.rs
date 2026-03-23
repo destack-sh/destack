@@ -31,6 +31,7 @@ pub fn parameter_binding_name_and_symbol(
         | dir::Parameter::VariadicPattern { pattern, .. } => {
             pattern_binding_name_and_symbol(tree, *pattern)
         }
+        dir::Parameter::Error { .. } => None,
     }
 }
 
@@ -91,7 +92,9 @@ pub fn collect_parameter_value_binding_symbols(
         | dir::Parameter::VariadicPattern { pattern, .. } => {
             collect_pattern_value_binding_symbols(tree, symbols, *pattern, bindings);
         }
-        dir::Parameter::Named { .. } | dir::Parameter::VariadicNamed { .. } => {}
+        dir::Parameter::Named { .. }
+        | dir::Parameter::VariadicNamed { .. }
+        | dir::Parameter::Error { .. } => {}
     }
 }
 

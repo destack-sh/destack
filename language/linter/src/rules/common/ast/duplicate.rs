@@ -312,6 +312,7 @@ fn hash_argument_shape(
             label.hash(hasher);
             hash_expression_kind(ctx, hasher, *value);
         }
+        ast::Argument::Error => {}
     }
 }
 

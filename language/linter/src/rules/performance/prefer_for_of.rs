@@ -220,7 +220,7 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
         let dir::Expression::Member { left, name, .. } = right_expr else {
             return None;
         };
-        if *name != self.length_name {
+        if *name != Some(self.length_name) {
             return None;
         }
 

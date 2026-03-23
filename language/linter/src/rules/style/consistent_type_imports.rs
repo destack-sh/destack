@@ -561,7 +561,7 @@ fn item_kind(item: &dir::DependencyItem) -> Option<dir::DependencyKind> {
         | dir::DependencyItem::UnresolvedLocal { kind, .. }
         | dir::DependencyItem::Local { kind, .. }
         | dir::DependencyItem::Remote { kind, .. } => Some(*kind),
-        dir::DependencyItem::Value { .. } => None,
+        dir::DependencyItem::Value { .. } | dir::DependencyItem::Error => None,
     }
 }
 
@@ -573,6 +573,7 @@ fn item_mode(item: &dir::DependencyItem) -> Option<dir::DependencyMode> {
         | dir::DependencyItem::Value { mode, .. }
         | dir::DependencyItem::Local { mode, .. }
         | dir::DependencyItem::Remote { mode, .. } => Some(*mode),
+        dir::DependencyItem::Error => None,
     }
 }
 

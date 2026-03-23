@@ -152,7 +152,7 @@ impl<'a, 'b> NoPrototypePollutionVisitor<'a, 'b> {
         };
 
         // check for Object.prototype
-        if *name == self.prototype_name
+        if *name == Some(self.prototype_name)
             && let Some(symbol) = expression_target_symbol(self.ctx.tree, *left)
             && symbol == self.object_symbol
         {
@@ -160,7 +160,7 @@ impl<'a, 'b> NoPrototypePollutionVisitor<'a, 'b> {
         }
 
         // check for __proto__
-        *name == self.proto_name
+        *name == Some(self.proto_name)
     }
 
     /// Report a prototype pollution diagnostic.
@@ -210,7 +210,12 @@ impl NodeVisitor for NoPrototypePollutionVisitor<'_, '_> {
         }
 
         // check member expressions
-        if let dir::Expression::Member { left, name, .. } = expression {
+        if let dir::Expression::Member {
+            left,
+            name: Some(name),
+            ..
+        } = expression
+        {
             self.check_member(id, *left, *name);
         }
 

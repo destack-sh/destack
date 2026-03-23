@@ -261,7 +261,7 @@ fn run_import_phase(compiler: &Compiler, modules: &[ModuleId]) -> Duration {
 
 /// Run builtin and lib resolve tasks and return the duration.
 fn run_resolve_phase(compiler: &Compiler, profile_id: destack_workspace::ProfileId) -> Duration {
-    compiler.enqueue(ArtifactKey::LibEnvironment {
+    compiler.enqueue(ArtifactKey::LibraryEnvironment {
         profile: profile_id,
     });
 

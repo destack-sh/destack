@@ -167,7 +167,7 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
         else {
             return false;
         };
-        if *member != name {
+        if *member != Some(name) {
             return false;
         }
 

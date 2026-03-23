@@ -109,7 +109,7 @@ impl<'a, 'b> ArraySortVisitor<'a, 'b> {
         };
 
         // check method name
-        if *name != self.sort_name && *name != self.to_sorted_name {
+        if *name != Some(self.sort_name) && *name != Some(self.to_sorted_name) {
             return;
         }
 

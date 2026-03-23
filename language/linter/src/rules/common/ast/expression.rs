@@ -418,6 +418,7 @@ pub fn expression_is_type_annotation(
                 | ast::Parameter::Pattern { ty, .. }
                 | ast::Parameter::VariadicNamed { ty, .. }
                 | ast::Parameter::VariadicPattern { ty, .. } => *ty,
+                ast::Parameter::Error => None,
             };
             if parameter_type.is_some_and(|ty_id| ty_id.id == current_id) {
                 return true;
@@ -800,7 +801,9 @@ pub fn expression_static_property_access_syntax(
 
     // match dot member access
     if let ast::Expression::Member { left, name, .. } = expression {
-        return Some((*left, *name));
+        let name = (*name)?;
+
+        return Some((*left, name));
     }
 
     // match bracket member access with static string keys
@@ -817,13 +820,14 @@ pub fn expression_static_property_access_syntax(
 pub fn argument_value_expression_id(
     tree: &ast::NodeTree,
     argument_id: ast::LocalNodeId<ast::Argument>,
-) -> ast::LocalNodeId<ast::Expression> {
+) -> Option<ast::LocalNodeId<ast::Expression>> {
     let argument = tree.get(argument_id);
     match argument {
         ast::Argument::Positional { value, .. }
         | ast::Argument::Spread { value, .. }
         | ast::Argument::Named { value, .. }
-        | ast::Argument::Labeled { value, .. } => *value,
+        | ast::Argument::Labeled { value, .. } => Some(*value),
+        ast::Argument::Error => None,
     }
 }
 
@@ -1016,7 +1020,11 @@ pub fn expression_is_equal(
             },
         ) => {
             expression_is_equal(ctx, *left_object, *right_object)
-                && string_ids_equal(ctx, *left_name, *right_name)
+                && left_name
+                    .zip(*right_name)
+                    .is_some_and(|(left_name, right_name)| {
+                        string_ids_equal(ctx, left_name, right_name)
+                    })
         }
 
         // index access: compare object and index
@@ -1369,6 +1377,7 @@ pub fn expression_has_side_effects(
                 | ast::Argument::Spread { value, .. }
                 | ast::Argument::Named { value, .. }
                 | ast::Argument::Labeled { value, .. } => expression_has_side_effects(ctx, *value),
+                ast::Argument::Error => true,
             }
         }),
 
@@ -1469,7 +1478,10 @@ pub fn expression_has_side_effects(
         | ast::Expression::Labelled { .. } => true,
 
         // side effects: debugger, error, stub
-        ast::Expression::Debugger | ast::Expression::Error | ast::Expression::Stub => true,
+        ast::Expression::Debugger
+        | ast::Expression::Error
+        | ast::Expression::Missing
+        | ast::Expression::Stub => true,
 
         // wrapped expressions: check inner
         ast::Expression::Parenthesized { expression } => {
@@ -1791,7 +1803,9 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
                 self.push_debug("expression_pointerof_mutability", *mutability);
             }
             ast::Expression::Member { name, .. } | ast::Expression::PrivateMember { name, .. } => {
-                self.push_string_id("expression_member", *name);
+                if let Some(name) = name {
+                    self.push_string_id("expression_member", *name);
+                }
             }
             ast::Expression::Index { position, .. }
             | ast::Expression::Call { position, .. }

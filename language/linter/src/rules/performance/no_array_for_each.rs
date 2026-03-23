@@ -165,7 +165,7 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         else {
             return None;
         };
-        if *name != self.for_each_name {
+        if *name != Some(self.for_each_name) {
             return None;
         }
 

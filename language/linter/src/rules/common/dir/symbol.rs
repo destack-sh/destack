@@ -371,6 +371,7 @@ pub fn primary_declaration_initializer_expression(
                 dir::Property::Field { value, default, .. } => value.or(*default),
                 dir::Property::Method { .. } => None,
                 dir::Property::Spread { value, .. } => Some(*value),
+                dir::Property::Error { .. } => None,
             }
         }
 
@@ -384,7 +385,8 @@ pub fn primary_declaration_initializer_expression(
                 | dir::Member::Type { .. }
                 | dir::Member::Embed { .. }
                 | dir::Member::StaticBlock { .. }
-                | dir::Member::ComptimeBlock { .. } => None,
+                | dir::Member::ComptimeBlock { .. }
+                | dir::Member::Error { .. } => None,
             }
         }
 
@@ -398,6 +400,7 @@ pub fn primary_declaration_initializer_expression(
                 dir::Parameter::VariadicNamed { .. } | dir::Parameter::VariadicPattern { .. } => {
                     None
                 }
+                dir::Parameter::Error { .. } => None,
             }
         }
 
