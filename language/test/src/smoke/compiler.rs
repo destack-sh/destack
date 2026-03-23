@@ -1,4 +1,4 @@
-use destack_compiler::{BuildKey, Compiler, CompilerOptions};
+use destack_compiler::{Compiler, CompilerOptions};
 use destack_workspace::ArtifactKey;
 
 use crate::core::{
@@ -70,10 +70,10 @@ fn run_compiler_case(test: &Case) -> CaseResult {
         }
     };
     let profile = program.default_profile_id_for_module(module_id);
-    compiler.enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+    compiler.enqueue(ArtifactKey::DirAnalyzed {
         module: module_id,
         profile,
-    }));
+    });
     compiler.compile();
     drop(compiler);
 
