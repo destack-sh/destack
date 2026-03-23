@@ -5,7 +5,7 @@ use destack_dir::{GlobalSymbolId, StaticKey, SymbolType};
 use destack_source::{FileId, ModuleId};
 use destack_workspace::{Program, Session};
 
-use super::query_context;
+use super::{query_context, with_dir_resolved_context_for_module};
 
 /// Information about an exported symbol from a module.
 #[derive(Debug, Clone)]
@@ -64,10 +64,11 @@ fn resolve_export_symbol_type(session: &Session, symbol_id: GlobalSymbolId) -> O
     // resolve the module query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let ctx = query_context(session, module)?;
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(symbol_id.local_id);
-    Some(symbol.ty)
+    with_dir_resolved_context_for_module(session, module, |ctx| {
+        let symbols = ctx.symbols();
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+        symbol.ty
+    })
 }
 
 /// Get all exported symbols from a module.
@@ -90,8 +91,8 @@ pub fn get_module_exports_maybe(
     // initialize export collection
     let mut exports = Vec::new();
 
-    // read the exported symbols table
-    let exported_symbols = &ctx.resolved.exported_symbols;
+    // prefer the resolved export table when it has entries
+    let exported_symbols = &ctx.dir_resolved().exported_symbols;
 
     if !exported_symbols.is_empty() {
         // collect exported symbols from the export table
