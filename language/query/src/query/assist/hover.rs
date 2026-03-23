@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::common::{
     QueryContext, container_name_for_symbol, doc_text_for_symbol, find_symbol_for_hover_at_offset,
-    get_canonical_symbol, get_dir_node_span, program_for_module, query_context,
+    get_canonical_symbol, get_dir_node_span, query_context,
 };
 use crate::format::{
     format_enum_field_hover, format_hover_markdown, format_local_type, format_local_variable_hover,
@@ -112,8 +112,8 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
     let module = session.modules.get(canonical_id.module_id);
     let module = module.as_ref();
-    let program = program_for_module(session, module);
-    let profile = program.default_profile_id_for_module(canonical_id.module_id);
+    let ctx = query_context(session, module)?;
+    let profile = ctx.profile_id;
 
     // get documentation for this symbol
     let documentation = doc_text_for_symbol(session, canonical_id);
@@ -121,7 +121,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
     // try rich signature formatting first (for top level declarations)
     if let Some(formatted) = format_symbol_signature(
         canonical_id,
-        &program.artifacts,
+        &ctx.program.artifacts,
         &session.modules,
         &session.strings,
         profile,
@@ -139,8 +139,6 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
     }
 
     // resolve module query context for richer formatting
-    let ctx = query_context(session, module)?;
-
     // resolve symbol metadata
     let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(symbol_at.symbol_id.local_id);

@@ -54,19 +54,15 @@ pub fn format_declaration_signature(
         .map(|name| strings.get(name.string()).to_string())
         .unwrap_or_else(|| "<anonymous>".to_string());
 
-    // resolve the export prefix
-    let export_prefix = if descriptor.export.is_some() {
-        "export "
-    } else {
-        ""
-    };
+    // resolve the declaration prefix
+    let declaration_prefix = format_declaration_prefix(descriptor);
 
     // format the signature text by declaration kind
     let text = match declaration {
         dir::Declaration::Function { signature, .. } => format_function(
             &name,
             signature,
-            export_prefix,
+            &declaration_prefix,
             artifacts,
             module_id,
             dir_tree,
@@ -74,46 +70,39 @@ pub fn format_declaration_signature(
             modules,
             strings,
         ),
-        dir::Declaration::Global { .. } => {
-            let declare_prefix = if descriptor.kind == dir::DeclarationKind::Declaration {
-                "declare "
-            } else {
-                ""
-            };
-            format!("{export_prefix}{declare_prefix}global")
-        }
+        dir::Declaration::Global { .. } => format!("{declaration_prefix}global"),
         dir::Declaration::ImportAlias { kind, .. } => {
-            format_import_alias(&name, *kind, export_prefix)
+            format_import_alias(&name, *kind, &declaration_prefix)
         }
         dir::Declaration::Struct { generics, .. } => {
             let generics_text = format_generics(
                 generics, artifacts, module_id, dir_tree, types, modules, strings,
             );
-            format!("{export_prefix}struct {name}{generics_text}")
+            format!("{declaration_prefix}struct {name}{generics_text}")
         }
         dir::Declaration::Class { generics, .. } => {
             let generics_text = format_generics(
                 generics, artifacts, module_id, dir_tree, types, modules, strings,
             );
-            format!("{export_prefix}class {name}{generics_text}")
+            format!("{declaration_prefix}class {name}{generics_text}")
         }
         dir::Declaration::Interface { generics, .. } => {
             let generics_text = format_generics(
                 generics, artifacts, module_id, dir_tree, types, modules, strings,
             );
-            format!("{export_prefix}interface {name}{generics_text}")
+            format!("{declaration_prefix}interface {name}{generics_text}")
         }
         dir::Declaration::Enum { .. } => {
-            format!("{export_prefix}enum {name}")
+            format!("{declaration_prefix}enum {name}")
         }
         dir::Declaration::Type { .. } => {
-            format!("{export_prefix}type {name}")
+            format!("{declaration_prefix}type {name}")
         }
         dir::Declaration::Namespace { .. } => {
-            format!("{export_prefix}namespace {name}")
+            format!("{declaration_prefix}namespace {name}")
         }
         dir::Declaration::Extension { .. } => {
-            format!("{export_prefix}extension {name}")
+            format!("{declaration_prefix}extension {name}")
         }
     };
 
@@ -126,7 +115,7 @@ pub fn format_declaration_signature(
 fn format_function(
     name: &str,
     signature: &dir::FunctionSignature,
-    export_prefix: &str,
+    declaration_prefix: &str,
     artifacts: &ArtifactRegistry,
     module_id: ModuleId,
     dir_tree: &dir::NodeTree,
@@ -179,8 +168,31 @@ fn format_function(
 
     // return the formatted function signature
     format!(
-        "{export_prefix}{async_prefix}function {name}{generics_text}({parameters_text}){return_text}"
+        "{declaration_prefix}{async_prefix}function {name}{generics_text}({parameters_text}){return_text}"
     )
+}
+
+/// Format the declaration prefix keywords for a declaration descriptor.
+fn format_declaration_prefix(descriptor: &dir::DeclarationDescriptor) -> String {
+    let export_prefix = if descriptor.export.is_some() {
+        "export "
+    } else {
+        ""
+    };
+
+    let declare_prefix = if descriptor.kind == dir::DeclarationKind::Declaration {
+        "declare "
+    } else {
+        ""
+    };
+
+    let abstract_prefix = if descriptor.abstraction == dir::DeclarationAbstraction::Abstract {
+        "abstract "
+    } else {
+        ""
+    };
+
+    format!("{export_prefix}{declare_prefix}{abstract_prefix}")
 }
 
 fn format_import_alias(name: &str, kind: dir::DependencyKind, export_prefix: &str) -> String {
@@ -447,12 +459,8 @@ pub fn format_symbol_signature(
         .map(|name| strings.get(name.string()).to_string())
         .unwrap_or_else(|| "<anonymous>".to_string());
 
-    // resolve the export prefix
-    let export_prefix = if descriptor.export.is_some() {
-        "export "
-    } else {
-        ""
-    };
+    // resolve the declaration prefix
+    let declaration_prefix = format_declaration_prefix(descriptor);
 
     // resolve the module id for global ids
     let module_id = module.id;
@@ -462,7 +470,7 @@ pub fn format_symbol_signature(
         dir::Declaration::Function { signature, .. } => format_function(
             &name,
             signature,
-            export_prefix,
+            &declaration_prefix,
             artifacts,
             module_id,
             dir_tree,
@@ -470,39 +478,32 @@ pub fn format_symbol_signature(
             modules,
             strings,
         ),
-        dir::Declaration::Global { .. } => {
-            let declare_prefix = if descriptor.kind == dir::DeclarationKind::Declaration {
-                "declare "
-            } else {
-                ""
-            };
-            format!("{export_prefix}{declare_prefix}global")
-        }
+        dir::Declaration::Global { .. } => format!("{declaration_prefix}global"),
         dir::Declaration::ImportAlias { kind, .. } => {
-            format_import_alias(&name, *kind, export_prefix)
+            format_import_alias(&name, *kind, &declaration_prefix)
         }
         dir::Declaration::Struct { generics, .. } => {
             let generics_text = format_generics(
                 generics, artifacts, module_id, dir_tree, types, modules, strings,
             );
-            format!("{export_prefix}struct {name}{generics_text}")
+            format!("{declaration_prefix}struct {name}{generics_text}")
         }
         dir::Declaration::Class { generics, .. } => {
             let generics_text = format_generics(
                 generics, artifacts, module_id, dir_tree, types, modules, strings,
             );
-            format!("{export_prefix}class {name}{generics_text}")
+            format!("{declaration_prefix}class {name}{generics_text}")
         }
         dir::Declaration::Interface { generics, .. } => {
             let generics_text = format_generics(
                 generics, artifacts, module_id, dir_tree, types, modules, strings,
             );
-            format!("{export_prefix}interface {name}{generics_text}")
+            format!("{declaration_prefix}interface {name}{generics_text}")
         }
-        dir::Declaration::Enum { .. } => format!("{export_prefix}enum {name}"),
-        dir::Declaration::Type { .. } => format!("{export_prefix}type {name}"),
-        dir::Declaration::Namespace { .. } => format!("{export_prefix}namespace {name}"),
-        dir::Declaration::Extension { .. } => format!("{export_prefix}extension {name}"),
+        dir::Declaration::Enum { .. } => format!("{declaration_prefix}enum {name}"),
+        dir::Declaration::Type { .. } => format!("{declaration_prefix}type {name}"),
+        dir::Declaration::Namespace { .. } => format!("{declaration_prefix}namespace {name}"),
+        dir::Declaration::Extension { .. } => format!("{declaration_prefix}extension {name}"),
     };
 
     // return the formatted signature
