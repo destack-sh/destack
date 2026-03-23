@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_ast::TokenType;
 use destack_source::{FileContent, FileId};
 
-use crate::common::{QueryContext, get_module_by_file_id};
+use crate::common::{SourceContext, with_source_context_for_file};
 use destack_workspace::Session;
 
 /// Check whether a character can start an identifier.
@@ -58,18 +58,16 @@ pub(crate) fn token_span_at_offset(
     file_id: FileId,
     offset: u32,
 ) -> Option<ast::TokenSpan> {
-    // resolve query context for token lookup
-    let module = get_module_by_file_id(session, file_id)?;
-    let module = module.as_ref();
-    let ctx = crate::query_context(session, module)?;
-
-    token_span_at_offset_in_context(&ctx, offset)
+    with_source_context_for_file(session, file_id, |source| {
+        token_span_at_offset_in_context(source, offset)
+    })?
 }
 
 /// Find the token span that contains the offset.
-fn token_span_at_offset_in_context(ctx: &QueryContext<'_>, offset: u32) -> Option<ast::TokenSpan> {
-    let source = ctx.source_context();
-
+fn token_span_at_offset_in_context(
+    source: SourceContext<'_>,
+    offset: u32,
+) -> Option<ast::TokenSpan> {
     // track the last token starting before the offset
     let mut candidate = None;
 

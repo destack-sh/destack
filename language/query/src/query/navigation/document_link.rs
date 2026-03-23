@@ -5,8 +5,9 @@ use std::path::{Path, PathBuf};
 use {destack_ast as ast, destack_dir as dir};
 
 use crate::common::{
-    get_module_by_file_id, main_or_enclosing_span_for_dir_node, module_specifier_in_expression,
-    program_for_module, resolve_module_id_for_import_target_path, string_literal_span_in_enclosing,
+    main_or_enclosing_span_for_dir_node, module_specifier_in_expression,
+    resolve_module_id_for_import_target_path, string_literal_span_in_enclosing,
+    with_ast_context_for_file,
 };
 use destack_workspace::Session;
 
@@ -181,76 +182,74 @@ fn document_links_with_dir(session: &Session, file: FileId) -> Option<Vec<Docume
 
 /// Build document links using AST data when DIR is unavailable.
 fn document_links_with_ast(session: &Session, file: FileId) -> Vec<DocumentLink> {
-    // resolve the module ast
-    let Some(module) = get_module_by_file_id(session, file) else {
-        return Vec::new();
-    };
-    let module = module.as_ref();
-    let program = program_for_module(session, module);
-    let Some(ast) = program.artifacts.ast(module.id) else {
-        return Vec::new();
-    };
-
-    // resolve the source file path
-    let source_file = session.files.get(file);
-    let Some(path) = source_file.path.as_ref() else {
-        return Vec::new();
-    };
-    let Some(base_dir) = path.parent() else {
-        return Vec::new();
-    };
-
-    // collect document links from import/export expressions
-    let mut links = Vec::new();
-    for expression_id in ast.tree.iter_nodes::<ast::Expression>() {
-        let expression = ast.tree.get(expression_id);
-
-        // resolve the module specifier and dependency kind
-        let Some((specifier, _kind)) = module_specifier_in_expression(&ast.tree, expression) else {
-            continue;
+    with_ast_context_for_file(session, file, |ast| {
+        // resolve the source file path
+        let source_file = session.files.get(file);
+        let Some(path) = source_file.path.as_ref() else {
+            return Vec::new();
+        };
+        let Some(base_dir) = path.parent() else {
+            return Vec::new();
         };
 
-        // resolve the span for the string literal
-        let enclosing = ast
-            .tree
-            .get_main_span(expression_id)
-            .unwrap_or_else(|| ast.tree.source_map.get(expression_id.id));
-        let specifier_text = ast.strings.get(specifier).to_string();
-        let range =
-            string_literal_span_in_enclosing(&source_file, &ast.tokens, enclosing, &specifier_text)
-                .unwrap_or(enclosing);
+        // collect document links from import/export expressions
+        let mut links = Vec::new();
+        for expression_id in ast.tree().iter_nodes::<ast::Expression>() {
+            let expression = ast.tree().get(expression_id);
 
-        // resolve the target for the specifier
-        let target = if let Some(source_path) = source_file.path.as_ref()
-            && (specifier_text.starts_with('.')
-                || specifier_text.starts_with('/')
-                || specifier_text.starts_with("file://"))
-        {
-            resolve_module_id_for_import_target_path(session, source_path, &specifier_text)
-                .and_then(|module_id| {
-                    let module = session.modules.get(module_id);
-                    let module = module.as_ref();
-                    module.path.as_ref().map(|path| DocumentLinkTarget::File {
-                        path: path.to_string_lossy().to_string(),
+            // resolve the module specifier and dependency kind
+            let Some((specifier, _kind)) = module_specifier_in_expression(ast.tree(), expression)
+            else {
+                continue;
+            };
+
+            // resolve the span for the string literal
+            let enclosing = ast
+                .tree()
+                .get_main_span(expression_id)
+                .unwrap_or_else(|| ast.source_map().get(expression_id.id));
+            let specifier_text = ast.strings().get(specifier).to_string();
+            let range = string_literal_span_in_enclosing(
+                &source_file,
+                ast.tokens(),
+                enclosing,
+                &specifier_text,
+            )
+            .unwrap_or(enclosing);
+
+            // resolve the target for the specifier
+            let target = if let Some(source_path) = source_file.path.as_ref()
+                && (specifier_text.starts_with('.')
+                    || specifier_text.starts_with('/')
+                    || specifier_text.starts_with("file://"))
+            {
+                resolve_module_id_for_import_target_path(session, source_path, &specifier_text)
+                    .and_then(|module_id| {
+                        let module = session.modules.get(module_id);
+                        let module = module.as_ref();
+                        module.path.as_ref().map(|path| DocumentLinkTarget::File {
+                            path: path.to_string_lossy().to_string(),
+                        })
                     })
-                })
-                .or_else(|| document_link_target_for_specifier(base_dir, &specifier_text))
-        } else {
-            document_link_target_for_specifier(base_dir, &specifier_text)
-        };
-        let Some(target) = target else {
-            continue;
-        };
+                    .or_else(|| document_link_target_for_specifier(base_dir, &specifier_text))
+            } else {
+                document_link_target_for_specifier(base_dir, &specifier_text)
+            };
+            let Some(target) = target else {
+                continue;
+            };
 
-        // emit the document link
-        links.push(DocumentLink {
-            range,
-            target,
-            tooltip: Some(format!("Go to {specifier_text}")),
-        });
-    }
+            // emit the document link
+            links.push(DocumentLink {
+                range,
+                target,
+                tooltip: Some(format!("Go to {specifier_text}")),
+            });
+        }
 
-    links
+        links
+    })
+    .unwrap_or_default()
 }
 
 /// Resolve the target for a module specifier.

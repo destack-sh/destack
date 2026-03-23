@@ -98,7 +98,7 @@ pub fn document_highlights(session: &Session, file: FileId, offset: u32) -> Vec<
             include_expressions: true,
             include_members: true,
             include_dependencies: false,
-            include_namespace_members: false,
+            include_namespace_receivers: false,
             skip_dependency_aliases: false,
             use_dependency_name_spans: false,
             target_name: None,

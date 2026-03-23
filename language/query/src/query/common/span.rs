@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::panic;
 use std::sync::Arc;
 
-use super::{AstContext, DirContext, QueryContext};
+use super::{AstContext, DirAnalyzedContext, QueryContext};
 use destack_ast as ast;
 use destack_dir::{self as dir, LocalNodeIdAny};
 use destack_source::{EnclosingSpan, File, FileId, Span};
@@ -16,11 +16,20 @@ pub fn get_module_by_file_id(session: &Session, file_id: FileId) -> Option<Arc<M
 /// Get the span of a DIR node by mapping through AST source map.
 pub fn get_dir_node_span(
     ast: AstContext<'_>,
-    dir: DirContext<'_>,
+    dir: DirAnalyzedContext<'_>,
+    dir_node_id: LocalNodeIdAny,
+) -> Option<Span> {
+    get_node_tree_span(ast, dir.tree(), dir_node_id)
+}
+
+/// Get the span of a DIR node using one DIR node tree.
+pub fn get_node_tree_span(
+    ast: AstContext<'_>,
+    dir_tree: &dir::NodeTree,
     dir_node_id: LocalNodeIdAny,
 ) -> Option<Span> {
     // get the AST node id from the DIR node
-    let ast_node_id = dir.tree().get_source(dir_node_id.id);
+    let ast_node_id = dir_tree.get_source(dir_node_id.id);
 
     // get the span from AST source map
     Some(ast.source_map().get(ast_node_id))
@@ -30,11 +39,20 @@ pub fn get_dir_node_span(
 /// Falls back to full span if no main span is set.
 pub fn get_dir_node_main_span(
     ast: AstContext<'_>,
-    dir: DirContext<'_>,
+    dir: DirAnalyzedContext<'_>,
+    dir_node_id: LocalNodeIdAny,
+) -> Option<Span> {
+    get_node_tree_main_span(ast, dir.tree(), dir_node_id)
+}
+
+/// Get the main span of a DIR node using one DIR node tree.
+pub fn get_node_tree_main_span(
+    ast: AstContext<'_>,
+    dir_tree: &dir::NodeTree,
     dir_node_id: LocalNodeIdAny,
 ) -> Option<Span> {
     // get the AST node id from the DIR node
-    let ast_node_id = dir.tree().get_source(dir_node_id.id);
+    let ast_node_id = dir_tree.get_source(dir_node_id.id);
 
     // try to get the main span first (e.g., identifier span for declarations)
     Some(ast.source_map().get_main_or_enclosing(ast_node_id))
