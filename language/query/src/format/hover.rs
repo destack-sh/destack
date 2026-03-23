@@ -125,6 +125,7 @@ pub fn format_member_hover(
         dir::Member::Embed { .. } => format!("(embed) {qualified_name}"),
         dir::Member::StaticBlock { .. } => "(static block)".to_string(),
         dir::Member::ComptimeBlock { .. } => "(comptime block)".to_string(),
+        dir::Member::Error { .. } => "(error member)".to_string(),
     }
 }
 
@@ -177,6 +178,7 @@ pub fn format_parameter_hover(
         dir::Parameter::Pattern { .. } => "_".to_string(),
         dir::Parameter::VariadicNamed { name, .. } => format!("...{}", &*strings.get(*name)),
         dir::Parameter::VariadicPattern { .. } => "...<pattern>".to_string(),
+        dir::Parameter::Error { .. } => "<error>".to_string(),
     };
 
     // resolve the parameter type when available

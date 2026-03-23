@@ -1836,7 +1836,9 @@ impl Compiler {
                             matches!(modifiers.kind, Some(BindingKind::Maybe))
                         })
                 }
-                Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => true,
+                Parameter::VariadicNamed { .. }
+                | Parameter::VariadicPattern { .. }
+                | Parameter::Error { .. } => true,
             };
             if !is_optional {
                 minimum += 1;

@@ -239,6 +239,8 @@ pub enum Property {
         modifiers: Option<BindingModifier>,
         value: LocalNodeId<Expression>,
     },
+    /// Malformed property slot.
+    Error,
 }
 
 impl Node for Property {
@@ -318,6 +320,8 @@ pub enum Member {
         modifiers: Option<BindingModifier>,
         body: LocalNodeId<Expression>,
     },
+    /// Malformed member slot.
+    Error,
 }
 
 impl Node for Member {

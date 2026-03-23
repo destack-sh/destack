@@ -194,6 +194,7 @@ impl FunctionLowerer<'_> {
                 dir::Property::Field { modifiers, .. } => (modifiers, StaticMemberKind::Field),
                 dir::Property::Method { modifiers, .. } => (modifiers, StaticMemberKind::Method),
                 dir::Property::Spread { .. } => return None,
+                dir::Property::Error { .. } => return None,
             };
 
             if modifiers

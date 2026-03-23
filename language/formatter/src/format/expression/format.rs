@@ -173,6 +173,7 @@ pub(crate) fn format_expression<'ast>(
         | Expression::Binary { .. }
         | Expression::Assign { .. }
         | Expression::Debugger
+        | Expression::Missing
         | Expression::Stub
         | Expression::Error => {
             let _timing = f.context().timing_scope(timing::FORMAT_EXPRESSION_OPERATOR);
@@ -248,20 +249,23 @@ pub(crate) fn format_static_argument_list<'ast>(
             Argument::Named { value, .. }
             | Argument::Labeled { value, .. }
             | Argument::Positional { value, .. }
-            | Argument::Spread { value, .. } => *value,
+            | Argument::Spread { value, .. } => Some(*value),
+            Argument::Error => None,
         };
-        let value_id = transparent_inner_expression(f.context(), value_id);
-        let value_is_union_or_intersection = matches!(
-            f.context().tree.get(value_id),
-            Expression::Binary {
-                operator: BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd,
-                ..
-            }
-        );
+        if let Some(value_id) = value_id {
+            let value_id = transparent_inner_expression(f.context(), value_id);
+            let value_is_union_or_intersection = matches!(
+                f.context().tree.get(value_id),
+                Expression::Binary {
+                    operator: BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd,
+                    ..
+                }
+            );
 
-        if value_is_union_or_intersection && !f.context().has_annotation(argument_id) {
-            write!(f, [token("<"), argument_id, token(">")])?;
-            return Ok(());
+            if value_is_union_or_intersection && !f.context().has_annotation(argument_id) {
+                write!(f, [token("<"), argument_id, token(">")])?;
+                return Ok(());
+            }
         }
     }
 
@@ -470,6 +474,7 @@ pub fn is_trivial_argument(tree: &NodeTree, argument: &Argument) -> bool {
         }
         | Argument::Positional { value, .. }
         | Argument::Spread { value, .. } => is_trivial_expression(tree, tree.get(*value)),
+        Argument::Error => false,
     }
 }
 
@@ -484,6 +489,7 @@ pub fn is_trivial_property(tree: &NodeTree, property: &Property) -> bool {
             body.is_none_or(|body| is_trivial_expression(tree, tree.get(body)))
         }
         Property::Spread { value, .. } => is_trivial_expression(tree, tree.get(*value)),
+        Property::Error => false,
     }
 }
 
@@ -496,6 +502,7 @@ pub fn is_complex_argument(tree: &NodeTree, argument: &Argument) -> bool {
         }
         | Argument::Positional { value, .. }
         | Argument::Spread { value, .. } => is_complex_expression(tree, tree.get(*value)),
+        Argument::Error => true,
     }
 }
 

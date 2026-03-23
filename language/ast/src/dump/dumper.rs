@@ -1179,6 +1179,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Debugger => {
                 self.node("Expression::Debugger", _id.id).end();
             }
+            Expression::Missing => {
+                self.node("Expression::Missing", _id.id).end();
+            }
             Expression::Stub => {
                 self.node("Expression::Stub", _id.id).end();
             }
@@ -1355,6 +1358,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("modifiers", modifiers)
                     .end();
             }
+            Property::Error => {
+                self.node("Property::Error", id.id).end();
+            }
         }
         self.with_depth(|dumper| {
             walk_property(dumper, tree, id, property);
@@ -1425,6 +1431,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Member::ComptimeBlock", id.id)
                     .field_optional("modifiers", modifiers)
                     .end();
+            }
+            Member::Error => {
+                self.node("Member::Error", id.id).end();
             }
         }
         self.with_depth(|dumper| {
@@ -1524,6 +1533,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("modifiers", modifiers)
                     .end();
             }
+            Parameter::Error => {
+                self.node("Parameter::Error", _id.id).end();
+            }
         }
         self.with_depth(|dumper| {
             walk_parameter(dumper, _tree, _id, param);
@@ -1569,6 +1581,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("modifiers", modifiers)
                     .field_optional("label", label)
                     .end();
+            }
+            Argument::Error => {
+                self.node("Argument::Error", _id.id).end();
             }
         }
         self.with_depth(|dumper| {

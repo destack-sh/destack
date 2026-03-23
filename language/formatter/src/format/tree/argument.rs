@@ -574,6 +574,9 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
                     )?;
                 }
             }
+            Argument::Error => {
+                write!(f, [token("{"), token("/* ERROR */"), token("}")])?;
+            }
         }
 
         if !stub_argument_annotations_rendered_inline {
@@ -598,6 +601,7 @@ pub(crate) fn tree_attribute_value_id(
         | Argument::Labeled { value, .. }
         | Argument::Positional { value, .. }
         | Argument::Spread { value, .. } => Some(*value),
+        Argument::Error => None,
     }
 }
 
@@ -752,6 +756,7 @@ pub(crate) fn property_has_complex_type_value(
         }
         Property::Method { body, .. } => body.is_some(),
         Property::Spread { value, .. } => is_complex_type_expression(*value),
+        Property::Error => true,
     }
 }
 

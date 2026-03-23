@@ -87,5 +87,6 @@ pub(crate) fn member_symbol_kind(member: &Member) -> Option<SymbolKind> {
         Member::Embed { .. } => None,
         Member::StaticBlock { .. } => None,
         Member::ComptimeBlock { .. } => None,
+        Member::Error { .. } => None,
     }
 }

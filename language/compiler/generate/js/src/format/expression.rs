@@ -233,6 +233,10 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 )?;
             }
 
+            Expression::Missing => {
+                write!(f, [token("/* MISSING */")])?;
+            }
+
             Expression::Stub => {}
 
             Expression::Error => {

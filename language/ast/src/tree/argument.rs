@@ -46,6 +46,8 @@ pub enum Parameter {
         pattern: LocalNodeId<Pattern>,
         ty: Option<LocalNodeId<Expression>>,
     },
+    /// Malformed parameter slot.
+    Error,
 }
 
 impl Node for Parameter {
@@ -91,6 +93,8 @@ pub enum Argument {
         label: Option<StringId>,
         value: LocalNodeId<Expression>,
     },
+    /// Malformed argument slot.
+    Error,
 }
 
 impl Node for Argument {

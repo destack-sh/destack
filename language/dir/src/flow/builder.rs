@@ -1752,6 +1752,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
             | Expression::ScalarLiteral { .. }
             | Expression::TypeLiteral { .. }
             | Expression::Debugger
+            | Expression::Missing
             | Expression::Stub
             | Expression::Error => Some(current_block_id),
             Expression::TemplateExpression { value } => {
@@ -2069,6 +2070,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
             }
             Property::Method { key, .. } => self.build_dynamic_key(key.as_ref(), current_block_id),
             Property::Spread { value, .. } => self.build_expression(*value, current_block_id),
+            Property::Error { .. } => Some(current_block_id),
         }
     }
 

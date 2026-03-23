@@ -181,6 +181,7 @@ impl Compiler {
                     ty,
                 }
             }
+            dir::Parameter::Error { .. } => ast::Parameter::Error,
         };
         let ast_parameter_id = ast_tree.insert(ast_parameter, span);
         context.map(parameter_id.into_any(), ast_parameter_id.into_any());
@@ -286,6 +287,7 @@ impl Compiler {
                     value,
                 }
             }
+            dir::Argument::Error { .. } => ast::Argument::Error,
         };
         let ast_argument_id = ast_tree.insert(ast_argument, span);
         context.map(argument_id.into_any(), ast_argument_id.into_any());

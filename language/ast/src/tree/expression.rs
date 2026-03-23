@@ -878,6 +878,9 @@ pub enum Expression {
     /// ```
     Debugger,
 
+    /// Missing expression child.
+    Missing,
+
     /// Stub placeholder.
     Stub,
 

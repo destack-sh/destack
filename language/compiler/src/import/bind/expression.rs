@@ -2565,6 +2565,7 @@ impl Compiler {
             ast::Expression::This => Expression::This,
             ast::Expression::Super => Expression::Super,
             ast::Expression::Debugger => Expression::Debugger,
+            ast::Expression::Missing => Expression::Missing,
             ast::Expression::Stub => Expression::Stub,
             ast::Expression::Error => Expression::Error,
         };

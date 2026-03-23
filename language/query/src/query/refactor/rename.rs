@@ -361,7 +361,9 @@ fn resolve_name_from_primary_declaration(
                 dir::Parameter::VariadicNamed { name, .. } => {
                     Some(session.strings.get(*name).to_string())
                 }
-                dir::Parameter::Pattern { .. } | dir::Parameter::VariadicPattern { .. } => None,
+                dir::Parameter::Pattern { .. }
+                | dir::Parameter::VariadicPattern { .. }
+                | dir::Parameter::Error { .. } => None,
             }
         }
         dir::NodeType::Pattern => {

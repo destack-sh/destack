@@ -432,6 +432,7 @@ fn empty_object_expression_owner_for_candidate(tree: &NodeTree, owner_id: u32) -
         | Argument::Labeled { value, .. }
         | Argument::Positional { value, .. }
         | Argument::Spread { value, .. } => *value,
+        Argument::Error => return None,
     };
     if matches!(
         tree.get(value_id),

@@ -380,6 +380,7 @@ impl Compiler {
             Property::Spread { value, .. } => {
                 modified |= self.normalize_nested_coalesce_in_expression(state, scope, value)?;
             }
+            Property::Error { .. } => {}
         }
 
         Ok(modified)

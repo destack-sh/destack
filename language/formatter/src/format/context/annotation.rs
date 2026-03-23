@@ -619,7 +619,11 @@ impl<'a> DestackFormatContext<'a> {
             Argument::Named { value, .. }
             | Argument::Labeled { value, .. }
             | Argument::Positional { value, .. }
-            | Argument::Spread { value, .. } => *value,
+            | Argument::Spread { value, .. } => Some(*value),
+            Argument::Error => None,
+        };
+        let Some(argument_value_expression) = argument_value_expression else {
+            return;
         };
         let value_id = self.transparent_inner_expression(argument_value_expression);
         let declaration_annotation_target = match self.tree.get(value_id) {

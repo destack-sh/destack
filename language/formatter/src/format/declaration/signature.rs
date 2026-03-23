@@ -197,6 +197,7 @@ fn format_parameter_node<'ast>(
             // type
             write_parameter_type_with_infix(f, node_id, is_static_parameter, *ty)?
         }
+        Parameter::Error => false,
     };
 
     if wrote_type_infix {
@@ -277,7 +278,8 @@ fn parameter_is_static(
                 | Member::ComptimeConst { .. }
                 | Member::Embed { .. }
                 | Member::StaticBlock { .. }
-                | Member::ComptimeBlock { .. } => false,
+                | Member::ComptimeBlock { .. }
+                | Member::Error => false,
             }
         }
         _ => false,
@@ -305,6 +307,7 @@ fn parameter_has_constructor_property_modifier(
         | Parameter::Pattern { modifiers, .. }
         | Parameter::VariadicNamed { modifiers, .. }
         | Parameter::VariadicPattern { modifiers, .. } => *modifiers,
+        Parameter::Error => None,
     };
 
     let Some(modifiers) = modifiers else {
@@ -584,7 +587,9 @@ pub(crate) fn single_parameter_should_hug(
                     Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. }
                 ) && context.node_has_newline(default_id)
             }),
-        Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => false,
+        Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } | Parameter::Error => {
+            false
+        }
     };
     if has_multiline_collection_default {
         return false;
@@ -595,6 +600,7 @@ pub(crate) fn single_parameter_should_hug(
         Parameter::Named { default, .. } => !(has_newline && default.is_some()),
         Parameter::VariadicNamed { .. } => !has_newline,
         Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } => true,
+        Parameter::Error => false,
     }
 }
 
@@ -752,7 +758,8 @@ pub(crate) fn parameter_should_force_expand_in_signature(
             }
             Parameter::VariadicNamed { .. }
             | Parameter::Pattern { .. }
-            | Parameter::VariadicPattern { .. } => {
+            | Parameter::VariadicPattern { .. }
+            | Parameter::Error => {
                 return true;
             }
         }
@@ -762,7 +769,7 @@ pub(crate) fn parameter_should_force_expand_in_signature(
         Parameter::Pattern { pattern, .. } | Parameter::VariadicPattern { pattern, .. } => {
             Some(*pattern)
         }
-        Parameter::Named { .. } | Parameter::VariadicNamed { .. } => None,
+        Parameter::Named { .. } | Parameter::VariadicNamed { .. } | Parameter::Error => None,
     };
     let Some(pattern_id) = pattern_id else {
         return false;

@@ -171,7 +171,7 @@ impl Compiler {
                 Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => {
                     self.error(AnalyzeError::InvalidOptionalRestParameter { node });
                 }
-                Parameter::Named { .. } => {}
+                Parameter::Named { .. } | Parameter::Error { .. } => {}
             }
         }
 
@@ -181,7 +181,9 @@ impl Compiler {
                 Parameter::Pattern { pattern, .. } | Parameter::VariadicPattern { pattern, .. } => {
                     self.validate_for_each_assignment_pattern(&mut ctx.reborrow(), *pattern, true);
                 }
-                Parameter::Named { .. } | Parameter::VariadicNamed { .. } => {}
+                Parameter::Named { .. }
+                | Parameter::VariadicNamed { .. }
+                | Parameter::Error { .. } => {}
             }
         }
         // variadic destructuring bindings must contain assignment targets

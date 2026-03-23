@@ -1693,6 +1693,9 @@ impl Parser {
             | Argument::Labeled { value, .. }
             | Argument::Positional { value, .. }
             | Argument::Spread { value, .. } => *value,
+
+            // error slots have no owned value span to trim
+            Argument::Error => return,
         };
         let value_span = self.tree.get_span(value_id);
         if value_span.file != separator_token.span.file || value_span.end <= trim_end {

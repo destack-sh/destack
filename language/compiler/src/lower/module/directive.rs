@@ -28,7 +28,9 @@ impl ModuleLowerer<'_> {
             let param_name = match param {
                 dir::Parameter::Named { name, .. } => Some(*name),
                 dir::Parameter::VariadicNamed { name, .. } => Some(*name),
-                dir::Parameter::Pattern { .. } | dir::Parameter::VariadicPattern { .. } => None,
+                dir::Parameter::Pattern { .. }
+                | dir::Parameter::VariadicPattern { .. }
+                | dir::Parameter::Error { .. } => None,
             };
             if let Some(name_id) = param_name {
                 param_name_to_index.insert(name_id, index as u32);

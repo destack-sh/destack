@@ -385,7 +385,9 @@ fn function_parameter_name_positions(
             dir::Parameter::Named { name, .. } | dir::Parameter::VariadicNamed { name, .. } => {
                 Some(session.strings.get(*name).to_string())
             }
-            dir::Parameter::Pattern { .. } | dir::Parameter::VariadicPattern { .. } => None,
+            dir::Parameter::Pattern { .. }
+            | dir::Parameter::VariadicPattern { .. }
+            | dir::Parameter::Error { .. } => None,
         };
         if let Some(name) = name {
             positions.entry(name).or_insert(index);
@@ -710,6 +712,7 @@ fn build_arguments_for_call(
                 positional_args.push(value_text);
             }
             dir::Argument::Spread { .. } => positional_args.push(arg_text),
+            dir::Argument::Error { .. } => positional_args.push(arg_text),
         }
     }
 

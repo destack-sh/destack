@@ -1064,7 +1064,9 @@ impl Compiler {
         if is_value_static {
             let default_expression = match parameter {
                 Parameter::Named { default, .. } | Parameter::Pattern { default, .. } => *default,
-                Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => None,
+                Parameter::VariadicNamed { .. }
+                | Parameter::VariadicPattern { .. }
+                | Parameter::Error { .. } => None,
             };
             if let Some(default_expression) = default_expression {
                 let mut expression_id =
@@ -1813,7 +1815,9 @@ impl Compiler {
                     let embed_shape = self.embed_member_shape(&mut ctx.reborrow(), *value)?;
                     target_shape.extend_from_shape(&embed_shape);
                 }
-                Member::StaticBlock { .. } | Member::ComptimeBlock { .. } => {}
+                Member::StaticBlock { .. }
+                | Member::ComptimeBlock { .. }
+                | Member::Error { .. } => {}
             }
         }
 
@@ -2116,7 +2120,9 @@ impl Compiler {
 
                 Ok(shape)
             }
-            Member::StaticBlock { .. } | Member::ComptimeBlock { .. } => Ok(shape),
+            Member::StaticBlock { .. } | Member::ComptimeBlock { .. } | Member::Error { .. } => {
+                Ok(shape)
+            }
         }
     }
 

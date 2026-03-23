@@ -124,6 +124,7 @@ impl Compiler {
             | Member::Embed { modifiers, .. }
             | Member::StaticBlock { modifiers, .. }
             | Member::ComptimeBlock { modifiers, .. } => modifiers.as_ref(),
+            Member::Error { .. } => None,
         };
         let visibility = modifiers
             .and_then(|modifier| modifier.visibility)

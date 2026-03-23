@@ -118,6 +118,7 @@ impl Compiler {
                 );
                 ast::Property::Spread { modifiers, value }
             }
+            dir::Property::Error { .. } => ast::Property::Error,
         };
         let ast_property_id = ast_tree.insert(ast_property, span);
         context.map(property_id.into_any(), ast_property_id.into_any());
@@ -380,6 +381,7 @@ impl Compiler {
                 );
                 ast::Member::ComptimeBlock { modifiers, body }
             }
+            dir::Member::Error { .. } => ast::Member::Error,
         };
         let ast_member_id = ast_tree.insert(ast_member, span);
         context.map(member_id.into_any(), ast_member_id.into_any());

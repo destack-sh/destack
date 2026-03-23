@@ -1509,6 +1509,7 @@ impl Compiler {
             | Member::Embed { modifiers, .. }
             | Member::StaticBlock { modifiers, .. }
             | Member::ComptimeBlock { modifiers, .. } => modifiers.as_ref(),
+            Member::Error { .. } => None,
         };
 
         // filter by anchor for the lookup mode

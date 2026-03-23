@@ -135,6 +135,9 @@ pub enum Expression {
         else_expression: Option<LocalNodeId<Expression>>,
     },
 
+    /// Missing expression child.
+    Missing,
+
     /// Stub placeholder for annotation-only files.
     Stub,
 

@@ -1073,6 +1073,7 @@ impl Compiler {
                 }
 
                 dir::Expression::Debugger => ast::Expression::Debugger,
+                dir::Expression::Missing => ast::Expression::Missing,
                 dir::Expression::Stub => ast::Expression::Stub,
                 dir::Expression::Error => ast::Expression::Error,
             };

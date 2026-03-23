@@ -172,6 +172,8 @@ pub enum Property {
         value: LocalNodeId<Expression>,
         symbol: LocalSymbolId,
     },
+    /// Malformed property slot.
+    Error { symbol: LocalSymbolId },
 }
 
 impl Node for Property {
@@ -233,6 +235,8 @@ pub enum Member {
         body: LocalNodeId<Expression>,
         symbol: LocalSymbolId,
     },
+    /// Malformed member slot.
+    Error { symbol: LocalSymbolId },
 }
 
 impl Member {
@@ -246,6 +250,7 @@ impl Member {
             Member::Embed { symbol, .. } => *symbol,
             Member::StaticBlock { symbol, .. } => *symbol,
             Member::ComptimeBlock { symbol, .. } => *symbol,
+            Member::Error { symbol } => *symbol,
         }
     }
 
@@ -259,6 +264,7 @@ impl Member {
             Member::Embed { .. } => None,
             Member::StaticBlock { .. } => None,
             Member::ComptimeBlock { .. } => None,
+            Member::Error { .. } => None,
         }
     }
 }

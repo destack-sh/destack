@@ -412,7 +412,8 @@ impl Compiler {
         let value_id = match argument {
             dir::Argument::Positional { value, .. }
             | dir::Argument::Named { value, .. }
-            | dir::Argument::Labeled { value, .. } => *value,
+            | dir::Argument::Labeled { value, .. }
+            | dir::Argument::Error { value } => *value,
             dir::Argument::Spread { .. } => return None,
         };
 

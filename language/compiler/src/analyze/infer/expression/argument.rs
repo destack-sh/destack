@@ -817,6 +817,9 @@ impl Compiler {
             } => {
                 self.infer_expression(&mut ctx.reborrow(), *value, &mut arg_state)?;
             }
+            Argument::Error { value } => {
+                self.infer_expression(&mut ctx.reborrow(), *value, &mut arg_state)?;
+            }
         }
 
         Ok(())

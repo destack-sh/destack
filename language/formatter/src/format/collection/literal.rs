@@ -297,14 +297,15 @@ fn format_interpolated_template_literal<'ast>(
 fn template_argument_expression_id(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
-) -> LocalNodeId<Expression> {
+) -> Option<LocalNodeId<Expression>> {
     let value = match context.tree.get(argument_id) {
         Argument::Named { value, .. }
         | Argument::Labeled { value, .. }
         | Argument::Positional { value, .. }
         | Argument::Spread { value, .. } => *value,
+        Argument::Error => return None,
     };
-    unwrap_template_expression(context, value)
+    Some(unwrap_template_expression(context, value))
 }
 
 /// Decide whether one template interpolation ternary should stay fully inline.
@@ -313,7 +314,9 @@ fn template_argument_should_force_inline_ternary(
     argument_id: LocalNodeId<Argument>,
     template_has_newline: bool,
 ) -> bool {
-    let expression_id = template_argument_expression_id(context, argument_id);
+    let Some(expression_id) = template_argument_expression_id(context, argument_id) else {
+        return false;
+    };
 
     if context.node_has_newline(expression_id) || context.node_has_newline(argument_id) {
         return false;
@@ -338,7 +341,9 @@ fn template_argument_should_expand(
     argument_id: LocalNodeId<Argument>,
     template_has_newline: bool,
 ) -> bool {
-    let expression_id = template_argument_expression_id(context, argument_id);
+    let Some(expression_id) = template_argument_expression_id(context, argument_id) else {
+        return false;
+    };
     let expression = context.tree.get(expression_id);
     if is_trivial_expression(context.tree, expression) {
         return false;
@@ -426,10 +431,13 @@ fn template_expression_is_complex(
             dynamic_arguments.len() > TEMPLATE_COMPLEX_ARGUMENT_COUNT_THRESHOLD
                 || dynamic_arguments.iter().any(|argument_id| {
                     let argument = context.tree.get(*argument_id);
-                    !is_trivial_expression(
-                        context.tree,
-                        argument_value_expression(context, argument),
-                    )
+                    let Some(argument_value_expression) =
+                        argument_value_expression(context, argument)
+                    else {
+                        return true;
+                    };
+
+                    !is_trivial_expression(context.tree, argument_value_expression)
                 })
         }
         Expression::Index { left, index, .. } => {
@@ -451,14 +459,15 @@ fn template_expression_is_complex(
 fn argument_value_expression<'ast>(
     context: &DestackFormatContext<'ast>,
     argument: &Argument,
-) -> &'ast Expression {
+) -> Option<&'ast Expression> {
     let value_id = match argument {
         Argument::Named { value, .. }
         | Argument::Labeled { value, .. }
         | Argument::Positional { value, .. }
         | Argument::Spread { value, .. } => *value,
+        Argument::Error => return None,
     };
-    context.tree.get(value_id)
+    Some(context.tree.get(value_id))
 }
 
 /// Unwrap a template interpolation argument into its underlying expression.

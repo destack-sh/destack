@@ -29,7 +29,8 @@ impl Compiler {
             let value_id = match argument {
                 Argument::Positional { value, .. }
                 | Argument::Named { value, .. }
-                | Argument::Labeled { value, .. } => *value,
+                | Argument::Labeled { value, .. }
+                | Argument::Error { value } => *value,
                 Argument::Spread { .. } => {
                     self.report_invalid_well_known_decorator(
                         module,

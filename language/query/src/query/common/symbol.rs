@@ -990,7 +990,9 @@ fn static_parameter_name(session: &Session, parameter: &Parameter) -> Option<Str
         Parameter::Named { name, .. } | Parameter::VariadicNamed { name, .. } => {
             Some(session.strings.get(*name).to_string())
         }
-        Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } => None,
+        Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } | Parameter::Error { .. } => {
+            None
+        }
     }
 }
 

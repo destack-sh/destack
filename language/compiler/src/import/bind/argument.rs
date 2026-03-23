@@ -2,10 +2,10 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     AbstractionModifier, AccessorKind, Argument, BindingAnchor, BindingCategory, BindingKind,
-    BindingModifier, BindingOperator, DeclarationKind, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, ModuleBinding, Mutability, NodeTree, NodeType, Parameter, StaticKey,
-    SymbolBinding, SymbolSpace, SymbolSpaceOrder, SymbolTable, Timing, TypeTable, VarianceModifier,
-    Visibility,
+    BindingModifier, BindingOperator, DeclarationKind, Expression, LocalNodeId, LocalNodeIdAny,
+    LocalScopeId, LocalScopeMark, ModuleBinding, Mutability, NodeTree, NodeType, Parameter,
+    StaticKey, SymbolBinding, SymbolSpace, SymbolSpaceOrder, SymbolTable, Timing, TypeTable,
+    VarianceModifier, Visibility,
 };
 use destack_workspace::{Ast, Module};
 
@@ -349,6 +349,16 @@ impl Compiler {
                 }
                 parameter_id
             }
+            ast::Parameter::Error => {
+                let (symbol_id, _) =
+                    self.bind_anonymous_item(module, ast, symbol_space, scope, None, symbols);
+                let parameter = Parameter::Error { symbol: symbol_id };
+                let parameter_id = tree.insert(parameter_id, parameter);
+                let symbol = symbols.get_symbol_mut(symbol_id);
+                symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
+                self.apply_binding_category(symbols, symbol_id, BindingCategory::Parameter);
+                parameter_id
+            }
         }
     }
 
@@ -488,6 +498,18 @@ impl Compiler {
                         modifiers,
                         label,
                         value,
+                    },
+                )
+            }
+            ast::Argument::Error => {
+                let error_expression_id =
+                    tree.reserve_from(NodeType::Expression, argument_id, scope, Some(argument_id));
+                let error_expression = tree.insert(error_expression_id, Expression::Error);
+
+                tree.insert(
+                    argument_id,
+                    Argument::Error {
+                        value: error_expression,
                     },
                 )
             }

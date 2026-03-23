@@ -436,6 +436,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
             dir::Member::Embed { .. } => continue,
             dir::Member::StaticBlock { .. } => continue,
             dir::Member::ComptimeBlock { .. } => continue,
+            dir::Member::Error { .. } => continue,
         };
 
         tokens.push(SemanticToken::new(main_span, token_type).with_modifiers(modifiers));

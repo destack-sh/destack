@@ -396,6 +396,7 @@ fn attach_before_argument_close_brace_comment(
         | Argument::Labeled { value, .. }
         | Argument::Positional { value, .. }
         | Argument::Spread { value, .. } => *value,
+        Argument::Error => return None,
     };
     Some((Some(value_id.id), AnnotationPosition::LinePostfixBoundary))
 }

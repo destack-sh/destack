@@ -1829,6 +1829,7 @@ impl Compiler {
                         | Argument::Labeled { modifiers, .. }
                         | Argument::Positional { modifiers, .. }
                         | Argument::Spread { modifiers, .. } => modifiers.as_ref(),
+                        Argument::Error { .. } => None,
                     };
                     if let Some(modifiers) = modifiers {
                         if matches!(modifiers.kind, Some(BindingKind::Maybe)) {
@@ -1879,6 +1880,7 @@ impl Compiler {
                         | Argument::Labeled { modifiers, .. }
                         | Argument::Positional { modifiers, .. }
                         | Argument::Spread { modifiers, .. } => modifiers.as_ref(),
+                        Argument::Error { .. } => None,
                     };
                     if let Some(modifiers) = modifiers {
                         if matches!(modifiers.kind, Some(BindingKind::Maybe)) {
@@ -2081,6 +2083,15 @@ impl Compiler {
                         }
                         Property::Spread { .. } => {
                             // #Incomplete: spread properties into ctx.types
+                            return self.report_declared_type_error(
+                                AnalyzeError::UnsupportedConstruct {
+                                    node: property_id
+                                        .into_global_any(ctx.module.id)
+                                        .into_anchored(Some(ctx.profile)),
+                                },
+                            );
+                        }
+                        Property::Error { .. } => {
                             return self.report_declared_type_error(
                                 AnalyzeError::UnsupportedConstruct {
                                     node: property_id
