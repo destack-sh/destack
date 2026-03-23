@@ -47,13 +47,7 @@ fn main() -> ExitCode {
     let is_child = std::env::var_os(SPEC_CHILD_ENV).is_some();
     let normal_mode = matches!(options.isolate, IsolationLevel::None);
     if is_child || options.test.filter.is_some() || options.test.list || normal_mode {
-        let suite = match SpecificationSuite::load() {
-            Ok(suite) => suite,
-            Err(error) => {
-                eprintln!("{error}");
-                return ExitCode::FAILURE;
-            }
-        };
+        let suite = SpecificationSuite::load();
         return Runner::run_suite(suite, &options.test);
     }
 
@@ -151,7 +145,7 @@ fn isolation_entries(
             Ok(entries)
         }
         IsolationLevel::Test => {
-            let suite = SpecificationSuite::load()?;
+            let suite = SpecificationSuite::load();
             let mut entries: BTreeSet<String> = BTreeSet::new();
             for case in suite.discover(&RunOptions::default()) {
                 entries.insert(case.full_name());
