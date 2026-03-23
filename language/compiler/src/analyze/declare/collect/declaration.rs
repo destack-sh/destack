@@ -2259,6 +2259,17 @@ impl Compiler {
         Ok(())
     }
 
+    /// Report one collected type diagnostic and return an error type id for the source node.
+    fn report_collected_type_error(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        node_id: LocalNodeIdAny,
+        error: AnalyzeError,
+    ) -> LocalTypeId {
+        self.error(error);
+        ctx.types.insert_type_from_any(Type::Error, node_id)
+    }
+
     /// Build a positional constructor signature for nominal fields in one ctx context.
     fn struct_constructor_signature(
         &self,
@@ -2287,17 +2298,25 @@ impl Compiler {
                 continue;
             }
 
-            // require declared field types
-            let value_id = value.ok_or_else(|| AnalyzeError::ImplicitAny {
-                node: member_id
-                    .into_global_any(ctx.module.id)
-                    .into_anchored(Some(ctx.profile)),
-            })?;
-            let field_ty_id = self.collect_or_defer_type_expression(
-                &mut ctx.reborrow(),
-                value_id,
-                defer_type_evaluation,
-            )?;
+            // resolve the field type or poison the constructor slot
+            let field_ty_id = if let Some(value_id) = value {
+                self.collect_or_defer_type_expression(
+                    &mut ctx.reborrow(),
+                    *value_id,
+                    defer_type_evaluation,
+                )?
+            } else {
+                let error = AnalyzeError::ImplicitAny {
+                    node: member_id
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile)),
+                };
+                self.report_collected_type_error(
+                    &mut ctx.reborrow(),
+                    (*member_id).into_any(),
+                    error,
+                )
+            };
             dynamic_parameters.push(field_ty_id);
         }
 

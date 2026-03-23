@@ -291,7 +291,13 @@ impl Compiler {
             );
             let has_forward_links = local_pending_symbols.len() > pending_count_before;
             if !is_value_capable && !has_forward_links {
-                return Err(AnalyzeError::TypeOnlyValue { node: error_node });
+                lookup.imported_type_id = Some(self.report_infer_type_error(
+                    local_type_table,
+                    node_id,
+                    AnalyzeError::TypeOnlyValue { node: error_node },
+                ));
+                lookup.forwarded_symbols.clear();
+                return Ok(lookup);
             }
         }
 

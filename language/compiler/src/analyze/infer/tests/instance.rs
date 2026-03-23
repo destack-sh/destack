@@ -477,6 +477,45 @@ let boxed = new Box<string>("hi");
     view.assert_static_argument_primitive_sequence(&static_arguments, &[PrimitiveType::String]);
 }
 
+/// Keep class constructor shapes available after implicit-any field diagnostics.
+#[test]
+fn test_instance_keeps_constructor_shape_for_implicit_any_field() {
+    let test = TestProgram::memory_sequential();
+    test.add_package("test", Some(r#""noImplicitAny": true"#));
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+class Box {
+    value;
+}
+
+let boxed = new Box(1);
+"#,
+    );
+
+    // analyze with the expected implicit-any diagnostic
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_has_diagnostic("EA107");
+
+    // keep the constructor shape available for the class value type
+    let view = test.view(module_id);
+    let box_symbol = test.canonical_symbol_for_path("test.ds", "Box");
+    let box_value_id = view.expect_value_type_id(box_symbol);
+    let mut shape = ObjectShape::default();
+    let mut extras = Vec::new();
+    let mut visited = Vec::new();
+    test.compiler.collect_value_shape_from_type(
+        box_value_id,
+        view.types(),
+        &mut shape,
+        &mut extras,
+        &mut visited,
+    );
+
+    assert_eq!(shape.construct_signatures.len(), 1);
+}
+
 /// Verify class member calls commit method instances with inherited and explicit arguments.
 #[test]
 fn test_instance_records_class_method_instantiation_with_inherited_arguments() {
