@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
+use destack_artifact::{ArtifactKey, DirBase};
 use destack_dir::{
     DependencyMode, Expression, LocalNodeIdAny, LocalScopeMark, NodeTree, NodeType, ScopeKind,
     SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, SymbolType, TypeLiteral, TypeTable,
 };
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactKey, DirBase};
 
 use crate::{ArtifactRequirementError, Compiler, ImportError, ImportResult};
 
@@ -33,8 +33,7 @@ impl Compiler {
         let module_version = self.module_version(module);
         self.ensure_module_version_matches::<ImportError>(module, module_version)?;
         self.import_module_parse(module, module_version)?;
-        self.program
-            .artifacts
+        self.artifacts
             .ast(module)
             .expect("missing AST on parsed module");
 
@@ -59,7 +58,7 @@ impl Compiler {
         }
 
         // read the committed AST artifact directly
-        let ast = self.program.artifacts.ast(module);
+        let ast = self.artifacts.ast(module);
 
         // build one transient base DIR from the current AST
         let (
@@ -190,9 +189,7 @@ impl Compiler {
             module_bindings: Arc::new(module_bindings),
         };
 
-        self.program
-            .artifacts
-            .publish(artifact_key.clone(), dir.clone());
+        self.artifacts.publish(artifact_key.clone(), dir.clone());
         self.store_artifact(&artifact_key, &dir, |compiler, dir| {
             compiler.store_dir_base_image(module, dir)
         });

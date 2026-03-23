@@ -1,7 +1,8 @@
+use destack_artifact::{OutputContent, OutputEntry};
 use destack_fir::format as fir_format;
 use destack_fir::prelude::format_with;
 use destack_source::{File, FileType};
-use destack_workspace::{OutputContent, OutputEntry, Target};
+use destack_workspace::Target;
 
 use crate::emit::ModuleEmitOutput;
 use crate::plan::ModuleGeneratePlan;

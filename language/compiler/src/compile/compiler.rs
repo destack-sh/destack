@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use dashmap::DashMap;
+use destack_artifact::ArtifactStore;
 use destack_resolver::Resolver;
 use destack_source::{DiagnosticCollector, DiagnosticSeverity, ModuleId, Uri};
 use destack_workspace::{Program, Session, Target};
@@ -24,6 +25,8 @@ pub struct Compiler {
     pub session: Arc<Session>,
     /// The program.
     pub program: Arc<Program>,
+    /// The live artifact store for the program.
+    pub artifacts: Arc<ArtifactStore>,
     /// The options for compiling.
     pub options: CompilerOptions,
     /// Base resolver reused for import resolution option variants.
@@ -68,10 +71,14 @@ impl Compiler {
         let comptime_target = Target::comptime("comptime");
         let timings = options.timings;
         let base_resolver = Resolver::from_program(&program, options.import_resolve.clone());
+        let artifacts = session
+            .get_artifacts_for_program(program.as_ref())
+            .unwrap_or_else(|| Arc::new(ArtifactStore::new()));
 
         let compiler = Self {
             session,
             program,
+            artifacts,
             options,
             base_resolver,
             seen_errors: Mutex::new(Vec::new()),
@@ -250,7 +257,8 @@ impl Compiler {
             };
 
             // build the diagnostic for the error
-            let mut diagnostic = CompileDiagnostic::Error(error).to_diagnostic(&self.program);
+            let mut diagnostic =
+                CompileDiagnostic::Error(error).to_diagnostic(&self.program, &self.artifacts);
             if severity != DiagnosticSeverity::Error {
                 diagnostic.original_severity = Some(DiagnosticSeverity::Error);
                 diagnostic.severity = severity;
@@ -273,7 +281,8 @@ impl Compiler {
             };
 
             // build the diagnostic for the warning
-            let mut diagnostic = CompileDiagnostic::Warning(warning).to_diagnostic(&self.program);
+            let mut diagnostic =
+                CompileDiagnostic::Warning(warning).to_diagnostic(&self.program, &self.artifacts);
             if severity != DiagnosticSeverity::Warning {
                 diagnostic.original_severity = Some(DiagnosticSeverity::Warning);
                 diagnostic.severity = severity;

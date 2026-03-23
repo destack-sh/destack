@@ -253,6 +253,7 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
     fn expression_is_tainted(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         let mut taint = TaintAnalysis::new(
             self.ctx.program.as_ref(),
+            self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.tree,

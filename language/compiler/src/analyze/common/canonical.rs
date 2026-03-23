@@ -1,12 +1,13 @@
 use std::collections::HashSet;
 
+use destack_artifact::ArtifactKey;
 use destack_dir::{
     DependencyItem, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeType, StaticArgument,
     StaticExpression, SymbolKind, SymbolSpace, SymbolType, Type, TypeLiteral, TypeTable,
     WellKnownSymbol,
 };
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactKey, ProfileId};
+use destack_workspace::ProfileId;
 
 use crate::analyze::common::{ModuleSymbolView, TypeContext};
 use crate::{ArtifactRequirementError, Compiler};
@@ -74,7 +75,6 @@ impl Compiler {
             }
 
             let Some(dir) = self
-                .program
                 .artifacts
                 .dir_declared(current_symbol.module_id, profile)
             else {
@@ -262,7 +262,7 @@ impl Compiler {
                     view.profile,
                     current_symbol.module_id,
                     view.symbols,
-                    destack_workspace::ArtifactKey::dir_declared,
+                    destack_artifact::ArtifactKey::dir_declared,
                     |_, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
                         (
@@ -320,7 +320,7 @@ impl Compiler {
                     view.profile,
                     current_symbol.module_id,
                     view.symbols,
-                    destack_workspace::ArtifactKey::dir_declared,
+                    destack_artifact::ArtifactKey::dir_declared,
                     |owner_module, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
                         let normalized_symbol = GlobalSymbolId::new(
@@ -379,7 +379,7 @@ impl Compiler {
         self.merged_type_symbol_id_for_artifact(
             view,
             symbol,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
         )
     }
 

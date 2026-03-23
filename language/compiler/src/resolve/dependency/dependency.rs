@@ -1,3 +1,4 @@
+use destack_artifact::{ExportedSymbolTable, ImportedModuleTable};
 use destack_ast::StringId;
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, DependencySource, GlobalNodeIdAny,
@@ -5,7 +6,7 @@ use destack_dir::{
     NamespaceExport, NodeTree, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
 use destack_source::ModuleId;
-use destack_workspace::{ExportedSymbolTable, ImportedModuleTable, Module, ProfileId};
+use destack_workspace::{Module, ProfileId};
 use rustc_hash::FxHashSet;
 
 use crate::resolve::dependency::cache::{ResolveDependencyItemCache, TargetCacheKey};

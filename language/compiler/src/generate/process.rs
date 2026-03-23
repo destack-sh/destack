@@ -1,8 +1,9 @@
 use crate::timing::tags;
 use crate::{ArtifactRequirementError, Compiler, GenerateError, GenerateResult};
 
+use destack_artifact::ArtifactKey;
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ArtifactKey, ProfileId, TargetId};
+use destack_workspace::{ProfileId, TargetId};
 
 impl Compiler {
     /// Build one module output.
@@ -41,7 +42,6 @@ impl Compiler {
             &target,
         )?;
         let output = self
-            .program
             .artifacts
             .module_output(module, &target)
             .ok_or_else(|| GenerateError::Internal {

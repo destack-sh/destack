@@ -17,6 +17,7 @@ timings = []
 
 [dependencies]
 # language
+destack_artifact = { workspace = true }
 destack_ast = { workspace = true }
 destack_core = { workspace = true }
 destack_fir = { workspace = true }

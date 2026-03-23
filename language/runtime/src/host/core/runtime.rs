@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
+use destack_artifact::Platform;
 use destack_workspace::{
-    Platform, PlatformHostOptions, PlatformOsOptions, RuntimeAppDeclaration, RuntimeOptions,
+    PlatformHostOptions, PlatformOsOptions, RuntimeAppDeclaration, RuntimeOptions,
 };
 
 use crate::diagnostic::RuntimeResult;

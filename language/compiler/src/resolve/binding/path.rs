@@ -1,13 +1,14 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use destack_artifact::{DirPrepared, ExportedSymbolTable};
 use destack_builtin::BuiltinLibraryKind;
 use destack_dir::{
     Argument, Declaration, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId,
     LocalScopeMark, LocalSymbolId, NodeTree, NodeType, Path, Scope, ScopeKind, StaticKey, StringId,
     SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
-use destack_workspace::{DirPrepared, ExportedSymbolTable, Module, ModuleSource, ProfileId};
+use destack_workspace::{Module, ModuleSource, ProfileId};
 
 use crate::resolve::binding::cache::{
     ResolveAbsoluteSymbolCacheKey, ResolveExpressionCache, ResolveScopeIndexCache,
@@ -197,7 +198,7 @@ impl Compiler {
     fn prelude_resolved_artifact(
         &self,
         profile: ProfileId,
-    ) -> ResolveResult<Option<(Arc<Module>, Arc<destack_workspace::DirResolved>)>> {
+    ) -> ResolveResult<Option<(Arc<Module>, Arc<destack_artifact::DirResolved>)>> {
         // check if prelude injection is enabled
         if !self.options.inject_prelude {
             return Ok(None);

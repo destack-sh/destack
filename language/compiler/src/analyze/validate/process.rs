@@ -1,12 +1,13 @@
 use crate::analyze::common::{AnalyzeIndex, TypeContext};
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, ArtifactRequirementError, Compiler};
+use destack_artifact::ArtifactKey;
 use destack_dir::{
     Annotation, Declaration, Expression, LocalNodeIdAny, Member, NodeTree, Parameter, Pattern,
     SymbolTable, TypeTable,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ArtifactKey, ModuleSource, ProfileId};
+use destack_workspace::{ModuleSource, ProfileId};
 
 impl Compiler {
     /// Ensure analyzed DIR exists for a module.

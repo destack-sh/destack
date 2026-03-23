@@ -84,6 +84,7 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
         let callee = self.ctx.tree.get(callee_id);
         let sink_labels = expression_sink_taint_labels(
             self.ctx.program.as_ref(),
+            self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,
@@ -116,6 +117,7 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
         let left_expression = self.ctx.tree.get(left);
         let sink_labels = expression_sink_taint_labels(
             self.ctx.program.as_ref(),
+            self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,
@@ -142,6 +144,7 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
     ) -> TaintLabels {
         let mut taint = TaintAnalysis::new(
             self.ctx.program.as_ref(),
+            self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.tree,

@@ -1,8 +1,9 @@
 use crate::timing::tags;
 use crate::{ArtifactRequirementError, Compiler, LinkError, LinkResult};
 
+use destack_artifact::ArtifactKey;
 use destack_source::PackageId;
-use destack_workspace::{ArtifactKey, TargetId};
+use destack_workspace::TargetId;
 
 impl Compiler {
     /// Build one package output.
@@ -26,7 +27,6 @@ impl Compiler {
         let _timing = self.timing_scope(tags::LINK_TARGET);
         self.link_target(package_stamp.id, &target)?;
         let output = self
-            .program
             .artifacts
             .package_output(package, &target)
             .ok_or_else(|| LinkError::Internal {

@@ -1,9 +1,10 @@
 use std::num::NonZeroU32;
 
+use destack_artifact::MirBase;
 use destack_core::StringId;
 use destack_mir as mir;
 use destack_source::{FileId, ModuleId, ModuleVersion, PackageId};
-use destack_workspace::{MirBase, TargetId};
+use destack_workspace::TargetId;
 use mir::parse::ParseOptions;
 
 use crate::CodegenCraneliftBackend;

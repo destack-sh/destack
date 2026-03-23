@@ -1,9 +1,10 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use destack_artifact::ArtifactKey;
 use destack_compiler::Compiler;
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactKey, Program, TargetId};
+use destack_workspace::{Program, TargetId};
 use serde::{Deserialize, Serialize};
 
 use super::context::CommandContext;

@@ -1,5 +1,5 @@
+use destack_artifact::Loader;
 use destack_dir::{Argument, Expression, LocalNodeId, NodeTree, ScalarLiteral};
-use destack_workspace::Loader;
 
 use crate::Compiler;
 

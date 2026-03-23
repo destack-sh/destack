@@ -3,12 +3,13 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+use destack_artifact::MemoryCacheStore;
 use destack_compiler::CompilerOptions;
 use destack_source::{
     FileId, FileSystem, FileWatchEvent, FileWatchEventKind, FileWatchOptions, MemoryFileSystem,
     MemoryFileWatcher,
 };
-use destack_workspace::{MemoryCacheStore, Program, Session};
+use destack_workspace::{Program, Session};
 
 use crate::protocol::{
     DaemonRequest, DaemonResponse, OpenWorkspaceRequest, ProtocolClient, ProtocolClientOptions,

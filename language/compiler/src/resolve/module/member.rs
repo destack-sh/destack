@@ -42,7 +42,6 @@ impl Compiler {
         let target_module = self.program.modules.get(target_symbol.module_id);
         let target_module = target_module.as_ref();
         let snapshot = self
-            .program
             .artifacts
             .dir_resolved(target_symbol.module_id, profile)
             .unwrap_or_else(|| {
@@ -338,7 +337,6 @@ impl Compiler {
                 let remote_module = self.program.modules.get(canonical_symbol.module_id);
                 let remote_module = remote_module.as_ref();
                 let snapshot = self
-                    .program
                     .artifacts
                     .dir_resolved(canonical_symbol.module_id, profile)
                     .unwrap_or_else(|| {
@@ -395,7 +393,6 @@ impl Compiler {
             (symbol_entry.canonical_symbol, symbol_entry.target_symbol)
         } else {
             let snapshot = self
-                .program
                 .artifacts
                 .dir_prepared(symbol.module_id, profile)
                 .unwrap_or_else(|| {
@@ -472,7 +469,6 @@ impl Compiler {
         let target_module = self.program.modules.get(target_symbol.module_id);
         let target_module = target_module.as_ref();
         let snapshot = self
-            .program
             .artifacts
             .dir_resolved(target_symbol.module_id, profile)
             .unwrap_or_else(|| {

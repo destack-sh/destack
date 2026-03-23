@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use destack_builtin::LanguageSymbol;
-use destack_source::{File, FileVersion, TemporaryPhysicalFileSystem};
-use destack_workspace::{
+use destack_artifact::{
     ArtifactDependency, ArtifactFamily, ArtifactImage, ArtifactImageError, ArtifactImageHeader,
-    ArtifactImageKey, ArtifactImageRequirement, ArtifactKey, ArtifactStore, Ast, AstImage,
+    ArtifactImageKey, ArtifactImageRequirement, ArtifactImageStore, ArtifactKey, Ast, AstImage,
     CacheStore, DirPreparedImage, LanguageEnvironment, MemoryCacheStore, PersistedImageValidation,
 };
+use destack_builtin::LanguageSymbol;
+use destack_source::{File, FileVersion, TemporaryPhysicalFileSystem};
 
 use crate::tests::scenario::{
     append_file_text, build_disk_cache_compiler, build_memory_cache_compiler,
@@ -19,7 +19,7 @@ use crate::tests::scenario::{
 fn test_artifact_store_roundtrips_language_environment_image() {
     let cache_root = std::path::PathBuf::from("/artifact-store-test");
     let cache_store: Arc<dyn CacheStore> = Arc::new(MemoryCacheStore::new());
-    let artifact_store = ArtifactStore::new(cache_store.as_ref(), &cache_root);
+    let artifact_store = ArtifactImageStore::new(cache_store.as_ref(), &cache_root);
     let profile = test_profile_key();
     let header = ArtifactImageHeader::new(
         ArtifactImageKey::LanguageEnvironment { profile },
@@ -54,7 +54,7 @@ fn test_artifact_store_roundtrips_language_environment_image() {
 fn test_artifact_store_rejects_tampered_validation_hash() {
     let cache_root = std::path::PathBuf::from("/artifact-store-test");
     let cache_store: Arc<dyn CacheStore> = Arc::new(MemoryCacheStore::new());
-    let artifact_store = ArtifactStore::new(cache_store.as_ref(), &cache_root);
+    let artifact_store = ArtifactImageStore::new(cache_store.as_ref(), &cache_root);
     let profile = test_profile_key();
     let header = ArtifactImageHeader::new(
         ArtifactImageKey::LanguageEnvironment { profile },
@@ -101,7 +101,6 @@ fn test_compiler_reuses_language_environment_image_across_sessions() {
         .run_to_completion(|compiler| compiler.process_language_environment(profile_id))
         .unwrap_or_else(|error| panic!("failed to persist language environment: {error:?}"));
     let expected = compiler
-        .program
         .artifacts
         .language_environment(profile_id)
         .unwrap_or_else(|| panic!("expected published language environment"))
@@ -207,7 +206,7 @@ fn test_library_environment_image_tracks_library_source_content() {
     );
 
     // perturb one selected library module source file
-    let environment = program
+    let environment = compiler
         .artifacts
         .library_environment(profile_id)
         .unwrap_or_else(|| panic!("expected published library environment"));
@@ -300,12 +299,12 @@ fn test_resolved_dir_tracks_library_environment_requirements() {
 
     // perturb the published library environment dependency
     let environment_key = ArtifactKey::library_environment(profile_id);
-    let dependency = program
+    let dependency = compiler
         .artifacts
         .dependency(&environment_key)
         .unwrap_or_else(|| panic!("expected published library environment dependency"));
     let bumped_dependency = ArtifactDependency::new(dependency.0.wrapping_add(1));
-    program
+    compiler
         .artifacts
         .set_dependency(environment_key, bumped_dependency);
 
@@ -345,7 +344,7 @@ fn test_library_environment_tracks_exact_requirements() {
 
     // perturb one recorded requirement dependency
     let bumped_dependency = ArtifactDependency::new(requirement.dependency.0.wrapping_add(1));
-    program
+    compiler
         .artifacts
         .set_dependency(requirement.key, bumped_dependency);
 
@@ -358,7 +357,7 @@ fn test_library_environment_tracks_exact_requirements() {
 fn test_artifact_store_roundtrips_ast_image() {
     let cache_root = std::path::PathBuf::from("/artifact-store-test");
     let cache_store: Arc<dyn CacheStore> = Arc::new(MemoryCacheStore::new());
-    let artifact_store = ArtifactStore::new(cache_store.as_ref(), &cache_root);
+    let artifact_store = ArtifactImageStore::new(cache_store.as_ref(), &cache_root);
     let module = destack_source::ModuleId::EPHEMERAL;
     let header = ArtifactImageHeader::new(
         ArtifactImageKey::Ast { module },
@@ -410,7 +409,6 @@ fn test_compiler_reuses_ast_image_across_sessions() {
         .run_to_completion(|compiler| compiler.process_ast(module_id))
         .unwrap_or_else(|error| panic!("failed to build ast: {error:?}"));
     let expected = compiler
-        .program
         .artifacts
         .ast(module_id)
         .unwrap_or_else(|| panic!("expected published ast"))
@@ -474,7 +472,6 @@ fn test_compiler_reuses_ast_image_across_sessions() {
         .run_to_completion(|compiler| compiler.process_ast(module_id))
         .unwrap_or_else(|error| panic!("failed to load ast: {error:?}"));
     let resolved = compiler
-        .program
         .artifacts
         .ast(module_id)
         .unwrap_or_else(|| panic!("expected published ast after load"))
@@ -499,7 +496,6 @@ fn test_compiler_invalidates_ast_image_when_source_changes() {
         .run_to_completion(|compiler| compiler.process_ast(module_id))
         .unwrap_or_else(|error| panic!("failed to build ast: {error:?}"));
     let expected = compiler
-        .program
         .artifacts
         .ast(module_id)
         .unwrap_or_else(|| panic!("expected published ast"))
@@ -563,7 +559,6 @@ fn test_compiler_invalidates_ast_image_when_source_changes() {
         .run_to_completion(|compiler| compiler.process_ast(module_id))
         .unwrap_or_else(|error| panic!("failed to rebuild ast: {error:?}"));
     let rebuilt = compiler
-        .program
         .artifacts
         .ast(module_id)
         .unwrap_or_else(|| panic!("expected rebuilt ast"))
@@ -665,7 +660,6 @@ fn test_compiler_reuses_dir_prepared_image_across_sessions() {
         .run_to_completion(|compiler| compiler.process_dir_prepared(module_id, profile_id))
         .unwrap_or_else(|error| panic!("failed to build prepared dir: {error:?}"));
     let expected = compiler
-        .program
         .artifacts
         .dir_prepared(module_id, profile_id)
         .unwrap_or_else(|| panic!("expected published prepared dir"))
@@ -737,7 +731,7 @@ fn test_compiler_does_not_create_profiles_from_persisted_requirements() {
         });
     let profile_id = program.default_profile_id_for_module(module_id);
     let artifact_store =
-        ArtifactStore::new(session.cache_store.as_ref(), &session.workspace_cache_dir());
+        ArtifactImageStore::new(session.cache_store.as_ref(), &session.workspace_cache_dir());
     let image_key = ArtifactImageKey::DirPrepared {
         module: module_id,
         profile: program.profile(profile_id).key.clone(),
@@ -800,7 +794,6 @@ fn test_compiler_reuses_dir_resolved_image_across_sessions() {
         .run_to_completion(|compiler| compiler.process_dir_resolved(module_id, profile_id))
         .unwrap_or_else(|error| panic!("failed to build resolved dir: {error:?}"));
     let expected = compiler
-        .program
         .artifacts
         .dir_resolved(module_id, profile_id)
         .unwrap_or_else(|| panic!("expected published resolved dir"))
@@ -850,7 +843,7 @@ fn test_compiler_skips_artifact_image_loads_when_disk_cache_is_disabled() {
     let module_id = compiler
         .resolve_path_to_module(&module_path)
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
-    let artifact_key = destack_workspace::ArtifactKey::ast(module_id);
+    let artifact_key = destack_artifact::ArtifactKey::ast(module_id);
 
     // the image loader closure should not run at all
     let loaded = compiler.load_artifact::<(), _>(&artifact_key, |_| {
@@ -871,7 +864,7 @@ fn test_compiler_skips_artifact_image_writes_when_disk_cache_is_disabled() {
     let module_id = compiler
         .resolve_path_to_module(&module_path)
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
-    let artifact_key = destack_workspace::ArtifactKey::ast(module_id);
+    let artifact_key = destack_artifact::ArtifactKey::ast(module_id);
 
     // the image store closure should not run at all
     compiler.store_artifact(&artifact_key, &(), |_, _| {

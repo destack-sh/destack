@@ -1,13 +1,11 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_artifact::{ArtifactKey, Ast, DirPrepared, DirResolved, MemoryCacheStore};
 use destack_source::{
     File, FileId, FileType, FileVersion, ModuleId, TemporaryPhysicalFileSystem, Uri,
 };
-use destack_workspace::{
-    ArtifactKey, Ast, Destack, DirPrepared, DirResolved, FileUpdate, MemoryCacheStore, Program,
-    Session, Workspace,
-};
+use destack_workspace::{Destack, FileUpdate, Program, Session, Workspace};
 
 use crate::{Compiler, CompilerOptions};
 
@@ -303,6 +301,7 @@ impl CompilerScenarioRun {
             CompilerEdit::ReplaceFile { content, .. } => {
                 self.program
                     .invalidate_file(
+                        self.compiler.artifacts.as_ref(),
                         file_id,
                         FileUpdate::Text {
                             content: content.clone(),
@@ -408,9 +407,9 @@ impl ScenarioModule {
     }
 
     /// Return the published AST for this module.
-    pub(crate) fn ast(&self) -> std::sync::Arc<destack_workspace::Ast> {
+    pub(crate) fn ast(&self) -> std::sync::Arc<destack_artifact::Ast> {
         self.run
-            .program
+            .compiler
             .artifacts
             .ast(self.module_id)
             .unwrap_or_else(|| panic!("expected published scenario ast"))
@@ -419,7 +418,7 @@ impl ScenarioModule {
     /// Return the published prepared DIR for this module.
     pub(crate) fn dir_prepared(&self) -> std::sync::Arc<DirPrepared> {
         self.run
-            .program
+            .compiler
             .artifacts
             .dir_prepared(self.module_id, self.profile_id())
             .unwrap_or_else(|| panic!("expected published scenario prepared dir"))
@@ -428,7 +427,7 @@ impl ScenarioModule {
     /// Return the published resolved DIR for this module.
     pub(crate) fn dir_resolved(&self) -> std::sync::Arc<DirResolved> {
         self.run
-            .program
+            .compiler
             .artifacts
             .dir_resolved(self.module_id, self.profile_id())
             .unwrap_or_else(|| panic!("expected published scenario resolved dir"))
@@ -439,9 +438,9 @@ impl ScenarioModule {
         // derive the persisted ast identity inputs
         let module = self.run.program.modules.get(self.module_id);
         let language_type = match module.loader {
-            destack_workspace::Loader::Destack
-            | destack_workspace::Loader::TypeScript
-            | destack_workspace::Loader::JavaScript => Some(module.language_type),
+            destack_artifact::Loader::Destack
+            | destack_artifact::Loader::TypeScript
+            | destack_artifact::Loader::JavaScript => Some(module.language_type),
             _ => None,
         };
         let file_id = module.file_id;

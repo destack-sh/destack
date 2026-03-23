@@ -1,3 +1,4 @@
+use destack_artifact::ArtifactStore;
 use destack_source::{FileId, ModuleId, ModuleStamp, PackageId, PackageStamp, Span};
 use destack_workspace::Program;
 use {destack_dir as dir, destack_mir as mir};
@@ -46,19 +47,21 @@ impl DiagnosticAnchor {
     /// Get the file and span for this anchor.
     ///
     /// Returns `None` for `Global` anchors or if the file cannot be determined.
-    pub fn to_file_span(&self, program: &Program) -> Option<(FileId, Span)> {
+    pub fn to_file_span(
+        &self,
+        program: &Program,
+        artifacts: &ArtifactStore,
+    ) -> Option<(FileId, Span)> {
         match self {
             Self::DirNode(anchored) => {
                 let module = program.modules.get(anchored.module_id());
                 let module = module.as_ref();
-                let ast = program.artifacts.ast(anchored.module_id())?;
+                let ast = artifacts.ast(anchored.module_id())?;
                 let local_id = anchored.local_id().id;
 
                 // look in profile-specific DIR if we have a profile
                 if let Some(profile_id) = anchored.profile_id
-                    && let Some(dir) = program
-                        .artifacts
-                        .dir_analyzed(anchored.module_id(), profile_id)
+                    && let Some(dir) = artifacts.dir_analyzed(anchored.module_id(), profile_id)
                 {
                     let tree = &dir.tree;
                     if tree.has_node_id(local_id) {
@@ -69,7 +72,7 @@ impl DiagnosticAnchor {
                 }
 
                 // fall back to base DIR
-                let dir = program.artifacts.dir_base(anchored.module_id())?;
+                let dir = artifacts.dir_base(anchored.module_id())?;
                 let tree = &dir.tree;
                 if !tree.has_node_id(local_id) {
                     return None;
@@ -82,26 +85,22 @@ impl DiagnosticAnchor {
             Self::MirNode(anchored) => {
                 let module = program.modules.get(anchored.module_id());
                 let module = module.as_ref();
-                let ast = program.artifacts.ast(anchored.module_id())?;
+                let ast = artifacts.ast(anchored.module_id())?;
                 let profile_id = program.default_profile_id_for_module(anchored.module_id());
-                let dir_node_id = if let Some(mir) = program.artifacts.mir_optimized(
-                    anchored.module_id(),
-                    profile_id,
-                    &anchored.target_id,
-                ) {
+                let dir_node_id = if let Some(mir) =
+                    artifacts.mir_optimized(anchored.module_id(), profile_id, &anchored.target_id)
+                {
                     mir.tree.get_source(anchored.local_id().id)?
-                } else if let Some(mir) = program.artifacts.mir_base(
-                    anchored.module_id(),
-                    profile_id,
-                    &anchored.target_id,
-                ) {
+                } else if let Some(mir) =
+                    artifacts.mir_base(anchored.module_id(), profile_id, &anchored.target_id)
+                {
                     mir.tree.get_source(anchored.local_id().id)?
                 } else {
                     return None;
                 };
 
                 // look up span from base DIR
-                let dir = program.artifacts.dir_base(anchored.module_id())?;
+                let dir = artifacts.dir_base(anchored.module_id())?;
                 let tree = &dir.tree;
                 if !tree.has_node_id(dir_node_id) {
                     return None;

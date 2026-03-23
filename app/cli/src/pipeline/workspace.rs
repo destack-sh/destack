@@ -35,10 +35,9 @@ pub fn workspace_context(
     // initialize
     let session = args.setup();
     let program = session
-        .programs
-        .iter()
+        .programs()
+        .into_iter()
         .next()
-        .map(|entry| entry.value().clone())
         .ok_or_else(|| CliError::message("session did not create a program"))?;
     let workspace_config = session.workspace_config();
     let resolver = Resolver::from_session(

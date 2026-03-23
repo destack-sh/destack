@@ -1,5 +1,5 @@
 use crate::tests::TestProgram;
-use destack_workspace::EmitFormat;
+use destack_artifact::EmitFormat;
 
 #[test]
 fn test_reify_implicit_cast_in_binding() {

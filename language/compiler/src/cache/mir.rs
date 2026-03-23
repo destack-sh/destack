@@ -1,18 +1,19 @@
 use crate::compile::Compiler;
 
 use super::{CacheHasher, compiler_version};
-use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{
+use destack_artifact::{
     ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ArtifactKey, MirBase,
-    MirOptimized, ProfileId, ProfileKey, Target, TargetId,
+    MirOptimized, ProfileKey,
 };
+use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
+use destack_workspace::{ProfileId, Target, TargetId};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
 /// Persistent image context for one target scoped MIR artifact.
 #[derive(Debug, Clone)]
 struct MirImageContext {
-    /// The stable profile key for the image.
+    /// The profile key for the image.
     profile_key: ProfileKey,
     /// The profile version used when producing the image.
     profile_version: ProfileVersion,

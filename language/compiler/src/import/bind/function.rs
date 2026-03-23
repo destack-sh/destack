@@ -1,11 +1,12 @@
 use crate::Compiler;
+use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
     Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
     FunctionSignature, Generics, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding,
     NodeTree, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
-use destack_workspace::{Ast, Module};
+use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {

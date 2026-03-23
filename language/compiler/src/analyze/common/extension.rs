@@ -95,7 +95,7 @@ impl Compiler {
                 ctx.profile,
                 target_symbol.module_id,
                 ctx.types,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
                 |_, target_types| {
                     if let Some(extension_ids) =
                         target_types.get_extensions_for_target(target_symbol)
@@ -126,7 +126,7 @@ impl Compiler {
                 ctx.profile,
                 declaration_target.module_id,
                 ctx.symbols,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
                 |target_module, target_symbols| {
                     let symbol_entry = target_symbols.get_symbol(declaration_target.local_id);
                     let should_scan_global_group = if declaration_target.module_id == ctx.module.id

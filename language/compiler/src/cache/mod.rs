@@ -11,9 +11,6 @@ mod store;
 mod tests;
 mod workspace;
 
-pub use destack_workspace::{
-    DEFAULT_CACHE_DIR, DEFAULT_GLOBAL_CACHE_DIR, DEFAULT_LANGUAGE_CACHE_NAMESPACE,
-};
 pub(crate) use hasher::CacheHasher;
 
 /// The compiler version embedded in persisted cache headers.

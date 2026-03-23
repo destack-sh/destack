@@ -4,13 +4,14 @@ use crate::{
     AnalyzeError, AnalyzeResult, ArtifactRequirementCollector, ArtifactRequirementError, Compiler,
     ModuleCheckOptions,
 };
+use destack_artifact::{ArtifactKey, DirResolved};
 use destack_builtin::BuiltinLibraryKind;
 use destack_dir::{
     CaptureTable, Declaration, DeclarationAbstraction, GlobalSymbolId, LocalSymbolId, LocalTypeId,
     Member, NodeType, SymbolTable, SymbolType, Type, TypeTable,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ArtifactKey, DirResolved, Module, ModuleSource, ProfileId};
+use destack_workspace::{Module, ModuleSource, ProfileId};
 use std::collections::{HashMap, HashSet, VecDeque};
 
 impl Compiler {

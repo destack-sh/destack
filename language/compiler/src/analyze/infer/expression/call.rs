@@ -3089,7 +3089,7 @@ impl Compiler {
             class_symbol.module_id,
             ctx.tree,
             ctx.symbols,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
             |view| {
                 // resolve the nominal declaration for the class symbol
                 let class_entry = view.symbols.get_symbol(class_symbol.local_id);

@@ -1,11 +1,11 @@
 use crate::compile::Compiler;
 
-use destack_source::{
-    File, FileContent, FileKey, FileVersion, LanguageType, ModuleId, ModuleVersion,
-};
-use destack_workspace::{
+use destack_artifact::{
     ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ArtifactKey, Ast,
     AstImage, hash_bytes,
+};
+use destack_source::{
+    File, FileContent, FileKey, FileVersion, LanguageType, ModuleId, ModuleVersion,
 };
 
 use super::{CacheHasher, compiler_version};
@@ -61,9 +61,9 @@ impl Compiler {
     ) -> Option<ArtifactImageHeader> {
         let module = self.program.modules.get(module_id);
         let language_type = match module.loader {
-            destack_workspace::Loader::Destack
-            | destack_workspace::Loader::TypeScript
-            | destack_workspace::Loader::JavaScript => Some(module.language_type),
+            destack_artifact::Loader::Destack
+            | destack_artifact::Loader::TypeScript
+            | destack_artifact::Loader::JavaScript => Some(module.language_type),
             _ => None,
         };
         let file = self.program.files.get(module.file_id);

@@ -106,7 +106,7 @@ impl Compiler {
             ctx.profile,
             symbol.module_id,
             ctx.types,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
             |_, owner_types| {
                 owner_types.symbol_has_associated_comptime_projection_dependencies(symbol)
             },

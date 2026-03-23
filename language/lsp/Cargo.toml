@@ -20,6 +20,7 @@ path = "src/main.rs"
 
 [dependencies]
 # language
+destack_artifact = { workspace = true }
 destack_ast = { workspace = true }
 destack_compiler = { workspace = true }
 destack_dir = { workspace = true }
@@ -31,8 +32,8 @@ destack_lsp_types = { workspace = true }
 destack_parser = { workspace = true }
 destack_resolver = { workspace = true }
 destack_source = { workspace = true }
-destack_workspace = { workspace = true }
 destack_service = { workspace = true }
+destack_workspace = { workspace = true }
 
 # general
 dashmap = { workspace = true }

@@ -72,7 +72,7 @@ impl Compiler {
                         ctx.profile,
                         symbol_id.module_id,
                         ctx.symbols,
-                        destack_workspace::ArtifactKey::dir_declared,
+                        destack_artifact::ArtifactKey::dir_declared,
                         |_, owner_symbols| {
                             owner_symbols
                                 .get_symbol(symbol_id.local_id)

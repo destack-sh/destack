@@ -1,10 +1,11 @@
 use crate::Compiler;
+use destack_artifact::Ast;
 use destack_ast::{self as ast};
 use destack_dir::{
     Annotation, AnnotationPosition, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
     ModuleBinding, NodeTree, NodeType, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
-use destack_workspace::{Ast, Module};
+use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {

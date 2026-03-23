@@ -240,7 +240,7 @@ impl Compiler {
             ctx.profile,
             symbol.module_id,
             ctx.types,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
             |owner_module, owner_types| {
                 let target_id = owner_types.get_alias_target_type_id(symbol)?;
                 let target_ty = owner_types.get_type(target_id);

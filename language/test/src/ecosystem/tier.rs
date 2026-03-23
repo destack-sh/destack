@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 
+use destack_artifact::ArtifactKey;
 use destack_compiler::{Compiler, CompilerOptions, StatsSnapshot};
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
@@ -12,8 +13,8 @@ use destack_source::{
     Uri, glob,
 };
 use destack_workspace::{
-    ArtifactKey, FormatterOptions, LinterOptions, PackageJson, Program, Session, TsConfig,
-    TsConfigId, select_manifest_entry_paths,
+    FormatterOptions, LinterOptions, PackageJson, Program, Session, TsConfig, TsConfigId,
+    select_manifest_entry_paths,
 };
 
 use crate::core::print::color;

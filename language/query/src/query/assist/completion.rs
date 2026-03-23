@@ -19,7 +19,8 @@ use crate::common::{
     search_importable_symbols_for_program, visible_symbols, with_ast_context_for_module,
 };
 use crate::format::format_local_type;
-use destack_workspace::{ArtifactRegistry, Loader, Session};
+use destack_artifact::{ArtifactStore, Loader};
+use destack_workspace::Session;
 
 use crate::TokenAtCursor;
 
@@ -423,7 +424,7 @@ fn format_symbol_type_detail(session: &Session, symbol_id: dir::GlobalSymbolId) 
     // format the type using the symbol's module type table
     Some(format_local_type(
         type_id,
-        &ctx.program.artifacts,
+        &ctx.artifacts,
         types,
         &session.modules,
         &session.strings,
@@ -433,7 +434,7 @@ fn format_symbol_type_detail(session: &Session, symbol_id: dir::GlobalSymbolId) 
 /// Build a completion item from a resolved member entry.
 fn completion_for_member(
     session: &Session,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     member: MemberInfo,
     types: Option<&dir::TypeTable>,
 ) -> Option<Completion> {
@@ -1008,7 +1009,7 @@ fn complete_members(
 
         for member in members {
             let Some(completion) =
-                completion_for_member(session, &ctx.program.artifacts, member, Some(types))
+                completion_for_member(session, &ctx.artifacts, member, Some(types))
             else {
                 continue;
             };
@@ -1025,8 +1026,7 @@ fn complete_members(
     if let Some(symbol_id) = receiver_symbol {
         let members = resolve_reference_members(symbol_id, session, current_module_id);
         for member in members {
-            let Some(completion) =
-                completion_for_member(session, &ctx.program.artifacts, member, None)
+            let Some(completion) = completion_for_member(session, &ctx.artifacts, member, None)
             else {
                 continue;
             };
@@ -1082,7 +1082,7 @@ fn complete_members(
                             if let Some(type_id) = type_id {
                                 let type_text = format_local_type(
                                     type_id,
-                                    &ctx.program.artifacts,
+                                    &ctx.artifacts,
                                     types,
                                     &session.modules,
                                     &session.strings,
@@ -1118,8 +1118,7 @@ fn complete_members(
             .collect();
 
         for member in extension_members {
-            let Some(completion) =
-                completion_for_member(session, &ctx.program.artifacts, member, None)
+            let Some(completion) = completion_for_member(session, &ctx.artifacts, member, None)
             else {
                 continue;
             };
@@ -1175,6 +1174,7 @@ fn complete_members_from_ast_type(
         // collect declaration members for the target type
         let mut results = Vec::new();
         let mut seen = HashSet::new();
+
         for declaration_id in ast.tree().iter_nodes::<ast::Declaration>() {
             let declaration = ast.tree().get(declaration_id);
             let declaration_name = declaration
@@ -1185,6 +1185,7 @@ fn complete_members_from_ast_type(
                 .as_ref()
                 .is_some_and(|name| name == type_name);
 
+            // collect members from matching declarations and extensions
             match declaration {
                 ast::Declaration::Struct { members, .. }
                 | ast::Declaration::Class { members, .. }
@@ -1193,7 +1194,7 @@ fn complete_members_from_ast_type(
                 {
                     collect_member_completions_from_ast(
                         ast.ast,
-                        members,
+                        &members,
                         false,
                         &mut seen,
                         &mut results,
@@ -1205,6 +1206,7 @@ fn complete_members_from_ast_type(
                     for field_id in fields {
                         let field = ast.tree().get(*field_id);
                         let name = ast.strings().get(field.name.string()).to_string();
+
                         if seen.insert(name.clone()) {
                             results.push(
                                 Completion::new(name, CompletionKind::EnumMember)
@@ -1212,9 +1214,10 @@ fn complete_members_from_ast_type(
                             );
                         }
                     }
+
                     collect_member_completions_from_ast(
                         ast.ast,
-                        members,
+                        &members,
                         true,
                         &mut seen,
                         &mut results,
@@ -1226,10 +1229,11 @@ fn complete_members_from_ast_type(
                     ..
                 } => {
                     let extension_target = ast_type_name_from_expression_ast(ast.ast, *target_type);
+
                     if extension_target.as_deref() == Some(type_name) {
                         collect_member_completions_from_ast(
                             ast.ast,
-                            members,
+                            &members,
                             false,
                             &mut seen,
                             &mut results,
@@ -1247,7 +1251,7 @@ fn complete_members_from_ast_type(
 
 /// Collect member completions from AST member lists.
 fn collect_member_completions_from_ast(
-    ast: &destack_workspace::Ast,
+    ast: &destack_artifact::Ast,
     members: &[ast::LocalNodeId<ast::Member>],
     enum_receiver: bool,
     seen: &mut HashSet<String>,
@@ -1288,7 +1292,7 @@ fn collect_member_completions_from_ast(
 }
 
 /// Resolve a display name for an AST member key.
-fn member_key_name_ast(ast: &destack_workspace::Ast, key: &ast::Key) -> Option<String> {
+fn member_key_name_ast(ast: &destack_artifact::Ast, key: &ast::Key) -> Option<String> {
     match key {
         ast::Key::Name(name) => Some(ast.strings.get(name.string()).to_string()),
         ast::Key::Private(name) => Some(format!("#{}", &*ast.strings.get(*name))),
@@ -1299,7 +1303,7 @@ fn member_key_name_ast(ast: &destack_workspace::Ast, key: &ast::Key) -> Option<S
 
 /// Resolve a source-derived type name from an AST expression.
 fn ast_type_name_from_expression_ast(
-    ast: &destack_workspace::Ast,
+    ast: &destack_artifact::Ast,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<String> {
     let expression = ast.tree.get(expression_id);
@@ -1374,7 +1378,7 @@ fn complete_object_literal(
             if let Some(member_type_id) = member.type_id {
                 let type_text = format_local_type(
                     member_type_id,
-                    &ctx.program.artifacts,
+                    &ctx.artifacts,
                     types,
                     &session.modules,
                     &session.strings,
@@ -1463,7 +1467,7 @@ fn complete_types(
             return symbol.ty;
         }
 
-        let Some(dir) = ctx.program.artifacts.dir_base(canonical_id.module_id) else {
+        let Some(dir) = ctx.artifacts.dir_base(canonical_id.module_id) else {
             return symbol.ty;
         };
         let canonical_symbol = dir.symbols.get_symbol(canonical_id.local_id);

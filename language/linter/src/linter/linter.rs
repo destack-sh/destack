@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::fmt;
 use std::sync::{Arc, LazyLock};
 
+use destack_artifact::ArtifactStore;
 use destack_source::{Diagnostic, FileId, ModuleId, PackageId};
 use destack_workspace::{LintPreset, LinterOptions, ProfileId, Program};
 
@@ -60,12 +61,14 @@ impl std::error::Error for LinterError {}
 pub struct Linter {
     /// The program being linted.
     program: Arc<Program>,
+    /// The live artifact store for the program.
+    artifacts: Arc<ArtifactStore>,
 }
 
 impl Linter {
     /// Create a linter for one program.
-    pub fn new(program: Arc<Program>) -> Self {
-        Self { program }
+    pub fn new(program: Arc<Program>, artifacts: Arc<ArtifactStore>) -> Self {
+        Self { program, artifacts }
     }
 
     /// Reuse immutable lint runners by preset to avoid per-module rule allocation.
@@ -150,17 +153,12 @@ impl Linter {
         }
 
         // require the AST product
-        if self.program.artifacts.ast(module_id).is_none() {
+        if self.artifacts.ast(module_id).is_none() {
             return Err(LinterError::MissingAst { module_id });
         }
 
         // require the analyzed DIR product
-        if self
-            .program
-            .artifacts
-            .dir_analyzed(module_id, profile_id)
-            .is_none()
-        {
+        if self.artifacts.dir_analyzed(module_id, profile_id).is_none() {
             return Err(LinterError::MissingDir {
                 module_id,
                 profile_id,
@@ -195,6 +193,7 @@ impl Linter {
         let runner = Self::cached_runner_for_options(&options);
         let ast_diagnostics = runner.lint_module_by_id(
             self.program.clone(),
+            self.artifacts.clone(),
             module_id,
             profile_id,
             &options,
@@ -202,6 +201,7 @@ impl Linter {
         );
         let dir_diagnostics = runner.lint_module_by_id(
             self.program.clone(),
+            self.artifacts.clone(),
             module_id,
             profile_id,
             &options,
@@ -248,7 +248,8 @@ impl Linter {
 
         // run program scoped AST rules once
         let runner = Self::cached_runner_for_options(&options);
-        let ast_diagnostics = runner.lint_program_ast(self.program.clone(), &options);
+        let ast_diagnostics =
+            runner.lint_program_ast(self.program.clone(), self.artifacts.clone(), &options);
         self.insert_lint_diagnostics(ast_diagnostics);
 
         // run program scoped DIR rules once per active profile
@@ -258,8 +259,12 @@ impl Linter {
             profiles.insert(profile_id);
         }
         for profile_id in profiles {
-            let dir_diagnostics =
-                runner.lint_program_dir(self.program.clone(), profile_id, &options);
+            let dir_diagnostics = runner.lint_program_dir(
+                self.program.clone(),
+                self.artifacts.clone(),
+                profile_id,
+                &options,
+            );
             self.insert_lint_diagnostics(dir_diagnostics);
         }
 

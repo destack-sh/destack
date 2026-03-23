@@ -110,6 +110,7 @@ fn collect_private_mutable_field_candidates(
             let global_symbol_id = symbol.into_global(ctx.module_id());
             let canonical_symbol_id = canonical_symbol_for(
                 &ctx.program,
+                &ctx.artifacts,
                 ctx.profile_id,
                 ctx.module_id(),
                 ctx.symbols,
@@ -152,6 +153,7 @@ fn collect_mutated_candidate_fields(
 ) -> HashSet<dir::GlobalSymbolId> {
     let assigned_symbols = collect_assigned_symbol_usage(
         &ctx.program,
+        &ctx.artifacts,
         ctx.profile_id,
         ctx.module_id(),
         ctx.tree,

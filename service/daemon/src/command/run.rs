@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
+use destack_artifact::{ArtifactKey, ArtifactStore};
 use destack_compiler::Compiler;
 use destack_runtime::runtime::World;
 use destack_runtime::runtime::engine::Entry;
 use destack_source::ModuleId;
 use destack_vm::{ExecutionMode, Isolate, IsolateOptions, TrustPolicy as VmTrustPolicy, Value};
-use destack_workspace::{
-    ArtifactKey, DebugMode, Program, RuntimeOptionsJson, Target, TargetId, TrustPolicy,
-};
+use destack_workspace::{DebugMode, Program, RuntimeOptionsJson, Target, TargetId, TrustPolicy};
 use serde::{Deserialize, Serialize};
 
 use super::common::CommandInput;
@@ -112,6 +111,7 @@ impl CommandContext<'_> {
         let entry_name = options.entry.clone().unwrap_or_else(|| "main".to_string());
         let run_result = match run_entry_module(
             &self.program,
+            self.compiler.artifacts.as_ref(),
             &inputs,
             entry_module,
             &target_id,
@@ -188,6 +188,7 @@ fn enqueue_lower_tasks(
 #[allow(clippy::too_many_arguments)]
 fn run_entry_module(
     program: &Arc<Program>,
+    artifacts: &ArtifactStore,
     inputs: &[CommandInput],
     entry_module: ModuleId,
     target_id: &TargetId,
@@ -205,6 +206,7 @@ fn run_entry_module(
 
     let isolate = create_isolate(
         program,
+        artifacts,
         entry_module,
         target_id,
         isolate_options_for_target(&target),
@@ -348,17 +350,17 @@ fn target_for_id(program: &Arc<Program>, target_id: &TargetId) -> Option<Target>
 /// Create a VM isolate from the module MIR.
 fn create_isolate(
     program: &Program,
+    artifacts: &ArtifactStore,
     module_id: ModuleId,
     target_id: &TargetId,
     options: IsolateOptions,
 ) -> super::CommandResult<Isolate> {
     let profile_id = program.default_profile_id_for_module(module_id);
-    let (tree, strings) = if let Some(mir) = program
-        .artifacts
-        .mir_optimized(module_id, profile_id, target_id)
+    let (tree, strings) = if let Some(mir) =
+        artifacts.mir_optimized(module_id, profile_id, target_id)
     {
         (mir.tree.clone(), mir.strings.clone().into_immutable())
-    } else if let Some(mir) = program.artifacts.mir_base(module_id, profile_id, target_id) {
+    } else if let Some(mir) = artifacts.mir_base(module_id, profile_id, target_id) {
         (mir.tree.clone(), mir.strings.clone().into_immutable())
     } else {
         return Err(format!("missing MIR for target {target_id:?} (run requires lowering)").into());

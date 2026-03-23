@@ -1,10 +1,11 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use destack_artifact::{DirAnalyzed, DirDeclared, WellKnownIntrinsics};
 use destack_core::{StringId, StringPool};
 use destack_dir::{AnchoredGlobalNodeId, Expression, GlobalSymbolId, IfCondition, LocalNodeId};
 use destack_source::ModuleId;
-use destack_workspace::{DirAnalyzed, DirDeclared, ProfileId, Program, WellKnownIntrinsics};
+use destack_workspace::{ProfileId, Program};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{ArtifactRequirementError, Compiler, LowerError, LowerResult};
@@ -197,7 +198,6 @@ impl<'a> FunctionLowerer<'a> {
     ) -> Option<Arc<DirDeclared>> {
         self.env
             .compiler
-            .program
             .artifacts
             .dir_declared(module_id, self.env.profile)
     }

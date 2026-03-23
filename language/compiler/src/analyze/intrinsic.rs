@@ -1,6 +1,7 @@
+use destack_artifact::{ArtifactKey, IntrinsicEnvironment, WellKnownIntrinsics};
 use destack_dir::{AnchoredGlobalNodeId, Symbol, SymbolType};
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactKey, IntrinsicEnvironment, ProfileId, WellKnownIntrinsics};
+use destack_workspace::ProfileId;
 
 use crate::analyze::common::{CanonicalSymbolMode, ModuleSymbolView};
 use crate::{
@@ -12,8 +13,7 @@ impl Compiler {
     pub(crate) fn process_intrinsic_environment(&self, profile: ProfileId) -> AnalyzeResult<()> {
         let environment = self.resolve_intrinsic_environment(profile)?;
         let artifact_key = ArtifactKey::intrinsic_environment(profile);
-        self.program
-            .artifacts
+        self.artifacts
             .publish(artifact_key.clone(), environment.clone());
         self.store_artifact(&artifact_key, &environment, |compiler, environment| {
             compiler.store_intrinsic_environment_image(profile, environment.clone())
@@ -41,7 +41,7 @@ impl Compiler {
         }
 
         // reuse the committed environment when available
-        if let Some(environment) = self.program.artifacts.intrinsic_environment(profile) {
+        if let Some(environment) = self.artifacts.intrinsic_environment(profile) {
             return Ok(environment.as_ref().clone());
         }
 

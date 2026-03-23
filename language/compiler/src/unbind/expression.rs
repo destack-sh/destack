@@ -664,7 +664,7 @@ impl Compiler {
                 dir::Expression::Type { value } => {
                     // read the most advanced published type table for the active profile
                     let ast_expression_id =
-                        if let Some(dir) = self.program.artifacts.dir_patched(module.id, context.profile) {
+                        if let Some(dir) = self.artifacts.dir_patched(module.id, context.profile) {
                             self.unbind_type_expression(
                                 module,
                                 *value,
@@ -676,7 +676,7 @@ impl Compiler {
                                 context,
                             )
                         } else if let Some(dir) =
-                            self.program.artifacts.dir_elaborated(module.id, context.profile)
+                            self.artifacts.dir_elaborated(module.id, context.profile)
                         {
                             self.unbind_type_expression(
                                 module,
@@ -689,7 +689,7 @@ impl Compiler {
                                 context,
                             )
                         } else if let Some(dir) =
-                            self.program.artifacts.dir_analyzed(module.id, context.profile)
+                            self.artifacts.dir_analyzed(module.id, context.profile)
                         {
                             self.unbind_type_expression(
                                 module,
@@ -702,7 +702,7 @@ impl Compiler {
                                 context,
                             )
                         } else if let Some(dir) =
-                            self.program.artifacts.dir_interface(module.id, context.profile)
+                            self.artifacts.dir_interface(module.id, context.profile)
                         {
                             self.unbind_type_expression(
                                 module,
@@ -715,7 +715,7 @@ impl Compiler {
                                 context,
                             )
                         } else if let Some(dir) =
-                            self.program.artifacts.dir_declared(module.id, context.profile)
+                            self.artifacts.dir_declared(module.id, context.profile)
                         {
                             self.unbind_type_expression(
                                 module,

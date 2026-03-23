@@ -295,17 +295,16 @@ impl Compiler {
                 let decorator_map = self.collect_well_known_decorators(profile_id);
 
                 // load the module and mir tree
-                let source_id = if let Some(mir) = self.program.artifacts.mir_optimized(
+                let source_id = if let Some(mir) = self.artifacts.mir_optimized(
                     anchored.module_id(),
                     profile_id,
                     &anchored.target_id,
                 ) {
                     mir.tree.get_source(anchored.local_id().id)
-                } else if let Some(mir) = self.program.artifacts.mir_base(
-                    anchored.module_id(),
-                    profile_id,
-                    &anchored.target_id,
-                ) {
+                } else if let Some(mir) =
+                    self.artifacts
+                        .mir_base(anchored.module_id(), profile_id, &anchored.target_id)
+                {
                     mir.tree.get_source(anchored.local_id().id)
                 } else {
                     None

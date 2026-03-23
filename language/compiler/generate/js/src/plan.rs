@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 
+use destack_artifact::EmitFormat;
 use destack_source::{FileType, Uri};
-use destack_workspace::{EmitFormat, Module, Target};
+use destack_workspace::{Module, Target};
 
 use crate::CodegenJsError;
 

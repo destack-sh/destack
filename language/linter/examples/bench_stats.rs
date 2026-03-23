@@ -6,11 +6,10 @@ use std::time::{Duration, Instant};
 
 use clap::{Parser, ValueEnum};
 
+use destack_artifact::{ArtifactKey, CacheStore, MemoryCacheStore};
 use destack_compiler::{Compiler, CompilerOptions};
 use destack_source::{MemoryFileSystem, ModuleId};
-use destack_workspace::{
-    ArtifactKey, CacheStore, LintPreset, LinterOptions, MemoryCacheStore, Program, Session,
-};
+use destack_workspace::{LintPreset, LinterOptions, Program, Session};
 
 use destack_linter::{LintLevel, LintPerformanceReport, LintRunner};
 

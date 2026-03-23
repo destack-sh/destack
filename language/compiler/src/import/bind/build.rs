@@ -3,7 +3,8 @@ use destack_dir::{
     SymbolSpaceOrder, SymbolTable, TypeTable,
 };
 
-use destack_workspace::{Ast, Module};
+use destack_artifact::Ast;
+use destack_workspace::Module;
 
 use crate::Compiler;
 

@@ -1545,9 +1545,10 @@ impl CallSite {
 
 #[cfg(test)]
 mod tests {
+    use destack_artifact::MirBase;
     use destack_mir::parse::ParseOptions;
     use destack_source::{FileId, ModuleId, ModuleVersion, PackageId};
-    use destack_workspace::{MirBase, TargetId};
+    use destack_workspace::TargetId;
 
     use crate::optimize::common::tests::TestProgram;
     use crate::optimize::{

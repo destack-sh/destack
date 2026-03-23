@@ -1,10 +1,11 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use destack_artifact::DirElaborated;
 use destack_ast::StringId;
 use destack_dir::AnchoredGlobalNodeId;
 use destack_source::ModuleId;
-use destack_workspace::{CheckFailurePolicy, DirElaborated, Module, ProfileId, TargetId};
+use destack_workspace::{CheckFailurePolicy, Module, ProfileId, TargetId};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::lower::{
@@ -188,7 +189,7 @@ impl<'a> ComptimeLowerer<'a> {
         let type_lowerer = TypeLowerer::new(
             &mut builder,
             pointer_bytes,
-            compiler.program.artifacts.clone(),
+            compiler.artifacts.clone(),
             compiler.program.modules.clone(),
             compiler.program.packages.clone(),
             vector_symbol,
@@ -259,7 +260,6 @@ impl<'a> ComptimeLowerer<'a> {
         // resolve cached intrinsic bindings when available
         let well_known_intrinsics = self
             .compiler
-            .program
             .artifacts
             .intrinsic_environment(self.profile)
             .map(|environment| environment.intrinsics.clone());

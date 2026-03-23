@@ -1,6 +1,7 @@
 use crate::{ArtifactRequirementError, Compiler};
+use destack_artifact::ModuleGraph;
 use destack_source::ModuleId;
-use destack_workspace::{ModuleGraph, ProfileId};
+use destack_workspace::ProfileId;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -65,7 +66,7 @@ impl Compiler {
 
             self.require_dir_resolved(pending_module_id, profile)?;
 
-            if let Some(graph) = self.program.artifacts.module_graph(profile) {
+            if let Some(graph) = self.artifacts.module_graph(profile) {
                 for dependency_module_id in graph.dependencies_for(pending_module_id) {
                     if !visited.contains(&dependency_module_id) {
                         pending.push_back(dependency_module_id);
@@ -97,7 +98,7 @@ impl Compiler {
         &self,
         profile: ProfileId,
     ) -> Option<Arc<InterfaceComponentGraphIndex>> {
-        let graph = self.program.artifacts.module_graph(profile)?;
+        let graph = self.artifacts.module_graph(profile)?;
 
         // reuse the cached index while the current graph snapshot is unchanged
         if let Some(entry) = self.index.interface_component_graph_indices.get(&profile)
@@ -372,7 +373,7 @@ impl Compiler {
 mod tests {
     use std::sync::Arc;
 
-    use destack_workspace::ArtifactKey;
+    use destack_artifact::ArtifactKey;
 
     use crate::TestProgram;
 
@@ -399,14 +400,14 @@ export const value = 1;
 
         // publish a distinct module graph snapshot for the same profile
         let mut graph = test
-            .program
+            .compiler
             .artifacts
             .module_graph(profile)
             .unwrap_or_else(|| panic!("expected module graph for test profile"))
             .as_ref()
             .clone();
         graph.update_module(module_id, test.module_version(module_id), vec![module_id]);
-        test.program
+        test.compiler
             .artifacts
             .publish(ArtifactKey::module_graph(profile), graph);
 

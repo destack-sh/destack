@@ -3,15 +3,13 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use destack_artifact::{ArtifactKey, EmitFormat, MemoryCacheStore};
 use destack_compiler::{Compiler, CompilerOptions, ImportError, ResolveMode};
 use destack_parser::{Parser, ParserSettings};
 use destack_source::{
     DiagnosticSeverity, File, FileId, FileType, LanguageType, MemoryFileSystem, ModuleId, Uri,
 };
-use destack_workspace::{
-    ArtifactKey, Destack, DestackOptions, EmitFormat, MemoryCacheStore, Program, Session, TargetId,
-    TargetOptions,
-};
+use destack_workspace::{Destack, DestackOptions, Program, Session, TargetId, TargetOptions};
 
 /// Outcome of checking a file for conformance testing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

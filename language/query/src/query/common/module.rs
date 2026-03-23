@@ -1,6 +1,7 @@
 use destack_dir as dir;
 use std::sync::Arc;
 
+use destack_artifact::ArtifactStore;
 use destack_dir::{GlobalSymbolId, StaticKey, SymbolType};
 use destack_source::{FileId, ModuleId};
 use destack_workspace::{Program, Session};
@@ -39,6 +40,11 @@ pub fn program_for_file(session: &Session, file_id: FileId) -> Arc<Program> {
 /// Resolve the program that owns a module.
 pub fn program_for_module(session: &Session, module: &destack_workspace::Module) -> Arc<Program> {
     program_for_file(session, module.file_id)
+}
+
+/// Resolve the artifact store for one program.
+pub fn artifacts_for_program(session: &Session, program: &Program) -> Option<Arc<ArtifactStore>> {
+    session.get_artifacts_for_program(program)
 }
 
 /// Resolve the importable module path for a module.

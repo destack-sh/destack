@@ -1,5 +1,6 @@
+use destack_artifact::{ArtifactKey, DirElaborated};
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactKey, DirElaborated, ProfileId};
+use destack_workspace::ProfileId;
 
 use crate::timing::tags;
 use crate::{
@@ -105,8 +106,7 @@ impl Compiler {
         // publish the elaborated artifact with transformed runtime tables
         let payload = DirElaborated::from_analyzed_with(analyzed.as_ref(), tree, symbols, types);
 
-        self.program
-            .artifacts
+        self.artifacts
             .publish(artifact_key.clone(), payload.clone());
         self.store_artifact(&artifact_key, &payload, |compiler, payload| {
             compiler.store_dir_elaborated_image(module, profile, payload)

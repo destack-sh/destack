@@ -3,7 +3,8 @@ use destack_ast::{self as ast, StringId};
 use destack_dir::Path;
 use smallvec::SmallVec;
 
-use destack_workspace::{Ast, Module};
+use destack_artifact::Ast;
+use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {

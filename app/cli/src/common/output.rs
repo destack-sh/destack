@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 use clap::{Args, ValueEnum};
+use destack_artifact::{EmitFormat, Platform, Runtime};
 use destack_workspace::{
-    DebugInfoLevel, EmitArtifact, EmitFormat, LinkMode, LtoMode, OptimizeLevel, Platform, Runtime,
-    StripLevel, Target,
+    DebugInfoLevel, EmitArtifact, LinkMode, LtoMode, OptimizeLevel, StripLevel, Target,
 };
 
 /// Emit format for CLI (maps to workspace EmitFormat).

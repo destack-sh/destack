@@ -126,6 +126,7 @@ impl<'a, 'b> DeprecatedUsageVisitor<'a, 'b> {
     ) -> Option<Option<String>> {
         expression_decorator_map(
             &self.ctx.program,
+            &self.ctx.artifacts,
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,

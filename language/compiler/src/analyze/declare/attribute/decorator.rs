@@ -358,7 +358,7 @@ impl Compiler {
             view.profile,
             target_symbol.module_id,
             view.symbols,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
             |owner_module, owner_symbols| {
                 let symbol_entry = owner_symbols.get_symbol(target_symbol.local_id);
                 let group_id = symbol_entry.merge_group?;

@@ -6,7 +6,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 
-use destack_workspace::{Session, hash_bytes};
+use destack_artifact::hash_bytes;
+use destack_workspace::Session;
 
 use crate::protocol::{MIN_PROTOCOL_VERSION, PROTOCOL_VERSION, ProtocolRange};
 

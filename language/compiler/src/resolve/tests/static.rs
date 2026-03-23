@@ -1,5 +1,5 @@
+use destack_artifact::{EmitFormat, Platform};
 use destack_dir::{FunctionMode, Member};
-use destack_workspace::{EmitFormat, Platform};
 
 use crate::tests::TestProgram;
 

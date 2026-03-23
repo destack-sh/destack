@@ -1,6 +1,7 @@
+use destack_artifact::ArtifactKey;
 use destack_dir::{GlobalSymbolId, Lineage, SymbolType, Type, TypeTable};
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactKey, Module, ProfileId};
+use destack_workspace::{Module, ProfileId};
 
 use crate::analyze::common::{AnalyzeIndex, TypeContext};
 use crate::{ArtifactRequirementError, Compiler};

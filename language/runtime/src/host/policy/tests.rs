@@ -1,6 +1,6 @@
 use super::{HostRequestRequirement, request_requirements};
 use crate::host::core::HostRequest;
-use destack_workspace::Platform;
+use destack_artifact::Platform;
 
 /// Resolve no declaration requirements for document picker requests.
 #[test]

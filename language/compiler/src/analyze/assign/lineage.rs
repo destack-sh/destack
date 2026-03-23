@@ -101,7 +101,7 @@ impl Compiler {
             ctx.profile,
             symbol,
             ctx.types,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
         )
         .ok()
         .flatten()

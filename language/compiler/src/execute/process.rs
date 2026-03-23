@@ -1,8 +1,9 @@
 use crate::timing::tags;
 use crate::{ArtifactRequirementError, Compiler, ExecuteError, ExecuteResult};
 
+use destack_artifact::ArtifactKey;
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactKey, ProfileId};
+use destack_workspace::ProfileId;
 
 impl Compiler {
     /// Build patched DIR for one module.
@@ -36,8 +37,7 @@ impl Compiler {
             self.stats.record_execute();
         }
 
-        self.program
-            .artifacts
+        self.artifacts
             .publish(artifact_key.clone(), payload.clone());
         self.store_artifact(&artifact_key, &payload, |compiler, payload| {
             compiler.store_dir_patched_image(module, profile, payload)

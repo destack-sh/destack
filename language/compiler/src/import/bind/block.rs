@@ -1,9 +1,10 @@
+use destack_artifact::Ast;
 use destack_ast::{self as ast};
 use destack_dir::{
     Block, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, NodeTree,
     NodeType, ScopeKind, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
-use destack_workspace::{Ast, Module};
+use destack_workspace::Module;
 
 use crate::Compiler;
 

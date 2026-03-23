@@ -60,7 +60,7 @@ impl Compiler {
                     target_symbol.module_id,
                     ctx.tree,
                     ctx.symbols,
-                    destack_workspace::ArtifactKey::dir_declared,
+                    destack_artifact::ArtifactKey::dir_declared,
                     |view| {
                         self.collect_static_parameter_symbols(
                             view.type_view(ctx.types),
@@ -193,7 +193,7 @@ impl Compiler {
             symbol.module_id,
             ctx.tree,
             ctx.symbols,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
             |view| {
                 let symbol_entry = view.symbols.get_symbol(symbol.local_id);
                 if symbol_entry.ty != SymbolType::TypeAlias {

@@ -1,12 +1,13 @@
 use std::collections::VecDeque;
 
+use destack_artifact::DirPrepared;
 use destack_ast::StringId;
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, DependencySource, Expression, GlobalNodeIdAny,
     GlobalSymbolId, LocalNodeId, LocalScopeId, ModuleTarget, NodeTree, StaticKey,
 };
 use destack_source::ModuleId;
-use destack_workspace::{DirPrepared, Module, ProfileId};
+use destack_workspace::{Module, ProfileId};
 use rustc_hash::FxHashMap;
 
 use crate::resolve::dependency::cache::{
@@ -362,7 +363,7 @@ impl Compiler {
         profile: ProfileId,
         tree: &NodeTree,
         item_id: LocalNodeId<DependencyItem>,
-    ) -> ResolveResult<Option<destack_workspace::Loader>> {
+    ) -> ResolveResult<Option<destack_artifact::Loader>> {
         // locate the parent expression node
         let Some(parent_id) = tree.get_parent(item_id.id) else {
             return Ok(None);

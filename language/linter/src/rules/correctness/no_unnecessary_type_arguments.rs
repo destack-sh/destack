@@ -150,6 +150,7 @@ fn static_parameter_defaults_for_symbol(
 ) -> Option<Vec<StaticParameterDefault>> {
     let declaration_id = symbol_primary_declaration_for(
         &ctx.program,
+        &ctx.artifacts,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,
@@ -173,7 +174,6 @@ fn static_parameter_defaults_for_symbol(
 
     // fall back to loading declaration defaults from the owning module
     let module_dir = ctx
-        .program
         .artifacts
         .dir_analyzed(declaration_id.module_id, ctx.profile_id)?;
     let static_parameters =
@@ -311,7 +311,7 @@ fn expression_ast_signature_for_module(
 ) -> Option<Vec<u64>> {
     if module_id == ctx.module_id() {
         let source_id = ctx.tree.get_source(expression_id.id);
-        let ast = ctx.program.artifacts.ast(module_id)?;
+        let ast = ctx.artifacts.ast(module_id)?;
         if ast.tree.get_node_type(source_id) != ast::NodeType::Expression {
             return None;
         }
@@ -326,12 +326,9 @@ fn expression_ast_signature_for_module(
     }
 
     // load the referenced module when the expression comes from another module
-    let module_dir = ctx
-        .program
-        .artifacts
-        .dir_analyzed(module_id, ctx.profile_id)?;
+    let module_dir = ctx.artifacts.dir_analyzed(module_id, ctx.profile_id)?;
     let source_id = module_dir.tree.get_source(expression_id.id);
-    let ast = ctx.program.artifacts.ast(module_id)?;
+    let ast = ctx.artifacts.ast(module_id)?;
     if ast.tree.get_node_type(source_id) != ast::NodeType::Expression {
         return None;
     }

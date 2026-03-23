@@ -4,7 +4,8 @@ use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::ProfileId;
 
-use destack_workspace::{ArtifactRegistry, Module, ModuleRegistry, Package, PackageRegistry};
+use destack_artifact::ArtifactStore;
+use destack_workspace::{Module, ModuleRegistry, Package, PackageRegistry};
 
 const DEFAULT_INT_DISPLAY: &str = "int32";
 const DEFAULT_FLOAT_DISPLAY: &str = "float64";
@@ -16,7 +17,7 @@ const DEFAULT_CHARACTER_DISPLAY: &str = "character";
 /// Format a global type id as a human-readable string.
 pub fn format_global_type(
     ty_id: dir::GlobalTypeId,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     modules: &ModuleRegistry,
     strings: &StringPool,
     profile: ProfileId,
@@ -34,7 +35,7 @@ pub fn format_global_type(
 /// Format a type by its id.
 pub fn format_local_type(
     ty_id: dir::LocalTypeId,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,
@@ -46,7 +47,7 @@ pub fn format_local_type(
 /// Format a type as a human-readable string.
 pub fn format_type(
     ty: &dir::Type,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,
@@ -480,7 +481,7 @@ pub fn format_scalar_literal(scalar: &dir::ScalarLiteral, strings: &StringPool) 
 /// Format a type for inlay hints.
 pub fn format_type_for_inlay_hint(
     ty: &dir::Type,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,
@@ -516,7 +517,7 @@ pub fn widened_scalar_literal_name(value: &dir::ScalarLiteral) -> &'static str {
 pub fn format_type_reference(
     symbol: dir::GlobalSymbolId,
     static_arguments: Option<&[dir::StaticArgument]>,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,
@@ -538,7 +539,7 @@ pub fn format_type_reference(
 /// Get the name of a symbol from any module.
 pub fn format_symbol_name(
     symbol_id: dir::GlobalSymbolId,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     strings: &StringPool,
 ) -> String {
     let Some(dir) = artifacts.dir_base(symbol_id.module_id) else {
@@ -556,7 +557,7 @@ pub fn format_symbol_name(
 /// Get the symbol path for a symbol within its module.
 pub fn format_symbol_path(
     symbol_id: dir::GlobalSymbolId,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     strings: &StringPool,
 ) -> Option<String> {
     // load the module symbols
@@ -602,7 +603,7 @@ pub fn format_symbol_path(
 /// Get the qualified name of a symbol with module prefix.
 pub fn format_symbol_qualified_name(
     symbol_id: dir::GlobalSymbolId,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     modules: &ModuleRegistry,
     packages: &PackageRegistry,
     strings: &StringPool,
@@ -634,7 +635,7 @@ pub fn format_symbol_qualified_name(
 /// Get the qualified name of a unique symbol.
 pub fn format_unique_symbol_qualified_name(
     symbol_id: dir::GlobalSymbolId,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     modules: &ModuleRegistry,
     packages: &PackageRegistry,
     strings: &StringPool,
@@ -714,7 +715,7 @@ pub fn format_symbol_key(key: &dir::SymbolKey, strings: &StringPool) -> String {
 /// Format a StaticArgument.
 pub fn format_static_argument(
     argument: &dir::StaticArgument,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,
@@ -739,7 +740,7 @@ pub fn format_static_argument(
 /// Format a StaticExpression.
 pub fn format_static_expression(
     expression: &dir::StaticExpression,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,
@@ -775,7 +776,7 @@ pub fn format_static_expression(
 fn format_type_unary(
     operator: dir::TypeUnaryOperator,
     right: dir::LocalTypeId,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,
@@ -823,7 +824,7 @@ fn format_type_mapped_modifier_suffix(modifier: dir::TypeModifier) -> &'static s
 
 fn format_type_tuple_element(
     element: &dir::TypeElement,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,
@@ -861,7 +862,7 @@ fn format_path(path: &dir::Path, strings: &StringPool) -> String {
 
 fn format_type_predicate_subject(
     subject: dir::TypePredicateSubject,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     strings: &StringPool,
 ) -> String {
     match subject {
@@ -878,7 +879,7 @@ fn format_type_binary(
     left: dir::LocalTypeId,
     operator: dir::TypeBinaryOperator,
     right: dir::LocalTypeId,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,

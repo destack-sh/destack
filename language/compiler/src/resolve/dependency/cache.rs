@@ -1,10 +1,10 @@
+use destack_artifact::{DirPrepared, ExportedSymbolTable};
 use destack_dir::{
     DependencyItem, DependencyKind, Export, GlobalSymbolId, LocalNodeId, LocalNodeIdAny,
     LocalScopeId, ModuleBindingExports, ModuleTarget, NamespaceExport, NodeTree, StaticKey,
     StringId, SymbolSpace,
 };
 use destack_source::ModuleId;
-use destack_workspace::{DirPrepared, ExportedSymbolTable};
 use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 

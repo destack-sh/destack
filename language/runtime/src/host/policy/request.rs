@@ -1,4 +1,5 @@
-use destack_workspace::{Platform, RuntimeAppPermission};
+use destack_artifact::Platform;
+use destack_workspace::RuntimeAppPermission;
 
 use crate::host::core::HostRequest;
 

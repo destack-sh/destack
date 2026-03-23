@@ -1,7 +1,7 @@
+use destack_artifact::{EmitFormat, Runtime};
 use destack_source::ModuleId;
-use destack_workspace::{EmitFormat, Runtime};
 
-pub(super) use crate::{Compiler, TestProgram, assert_node, assert_string};
+pub(super) use crate::{TestProgram, assert_node, assert_string};
 
 impl TestProgram {
     /// Set the default profile for one module to the given runtime, emit format, and libraries.

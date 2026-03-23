@@ -368,9 +368,8 @@ fn collect_auto_import_actions(
     let exclude_module_id = get_module_by_file_id(session, file).map(|module| module.id);
 
     // scan diagnostics for unresolved symbol codes
-    for program in session.programs.iter() {
+    for program in session.programs() {
         // load diagnostics for the file
-        let program = program.value();
         let diagnostics = program.diagnostic_store.diagnostics_for_file(file);
         for diagnostic in diagnostics {
             // skip diagnostics outside of the requested file
@@ -566,9 +565,8 @@ fn collect_diagnostic_fixes(
     actions: &mut Vec<CodeAction>,
 ) {
     // iterate through all programs to find diagnostics for this file
-    for program in session.programs.iter() {
+    for program in session.programs() {
         // load diagnostics for the file
-        let program = program.value();
         let diagnostics = program.diagnostic_store.diagnostics_for_file(file);
         for diagnostic in diagnostics {
             // skip diagnostics for other files

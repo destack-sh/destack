@@ -1,7 +1,8 @@
+use destack_artifact::WellKnownIntrinsics;
 use destack_dir as dir;
 use destack_dir::GlobalSymbolId;
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, WellKnownIntrinsics};
+use destack_workspace::ProfileId;
 
 use crate::lower::{FunctionLowerer, ModuleLowerer};
 use crate::{ArtifactRequirementError, Compiler, LowerError, LowerResult};

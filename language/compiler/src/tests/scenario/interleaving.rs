@@ -1,7 +1,7 @@
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 
-use destack_workspace::ArtifactKey;
+use destack_artifact::ArtifactKey;
 
 use crate::tests::scenario::{
     CompilerScenario, CompilerScenarioEvent, assert_ast_eq, assert_dir_resolved_eq,
@@ -151,7 +151,7 @@ fn test_source_edit_drops_stale_ast_publish_before_commit() {
 
     // the stale publish should not survive the interleaving
     assert!(!run.compiler().artifact_key_is_available(&artifact_key));
-    assert!(run.program().artifacts.ast(module_id).is_none());
+    assert!(run.compiler().artifacts.ast(module_id).is_none());
 
     // the next rebuild should converge to the fresh result
     main.require_ast();
@@ -217,7 +217,7 @@ export const value: number = dep;
     // the stale dependent publish should not survive the interleaving
     assert!(!run.compiler().artifact_key_is_available(&artifact_key));
     assert!(
-        run.program()
+        run.compiler()
             .artifacts
             .dir_resolved(main_module_id, profile_id)
             .is_none()

@@ -72,6 +72,6 @@ pub use core::{
     HostPermissionEvent, HostPollOutcome, HostPowerMode, HostPowerModeEvent, HostSession,
     HostThermalEvent, HostThermalState, HostWallClockEvent,
 };
-pub use destack_workspace::Platform;
+pub use destack_artifact::Platform;
 #[cfg(windows)]
 pub(crate) use windows::process_ingress_loop;

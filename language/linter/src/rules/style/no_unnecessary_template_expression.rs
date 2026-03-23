@@ -114,6 +114,7 @@ impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
 
         expression_type_or_call_return_type_map(
             &self.ctx.program,
+            &self.ctx.artifacts,
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.tree,

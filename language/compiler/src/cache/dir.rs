@@ -1,12 +1,13 @@
 use crate::compile::Compiler;
 
-use destack_source::{FileContent, ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{
+use destack_artifact::{
     ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ArtifactKey,
     DirAnalyzed, DirAnalyzedImage, DirBase, DirDeclared, DirDeclaredImage, DirElaborated,
     DirElaboratedImage, DirInterface, DirInterfaceImage, DirPatched, DirPatchedImage, DirPrepared,
-    DirPreparedImage, DirResolved, DirResolvedImage, ProfileId, ProfileKey, hash_bytes,
+    DirPreparedImage, DirResolved, DirResolvedImage, ProfileKey, hash_bytes,
 };
+use destack_source::{FileContent, ModuleId, ModuleVersion, ProfileVersion};
+use destack_workspace::ProfileId;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
@@ -40,7 +41,7 @@ impl BaseDirImageContext {
 /// Persistent image context for one profile scoped DIR artifact.
 #[derive(Debug, Clone)]
 struct ProfileDirImageContext {
-    /// The stable profile key for the image.
+    /// The profile key for the image.
     profile_key: ProfileKey,
     /// The profile version used when producing the image.
     profile_version: ProfileVersion,

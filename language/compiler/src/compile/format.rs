@@ -1,3 +1,4 @@
+use destack_artifact::ArtifactStore;
 use destack_builtin::LanguageSymbol;
 use destack_core::StringId;
 use destack_dir::{
@@ -14,14 +15,17 @@ use destack_query::format::{format_global_type, format_symbol_name, format_type}
 /// Trait for formatting types in diagnostic messages. Should not fail.
 pub trait DiagnosticFormat {
     /// Format this value for display in a diagnostic message.
-    fn diagnostic_fmt(&self, program: &Program) -> String;
+    fn diagnostic_fmt(&self, program: &Program, artifacts: &ArtifactStore) -> String;
 }
 
 /// Return the latest published profile order for one global type id lookup.
-fn profiles_for_global_type_id(program: &Program, type_id: GlobalTypeId) -> Vec<ProfileId> {
+fn profiles_for_global_type_id(
+    program: &Program,
+    artifacts: &ArtifactStore,
+    type_id: GlobalTypeId,
+) -> Vec<ProfileId> {
     let default_profile = program.default_profile_id_for_module(type_id.module_id);
-    let mut profiles: Vec<_> = program
-        .artifacts
+    let mut profiles: Vec<_> = artifacts
         .profile_ids_for_module(type_id.module_id)
         .into_iter()
         .collect();
@@ -35,13 +39,14 @@ fn profiles_for_global_type_id(program: &Program, type_id: GlobalTypeId) -> Vec<
 /// Format one type from one published type table.
 fn format_published_global_type(
     program: &Program,
+    artifacts: &ArtifactStore,
     types: &destack_dir::TypeTable,
     type_id: GlobalTypeId,
 ) -> Option<String> {
     let ty = types.get_type_maybe(type_id.local_id)?;
     Some(format_type(
         ty,
-        &program.artifacts,
+        artifacts,
         types,
         &program.modules,
         &program.strings,
@@ -50,41 +55,44 @@ fn format_published_global_type(
 
 impl DiagnosticFormat for GlobalTypeId {
     /// Format one global type id from the latest published state that still contains it.
-    fn diagnostic_fmt(&self, program: &Program) -> String {
+    fn diagnostic_fmt(&self, program: &Program, artifacts: &ArtifactStore) -> String {
         let default_profile = program.default_profile_id_for_module(self.module_id);
-        for profile in profiles_for_global_type_id(program, *self) {
-            if let Some(dir) = program.artifacts.dir_elaborated(self.module_id, profile)
-                && let Some(text) = format_published_global_type(program, &dir.types, *self)
+        for profile in profiles_for_global_type_id(program, artifacts, *self) {
+            if let Some(dir) = artifacts.dir_elaborated(self.module_id, profile)
+                && let Some(text) =
+                    format_published_global_type(program, artifacts, &dir.types, *self)
             {
                 return text;
             }
-            if let Some(dir) = program.artifacts.dir_analyzed(self.module_id, profile)
-                && let Some(text) = format_published_global_type(program, &dir.types, *self)
+            if let Some(dir) = artifacts.dir_analyzed(self.module_id, profile)
+                && let Some(text) =
+                    format_published_global_type(program, artifacts, &dir.types, *self)
             {
                 return text;
             }
-            if let Some(dir) = program.artifacts.dir_interface(self.module_id, profile)
-                && let Some(text) = format_published_global_type(program, &dir.types, *self)
+            if let Some(dir) = artifacts.dir_interface(self.module_id, profile)
+                && let Some(text) =
+                    format_published_global_type(program, artifacts, &dir.types, *self)
             {
                 return text;
             }
-            if let Some(dir) = program.artifacts.dir_declared(self.module_id, profile)
-                && let Some(text) = format_published_global_type(program, &dir.types, *self)
+            if let Some(dir) = artifacts.dir_declared(self.module_id, profile)
+                && let Some(text) =
+                    format_published_global_type(program, artifacts, &dir.types, *self)
             {
                 return text;
             }
         }
 
         // otherwise fall back to artifact-backed formatting
-        let fallback_profile = program
-            .artifacts
+        let fallback_profile = artifacts
             .profile_ids_for_module(self.module_id)
             .into_iter()
             .min_by_key(|profile| profile.0)
             .unwrap_or(default_profile);
         format_global_type(
             *self,
-            &program.artifacts,
+            artifacts,
             &program.modules,
             &program.strings,
             fallback_profile,
@@ -93,7 +101,7 @@ impl DiagnosticFormat for GlobalTypeId {
 }
 
 impl DiagnosticFormat for StringId {
-    fn diagnostic_fmt(&self, program: &Program) -> String {
+    fn diagnostic_fmt(&self, program: &Program, _artifacts: &ArtifactStore) -> String {
         if program.strings.contains(*self) {
             program.strings.get(*self).to_string()
         } else {
@@ -103,13 +111,13 @@ impl DiagnosticFormat for StringId {
 }
 
 impl DiagnosticFormat for StaticKey {
-    fn diagnostic_fmt(&self, program: &Program) -> String {
+    fn diagnostic_fmt(&self, program: &Program, _artifacts: &ArtifactStore) -> String {
         self.debug_string(&program.strings)
     }
 }
 
 impl DiagnosticFormat for ModuleId {
-    fn diagnostic_fmt(&self, program: &Program) -> String {
+    fn diagnostic_fmt(&self, program: &Program, _artifacts: &ArtifactStore) -> String {
         if program.modules.contains(*self) {
             program.modules.get(*self).uri.to_string()
         } else {
@@ -119,14 +127,14 @@ impl DiagnosticFormat for ModuleId {
 }
 
 impl DiagnosticFormat for ModuleStamp {
-    fn diagnostic_fmt(&self, program: &Program) -> String {
-        let module = self.id.diagnostic_fmt(program);
+    fn diagnostic_fmt(&self, program: &Program, artifacts: &ArtifactStore) -> String {
+        let module = self.id.diagnostic_fmt(program, artifacts);
         format!("{module}@{}", self.version)
     }
 }
 
 impl DiagnosticFormat for PackageId {
-    fn diagnostic_fmt(&self, program: &Program) -> String {
+    fn diagnostic_fmt(&self, program: &Program, _artifacts: &ArtifactStore) -> String {
         let package = program.packages.get(*self);
         let package = package.read();
         package.name.clone().unwrap_or_else(|| {
@@ -140,21 +148,21 @@ impl DiagnosticFormat for PackageId {
 }
 
 impl DiagnosticFormat for PackageStamp {
-    fn diagnostic_fmt(&self, program: &Program) -> String {
-        let package = self.id.diagnostic_fmt(program);
+    fn diagnostic_fmt(&self, program: &Program, artifacts: &ArtifactStore) -> String {
+        let package = self.id.diagnostic_fmt(program, artifacts);
         format!("{package}@{}", self.version)
     }
 }
 
 impl DiagnosticFormat for TargetId {
-    fn diagnostic_fmt(&self, program: &Program) -> String {
+    fn diagnostic_fmt(&self, program: &Program, artifacts: &ArtifactStore) -> String {
         // just show target name for brevity (package context is usually clear)
-        self.name.diagnostic_fmt(program)
+        self.name.diagnostic_fmt(program, artifacts)
     }
 }
 
 impl DiagnosticFormat for ProfileId {
-    fn diagnostic_fmt(&self, program: &Program) -> String {
+    fn diagnostic_fmt(&self, program: &Program, _artifacts: &ArtifactStore) -> String {
         let Some(profile) = program.profiles.get(*self) else {
             return format!("#{}", self.0);
         };
@@ -188,38 +196,38 @@ impl DiagnosticFormat for ProfileId {
 }
 
 impl DiagnosticFormat for ProfileStamp {
-    fn diagnostic_fmt(&self, program: &Program) -> String {
-        let profile = self.id.diagnostic_fmt(program);
+    fn diagnostic_fmt(&self, program: &Program, artifacts: &ArtifactStore) -> String {
+        let profile = self.id.diagnostic_fmt(program, artifacts);
         format!("{profile}@{}", self.version)
     }
 }
 
 impl DiagnosticFormat for GlobalNodeIdAny {
-    fn diagnostic_fmt(&self, _program: &Program) -> String {
+    fn diagnostic_fmt(&self, _program: &Program, _artifacts: &ArtifactStore) -> String {
         self.local_id.ty.name().to_string()
     }
 }
 
 impl DiagnosticFormat for dir::AnchoredGlobalNodeId {
-    fn diagnostic_fmt(&self, program: &Program) -> String {
-        self.node_id.diagnostic_fmt(program)
+    fn diagnostic_fmt(&self, program: &Program, artifacts: &ArtifactStore) -> String {
+        self.node_id.diagnostic_fmt(program, artifacts)
     }
 }
 
 impl DiagnosticFormat for mir::AnchoredGlobalNodeId {
-    fn diagnostic_fmt(&self, _program: &Program) -> String {
+    fn diagnostic_fmt(&self, _program: &Program, _artifacts: &ArtifactStore) -> String {
         self.node_id.local_id.ty.name().to_string()
     }
 }
 
 impl DiagnosticFormat for GlobalSymbolId {
-    fn diagnostic_fmt(&self, program: &Program) -> String {
-        format_symbol_name(*self, &program.artifacts, &program.strings)
+    fn diagnostic_fmt(&self, program: &Program, artifacts: &ArtifactStore) -> String {
+        format_symbol_name(*self, artifacts, &program.strings)
     }
 }
 
 impl DiagnosticFormat for Visibility {
-    fn diagnostic_fmt(&self, _program: &Program) -> String {
+    fn diagnostic_fmt(&self, _program: &Program, _artifacts: &ArtifactStore) -> String {
         match self {
             Visibility::Public => "public".to_string(),
             Visibility::Protected => "protected".to_string(),
@@ -229,7 +237,7 @@ impl DiagnosticFormat for Visibility {
 }
 
 impl DiagnosticFormat for FunctionAbstraction {
-    fn diagnostic_fmt(&self, _program: &Program) -> String {
+    fn diagnostic_fmt(&self, _program: &Program, _artifacts: &ArtifactStore) -> String {
         match self {
             FunctionAbstraction::Abstract => "abstract".to_string(),
             FunctionAbstraction::AbstractOverride => "abstract override".to_string(),
@@ -240,13 +248,13 @@ impl DiagnosticFormat for FunctionAbstraction {
 }
 
 impl DiagnosticFormat for Uri {
-    fn diagnostic_fmt(&self, _program: &Program) -> String {
+    fn diagnostic_fmt(&self, _program: &Program, _artifacts: &ArtifactStore) -> String {
         self.to_string()
     }
 }
 
 impl DiagnosticFormat for FileType {
-    fn diagnostic_fmt(&self, _program: &Program) -> String {
+    fn diagnostic_fmt(&self, _program: &Program, _artifacts: &ArtifactStore) -> String {
         // use uppercase for common data formats in error messages
         match self {
             FileType::Json => "JSON".to_string(),
@@ -258,91 +266,94 @@ impl DiagnosticFormat for FileType {
 }
 
 impl DiagnosticFormat for PathBuf {
-    fn diagnostic_fmt(&self, _program: &Program) -> String {
+    fn diagnostic_fmt(&self, _program: &Program, _artifacts: &ArtifactStore) -> String {
         self.display().to_string()
     }
 }
 
 // common wrapper types
 impl<T: DiagnosticFormat> DiagnosticFormat for Option<T> {
-    fn diagnostic_fmt(&self, program: &Program) -> String {
+    fn diagnostic_fmt(&self, program: &Program, artifacts: &ArtifactStore) -> String {
         match self {
-            Some(v) => v.diagnostic_fmt(program),
+            Some(v) => v.diagnostic_fmt(program, artifacts),
             None => "<none>".to_string(),
         }
     }
 }
 
 impl<T: DiagnosticFormat> DiagnosticFormat for Vec<T> {
-    fn diagnostic_fmt(&self, program: &Program) -> String {
-        let formatted: Vec<_> = self.iter().map(|v| v.diagnostic_fmt(program)).collect();
+    fn diagnostic_fmt(&self, program: &Program, artifacts: &ArtifactStore) -> String {
+        let formatted: Vec<_> = self
+            .iter()
+            .map(|v| v.diagnostic_fmt(program, artifacts))
+            .collect();
         format!("[{}]", formatted.join(", "))
     }
 }
 
 // primitive display passthrough
 impl DiagnosticFormat for String {
-    fn diagnostic_fmt(&self, _program: &Program) -> String {
+    fn diagnostic_fmt(&self, _program: &Program, _artifacts: &ArtifactStore) -> String {
         self.clone()
     }
 }
 
 impl DiagnosticFormat for &str {
-    fn diagnostic_fmt(&self, _program: &Program) -> String {
+    fn diagnostic_fmt(&self, _program: &Program, _artifacts: &ArtifactStore) -> String {
         self.to_string()
     }
 }
 
 impl DiagnosticFormat for bool {
-    fn diagnostic_fmt(&self, _program: &Program) -> String {
+    fn diagnostic_fmt(&self, _program: &Program, _artifacts: &ArtifactStore) -> String {
         self.to_string()
     }
 }
 
 impl DiagnosticFormat for u8 {
-    fn diagnostic_fmt(&self, _program: &Program) -> String {
+    fn diagnostic_fmt(&self, _program: &Program, _artifacts: &ArtifactStore) -> String {
         self.to_string()
     }
 }
 
 impl DiagnosticFormat for u16 {
-    fn diagnostic_fmt(&self, _program: &Program) -> String {
+    fn diagnostic_fmt(&self, _program: &Program, _artifacts: &ArtifactStore) -> String {
         self.to_string()
     }
 }
 
 impl DiagnosticFormat for u32 {
-    fn diagnostic_fmt(&self, _program: &Program) -> String {
+    fn diagnostic_fmt(&self, _program: &Program, _artifacts: &ArtifactStore) -> String {
         self.to_string()
     }
 }
 
 impl DiagnosticFormat for u64 {
-    fn diagnostic_fmt(&self, _program: &Program) -> String {
+    fn diagnostic_fmt(&self, _program: &Program, _artifacts: &ArtifactStore) -> String {
         self.to_string()
     }
 }
 
 impl DiagnosticFormat for i32 {
-    fn diagnostic_fmt(&self, _program: &Program) -> String {
+    fn diagnostic_fmt(&self, _program: &Program, _artifacts: &ArtifactStore) -> String {
         self.to_string()
     }
 }
 
 impl DiagnosticFormat for i64 {
-    fn diagnostic_fmt(&self, _program: &Program) -> String {
+    fn diagnostic_fmt(&self, _program: &Program, _artifacts: &ArtifactStore) -> String {
         self.to_string()
     }
 }
 
 impl DiagnosticFormat for usize {
-    fn diagnostic_fmt(&self, _program: &Program) -> String {
+    fn diagnostic_fmt(&self, _program: &Program, _artifacts: &ArtifactStore) -> String {
         self.to_string()
     }
 }
 
 impl DiagnosticFormat for LanguageSymbol {
-    fn diagnostic_fmt(&self, _program: &Program) -> String {
+    fn diagnostic_fmt(&self, _program: &Program, _artifacts: &ArtifactStore) -> String {
         self.to_string()
     }
 }

@@ -465,7 +465,7 @@ impl Compiler {
             .declaration_symbol_id_for_artifact(
                 ctx.module_symbol_view(),
                 symbol,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
             )
             .map_err(AnalyzeError::from)?
         else {
@@ -484,7 +484,7 @@ impl Compiler {
                 ctx.profile,
                 symbol.module_id,
                 ctx.types,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
                 |_, owner_types| {
                     owner_types.symbol_has_unimplemented_associated_requirements(symbol)
                 },
@@ -594,7 +594,7 @@ impl Compiler {
             .declaration_symbol_id_for_artifact(
                 ctx.module_symbol_view(),
                 contract_symbol,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
             )
             .map_err(AnalyzeError::from)?
         else {
@@ -635,7 +635,7 @@ impl Compiler {
                 contract_symbol.module_id,
                 ctx.tree,
                 ctx.symbols,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
                 |view| {
                     let mut requirements = Vec::new();
                     let mut parents = Vec::new();
@@ -765,7 +765,7 @@ impl Compiler {
             .declaration_symbol_id_for_artifact(
                 ctx.module_symbol_view(),
                 contract_symbol,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
             )
             .map_err(AnalyzeError::from)?
         else {
@@ -806,7 +806,7 @@ impl Compiler {
                 contract_symbol.module_id,
                 ctx.tree,
                 ctx.symbols,
-                destack_workspace::ArtifactKey::dir_declared,
+                destack_artifact::ArtifactKey::dir_declared,
                 |view| {
                     let mut requirements = Vec::new();
                     let mut parents = Vec::new();
@@ -997,7 +997,7 @@ impl Compiler {
                 lookup_symbol.module_id,
                 ctx.tree,
                 ctx.symbols,
-                destack_workspace::ArtifactKey::dir_interface,
+                destack_artifact::ArtifactKey::dir_interface,
                 |view| {
                     self.query_static_member_symbol(
                         view.module,
@@ -1266,7 +1266,7 @@ impl Compiler {
             owner_module_id,
             tree,
             symbols,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
             |view| {
                 self.query_declared_direct_member_symbol_in_view(
                     view,
@@ -1305,7 +1305,7 @@ impl Compiler {
                     extension_symbol.module_id,
                     ctx.tree,
                     ctx.symbols,
-                    destack_workspace::ArtifactKey::dir_declared,
+                    destack_artifact::ArtifactKey::dir_declared,
                     |view| {
                         self.query_declared_direct_member_symbol_in_view(
                             view,
@@ -1469,7 +1469,7 @@ impl Compiler {
             view.profile,
             member_symbol.module_id,
             view.symbols,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
             |owner_module, owner_symbols| {
                 // resolve the member entry and its scope owner
                 let member_entry = owner_symbols.get_symbol(member_symbol.local_id);
@@ -1511,7 +1511,7 @@ impl Compiler {
             symbol.module_id,
             ctx.tree,
             ctx.symbols,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
             |view| {
                 let symbol_entry = view.symbols.get_symbol(symbol.local_id);
                 let primary_declaration = symbol_entry.primary_declaration?;

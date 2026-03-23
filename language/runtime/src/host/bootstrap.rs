@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use destack_workspace::{Platform, PlatformHostOptions, RuntimeOptions};
+use destack_artifact::Platform;
+use destack_workspace::{PlatformHostOptions, RuntimeOptions};
 
 #[cfg(target_os = "android")]
 use crate::host::android::AndroidHost;

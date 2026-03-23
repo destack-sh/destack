@@ -1,11 +1,12 @@
 use crate::Compiler;
 use crate::analyze::evaluate_numeric_literal;
+use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
     DynamicKey, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, Name, NodeTree,
     SymbolSpaceOrder, SymbolTable, TypeTable,
 };
-use destack_workspace::{Ast, Module};
+use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {

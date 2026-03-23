@@ -329,12 +329,20 @@ impl LanguageService {
         };
 
         // invalidate file content and module state
-        let invalidation = program.invalidate_file(file_id, update).map_err(|error| {
-            LanguageServiceError::InvalidatePathFailed {
+        let Some(artifacts) = self.session.get_artifacts_for_program(&program) else {
+            return Err(LanguageServiceError::Internal {
+                detail: format!(
+                    "missing artifact store for workspace root {}",
+                    program.cwd.display()
+                ),
+            });
+        };
+        let invalidation = program
+            .invalidate_file(artifacts.as_ref(), file_id, update)
+            .map_err(|error| LanguageServiceError::InvalidatePathFailed {
                 path: path.to_path_buf(),
                 detail: error.to_string(),
-            }
-        })?;
+            })?;
 
         // refresh config state when config files changed
         let mut messages = Vec::new();
@@ -407,7 +415,18 @@ impl LanguageService {
                 }
             };
 
-            let invalidation = match program.invalidate_file(file_id, update) {
+            let Some(artifacts) = self.session.get_artifacts_for_program(program) else {
+                messages.push(warning_message(
+                    "rescan_invalidation_failed",
+                    &format!(
+                        "watch: missing artifact store for {}",
+                        program.cwd.display()
+                    ),
+                ));
+                continue;
+            };
+
+            let invalidation = match program.invalidate_file(artifacts.as_ref(), file_id, update) {
                 Ok(invalidation) => invalidation,
                 Err(error) => {
                     messages.push(warning_message(

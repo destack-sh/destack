@@ -1,6 +1,7 @@
 use crate::{AnalyzeResult, Compiler};
+use destack_artifact::DirInterface;
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{DirInterface, ProfileId};
+use destack_workspace::ProfileId;
 use std::sync::Arc;
 
 impl Compiler {

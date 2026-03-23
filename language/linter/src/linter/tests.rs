@@ -3,6 +3,10 @@ use std::env::current_dir;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Once};
 
+use destack_artifact::{
+    ArtifactKey, EmitFormat, EnvSnapshot, MemoryCacheStore, Platform, ProfileFlags, ProfileKey,
+    Runtime,
+};
 use destack_ast::NodeParentIndex;
 use destack_compiler::{Compiler, CompilerOptions};
 use destack_fir::format as fir_format;
@@ -14,10 +18,7 @@ use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, Edit, File, FileId, FileType,
     LanguageType, MemoryFileSystem, ModuleId, PrintOptions, Uri, print_diagnostics, print_diff,
 };
-use destack_workspace::{
-    ArtifactKey, EmitFormat, EnvSnapshot, LintCategory, LintSeverity, LinterOptions,
-    MemoryCacheStore, Platform, ProfileFlags, ProfileId, ProfileKey, Program, Runtime, Session,
-};
+use destack_workspace::{LintCategory, LintSeverity, LinterOptions, ProfileId, Program, Session};
 use parking_lot::Mutex;
 
 use crate::{

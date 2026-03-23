@@ -194,7 +194,7 @@ impl Compiler {
                     view.profile,
                     current_symbol.module_id,
                     view.symbols,
-                    destack_workspace::ArtifactKey::dir_declared,
+                    destack_artifact::ArtifactKey::dir_declared,
                     |owner_module, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
                         (
@@ -1382,7 +1382,7 @@ impl Compiler {
             owner_module_id,
             extension_symbol.module_id,
             profile,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
         )
         .map_err(AnalyzeError::from)?;
         let snapshot = self

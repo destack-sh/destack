@@ -7,6 +7,11 @@ use std::sync::{Arc, LazyLock, Mutex, mpsc};
 use std::thread;
 use std::time::Duration;
 
+use destack_artifact::{
+    ArtifactKey, CacheStore, DirAnalyzed, DirBase, DirDeclared, DirElaborated, DirInterface,
+    DirPatched, DirPrepared, DirResolved, DiskCacheStore, EmitFormat, ExportedSymbolTable,
+    MemoryCacheStore,
+};
 use destack_ast::NodeParentIndex;
 use destack_core::ImmutableStringPool;
 use destack_dir::{
@@ -27,9 +32,7 @@ use destack_source::{
 };
 use destack_vm::{Heap, Isolate, IsolateOptions, MemoryContext, SharedSpace, Value};
 use destack_workspace::{
-    ArtifactKey, CacheMode, CacheStore, Destack, DestackJson, DestackOptions, DirAnalyzed, DirBase,
-    DirDeclared, DirElaborated, DirInterface, DirPatched, DirPrepared, DirResolved, DiskCacheStore,
-    EmitFormat, ExportedSymbolTable, MemoryCacheStore, Module, ProfileId, Program, Session, Target,
+    CacheMode, Destack, DestackJson, DestackOptions, Module, ProfileId, Program, Session, Target,
     TargetId,
 };
 use serde_json::json;
@@ -292,7 +295,7 @@ impl TestProgram {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> DirDeclared {
-        self.program
+        self.compiler
             .artifacts
             .dir_declared(module_id, profile)
             .map(|dir| dir.as_ref().clone())
@@ -305,18 +308,18 @@ impl TestProgram {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> Option<DirPatched> {
-        if let Some(dir) = self.program.artifacts.dir_patched(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_patched(module_id, profile) {
             return Some(dir.as_ref().clone());
         }
 
-        if let Some(dir) = self.program.artifacts.dir_elaborated(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_elaborated(module_id, profile) {
             return Some(DirPatched::from_elaborated_with(
                 dir.as_ref(),
                 dir.tree.as_ref().clone(),
             ));
         }
 
-        if let Some(dir) = self.program.artifacts.dir_analyzed(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_analyzed(module_id, profile) {
             let elaborated = DirElaborated::from_analyzed_with(
                 dir.as_ref(),
                 dir.tree.as_ref().clone(),
@@ -329,9 +332,9 @@ impl TestProgram {
             ));
         }
 
-        if let Some(dir) = self.program.artifacts.dir_interface(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_interface(module_id, profile) {
             let declared = self
-                .program
+                .compiler
                 .artifacts
                 .dir_declared(module_id, profile)
                 .unwrap_or_else(|| panic!("missing declared dir for module {module_id:?}"));
@@ -353,9 +356,9 @@ impl TestProgram {
             ));
         }
 
-        if let Some(dir) = self.program.artifacts.dir_declared(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_declared(module_id, profile) {
             let resolved = self
-                .program
+                .compiler
                 .artifacts
                 .dir_resolved(module_id, profile)
                 .unwrap_or_else(|| panic!("missing resolved dir for module {module_id:?}"));
@@ -379,7 +382,7 @@ impl TestProgram {
             ));
         }
 
-        if let Some(dir) = self.program.artifacts.dir_resolved(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_resolved(module_id, profile) {
             let declared = DirDeclared::from_resolved_with(
                 dir.as_ref(),
                 dir.symbols.as_ref().clone(),
@@ -405,7 +408,7 @@ impl TestProgram {
             ));
         }
 
-        if let Some(dir) = self.program.artifacts.dir_prepared(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_prepared(module_id, profile) {
             let resolved = DirResolved::from_prepared_with(
                 dir.as_ref(),
                 dir.tree.as_ref().clone(),
@@ -441,7 +444,7 @@ impl TestProgram {
             ));
         }
 
-        self.program.artifacts.dir_base(module_id).map(|dir| {
+        self.compiler.artifacts.dir_base(module_id).map(|dir| {
             let prepared = DirPrepared::from_base_with(
                 dir.as_ref(),
                 profile,
@@ -525,35 +528,35 @@ impl TestProgram {
 
     /// Clone the latest published DIR tree for one module and profile.
     pub(crate) fn artifact_tree(&self, module_id: ModuleId, profile: ProfileId) -> NodeTree {
-        if let Some(dir) = self.program.artifacts.dir_patched(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_patched(module_id, profile) {
             return dir.tree.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_elaborated(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_elaborated(module_id, profile) {
             return dir.tree.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_analyzed(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_analyzed(module_id, profile) {
             return dir.tree.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_interface(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_interface(module_id, profile) {
             return dir.tree.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_declared(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_declared(module_id, profile) {
             return dir.tree.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_resolved(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_resolved(module_id, profile) {
             return dir.tree.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_prepared(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_prepared(module_id, profile) {
             return dir.tree.as_ref().clone();
         }
 
-        self.program
+        self.compiler
             .artifacts
             .dir_base(module_id)
             .map(|dir| dir.tree.as_ref().clone())
@@ -562,35 +565,35 @@ impl TestProgram {
 
     /// Clone the latest published DIR symbols for one module and profile.
     pub(crate) fn artifact_symbols(&self, module_id: ModuleId, profile: ProfileId) -> SymbolTable {
-        if let Some(dir) = self.program.artifacts.dir_patched(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_patched(module_id, profile) {
             return dir.symbols.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_elaborated(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_elaborated(module_id, profile) {
             return dir.symbols.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_analyzed(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_analyzed(module_id, profile) {
             return dir.symbols.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_interface(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_interface(module_id, profile) {
             return dir.symbols.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_declared(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_declared(module_id, profile) {
             return dir.symbols.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_resolved(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_resolved(module_id, profile) {
             return dir.symbols.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_prepared(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_prepared(module_id, profile) {
             return dir.symbols.as_ref().clone();
         }
 
-        self.program
+        self.compiler
             .artifacts
             .dir_base(module_id)
             .map(|dir| dir.symbols.as_ref().clone())
@@ -599,35 +602,35 @@ impl TestProgram {
 
     /// Clone the latest published DIR types for one module and profile.
     pub(crate) fn artifact_types(&self, module_id: ModuleId, profile: ProfileId) -> TypeTable {
-        if let Some(dir) = self.program.artifacts.dir_patched(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_patched(module_id, profile) {
             return dir.types.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_elaborated(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_elaborated(module_id, profile) {
             return dir.types.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_analyzed(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_analyzed(module_id, profile) {
             return dir.types.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_interface(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_interface(module_id, profile) {
             return dir.types.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_declared(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_declared(module_id, profile) {
             return dir.types.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_resolved(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_resolved(module_id, profile) {
             return dir.types.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_prepared(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_prepared(module_id, profile) {
             return dir.types.as_ref().clone();
         }
 
-        self.program
+        self.compiler
             .artifacts
             .dir_base(module_id)
             .map(|dir| dir.types.as_ref().clone())
@@ -640,35 +643,35 @@ impl TestProgram {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> Vec<LocalNodeId<Expression>> {
-        if let Some(dir) = self.program.artifacts.dir_patched(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_patched(module_id, profile) {
             return dir.roots.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_elaborated(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_elaborated(module_id, profile) {
             return dir.roots.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_analyzed(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_analyzed(module_id, profile) {
             return dir.roots.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_interface(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_interface(module_id, profile) {
             return dir.roots.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_declared(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_declared(module_id, profile) {
             return dir.roots.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_resolved(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_resolved(module_id, profile) {
             return dir.roots.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_prepared(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_prepared(module_id, profile) {
             return dir.roots.as_ref().clone();
         }
 
-        self.program
+        self.compiler
             .artifacts
             .dir_base(module_id)
             .map(|dir| dir.roots.as_ref().clone())
@@ -681,29 +684,29 @@ impl TestProgram {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> CaptureTable {
-        if let Some(dir) = self.program.artifacts.dir_patched(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_patched(module_id, profile) {
             return dir.captures.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_elaborated(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_elaborated(module_id, profile) {
             return dir.captures.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_analyzed(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_analyzed(module_id, profile) {
             return dir.captures.as_ref().clone();
         }
 
         if self
-            .program
+            .compiler
             .artifacts
             .dir_interface(module_id, profile)
             .is_some()
-            && let Some(dir) = self.program.artifacts.dir_declared(module_id, profile)
+            && let Some(dir) = self.compiler.artifacts.dir_declared(module_id, profile)
         {
             return dir.captures.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_declared(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_declared(module_id, profile) {
             return dir.captures.as_ref().clone();
         }
 
@@ -716,35 +719,35 @@ impl TestProgram {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> LocalScopeId {
-        if let Some(dir) = self.program.artifacts.dir_patched(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_patched(module_id, profile) {
             return dir.namespace_scope;
         }
 
-        if let Some(dir) = self.program.artifacts.dir_elaborated(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_elaborated(module_id, profile) {
             return dir.namespace_scope;
         }
 
-        if let Some(dir) = self.program.artifacts.dir_analyzed(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_analyzed(module_id, profile) {
             return dir.namespace_scope;
         }
 
-        if let Some(dir) = self.program.artifacts.dir_interface(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_interface(module_id, profile) {
             return dir.namespace_scope;
         }
 
-        if let Some(dir) = self.program.artifacts.dir_declared(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_declared(module_id, profile) {
             return dir.namespace_scope;
         }
 
-        if let Some(dir) = self.program.artifacts.dir_resolved(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_resolved(module_id, profile) {
             return dir.namespace_scope;
         }
 
-        if let Some(dir) = self.program.artifacts.dir_prepared(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_prepared(module_id, profile) {
             return dir.namespace_scope;
         }
 
-        self.program
+        self.compiler
             .artifacts
             .dir_base(module_id)
             .map(|dir| dir.namespace_scope)
@@ -757,35 +760,35 @@ impl TestProgram {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> LocalNodeIdAny {
-        if let Some(dir) = self.program.artifacts.dir_patched(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_patched(module_id, profile) {
             return dir.anchor_node;
         }
 
-        if let Some(dir) = self.program.artifacts.dir_elaborated(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_elaborated(module_id, profile) {
             return dir.anchor_node;
         }
 
-        if let Some(dir) = self.program.artifacts.dir_analyzed(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_analyzed(module_id, profile) {
             return dir.anchor_node;
         }
 
-        if let Some(dir) = self.program.artifacts.dir_interface(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_interface(module_id, profile) {
             return dir.anchor_node;
         }
 
-        if let Some(dir) = self.program.artifacts.dir_declared(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_declared(module_id, profile) {
             return dir.anchor_node;
         }
 
-        if let Some(dir) = self.program.artifacts.dir_resolved(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_resolved(module_id, profile) {
             return dir.anchor_node;
         }
 
-        if let Some(dir) = self.program.artifacts.dir_prepared(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_prepared(module_id, profile) {
             return dir.anchor_node;
         }
 
-        self.program
+        self.compiler
             .artifacts
             .dir_base(module_id)
             .map(|dir| dir.anchor_node)
@@ -798,15 +801,15 @@ impl TestProgram {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> ExportedSymbolTable {
-        if let Some(dir) = self.program.artifacts.dir_interface(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_interface(module_id, profile) {
             return dir.exported_symbols.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_resolved(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_resolved(module_id, profile) {
             return dir.exported_symbols.as_ref().clone();
         }
 
-        if let Some(dir) = self.program.artifacts.dir_prepared(module_id, profile) {
+        if let Some(dir) = self.compiler.artifacts.dir_prepared(module_id, profile) {
             return dir.exported_symbols.as_ref().clone();
         }
 
@@ -817,7 +820,7 @@ impl TestProgram {
     pub(crate) fn dir_resolved(&self, module_id: ModuleId) -> DirResolved {
         let profile = self.default_profile_id(module_id);
         let dir = self
-            .program
+            .compiler
             .artifacts
             .dir_resolved(module_id, profile)
             .unwrap_or_else(|| panic!("missing resolved dir for module {module_id:?}"));
@@ -828,7 +831,7 @@ impl TestProgram {
     /// Return the base DIR artifact for one module.
     pub(crate) fn dir_base(&self, module_id: ModuleId) -> DirBase {
         let dir = self
-            .program
+            .compiler
             .artifacts
             .dir_base(module_id)
             .unwrap_or_else(|| panic!("missing base dir for module {module_id:?}"));
@@ -840,7 +843,7 @@ impl TestProgram {
     pub(crate) fn dir_declared(&self, module_id: ModuleId) -> DirDeclared {
         let profile = self.default_profile_id(module_id);
         let dir = self
-            .program
+            .compiler
             .artifacts
             .dir_declared(module_id, profile)
             .unwrap_or_else(|| panic!("missing declared dir for module {module_id:?}"));
@@ -856,7 +859,7 @@ impl TestProgram {
         target_id: &TargetId,
     ) -> (mir::NodeTree, ImmutableStringPool) {
         if let Some(mir) = self
-            .program
+            .compiler
             .artifacts
             .mir_optimized(module_id, profile, target_id)
         {
@@ -864,7 +867,7 @@ impl TestProgram {
         }
 
         let mir = self
-            .program
+            .compiler
             .artifacts
             .mir_base(module_id, profile, target_id)
             .unwrap_or_else(|| panic!("missing artifact mir for module {module_id:?}"));
@@ -1207,7 +1210,7 @@ impl TestProgram {
         self.enqueue(ArtifactKey::dir_analyzed(module, profile));
         self.compile();
 
-        let linter = Linter::new(self.program.clone());
+        let linter = Linter::new(self.program.clone(), self.compiler.artifacts.clone());
         linter
             .lint_module(module, profile)
             .unwrap_or_else(|error| panic!("failed to lint module {module:?}: {error}"));
@@ -1404,7 +1407,9 @@ impl TestProgram {
                     .task_handles()
                     .into_iter()
                     .map(|handle| {
-                        let description = handle.artifact_key.trace_args(&self.program);
+                        let description = handle
+                            .artifact_key
+                            .trace_args(&self.program, &self.compiler.artifacts);
                         format!(
                             "  {:?} {:?} {} yields={} final_requirements={:?} last_outcome={:?}",
                             handle.id,

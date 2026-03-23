@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use destack_artifact::ArtifactStore;
 use destack_ast::{StringId, StringPool};
 use destack_dir::AnchoredGlobalNodeId;
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactRegistry, ModuleRegistry, PackageRegistry};
+use destack_workspace::{ModuleRegistry, PackageRegistry};
 use {destack_dir as dir, destack_mir as mir};
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, StructLayout, TypeLayoutPolicy};
@@ -28,7 +29,7 @@ pub(crate) enum TypeCacheEntry {
 #[derive(Debug)]
 pub(crate) struct TypeLowerer {
     /// Access to committed artifact snapshots for qualified names.
-    pub(super) artifacts: Arc<ArtifactRegistry>,
+    pub(super) artifacts: Arc<ArtifactStore>,
     /// Access to module metadata for qualified names.
     pub(super) modules: Arc<ModuleRegistry>,
     /// Access to package metadata for qualified names.
@@ -79,7 +80,7 @@ impl TypeLowerer {
     pub(crate) fn new(
         builder: &mut mir::ModuleBuilder,
         pointer_bytes: u8,
-        artifacts: Arc<ArtifactRegistry>,
+        artifacts: Arc<ArtifactStore>,
         modules: Arc<ModuleRegistry>,
         packages: Arc<PackageRegistry>,
         vector_symbol: Option<dir::GlobalSymbolId>,

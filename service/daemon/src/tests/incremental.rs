@@ -1,10 +1,11 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use destack_artifact::MemoryCacheStore;
 use destack_compiler::CompilerOptions;
 use destack_query as query;
 use destack_source::{FileContent, FileSystem, TemporaryPhysicalFileSystem};
-use destack_workspace::{MemoryCacheStore, Session};
+use destack_workspace::Session;
 
 use crate::Daemon;
 use crate::tests::TestDaemon;
@@ -314,8 +315,12 @@ fn test_daemon_update_rebuilds_module_graph() {
     );
 
     let profile_id = program.default_profile_id_for_module(module_b);
+    let artifacts = test
+        .session
+        .get_artifacts_for_program(program.as_ref())
+        .expect("expected artifact store for program");
     assert!(
-        program.artifacts.module_graph(profile_id).is_some(),
+        artifacts.module_graph(profile_id).is_some(),
         "expected module graph to be rebuilt"
     );
 }

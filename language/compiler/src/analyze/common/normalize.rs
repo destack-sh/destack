@@ -1,12 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
+use destack_artifact::ArtifactKey;
 use destack_dir::{
     GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType, NormalizationMode,
     StaticArgument, StaticParameterKind, Symbol, SymbolSpace, SymbolTable, SymbolType, Type,
     TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeTable, TypeUnaryOperator,
     WellKnownSymbol,
 };
-use destack_workspace::{ArtifactKey, Module, ProfileId};
+use destack_workspace::{Module, ProfileId};
 
 use super::{CanonicalSymbolMode, ModuleSymbolView, RelationMode, TypeContext, TypeRewriteCache};
 use crate::timing::tags;
@@ -25,7 +26,7 @@ impl Compiler {
         self.normalize_reference_symbol_id_for_artifact(
             view,
             symbol,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
         )
     }
 
@@ -1459,7 +1460,7 @@ impl Compiler {
             symbol.module_id,
             tree,
             symbols,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
             |view| {
                 let symbol_entry = view.symbols.get_symbol(symbol.local_id);
 

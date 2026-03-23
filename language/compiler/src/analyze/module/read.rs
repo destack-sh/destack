@@ -1,11 +1,12 @@
 use destack_dir::{NodeTree, SymbolTable, TypeTable};
 use std::sync::Arc;
 
-use destack_source::ModuleId;
-use destack_workspace::{
+use destack_artifact::{
     ArtifactKey, DirAnalyzed, DirBase, DirDeclared, DirElaborated, DirInterface, DirPatched,
-    DirPrepared, DirResolved, Module, ProfileId,
+    DirPrepared, DirResolved,
 };
+use destack_source::ModuleId;
+use destack_workspace::{Module, ProfileId};
 
 use crate::analyze::common::AnalyzeIndex;
 use crate::{
@@ -16,7 +17,7 @@ use crate::{
 impl Compiler {
     /// Read one committed base DIR artifact when available.
     pub(crate) fn artifact_dir_base(&self, module_id: ModuleId) -> Option<Arc<DirBase>> {
-        self.program.artifacts.dir_base(module_id)
+        self.artifacts.dir_base(module_id)
     }
 
     /// Build one failed requirement set for one missing committed artifact.
@@ -133,7 +134,7 @@ impl Compiler {
     ) -> Result<Arc<DirPrepared>, ArtifactRequirementError> {
         self.require_dir_prepared(module_id, profile)?;
 
-        let Some(dir) = self.program.artifacts.dir_prepared(module_id, profile) else {
+        let Some(dir) = self.artifacts.dir_prepared(module_id, profile) else {
             return Err(ArtifactRequirementError::Failed {
                 requirement: self
                     .missing_artifact_requirement(ArtifactKey::dir_prepared(module_id, profile)),
@@ -165,7 +166,7 @@ impl Compiler {
     ) -> Result<Arc<DirResolved>, ArtifactRequirementError> {
         self.require_dir_resolved(module_id, profile)?;
 
-        let Some(dir) = self.program.artifacts.dir_resolved(module_id, profile) else {
+        let Some(dir) = self.artifacts.dir_resolved(module_id, profile) else {
             return Err(ArtifactRequirementError::Failed {
                 requirement: self
                     .missing_artifact_requirement(ArtifactKey::dir_resolved(module_id, profile)),
@@ -183,7 +184,7 @@ impl Compiler {
     ) -> Result<Arc<DirDeclared>, ArtifactRequirementError> {
         self.require_dir_declared(module_id, profile)?;
 
-        let Some(dir) = self.program.artifacts.dir_declared(module_id, profile) else {
+        let Some(dir) = self.artifacts.dir_declared(module_id, profile) else {
             return Err(ArtifactRequirementError::Failed {
                 requirement: self
                     .missing_artifact_requirement(ArtifactKey::dir_declared(module_id, profile)),
@@ -218,7 +219,7 @@ impl Compiler {
     ) -> Result<Arc<DirInterface>, ArtifactRequirementError> {
         self.require_dir_interface(module_id, profile)?;
 
-        let Some(dir) = self.program.artifacts.dir_interface(module_id, profile) else {
+        let Some(dir) = self.artifacts.dir_interface(module_id, profile) else {
             return Err(ArtifactRequirementError::Failed {
                 requirement: self
                     .missing_artifact_requirement(ArtifactKey::dir_interface(module_id, profile)),
@@ -236,7 +237,7 @@ impl Compiler {
     ) -> Result<Arc<DirAnalyzed>, ArtifactRequirementError> {
         self.require_dir_analyzed(module_id, profile)?;
 
-        let Some(dir) = self.program.artifacts.dir_analyzed(module_id, profile) else {
+        let Some(dir) = self.artifacts.dir_analyzed(module_id, profile) else {
             return Err(ArtifactRequirementError::Failed {
                 requirement: self
                     .missing_artifact_requirement(ArtifactKey::dir_analyzed(module_id, profile)),
@@ -254,7 +255,7 @@ impl Compiler {
     ) -> Result<Arc<DirElaborated>, ArtifactRequirementError> {
         self.require_dir_elaborated(module_id, profile)?;
 
-        let Some(dir) = self.program.artifacts.dir_elaborated(module_id, profile) else {
+        let Some(dir) = self.artifacts.dir_elaborated(module_id, profile) else {
             return Err(ArtifactRequirementError::Failed {
                 requirement: self
                     .missing_artifact_requirement(ArtifactKey::dir_elaborated(module_id, profile)),
@@ -272,7 +273,7 @@ impl Compiler {
     ) -> Result<Arc<DirPatched>, ArtifactRequirementError> {
         self.require_dir_patched(module_id, profile)?;
 
-        let Some(dir) = self.program.artifacts.dir_patched(module_id, profile) else {
+        let Some(dir) = self.artifacts.dir_patched(module_id, profile) else {
             return Err(ArtifactRequirementError::Failed {
                 requirement: self
                     .missing_artifact_requirement(ArtifactKey::dir_patched(module_id, profile)),

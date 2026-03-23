@@ -1,6 +1,6 @@
+use destack_artifact::EmitFormat;
 use destack_builtin::LanguageSymbol;
 use destack_dir as dir;
-use destack_workspace::EmitFormat;
 use dir::{
     Argument, BinaryOperator, Declarator, Expression, IfCondition, IfKind, LocalNodeId, Mutability,
     NodeType, Property, ScopeKind, SymbolBinding, SymbolKind, SymbolSpace, SymbolType, Type,

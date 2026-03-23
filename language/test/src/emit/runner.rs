@@ -2,9 +2,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_artifact::ArtifactKey;
 use destack_compiler::{Compiler, CompilerOptions};
 use destack_source::{File, FileSystem, FileType, PhysicalFileSystem, Uri};
-use destack_workspace::{ArtifactKey, Destack, Session, Target, TargetId};
+use destack_workspace::{Destack, Session, Target, TargetId};
 
 use crate::core::{
     Case, CaseResult, RunContext, RunOptions, Runner, Suite, check_diagnostics,

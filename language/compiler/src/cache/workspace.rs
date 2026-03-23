@@ -85,7 +85,8 @@ mod tests {
         hash_workspace_config,
     };
 
-    use crate::{CacheHasher, Compiler, CompilerOptions};
+    use crate::cache::CacheHasher;
+    use crate::{Compiler, CompilerOptions};
 
     use super::compiler_version;
 

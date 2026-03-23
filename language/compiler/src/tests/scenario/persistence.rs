@@ -49,7 +49,7 @@ fn test_reuses_language_environment_across_fresh_scenario_sessions() {
         .run_to_completion(|compiler| compiler.process_language_environment(profile_id))
         .unwrap_or_else(|error| panic!("failed to persist language environment: {error:?}"));
     let expected = first
-        .program()
+        .compiler()
         .artifacts
         .language_environment(profile_id)
         .unwrap_or_else(|| panic!("expected published language environment"))
@@ -101,7 +101,7 @@ export const value: number = dep;
     let module_id = main.module_id();
     let profile_id = first.program().default_profile_id_for_module(module_id);
     let expected = first
-        .program()
+        .compiler()
         .artifacts
         .module_graph(profile_id)
         .unwrap_or_else(|| panic!("expected published module graph"))
@@ -278,7 +278,7 @@ fn test_library_environment_image_tracks_library_source_content() {
 
     // perturb one selected library module
     let environment = run
-        .program()
+        .compiler()
         .artifacts
         .library_environment(profile_id)
         .unwrap_or_else(|| panic!("expected published library environment"));

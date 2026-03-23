@@ -3,14 +3,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_artifact::{EmitFormat, EnvSnapshot, Platform, ProfileFlags, ProfileKey, Runtime};
 use destack_compiler::{
     ArtifactRequirementCollector, ArtifactRequirementError, Compiler, CompilerOptions,
 };
 use destack_source::DiagnosticSeverity;
-use destack_workspace::{
-    EmitFormat, EnvSnapshot, Platform, ProfileFlags, ProfileId, ProfileKey, Program, Runtime,
-    Session,
-};
+use destack_workspace::{ProfileId, Program, Session};
 
 use crate::analyze::{
     BindingCatalog, BindingEntry, BindingType, ConstantCatalog, ConstantEntry,

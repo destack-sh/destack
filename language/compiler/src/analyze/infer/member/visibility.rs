@@ -81,7 +81,7 @@ impl Compiler {
             member_symbol.module_id,
             ctx.tree,
             ctx.symbols,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
             |view| self.member_visibility_context_for_symbol_in_tree(view, member_symbol),
         )
         .map_err(AnalyzeError::from)
@@ -264,7 +264,7 @@ impl Compiler {
                     owner_symbol.module_id,
                     ctx.tree,
                     ctx.symbols,
-                    destack_workspace::ArtifactKey::dir_declared,
+                    destack_artifact::ArtifactKey::dir_declared,
                     |view| {
                         let owner_entry = view.symbols.get_symbol(owner_symbol.local_id);
                         let declaration_id = owner_entry.primary_declaration?.local_id;
@@ -337,7 +337,7 @@ impl Compiler {
                     ctx.profile,
                     owner_symbol.module_id,
                     ctx.types,
-                    destack_workspace::ArtifactKey::dir_declared,
+                    destack_artifact::ArtifactKey::dir_declared,
                     |_, owner_types| {
                         owner_types
                             .get_lineage_for_symbol(owner_symbol)

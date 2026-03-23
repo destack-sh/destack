@@ -1224,6 +1224,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_artifact"
+version = "0.55.4"
+dependencies = [
+ "dashmap",
+ "destack_ast",
+ "destack_builtin",
+ "destack_core",
+ "destack_dir",
+ "destack_mir",
+ "destack_source",
+ "filetime",
+ "fs2",
+ "indexmap",
+ "parking_lot",
+ "postcard",
+ "rustc-hash 2.1.1",
+ "serde",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
 name = "destack_ast"
 version = "0.55.4"
 dependencies = [
@@ -1263,6 +1285,7 @@ dependencies = [
  "clap",
  "clap_complete",
  "console",
+ "destack_artifact",
  "destack_ast",
  "destack_codegen_js",
  "destack_compiler",
@@ -1296,6 +1319,7 @@ name = "destack_codegen_js"
 version = "0.55.4"
 dependencies = [
  "dashmap",
+ "destack_artifact",
  "destack_ast",
  "destack_codegen_lib",
  "destack_core",
@@ -1314,6 +1338,7 @@ name = "destack_codegen_lib"
 version = "0.55.4"
 dependencies = [
  "dashmap",
+ "destack_artifact",
  "destack_ast",
  "destack_dir",
  "destack_fir",
@@ -1335,6 +1360,7 @@ dependencies = [
  "cranelift-native",
  "cranelift-object",
  "dashmap",
+ "destack_artifact",
  "destack_ast",
  "destack_codegen_lib",
  "destack_core",
@@ -1359,6 +1385,7 @@ dependencies = [
  "criterion",
  "crossbeam-deque",
  "dashmap",
+ "destack_artifact",
  "destack_ast",
  "destack_builtin",
  "destack_codegen_js",
@@ -1418,6 +1445,7 @@ dependencies = [
  "crossbeam-channel",
  "crossbeam-deque",
  "dashmap",
+ "destack_artifact",
  "destack_ast",
  "destack_compiler",
  "destack_dir",
@@ -1479,6 +1507,7 @@ name = "destack_formatter"
 version = "0.55.4"
 dependencies = [
  "clap",
+ "destack_artifact",
  "destack_ast",
  "destack_core",
  "destack_fir",
@@ -1504,6 +1533,7 @@ dependencies = [
 name = "destack_json"
 version = "0.55.4"
 dependencies = [
+ "destack_artifact",
  "destack_fir",
  "destack_source",
  "destack_workspace",
@@ -1516,6 +1546,7 @@ version = "0.55.4"
 dependencies = [
  "aho-corasick",
  "clap",
+ "destack_artifact",
  "destack_ast",
  "destack_builtin",
  "destack_compiler",
@@ -1549,6 +1580,7 @@ name = "destack_lsp"
 version = "0.55.4"
 dependencies = [
  "dashmap",
+ "destack_artifact",
  "destack_ast",
  "destack_compiler",
  "destack_dir",
@@ -1654,6 +1686,7 @@ dependencies = [
 name = "destack_query"
 version = "0.55.4"
 dependencies = [
+ "destack_artifact",
  "destack_ast",
  "destack_core",
  "destack_dir",
@@ -1669,6 +1702,7 @@ name = "destack_resolver"
 version = "0.55.4"
 dependencies = [
  "cfg-if",
+ "destack_artifact",
  "destack_ast",
  "destack_dir",
  "destack_parser",
@@ -1694,6 +1728,7 @@ dependencies = [
  "base64",
  "block2",
  "core-foundation-sys",
+ "destack_artifact",
  "destack_ast",
  "destack_builtin",
  "destack_compiler",
@@ -1765,6 +1800,7 @@ name = "destack_service"
 version = "0.55.4"
 dependencies = [
  "dashmap",
+ "destack_artifact",
  "destack_compiler",
  "destack_query",
  "destack_resolver",
@@ -1801,6 +1837,7 @@ name = "destack_test"
 version = "0.55.4"
 dependencies = [
  "clap",
+ "destack_artifact",
  "destack_ast",
  "destack_codegen_js",
  "destack_codegen_lib",
@@ -1882,6 +1919,7 @@ name = "destack_workspace"
 version = "0.55.4"
 dependencies = [
  "dashmap",
+ "destack_artifact",
  "destack_ast",
  "destack_builtin",
  "destack_core",

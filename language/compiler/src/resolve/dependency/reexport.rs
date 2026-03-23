@@ -1,3 +1,4 @@
+use destack_artifact::DirPrepared;
 use destack_ast::StringId;
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, DependencyMode, Export, ExportKind,
@@ -5,7 +6,7 @@ use destack_dir::{
     NodeTree, StaticKey, SymbolSpace, SymbolSpaceOrder,
 };
 use destack_source::ModuleId;
-use destack_workspace::{DirPrepared, Module, ProfileId};
+use destack_workspace::{Module, ProfileId};
 use indexmap::IndexMap;
 
 use crate::resolve::dependency::cache::{

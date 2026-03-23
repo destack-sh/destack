@@ -265,7 +265,7 @@ impl Compiler {
             view.profile,
             member_symbol.module_id,
             view.symbols,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
             |owner_module, owner_symbols| {
                 let member_entry = owner_symbols.get_symbol(member_symbol.local_id);
                 let scope = owner_symbols.get_scope_by_id(member_entry.scope.0);

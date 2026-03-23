@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
+use destack_artifact::{ArtifactStore, WellKnownSymbols};
 use destack_ast::StringId;
 use destack_dir::{self as dir, WellKnownSymbol};
-use destack_workspace::{LintSeverity, LinterOptions, ProfileId, Program, WellKnownSymbols};
+use destack_workspace::{LintSeverity, LinterOptions, ProfileId, Program};
 
 use crate::{LintDiagnostic, LintMeta, LintRequirement};
 
@@ -10,6 +11,8 @@ use crate::{LintDiagnostic, LintMeta, LintRequirement};
 pub struct LintProgramAstContext {
     /// The program being linted.
     pub program: Arc<Program>,
+    /// The live artifact store for the program.
+    pub artifacts: Arc<ArtifactStore>,
     /// Linter configuration.
     options: LinterOptions,
     /// Collected diagnostics.
@@ -24,9 +27,14 @@ impl std::fmt::Debug for LintProgramAstContext {
 
 impl LintProgramAstContext {
     /// Create a new AST program lint context.
-    pub fn new(program: Arc<Program>, options: LinterOptions) -> Self {
+    pub fn new(
+        program: Arc<Program>,
+        artifacts: Arc<ArtifactStore>,
+        options: LinterOptions,
+    ) -> Self {
         Self {
             program,
+            artifacts,
             options,
             diagnostics: Vec::new(),
         }
@@ -105,6 +113,8 @@ impl LintProgramAstContext {
 pub struct LintProgramDirContext {
     /// The program being linted.
     pub program: Arc<Program>,
+    /// The live artifact store for the program.
+    pub artifacts: Arc<ArtifactStore>,
     /// The active profile for this program pass.
     pub profile_id: ProfileId,
     /// Linter configuration.
@@ -123,9 +133,15 @@ impl std::fmt::Debug for LintProgramDirContext {
 
 impl LintProgramDirContext {
     /// Create a new DIR program lint context.
-    pub fn new(program: Arc<Program>, profile_id: ProfileId, options: LinterOptions) -> Self {
+    pub fn new(
+        program: Arc<Program>,
+        artifacts: Arc<ArtifactStore>,
+        profile_id: ProfileId,
+        options: LinterOptions,
+    ) -> Self {
         Self {
             program,
+            artifacts,
             profile_id,
             options,
             diagnostics: Vec::new(),
@@ -150,20 +166,14 @@ impl LintProgramDirContext {
 
     /// Get a cached declared library symbol for the active profile and name.
     pub fn get_declared_library_symbol(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
-        let environment = self
-            .program
-            .artifacts
-            .library_environment(self.profile_id)?;
+        let environment = self.artifacts.library_environment(self.profile_id)?;
         let name = self.program.strings.get(name);
         environment.declared_symbol_from(name.as_ref(), dir::SymbolSpaceOrder::ValueThenType)
     }
 
     /// Get well-known symbols for the active profile.
     pub fn get_well_known_symbols(&self) -> Option<WellKnownSymbols> {
-        let environment = self
-            .program
-            .artifacts
-            .library_environment(self.profile_id)?;
+        let environment = self.artifacts.library_environment(self.profile_id)?;
         Some(environment.well_known_symbols())
     }
 
@@ -197,7 +207,7 @@ impl LintProgramDirContext {
         let Some(builtins) = self.program.builtins.as_ref() else {
             return false;
         };
-        let Some(environment) = self.program.artifacts.library_environment(self.profile_id) else {
+        let Some(environment) = self.artifacts.library_environment(self.profile_id) else {
             return false;
         };
 

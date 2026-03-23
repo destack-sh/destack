@@ -1,7 +1,7 @@
 use crate::TestProgram;
+use destack_artifact::{EmitFormat, Runtime};
 use destack_dir::StaticKey;
 use destack_source::DiagnosticSeverity;
-use destack_workspace::{EmitFormat, Runtime};
 use std::time::Duration;
 
 /// Resolve imports from module declarations.

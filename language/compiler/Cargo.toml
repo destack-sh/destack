@@ -13,6 +13,7 @@ doctest = false
 
 [dependencies]
 # language
+destack_artifact = { workspace = true }
 destack_ast = { workspace = true }
 destack_builtin = { path = "../builtin", default-features = false }
 destack_codegen_js = { workspace = true }

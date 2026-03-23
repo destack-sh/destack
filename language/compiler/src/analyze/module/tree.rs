@@ -1,6 +1,7 @@
+use destack_artifact::ArtifactKey;
 use destack_dir::{NodeTree, SymbolTable};
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactKey, Module, ProfileId};
+use destack_workspace::{Module, ProfileId};
 
 use crate::analyze::common::TreeSymbolView;
 use crate::{ArtifactRequirementError, Compiler};

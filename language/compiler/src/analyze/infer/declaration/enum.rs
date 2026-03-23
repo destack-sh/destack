@@ -434,7 +434,7 @@ impl Compiler {
             enum_symbol.module_id,
             ctx.tree,
             ctx.symbols,
-            destack_workspace::ArtifactKey::dir_declared,
+            destack_artifact::ArtifactKey::dir_declared,
             |view| {
                 let fields = self.enum_fields_for_symbol_in_tree(view, enum_symbol);
                 fields

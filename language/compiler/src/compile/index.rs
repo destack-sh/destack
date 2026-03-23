@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_workspace::{ModuleGraph, ProfileId};
+use destack_artifact::ModuleGraph;
+use destack_workspace::ProfileId;
 
 use crate::analyze::interface::graph::InterfaceComponentGraphIndex;
 use crate::resolve::module::globals::{GlobalSymbolTable, GlobalSymbolTableCacheKey};

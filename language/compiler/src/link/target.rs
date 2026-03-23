@@ -1,7 +1,8 @@
 use crate::{ArtifactRequirementCollector, Compiler, LinkError, LinkResult, TargetDiscoveryIssue};
 
+use destack_artifact::{ArtifactKey, PackageOutput};
 use destack_source::{ModuleId, PackageId};
-use destack_workspace::{ArtifactKey, PackageOutput, TargetDiscovery, TargetId};
+use destack_workspace::{TargetDiscovery, TargetId};
 
 impl Compiler {
     /// Link all modules for a target.
@@ -95,7 +96,6 @@ impl Compiler {
         let mut entries = Vec::new();
         for module_id in module_output_keys {
             let output = self
-                .program
                 .artifacts
                 .module_output(module_id, target_id)
                 .ok_or_else(|| LinkError::Internal {
@@ -108,9 +108,9 @@ impl Compiler {
             entries.extend(output.entries.iter().cloned());
         }
 
-        self.program.artifacts.publish(
+        self.artifacts.publish(
             ArtifactKey::package_output(package_id, target_id.clone()),
-            PackageOutput::for_target(&target, entries),
+            PackageOutput::new(target.emit, target.emits_assembled_output(), entries),
         );
 
         Ok(())

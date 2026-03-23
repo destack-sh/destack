@@ -103,6 +103,7 @@ fn is_promise_receiver(
 
     symbol_matches_or_canonical(
         &ctx.program,
+        &ctx.artifacts,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,
@@ -136,6 +137,7 @@ fn reject_payload_is_obviously_non_error(
     // typed primitive and nominal non-error cases
     expression_type_map(
         &ctx.program,
+        &ctx.artifacts,
         ctx.profile_id,
         ctx.module_id(),
         ctx.tree,

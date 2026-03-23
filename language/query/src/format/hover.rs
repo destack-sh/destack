@@ -4,7 +4,8 @@ use destack_source::ModuleId;
 
 use super::signature::format_call_signature;
 use super::types::format_local_type;
-use destack_workspace::{ArtifactRegistry, ModuleRegistry};
+use destack_artifact::ArtifactStore;
+use destack_workspace::ModuleRegistry;
 
 /// Format hover information as markdown for display.
 pub fn format_hover_markdown(
@@ -49,7 +50,7 @@ pub fn format_hover_markdown(
 // allow many args for hover formatting inputs
 #[allow(clippy::too_many_arguments)]
 pub fn format_member_hover(
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     strings: &StringPool,
     modules: &ModuleRegistry,
     member: &dir::Member,
@@ -131,7 +132,7 @@ pub fn format_member_hover(
 
 /// Format hover text for an enum field.
 pub fn format_enum_field_hover(
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     strings: &StringPool,
     modules: &ModuleRegistry,
     field: &dir::EnumField,
@@ -164,7 +165,7 @@ pub fn format_enum_field_hover(
 
 /// Format hover text for a parameter.
 pub fn format_parameter_hover(
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     strings: &StringPool,
     modules: &ModuleRegistry,
     param: &dir::Parameter,
@@ -196,7 +197,7 @@ pub fn format_parameter_hover(
 
 /// Format hover text for a local variable.
 pub fn format_local_variable_hover(
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     name: Option<&str>,
     symbol_id: dir::GlobalSymbolId,
     symbols: &dir::SymbolTable,
@@ -238,7 +239,7 @@ pub fn format_simple_signature(symbol_type: dir::SymbolType, name: Option<&str>)
 fn format_method_hover(
     qualified_name: &str,
     signature: &dir::FunctionSignature,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     module_id: ModuleId,
     dir_tree: &dir::NodeTree,
     types: &dir::TypeTable,

@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use destack_artifact::{ArtifactStore, DirPatched};
 use destack_builtin::LanguageSymbol;
 use destack_compiler::Compiler;
 use destack_core::{StringPool, fnv1a_64};
@@ -10,7 +11,7 @@ use destack_dir::{
 };
 use destack_query::format::{format_local_type, format_type_literal};
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactRegistry, DirPatched, Module, ModuleRegistry, ProfileId, Program};
+use destack_workspace::{Module, ModuleRegistry, ProfileId};
 
 use super::{
     BindingEnumValue, BindingEnumVariant, BindingField, BindingParameter, BindingReturn,
@@ -22,8 +23,8 @@ use super::{
 pub(crate) struct BindingTypeContext<'a> {
     /// The compiler used for shared semantic helpers.
     compiler: &'a Compiler,
-    /// The owning program for artifact reads.
-    program: &'a Program,
+    /// The artifact store for semantic reads.
+    artifacts: &'a ArtifactStore,
     /// The committed module tree.
     tree: &'a dir::NodeTree,
     /// The committed module types.
@@ -46,7 +47,7 @@ impl<'a> BindingTypeContext<'a> {
     /// Build one binding type analysis context.
     pub(crate) fn new(
         compiler: &'a Compiler,
-        program: &'a Program,
+        artifacts: &'a ArtifactStore,
         tree: &'a dir::NodeTree,
         types: &'a dir::TypeTable,
         symbols: &'a dir::SymbolTable,
@@ -58,7 +59,7 @@ impl<'a> BindingTypeContext<'a> {
     ) -> Self {
         Self {
             compiler,
-            program,
+            artifacts,
             tree,
             types,
             symbols,
@@ -74,7 +75,7 @@ impl<'a> BindingTypeContext<'a> {
     pub(crate) fn binding_type_from_type_id(&self, type_id: dir::LocalTypeId) -> BindingType {
         binding_type_from_type_id(
             self.compiler,
-            self.program,
+            self.artifacts,
             type_id,
             self.tree,
             self.types,
@@ -91,7 +92,7 @@ impl<'a> BindingTypeContext<'a> {
     pub(crate) fn binding_type_from_symbol(&self, symbol_id: GlobalSymbolId) -> BindingType {
         binding_type_from_symbol(
             self.compiler,
-            self.program,
+            self.artifacts,
             symbol_id,
             self.modules,
             self.strings,
@@ -156,12 +157,12 @@ enum SliceKind {
 /// Load one patched DIR artifact for runtime binding lowering.
 fn patched_dir_artifact(
     compiler: &Compiler,
-    program: &Program,
+    artifacts: &ArtifactStore,
     module_id: ModuleId,
     profile_id: ProfileId,
 ) -> Arc<DirPatched> {
     // reuse the live artifact when it is already available
-    if let Some(dir) = program.artifacts.dir_patched(module_id, profile_id) {
+    if let Some(dir) = artifacts.dir_patched(module_id, profile_id) {
         return dir;
     }
 
@@ -172,21 +173,21 @@ fn patched_dir_artifact(
             panic!("failed to build patched dir for module {module_id:?}: {error:?}")
         });
 
-    program
-        .artifacts
+    artifacts
         .dir_patched(module_id, profile_id)
         .unwrap_or_else(|| panic!("missing patched dir artifact for module {:?}", module_id))
 }
 
 /// Resolve binding type symbols for a profile.
-pub(crate) fn binding_type_symbols(program: &Program, profile_id: ProfileId) -> BindingTypeSymbols {
+pub(crate) fn binding_type_symbols(
+    artifacts: &ArtifactStore,
+    profile_id: ProfileId,
+) -> BindingTypeSymbols {
     // resolve semantic environments for the active profile
-    let language_environment = program
-        .artifacts
+    let language_environment = artifacts
         .language_environment(profile_id)
         .unwrap_or_else(|| panic!("missing language environment for profile {profile_id:?}"));
-    let lib_environment = program
-        .artifacts
+    let lib_environment = artifacts
         .library_environment(profile_id)
         .unwrap_or_else(|| panic!("missing lib environment for profile {profile_id:?}"));
     let result = language_environment
@@ -210,7 +211,7 @@ pub(crate) fn binding_type_symbols(program: &Program, profile_id: ProfileId) -> 
 
 /// Format a declaration signature for binding metadata.
 pub(crate) fn format_declared_signature(
-    program: &Program,
+    artifacts: &ArtifactStore,
     declaration_id: dir::LocalNodeId<Declaration>,
     declaration: &dir::Declaration,
     module: &Module,
@@ -219,8 +220,7 @@ pub(crate) fn format_declared_signature(
     profile_id: ProfileId,
 ) -> String {
     // load the relevant module state for formatting
-    let dir = program
-        .artifacts
+    let dir = artifacts
         .dir_patched(module.id, profile_id)
         .unwrap_or_else(|| panic!("missing patched dir artifact for module {:?}", module.id));
     let tree = &dir.tree;
@@ -255,7 +255,7 @@ pub(crate) fn format_declared_signature(
             format_parameter_declared(
                 *parameter_id,
                 module.id,
-                &program.artifacts,
+                artifacts,
                 &tree,
                 &types,
                 modules,
@@ -269,7 +269,7 @@ pub(crate) fn format_declared_signature(
     let return_text = resolve_return_type_text(
         declaration_id,
         signature,
-        &program.artifacts,
+        artifacts,
         &tree,
         &types,
         modules,
@@ -301,7 +301,7 @@ pub(crate) fn collect_binding_params(
             };
             let type_text = type_text_for_signature(
                 type_id,
-                &context.program.artifacts,
+                context.artifacts,
                 context.tree,
                 context.types,
                 context.modules,
@@ -423,7 +423,7 @@ fn resolve_return_type_id(
 fn resolve_return_type_text(
     declaration_id: dir::LocalNodeId<Declaration>,
     signature: &dir::FunctionSignature,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     tree: &dir::NodeTree,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
@@ -459,7 +459,7 @@ fn resolve_return_type_text(
 /// Map a type id into a binding type for generated wrappers.
 pub(crate) fn binding_type_from_type_id(
     compiler: &Compiler,
-    program: &Program,
+    artifacts: &ArtifactStore,
     type_id: dir::LocalTypeId,
     tree: &dir::NodeTree,
     types: &dir::TypeTable,
@@ -470,7 +470,7 @@ pub(crate) fn binding_type_from_type_id(
     symbols: &BindingTypeSymbols,
     domain: &str,
 ) -> BindingType {
-    let type_text = type_text_for_diagnostics(type_id, &program.artifacts, types, modules, strings);
+    let type_text = type_text_for_diagnostics(type_id, artifacts, types, modules, strings);
     match types.get_type(type_id) {
         dir::Type::TypeLiteral { value } => {
             binding_type_from_literal(value, type_text.as_str(), strings)
@@ -484,7 +484,7 @@ pub(crate) fn binding_type_from_type_id(
             } else if let Some(inner_type_id) = unwrap_optional_union_type(elements, types) {
                 let inner = binding_type_from_type_id(
                     compiler,
-                    program,
+                    artifacts,
                     inner_type_id,
                     tree,
                     types,
@@ -508,7 +508,7 @@ pub(crate) fn binding_type_from_type_id(
             is_readonly: _,
         } => binding_type_from_tuple(
             compiler,
-            program,
+            artifacts,
             type_id,
             elements,
             tree,
@@ -521,8 +521,7 @@ pub(crate) fn binding_type_from_type_id(
             domain,
         ),
         dir::Type::Unevaluated(expression_id) => {
-            let dir = program
-                .artifacts
+            let dir = artifacts
                 .dir_patched(types.module_id, profile_id)
                 .unwrap_or_else(|| {
                     panic!(
@@ -545,15 +544,10 @@ pub(crate) fn binding_type_from_type_id(
         } => {
             let symbol = compiler.canonical_declared_artifact_symbol(profile_id, *symbol);
             if symbols.is_result(symbol) || symbols.is_async_result(symbol) {
-                if let Some(inner) = unwrap_first_type_argument(
-                    static_arguments.as_ref(),
-                    program,
-                    profile_id,
-                    types,
-                ) {
+                if let Some(inner) = unwrap_first_type_argument(static_arguments.as_ref()) {
                     return binding_type_from_type_id(
                         compiler,
-                        program,
+                        artifacts,
                         inner,
                         tree,
                         types,
@@ -568,15 +562,10 @@ pub(crate) fn binding_type_from_type_id(
             }
 
             if let Some(kind) = symbols.slice_kind(symbol) {
-                if let Some(inner) = unwrap_first_type_argument(
-                    static_arguments.as_ref(),
-                    program,
-                    profile_id,
-                    types,
-                ) {
+                if let Some(inner) = unwrap_first_type_argument(static_arguments.as_ref()) {
                     let inner_binding = binding_type_from_type_id(
                         compiler,
-                        program,
+                        artifacts,
                         inner,
                         tree,
                         types,
@@ -602,7 +591,7 @@ pub(crate) fn binding_type_from_type_id(
                 }
 
                 let type_text =
-                    type_text_for_diagnostics(type_id, &program.artifacts, types, modules, strings);
+                    type_text_for_diagnostics(type_id, artifacts, types, modules, strings);
                 unsupported_binding_type(
                     type_text.as_str(),
                     "slice-like binding type is missing its element type",
@@ -610,13 +599,13 @@ pub(crate) fn binding_type_from_type_id(
             }
 
             binding_type_from_symbol(
-                compiler, program, symbol, modules, strings, profile_id, symbols,
+                compiler, artifacts, symbol, modules, strings, profile_id, symbols,
             )
         }
         dir::Type::Unary { right, .. } | dir::Type::ValueOf { right, .. } => {
             binding_type_from_type_id(
                 compiler,
-                program,
+                artifacts,
                 *right,
                 tree,
                 types,
@@ -630,7 +619,7 @@ pub(crate) fn binding_type_from_type_id(
         }
         dir::Type::ReferenceOf { right, .. } => binding_type_from_type_id(
             compiler,
-            program,
+            artifacts,
             *right,
             tree,
             types,
@@ -651,7 +640,7 @@ pub(crate) fn binding_type_from_type_id(
             });
             BindingType::Array(Box::new(binding_type_from_type_id(
                 compiler,
-                program,
+                artifacts,
                 element,
                 tree,
                 types,
@@ -666,7 +655,7 @@ pub(crate) fn binding_type_from_type_id(
         dir::Type::ArraySized { element, .. } => {
             BindingType::Array(Box::new(binding_type_from_type_id(
                 compiler,
-                program,
+                artifacts,
                 *element,
                 tree,
                 types,
@@ -853,7 +842,7 @@ fn platform_domain_from_uri(uri: &str) -> Option<String> {
 /// Resolve a binding type from a global symbol.
 pub(crate) fn binding_type_from_symbol(
     compiler: &Compiler,
-    program: &Program,
+    artifacts: &ArtifactStore,
     symbol_id: GlobalSymbolId,
     modules: &ModuleRegistry,
     strings: &StringPool,
@@ -862,7 +851,7 @@ pub(crate) fn binding_type_from_symbol(
 ) -> BindingType {
     let module = modules.get(symbol_id.module_id);
     let module = module.as_ref();
-    let dir = patched_dir_artifact(compiler, program, module.id, profile_id);
+    let dir = patched_dir_artifact(compiler, artifacts, module.id, profile_id);
     let tree = &dir.tree;
     let types = &dir.types;
     let symbol_table = &dir.symbols;
@@ -873,7 +862,7 @@ pub(crate) fn binding_type_from_symbol(
     {
         return binding_type_from_symbol(
             compiler,
-            program,
+            artifacts,
             target_symbol,
             modules,
             strings,
@@ -893,7 +882,7 @@ pub(crate) fn binding_type_from_symbol(
         {
             return binding_type_from_symbol(
                 compiler,
-                program,
+                artifacts,
                 target_symbol,
                 modules,
                 strings,
@@ -929,7 +918,7 @@ pub(crate) fn binding_type_from_symbol(
     match declaration {
         Declaration::Struct { members, .. } => binding_type_from_struct(
             compiler,
-            program,
+            artifacts,
             name,
             symbol_id,
             declaration_id,
@@ -971,7 +960,7 @@ pub(crate) fn binding_type_from_symbol(
                     {
                         return binding_type_from_tagged_union_alias(
                             compiler,
-                            program,
+                            artifacts,
                             name,
                             &elements,
                             tree,
@@ -989,7 +978,7 @@ pub(crate) fn binding_type_from_symbol(
                 if let dir::Type::Object { fields, .. } = types.get_type(alias_target) {
                     return binding_type_from_object_type(
                         compiler,
-                        program,
+                        artifacts,
                         name.clone(),
                         &fields,
                         tree,
@@ -1005,7 +994,7 @@ pub(crate) fn binding_type_from_symbol(
 
                 binding_type_from_type_id(
                     compiler,
-                    program,
+                    artifacts,
                     alias_target,
                     tree,
                     &types,
@@ -1039,7 +1028,7 @@ pub(crate) fn binding_type_from_symbol(
 /// Resolve a union type-alias into one tagged union binding type.
 fn binding_type_from_tagged_union_alias(
     compiler: &Compiler,
-    program: &Program,
+    artifacts: &ArtifactStore,
     name: String,
     elements: &[dir::LocalTypeId],
     tree: &dir::NodeTree,
@@ -1056,7 +1045,7 @@ fn binding_type_from_tagged_union_alias(
     for element in elements {
         let element_binding = binding_type_from_type_id(
             compiler,
-            program,
+            artifacts,
             *element,
             tree,
             types,
@@ -1069,13 +1058,8 @@ fn binding_type_from_tagged_union_alias(
         );
         let variant_name =
             binding_tagged_union_variant_name(&element_binding).unwrap_or_else(|| {
-                let type_text = type_text_for_diagnostics(
-                    *element,
-                    &program.artifacts,
-                    types,
-                    modules,
-                    strings,
-                );
+                let type_text =
+                    type_text_for_diagnostics(*element, artifacts, types, modules, strings);
                 unsupported_binding_type(
                     type_text.as_str(),
                     "tagged union branches must reference named binding types",
@@ -1116,7 +1100,7 @@ fn binding_tagged_union_variant_name(binding_type: &BindingType) -> Option<Strin
 /// Resolve object fields into a binding struct type.
 fn binding_type_from_object_type(
     compiler: &Compiler,
-    program: &Program,
+    artifacts: &ArtifactStore,
     name: String,
     fields: &[dir::TypeField],
     tree: &dir::NodeTree,
@@ -1135,7 +1119,7 @@ fn binding_type_from_object_type(
         });
         let field_binding = binding_type_from_type_id(
             compiler,
-            program,
+            artifacts,
             field.ty,
             tree,
             types,
@@ -1168,7 +1152,7 @@ fn binding_type_from_object_type(
 /// Resolve tuple elements into a binding struct type.
 fn binding_type_from_tuple(
     compiler: &Compiler,
-    program: &Program,
+    artifacts: &ArtifactStore,
     type_id: dir::LocalTypeId,
     elements: &[dir::TypeElement],
     tree: &dir::NodeTree,
@@ -1180,7 +1164,7 @@ fn binding_type_from_tuple(
     symbols: &BindingTypeSymbols,
     domain: &str,
 ) -> BindingType {
-    let type_text = type_text_for_diagnostics(type_id, &program.artifacts, types, modules, strings);
+    let type_text = type_text_for_diagnostics(type_id, artifacts, types, modules, strings);
     let name = tuple_struct_name(Some(type_text.as_str()), elements.len());
     let mut fields = Vec::with_capacity(elements.len());
     for (index, element) in elements.iter().enumerate() {
@@ -1193,7 +1177,7 @@ fn binding_type_from_tuple(
         let field_name = format!("item{index}");
         let field_binding = binding_type_from_type_id(
             compiler,
-            program,
+            artifacts,
             element.ty,
             tree,
             types,
@@ -1221,7 +1205,7 @@ fn binding_type_from_tuple(
 /// Resolve struct fields into a binding type.
 fn binding_type_from_struct(
     compiler: &Compiler,
-    program: &Program,
+    artifacts: &ArtifactStore,
     name: String,
     struct_symbol: GlobalSymbolId,
     _declaration_id: dir::LocalNodeId<Declaration>,
@@ -1271,7 +1255,7 @@ fn binding_type_from_struct(
 
         let field_binding = binding_type_from_type_id(
             compiler,
-            program,
+            artifacts,
             field_type_id,
             tree,
             types,
@@ -1517,9 +1501,6 @@ fn unsupported_binding_type(type_text: &str, reason: &str) -> ! {
 /// Extract the first static type argument from committed artifact state.
 fn unwrap_first_type_argument(
     static_arguments: Option<&Vec<StaticArgument>>,
-    _program: &Program,
-    _profile_id: ProfileId,
-    _types: &dir::TypeTable,
 ) -> Option<dir::LocalTypeId> {
     let static_arguments = static_arguments?;
     let first = static_arguments.first()?;
@@ -1731,7 +1712,7 @@ fn format_path_segments(path: &dir::Path, strings: &StringPool) -> String {
 fn format_parameter_declared(
     parameter_id: dir::LocalNodeId<dir::Parameter>,
     module_id: ModuleId,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     dir_tree: &dir::NodeTree,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
@@ -1767,7 +1748,7 @@ fn format_parameter_declared(
 /// Format one type for signature output without generator sentinel placeholders.
 fn type_text_for_signature(
     type_id: dir::LocalTypeId,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     tree: &dir::NodeTree,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
@@ -1785,7 +1766,7 @@ fn type_text_for_signature(
 /// Format one type for diagnostics with explicit unresolved labeling.
 fn type_text_for_diagnostics(
     type_id: dir::LocalTypeId,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,
@@ -1800,7 +1781,7 @@ fn type_text_for_diagnostics(
 /// Format one non-unevaluated type and reject formatter placeholders.
 fn format_type_checked(
     type_id: dir::LocalTypeId,
-    artifacts: &ArtifactRegistry,
+    artifacts: &ArtifactStore,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,

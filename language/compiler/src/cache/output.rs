@@ -1,11 +1,11 @@
 use crate::compile::Compiler;
 
-use destack_source::{ModuleId, ModuleVersion, PackageId, ProfileVersion};
-use destack_workspace::{
+use destack_artifact::{
     ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ArtifactKey,
-    ModuleOutput, PackageOutput, ProfileId, Target, TargetDiscovery, TargetDiscoveryIssue,
-    TargetId,
+    ModuleOutput, PackageOutput,
 };
+use destack_source::{ModuleId, ModuleVersion, PackageId, ProfileVersion};
+use destack_workspace::{ProfileId, Target, TargetDiscovery, TargetDiscoveryIssue, TargetId};
 
 use super::{CacheHasher, compiler_version};
 

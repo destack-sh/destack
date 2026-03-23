@@ -1,9 +1,10 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::Path;
 
+use destack_artifact::ArtifactKey;
 use destack_compiler::Compiler;
 use destack_source::{Diagnostic, DiagnosticStoreUpdate, FileId, ModuleId};
-use destack_workspace::{ArtifactKey, InvalidationKind, InvalidationPlan, Program};
+use destack_workspace::{InvalidationKind, InvalidationPlan, Program};
 
 use super::workspace::{ServiceUpdate, build_update};
 use super::{AnalyzeOutcome, LanguageService, LanguageServiceError};
@@ -65,8 +66,8 @@ impl LanguageService {
         let module = module.as_ref();
         let module_file_id = module.file_id;
         let module_source_version = program.modules.source_version(module.id);
-        let ast_ready = program.artifacts.ast(module_id).is_some();
-        let dir_ready = program
+        let ast_ready = compiler.artifacts.ast(module_id).is_some();
+        let dir_ready = compiler
             .artifacts
             .dir_analyzed(module_id, profile_id)
             .is_some();
@@ -172,7 +173,7 @@ impl LanguageService {
             let mut queue: VecDeque<ModuleId> = module_ids.iter().copied().collect();
             while let Some(module_id) = queue.pop_front() {
                 let profile_id = program.default_profile_id_for_module(module_id);
-                let Some(graph) = program.artifacts.module_graph(profile_id) else {
+                let Some(graph) = compiler.artifacts.module_graph(profile_id) else {
                     continue;
                 };
 
@@ -289,7 +290,7 @@ impl LanguageService {
         let mut queued = HashSet::new();
         for module_id in module_ids.iter().copied() {
             let profile_id = program.default_profile_id_for_module(module_id);
-            if let Some(graph) = program.artifacts.module_graph(profile_id) {
+            if let Some(graph) = compiler.artifacts.module_graph(profile_id) {
                 let module = program.modules.get(module_id);
                 let module = module.as_ref();
                 let graph_version = graph.module_versions.get(&module_id).copied();

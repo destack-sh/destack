@@ -2,6 +2,7 @@ use crate::{
     AnalyzeError, AnalyzeWarning, Compiler, DiagnosticAnchor, ResolveError, ResolveWarning,
     TaskError, TaskWarning,
 };
+use destack_artifact::ArtifactStore;
 use destack_source::{Diagnostic, DiagnosticSeverity, LabeledSpan, ModuleId, Span};
 
 use destack_workspace::Program;
@@ -37,10 +38,10 @@ impl CompileDiagnostic {
     }
 
     /// Get the message of the diagnostic.
-    pub fn message(&self, program: &Program) -> String {
+    pub fn message(&self, program: &Program, artifacts: &ArtifactStore) -> String {
         match self {
-            Self::Error(error) => error.message(program),
-            Self::Warning(warning) => warning.message(program),
+            Self::Error(error) => error.message(program, artifacts),
+            Self::Warning(warning) => warning.message(program, artifacts),
         }
     }
 
@@ -61,14 +62,14 @@ impl CompileDiagnostic {
     }
 
     /// Turn the diagnostic into a full Destack diagnostic.
-    pub fn to_diagnostic(&self, program: &Program) -> Diagnostic {
+    pub fn to_diagnostic(&self, program: &Program, artifacts: &ArtifactStore) -> Diagnostic {
         let anchor = self.anchor();
         let severity = self.severity();
-        let message = self.message(program);
+        let message = self.message(program, artifacts);
         let code = self.full_code();
 
         // get file and span from anchor, falling back to program's fallback file
-        let (file_id, span) = anchor.to_file_span(program).unwrap_or_else(|| {
+        let (file_id, span) = anchor.to_file_span(program, artifacts).unwrap_or_else(|| {
             let fallback = program.fallback_file_id;
             (fallback, Span::empty(fallback))
         });

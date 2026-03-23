@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_workspace::ArtifactKey;
+use destack_artifact::ArtifactKey;
 
 /// One internal scenario event emitted by the compiler.
 #[derive(Debug, Clone)]

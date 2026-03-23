@@ -1,3 +1,4 @@
+use destack_artifact::ArtifactStore;
 use destack_core::{StringId, StringPool};
 use destack_dir as dir;
 use destack_source::{ModuleId, Span};
@@ -612,6 +613,7 @@ pub fn expression_declared_or_inferred_type_id(
 /// Map one expression type from local inference or symbol value types.
 pub fn expression_type_map<T>(
     program: &Program,
+    artifacts: &ArtifactStore,
     profile_id: ProfileId,
     module_id: ModuleId,
     tree: &dir::NodeTree,
@@ -631,13 +633,14 @@ pub fn expression_type_map<T>(
     let expression = tree.get(expression_id);
     let symbol_id = expression.target_symbol()?;
     symbol_value_type_map_for(
-        program, profile_id, module_id, symbols, types, symbol_id, map,
+        program, artifacts, profile_id, module_id, symbols, types, symbol_id, map,
     )
 }
 
 /// Map one expression type from local inference, symbol value types, or call returns.
 pub fn expression_type_or_call_return_type_map<T>(
     program: &Program,
+    artifacts: &ArtifactStore,
     profile_id: ProfileId,
     module_id: ModuleId,
     tree: &dir::NodeTree,
@@ -661,6 +664,7 @@ pub fn expression_type_or_call_return_type_map<T>(
     if let Some(symbol_id) = expression.target_symbol()
         && let Some(mapped_value) = symbol_value_type_map_for(
             program,
+            artifacts,
             profile_id,
             module_id,
             symbols,
@@ -679,6 +683,7 @@ pub fn expression_type_or_call_return_type_map<T>(
     };
     let return_type_id = expression_type_map(
         program,
+        artifacts,
         profile_id,
         module_id,
         tree,

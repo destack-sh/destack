@@ -1,8 +1,9 @@
 use crate::{
     ArtifactRequirementCollector, ArtifactRequirementError, Compiler, ResolveError, ResolveResult,
 };
+use destack_artifact::{ArtifactKey, DirResolved};
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactKey, DirResolved, ProfileId};
+use destack_workspace::ProfileId;
 
 use crate::timing::tags;
 
@@ -11,8 +12,7 @@ impl Compiler {
     pub fn process_language_environment(&self, profile: ProfileId) -> ResolveResult<()> {
         let environment = self.resolve_language_environment(profile)?;
         let artifact_key = ArtifactKey::language_environment(profile);
-        self.program
-            .artifacts
+        self.artifacts
             .publish(artifact_key.clone(), environment.clone());
         self.store_artifact(&artifact_key, &environment, |compiler, environment| {
             compiler.store_language_environment_image(profile, environment.clone())
@@ -25,8 +25,7 @@ impl Compiler {
     pub fn process_library_environment(&self, profile: ProfileId) -> ResolveResult<()> {
         let environment = self.resolve_library_environment(profile)?;
         let artifact_key = ArtifactKey::library_environment(profile);
-        self.program
-            .artifacts
+        self.artifacts
             .publish(artifact_key.clone(), environment.clone());
         self.store_artifact(&artifact_key, &environment, |compiler, environment| {
             compiler.store_library_environment_image(profile, environment.clone())
@@ -148,9 +147,7 @@ impl Compiler {
             self.stats.record_resolve();
         }
 
-        self.program
-            .artifacts
-            .publish(artifact_key.clone(), dir.clone());
+        self.artifacts.publish(artifact_key.clone(), dir.clone());
         self.store_artifact(&artifact_key, &dir, |compiler, dir| {
             compiler.store_dir_resolved_image(module_id, profile, dir)
         });

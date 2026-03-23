@@ -1,7 +1,8 @@
 use crate::{Compiler, GenerateError, GenerateResult, GenerateWarning};
+use destack_artifact::{ArtifactKey, ModuleOutput};
 use destack_codegen_js::{CodegenJsError, CodegenJsWarning};
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactKey, ModuleOutput, ProfileId, Target};
+use destack_workspace::{ProfileId, Target};
 
 impl Compiler {
     /// Generate JS/TS code for a module.
@@ -15,15 +16,19 @@ impl Compiler {
         self.require_dir_elaborated(module_id, profile)?;
 
         // generate artifact
-        let output =
-            destack_codegen_js::generate_module(self.program.clone(), module_id, target, profile)
-                .map_err(|e| Self::map_js_error(module_id, profile, e))?;
+        let output = destack_codegen_js::generate_module(
+            self.program.clone(),
+            self.artifacts.clone(),
+            module_id,
+            target,
+            profile,
+        )
+        .map_err(|e| Self::map_js_error(module_id, profile, e))?;
         let module = self.program.modules.get(module_id);
         let target_id = destack_workspace::TargetId::new(module.package_id, &target.name);
-
-        self.program.artifacts.publish(
+        self.artifacts.publish(
             ArtifactKey::module_output(module_id, target_id),
-            ModuleOutput::for_target(target, output.entries),
+            ModuleOutput::new(target.emit, output.entries),
         );
 
         // map warnings/errors

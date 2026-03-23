@@ -1,10 +1,11 @@
 use crate::compile::Compiler;
 
-use destack_source::{FileKey, ModuleId, ModuleVersion};
-use destack_workspace::{
+use destack_artifact::{
     ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ArtifactKey,
-    ModuleGraph, ModuleGraphImage, ProfileId,
+    ModuleGraph, ModuleGraphImage,
 };
+use destack_source::{FileKey, ModuleId, ModuleVersion};
+use destack_workspace::ProfileId;
 use indexmap::IndexMap;
 
 use super::{CacheHasher, compiler_version};

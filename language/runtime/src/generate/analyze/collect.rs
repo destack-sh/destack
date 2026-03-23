@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::Path;
 use std::str::FromStr;
 
+use destack_artifact::Platform;
 use destack_builtin::LanguageSymbol;
 use destack_compiler::Compiler;
 use destack_core::StringPool;
@@ -10,7 +11,7 @@ use destack_dir::{
     Mutability, Pattern, ScalarLiteral, UnaryOperator,
 };
 use destack_source::ModuleId;
-use destack_workspace::{Platform, ProfileId, Program};
+use destack_workspace::{ProfileId, Program};
 
 use super::{
     BindingCatalog, BindingEntry, BindingParameter, BindingReturn, BindingType, BindingTypeContext,
@@ -114,7 +115,7 @@ pub(crate) fn collect_platform_bindings(
     let binding_decorator_symbol = compiler.language_symbol(profile_id, LanguageSymbol::Binding);
 
     // collect binding type symbols
-    let binding_symbols = binding_type_symbols(program, profile_id);
+    let binding_symbols = binding_type_symbols(compiler.artifacts.as_ref(), profile_id);
 
     // collect bindings by domain
     let mut domains: BindingCatalog = BindingCatalog::default();
@@ -124,11 +125,11 @@ pub(crate) fn collect_platform_bindings(
         // load module metadata
         let module = program.modules.get(*module_id);
         let module = module.as_ref();
-        let resolved_dir = program
+        let resolved_dir = compiler
             .artifacts
             .dir_resolved(module.id, profile_id)
             .unwrap_or_else(|| panic!("missing resolved dir artifact for module {:?}", module.id));
-        let dir = program
+        let dir = compiler
             .artifacts
             .dir_patched(module.id, profile_id)
             .unwrap_or_else(|| panic!("missing patched dir artifact for module {:?}", module.id));
@@ -197,7 +198,7 @@ pub(crate) fn collect_platform_bindings(
 
             // format the canonical signature for the declaration
             let signature_text = format_declared_signature(
-                program,
+                compiler.artifacts.as_ref(),
                 declaration_id,
                 declaration,
                 &module,
@@ -215,7 +216,7 @@ pub(crate) fn collect_platform_bindings(
             // binding analysis context
             let binding_context = BindingTypeContext::new(
                 compiler,
-                program,
+                compiler.artifacts.as_ref(),
                 tree,
                 types,
                 symbols,
@@ -264,7 +265,7 @@ pub(crate) fn collect_platform_constants(
     platform_modules: &[ModuleId],
 ) -> ConstantCatalog {
     // collect binding type symbols for constant type lowering
-    let binding_symbols = binding_type_symbols(program, profile_id);
+    let binding_symbols = binding_type_symbols(compiler.artifacts.as_ref(), profile_id);
 
     // collect constants grouped by owning domain
     let mut domains: ConstantCatalog = ConstantCatalog::default();
@@ -278,7 +279,7 @@ pub(crate) fn collect_platform_constants(
             continue;
         };
 
-        let dir = program
+        let dir = compiler
             .artifacts
             .dir_patched(module.id, profile_id)
             .unwrap_or_else(|| panic!("missing patched dir artifact for module {:?}", module.id));
@@ -318,7 +319,7 @@ pub(crate) fn collect_platform_constants(
                 };
                 let binding_context = BindingTypeContext::new(
                     compiler,
-                    program,
+                    compiler.artifacts.as_ref(),
                     tree,
                     types,
                     symbols,
@@ -377,7 +378,7 @@ pub(crate) fn collect_platform_types(
     platform_modules: &[ModuleId],
 ) -> Vec<BindingType> {
     // collect binding type symbols for declaration lowering
-    let binding_symbols = binding_type_symbols(program, profile_id);
+    let binding_symbols = binding_type_symbols(compiler.artifacts.as_ref(), profile_id);
 
     // accumulate exported platform types
     let mut binding_types = Vec::new();
@@ -387,7 +388,7 @@ pub(crate) fn collect_platform_types(
         let module = program.modules.get(*module_id);
         let module = module.as_ref();
 
-        let dir = program
+        let dir = compiler
             .artifacts
             .dir_patched(module.id, profile_id)
             .unwrap_or_else(|| panic!("missing patched dir artifact for module {:?}", module.id));
@@ -412,7 +413,7 @@ pub(crate) fn collect_platform_types(
                     let symbol_id = declaration.symbol().into_global(module.id);
                     let binding_context = BindingTypeContext::new(
                         compiler,
-                        program,
+                        compiler.artifacts.as_ref(),
                         tree,
                         types,
                         symbols,

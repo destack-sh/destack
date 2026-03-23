@@ -34,7 +34,7 @@ impl Compiler {
             StaticEvaluationMode::Parametric,
             StaticEvaluationDiagnosticMode::Suppress,
             None,
-            destack_workspace::ArtifactKey::dir_interface,
+            destack_artifact::ArtifactKey::dir_interface,
             &mut visited,
         )?;
         let literal = match value {

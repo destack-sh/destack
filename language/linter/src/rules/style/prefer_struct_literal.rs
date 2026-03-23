@@ -92,6 +92,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
         // resolve the primary declaration for the struct symbol
         let declaration_id = symbol_primary_declaration_for(
             &self.ctx.program,
+            &self.ctx.artifacts,
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,
@@ -104,7 +105,6 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
         // load the declaration module tree for cross module struct constructors
         let module_dir = self
             .ctx
-            .program
             .artifacts
             .dir_analyzed(declaration_id.module_id, self.ctx.profile_id)?;
         let declaration = module_dir

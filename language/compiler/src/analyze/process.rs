@@ -1,7 +1,8 @@
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
+use destack_artifact::{ArtifactKey, DirAnalyzed, DirDeclared};
 use destack_dir::CaptureTable;
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactKey, DirAnalyzed, DirDeclared, ProfileId};
+use destack_workspace::ProfileId;
 
 impl Compiler {
     /// Build declared DIR for one module.
@@ -45,8 +46,7 @@ impl Compiler {
         )?;
 
         let payload = DirDeclared::from_resolved_with(resolved.as_ref(), symbols, types, captures);
-        self.program
-            .artifacts
+        self.artifacts
             .publish(artifact_key.clone(), payload.clone());
         self.store_artifact(&artifact_key, &payload, |compiler, payload| {
             compiler.store_dir_declared_image(module, profile, payload)
@@ -88,15 +88,14 @@ impl Compiler {
             let build_key = artifact_key.clone();
             let dependency = self.artifact_dependency_for_key(&build_key);
 
-            self.program.artifacts.publish(
+            self.artifacts.publish(
                 ArtifactKey::DirInterface {
                     module: module_id,
                     profile: profile_id,
                 },
                 dir.clone(),
             );
-            self.program
-                .artifacts
+            self.artifacts
                 .set_dependency(artifact_key.clone(), dependency);
 
             self.store_artifact(&artifact_key, dir.as_ref(), |compiler, dir| {
@@ -207,8 +206,7 @@ impl Compiler {
             self.stats.record_analyze();
         }
 
-        self.program
-            .artifacts
+        self.artifacts
             .publish(artifact_key.clone(), payload.clone());
         self.store_artifact(&artifact_key, &payload, |compiler, payload| {
             compiler.store_dir_analyzed_image(module, profile, payload)

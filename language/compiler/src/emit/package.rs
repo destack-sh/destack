@@ -40,7 +40,6 @@ impl Compiler {
 
         // get the package output artifact
         let emit = self
-            .program
             .artifacts
             .package_output(package_id, target_id)
             .ok_or_else(|| EmitError::TargetNotFound {

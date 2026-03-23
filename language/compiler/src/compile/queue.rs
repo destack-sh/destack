@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 #[cfg(feature = "parallel")]
 use crossbeam_deque::{Injector, Steal};
 use dashmap::DashMap;
-use destack_workspace::ArtifactKey;
+use destack_artifact::ArtifactKey;
 use parking_lot::{Condvar, Mutex};
 
 use crate::{

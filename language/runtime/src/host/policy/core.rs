@@ -1,4 +1,5 @@
-use destack_workspace::{Platform, RuntimeAppDeclaration, RuntimeAppPermission};
+use destack_artifact::Platform;
+use destack_workspace::{RuntimeAppDeclaration, RuntimeAppPermission};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::core::request::HostRequest;
