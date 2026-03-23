@@ -8,7 +8,7 @@ use objc2_core_graphics::{
 
 use super::core::{display_id as monitor_display_id, display_orientation};
 use crate::diagnostic::RuntimeResult;
-use crate::host::apple::execution::with_process_main_context_marker_if_needed;
+use crate::host::apple::core::execution::with_process_main_context_marker_if_needed;
 use crate::platform;
 use crate::platform::display::unix::appkit::core;
 use crate::platform::display::unix::appkit::model::{DisplayDescriptorSnapshot, MonitorSnapshot};

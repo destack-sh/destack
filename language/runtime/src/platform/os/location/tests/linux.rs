@@ -1,10 +1,9 @@
 use std::sync::{Mutex, OnceLock};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::HostRuntimeId;
-use crate::host::linux::{
-    LinuxLocationHooks, publish_location_sample as linux_publish_location_sample,
-    set_linux_location_test_hooks,
+use crate::host::core::HostSessionId;
+use crate::host::linux::tests::{
+    LinuxLocationHooks, publish_location_sample, set_linux_location_test_hooks,
 };
 use crate::platform::os::abi_generated::{LocationSampleValue, LocationWatchOptionsValue};
 use crate::platform::os::tests::with_configured_harness_context;
@@ -92,7 +91,7 @@ fn test_location_last_known_hook() -> RuntimeResult<LocationSampleValue> {
 
 /// Publish one location event for the opened watch in tests.
 fn test_location_watch_open_hook(
-    host_runtime_id: HostRuntimeId,
+    host_session_id: HostSessionId,
     watch_id: String,
     _options: LocationWatchOptionsValue,
 ) -> RuntimeResult<()> {
@@ -102,14 +101,14 @@ fn test_location_watch_open_hook(
         .unwrap_or_else(|error| error.into_inner());
     *slot = Some(watch_id.clone());
 
-    linux_publish_location_sample(host_runtime_id, &watch_id, test_location_sample())?;
+    publish_location_sample(host_session_id, &watch_id, test_location_sample())?;
 
     Ok(())
 }
 
 /// Accept one watch-close request in Linux tests.
 fn test_location_watch_close_hook(
-    _host_runtime_id: HostRuntimeId,
+    _host_runtime_id: HostSessionId,
     _watch_id: String,
 ) -> RuntimeResult<()> {
     Ok(())

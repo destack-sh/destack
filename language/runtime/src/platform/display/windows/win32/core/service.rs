@@ -29,12 +29,12 @@ impl Win32DisplayService {
         context: &BindingCallContext,
         runtime_state: &Arc<Win32RuntimeState>,
     ) {
-        let host_runtime_id = context.host().host_runtime_id();
+        let host_session_id = context.host().host_session_id();
         let runtime_state = runtime_state.clone();
 
         self.executor
             .call_loop("destack.display.service.win32.register", move || {
-                runtime_state.register_runtime_ingress(host_runtime_id)?;
+                runtime_state.register_runtime_ingress(host_session_id)?;
                 Ok(())
             })
             .expect("Win32 display service registration should succeed");

@@ -4,7 +4,7 @@ use std::sync::{Arc, Condvar, Mutex, OnceLock, Weak};
 
 use super::WaylandConnectionState;
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRuntimeRegistry, RuntimeIngressHandler};
+use crate::host::core::{HostSessionRegistry, RuntimeIngressHandler};
 use crate::platform::display::DisplayBackend;
 use crate::platform::display::unix::wayland::event::{
     self as wayland_event, DisplayEventRecord, MonitorEventStream, WindowEventRecord,
@@ -253,7 +253,7 @@ impl WaylandRuntimeState {
         self: &Arc<Self>,
         context: &BindingCallContext,
     ) -> RuntimeResult<()> {
-        let host_runtime_id = context.host().host_runtime_id();
+        let host_session_id = context.host().host_session_id();
 
         let observer = self
             .runtime_ingress_handler
@@ -265,7 +265,7 @@ impl WaylandRuntimeState {
             .clone();
         let handler: Arc<dyn RuntimeIngressHandler> = observer;
 
-        HostRuntimeRegistry::register_runtime_ingress_handler(host_runtime_id, &handler)
+        HostSessionRegistry::register_session_ingress_handler(host_session_id, &handler)
     }
 
     /// Register this runtime with the wayland display service once.
@@ -287,7 +287,7 @@ struct WaylandRuntimeIngressHandler {
 
 impl RuntimeIngressHandler for WaylandRuntimeIngressHandler {
     /// Service wayland ingress and publish runtime-owned event deltas.
-    fn service_runtime_ingress(&self) -> RuntimeResult<()> {
+    fn service_session_ingress(&self) -> RuntimeResult<()> {
         let Some(runtime_state) = self.runtime_state.upgrade() else {
             return Ok(());
         };

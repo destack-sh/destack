@@ -1,5 +1,6 @@
 use crate::diagnostic::RuntimeError;
 use crate::host::Platform;
+use crate::host::core::request::HostRequestCompletion;
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 
@@ -31,6 +32,26 @@ pub(crate) fn missing_host_queue_registration(runtime_id: u64) -> Box<RuntimeErr
     RuntimeError::from(PlatformError::generic(
         Some(PlatformErrorCode::IoNotFound),
         format!("missing host queue registration for runtime {runtime_id}"),
+    ))
+    .boxed()
+}
+
+/// Return one unsupported host completion error for synchronous operation decoding.
+pub(crate) fn unsupported_request_completion(
+    operation: &'static str,
+    completion: HostRequestCompletion,
+) -> Box<RuntimeError> {
+    let completion = match completion {
+        HostRequestCompletion::Immediate => "immediate",
+        HostRequestCompletion::Deferred => "deferred",
+        HostRequestCompletion::EventCompleting => "event-completing",
+    };
+
+    RuntimeError::from(PlatformError::generic(
+        Some(PlatformErrorCode::Generic),
+        format!(
+            "{operation} returned one {completion} host completion, but sync host decoding is still in use: move this request to one interactive host transaction path"
+        ),
     ))
     .boxed()
 }

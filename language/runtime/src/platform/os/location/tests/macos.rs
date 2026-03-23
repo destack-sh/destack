@@ -1,10 +1,9 @@
 use std::sync::{Mutex, OnceLock};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::HostRuntimeId;
-use crate::host::macos::{
-    MacosLocationHooks, macos_notify_location_sample, set_macos_location_test_hooks,
-};
+use crate::host::core::HostSessionId;
+use crate::host::macos::ingress::notify::macos_notify_location_sample;
+use crate::host::macos::request::location::{MacosLocationHooks, set_macos_location_test_hooks};
 use crate::platform::os::abi_generated::{LocationSampleValue, LocationWatchOptionsValue};
 use crate::platform::os::tests::with_configured_harness_context;
 
@@ -92,7 +91,7 @@ fn test_location_last_known_hook() -> RuntimeResult<LocationSampleValue> {
 
 /// Publish one location event for the opened watch in tests.
 fn test_location_watch_open_hook(
-    host_runtime_id: HostRuntimeId,
+    host_session_id: HostSessionId,
     watch_id: String,
     _options: LocationWatchOptionsValue,
 ) -> RuntimeResult<()> {
@@ -102,14 +101,14 @@ fn test_location_watch_open_hook(
         .unwrap_or_else(|error| error.into_inner());
     *slot = Some(watch_id.clone());
 
-    macos_notify_location_sample(host_runtime_id.0, &watch_id, test_location_sample())?;
+    macos_notify_location_sample(host_session_id.0, &watch_id, test_location_sample())?;
 
     Ok(())
 }
 
 /// Accept one watch-close request in macOS tests.
 fn test_location_watch_close_hook(
-    _host_runtime_id: HostRuntimeId,
+    _host_runtime_id: HostSessionId,
     _watch_id: String,
 ) -> RuntimeResult<()> {
     Ok(())

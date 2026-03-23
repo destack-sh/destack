@@ -4,8 +4,8 @@ use std::sync::{Arc, Condvar, Mutex, OnceLock, Weak};
 
 use super::delegate::AppKitWindowDelegate;
 use crate::diagnostic::{DiagnosticStore, RuntimeResult};
-use crate::host::apple::execution::with_process_main_context_marker_if_needed;
-use crate::host::core::{HostRuntimeId, HostRuntimeRegistry, RuntimeIngressHandler};
+use crate::host::apple::core::execution::with_process_main_context_marker_if_needed;
+use crate::host::core::{HostSessionId, HostSessionRegistry, RuntimeIngressHandler};
 use crate::platform::display::WindowTheme;
 use crate::platform::display::unix::appkit::event::{
     DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
@@ -70,7 +70,7 @@ struct AppKitIngressHandler {
 
 impl RuntimeIngressHandler for AppKitIngressHandler {
     /// Service AppKit ingress after one host message pump step.
-    fn service_runtime_ingress(&self) -> RuntimeResult<()> {
+    fn service_session_ingress(&self) -> RuntimeResult<()> {
         let Some(runtime_state) = self.runtime_state.upgrade() else {
             return Ok(());
         };
@@ -264,7 +264,7 @@ impl AppKitRuntimeState {
     /// Register one host-owned ingress observer for this runtime.
     pub(crate) fn register_runtime_ingress(
         self: &Arc<Self>,
-        host_runtime_id: HostRuntimeId,
+        host_session_id: HostSessionId,
     ) -> RuntimeResult<()> {
         let observer = self
             .runtime_ingress_handler
@@ -276,7 +276,7 @@ impl AppKitRuntimeState {
             .clone();
         let handler: Arc<dyn RuntimeIngressHandler> = observer;
 
-        HostRuntimeRegistry::register_runtime_ingress_handler(host_runtime_id, &handler)
+        HostSessionRegistry::register_session_ingress_handler(host_session_id, &handler)
     }
 
     /// Register this runtime with the AppKit display service once.

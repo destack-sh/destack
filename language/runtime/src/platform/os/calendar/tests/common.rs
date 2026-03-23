@@ -3,17 +3,17 @@ use std::sync::{Mutex, OnceLock};
 use destack_vm::{ExternalCallContext, StringHandle};
 use destack_workspace::{RuntimeAppPermission, RuntimeOptions};
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 #[cfg(target_os = "linux")]
-use crate::host::linux::{
+use crate::host::linux::tests::{
     LinuxCalendarHooks as DesktopCalendarHooks, set_linux_calendar_test_hooks,
 };
 #[cfg(target_os = "macos")]
-use crate::host::macos::{
+use crate::host::macos::request::calendar::{
     MacosCalendarHooks as DesktopCalendarHooks, set_macos_calendar_test_hooks,
 };
 #[cfg(windows)]
-use crate::host::windows::{
+use crate::host::windows::request::calendar::{
     WindowsCalendarHooks as DesktopCalendarHooks, set_windows_calendar_test_hooks,
 };
 use crate::platform::os::abi_generated::{
@@ -351,7 +351,7 @@ pub(super) fn decode_string_value(
 
             vm_context
                 .string_value(value.value())
-                .map_err(|error| crate::diagnostic::RuntimeError::from(error).boxed())
+                .map_err(|error| RuntimeError::from(error).boxed())
         }
     }
 }

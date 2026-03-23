@@ -48,7 +48,7 @@ impl AppKitDisplayService {
         runtime_state: &Arc<AppKitRuntimeState>,
     ) {
         let agent_id = binding.agent().id;
-        let host_runtime_id = binding.host().host_runtime_id();
+        let host_session_id = binding.host().host_session_id();
         let state = self.state.clone();
         let runtime_state = runtime_state.clone();
 
@@ -64,7 +64,7 @@ impl AppKitDisplayService {
                 drop(registry);
 
                 ensure_monitor_callback_registered(&state);
-                runtime_state.register_runtime_ingress(host_runtime_id)?;
+                runtime_state.register_runtime_ingress(host_session_id)?;
                 Ok(())
             })
             .expect("AppKit display service registration should succeed");

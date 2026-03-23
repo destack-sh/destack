@@ -2,9 +2,10 @@ use std::thread;
 use std::time::Duration;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRuntimeId, HostRuntimeRegistry};
+use crate::host::core::{HostSessionId, HostSessionRegistry};
 use crate::host::{
-    HostEvent, HostLifecycleEvent, HostLifecycleState, HostMemoryPressureLevel, HostPowerMode,
+    HostEvent, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState,
+    HostMemoryPressureLevel, HostPowerMode,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::tests::{HarnessValue, with_harness_context};
@@ -140,9 +141,10 @@ fn test_lifecycle_read_waits_for_host_event() {
 
         thread::spawn(move || {
             thread::sleep(Duration::from_millis(10));
-            HostRuntimeRegistry::dispatch_host_event(
-                HostRuntimeId(runtime_id),
+            HostSessionRegistry::dispatch_host_event(
+                HostSessionId(runtime_id),
                 &HostEvent::Lifecycle(HostLifecycleEvent {
+                    source_kind: HostLifecycleSourceKind::Application,
                     state: HostLifecycleState::Running,
                 }),
             )
