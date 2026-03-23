@@ -88,7 +88,10 @@ pub fn find_references(
         let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
         let canonical_name = resolve_symbol_name(session, canonical_id);
         let declaration_span = include_declaration
-            .then(|| get_symbol_definition_span(session, canonical_id))
+            .then(|| {
+                get_symbol_definition_span(session, canonical_id)
+                    .or_else(|| get_symbol_local_definition_span(session, canonical_id))
+            })
             .flatten();
 
         (canonical_id, declaration_span, canonical_name)
@@ -123,7 +126,7 @@ fn find_references_to_symbol(
         include_expressions: true,
         include_members: true,
         include_dependencies: true,
-        include_namespace_members: true,
+        include_namespace_receivers: true,
         skip_dependency_aliases: false,
         use_dependency_name_spans: true,
         target_name,
@@ -146,6 +149,7 @@ fn find_references_to_symbol(
     // normalize ordering and remove duplicates
     sort_and_dedup_spans(&mut references);
     prune_overlapping_spans(&mut references);
+    sort_reference_spans(session, &mut references);
 
     // place the declaration first when requested
     if let Some(decl_span) = declaration_span {
@@ -187,4 +191,34 @@ fn prune_overlapping_spans(spans: &mut Vec<Span>) {
     }
 
     *spans = filtered;
+}
+
+/// Sort reference spans by stable file location.
+fn sort_reference_spans(session: &Session, spans: &mut [Span]) {
+    spans.sort_by(|left, right| {
+        let left_key = reference_span_sort_key(session, *left);
+        let right_key = reference_span_sort_key(session, *right);
+
+        left_key.cmp(&right_key)
+    });
+}
+
+/// Build a stable sort key for a reference span.
+fn reference_span_sort_key(session: &Session, span: Span) -> (String, u32, u32, u32) {
+    let file = session.files.get(span.file);
+
+    // prefer the displayed file name used by query snapshots
+    let file_key = if !file.name.is_empty() {
+        file.name.clone()
+    }
+    // otherwise fall back to canonical paths
+    else if let Some(path) = file.path.as_ref() {
+        path.to_string_lossy().to_string()
+    }
+    // otherwise fall back to the uri string
+    else {
+        file.uri.to_string()
+    };
+
+    (file_key, span.start, span.end, span.file.0)
 }

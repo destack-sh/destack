@@ -8,8 +8,9 @@ use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::common::{
-    find_symbol_at_offset, get_canonical_symbol, get_dir_node_span, get_symbol_declaration_span,
-    get_symbol_definition_span, resolve_symbol_name, sort_and_dedup_spans,
+    QueryContext, find_symbol_at_offset, get_canonical_symbol, get_dir_node_span,
+    get_symbol_declaration_span, get_symbol_definition_span, resolve_expression_symbol,
+    resolve_symbol_name, sort_and_dedup_spans,
 };
 use destack_workspace::Session;
 
@@ -196,8 +197,7 @@ pub fn incoming_calls(
                 };
 
                 let mut matches = false;
-                let left_expr = dir_tree.get::<Expression>(*left);
-                if let Some(target) = left_expr.target_symbol() {
+                if let Some(target) = resolve_expression_symbol(&ctx, *left) {
                     let target_canonical = get_canonical_symbol(session, target);
                     matches = target_canonical == canonical_id;
                 }
@@ -210,9 +210,11 @@ pub fn incoming_calls(
                     continue;
                 }
 
-                let Some(call_span) =
-                    get_dir_node_span(ctx.ast_context(), ctx.dir_context(), expr_id.into())
-                else {
+                let Some(call_span) = get_dir_node_span(
+                    ctx.ast_context(),
+                    ctx.dir_analyzed_context(),
+                    expr_id.into(),
+                ) else {
                     continue;
                 };
 
@@ -289,16 +291,18 @@ pub fn outgoing_calls(
         };
 
         // collect all call expressions in the body
-        let mut collector = CallCollector::new(session);
+        let mut collector = CallCollector::new(session, &ctx);
         let body_expr = dir_tree.get::<Expression>(*body_id);
         collector.visit_expression(dir_tree, *body_id, body_expr);
 
         // get spans for collected calls
         let mut calls_with_spans: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
         for (target_id, expr_id) in collector.calls {
-            if let Some(span) =
-                get_dir_node_span(ctx.ast_context(), ctx.dir_context(), expr_id.into())
-            {
+            if let Some(span) = get_dir_node_span(
+                ctx.ast_context(),
+                ctx.dir_analyzed_context(),
+                expr_id.into(),
+            ) {
                 calls_with_spans.entry(target_id).or_default().push(span);
             }
         }
@@ -366,15 +370,17 @@ fn call_kind_rank(kind: CallHierarchyKind) -> u8 {
 /// Visitor that collects Call expressions and their targets.
 struct CallCollector<'a> {
     session: &'a Session,
+    ctx: &'a QueryContext<'a>,
     calls: Vec<(GlobalSymbolId, LocalNodeId<Expression>)>,
     options: NodeVisitorOptions,
 }
 
 impl<'a> CallCollector<'a> {
     /// Create a call collector for one query pass.
-    fn new(session: &'a Session) -> Self {
+    fn new(session: &'a Session, ctx: &'a QueryContext<'a>) -> Self {
         Self {
             session,
+            ctx,
             calls: Vec::new(),
             options: NodeVisitorOptions::default(),
         }
@@ -397,8 +403,7 @@ impl NodeVisitor for CallCollector<'_> {
         // check if this is a call expression
         if let Expression::Call { left, .. } = expression {
             // the left side of the call might be a reference
-            let left_expr = tree.get::<Expression>(*left);
-            if let Some(target) = left_expr.target_symbol() {
+            if let Some(target) = resolve_expression_symbol(&self.ctx, *left) {
                 let canonical = get_canonical_symbol(self.session, target);
                 self.calls.push((canonical, id));
             }

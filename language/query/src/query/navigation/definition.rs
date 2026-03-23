@@ -1,18 +1,13 @@
-use std::collections::HashSet;
-
-use destack_core::StringId;
-use destack_source::{FileId, ModuleId, NodeSpanType, Span, Uri};
+use destack_source::{FileId, NodeSpanType, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::common::{
-    QueryContext, SymbolAtOffset, dependency_item_matches_name, find_symbol_at_offset,
+    QueryContext, SymbolAtOffset, binding_symbol_at_offset, find_symbol_at_offset,
     get_canonical_symbol, get_dir_node_main_span, get_dir_node_span, get_module_by_file_id,
-    get_symbol_definition_span, resolve_nominal_symbol_from_type_expression,
-    resolve_type_symbol_from_module, type_definition_span_for_symbol,
+    get_symbol_definition_span, get_symbol_local_definition_span, semantic_target_symbol_at_offset,
+    type_definition_span_for_symbol,
 };
-use destack_dir::{
-    self as dir, Declarator, DependencyItem, Expression, GlobalNodeIdAny, NodeType, Resolution,
-};
+use destack_dir::{self as dir, DependencyItem, Expression, GlobalNodeIdAny, NodeType, Resolution};
 use destack_workspace::Session;
 
 /// Result of a goto definition query.
@@ -103,13 +98,7 @@ pub fn goto_definition(session: &Session, file: FileId, offset: u32) -> Option<D
     }
 
     // find the symbol at the offset
-    let Some(symbol_at) = find_symbol_at_offset(session, file, offset) else {
-        if let Some(span) = resolve_type_definition_from_imports(session, file, offset) {
-            return Some(DefinitionResult::single(span));
-        }
-
-        return None;
-    };
+    let symbol_at = find_symbol_at_offset(session, file, offset)?;
 
     // prefer overload declaration spans when call resolution selected a concrete signature
     if let Some(span) = overload_definition_span_for_call_site(session, file, &symbol_at) {
@@ -117,7 +106,9 @@ pub fn goto_definition(session: &Session, file: FileId, offset: u32) -> Option<D
     }
 
     // get the definition span
-    let span = get_symbol_definition_span(session, symbol_at.symbol_id)?;
+    let symbol_id = semantic_target_symbol_at_offset(session, file, offset, &symbol_at)
+        .unwrap_or(symbol_at.symbol_id);
+    let span = get_symbol_definition_span(session, symbol_id)?;
 
     Some(DefinitionResult::single(span))
 }
@@ -132,6 +123,7 @@ fn resolve_import_definition_at_offset(
     let module = get_module_by_file_id(session, file)?;
     let module = module.as_ref();
     let ctx = crate::query_context(session, module)?;
+    let ast = ctx.ast_context();
     let dir_tree = ctx.tree();
 
     // scan dependency items and select the one at the cursor
@@ -139,10 +131,18 @@ fn resolve_import_definition_at_offset(
         let item = dir_tree.get::<DependencyItem>(item_id);
 
         // resolve the main declaration span for coarse overlap checks
-        let fallback_span =
-            get_dir_node_main_span(ctx.ast_context(), ctx.dir_context(), item_id.into()).or_else(
-                || get_dir_node_span(ctx.ast_context(), ctx.dir_context(), item_id.into()),
-            );
+        let fallback_span = get_dir_node_main_span(
+            ctx.ast_context(),
+            ctx.dir_analyzed_context(),
+            item_id.into(),
+        )
+        .or_else(|| {
+            get_dir_node_span(
+                ctx.ast_context(),
+                ctx.dir_analyzed_context(),
+                item_id.into(),
+            )
+        });
 
         // skip items that do not cover the cursor
         if !fallback_span.is_some_and(|span| span.contains(offset)) {
@@ -151,26 +151,23 @@ fn resolve_import_definition_at_offset(
 
         // resolve side spans for imported-name and alias positions
         let source_id = dir_tree.get_source(item_id.id);
-        let imported_name_span = ctx
-            .ast
-            .tree
+        let imported_name_span = ast
+            .tree()
             .get_side_span_by_id(source_id, NodeSpanType::Type)
             .map(|span| Span::new(ctx.file_id, span.start, span.end));
-        let local_alias_span = ctx
-            .ast
-            .tree
+        let local_alias_span = ast
+            .tree()
             .get_side_span_by_id(source_id, NodeSpanType::Main)
             .map(|span| Span::new(ctx.file_id, span.start, span.end));
 
-        // import-side positions should prefer the imported target symbol
-        let prefer_target_symbol = imported_name_span.is_some_and(|span| span.contains(offset))
+        // only resolve definition targets from the imported name or local alias
+        let is_symbol_span = imported_name_span.is_some_and(|span| span.contains(offset))
             || local_alias_span.is_some_and(|span| span.contains(offset));
-        let target_symbol =
-            resolve_dependency_item_target_symbol_for_definition(session, &ctx, item)?;
-
-        if prefer_target_symbol {
-            return get_symbol_definition_span(session, target_symbol);
+        if !is_symbol_span {
+            continue;
         }
+
+        let target_symbol = resolve_dependency_item_target_symbol_for_definition(&ctx, item)?;
 
         return get_symbol_definition_span(session, target_symbol);
     }
@@ -180,7 +177,6 @@ fn resolve_import_definition_at_offset(
 
 /// Resolve a dependency item target symbol for goto-definition.
 fn resolve_dependency_item_target_symbol_for_definition(
-    _session: &Session,
     ctx: &QueryContext<'_>,
     item: &DependencyItem,
 ) -> Option<dir::GlobalSymbolId> {
@@ -205,27 +201,13 @@ fn resolve_dependency_item_target_symbol_for_definition(
 pub fn goto_declaration(session: &Session, file: FileId, offset: u32) -> Option<DefinitionResult> {
     // find the symbol at offset
     let symbol_at = find_symbol_at_offset(session, file, offset)?;
+    let symbol_id =
+        binding_symbol_at_offset(session, file, offset, &symbol_at).unwrap_or(symbol_at.symbol_id);
 
     // get the declaration span
-    let span = get_declaration_span(session, symbol_at.symbol_id)?;
+    let span = get_symbol_local_definition_span(session, symbol_id)?;
 
     Some(DefinitionResult::single(span))
-}
-
-/// Get the declaration span without following canonical_symbol.
-fn get_declaration_span(session: &Session, symbol_id: dir::GlobalSymbolId) -> Option<Span> {
-    // get module and dir
-    let module = session.modules.get(symbol_id.module_id);
-    let module = module.as_ref();
-    let ctx = crate::query_context(session, module)?;
-    let declaration = {
-        let symbols = ctx.symbols();
-        let symbol = symbols.get_symbol(symbol_id.local_id);
-        symbol.primary_declaration?
-    };
-
-    get_dir_node_main_span(ctx.ast_context(), ctx.dir_context(), declaration.local_id)
-        .or_else(|| get_dir_node_span(ctx.ast_context(), ctx.dir_context(), declaration.local_id))
 }
 
 /// Find the type definition of the symbol at the given position.
@@ -239,7 +221,8 @@ pub fn goto_type_definition(
 ) -> Option<DefinitionResult> {
     // find the symbol at the offset
     let symbol_at = find_symbol_at_offset(session, file, offset)?;
-    let symbol_id = symbol_at.symbol_id;
+    let symbol_id =
+        binding_symbol_at_offset(session, file, offset, &symbol_at).unwrap_or(symbol_at.symbol_id);
 
     // use the canonical symbol when it resolves to a type
     let canonical_id = get_canonical_symbol(session, symbol_id);
@@ -262,102 +245,57 @@ pub fn goto_type_definition(
 
         // try get_value_type_id first
         if let Some(type_id) = types.get_value_type_id(symbol_id) {
-            let ty = types.get_type(type_id);
-            ty.symbol()
+            resolve_nominal_type_symbol(types, type_id)
         }
         // otherwise fall back to declared or inferred type
         else {
             let node_id = symbol_at.node_id.into_global(symbol_id.module_id);
             let type_id = types.get_declared_or_inferred_type_id(node_id)?;
-            let ty = types.get_type(type_id);
-            ty.symbol()
+            resolve_nominal_type_symbol(types, type_id)
         }
     };
     if let Some(type_symbol) = resolved_type_symbol {
         let span = get_symbol_definition_span(session, type_symbol)?;
         return Some(DefinitionResult::single(span));
     }
-
-    // final fallback: try to get type from declaration context
-    if let Some(type_symbol) = get_type_from_declaration_context(session, &ctx, symbol_at.node_id) {
-        let span = get_symbol_definition_span(session, type_symbol)?;
-        return Some(DefinitionResult::single(span));
-    }
-
-    // fall back to resolving through import and re-export chains for type-only exports
-    if let Some(span) = resolve_type_definition_from_imports(session, file, offset) {
-        return Some(DefinitionResult::single(span));
-    }
-
     None
 }
 
-/// Get the type symbol from the declaration context of a node.
-/// (we can remove this once type inference populates value types for all symbols, see goto_type_definition)
-fn get_type_from_declaration_context(
-    session: &Session,
-    ctx: &QueryContext<'_>,
-    node_id: dir::LocalNodeIdAny,
+/// Resolve the nominal symbol for a possibly wrapped type.
+fn resolve_nominal_type_symbol(
+    types: &dir::TypeTable,
+    type_id: dir::LocalTypeId,
 ) -> Option<dir::GlobalSymbolId> {
-    let dir_tree = ctx.tree();
-    let types = ctx.types();
-
-    match node_id.ty {
-        // for patterns, find parent declarator and get its type annotation
-        NodeType::Pattern => {
-            // look for a parent Declarator
-            if let Some(parent_node_id) = dir_tree.get_parent(node_id.id)
-                && parent_node_id.ty == NodeType::Declarator
-            {
-                let declarator_id = parent_node_id.try_into_typed().ok()?;
-                let declarator = dir_tree.get::<Declarator>(declarator_id);
-
-                // get the type expression
-                if let Some(ty_expr_id) = declarator.ty
-                    && let Some(type_symbol) =
-                        resolve_nominal_symbol_from_type_expression(session, ctx, ty_expr_id)
-                {
-                    return Some(type_symbol);
+    match types.get_type(type_id) {
+        dir::Type::Reference { symbol, .. } => Some(*symbol),
+        dir::Type::Value { value }
+        | dir::Type::ValueOf { right: value, .. }
+        | dir::Type::ReferenceOf { right: value, .. }
+        | dir::Type::PointerOf { right: value, .. }
+        | dir::Type::Unary { right: value, .. } => resolve_nominal_type_symbol(types, *value),
+        dir::Type::Binary { left, right, .. } => resolve_nominal_type_symbol(types, *left)
+            .or_else(|| resolve_nominal_type_symbol(types, *right)),
+        dir::Type::Conditional {
+            left,
+            right,
+            then_type,
+            else_type,
+            ..
+        } => resolve_nominal_type_symbol(types, *left)
+            .or_else(|| resolve_nominal_type_symbol(types, *right))
+            .or_else(|| resolve_nominal_type_symbol(types, *then_type))
+            .or_else(|| resolve_nominal_type_symbol(types, *else_type)),
+        dir::Type::Union { elements } | dir::Type::Intersection { elements } => {
+            for element in elements {
+                if let Some(symbol_id) = resolve_nominal_type_symbol(types, *element) {
+                    return Some(symbol_id);
                 }
             }
-        }
-        // for parameters, get the declared type
-        NodeType::Parameter => {
-            // parameters have their declared type stored in TypeTable
-            let global_node_id = dir::GlobalNodeIdAny {
-                module_id: ctx.module_id,
-                local_id: node_id,
-            };
-            if let Some(type_id) = types.get_declared_type_id(global_node_id) {
-                let ty = types.get_type(type_id);
-                return ty.symbol();
-            }
-        }
-        // for expressions that are type references, get the target_symbol
-        NodeType::Expression => {
-            let expr_id = node_id.try_into_typed().ok()?;
-            let expr = dir_tree.get::<Expression>(expr_id);
 
-            // check if this is a type reference (GlobalReference, etc.)
-            if let Some(target) = expr.target_symbol() {
-                // verify target is a type symbol
-                let target_module = session.modules.get(target.module_id);
-                let target_module = target_module.as_ref();
-                let target_ctx = crate::query_context(session, target_module)?;
-                let symbols = target_ctx.symbols();
-                let symbol = symbols.get_symbol(target.local_id);
-
-                if symbol.space == dir::SymbolSpace::Type
-                    || symbol.space == dir::SymbolSpace::TypeValue
-                {
-                    return Some(target);
-                }
-            }
+            None
         }
-        _ => {}
+        ty => ty.symbol(),
     }
-
-    None
 }
 
 /// Resolve an overload definition span for the selected call site candidate.
@@ -469,11 +407,15 @@ fn overload_declaration_span_for_signature(
         {
             return get_dir_node_main_span(
                 ctx.ast_context(),
-                ctx.dir_context(),
+                ctx.dir_analyzed_context(),
                 declaration.local_id,
             )
             .or_else(|| {
-                get_dir_node_span(ctx.ast_context(), ctx.dir_context(), declaration.local_id)
+                get_dir_node_span(
+                    ctx.ast_context(),
+                    ctx.dir_analyzed_context(),
+                    declaration.local_id,
+                )
             });
         }
     }
@@ -517,223 +459,4 @@ fn declaration_parameter_type_ids(
     }
 
     Some(parameter_types)
-}
-
-/// Resolve a type definition span by walking import and re-export chains.
-fn resolve_type_definition_from_imports(
-    session: &Session,
-    file: FileId,
-    offset: u32,
-) -> Option<Span> {
-    // resolve the module and query context for this file
-    let module = get_module_by_file_id(session, file)?;
-    let module = module.as_ref();
-    let ctx = crate::query_context(session, module)?;
-
-    // find the smallest enclosing AST node at the cursor
-    let mut enclosing = ctx
-        .ast_context()
-        .tree()
-        .source_map
-        .get_enclosing_spans(offset, offset);
-    if enclosing.is_empty() {
-        return None;
-    }
-
-    enclosing.sort_by_key(|span| (span.length, -(span.idx as i64)));
-
-    // check unresolved paths for import based type resolution
-    let dir_tree = ctx.tree();
-    for enclosing_span in &enclosing {
-        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enclosing_span.idx) else {
-            continue;
-        };
-
-        if dir_node_id.ty != NodeType::Expression {
-            continue;
-        }
-
-        let Ok(expr_id) = dir_node_id.try_into() else {
-            continue;
-        };
-
-        let expr = dir_tree.get::<Expression>(expr_id);
-        let name_id = match expr {
-            Expression::Member { left, name, .. } => {
-                let Some(namespace_name_id) =
-                    namespace_alias_name_id_from_expression(dir_tree, *left)
-                else {
-                    continue;
-                };
-                if let Some(span) = resolve_type_export_from_namespace_import(
-                    session,
-                    &ctx,
-                    namespace_name_id,
-                    *name,
-                ) {
-                    return Some(span);
-                }
-
-                *name
-            }
-            Expression::UnresolvedPath { path, .. }
-            | Expression::LocalReference { path, .. }
-            | Expression::ModuleReference { path, .. }
-            | Expression::GlobalReference { path, .. } => {
-                let Some(name_id) = path.last_segment() else {
-                    continue;
-                };
-
-                // resolve namespaced type references like `models.Settings`
-                if path.segments.len() > 1
-                    && let Some(namespace_name_id) = path.first_segment()
-                    && let Some(span) = resolve_type_export_from_namespace_import(
-                        session,
-                        &ctx,
-                        namespace_name_id,
-                        name_id,
-                    )
-                {
-                    return Some(span);
-                }
-
-                name_id
-            }
-            _ => continue,
-        };
-
-        if let Some(span) = resolve_type_export_from_imports(session, &ctx, name_id) {
-            return Some(span);
-        }
-    }
-
-    None
-}
-
-/// Resolve a namespace alias name from a path-like expression.
-fn namespace_alias_name_id_from_expression(
-    dir_tree: &dir::NodeTree,
-    expression_id: dir::LocalNodeId<Expression>,
-) -> Option<StringId> {
-    let expression = dir_tree.get::<Expression>(expression_id);
-    match expression {
-        Expression::UnresolvedPath { path, .. }
-        | Expression::LocalReference { path, .. }
-        | Expression::ModuleReference { path, .. }
-        | Expression::GlobalReference { path, .. } => path.first_segment(),
-        Expression::Parenthesized { expression } => {
-            namespace_alias_name_id_from_expression(dir_tree, *expression)
-        }
-        _ => None,
-    }
-}
-
-/// Resolve a type export through a namespace import alias and member name.
-fn resolve_type_export_from_namespace_import(
-    session: &Session,
-    ctx: &QueryContext<'_>,
-    namespace_name_id: StringId,
-    type_name_id: StringId,
-) -> Option<Span> {
-    let dir_tree = ctx.tree();
-    for item_id in dir_tree.iter_node_ids_of_type::<dir::DependencyItem>() {
-        let item = dir_tree.get::<dir::DependencyItem>(item_id);
-        let (mode, name, alias, target_module) = match item {
-            dir::DependencyItem::Remote {
-                mode,
-                name,
-                alias,
-                target_module,
-                ..
-            } => (*mode, *name, *alias, Some(*target_module)),
-            _ => continue,
-        };
-
-        if !dependency_item_matches_name(namespace_name_id, name, alias, mode, false) {
-            continue;
-        }
-
-        let Some(target_module_id) = target_module
-            .and_then(|targets| targets.ty.or(targets.value))
-            .and_then(|target| target.module_id())
-        else {
-            continue;
-        };
-
-        let mut visited = HashSet::new();
-        if let Some(span) = resolve_type_definition_from_module(
-            session,
-            target_module_id,
-            type_name_id,
-            &mut visited,
-        ) {
-            return Some(span);
-        }
-    }
-
-    None
-}
-
-/// Resolve a type export by following imports in the current module.
-fn resolve_type_export_from_imports(
-    session: &Session,
-    ctx: &QueryContext<'_>,
-    name_id: StringId,
-) -> Option<Span> {
-    // search import expressions for a matching imported name
-    let dir_tree = ctx.tree();
-    for (_expr_id, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
-        let items = match expr {
-            Expression::Import { items, .. } | Expression::UnresolvedImport { items, .. } => items,
-            _ => continue,
-        };
-
-        for item_id in items {
-            let item = dir_tree.get::<dir::DependencyItem>(*item_id);
-            let (mode, name, alias, target_module) = match item {
-                dir::DependencyItem::Remote {
-                    mode,
-                    name,
-                    alias,
-                    target_module,
-                    ..
-                } => (*mode, *name, *alias, Some(*target_module)),
-                _ => continue,
-            };
-
-            if !dependency_item_matches_name(name_id, name, alias, mode, false) {
-                continue;
-            }
-
-            let Some(target_module_id) = target_module
-                .and_then(|targets| targets.ty.or(targets.value))
-                .and_then(|target| target.module_id())
-            else {
-                continue;
-            };
-
-            let mut visited = HashSet::new();
-            if let Some(span) = resolve_type_definition_from_module(
-                session,
-                target_module_id,
-                name_id,
-                &mut visited,
-            ) {
-                return Some(span);
-            }
-        }
-    }
-
-    None
-}
-
-/// Resolve a type definition span for a module export.
-fn resolve_type_definition_from_module(
-    session: &Session,
-    module_id: ModuleId,
-    name_id: StringId,
-    visited: &mut HashSet<ModuleId>,
-) -> Option<Span> {
-    let symbol_id = resolve_type_symbol_from_module(session, module_id, name_id, visited)?;
-    type_definition_span_for_symbol(session, symbol_id)
 }

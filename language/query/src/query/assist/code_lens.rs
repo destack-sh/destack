@@ -3,7 +3,10 @@ use destack_dir::{self as dir, Expression, GlobalSymbolId, SymbolType};
 use destack_source::{FileId, NodeSpanType, Span, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::common::{AstContext, get_canonical_symbol, get_module_by_file_id, resolve_symbol_name};
+use crate::common::{
+    AstContext, get_canonical_symbol, get_module_by_file_id, resolve_expression_symbol,
+    resolve_symbol_name,
+};
 use destack_workspace::Session;
 
 /// A code lens (inline annotation with optional command).
@@ -259,8 +262,8 @@ fn count_references(session: &Session, symbol_id: GlobalSymbolId) -> usize {
         };
         let dir_tree = ctx.tree();
 
-        for (_, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
-            if let Some(target) = expr.target_symbol() {
+        for (expr_id, _expr) in dir_tree.iter_nodes_of_type::<Expression>() {
+            if let Some(target) = resolve_expression_symbol(&ctx, expr_id) {
                 let target_canonical = get_canonical_symbol(session, target);
                 if target_canonical == canonical_id {
                     count += 1;
