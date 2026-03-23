@@ -199,7 +199,8 @@ impl Compiler {
                     Member::Type { .. }
                     | Member::ComptimeConst { .. }
                     | Member::Embed { .. }
-                    | Member::ComptimeBlock { .. } => {
+                    | Member::ComptimeBlock { .. }
+                    | Member::Error { .. } => {
                         return None;
                     }
                 }
@@ -210,7 +211,9 @@ impl Compiler {
                 let property = tree.get(parent.into_typed::<Property>());
                 match property {
                     Property::Method { .. } => return Some(SuperHomeObjectKind::ObjectMethod),
-                    Property::Field { .. } | Property::Spread { .. } => return None,
+                    Property::Field { .. } | Property::Spread { .. } | Property::Error { .. } => {
+                        return None;
+                    }
                 }
             }
 
@@ -2705,8 +2708,8 @@ impl Compiler {
                 ctx.types.insert_type_from(ty, expression_id)
             }
 
-            // error expression: error type
-            Expression::Error => {
+            // missing and error expressions: error type
+            Expression::Missing | Expression::Error => {
                 let ty = Type::Error;
                 ctx.types.insert_type_from(ty, expression_id)
             }
@@ -4186,6 +4189,7 @@ impl Compiler {
             Property::Spread { .. } => {
                 unreachable!("spread properties are handled before infer_property")
             }
+            Property::Error { .. } => Ok(None),
         }
     }
 

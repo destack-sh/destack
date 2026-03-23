@@ -431,6 +431,9 @@ pub enum Expression {
     /// Debugger statement.
     Debugger,
 
+    /// Missing expression child.
+    Missing,
+
     /// Stub placeholder for annotation-only files.
     Stub,
 
@@ -544,6 +547,7 @@ impl Expression {
 
             Expression::Debugger => "debugger",
 
+            Expression::Missing => "missing",
             Expression::Stub => "stub",
             Expression::Error => "error",
         }

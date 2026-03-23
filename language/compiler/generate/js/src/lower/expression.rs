@@ -721,6 +721,13 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
 
+            dir::Expression::Missing => {
+                let expression = Expression::Error;
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
+                    .into_any()
+            }
+
             dir::Expression::Stub => {
                 let expression = Expression::Stub;
                 self.tree

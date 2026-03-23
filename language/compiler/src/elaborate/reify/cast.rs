@@ -689,6 +689,9 @@ impl Compiler {
                     label,
                     value: cast_value_id,
                 },
+                Argument::Error { .. } => Argument::Error {
+                    value: cast_value_id,
+                },
             };
             state.tree.replace(*argument_id, updated);
         }
@@ -1593,6 +1596,13 @@ impl Compiler {
                     (key, value)
                 }
                 dir::Property::Method { .. } | dir::Property::Spread { .. } => {
+                    return Err(ElaborateError::UnsupportedConstruct {
+                        node: property_id
+                            .into_global_any(state.ctx.module.id)
+                            .into_anchored(Some(state.ctx.profile)),
+                    });
+                }
+                dir::Property::Error { .. } => {
                     return Err(ElaborateError::UnsupportedConstruct {
                         node: property_id
                             .into_global_any(state.ctx.module.id)

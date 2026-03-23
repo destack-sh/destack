@@ -834,6 +834,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 }
             }
             Expression::Debugger => {}
+            Expression::Missing => {}
             Expression::Stub => {}
             Expression::Error => {}
         }
@@ -1100,6 +1101,7 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
             let value_expr = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expr);
         }
+        Property::Error { symbol: _ } => {}
     }
 }
 
@@ -1217,6 +1219,7 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             let body_expr = tree.get(*body);
             visitor.visit_expression(tree, *body, body_expr);
         }
+        Member::Error { symbol: _ } => {}
     }
 }
 
@@ -1353,6 +1356,7 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
             let pattern_node = tree.get(*pattern);
             visitor.visit_pattern(tree, *pattern, pattern_node);
         }
+        Parameter::Error { symbol: _ } => {}
     }
 }
 
@@ -1372,7 +1376,8 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
         | Argument::Positional { value, .. }
         | Argument::Spread {
             label: _, value, ..
-        } => {
+        }
+        | Argument::Error { value } => {
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }

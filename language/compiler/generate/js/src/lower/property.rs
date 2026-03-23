@@ -129,6 +129,12 @@ impl ModuleLowerer<'_> {
                     .expect_node::<Expression>(value.into_global_any(self.module.id), self)?;
                 Property::Spread { modifiers, value }
             }
+            dir::Property::Error { .. } => {
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: property_id.into_global_any(self.module.id),
+                    message: Some("property error slots are not lowered to js".to_string()),
+                });
+            }
         };
         let property_id = self
             .tree
@@ -235,6 +241,12 @@ impl ModuleLowerer<'_> {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: member_id.into_global_any(self.module.id),
                     message: Some("comptime blocks are compile-time only".to_string()),
+                });
+            }
+            dir::Member::Error { .. } => {
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: member_id.into_global_any(self.module.id),
+                    message: Some("member error slots are not lowered to js".to_string()),
                 });
             }
         };

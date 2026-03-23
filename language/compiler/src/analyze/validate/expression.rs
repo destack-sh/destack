@@ -884,7 +884,9 @@ impl Compiler {
             Member::Field { value, .. } => *value == Some(expression_id),
             Member::Method { signature, .. } => signature.return_type == Some(expression_id),
             Member::Embed { value, .. } => *value == expression_id,
-            Member::StaticBlock { .. } | Member::ComptimeBlock { .. } => false,
+            Member::StaticBlock { .. } | Member::ComptimeBlock { .. } | Member::Error { .. } => {
+                false
+            }
         }
     }
 
@@ -896,7 +898,7 @@ impl Compiler {
     ) -> bool {
         match property {
             Property::Method { signature, .. } => signature.return_type == Some(expression_id),
-            Property::Field { .. } | Property::Spread { .. } => false,
+            Property::Field { .. } | Property::Spread { .. } | Property::Error { .. } => false,
         }
     }
 
@@ -2676,7 +2678,7 @@ impl Compiler {
             | Argument::Spread { modifiers, .. } => modifiers
                 .as_ref()
                 .is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe)),
-            Argument::Named { .. } => false,
+            Argument::Named { .. } | Argument::Error { .. } => false,
         }
     }
 

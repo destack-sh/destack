@@ -2886,6 +2886,7 @@ impl Compiler {
                 self.infer_expression(&mut ctx.reborrow(), *body, state)?;
                 Ok(())
             }
+            Member::Error { .. } => Ok(()),
         }
     }
 
@@ -3044,7 +3045,9 @@ impl Compiler {
             let has_default = match ctx.tree.get(*parameter_id) {
                 Parameter::Named { default, .. } => default.is_some(),
                 Parameter::Pattern { default, .. } => default.is_some(),
-                Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => false,
+                Parameter::VariadicNamed { .. }
+                | Parameter::VariadicPattern { .. }
+                | Parameter::Error { .. } => false,
             };
 
             let param_symbol = ctx
@@ -3542,6 +3545,7 @@ impl Compiler {
                         .set_value_type(symbol.into_global(ctx.module.id), binding_ty_id);
                 }
             }
+            Parameter::Error { .. } => {}
         }
         Ok(())
     }

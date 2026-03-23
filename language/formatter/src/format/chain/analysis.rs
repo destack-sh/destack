@@ -22,6 +22,11 @@ pub(crate) fn argument_value_id(
         | Argument::Labeled { value, .. }
         | Argument::Positional { value, .. }
         | Argument::Spread { value, .. } => *value,
+        Argument::Error => {
+            unreachable!(
+                "formatter does not yet derive one value expression for argument error slots"
+            )
+        }
     }
 }
 

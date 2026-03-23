@@ -34,6 +34,8 @@ pub enum Parameter {
         pattern: LocalNodeId<Pattern>,
         symbol: LocalSymbolId,
     },
+    /// Malformed parameter slot.
+    Error { symbol: LocalSymbolId },
 }
 
 impl Node for Parameter {
@@ -48,6 +50,7 @@ impl Parameter {
             Parameter::Pattern { modifiers, .. } => modifiers.as_ref(),
             Parameter::VariadicNamed { modifiers, .. } => modifiers.as_ref(),
             Parameter::VariadicPattern { modifiers, .. } => modifiers.as_ref(),
+            Parameter::Error { .. } => None,
         }
     }
 
@@ -57,7 +60,9 @@ impl Parameter {
             Parameter::Named { default, .. } | Parameter::Pattern { default, .. } => {
                 default.is_some()
             }
-            Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => false,
+            Parameter::VariadicNamed { .. }
+            | Parameter::VariadicPattern { .. }
+            | Parameter::Error { .. } => false,
         }
     }
 
@@ -68,6 +73,7 @@ impl Parameter {
             Parameter::Pattern { symbol, .. } => *symbol,
             Parameter::VariadicNamed { symbol, .. } => *symbol,
             Parameter::VariadicPattern { symbol, .. } => *symbol,
+            Parameter::Error { symbol } => *symbol,
         }
     }
 }
@@ -101,6 +107,8 @@ pub enum Argument {
         label: Option<StringId>,
         value: LocalNodeId<Expression>,
     },
+    /// Malformed argument slot.
+    Error { value: LocalNodeId<Expression> },
 }
 
 impl Argument {
@@ -111,6 +119,7 @@ impl Argument {
             Argument::Labeled { value, .. } => *value,
             Argument::Positional { value, .. } => *value,
             Argument::Spread { value, .. } => *value,
+            Argument::Error { value } => *value,
         }
     }
 

@@ -899,6 +899,9 @@ impl Compiler {
                         Property::Method { .. } | Property::Spread { .. } => {
                             return Ok(None);
                         }
+                        Property::Error { .. } => {
+                            return Ok(None);
+                        }
                     };
                     evaluated_properties.push(evaluated_property);
                 }

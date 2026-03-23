@@ -323,7 +323,9 @@ impl ModuleLowerer<'_> {
                 dir::Parameter::Named { name, .. } | dir::Parameter::VariadicNamed { name, .. } => {
                     Some(*name)
                 }
-                dir::Parameter::Pattern { .. } | dir::Parameter::VariadicPattern { .. } => None,
+                dir::Parameter::Pattern { .. }
+                | dir::Parameter::VariadicPattern { .. }
+                | dir::Parameter::Error { .. } => None,
             };
             parameter_names.push(name);
         }
@@ -529,7 +531,9 @@ impl ModuleLowerer<'_> {
                 dir::Parameter::Named { name, .. } | dir::Parameter::VariadicNamed { name, .. } => {
                     Some(*name)
                 }
-                dir::Parameter::Pattern { .. } | dir::Parameter::VariadicPattern { .. } => None,
+                dir::Parameter::Pattern { .. }
+                | dir::Parameter::VariadicPattern { .. }
+                | dir::Parameter::Error { .. } => None,
             };
             parameter_names.push(name);
         }
@@ -976,7 +980,9 @@ impl ModuleLowerer<'_> {
                 let name = match parameter {
                     dir::Parameter::Named { name, .. }
                     | dir::Parameter::VariadicNamed { name, .. } => Some(*name),
-                    dir::Parameter::Pattern { .. } | dir::Parameter::VariadicPattern { .. } => None,
+                    dir::Parameter::Pattern { .. }
+                    | dir::Parameter::VariadicPattern { .. }
+                    | dir::Parameter::Error { .. } => None,
                 };
                 parameter_names.push(name);
             }

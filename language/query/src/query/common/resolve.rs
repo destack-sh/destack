@@ -401,6 +401,7 @@ pub(crate) fn expression_is_type_position(
                     | ast::Parameter::VariadicPattern { ty, .. } => {
                         ty.is_some_and(|ty| ty.id == current_id)
                     }
+                    ast::Parameter::Error => false,
                 };
             }
             ast::NodeType::Member => {

@@ -254,6 +254,22 @@ impl Compiler {
                 };
                 tree.insert(property_id, property)
             }
+            ast::Property::Error => {
+                let property_id = tree.reserve_from_source(
+                    NodeType::Property,
+                    ast_property_id.id,
+                    scope,
+                    parent_id,
+                );
+                let (symbol_id, _) =
+                    self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
+                let property = Property::Error { symbol: symbol_id };
+                let property_id = tree.insert(property_id, property);
+                symbols
+                    .get_symbol_mut(symbol_id)
+                    .declare_primary(property_id);
+                property_id
+            }
         }
     }
 
@@ -748,6 +764,16 @@ impl Compiler {
                 // bind symbol to member node
                 symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
 
+                member_id
+            }
+            ast::Member::Error => {
+                let member_id =
+                    tree.reserve_from_source(NodeType::Member, ast_member_id.id, scope, parent_id);
+                let (symbol_id, _) =
+                    self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
+                let member = Member::Error { symbol: symbol_id };
+                let member_id = tree.insert(member_id, member);
+                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
                 member_id
             }
         }

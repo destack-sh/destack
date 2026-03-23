@@ -1289,6 +1289,7 @@ fn tree_expression_has_parenthesized_ternary_branch(
             | Argument::Spread { value, .. }
             | Argument::Named { value, .. }
             | Argument::Labeled { value, .. } => *value,
+            Argument::Error => return false,
         };
 
         let Expression::If {

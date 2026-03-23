@@ -1,6 +1,6 @@
 use crate::{
-    Argument, CodegenJsResult, CodegenJsResultExt, Expression, LocalNodeId, ModuleLowerer,
-    Parameter,
+    Argument, CodegenJsError, CodegenJsResult, CodegenJsResultExt, Expression, LocalNodeId,
+    ModuleLowerer, Parameter,
 };
 use destack_dir as dir;
 
@@ -112,6 +112,12 @@ impl ModuleLowerer<'_> {
                     ty,
                 }
             }
+            dir::Parameter::Error { .. } => {
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: parameter_id.into_global_any(self.module.id),
+                    message: Some("parameter error slots are not lowered to js".to_string()),
+                });
+            }
         };
         let parameter_id = self
             .tree
@@ -143,6 +149,12 @@ impl ModuleLowerer<'_> {
                     .lower_expression(*value)
                     .expect_node::<Expression>(value.into_global_any(self.module.id), self)?;
                 Argument::Spread { value }
+            }
+            dir::Argument::Error { value } => {
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: value.into_global_any(self.module.id),
+                    message: Some("argument error slots are not lowered to js".to_string()),
+                });
             }
         };
         let argument_id = self

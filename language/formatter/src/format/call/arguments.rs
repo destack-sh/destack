@@ -121,6 +121,9 @@ pub(crate) fn write_plain_call_argument<'ast>(
         } => {
             write!(f, [token("..."), *value])?;
         }
+        Argument::Error => {
+            write!(f, [token("/* ERROR */")])?;
+        }
     }
 
     Ok(())
@@ -2194,6 +2197,7 @@ fn argument_contains_lambda_value(ctx: &DestackFormatContext<'_>, argument: &Arg
         | Argument::Labeled { value, .. }
         | Argument::Positional { value, .. }
         | Argument::Spread { value, .. } => *value,
+        Argument::Error => return false,
     };
 
     let Expression::Declaration(declaration_id) = ctx.tree.get(value_id) else {
@@ -2263,6 +2267,9 @@ fn write_argument_with_modifiers_and_value<'ast>(
                 write!(f, [value])?;
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
             }
+        }
+        Argument::Error => {
+            write!(f, [token("/* ERROR */")])?;
         }
     }
 

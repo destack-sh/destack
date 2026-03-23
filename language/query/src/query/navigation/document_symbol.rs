@@ -325,7 +325,8 @@ fn member_to_document_symbol_ast(
         }
         ast::Member::Embed { .. }
         | ast::Member::StaticBlock { .. }
-        | ast::Member::ComptimeBlock { .. } => {
+        | ast::Member::ComptimeBlock { .. }
+        | ast::Member::Error => {
             return None;
         }
     };

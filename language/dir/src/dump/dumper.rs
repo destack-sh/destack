@@ -1431,6 +1431,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Debugger => {
                 self.node("Expression::Debugger", id.id).end();
             }
+            Expression::Missing => {
+                self.node("Expression::Missing", id.id).end();
+            }
             Expression::Stub => {
                 self.node("Expression::Stub", id.id).end();
             }
@@ -1657,6 +1660,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("symbol", symbol)
                     .end();
             }
+            Property::Error { symbol } => {
+                self.node("Property::Error", id.id)
+                    .field("symbol", symbol)
+                    .end();
+            }
         }
         self.with_depth(|dumper| {
             walk_property(dumper, tree, id, property);
@@ -1745,6 +1753,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Member::ComptimeBlock", id.id)
                     .field_optional("modifiers", modifiers)
+                    .field("symbol", symbol)
+                    .end();
+            }
+            Member::Error { symbol } => {
+                self.node("Member::Error", id.id)
                     .field("symbol", symbol)
                     .end();
             }
@@ -1926,6 +1939,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("symbol", symbol)
                     .end();
             }
+            Parameter::Error { symbol } => {
+                self.node("Parameter::Error", id.id)
+                    .field("symbol", symbol)
+                    .end();
+            }
         }
         self.with_depth(|dumper| {
             walk_parameter(dumper, tree, id, parameter);
@@ -1955,6 +1973,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Argument::Labeled", id.id)
                     .field("label", label)
                     .end();
+            }
+            Argument::Error { value: _ } => {
+                self.node("Argument::Error", id.id).end();
             }
         }
         self.with_depth(|dumper| {

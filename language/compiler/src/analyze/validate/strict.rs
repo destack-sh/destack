@@ -638,7 +638,9 @@ impl Compiler {
                 Parameter::Named { name, .. } | Parameter::VariadicNamed { name, .. } => {
                     keys.push(StaticKey::Name(*name));
                 }
-                Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } => {}
+                Parameter::Pattern { .. }
+                | Parameter::VariadicPattern { .. }
+                | Parameter::Error { .. } => {}
             }
         }
 
@@ -958,6 +960,7 @@ impl Compiler {
                         });
                     }
                 }
+                Parameter::Error { .. } => {}
             }
         }
     }
@@ -1048,6 +1051,7 @@ impl Compiler {
                         &mut bindings,
                     );
                 }
+                Parameter::Error { .. } => {}
             }
         }
 
@@ -1363,7 +1367,9 @@ impl Compiler {
             let has_default = match parameter {
                 Parameter::Named { default, .. } => default.is_some(),
                 Parameter::Pattern { default, .. } => default.is_some(),
-                Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => false,
+                Parameter::VariadicNamed { .. }
+                | Parameter::VariadicPattern { .. }
+                | Parameter::Error { .. } => false,
             };
             let symbol = parameter.symbol().into_global(ctx.module.id);
             self.report_unchecked_implicit_any_parameter(

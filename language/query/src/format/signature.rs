@@ -409,6 +409,7 @@ fn format_parameter(
             format!("...{}", &*strings.get(*name))
         }
         dir::Parameter::VariadicPattern { .. } => "...<pattern>".to_string(),
+        dir::Parameter::Error { .. } => "<error>".to_string(),
     };
 
     // try to get the inferred type for this parameter

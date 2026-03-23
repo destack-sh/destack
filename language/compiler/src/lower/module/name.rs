@@ -985,6 +985,7 @@ impl ModuleLowerer<'_> {
                 }
                 self.pattern_binding_name(*pattern)
             }
+            dir::Parameter::Error { .. } => None,
         }
     }
 
@@ -1031,6 +1032,8 @@ impl ModuleLowerer<'_> {
             dir::Property::Method { symbol, .. } => *symbol,
             // handle spread properties
             dir::Property::Spread { symbol, .. } => *symbol,
+            // malformed slots still preserve a declaration symbol
+            dir::Property::Error { symbol } => *symbol,
         }
     }
 

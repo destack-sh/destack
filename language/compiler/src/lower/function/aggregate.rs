@@ -195,6 +195,14 @@ impl FunctionLowerer<'_> {
                         message: "method properties in object literals not supported".to_string(),
                     });
                 }
+                dir::Property::Error { .. } => {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.env.module_id)
+                            .into_anchored(Some(self.env.profile)),
+                        message: "error properties in object literals not supported".to_string(),
+                    });
+                }
             }
         }
 

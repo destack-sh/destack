@@ -325,6 +325,7 @@ fn expression_contains_type_binary(
                         | Argument::Labeled { value, .. }
                         | Argument::Positional { value, .. }
                         | Argument::Spread { value, .. } => *value,
+                        Argument::Error => continue,
                     };
                     pending.push(argument_value_id);
                 }
@@ -807,6 +808,9 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                     format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 }
                 Property::Method { .. } => {}
+                Property::Error => {
+                    write!(f, [token("/* ERROR */")])?;
+                }
             }
 
             Ok(())
@@ -979,6 +983,9 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     write!(f, [body])?;
                 }
                 Member::Method { .. } => {}
+                Member::Error => {
+                    write!(f, [token("/* ERROR */")])?;
+                }
             }
 
             let needs_semicolon = matches!(self, Member::Field { .. });

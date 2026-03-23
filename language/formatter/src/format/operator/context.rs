@@ -422,6 +422,7 @@ fn parameter_parent_is_type_context(
         | Parameter::Pattern { ty, .. }
         | Parameter::VariadicNamed { ty, .. }
         | Parameter::VariadicPattern { ty, .. } => *ty,
+        Parameter::Error => None,
     };
 
     parameter_ty.is_some_and(|ty| ty.id == current_id)
@@ -470,7 +471,10 @@ fn member_parent_is_type_context(
         Member::Field { value, .. } => value.is_some_and(|value| value.id == current_id),
         Member::ComptimeConst { ty, .. } => ty.is_some_and(|ty| ty.id == current_id),
         Member::Embed { value, .. } => value.id == current_id,
-        Member::Method { .. } | Member::StaticBlock { .. } | Member::ComptimeBlock { .. } => false,
+        Member::Method { .. }
+        | Member::StaticBlock { .. }
+        | Member::ComptimeBlock { .. }
+        | Member::Error => false,
     }
 }
 
@@ -543,6 +547,7 @@ pub(crate) fn is_parameter_type_annotation(
         | Parameter::Pattern { ty, .. }
         | Parameter::VariadicNamed { ty, .. }
         | Parameter::VariadicPattern { ty, .. } => ty.is_some_and(|ty| ty.id == expression_id.id),
+        Parameter::Error => false,
     }
 }
 

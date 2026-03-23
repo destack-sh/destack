@@ -1808,7 +1808,9 @@ impl Compiler {
                 Parameter::Named { name, .. } | Parameter::VariadicNamed { name, .. } => {
                     Some(*name)
                 }
-                Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } => None,
+                Parameter::Pattern { .. }
+                | Parameter::VariadicPattern { .. }
+                | Parameter::Error { .. } => None,
             };
 
             match subject {
@@ -1846,6 +1848,7 @@ impl Compiler {
                     Argument::Labeled { label, value, .. } if *label == parameter_name => {
                         return Some(*value);
                     }
+                    Argument::Error { .. } => {}
                     _ => {}
                 }
             }
@@ -1864,6 +1867,12 @@ impl Compiler {
                 Argument::Spread { .. } => {
                     if positional_index == parameter_index {
                         return None;
+                    }
+                    positional_index += 1;
+                }
+                Argument::Error { value } => {
+                    if positional_index == parameter_index {
+                        return Some(*value);
                     }
                     positional_index += 1;
                 }

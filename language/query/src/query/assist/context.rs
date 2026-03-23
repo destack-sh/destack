@@ -2275,6 +2275,7 @@ fn extract_property_names(
             dir::Property::Spread { .. } => {
                 // spread properties don't have a single name
             }
+            dir::Property::Error { .. } => {}
         }
     }
 
@@ -2536,6 +2537,7 @@ fn is_object_literal_value_position(
                     return true;
                 }
             }
+            ast::Property::Error => {}
         }
     }
 

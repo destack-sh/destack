@@ -632,7 +632,7 @@ impl Compiler {
             match parameter {
                 Parameter::Named { default, .. } => default.is_some(),
                 Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } => true,
-                Parameter::VariadicNamed { .. } => false,
+                Parameter::VariadicNamed { .. } | Parameter::Error { .. } => false,
             }
         })
     }

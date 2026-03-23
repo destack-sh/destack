@@ -89,13 +89,14 @@ struct TreeTextBoundarySpacingFlags {
 fn tree_child_value_id(
     tree: &NodeTree,
     argument_id: LocalNodeId<Argument>,
-) -> LocalNodeId<Expression> {
+) -> Option<LocalNodeId<Expression>> {
     let argument = tree.get(argument_id);
     match argument {
         Argument::Positional { value, .. }
         | Argument::Spread { value, .. }
         | Argument::Named { value, .. }
-        | Argument::Labeled { value, .. } => *value,
+        | Argument::Labeled { value, .. } => Some(*value),
+        Argument::Error => None,
     }
 }
 
@@ -115,6 +116,11 @@ fn tree_children_layout(
 
     for element_id in elements {
         let value_id = tree_child_value_id(tree, *element_id);
+        let Some(value_id) = value_id else {
+            expression_child_count += 1;
+            only_tree_or_comment_children = false;
+            continue;
+        };
         let value_id = transparent_inner_expression(context, value_id);
         let value = tree.get(value_id);
 
@@ -495,7 +501,9 @@ fn tree_child_is_multiline_tree_expression(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let value_id = tree_child_value_id(context.tree, argument_id);
+    let Some(value_id) = tree_child_value_id(context.tree, argument_id) else {
+        return false;
+    };
     let value_id = transparent_inner_expression(context, value_id);
     matches!(
         context.tree.get(value_id),

@@ -755,7 +755,9 @@ impl Compiler {
         let name = match parameter {
             Parameter::Named { name, .. } => Some(*name),
             Parameter::VariadicNamed { name, .. } => Some(*name),
-            Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } => None,
+            Parameter::Pattern { .. }
+            | Parameter::VariadicPattern { .. }
+            | Parameter::Error { .. } => None,
         };
 
         // resolve the default expression for the parameter
@@ -766,7 +768,9 @@ impl Compiler {
             Parameter::Pattern { default, .. } => {
                 default.map(|expression_id| expression_id.into_global(ctx.module.id))
             }
-            Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => None,
+            Parameter::VariadicNamed { .. }
+            | Parameter::VariadicPattern { .. }
+            | Parameter::Error { .. } => None,
         };
 
         Some(StaticParameter {

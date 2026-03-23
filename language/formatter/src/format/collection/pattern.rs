@@ -139,7 +139,9 @@ fn should_expand_parameter_object_pattern(
     let parameter_pattern = match parameter {
         destack_ast::Parameter::Pattern { pattern, .. }
         | destack_ast::Parameter::VariadicPattern { pattern, .. } => Some(*pattern),
-        destack_ast::Parameter::Named { .. } | destack_ast::Parameter::VariadicNamed { .. } => None,
+        destack_ast::Parameter::Named { .. }
+        | destack_ast::Parameter::VariadicNamed { .. }
+        | destack_ast::Parameter::Error => None,
     };
     if parameter_pattern.is_none_or(|pattern_id| pattern_id.id != node_id.id) {
         return false;

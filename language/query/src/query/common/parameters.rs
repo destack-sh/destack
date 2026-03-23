@@ -26,6 +26,7 @@ pub fn parameter_display_name(session: &Session, parameter: &Parameter) -> Strin
             format!("...{name_str}")
         }
         Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } => "<pattern>".to_string(),
+        Parameter::Error { .. } => "<error>".to_string(),
     }
 }
 
