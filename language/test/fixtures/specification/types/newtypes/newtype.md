@@ -45,7 +45,7 @@ newtype Config = { debug: boolean };
 const config: Config = { debug: true };
 ```
 
-- is not assignable
+- contains: is not assignable
 
 ## nominal typing
 
@@ -61,4 +61,4 @@ const id = UserId(42);
 const bad: OrderId = id;
 ```
 
-- is not assignable
+- contains: is not assignable

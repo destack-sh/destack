@@ -101,7 +101,7 @@ const bad: AnySelect = 1;
 { "compiler": { "noAny": false } }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### conditional types with unknown select else branch
 
@@ -123,7 +123,7 @@ type Select<T> = T extends string ? "yes" : "no";
 let bad: Select<unknown> = "yes";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### conditional types treat never as empty unions
 
@@ -136,7 +136,7 @@ type Result = OnlyStrings<never>;
 let bad: Result = "no";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### conditional types disable distribution with tuples
 
@@ -181,7 +181,7 @@ type NonDist<T> = [T] extends ["a"] ? 1 : 0;
 let bad: NonDist<"a" | "b"> = 1;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### wrapped any conditionals choose the true branch
 
@@ -231,7 +231,7 @@ type Unbox<T> = T extends Box<infer U> ? U : never;
 const bad: Unbox<Box<"ready">> = "no";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### conditional infer over unions preserves distributed member unions
 
@@ -256,7 +256,7 @@ type Unbox<T> = T extends Box<infer U> ? U : never;
 const bad: Unbox<Box<"a"> | Box<"b">> = "c";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### wrapped conditional infer keeps union extraction in one relation
 

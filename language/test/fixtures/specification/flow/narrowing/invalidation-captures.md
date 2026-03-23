@@ -41,7 +41,7 @@ if (box.state.kind === "ready") {
 }
 ```
 
-- does not exist
+- contains: does not exist
 
 ### nested write through helper return invalidates discriminant member availability
 
@@ -64,7 +64,7 @@ if (box.state.kind === "ready") {
 }
 ```
 
-- does not exist
+- contains: does not exist
 
 ## joins and loops
 
@@ -107,7 +107,7 @@ if (take_first) {
 value.payload;
 ```
 
-- does not exist
+- contains: does not exist
 
 ### loop writes invalidate prior branch narrows after re entry
 
@@ -146,7 +146,7 @@ if (typeof state.value === "string") {
 }
 ```
 
-- does not exist
+- contains: does not exist
 
 ### property writes invalidate narrowed optional reads
 
@@ -162,7 +162,7 @@ if (box.value !== undefined) {
 }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### nested property writes invalidate prior dotted-name narrows
 
@@ -181,7 +181,7 @@ if (box.inner.value !== undefined) {
 }
 ```
 
-- not assignable
+- contains: not assignable
 
 ```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }

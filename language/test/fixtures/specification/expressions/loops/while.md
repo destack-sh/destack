@@ -22,7 +22,7 @@ let value: number = while (true) {
 };
 ```
 
-- not assignable
+- contains: not assignable
 
 ### while allows continue in the loop body
 

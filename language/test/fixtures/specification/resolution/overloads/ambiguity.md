@@ -48,7 +48,7 @@ const selected = parse(value);
 selected satisfies "number";
 ```
 
-- not assignable
+- contains: not assignable
 
 ```json:destack.json
 { "compiler": { "noAny": false } }
@@ -92,7 +92,7 @@ const selected = parse(value);
 selected satisfies "number";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### unknown inputs follow declaration order
 
@@ -136,7 +136,7 @@ const selected = parse(value);
 selected satisfies "unknown";
 ```
 
-- not assignable
+- contains: not assignable
 
 ```json:destack.json
 { "compiler": { "noAny": false } }

@@ -54,7 +54,7 @@ class Derived extends Base {
 }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### super call is rejected outside constructors
 

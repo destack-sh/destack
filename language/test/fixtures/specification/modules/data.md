@@ -101,7 +101,7 @@ import data from "./data.json" with { type: "jsonc" };
 data;
 ```
 
-- invalid import attribute type
+- contains: invalid import attribute type
 
 ## Text Import
 
@@ -197,7 +197,7 @@ import data from "./data.json";
 data.nonexistent;
 ```
 
-- property
+- contains: property
 
 ### base64 import is typed as string
 

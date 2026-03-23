@@ -24,7 +24,7 @@ let values = [1, 2];
 let union: 1 | 2 = values[0];
 ```
 
-- not assignable
+- contains: not assignable
 
 ### arrays widen object literal members in let bindings
 
@@ -46,7 +46,7 @@ let values = [{ kind: "a" }, { kind: "b" }];
 values[0].kind satisfies "a";
 ```
 
-- expected "a"
+- contains: expected "a"
 
 ### const arrays still widen elements without const assertions
 
@@ -68,7 +68,7 @@ const values = [1, 2];
 let union: 1 | 2 = values[0];
 ```
 
-- not assignable
+- contains: not assignable
 
 ### contextual arrays preserve union element types
 
@@ -90,7 +90,7 @@ const values: (1 | 2)[] = [1, 2];
 values[0] satisfies 1;
 ```
 
-- expected 1
+- contains: expected 1
 
 ## Conditional expressions
 
@@ -114,7 +114,7 @@ let value = true ? 1 : 2;
 let union: 1 | 2 = value;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### let conditionals widen object literal members
 
@@ -136,7 +136,7 @@ let value = true ? { mode: "dev" } : { mode: "prod" };
 value.mode satisfies "dev";
 ```
 
-- expected "dev"
+- contains: expected "dev"
 
 ### const conditionals preserve literal unions
 
@@ -174,7 +174,7 @@ const config: { mode: Mode } = { mode: "dev" };
 config.mode satisfies "dev";
 ```
 
-- expected "dev"
+- contains: expected "dev"
 
 ### contextual arrays preserve object literal unions
 
@@ -196,7 +196,7 @@ const values: { kind: "a" | "b" }[] = [{ kind: "a" }, { kind: "b" }];
 values[0].kind satisfies "a";
 ```
 
-- expected "a"
+- contains: expected "a"
 
 ## Function returns
 
@@ -220,7 +220,7 @@ const make = () => ({ mode: "dev" });
 make().mode satisfies "dev";
 ```
 
-- expected "dev"
+- contains: expected "dev"
 
 ### contextual return types constrain object literal members
 
@@ -246,7 +246,7 @@ const make = (): { mode: Mode } => ({ mode: "dev" });
 make().mode satisfies "dev";
 ```
 
-- expected "dev"
+- contains: expected "dev"
 
 ## Assignment freshness boundaries
 
@@ -260,7 +260,7 @@ type Named = { name: string };
 const value: Named = { name: "Ada", extra: true };
 ```
 
-- excess property
+- contains: excess property
 
 ### non-fresh objects skip excess checks at later commitments
 
@@ -303,7 +303,7 @@ const result = wrap<"dev" | "prod">("dev");
 result.value satisfies "dev";
 ```
 
-- expected "dev"
+- contains: expected "dev"
 
 ### explicit generic unions flow through method calls
 
@@ -337,7 +337,7 @@ const result = wrapper.wrap<"dev" | "prod">("dev");
 result.value satisfies "dev";
 ```
 
-- expected "dev"
+- contains: expected "dev"
 
 ### return type annotations keep union members
 
@@ -387,7 +387,7 @@ const config = make("dev");
 config.inner.mode satisfies "dev";
 ```
 
-- expected "dev"
+- contains: expected "dev"
 
 ### return type annotations do not narrow to a single literal
 
@@ -405,7 +405,7 @@ const config = make("dev");
 config.mode satisfies "dev";
 ```
 
-- expected "dev"
+- contains: expected "dev"
 
 ## Contextual tuples
 
@@ -430,7 +430,7 @@ const pair: [number, number] = [1, 2];
 pair[0] satisfies 1;
 ```
 
-- expected 1
+- contains: expected 1
 
 ## Mixed literal arrays
 
@@ -454,4 +454,4 @@ let values = [1, "a"];
 values[0] satisfies 1;
 ```
 
-- expected 1
+- contains: expected 1

@@ -56,7 +56,7 @@ left === right;
 left !== right;
 ```
 
-- strict equality
+- contains: strict equality
 
 ### comparison operators reject unavailable compare contracts
 
@@ -100,7 +100,7 @@ const isEqual = left == right;
 isEqual satisfies boolean;
 ```
 
-- no matching overload
+- contains: no matching overload
 
 ### strict equality accepts primitive operands
 

@@ -218,7 +218,7 @@ type Keys = keyof (TextBag | FlagBag);
 const bad: Keys = 1;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### keyof union keeps numeric keys from numeric index signatures
 
@@ -256,7 +256,7 @@ type Keys = keyof (StringIndex | NumberIndex);
 const bad: Keys = "name";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### keyof union with null yields never
 
@@ -268,7 +268,7 @@ type Keys = keyof ({ name: string } | null);
 const bad: Keys = "name";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### in returns true for existing keys
 
@@ -300,7 +300,7 @@ type HasName = "name" in Person;
 const bad: HasName = false;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### in returns false for missing keys
 
@@ -332,7 +332,7 @@ type HasTitle = "title" in Person;
 const bad: HasTitle = true;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### in returns false for missing union keys
 
@@ -374,7 +374,7 @@ type HasLeft = "left" in (Left | Right);
 const bad: HasLeft = true;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### in returns true for intersection keys
 
@@ -416,7 +416,7 @@ type HasLeft = "left" in (Left & Right);
 const bad: HasLeft = false;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### indexed access returns property types
 
@@ -446,4 +446,4 @@ type Name = Person["name"];
 const bad: Name = 42;
 ```
 
-- not assignable
+- contains: not assignable

@@ -37,7 +37,7 @@ let result = take(value);
 let bad: "a" = result;
 ```
 
-- not assignable to type "a"
+- contains: not assignable to type "a"
 
 ### template literal infers constrained spans from call arguments
 
@@ -86,7 +86,7 @@ let result = takeAny(value);
 let bad: "a" = result;
 ```
 
-- not assignable to type "a"
+- contains: not assignable to type "a"
 
 ### template literal infers empty span with literal boundary
 

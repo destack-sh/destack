@@ -53,7 +53,7 @@ class BadConfig {
 }
 ```
 
-- static expression
+- contains: static expression
 
 ### class associated comptime constants require initializer
 
@@ -67,7 +67,7 @@ class BadConfig {
 }
 ```
 
-- initializer
+- contains: initializer
 
 ### class associated comptime constants enforce annotation compatibility
 
@@ -81,7 +81,7 @@ class BadConfig {
 }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### class static const remains runtime member not associated comptime member
 
@@ -97,7 +97,7 @@ class SegmentPlan<Row> {
 declare const bytes: SegmentPlan<string>.SegmentBytes;
 ```
 
-- type
+- contains: type
 
 ### class static comptime const is rejected as redundant
 

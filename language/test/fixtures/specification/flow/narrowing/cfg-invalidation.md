@@ -39,7 +39,7 @@ try {
 value.toUpperCase();
 ```
 
-- does not exist
+- contains: does not exist
 
 ## closure writes inside loops
 
@@ -67,7 +67,7 @@ while (true) {
 }
 ```
 
-- does not exist
+- contains: does not exist
 
 ### finally helper writes invalidate null narrows
 

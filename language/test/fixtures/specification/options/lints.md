@@ -23,7 +23,7 @@ function unused_local(): int32 {
 { "compiler": { "noUnusedLocals": true } }
 ```
 
-- unused local
+- contains: unused local
 
 ### noUnusedLocals allows unused locals when false
 
@@ -64,7 +64,7 @@ function unused_param(value: int32): int32 {
 { "compiler": { "noUnusedParameters": true } }
 ```
 
-- unused parameter
+- contains: unused parameter
 
 ### noUnusedParameters allows unused parameters when false
 
@@ -107,7 +107,7 @@ function unusedLabel(): int32 {
 { "compiler": { "allowUnusedLabels": false } }
 ```
 
-- unused label
+- contains: unused label
 
 ### allowUnusedLabels allows unused labels when true
 
@@ -266,7 +266,7 @@ function missingReturn(flag: boolean): int32 {
 ```
 
 - missing return
-- not assignable
+- contains: not assignable
 
 ### noImplicitReturns allows missing return when false
 
@@ -333,7 +333,7 @@ function redeclared(): int32 {
 { "compiler": { "noRedeclaredLocals": true } }
 ```
 
-- duplicate identifier
+- contains: duplicate identifier
 
 ### noRedeclaredLocals allows duplicate bindings when false
 

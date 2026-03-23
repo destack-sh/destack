@@ -26,7 +26,7 @@ struct Point {
 let value: Point = ^Point { x: 1 };
 ```
 
-- not assignable
+- contains: not assignable
 
 ### owned annotations require ownership
 
@@ -40,7 +40,7 @@ struct Point {
 let value: ^Point = Point { x: 1 };
 ```
 
-- not assignable
+- contains: not assignable
 
 ### owned parameters require explicit ownership
 
@@ -59,7 +59,7 @@ let data = Data { value: 1 };
 consume(data);
 ```
 
-- not assignable
+- contains: not assignable
 
 ### owned parameters accept explicit ownership conversion
 
@@ -91,7 +91,7 @@ let data = ^Data { value: 1 };
 let again = ^data;
 ```
 
-- ownership operator requires an unowned value
+- contains: ownership operator requires an unowned value
 
 ### owned fields are allowed in structs
 

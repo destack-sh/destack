@@ -37,7 +37,7 @@ function bump(x: number): void {
 }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### parameter assignments still enforce parameter types in typescript
 
@@ -49,7 +49,7 @@ function bump(x: number): void {
 }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### parameter bindings allow compound assignment in destack
 

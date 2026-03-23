@@ -23,7 +23,7 @@ declare function parse_repeat<T extends string>(value: `${T}-${T}`): T;
 parse_repeat("row-col");
 ```
 
-- not assignable
+- contains: not assignable
 
 ### repeated span inference rejects widened mutable arguments
 
@@ -36,7 +36,7 @@ let input = "row-row";
 parse_repeat(input);
 ```
 
-- not assignable
+- contains: not assignable
 
 ## higher order inference
 
@@ -74,7 +74,7 @@ let input = "id:users";
 with_parsed(input, value => value);
 ```
 
-- not assignable
+- contains: not assignable
 
 ## construction and decomposition
 
@@ -115,7 +115,7 @@ const key = build_id(segment);
 key satisfies "id:users";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### decomposition splits at the first matching literal boundary
 
@@ -139,7 +139,7 @@ const pair = split_pair("left:right:tail");
 pair satisfies ("left:right", "tail");
 ```
 
-- not assignable
+- contains: not assignable
 
 ### decomposition allows empty suffix captures with literal prefixes
 
@@ -178,7 +178,7 @@ let input = true ? "id:users" : "id:posts";
 with_parsed(input, value => value);
 ```
 
-- not assignable
+- contains: not assignable
 
 ### renamed re exports preserve repeated span inference
 
@@ -217,4 +217,4 @@ import { parseRepeat } from "./index";
 parseRepeat("col-row");
 ```
 
-- not assignable
+- contains: not assignable

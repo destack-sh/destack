@@ -68,7 +68,7 @@ struct BadLayout {
 }
 ```
 
-- static expression
+- contains: static expression
 
 ### struct associated comptime constants reject declaration without initializer
 

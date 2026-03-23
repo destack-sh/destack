@@ -57,7 +57,7 @@ declare function getPet(): Cat | Dog;
 getPet().speak();
 ```
 
-- does not exist
+- contains: does not exist
 
 ### union method call resolves with named extension imports
 
@@ -155,7 +155,7 @@ declare function getPet(): Cat | Dog;
 getPet().speak();
 ```
 
-- does not exist
+- contains: does not exist
 
 ### union method call requires all named extension variants to be visible
 
@@ -187,7 +187,7 @@ declare function getPet(): Cat | Dog;
 getPet().speak();
 ```
 
-- does not exist
+- contains: does not exist
 
 ### union method call resolves through renamed named extension imports
 

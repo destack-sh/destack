@@ -11,7 +11,7 @@ const value = try { 1 };
 value satisfies int;
 ```
 
-- requires a catch or finally
+- contains: requires a catch or finally
 
 ### try expression returns body type with finally
 

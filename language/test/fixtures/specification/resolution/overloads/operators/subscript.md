@@ -74,7 +74,7 @@ const value = bag[1];
 value satisfies int;
 ```
 
-- no matching overload
+- contains: no matching overload
 
 ### index assignment rejects missing IndexSet contracts
 
@@ -89,7 +89,7 @@ const bag = getBag();
 bag[1] = 2;
 ```
 
-- no matching overload
+- contains: no matching overload
 
 ### index access checks key type compatibility
 

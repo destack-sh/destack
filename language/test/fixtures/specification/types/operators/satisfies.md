@@ -33,7 +33,7 @@ const handler = {
 handler.run("no");
 ```
 
-- not assignable
+- contains: not assignable
 
 ## Literal preservation
 
@@ -59,7 +59,7 @@ type Shape = { a: number };
 const value = { a: 1, b: 2 } satisfies Shape;
 ```
 
-- excess property
+- contains: excess property
 
 ### satisfies does not widen without const context
 
@@ -83,7 +83,7 @@ let config = { mode: "dev" } satisfies Shape;
 config.mode satisfies "prod";
 ```
 
-- not assignable
+- contains: not assignable
 
 ## expression identity
 

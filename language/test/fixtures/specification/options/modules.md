@@ -20,7 +20,7 @@ const value: string = "ok";
 { "compiler": { "allowTs": false } }
 ```
 
-- typescript modules are disabled
+- contains: typescript modules are disabled
 
 ### allowTs allows TypeScript modules when true
 
@@ -56,7 +56,7 @@ const value = "ok";
 { "compiler": { "allowJs": false } }
 ```
 
-- javascript modules are disabled
+- contains: javascript modules are disabled
 
 ### allowJs allows JavaScript modules when true
 
@@ -108,7 +108,7 @@ const value: string = 123;
 { "compiler": { "allowTs": true, "checkTs": true } }
 ```
 
-- not assignable
+- contains: not assignable
 
 ## checkJs
 
@@ -182,7 +182,7 @@ declare const value;
 { "compiler": { "skipLibCheck": false } }
 ```
 
-- implicit any
+- contains: implicit any
 
 ## noUntrustedDeclarations
 
@@ -240,7 +240,7 @@ function dup(value: number, value: number) {
 { "compiler": { "allowTs": true, "checkTs": true, "alwaysStrict": false } }
 ```
 
-- duplicate identifier
+- contains: duplicate identifier
 
 ## moduleResolution
 
@@ -297,7 +297,7 @@ import "./missing-side-effect";
 }
 ```
 
-- unresolved module
+- contains: unresolved module
 
 ### noUncheckedSideEffectImports false allows unresolved side-effect imports
 

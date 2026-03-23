@@ -74,7 +74,7 @@ function project<B: Box<string>>(value: B.Wrap): B.Wrap {
 }
 ```
 
-- argument
+- contains: argument
 
 ### class associated type constraint rejects incompatible defaults
 
@@ -88,7 +88,7 @@ class SizedBox {
 }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### class associated type satisfies interface contract
 
@@ -225,7 +225,7 @@ class BadMap implements SizedContainer<int32> {
 }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### class inherited generic associated type projection requires static arguments
 
@@ -250,7 +250,7 @@ function project<B: Buffer<int32>>(value: B.View): B.View {
 }
 ```
 
-- argument
+- contains: argument
 
 ### class inherits interface associated type defaults with static value parameters
 
@@ -318,7 +318,7 @@ function project<B: PairBox<string>>(value: B.Item<int32>): B.Item<int32> {
 }
 ```
 
-- argument
+- contains: argument
 
 ### class inheritance preserves associated type projections
 
@@ -565,7 +565,7 @@ abstract class Base<T> {
 class Derived extends Base<int32> {}
 ```
 
-- missing associated type implementation
+- contains: missing associated type implementation
 
 ### concrete subclasses must implement inherited abstract generic associated types
 
@@ -580,7 +580,7 @@ abstract class Base {
 class Derived extends Base {}
 ```
 
-- missing associated type implementation
+- contains: missing associated type implementation
 
 ### abstract subclasses can defer inherited abstract associated types
 
@@ -656,7 +656,7 @@ const value = new Derived();
 value satisfies Derived;
 ```
 
-- missing associated type implementation
+- contains: missing associated type implementation
 
 ### abstract associated requirements can be deferred across module boundaries
 
@@ -727,7 +727,7 @@ class Box<T> {
 const value = Box.Item;
 ```
 
-- does not exist
+- contains: does not exist
 
 ### class associated type names can coexist with runtime fields
 

@@ -64,4 +64,4 @@ import { values } from "./data.ds";
 const bad: string[] = values;
 ```
 
-- not assignable
+- contains: not assignable

@@ -55,7 +55,7 @@ const point = Point { x: 1 };
 point.missing satisfies int32;
 ```
 
-- does not exist
+- contains: does not exist
 
 ### static if gated struct fields are not required in literals
 

@@ -21,7 +21,7 @@ declare let frozen: readonly number[];
 let bad: number[] = frozen;
 ```
 
-- not assignable
+- contains: not assignable
 
 ## tuples
 
@@ -50,7 +50,7 @@ declare let frozen: ReadonlyPair;
 let bad: Pair = frozen;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### readonly tuple elements do not imply readonly tuples
 
@@ -76,7 +76,7 @@ declare let values: ElemReadonly;
 let bad: Mutable = values;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### readonly tuples reject mutable array assignment
 
@@ -89,7 +89,7 @@ declare let frozen: ReadonlyPair;
 let bad: int32[] = frozen;
 ```
 
-- not assignable
+- contains: not assignable
 
 ## invalid readonly usage
 

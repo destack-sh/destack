@@ -29,7 +29,7 @@ const person = { name: "Ada" }
 person satisfies Person;
 ```
 
-- expected person, found { name: string }
+- contains: expected person, found { name: string }
 
 ### excess property reports error
 
@@ -43,7 +43,7 @@ interface Person {
 const person: Person = { name: "Ada", age: 42 };
 ```
 
-- excess property
+- contains: excess property
 
 ### extra fields allowed for non-literals
 
@@ -81,7 +81,7 @@ interface Target {
 const value: Target = { value: undefined }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### exactOptionalPropertyTypes false allows undefined assignment
 
@@ -118,7 +118,7 @@ const source: Source = {}
 source satisfies Target;
 ```
 
-- expected target, found source
+- contains: expected target, found source
 
 ### required fields are assignable to optional
 
@@ -154,7 +154,7 @@ const source: Source = {}
 const target: Target = source
 ```
 
-- not assignable
+- contains: not assignable
 
 ## assignment allows required to optional
 
@@ -212,7 +212,7 @@ interface Duplicate {
 }
 ```
 
-- duplicate identifier
+- contains: duplicate identifier
 
 ### interface assignability is structural
 
@@ -254,7 +254,7 @@ struct Vec2 {
 const value: Add<Vec2> = Vec2 { x: 1, y: 2 };
 ```
 
-- not assignable
+- contains: not assignable
 
 ### nominal interface accepts explicit implements
 

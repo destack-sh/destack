@@ -57,7 +57,7 @@ declare const box: Box;
 box.missing satisfies number;
 ```
 
-- does not exist
+- contains: does not exist
 
 ### static if gated interface members are not required by implementors
 

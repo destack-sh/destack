@@ -134,7 +134,7 @@ namespace Client {
 class Client {}
 ```
 
-- duplicate identifier
+- contains: duplicate identifier
 
 ### runtime namespace declarations must follow function declarations when merging
 
@@ -148,7 +148,7 @@ namespace Factory {
 function Factory() {}
 ```
 
-- duplicate identifier
+- contains: duplicate identifier
 
 ### type only namespace declarations can merge with class and function declarations
 
@@ -184,7 +184,7 @@ namespace Runtime {
 var Runtime = 1;
 ```
 
-- duplicate identifier
+- contains: duplicate identifier
 
 ### runtime namespace and ambient value declarations conflict
 
@@ -198,7 +198,7 @@ namespace Runtime {
 declare var Runtime: number;
 ```
 
-- duplicate identifier
+- contains: duplicate identifier
 
 ### ambient namespace declarations can coexist with runtime values
 
@@ -242,7 +242,7 @@ declare var Iterator: {
 };
 ```
 
-- duplicate identifier
+- contains: duplicate identifier
 
 ### exported ambient namespace and value declarations can merge
 
@@ -268,7 +268,7 @@ export namespace Tag {
 export const Tag = 1;
 ```
 
-- duplicate export
+- contains: duplicate export
 
 ## declare namespace restrictions
 

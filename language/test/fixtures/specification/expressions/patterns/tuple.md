@@ -39,7 +39,7 @@ let (x: y) = (1, 2);
 let (left, right, extra) = (1, 2);
 ```
 
-- not assignable
+- contains: not assignable
 
 ### tuple patterns support nested destructuring
 

@@ -39,7 +39,7 @@ const selected = apply((value) => value);
 selected satisfies "string";
 ```
 
-- not assignable
+- contains: not assignable
 
 ## Optional and rest parameters
 
@@ -77,7 +77,7 @@ const selected = pick(1);
 selected satisfies "two";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### rest parameters do not override earlier overloads
 
@@ -113,7 +113,7 @@ const selected = pick(1);
 selected satisfies "many";
 ```
 
-- not assignable
+- contains: not assignable
 
 ## Context-sensitive callbacks
 
@@ -171,7 +171,7 @@ selected satisfies "string-second";
 { "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### rest callback candidates can shadow single-argument candidates when first
 
@@ -260,4 +260,4 @@ selected satisfies "string-second";
 { "compiler": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
-- not assignable
+- contains: not assignable

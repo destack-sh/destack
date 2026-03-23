@@ -24,7 +24,7 @@ const value = try {
 value satisfies int;
 ```
 
-- expected string
+- contains: expected string
 
 ## Try error typing
 
@@ -199,7 +199,7 @@ try {
 }
 ```
 
-- expected string
+- contains: expected string
 
 ### typescript catch annotation rejects concrete types
 

@@ -88,7 +88,7 @@ class Packet {
 const size = Packet.Size;
 ```
 
-- does not exist
+- contains: does not exist
 
 ### associated type projections can anchor function signatures
 

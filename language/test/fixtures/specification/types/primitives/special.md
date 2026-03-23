@@ -25,7 +25,7 @@ x satisfies null;
 const value: string = null;
 ```
 
-- not assignable
+- contains: not assignable
 
 ## Undefined
 

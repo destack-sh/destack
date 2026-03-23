@@ -28,7 +28,7 @@ type C = A & B;
 let value: C = { a: 1 };
 ```
 
-- not assignable
+- contains: not assignable
 
 ### intersection type requires overlapping keys to satisfy both sides
 
@@ -42,7 +42,7 @@ type C = A & B;
 let value: C = { value: "ok" };
 ```
 
-- not assignable
+- contains: not assignable
 
 ### intersection type preserves all overlapping-compatible keys
 
@@ -68,7 +68,7 @@ type Both = string & int32;
 let value: Both = "ok";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### intersections keep stricter overlapping member constraints
 

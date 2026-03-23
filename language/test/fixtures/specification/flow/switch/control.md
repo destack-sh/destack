@@ -83,7 +83,7 @@ function invalid_switch_continue(value: int32): int32 {
 }
 ```
 
-- invalid continue
+- contains: invalid continue
 
 ### continue inside switch targets the loop
 
@@ -143,7 +143,7 @@ function invalid_labeled_continue_switch(value: int32): int32 {
 }
 ```
 
-- invalid continue
+- contains: invalid continue
 
 ## Guards
 

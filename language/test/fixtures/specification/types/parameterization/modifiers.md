@@ -33,7 +33,7 @@ const value: Frozen<{ a: number }> = { a: 1 };
 value.a = 2;
 ```
 
-- readonly
+- contains: readonly
 
 ## Key remapping
 
@@ -53,7 +53,7 @@ const ok: WithoutA<Shape> = { b: "x" };
 const bad: WithoutA<Shape> = { a: 1, b: "x" };
 ```
 
-- excess property
+- contains: excess property
 
 ### key remap collisions merge value types
 

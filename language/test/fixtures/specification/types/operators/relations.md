@@ -178,7 +178,7 @@ type IsNever = never extends string;
 const bad: IsNever = false;
 ```
 
-- not assignable
+- contains: not assignable
 
 ### extends never rejects non-never types
 
@@ -200,4 +200,4 @@ type IsNever = string extends never;
 const bad: IsNever = true;
 ```
 
-- not assignable
+- contains: not assignable

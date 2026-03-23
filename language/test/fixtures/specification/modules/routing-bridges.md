@@ -82,7 +82,7 @@ declare const segment: api.Segment<"users">;
 segment satisfies "users";
 ```
 
-- not assignable
+- contains: not assignable
 
 ```json:destack.json
 { "compiler": { "allowTs": true, "checkTs": true } }

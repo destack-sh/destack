@@ -926,7 +926,7 @@ let value = { kind: "a", payload: 1 };
 select(value);
 ```
 
-- not assignable
+- contains: not assignable
 
 ### constrained template inference keeps const span literals
 
@@ -952,4 +952,4 @@ let value = "id:users";
 parse(value);
 ```
 
-- not assignable
+- contains: not assignable

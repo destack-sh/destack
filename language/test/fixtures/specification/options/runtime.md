@@ -64,7 +64,7 @@ import "platform:fs";
 { "compiler": { "noInternalImport": true } }
 ```
 
-- internal module import
+- contains: internal module import
 
 ### noInternalImport allows internal protocol imports when false
 

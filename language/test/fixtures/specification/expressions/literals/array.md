@@ -48,7 +48,7 @@ x satisfies (number | string | boolean)[];
 const x = [1, , 3];
 ```
 
-- array literal holes
+- contains: array literal holes
 
 ## Contextual Arrays
 

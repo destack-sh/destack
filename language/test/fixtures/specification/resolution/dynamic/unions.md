@@ -127,7 +127,7 @@ declare function getPet(): Cat | Dog;
 getPet().speak(1);
 ```
 
-- no matching overload
+- contains: no matching overload
 
 ### union method call resolves extension members
 
@@ -175,7 +175,7 @@ declare function getPet(): Cat | Dog;
 getPet().speak();
 ```
 
-- does not exist
+- contains: does not exist
 
 ### union method call fails when a nullable variant is present
 
@@ -193,7 +193,7 @@ declare function getPet(): Cat | null;
 getPet().speak();
 ```
 
-- does not exist
+- contains: does not exist
 
 ### union method call rejects missing extension member
 
@@ -214,4 +214,4 @@ declare function getPet(): Cat | Dog;
 getPet().speak();
 ```
 
-- does not exist
+- contains: does not exist

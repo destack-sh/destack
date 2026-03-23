@@ -52,7 +52,7 @@ const value: NotCopy = {};
 process<NotCopy>(value);
 ```
 
-- not assignable
+- contains: not assignable
 
 ### multiple constraints reject unsatisfied arguments
 
@@ -76,7 +76,7 @@ const other: Copy = { copy() {} };
 merge<Copy, Copy>(value, other);
 ```
 
-- not assignable
+- contains: not assignable
 
 ### inferred type arguments must satisfy where constraints
 
@@ -106,4 +106,4 @@ function process<T>(value: T): T where T: Copy {
 process({ merge() {} });
 ```
 
-- not assignable
+- contains: not assignable

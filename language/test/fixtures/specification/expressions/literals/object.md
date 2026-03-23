@@ -179,7 +179,7 @@ value satisfies { a: number };
 const value: { a: number } = { ...{ a: "hi" } };
 ```
 
-- not assignable to type { a: number }
+- contains: not assignable to type { a: number }
 
 ## Object Members
 

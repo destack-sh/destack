@@ -66,7 +66,7 @@ type UnknownString = `${unknown}`;
 let bad: UnknownString = "value";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### template literal type accepts any spans
 
@@ -92,7 +92,7 @@ type Bad = `${symbol}`;
 let value: Bad = "value";
 ```
 
-- not assignable
+- contains: not assignable
 
 ### template literal type rejects never spans
 

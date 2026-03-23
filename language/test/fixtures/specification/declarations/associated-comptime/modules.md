@@ -84,7 +84,7 @@ import { Patch } from "./impl";
 declare const grid: Patch<float32>.Grid;
 ```
 
-- missing associated
+- contains: missing associated
 
 ### unresolved imported generic value projections are rejected
 

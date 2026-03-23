@@ -31,7 +31,7 @@ Foo;
 export type Foo = { name: string };
 ```
 
-- type-only
+- contains: type-only
 
 ### named type-only imports are allowed
 
@@ -63,7 +63,7 @@ Foo;
 export type Foo = { name: string };
 ```
 
-- type-only
+- contains: type-only
 
 ### default type-only imports are allowed
 
@@ -99,7 +99,7 @@ export default interface Foo {
 }
 ```
 
-- type-only
+- contains: type-only
 
 ### namespace type-only imports are allowed
 
@@ -135,7 +135,7 @@ export interface User {
 }
 ```
 
-- type-only
+- contains: type-only
 
 ### value imports allow type-only exports in type positions
 
@@ -167,7 +167,7 @@ Foo;
 export type Foo = { name: string };
 ```
 
-- value
+- contains: value
 
 ### imported generic constraints are enforced at call sites
 
@@ -186,7 +186,7 @@ readName({ name: "ok" });
 readName({ name: 1 });
 ```
 
-- not assignable
+- contains: not assignable
 
 ## import aliases
 

@@ -122,7 +122,7 @@ extension for IntBox implements Wrapper<int32> {
 }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### interface associated type can be generic
 
@@ -386,7 +386,7 @@ extension for Bad implements SizedIterable<int32> {
 }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### interface associated type requires matching parameter arity
 
@@ -405,7 +405,7 @@ extension for Thing implements Factory {
 }
 ```
 
-- parameter
+- contains: parameter
 
 ### interface associated type requires matching parameter kinds
 
@@ -426,7 +426,7 @@ extension for Samples implements Windowed<int32> {
 }
 ```
 
-- parameter
+- contains: parameter
 
 ### class implementor associated type requires matching parameter arity
 
@@ -443,7 +443,7 @@ class BadFactory<T> implements Factory<T> {
 }
 ```
 
-- parameter
+- contains: parameter
 
 ### class implementor associated type requires matching parameter kinds
 
@@ -460,7 +460,7 @@ class BadWindow<T> implements Windowed<T> {
 }
 ```
 
-- parameter
+- contains: parameter
 
 ### interface with multiple associated types supports mixed projections
 
@@ -592,7 +592,7 @@ function take<W: Windowed<int32>>(value: W.View): W.View {
 }
 ```
 
-- argument
+- contains: argument
 
 ### associated type projection requires generic associated arguments
 
@@ -609,7 +609,7 @@ function project<F: Factory>(value: F.Item): F.Item {
 }
 ```
 
-- argument
+- contains: argument
 
 ### interface inheritance carries associated type defaults
 
@@ -690,7 +690,7 @@ class Counter implements Stream<int32> {
 }
 ```
 
-- associated
+- contains: associated
 
 ### implementing multiple interfaces composes associated projections
 
@@ -761,7 +761,7 @@ interface Right {
 class Broken implements Left, Right {}
 ```
 
-- associated
+- contains: associated
 
 ### interface abstract associated type must be implemented by classes
 
@@ -776,7 +776,7 @@ interface Container<T> {
 class MissingItem<T> implements Container<T> {}
 ```
 
-- associated
+- contains: associated
 
 ### interface abstract associated type must be implemented by extensions
 
@@ -795,7 +795,7 @@ struct MissingItem<T> {
 extension<T> for MissingItem<T> implements Container<T> {}
 ```
 
-- associated
+- contains: associated
 
 ### interface defaults can reference sibling associated types
 
@@ -844,7 +844,7 @@ function project<C: Container<string>>(value: C.Item<int32>): C.Item<int32> {
 }
 ```
 
-- argument
+- contains: argument
 
 ### associated type projections resolve through re-export chains
 
@@ -971,7 +971,7 @@ declare const value: Box<int32>.Item;
 value satisfies int32;
 ```
 
-- associated
+- contains: associated
 
 ### nominal interfaces support associated type defaults
 
@@ -1037,7 +1037,7 @@ interface Factory<T> {
 class MissingFactory<T> implements Factory<T> {}
 ```
 
-- associated
+- contains: associated
 
 ### interface abstract generic associated type must be implemented by extensions
 
@@ -1056,7 +1056,7 @@ struct MissingFactory<T> {
 extension<T> for MissingFactory<T> implements Factory<T> {}
 ```
 
-- associated
+- contains: associated
 
 ### interface generic associated defaults resolve across module boundaries
 

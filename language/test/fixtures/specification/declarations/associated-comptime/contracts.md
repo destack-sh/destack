@@ -86,7 +86,7 @@ class BadPlan implements PlanContract {
 }
 ```
 
-- not assignable
+- contains: not assignable
 
 ### owner contracts require implementation through cross module abstract chains
 
@@ -128,7 +128,7 @@ import { LeafPlan } from "./leaf";
 declare const row: LeafPlan.Row;
 ```
 
-- missing associated
+- contains: missing associated
 
 ### compatible multi-contract associated comptime requirements share one implementation
 
