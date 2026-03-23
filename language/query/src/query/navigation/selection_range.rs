@@ -2,7 +2,7 @@ use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
-use crate::common::{get_module_by_file_id, program_for_module, span_contains_span};
+use crate::common::{span_contains_span, with_ast_context_for_file};
 use destack_workspace::Session;
 
 /// A selection range with parent.
@@ -65,69 +65,62 @@ pub struct SelectionRangesResponse {
 ///
 /// Used for "Expand Selection" / "Shrink Selection" editor commands.
 pub fn selection_ranges(session: &Session, file: FileId, positions: &[u32]) -> Vec<SelectionRange> {
-    // resolve the module ast
-    let Some(module) = get_module_by_file_id(session, file) else {
-        return Vec::new();
-    };
-    let module = module.as_ref();
-    let program = program_for_module(session, module);
-    let Some(ast) = program.artifacts.ast(module.id) else {
-        return Vec::new();
-    };
+    with_ast_context_for_file(session, file, |ast| {
+        // allocate the results vector
+        let mut results = Vec::with_capacity(positions.len());
 
-    // allocate the results vector
-    let mut results = Vec::with_capacity(positions.len());
+        for &offset in positions {
+            // find all enclosing AST nodes at this position
+            let enclosing = ast.source_map().get_enclosing_spans(offset, offset);
 
-    for &offset in positions {
-        // find all enclosing AST nodes at this position
-        let enclosing = ast.tree.source_map.get_enclosing_spans(offset, offset);
-
-        // fall back to a minimal selection when no spans are available
-        if enclosing.is_empty() {
-            results.push(SelectionRange::leaf(Span::new(file, offset, offset)));
-            continue;
-        }
-
-        // collect unique spans by range
-        let mut seen = HashSet::new();
-        let mut spans: Vec<Span> = enclosing
-            .iter()
-            .map(|enc| enc.span)
-            .filter(|span| seen.insert((span.start, span.end)))
-            .collect();
-
-        // sort by size and position so parents come after children
-        spans.sort_by_key(|span| {
-            let len = span.end.saturating_sub(span.start);
-            (len, span.start, span.end)
-        });
-
-        // find the most specific span at the cursor
-        let leaf_span = spans
-            .first()
-            .copied()
-            .unwrap_or(Span::new(file, offset, offset));
-
-        // build a containment chain starting at the leaf span
-        let mut chain = vec![leaf_span];
-        for span in spans.into_iter().skip(1) {
-            let last = *chain.last().unwrap_or(&leaf_span);
-            let contains_leaf = span_contains_span(span, leaf_span);
-            let contains_last = span_contains_span(span, last);
-            if contains_leaf && contains_last && span != last {
-                chain.push(span);
+            // fall back to a minimal selection when no spans are available
+            if enclosing.is_empty() {
+                results.push(SelectionRange::leaf(Span::new(file, offset, offset)));
+                continue;
             }
+
+            // collect unique spans by range
+            let mut seen = HashSet::new();
+            let mut spans: Vec<Span> = enclosing
+                .iter()
+                .map(|enc| enc.span)
+                .filter(|span| seen.insert((span.start, span.end)))
+                .collect();
+
+            // sort by size and position so parents come after children
+            spans.sort_by_key(|span| {
+                let len = span.end.saturating_sub(span.start);
+                (len, span.start, span.end)
+            });
+
+            // find the most specific span at the cursor
+            let leaf_span = spans
+                .first()
+                .copied()
+                .unwrap_or(Span::new(file, offset, offset));
+
+            // build a containment chain starting at the leaf span
+            let mut chain = vec![leaf_span];
+            for span in spans.into_iter().skip(1) {
+                let last = *chain.last().unwrap_or(&leaf_span);
+                let contains_leaf = span_contains_span(span, leaf_span);
+                let contains_last = span_contains_span(span, last);
+                if contains_leaf && contains_last && span != last {
+                    chain.push(span);
+                }
+            }
+
+            // build the nested selection range from outermost to innermost
+            let mut selection = SelectionRange::leaf(*chain.last().unwrap_or(&leaf_span));
+            for span in chain.iter().rev().skip(1) {
+                selection = SelectionRange::with_parent(*span, selection);
+            }
+
+            // store the computed selection chain
+            results.push(selection);
         }
 
-        // build the nested selection range from outermost to innermost
-        let mut selection = SelectionRange::leaf(*chain.last().unwrap_or(&leaf_span));
-        for span in chain.iter().rev().skip(1) {
-            selection = SelectionRange::with_parent(*span, selection);
-        }
-
-        // store the computed selection chain
-        results.push(selection);
-    }
-
-    results
+        results
+    })
+    .unwrap_or_default()
 }

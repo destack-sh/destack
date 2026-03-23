@@ -6,11 +6,11 @@ use serde::{Deserialize, Serialize};
 
 pub use crate::common::SymbolKind;
 use crate::common::{
-    QueryContext, declaration_display_name, declaration_symbol_kind, get_module_by_file_id,
+    AstContext, QueryContext, declaration_display_name, declaration_symbol_kind,
     is_synthetic_function_keyword_field, main_span_for_dir_node, member_key_name,
-    member_symbol_kind, program_for_module, span_for_dir_node,
+    member_symbol_kind, span_for_dir_node, with_ast_context_for_file,
 };
-use destack_workspace::{Ast, Session};
+use destack_workspace::Session;
 
 /// A symbol in a document (for outline view).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -143,69 +143,62 @@ fn document_symbols_with_dir(session: &Session, file: FileId) -> Option<Vec<Docu
 
 /// Build document symbols using AST data when DIR is unavailable.
 fn document_symbols_with_ast(session: &Session, file: FileId) -> Vec<DocumentSymbol> {
-    // resolve the module ast
-    let Some(module) = get_module_by_file_id(session, file) else {
-        return Vec::new();
-    };
-    let module = module.as_ref();
-    let program = program_for_module(session, module);
-    let Some(ast) = program.artifacts.ast(module.id) else {
-        return Vec::new();
-    };
+    with_ast_context_for_file(session, file, |ast| {
+        // collect document symbols
+        let mut symbols = Vec::new();
 
-    // collect document symbols
-    let mut symbols = Vec::new();
+        // iterate through all declarations
+        for declaration_id in ast.tree().iter_nodes::<ast::Declaration>() {
+            let declaration = ast.tree().get(declaration_id);
 
-    // iterate through all declarations
-    for declaration_id in ast.tree.iter_nodes::<ast::Declaration>() {
-        let declaration = ast.tree.get(declaration_id);
+            // resolve kind and name
+            let kind = declaration_symbol_kind_ast(declaration);
+            let name = declaration_display_name_ast(ast.strings(), declaration);
 
-        // resolve kind and name
-        let kind = declaration_symbol_kind_ast(declaration);
-        let name = declaration_display_name_ast(&ast.strings, declaration);
+            // resolve the full range and the main selection range
+            let range = ast.source_map().get(declaration_id.id);
+            let selection_range = ast.tree().get_main_span(declaration_id).unwrap_or(range);
 
-        // resolve the full range and the main selection range
-        let range = ast.tree.source_map.get(declaration_id.id);
-        let selection_range = ast.tree.get_main_span(declaration_id).unwrap_or(range);
+            // build the document symbol
+            let mut symbol =
+                DocumentSymbol::new(name, kind, range).with_selection_range(selection_range);
 
-        // build the document symbol
-        let mut symbol =
-            DocumentSymbol::new(name, kind, range).with_selection_range(selection_range);
-
-        // add children for declarations with members
-        match declaration {
-            ast::Declaration::Struct { members, .. }
-            | ast::Declaration::Class { members, .. }
-            | ast::Declaration::Interface { members, .. }
-            | ast::Declaration::Extension { members, .. } => {
-                for member_id in members {
-                    if let Some(child) = member_to_document_symbol_ast(&ast, *member_id) {
-                        symbol = symbol.with_child(child);
+            // add children for declarations with members
+            match declaration {
+                ast::Declaration::Struct { members, .. }
+                | ast::Declaration::Class { members, .. }
+                | ast::Declaration::Interface { members, .. }
+                | ast::Declaration::Extension { members, .. } => {
+                    for member_id in members {
+                        if let Some(child) = member_to_document_symbol_ast(ast, *member_id) {
+                            symbol = symbol.with_child(child);
+                        }
                     }
                 }
+                ast::Declaration::Enum {
+                    fields, members, ..
+                } => {
+                    for member_id in members {
+                        if let Some(child) = member_to_document_symbol_ast(ast, *member_id) {
+                            symbol = symbol.with_child(child);
+                        }
+                    }
+                    for field_id in fields {
+                        if let Some(child) = enum_field_to_document_symbol_ast(ast, *field_id) {
+                            symbol = symbol.with_child(child);
+                        }
+                    }
+                }
+                _ => {}
             }
-            ast::Declaration::Enum {
-                fields, members, ..
-            } => {
-                for member_id in members {
-                    if let Some(child) = member_to_document_symbol_ast(&ast, *member_id) {
-                        symbol = symbol.with_child(child);
-                    }
-                }
-                for field_id in fields {
-                    if let Some(child) = enum_field_to_document_symbol_ast(&ast, *field_id) {
-                        symbol = symbol.with_child(child);
-                    }
-                }
-            }
-            _ => {}
+
+            // store the symbol
+            symbols.push(symbol);
         }
 
-        // store the symbol
-        symbols.push(symbol);
-    }
-
-    symbols
+        symbols
+    })
+    .unwrap_or_default()
 }
 
 /// Convert a member to a document symbol.
@@ -304,20 +297,20 @@ fn declaration_symbol_kind_ast(declaration: &ast::Declaration) -> SymbolKind {
 
 /// Convert an AST member to a document symbol.
 fn member_to_document_symbol_ast(
-    ast: &Ast,
+    ast: AstContext<'_>,
     member_id: ast::LocalNodeId<ast::Member>,
 ) -> Option<DocumentSymbol> {
     // resolve the member node
-    let member = ast.tree.get(member_id);
+    let member = ast.tree().get(member_id);
 
     // resolve the member name and kind
     let (name, kind) = match member {
         ast::Member::Type { name, .. } => {
-            let name = ast.strings.get(*name).to_string();
+            let name = ast.strings().get(*name).to_string();
             (name, SymbolKind::TypeParameter)
         }
         ast::Member::ComptimeConst { name, .. } => {
-            let name = ast.strings.get(*name).to_string();
+            let name = ast.strings().get(*name).to_string();
             (name, SymbolKind::Constant)
         }
         ast::Member::Field { key, .. } => {
@@ -338,26 +331,26 @@ fn member_to_document_symbol_ast(
     };
 
     // resolve spans
-    let range = ast.tree.source_map.get(member_id.id);
-    let selection_range = ast.tree.get_main_span(member_id).unwrap_or(range);
+    let range = ast.source_map().get(member_id.id);
+    let selection_range = ast.tree().get_main_span(member_id).unwrap_or(range);
 
     Some(DocumentSymbol::new(name, kind, range).with_selection_range(selection_range))
 }
 
 /// Convert an AST enum field to a document symbol.
 fn enum_field_to_document_symbol_ast(
-    ast: &Ast,
+    ast: AstContext<'_>,
     field_id: ast::LocalNodeId<ast::EnumField>,
 ) -> Option<DocumentSymbol> {
     // resolve the enum field node
-    let field = ast.tree.get(field_id);
+    let field = ast.tree().get(field_id);
 
     // resolve the field name
-    let name = ast.strings.get(field.name.string()).to_string();
+    let name = ast.strings().get(field.name.string()).to_string();
 
     // resolve spans
-    let range = ast.tree.source_map.get(field_id.id);
-    let selection_range = ast.tree.get_main_span(field_id).unwrap_or(range);
+    let range = ast.source_map().get(field_id.id);
+    let selection_range = ast.tree().get_main_span(field_id).unwrap_or(range);
 
     Some(
         DocumentSymbol::new(name, SymbolKind::EnumMember, range)
@@ -366,14 +359,14 @@ fn enum_field_to_document_symbol_ast(
 }
 
 /// Resolve a display name for a member key.
-fn member_key_name_ast(ast: &Ast, key: &ast::Key) -> Option<String> {
+fn member_key_name_ast(ast: AstContext<'_>, key: &ast::Key) -> Option<String> {
     match key {
-        ast::Key::Name(name) => Some(ast.strings.get(name.string()).to_string()),
+        ast::Key::Name(name) => Some(ast.strings().get(name.string()).to_string()),
         ast::Key::Private(name) => {
-            let name = ast.strings.get(*name).to_string();
+            let name = ast.strings().get(*name).to_string();
             Some(format!("#{name}"))
         }
-        ast::Key::NamedExpression { name, .. } => Some(ast.strings.get(*name).to_string()),
+        ast::Key::NamedExpression { name, .. } => Some(ast.strings().get(*name).to_string()),
         ast::Key::Expression(_) => None,
     }
 }

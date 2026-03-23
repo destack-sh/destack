@@ -107,16 +107,47 @@ impl<'a> AstContext<'a> {
     }
 }
 
-/// Dir-facing query context.
+/// Analyzed DIR-facing query context.
 #[derive(Debug, Clone, Copy)]
-pub struct DirContext<'a> {
+pub struct DirAnalyzedContext<'a> {
     /// The module id for this dir view.
     pub module_id: ModuleId,
     /// The analyzed dir surface.
     pub dir: &'a DirAnalyzed,
 }
 
-impl<'a> DirContext<'a> {
+impl<'a> DirAnalyzedContext<'a> {
+    /// Return the DIR node tree.
+    pub fn tree(self) -> &'a dir::NodeTree {
+        &self.dir.tree
+    }
+
+    /// Return the DIR symbol table.
+    pub fn symbols(self) -> &'a dir::SymbolTable {
+        &self.dir.symbols
+    }
+
+    /// Return the DIR type table.
+    pub fn types(self) -> &'a dir::TypeTable {
+        &self.dir.types
+    }
+
+    /// Return the top level DIR roots.
+    pub fn roots(self) -> &'a [dir::LocalNodeId<dir::Expression>] {
+        self.dir.roots.as_ref()
+    }
+}
+
+/// Resolved DIR-facing query context.
+#[derive(Debug, Clone, Copy)]
+pub struct DirResolvedContext<'a> {
+    /// The module id for this resolved view.
+    pub module_id: ModuleId,
+    /// The resolved dir surface.
+    pub dir: &'a DirResolved,
+}
+
+impl<'a> DirResolvedContext<'a> {
     /// Return the DIR node tree.
     pub fn tree(self) -> &'a dir::NodeTree {
         &self.dir.tree
@@ -155,12 +186,25 @@ impl<'a> QueryContext<'a> {
         }
     }
 
-    /// Return the dir-facing query context.
-    pub fn dir_context(&self) -> DirContext<'_> {
-        DirContext {
+    /// Return the analyzed DIR-facing query context.
+    pub fn dir_analyzed_context(&self) -> DirAnalyzedContext<'_> {
+        DirAnalyzedContext {
             module_id: self.module_id,
             dir: self.dir.as_ref(),
         }
+    }
+
+    /// Return the resolved DIR-facing query context.
+    pub fn dir_resolved_context(&self) -> DirResolvedContext<'_> {
+        DirResolvedContext {
+            module_id: self.module_id,
+            dir: self.resolved.as_ref(),
+        }
+    }
+
+    /// Return the resolved DIR.
+    pub fn dir_resolved(&self) -> &DirResolved {
+        self.resolved.as_ref()
     }
 
     /// Get a read guard on the DIR node tree.
@@ -202,7 +246,7 @@ impl<'a> QueryContext<'a> {
 
 /// Get query context for a module using its default profile.
 ///
-/// Returns `None` if AST or DIR is not available for the module.
+/// Returns `None` if AST, analyzed DIR, or resolved DIR is not available for the module.
 pub fn query_context<'a>(session: &Session, module: &'a Module) -> Option<QueryContext<'a>> {
     // resolve the owning program and its default profile
     let program = program_for_module(session, module);
@@ -214,7 +258,7 @@ pub fn query_context<'a>(session: &Session, module: &'a Module) -> Option<QueryC
 
 /// Get query context for a module with an explicit profile.
 ///
-/// Returns `None` if AST or DIR is not available for the module/profile.
+/// Returns `None` if AST, analyzed DIR, or resolved DIR is not available for the module/profile.
 pub fn query_context_with_profile<'a>(
     session: &Session,
     module: &'a Module,
@@ -231,7 +275,7 @@ fn query_context_with_program_and_profile<'a>(
     program: Arc<Program>,
     profile: ProfileId,
 ) -> Option<QueryContext<'a>> {
-    // resolve module ast and profile dir artifact
+    // resolve module ast and semantic artifacts
     let ast = program.artifacts.ast(module.id)?;
     let dir = program.artifacts.dir_analyzed(module.id, profile)?;
     let resolved = program.artifacts.dir_resolved(module.id, profile)?;
@@ -264,4 +308,173 @@ pub fn with_query_context_for_file<T>(
 
     // run the caller logic inside the query context
     Some(f(ctx))
+}
+
+/// Execute a closure with an AST context for a file.
+pub fn with_ast_context_for_file<T>(
+    session: &Session,
+    file_id: FileId,
+    f: impl FnOnce(AstContext<'_>) -> T,
+) -> Option<T> {
+    // resolve the module for the file id
+    let module = get_module_by_file_id(session, file_id)?;
+    let module = module.as_ref();
+
+    // run the caller logic inside the AST context
+    with_ast_context_for_module(session, module, f)
+}
+
+/// Execute a closure with an AST context for a module.
+pub fn with_ast_context_for_module<T>(
+    session: &Session,
+    module: &Module,
+    f: impl FnOnce(AstContext<'_>) -> T,
+) -> Option<T> {
+    // resolve the AST while the module guard is held
+    let program = program_for_module(session, module);
+    let ast = program.artifacts.ast(module.id)?;
+    let ctx = AstContext {
+        file_id: module.file_id,
+        ast: ast.as_ref(),
+    };
+
+    // run the caller logic inside the AST context
+    Some(f(ctx))
+}
+
+/// Execute a closure with a source context for a file.
+pub fn with_source_context_for_file<T>(
+    session: &Session,
+    file_id: FileId,
+    f: impl FnOnce(SourceContext<'_>) -> T,
+) -> Option<T> {
+    // resolve the module for the file id
+    let module = get_module_by_file_id(session, file_id)?;
+    let module = module.as_ref();
+
+    // run the caller logic inside the source context
+    with_source_context_for_module(session, module, f)
+}
+
+/// Execute a closure with a source context for a module.
+pub fn with_source_context_for_module<T>(
+    session: &Session,
+    module: &Module,
+    f: impl FnOnce(SourceContext<'_>) -> T,
+) -> Option<T> {
+    // resolve the AST while the module guard is held
+    let program = program_for_module(session, module);
+    let ast = program.artifacts.ast(module.id)?;
+    let ctx = SourceContext {
+        file_id: module.file_id,
+        ast: ast.as_ref(),
+    };
+
+    // run the caller logic inside the source context
+    Some(f(ctx))
+}
+
+/// Execute a closure with an analyzed DIR context for a file.
+pub fn with_dir_analyzed_context_for_file<T>(
+    session: &Session,
+    file_id: FileId,
+    f: impl FnOnce(DirAnalyzedContext<'_>) -> T,
+) -> Option<T> {
+    // resolve the module for the file id
+    let module = get_module_by_file_id(session, file_id)?;
+    let module = module.as_ref();
+
+    // run the caller logic inside the analyzed DIR context
+    with_dir_analyzed_context_for_module(session, module, f)
+}
+
+/// Execute a closure with an analyzed DIR context for a module.
+pub fn with_dir_analyzed_context_for_module<T>(
+    session: &Session,
+    module: &Module,
+    f: impl FnOnce(DirAnalyzedContext<'_>) -> T,
+) -> Option<T> {
+    // resolve the program and default profile while the module guard is held
+    let program = program_for_module(session, module);
+    let profile = program.default_profile_id_for_module(module.id);
+    let dir = program.artifacts.dir_analyzed(module.id, profile)?;
+    let ctx = DirAnalyzedContext {
+        module_id: module.id,
+        dir: dir.as_ref(),
+    };
+
+    // run the caller logic inside the analyzed DIR context
+    Some(f(ctx))
+}
+
+/// Execute a closure with a resolved DIR context for a file.
+pub fn with_dir_resolved_context_for_file<T>(
+    session: &Session,
+    file_id: FileId,
+    f: impl FnOnce(DirResolvedContext<'_>) -> T,
+) -> Option<T> {
+    // resolve the module for the file id
+    let module = get_module_by_file_id(session, file_id)?;
+    let module = module.as_ref();
+
+    // run the caller logic inside the resolved context
+    with_dir_resolved_context_for_module(session, module, f)
+}
+
+/// Execute a closure with a resolved DIR context for a module.
+pub fn with_dir_resolved_context_for_module<T>(
+    session: &Session,
+    module: &Module,
+    f: impl FnOnce(DirResolvedContext<'_>) -> T,
+) -> Option<T> {
+    // resolve the program and default profile while the module guard is held
+    let program = program_for_module(session, module);
+    let profile = program.default_profile_id_for_module(module.id);
+    let resolved = program.artifacts.dir_resolved(module.id, profile)?;
+    let ctx = DirResolvedContext {
+        module_id: module.id,
+        dir: resolved.as_ref(),
+    };
+
+    // run the caller logic inside the resolved context
+    Some(f(ctx))
+}
+
+/// Execute a closure with AST and resolved DIR contexts for a file.
+pub fn with_ast_and_dir_resolved_context_for_file<T>(
+    session: &Session,
+    file_id: FileId,
+    f: impl FnOnce(AstContext<'_>, DirResolvedContext<'_>) -> T,
+) -> Option<T> {
+    // resolve the module for the file id
+    let module = get_module_by_file_id(session, file_id)?;
+    let module = module.as_ref();
+
+    // run the caller logic inside the shared contexts
+    with_ast_and_dir_resolved_context_for_module(session, module, f)
+}
+
+/// Execute a closure with AST and resolved DIR contexts for a module.
+pub fn with_ast_and_dir_resolved_context_for_module<T>(
+    session: &Session,
+    module: &Module,
+    f: impl FnOnce(AstContext<'_>, DirResolvedContext<'_>) -> T,
+) -> Option<T> {
+    // resolve the program and default profile while the module guard is held
+    let program = program_for_module(session, module);
+    let profile = program.default_profile_id_for_module(module.id);
+    let ast = program.artifacts.ast(module.id)?;
+    let resolved = program.artifacts.dir_resolved(module.id, profile)?;
+
+    let ast = AstContext {
+        file_id: module.file_id,
+        ast: ast.as_ref(),
+    };
+    let resolved = DirResolvedContext {
+        module_id: module.id,
+        dir: resolved.as_ref(),
+    };
+
+    // run the caller logic inside the shared contexts
+    Some(f(ast, resolved))
 }

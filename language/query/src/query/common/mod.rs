@@ -34,8 +34,8 @@ pub use parameters::*;
 pub(crate) use path::*;
 pub use references::*;
 pub(crate) use resolve::{
-    resolve_module_id_for_import_target, resolve_module_id_for_import_target_path,
-    resolve_value_symbol_from_module,
+    resolve_expression_symbol, resolve_module_id_for_import_target,
+    resolve_module_id_for_import_target_path,
 };
 pub use span::*;
 pub use symbol::*;

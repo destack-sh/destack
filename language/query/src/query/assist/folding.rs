@@ -3,7 +3,7 @@ use destack_dir::Declaration;
 use destack_source::{FileId, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::common::{get_module_by_file_id, program_for_module};
+use crate::common::with_ast_context_for_file;
 use destack_workspace::Session;
 
 /// Kind of folding range.
@@ -152,71 +152,64 @@ fn folding_ranges_with_dir(session: &Session, file: FileId) -> Option<Vec<Foldin
 
 /// Build folding ranges from the AST when DIR is unavailable.
 fn folding_ranges_with_ast(session: &Session, file: FileId) -> Vec<FoldingRange> {
-    // resolve the module ast
-    let Some(module) = get_module_by_file_id(session, file) else {
-        return Vec::new();
-    };
-    let module = module.as_ref();
-    let program = program_for_module(session, module);
-    let Some(ast) = program.artifacts.ast(module.id) else {
-        return Vec::new();
-    };
+    with_ast_context_for_file(session, file, |ast| {
+        // resolve the source file
+        let source_file = session.files.get(file);
 
-    // resolve the source file
-    let source_file = session.files.get(file);
+        // collect folding ranges from declarations
+        let mut ranges = Vec::new();
 
-    // collect folding ranges from declarations
-    let mut ranges = Vec::new();
+        // iterate through all declarations and create folding ranges
+        for declaration_id in ast.tree().iter_nodes::<ast::Declaration>() {
+            let declaration = ast.tree().get(declaration_id);
 
-    // iterate through all declarations and create folding ranges
-    for declaration_id in ast.tree.iter_nodes::<ast::Declaration>() {
-        let declaration = ast.tree.get(declaration_id);
+            // only fold declarations with foldable bodies
+            let should_fold = matches!(
+                declaration,
+                ast::Declaration::Function { .. }
+                    | ast::Declaration::Class { .. }
+                    | ast::Declaration::Struct { .. }
+                    | ast::Declaration::Interface { .. }
+                    | ast::Declaration::Enum { .. }
+                    | ast::Declaration::Global { .. }
+                    | ast::Declaration::Namespace { .. }
+                    | ast::Declaration::Extension { .. }
+            );
+            if !should_fold {
+                continue;
+            }
 
-        // only fold declarations with foldable bodies
-        let should_fold = matches!(
-            declaration,
-            ast::Declaration::Function { .. }
-                | ast::Declaration::Class { .. }
-                | ast::Declaration::Struct { .. }
-                | ast::Declaration::Interface { .. }
-                | ast::Declaration::Enum { .. }
-                | ast::Declaration::Global { .. }
-                | ast::Declaration::Namespace { .. }
-                | ast::Declaration::Extension { .. }
-        );
-        if !should_fold {
-            continue;
+            // resolve the declaration span
+            let span = ast.source_map().get(declaration_id.id);
+
+            // convert the span to line numbers
+            let Some((start_line, _)) = source_file.get_position(span.start) else {
+                continue;
+            };
+            let Some((end_line, _)) = source_file.get_position(span.end) else {
+                continue;
+            };
+
+            // skip single line declarations
+            if end_line > start_line {
+                ranges.push(FoldingRange::new(start_line, end_line));
+            }
         }
 
-        // resolve the declaration span
-        let span = ast.tree.source_map.get(declaration_id.id);
+        // collect folding ranges for comment blocks
+        add_comment_folding_ranges(&mut ranges, ast.side_tokens(), &source_file);
 
-        // convert the span to line numbers
-        let Some((start_line, _)) = source_file.get_position(span.start) else {
-            continue;
-        };
-        let Some((end_line, _)) = source_file.get_position(span.end) else {
-            continue;
-        };
+        // sort ranges by start and end line
+        ranges.sort_by_key(|range| (range.start_line, range.end_line));
 
-        // skip single line declarations
-        if end_line > start_line {
-            ranges.push(FoldingRange::new(start_line, end_line));
-        }
-    }
+        // drop duplicate folding ranges
+        ranges.dedup_by(|left, right| {
+            left.start_line == right.start_line && left.end_line == right.end_line
+        });
 
-    // collect folding ranges for comment blocks
-    add_comment_folding_ranges(&mut ranges, &ast.side_tokens, &source_file);
-
-    // sort ranges by start and end line
-    ranges.sort_by_key(|range| (range.start_line, range.end_line));
-
-    // drop duplicate folding ranges
-    ranges.dedup_by(|left, right| {
-        left.start_line == right.start_line && left.end_line == right.end_line
-    });
-
-    ranges
+        ranges
+    })
+    .unwrap_or_default()
 }
 
 /// Add comment folding ranges for the given token stream.
