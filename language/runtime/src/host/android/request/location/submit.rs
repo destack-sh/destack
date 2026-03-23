@@ -1,9 +1,9 @@
-use super::{
+use crate::diagnostic::RuntimeResult;
+use crate::host::android::abi::location::{
     destack_host_android_location_last_known, destack_host_android_location_services_enabled,
     destack_host_android_location_watch_close, destack_host_android_location_watch_open,
 };
-use crate::diagnostic::RuntimeResult;
-use crate::host::callback::decode_callback_host_status;
+use crate::host::core::callback::decode_callback_host_status;
 use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
 use crate::platform::os::{LocationSample, LocationWatchOptions};
 use crate::runtime::NativeStringRef;

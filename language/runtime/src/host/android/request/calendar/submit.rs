@@ -1,10 +1,10 @@
-use super::{
+use crate::diagnostic::RuntimeResult;
+use crate::host::android::abi::calendar::{
     destack_host_android_calendar_event_create, destack_host_android_calendar_event_delete,
     destack_host_android_calendar_event_list, destack_host_android_calendar_event_read,
     destack_host_android_calendar_event_update, destack_host_android_calendar_list,
 };
-use crate::diagnostic::RuntimeResult;
-use crate::host::callback::{
+use crate::host::core::callback::{
     decode_callback_host_status, encode_callback_host_json, read_buffered_callback_host_json,
     read_buffered_callback_host_string,
 };

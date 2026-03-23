@@ -1,8 +1,8 @@
-use crate::host::android::tests::register_android_runtime;
-use crate::host::android::{
+use crate::host::android::ingress::{
     android_notify_background_event, android_notify_intent_open_url,
     android_notify_location_sample, android_notify_notification_event,
 };
+use crate::host::android::tests::register_android_runtime;
 use crate::host::{
     HostBackgroundEvent, HostEvent, HostIntentEvent, HostIntentPayload, HostLocationEvent,
     HostNotificationEvent,
