@@ -4,7 +4,7 @@ use block2::RcBlock;
 use objc2_contacts::{CNAuthorizationStatus, CNContactStore, CNEntityType};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::apple::execution::call_process_main_context_if_needed;
+use crate::host::apple::core::execution::call_process_main_context_if_needed;
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::{Permission, PermissionEntry, PermissionState};

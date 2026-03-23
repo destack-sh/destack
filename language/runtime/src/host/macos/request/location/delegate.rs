@@ -8,8 +8,10 @@ use objc2_core_location::{
 use objc2_foundation::{NSArray, NSError, NSObject, NSObjectProtocol};
 use tracing::error;
 
-use crate::host::core::HostRuntimeId;
-use crate::host::macos::{macos_notify_location_sample, macos_notify_permission_result};
+use crate::host::core::HostSessionId;
+use crate::host::macos::ingress::notify::{
+    macos_notify_location_sample, macos_notify_permission_result,
+};
 
 use super::permission::{is_location_authorized, location_permission_name_for_status};
 use super::sample::{heading_degrees_from_native, location_sample_value_from_native};
@@ -18,7 +20,7 @@ use super::sample::{heading_degrees_from_native, location_sample_value_from_nati
 #[derive(Debug)]
 pub(super) struct MacosLocationDelegateState {
     /// Host runtime id that should receive location events.
-    pub(super) host_runtime_id: HostRuntimeId,
+    pub(super) host_session_id: HostSessionId,
     /// Runtime-scoped watch id for active watch callbacks.
     pub(super) watch_id: Option<String>,
     /// Whether heading updates should override course values.
@@ -57,7 +59,7 @@ define_class!(
                 location_sample_value_from_native(location.as_ref(), state.heading_degrees.get());
 
             if let Err(error) =
-                macos_notify_location_sample(state.host_runtime_id.0, watch_id, sample)
+                macos_notify_location_sample(state.host_session_id.0, watch_id, sample)
             {
                 error!(?error, "failed to publish macOS location sample");
             }
@@ -87,7 +89,7 @@ define_class!(
             let sample = location_sample_value_from_native(location.as_ref(), heading_degrees);
 
             if let Err(error) =
-                macos_notify_location_sample(state.host_runtime_id.0, watch_id, sample)
+                macos_notify_location_sample(state.host_session_id.0, watch_id, sample)
             {
                 error!(
                     ?error,
@@ -104,7 +106,7 @@ define_class!(
             state.authorization_status.set(Some(status));
 
             if let Err(error) = macos_notify_permission_result(
-                state.host_runtime_id.0,
+                state.host_session_id.0,
                 location_permission_name_for_status(status),
                 is_location_authorized(status),
             ) {
@@ -123,7 +125,7 @@ define_class!(
             state.authorization_status.set(Some(status));
 
             if let Err(error) = macos_notify_permission_result(
-                state.host_runtime_id.0,
+                state.host_session_id.0,
                 location_permission_name_for_status(status),
                 is_location_authorized(status),
             ) {
@@ -147,13 +149,13 @@ impl MacosLocationManagerDelegate {
     /// Create one Core Location delegate for one runtime and optional watch id.
     pub(super) fn new(
         mtm: MainThreadMarker,
-        host_runtime_id: HostRuntimeId,
+        host_session_id: HostSessionId,
         watch_id: Option<String>,
         include_heading: bool,
         authorization_status: CLAuthorizationStatus,
     ) -> objc2::rc::Retained<Self> {
         let value = Self::alloc(mtm).set_ivars(MacosLocationDelegateState {
-            host_runtime_id,
+            host_session_id,
             watch_id,
             include_heading,
             authorization_status: Cell::new(Some(authorization_status)),

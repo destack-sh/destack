@@ -3,12 +3,12 @@ use std::sync::Arc;
 use destack_artifact::Platform;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostQueue, HostRuntimeId, HostRuntimeRegistry};
+use crate::host::core::{HostQueue, HostSessionId, HostSessionRegistry};
 use crate::host::{
     HostEvent, HostIntentEvent, HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent,
-    HostLifecycleState, HostLocationEvent, HostMemoryPressureEvent, HostMemoryPressureLevel,
-    HostPermissionEvent, HostPowerMode, HostPowerModeEvent, HostThermalEvent, HostThermalState,
-    HostWallClockEvent,
+    HostLifecycleSourceKind, HostLifecycleState, HostLocationEvent, HostMemoryPressureEvent,
+    HostMemoryPressureLevel, HostPermissionEvent, HostPowerMode, HostPowerModeEvent,
+    HostThermalEvent, HostThermalState, HostWallClockEvent,
 };
 use crate::platform::os::abi_generated::LocationSampleValue;
 /// Windows application lifecycle transitions from native ingress hooks.
@@ -30,7 +30,7 @@ pub(crate) enum WindowsApplicationLifecycle {
 
 /// Return the active Windows host queue for this process.
 fn windows_host_bridge(runtime_id: u64) -> RuntimeResult<Arc<HostQueue>> {
-    HostRuntimeRegistry::queue_for_runtime(HostRuntimeId(runtime_id), Platform::Windows)
+    HostSessionRegistry::queue_for_session(HostSessionId(runtime_id), Platform::Windows)
 }
 
 /// Route one Windows application lifecycle ingress notification.
@@ -40,7 +40,10 @@ pub(crate) fn windows_notify_application_lifecycle(
 ) -> RuntimeResult<()> {
     let bridge = windows_host_bridge(runtime_id)?;
     let state = host_lifecycle_state_for_windows_application(lifecycle);
-    bridge.enqueue(HostEvent::Lifecycle(HostLifecycleEvent { state }));
+    bridge.enqueue(HostEvent::Lifecycle(HostLifecycleEvent {
+        source_kind: HostLifecycleSourceKind::Application,
+        state,
+    }));
 
     Ok(())
 }
@@ -53,6 +56,7 @@ pub(crate) fn windows_notify_permission_result(
 ) -> RuntimeResult<()> {
     let bridge = windows_host_bridge(runtime_id)?;
     bridge.enqueue(HostEvent::Permission(HostPermissionEvent {
+        request_id: None,
         permission: permission.to_string(),
         granted,
     }));

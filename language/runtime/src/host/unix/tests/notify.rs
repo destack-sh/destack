@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use crate::host::core::registry::next_host_runtime_id;
-use crate::host::core::{HostQueue, HostRuntimeRegistry};
+use crate::host::core::{HostQueue, HostSessionRegistry};
 use crate::host::unix::ingress::notify::{
     UnixApplicationLifecycle, host_lifecycle_state_for_unix_application,
     unix_notify_permission_result,
@@ -34,11 +33,11 @@ fn test_map_unix_lifecycle_states() {
 
 #[test]
 fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() {
-    let runtime_id = next_host_runtime_id();
+    let runtime_id = HostSessionRegistry::allocate_session_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
     let registration =
-        HostRuntimeRegistry::register_queue(Platform::Linux, runtime_id, Arc::clone(&queue), None);
-    let runtime_id = registration.host_runtime_id();
+        HostSessionRegistry::register_queue(Platform::Linux, runtime_id, Arc::clone(&queue), None);
+    let runtime_id = registration.host_session_id();
 
     unix_notify_permission_result(runtime_id.0, Platform::Linux, "camera", true).unwrap();
 
@@ -46,6 +45,7 @@ fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() 
     assert_eq!(
         events.as_slice(),
         [HostEvent::Permission(HostPermissionEvent {
+            request_id: None,
             permission: "camera".to_string(),
             granted: true,
         })],

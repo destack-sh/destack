@@ -7,7 +7,7 @@ use tracing::error;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::event::{HostEvent, HostEventKind};
-use crate::host::core::registry::{HostEventObserver, HostRuntimeId, RuntimeIngressHandler};
+use crate::host::core::registry::{HostEventObserver, HostSessionId, RuntimeIngressHandler};
 use crate::runtime::poller::PollerWakeHandle;
 
 /// Shared host event queue for adapter event delivery.
@@ -45,7 +45,7 @@ struct HostQueuePayload {
 
 impl HostQueue {
     /// Create one empty host event queue.
-    pub(crate) fn new(_host_runtime_id: HostRuntimeId) -> Self {
+    pub(crate) fn new(_host_runtime_id: HostSessionId) -> Self {
         Self {
             state: Arc::new(HostQueueState::default()),
         }
@@ -140,7 +140,7 @@ impl HostQueue {
     }
 
     /// Register one runtime ingress handler for this queue.
-    pub(crate) fn register_runtime_ingress_handler(
+    pub(crate) fn register_session_ingress_handler(
         &self,
         handler: &Arc<dyn RuntimeIngressHandler>,
     ) {
@@ -159,11 +159,11 @@ impl HostQueue {
     }
 
     /// Service queue-owned runtime ingress handlers.
-    pub(crate) fn service_runtime_ingress(&self) -> RuntimeResult<()> {
+    pub(crate) fn service_session_ingress(&self) -> RuntimeResult<()> {
         let handlers = self.state.runtime_ingress_handlers.lock().clone();
 
         for handler in handlers {
-            handler.service_runtime_ingress()?;
+            handler.service_session_ingress()?;
         }
 
         Ok(())
@@ -315,22 +315,29 @@ mod tests {
 
     use crate::diagnostic::RuntimeResult;
     use crate::host::core::queue::HostQueue;
-    use crate::host::core::registry::{HostEventObserver, next_host_runtime_id};
-    use crate::host::{HostEvent, HostLifecycleEvent, HostLifecycleState, HostPermissionEvent};
+    use crate::host::core::registry::{HostEventObserver, HostSessionRegistry};
+    use crate::host::{
+        HostEvent, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState,
+        HostPermissionEvent,
+    };
 
     fn lifecycle_event(state: HostLifecycleState) -> HostEvent {
-        HostEvent::Lifecycle(HostLifecycleEvent { state })
+        HostEvent::Lifecycle(HostLifecycleEvent {
+            source_kind: HostLifecycleSourceKind::Application,
+            state,
+        })
     }
 
     fn permission_event(permission: &str, granted: bool) -> HostEvent {
         HostEvent::Permission(HostPermissionEvent {
+            request_id: None,
             permission: permission.to_string(),
             granted,
         })
     }
 
     fn queue() -> HostQueue {
-        HostQueue::new(next_host_runtime_id())
+        HostQueue::new(HostSessionRegistry::allocate_session_id())
     }
 
     #[derive(Debug)]

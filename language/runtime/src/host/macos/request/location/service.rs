@@ -10,9 +10,9 @@ use objc2_core_location::{
 };
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::apple::execution::with_process_main_context_marker_if_needed;
-use crate::host::core::HostRuntimeId;
-use crate::host::macos::macos_notify_location_sample;
+use crate::host::apple::core::execution::with_process_main_context_marker_if_needed;
+use crate::host::core::HostSessionId;
+use crate::host::macos::ingress::notify::macos_notify_location_sample;
 use crate::platform::core::{io_not_found, io_operation_error};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::LocationAccuracy;
@@ -29,7 +29,7 @@ use super::sample::location_sample_value_from_native;
 #[derive(Default)]
 struct MacosLocationService {
     /// Active location runtimes keyed by host runtime id.
-    runtimes: HashMap<HostRuntimeId, MacosLocationRuntime>,
+    runtimes: HashMap<HostSessionId, MacosLocationRuntime>,
 }
 
 /// Runtime-owned macOS location watches for one host runtime.
@@ -54,10 +54,10 @@ thread_local! {
 }
 
 /// Remove one macOS runtime from the active location backend.
-pub(super) fn unregister_location_runtime_on_main(host_runtime_id: HostRuntimeId) {
+pub(super) fn unregister_location_runtime_on_main(host_session_id: HostSessionId) {
     if let Err(error) = with_process_main_context_marker_if_needed(move |_| {
         with_location_service(|service| {
-            let Some(runtime) = service.runtimes.remove(&host_runtime_id) else {
+            let Some(runtime) = service.runtimes.remove(&host_session_id) else {
                 return Ok(());
             };
 
@@ -88,13 +88,13 @@ pub(super) fn location_services_enabled() -> RuntimeResult<bool> {
 
 /// Read the most recent Core Location sample.
 pub(super) fn read_last_known_location(
-    host_runtime_id: HostRuntimeId,
+    host_session_id: HostSessionId,
 ) -> RuntimeResult<LocationSampleValue> {
     with_process_main_context_marker_if_needed(move |mtm| {
         let manager = unsafe { CLLocationManager::new() };
         ensure_location_authorized(
             &manager,
-            host_runtime_id,
+            host_session_id,
             LocationPermissionRequest::WhenInUse,
             mtm,
             LOCATION_LAST_KNOWN_OPERATION,
@@ -114,7 +114,7 @@ pub(super) fn read_last_known_location(
 
 /// Open one live Core Location watch for one runtime.
 pub(super) fn open_location_watch(
-    host_runtime_id: HostRuntimeId,
+    host_session_id: HostSessionId,
     watch_id: &str,
     options: &LocationWatchOptionsValue,
 ) -> RuntimeResult<()> {
@@ -123,7 +123,7 @@ pub(super) fn open_location_watch(
 
     // reject duplicate watch identifiers before starting native updates
     with_location_service(|service| {
-        let Some(runtime) = service.runtimes.get(&host_runtime_id) else {
+        let Some(runtime) = service.runtimes.get(&host_session_id) else {
             return Ok(());
         };
 
@@ -142,14 +142,14 @@ pub(super) fn open_location_watch(
         let manager = unsafe { CLLocationManager::new() };
         let authorization_status = ensure_location_authorized(
             &manager,
-            host_runtime_id,
+            host_session_id,
             LocationPermissionRequest::WhenInUse,
             mtm,
             LOCATION_WATCH_OPEN_OPERATION,
         )?;
         let delegate = MacosLocationManagerDelegate::new(
             mtm,
-            host_runtime_id,
+            host_session_id,
             Some(watch_id.clone()),
             options.include_heading,
             authorization_status,
@@ -170,11 +170,11 @@ pub(super) fn open_location_watch(
         // publish the current sample immediately so the watch starts hot when possible
         if let Some(location) = unsafe { manager.location() } {
             let sample = location_sample_value_from_native(location.as_ref(), None);
-            macos_notify_location_sample(host_runtime_id.0, &watch_id, sample)?;
+            macos_notify_location_sample(host_session_id.0, &watch_id, sample)?;
         }
 
         with_location_service(|service| {
-            let runtime = service.runtimes.entry(host_runtime_id).or_default();
+            let runtime = service.runtimes.entry(host_session_id).or_default();
             runtime
                 .watches
                 .insert(watch_id, ActiveLocationWatch { manager, delegate });
@@ -186,20 +186,20 @@ pub(super) fn open_location_watch(
 
 /// Close one live Core Location watch for one runtime.
 pub(super) fn close_location_watch(
-    host_runtime_id: HostRuntimeId,
+    host_session_id: HostSessionId,
     watch_id: &str,
 ) -> RuntimeResult<()> {
     let watch_id = watch_id.to_string();
 
     with_process_main_context_marker_if_needed(move |_| {
         let removed_watch = with_location_service(|service| {
-            let Some(runtime) = service.runtimes.get_mut(&host_runtime_id) else {
+            let Some(runtime) = service.runtimes.get_mut(&host_session_id) else {
                 return Ok(None);
             };
             let removed_watch = runtime.watches.remove(watch_id.as_str());
 
             if runtime.watches.is_empty() {
-                service.runtimes.remove(&host_runtime_id);
+                service.runtimes.remove(&host_session_id);
             }
 
             Ok(removed_watch)

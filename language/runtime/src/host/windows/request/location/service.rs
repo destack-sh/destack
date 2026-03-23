@@ -8,9 +8,11 @@ use windows::Devices::Geolocation::{
 use windows::Foundation::{DateTime, TimeSpan, TypedEventHandler};
 use windows::core::{Error as WindowsError, Ref};
 
-use crate::diagnostic::RuntimeResult;
-use crate::host::core::HostRuntimeId;
-use crate::host::windows::{windows_notify_location_sample, windows_notify_permission_result};
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::host::core::HostSessionId;
+use crate::host::windows::ingress::notify::{
+    windows_notify_location_sample, windows_notify_permission_result,
+};
 use crate::platform::core::{io_not_found, io_operation_error};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{LocationSampleValue, LocationWatchOptionsValue};
@@ -38,7 +40,7 @@ pub(crate) struct WindowsLocationService {
 /// One host-owned Windows location service state.
 struct WindowsLocationServiceState {
     /// Active runtime watches keyed by host runtime id.
-    runtimes: HashMap<HostRuntimeId, WindowsLocationRuntime>,
+    runtimes: HashMap<HostSessionId, WindowsLocationRuntime>,
 }
 
 /// Active Windows location state for one runtime.
@@ -106,12 +108,12 @@ impl WindowsLocationService {
     /// Request one Windows location permission state.
     pub(crate) fn request_location_permission(
         &self,
-        host_runtime_id: HostRuntimeId,
+        host_session_id: HostSessionId,
         permission: Permission,
         operation: &'static str,
     ) -> RuntimeResult<PermissionState> {
         self.executor.call(operation, move |_state| {
-            let access_status = request_location_access(host_runtime_id, operation)?;
+            let access_status = request_location_access(host_session_id, operation)?;
             let permission_state = permission_state_from_access_status(access_status);
 
             if permission == Permission::Location {
@@ -125,11 +127,11 @@ impl WindowsLocationService {
     /// Read the most recent Windows location sample within host age and timeout bounds.
     pub(crate) fn read_last_known_location(
         &self,
-        host_runtime_id: HostRuntimeId,
+        host_session_id: HostSessionId,
         operation: &'static str,
     ) -> RuntimeResult<LocationSampleValue> {
         self.executor.call(operation, move |_state| {
-            ensure_location_access_allowed(host_runtime_id, operation)?;
+            ensure_location_access_allowed(host_session_id, operation)?;
 
             let geolocator = geolocator_for_options(None, operation)?;
             let geoposition = geolocator
@@ -154,13 +156,13 @@ impl WindowsLocationService {
     /// Open one live Windows location watch.
     pub(crate) fn open_location_watch(
         &self,
-        host_runtime_id: HostRuntimeId,
+        host_session_id: HostSessionId,
         watch_id: String,
         options: LocationWatchOptionsValue,
         operation: &'static str,
     ) -> RuntimeResult<()> {
         self.executor.call(operation, move |state| {
-            ensure_location_access_allowed(host_runtime_id, operation)?;
+            ensure_location_access_allowed(host_session_id, operation)?;
 
             let geolocator = geolocator_for_options(Some(&options), operation)?;
             let position_watch_id = watch_id.clone();
@@ -180,7 +182,7 @@ impl WindowsLocationService {
                         ) {
                             Ok(sample) => {
                                 if let Err(error) = windows_notify_location_sample(
-                                    host_runtime_id.0,
+                                    host_session_id.0,
                                     &position_watch_id,
                                     sample,
                                 ) {
@@ -217,7 +219,7 @@ impl WindowsLocationService {
                         let is_granted = location_permission_granted_for_status(status);
 
                         if let Err(error) = windows_notify_permission_result(
-                            host_runtime_id.0,
+                            host_session_id.0,
                             "location",
                             is_granted,
                         ) {
@@ -235,7 +237,7 @@ impl WindowsLocationService {
                     winrt_location_error(operation, "Geolocator::StatusChanged", &error)
                 })?;
 
-            let runtime = state.runtimes.entry(host_runtime_id).or_default();
+            let runtime = state.runtimes.entry(host_session_id).or_default();
 
             if runtime.watches.contains_key(&watch_id) {
                 return Err(io_operation_error(
@@ -265,7 +267,7 @@ impl WindowsLocationService {
                     location_sample_from_geoposition(&geoposition, include_heading, operation)
             {
                 if let Err(error) =
-                    windows_notify_location_sample(host_runtime_id.0, &watch_id, sample)
+                    windows_notify_location_sample(host_session_id.0, &watch_id, sample)
                 {
                     tracing::warn!(
                         target: "destack.runtime.host.windows.location",
@@ -282,14 +284,14 @@ impl WindowsLocationService {
     /// Close one live Windows location watch.
     pub(crate) fn close_location_watch(
         &self,
-        host_runtime_id: HostRuntimeId,
+        host_session_id: HostSessionId,
         watch_id: &str,
         operation: &'static str,
     ) -> RuntimeResult<()> {
         let watch_id = watch_id.to_string();
 
         self.executor.call(operation, move |state| {
-            let Some(runtime) = state.runtimes.get_mut(&host_runtime_id) else {
+            let Some(runtime) = state.runtimes.get_mut(&host_session_id) else {
                 return Err(io_not_found(operation, "location runtime was not found"));
             };
 
@@ -299,7 +301,7 @@ impl WindowsLocationService {
             }
 
             if runtime.watches.is_empty() {
-                state.runtimes.remove(&host_runtime_id);
+                state.runtimes.remove(&host_session_id);
             }
 
             Ok(())
@@ -307,11 +309,11 @@ impl WindowsLocationService {
     }
 
     /// Remove one runtime from the active Windows location backend.
-    pub(crate) fn unregister_runtime(&self, host_runtime_id: HostRuntimeId) {
+    pub(crate) fn unregister_runtime(&self, host_session_id: HostSessionId) {
         if let Err(error) =
             self.executor
                 .call("destack.host.windows.location.unregister", move |state| {
-                    state.runtimes.remove(&host_runtime_id);
+                    state.runtimes.remove(&host_session_id);
                     Ok(())
                 })
         {
@@ -349,15 +351,15 @@ pub(crate) fn windows_location_service(
 }
 
 /// Remove one runtime from the active Windows location backend.
-pub(crate) fn unregister_location_runtime(host_runtime_id: HostRuntimeId) {
+pub(crate) fn unregister_location_runtime(host_session_id: HostSessionId) {
     if let Some(service) = global_service_if_initialized::<WindowsLocationService>() {
-        service.unregister_runtime(host_runtime_id);
+        service.unregister_runtime(host_session_id);
     }
 }
 
 /// Request Windows location access and publish the resulting permission state.
 fn request_location_access(
-    host_runtime_id: HostRuntimeId,
+    host_session_id: HostSessionId,
     operation: &'static str,
 ) -> RuntimeResult<GeolocationAccessStatus> {
     let access_status = Geolocator::RequestAccessAsync()
@@ -367,7 +369,7 @@ fn request_location_access(
     let permission_state = permission_state_from_access_status(access_status);
 
     windows_notify_permission_result(
-        host_runtime_id.0,
+        host_session_id.0,
         "location",
         permission_state == PermissionState::Granted,
     )?;
@@ -377,10 +379,10 @@ fn request_location_access(
 
 /// Require one granted Windows location permission.
 fn ensure_location_access_allowed(
-    host_runtime_id: HostRuntimeId,
+    host_session_id: HostSessionId,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let access_status = request_location_access(host_runtime_id, operation)?;
+    let access_status = request_location_access(host_session_id, operation)?;
 
     if access_status == GeolocationAccessStatus::Allowed {
         return Ok(());
@@ -562,7 +564,7 @@ fn winrt_location_error(
     operation: &'static str,
     stage: &str,
     error: &WindowsError,
-) -> Box<crate::diagnostic::RuntimeError> {
+) -> Box<RuntimeError> {
     match error.code().0 as u32 {
         0x80070490 => io_not_found(operation, "windows location data was not found"),
         0x800704C7 => io_operation_error(

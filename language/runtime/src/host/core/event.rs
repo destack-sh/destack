@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
 
+use super::request::HostRequestId;
 use crate::platform::os::abi_generated::{
     BackgroundEventValue, LocationSampleValue, NotificationEventValue,
 };
 
 /// Host lifecycle state.
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum HostLifecycleState {
     /// Runtime has not received start events yet.
@@ -18,6 +18,19 @@ pub enum HostLifecycleState {
     Stopped,
     /// Runtime host process is being destroyed.
     Destroyed,
+}
+
+/// Host lifecycle source attachment.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum HostLifecycleSourceKind {
+    /// Event originated from one application attachment.
+    Application,
+    /// Event originated from one activity attachment.
+    Activity,
+    /// Event originated from one scene attachment.
+    Scene,
+    /// Event originated from one window attachment.
+    Window,
 }
 
 /// Host memory pressure state.
@@ -83,7 +96,7 @@ pub enum HostEventKind {
     WallClock,
 }
 
-/// Runtime-visible host event payload.
+/// Runtime-visible host ingress payload.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HostEvent {
     /// Host lifecycle transition event.
@@ -132,6 +145,8 @@ impl HostEvent {
 /// Host lifecycle state change payload.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HostLifecycleEvent {
+    /// Source attachment that originated this transition.
+    pub source_kind: HostLifecycleSourceKind,
     /// Next lifecycle state after this transition.
     pub state: HostLifecycleState,
 }
@@ -221,6 +236,8 @@ pub enum HostIntentPayload {
 /// Host permission flow payload.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HostPermissionEvent {
+    /// Stable request identifier when this result completes one explicit host request.
+    pub request_id: Option<HostRequestId>,
     /// Permission name associated with this result.
     pub permission: String,
     /// Whether the permission was granted.

@@ -4,7 +4,7 @@ use std::thread::ThreadId;
 
 use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "macos")]
-use crate::host::apple::message::is_process_main_context;
+use crate::host::apple::core::message::is_process_main_context;
 #[cfg(target_os = "macos")]
 use crate::platform::core::{self as core_platform};
 #[cfg(windows)]

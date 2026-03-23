@@ -2,9 +2,9 @@ use std::sync::{Mutex, OnceLock};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::core::{
-    HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult, HostRuntimeId,
+    HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult, HostSessionId,
 };
-use crate::host::linux::linux_notify_location_sample;
+use crate::host::linux::ingress::notify::linux_notify_location_sample;
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{
@@ -22,9 +22,9 @@ pub(crate) struct LinuxLocationHooks {
     pub(crate) last_known: Option<fn() -> RuntimeResult<LocationSampleValue>>,
     /// Hook for `locationWatchOpen`.
     pub(crate) watch_open:
-        Option<fn(HostRuntimeId, String, LocationWatchOptionsValue) -> RuntimeResult<()>>,
+        Option<fn(HostSessionId, String, LocationWatchOptionsValue) -> RuntimeResult<()>>,
     /// Hook for `locationWatchClose`.
-    pub(crate) watch_close: Option<fn(HostRuntimeId, String) -> RuntimeResult<()>>,
+    pub(crate) watch_close: Option<fn(HostSessionId, String) -> RuntimeResult<()>>,
 }
 
 /// Shared Linux contact hook set used by tests.
@@ -311,7 +311,7 @@ pub(crate) fn submit_location_request(
                 return Err(missing_location_test_hook("location watch open"));
             };
 
-            hook(context.host_runtime_id, watch_id.clone(), *options)?;
+            hook(context.host_session_id, watch_id.clone(), *options)?;
 
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
         }
@@ -322,7 +322,7 @@ pub(crate) fn submit_location_request(
                 return Err(missing_location_test_hook("location watch close"));
             };
 
-            hook(context.host_runtime_id, watch_id.clone())?;
+            hook(context.host_session_id, watch_id.clone())?;
 
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
         }
@@ -331,19 +331,19 @@ pub(crate) fn submit_location_request(
 }
 
 /// Remove one Linux runtime from the active location test lane.
-pub(crate) fn unregister_location_runtime(_host_runtime_id: HostRuntimeId) {}
+pub(crate) fn unregister_location_runtime(_host_runtime_id: HostSessionId) {}
 
 /// Publish one Linux location sample from tests.
 pub(crate) fn publish_location_sample(
-    host_runtime_id: HostRuntimeId,
+    host_session_id: HostSessionId,
     watch_id: &str,
     sample: LocationSampleValue,
 ) -> RuntimeResult<()> {
-    linux_notify_location_sample(host_runtime_id.0, watch_id, sample)
+    linux_notify_location_sample(host_session_id.0, watch_id, sample)
 }
 
 /// Build one missing-hook error for Linux location tests.
-fn missing_location_test_hook(kind: &str) -> Box<crate::diagnostic::RuntimeError> {
+fn missing_location_test_hook(kind: &str) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::generic(
         Some(PlatformErrorCode::Generic),
         format!("Linux location tests must install one {kind} hook before calling the host lane"),
@@ -352,7 +352,7 @@ fn missing_location_test_hook(kind: &str) -> Box<crate::diagnostic::RuntimeError
 }
 
 /// Build one missing-hook error for Linux contact tests.
-fn missing_contact_test_hook(kind: &str) -> Box<crate::diagnostic::RuntimeError> {
+fn missing_contact_test_hook(kind: &str) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::generic(
         Some(PlatformErrorCode::Generic),
         format!("Linux contact tests must install one {kind} hook before calling the host lane"),
@@ -361,7 +361,7 @@ fn missing_contact_test_hook(kind: &str) -> Box<crate::diagnostic::RuntimeError>
 }
 
 /// Build one missing-hook error for Linux calendar tests.
-fn missing_calendar_test_hook(kind: &str) -> Box<crate::diagnostic::RuntimeError> {
+fn missing_calendar_test_hook(kind: &str) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::generic(
         Some(PlatformErrorCode::Generic),
         format!("Linux calendar tests must install one {kind} hook before calling the host lane"),

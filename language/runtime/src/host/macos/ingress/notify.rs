@@ -3,12 +3,12 @@ use std::sync::Arc;
 use destack_artifact::Platform;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostQueue, HostRuntimeId, HostRuntimeRegistry};
+use crate::host::core::{HostQueue, HostSessionId, HostSessionRegistry};
 use crate::host::{
     HostEvent, HostIntentEvent, HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent,
-    HostLifecycleState, HostLocationEvent, HostMemoryPressureEvent, HostMemoryPressureLevel,
-    HostPermissionEvent, HostPowerMode, HostPowerModeEvent, HostThermalEvent, HostThermalState,
-    HostWallClockEvent,
+    HostLifecycleSourceKind, HostLifecycleState, HostLocationEvent, HostMemoryPressureEvent,
+    HostMemoryPressureLevel, HostPermissionEvent, HostPowerMode, HostPowerModeEvent,
+    HostThermalEvent, HostThermalState, HostWallClockEvent,
 };
 use crate::platform::os::abi_generated::LocationSampleValue;
 /// macOS application lifecycle transitions from native ingress hooks.
@@ -26,7 +26,7 @@ pub(crate) enum MacosApplicationLifecycle {
 
 /// Return the active macOS host queue for this process.
 fn macos_host_bridge(runtime_id: u64) -> RuntimeResult<Arc<HostQueue>> {
-    HostRuntimeRegistry::queue_for_runtime(HostRuntimeId(runtime_id), Platform::MacOS)
+    HostSessionRegistry::queue_for_session(HostSessionId(runtime_id), Platform::MacOS)
 }
 
 /// Route one macOS application lifecycle ingress notification.
@@ -36,7 +36,10 @@ pub(crate) fn macos_notify_application_lifecycle(
 ) -> RuntimeResult<()> {
     let bridge = macos_host_bridge(runtime_id)?;
     let state = host_lifecycle_state_for_application_lifecycle(lifecycle);
-    bridge.enqueue(HostEvent::Lifecycle(HostLifecycleEvent { state }));
+    bridge.enqueue(HostEvent::Lifecycle(HostLifecycleEvent {
+        source_kind: HostLifecycleSourceKind::Application,
+        state,
+    }));
 
     Ok(())
 }
@@ -49,6 +52,7 @@ pub(crate) fn macos_notify_permission_result(
 ) -> RuntimeResult<()> {
     let bridge = macos_host_bridge(runtime_id)?;
     bridge.enqueue(HostEvent::Permission(HostPermissionEvent {
+        request_id: None,
         permission: permission.to_string(),
         granted,
     }));

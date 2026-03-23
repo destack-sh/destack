@@ -1,9 +1,9 @@
 use std::sync::Mutex;
 
-use crate::host::app::document::pick::document_descriptor_value_from_path;
 use crate::platform::fs::abi_generated::{OsPathBytesValue, OsPathValue, PathBytesValue};
 #[cfg(windows)]
 use crate::platform::fs::abi_generated::{OsPathUtf16Value, PathUtf16Value};
+use crate::platform::os::document::document_descriptor_value_from_path;
 #[cfg(windows)]
 use crate::tests::platform::assert_not_supported_error;
 use crate::tests::platform::error_code_from_result;

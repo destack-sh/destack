@@ -6,32 +6,27 @@ use rustc_hash::FxHashMap;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::HostEvent;
-use crate::host::core::Platform;
 use crate::host::core::error::{missing_host_queue, missing_host_queue_registration};
 use crate::host::core::queue::HostQueue;
+use crate::host::core::{HostSessionHandle, Platform};
 
-/// Shared allocator for process-global host runtime routing ids.
-static HOST_RUNTIME_ID_NEXT: AtomicU64 = AtomicU64::new(1);
+/// Shared allocator for process-global host session routing ids.
+static HOST_SESSION_ID_NEXT: AtomicU64 = AtomicU64::new(1);
 
-/// Process-global host routing id for one runtime-backed host session.
+/// Process-global host registration id for one attached host session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct HostRuntimeId(pub u64);
-
-/// Allocate one fresh process-global host routing id.
-pub(crate) fn next_host_runtime_id() -> HostRuntimeId {
-    HostRuntimeId(HOST_RUNTIME_ID_NEXT.fetch_add(1, Ordering::Relaxed))
-}
+pub(crate) struct HostSessionId(pub u64);
 
 /// Cleanup hook run when one runtime host queue registration is removed.
-pub(crate) type HostCleanup = fn(host_runtime_id: HostRuntimeId);
+pub(crate) type HostCleanup = fn(host_session_id: HostSessionId);
 
-/// Shared process-global host runtime registry.
-static HOST_RUNTIME_REGISTRY: OnceLock<RwLock<HostRuntimeRegistry>> = OnceLock::new();
+/// Shared process-global host session registry.
+static HOST_SESSION_REGISTRY: OnceLock<RwLock<HostSessionRegistry>> = OnceLock::new();
 
 /// Handler that services one runtime-owned ingress lane.
 pub(crate) trait RuntimeIngressHandler: std::fmt::Debug + Send + Sync {
     /// Service runtime-owned ingress.
-    fn service_runtime_ingress(&self) -> RuntimeResult<()>;
+    fn service_session_ingress(&self) -> RuntimeResult<()>;
 }
 
 /// Observer notified when one host semantic event is enqueued for one runtime.
@@ -40,111 +35,131 @@ pub(crate) trait HostEventObserver: std::fmt::Debug + Send + Sync {
     fn observe_host_event(&self, event: &HostEvent) -> RuntimeResult<()>;
 }
 
-/// Registration guard for one host runtime queue.
+/// Registration guard for one host session queue.
 #[derive(Debug)]
-pub(crate) struct HostRegistrationGuard {
-    /// Stable runtime id for this queue.
-    host_runtime_id: HostRuntimeId,
+pub(crate) struct HostSessionRegistrationGuard {
+    /// Stable host session id for this queue.
+    host_session_id: HostSessionId,
 }
 
-/// Shared registry state for active host runtimes.
+/// Shared registry state for active host sessions.
 #[derive(Debug, Default)]
-pub(crate) struct HostRuntimeRegistry {
-    /// Queue entries keyed by runtime id.
-    runtime_queues: FxHashMap<HostRuntimeId, HostRuntimeRegistryEntry>,
+pub(crate) struct HostSessionRegistry {
+    /// Queue entries keyed by host session id.
+    runtime_queues: FxHashMap<HostSessionId, HostSessionRegistryEntry>,
 }
 
-/// Shared registry entry metadata for one host runtime queue.
+/// Shared registry entry metadata for one host session queue.
 #[derive(Debug)]
-struct HostRuntimeRegistryEntry {
+struct HostSessionRegistryEntry {
     /// Platform tag for this queue.
     platform: Platform,
     /// Shared runtime-owned queue.
     queue: Arc<HostQueue>,
-    /// Optional platform-specific cleanup hook for this runtime id.
+    /// Optional platform-specific cleanup hook for this host session id.
     cleanup: Option<HostCleanup>,
 }
 
-impl HostRegistrationGuard {
-    /// Return the stable runtime id for this registration.
-    pub(crate) fn host_runtime_id(&self) -> HostRuntimeId {
-        self.host_runtime_id
+impl HostSessionRegistrationGuard {
+    /// Return the stable registration id for this host queue attachment.
+    pub(crate) fn host_session_id(&self) -> HostSessionId {
+        self.host_session_id
     }
 }
 
-impl Drop for HostRegistrationGuard {
+#[cfg_attr(not(any(target_os = "android", target_os = "ios")), allow(dead_code))]
+impl HostSessionId {
+    /// Return the raw host ABI handle for this registration id.
+    pub(crate) const fn handle(self) -> HostSessionHandle {
+        self.0
+    }
+
+    /// Return the typed registration id for one raw host ABI handle.
+    pub(crate) const fn from_handle(session_handle: HostSessionHandle) -> Self {
+        Self(session_handle)
+    }
+}
+
+impl Drop for HostSessionRegistrationGuard {
     fn drop(&mut self) {
-        HostRuntimeRegistry::unregister_runtime(self.host_runtime_id);
+        HostSessionRegistry::unregister_runtime(self.host_session_id);
     }
 }
 
-impl HostRuntimeRegistry {
-    /// Return the shared host runtime registry lock.
+impl HostSessionRegistry {
+    /// Return the shared host session registry lock.
     fn shared() -> &'static RwLock<Self> {
-        HOST_RUNTIME_REGISTRY.get_or_init(|| RwLock::new(Self::default()))
+        HOST_SESSION_REGISTRY.get_or_init(|| RwLock::new(Self::default()))
     }
 
-    /// Register one host runtime queue with one runtime id.
+    /// Allocate one fresh process-global host session id.
+    pub(crate) fn allocate_session_id() -> HostSessionId {
+        HostSessionId(HOST_SESSION_ID_NEXT.fetch_add(1, Ordering::Relaxed))
+    }
+
+    /// Register one host session queue with one registration id.
+    ///
+    /// Dropping the returned guard unregisters the queue and runs any cleanup hook.
     pub(crate) fn register_queue(
         platform: Platform,
-        host_runtime_id: HostRuntimeId,
+        host_session_id: HostSessionId,
         queue: Arc<HostQueue>,
         cleanup: Option<HostCleanup>,
-    ) -> HostRegistrationGuard {
+    ) -> HostSessionRegistrationGuard {
         let mut registry = Self::shared().write();
 
-        // duplicate runtime ids are a registry contract violation
-        if registry.runtime_queues.contains_key(&host_runtime_id) {
+        // duplicate host session ids are a registry contract violation
+        if registry.runtime_queues.contains_key(&host_session_id) {
             panic!(
-                "duplicate host runtime queue registration for runtime id {}",
-                host_runtime_id.0
+                "duplicate host session queue registration for session id {}",
+                host_session_id.0
             );
         }
 
-        let entry = HostRuntimeRegistryEntry {
+        let entry = HostSessionRegistryEntry {
             platform,
             queue,
             cleanup,
         };
 
-        registry.runtime_queues.insert(host_runtime_id, entry);
+        registry.runtime_queues.insert(host_session_id, entry);
 
-        HostRegistrationGuard { host_runtime_id }
+        HostSessionRegistrationGuard { host_session_id }
     }
 
-    /// Resolve one host runtime queue by runtime id and platform tag.
-    pub(crate) fn queue_for_runtime(
-        host_runtime_id: HostRuntimeId,
+    /// Resolve one host session queue by session id and platform tag.
+    pub(crate) fn queue_for_session(
+        host_session_id: HostSessionId,
         platform: Platform,
     ) -> RuntimeResult<Arc<HostQueue>> {
         let mut registry = Self::shared().write();
-        registry.queue_for_runtime_inner(host_runtime_id, platform)
+        registry.queue_for_session_inner(host_session_id, platform)
     }
 
     /// Register one runtime ingress handler.
-    pub(crate) fn register_runtime_ingress_handler(
-        host_runtime_id: HostRuntimeId,
+    pub(crate) fn register_session_ingress_handler(
+        host_session_id: HostSessionId,
         handler: &Arc<dyn RuntimeIngressHandler>,
     ) -> RuntimeResult<()> {
         let queue = {
             let mut registry = Self::shared().write();
-            registry.queue_for_runtime_id_inner(host_runtime_id)?
+            registry.queue_for_session_id_inner(host_session_id)?
         };
 
-        queue.register_runtime_ingress_handler(handler);
+        queue.register_session_ingress_handler(handler);
 
         Ok(())
     }
 
-    /// Dispatch one host event to observers for one runtime id.
+    /// Dispatch one host event to observers for one host session id.
     #[cfg(test)]
     pub(crate) fn dispatch_host_event(
-        host_runtime_id: HostRuntimeId,
+        host_session_id: HostSessionId,
         event: &HostEvent,
     ) -> RuntimeResult<()> {
         let queue = {
             let mut registry = Self::shared().write();
-            registry.queue_for_runtime_id_inner(host_runtime_id)?
+            registry.queue_for_session_id_inner(host_session_id)?
         };
 
         queue.dispatch_host_event(event)?;
@@ -152,80 +167,80 @@ impl HostRuntimeRegistry {
         Ok(())
     }
 
-    /// Service ingress for one runtime id.
-    pub(crate) fn service_runtime_ingress(host_runtime_id: HostRuntimeId) -> RuntimeResult<()> {
+    /// Service ingress for one host session id.
+    pub(crate) fn service_session_ingress(host_session_id: HostSessionId) -> RuntimeResult<()> {
         let queue = {
             let mut registry = Self::shared().write();
-            registry.queue_for_runtime_id_inner(host_runtime_id)?
+            registry.queue_for_session_id_inner(host_session_id)?
         };
 
-        queue.service_runtime_ingress()?;
+        queue.service_session_ingress()?;
 
         Ok(())
     }
 
     /// Service ingress for every registered runtime.
     #[cfg(feature = "execution")]
-    pub(crate) fn service_all_runtime_ingress() -> RuntimeResult<()> {
+    pub(crate) fn service_all_session_ingress() -> RuntimeResult<()> {
         let queues = {
             let mut registry = Self::shared().write();
-            registry.collect_all_runtime_queues()
+            registry.collect_all_session_queues()
         };
 
         for queue in queues {
-            queue.service_runtime_ingress()?;
+            queue.service_session_ingress()?;
         }
 
         Ok(())
     }
 
-    /// Remove one registration from the shared host runtime registry.
-    pub(crate) fn unregister_runtime(host_runtime_id: HostRuntimeId) {
+    /// Remove one registration from the shared host session registry.
+    pub(crate) fn unregister_runtime(host_session_id: HostSessionId) {
         let cleanup = {
             let mut registry = Self::shared().write();
             registry
                 .runtime_queues
-                .remove(&host_runtime_id)
+                .remove(&host_session_id)
                 .and_then(|entry| entry.cleanup)
         };
 
         if let Some(cleanup) = cleanup {
-            cleanup(host_runtime_id);
+            cleanup(host_session_id);
         }
     }
 
     /// Resolve one queue entry from the current registry state.
-    fn queue_for_runtime_inner(
+    fn queue_for_session_inner(
         &mut self,
-        host_runtime_id: HostRuntimeId,
+        host_session_id: HostSessionId,
         platform: Platform,
     ) -> RuntimeResult<Arc<HostQueue>> {
-        let Some(entry) = self.runtime_queues.get(&host_runtime_id) else {
-            return Err(missing_host_queue(host_runtime_id.0, platform));
+        let Some(entry) = self.runtime_queues.get(&host_session_id) else {
+            return Err(missing_host_queue(host_session_id.0, platform));
         };
 
         if entry.platform != platform {
-            return Err(missing_host_queue(host_runtime_id.0, platform));
+            return Err(missing_host_queue(host_session_id.0, platform));
         }
 
         Ok(Arc::clone(&entry.queue))
     }
 
     /// Resolve one queue entry from the current registry state without platform filtering.
-    fn queue_for_runtime_id_inner(
+    fn queue_for_session_id_inner(
         &mut self,
-        host_runtime_id: HostRuntimeId,
+        host_session_id: HostSessionId,
     ) -> RuntimeResult<Arc<HostQueue>> {
-        let Some(entry) = self.runtime_queues.get(&host_runtime_id) else {
-            return Err(missing_host_queue_registration(host_runtime_id.0));
+        let Some(entry) = self.runtime_queues.get(&host_session_id) else {
+            return Err(missing_host_queue_registration(host_session_id.0));
         };
 
         Ok(Arc::clone(&entry.queue))
     }
 
-    /// Collect registered ingress queues for every runtime id.
+    /// Collect registered ingress queues for every host session id.
     #[cfg(feature = "execution")]
-    fn collect_all_runtime_queues(&mut self) -> Vec<Arc<HostQueue>> {
+    fn collect_all_session_queues(&mut self) -> Vec<Arc<HostQueue>> {
         self.runtime_queues
             .values()
             .map(|entry| Arc::clone(&entry.queue))
@@ -239,14 +254,17 @@ mod tests {
     use std::sync::{Arc, Mutex, OnceLock};
 
     use crate::diagnostic::RuntimeResult;
+    use crate::host::core::HostSessionId;
     use crate::host::core::queue::HostQueue;
     use crate::host::core::registry::{
-        HostEventObserver, HostRuntimeRegistry, RuntimeIngressHandler, next_host_runtime_id,
+        HostEventObserver, HostSessionRegistry, RuntimeIngressHandler,
     };
-    use crate::host::{HostEvent, HostLifecycleEvent, HostLifecycleState, Platform};
+    use crate::host::{
+        HostEvent, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState, Platform,
+    };
     /// Shared mutex that serializes registry tests.
     static TEST_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
-    /// Shared runtime id captured by one cleanup hook invocation in tests.
+    /// Shared host session id captured by one cleanup hook invocation in tests.
     static TEST_CLEANUP_RUNTIME_ID: AtomicU64 = AtomicU64::new(0);
 
     /// One test handler that counts ingress service calls.
@@ -272,13 +290,13 @@ mod tests {
     }
 
     /// Record one cleanup hook invocation for tests.
-    fn test_cleanup_hook(host_runtime_id: crate::host::core::HostRuntimeId) {
-        TEST_CLEANUP_RUNTIME_ID.store(host_runtime_id.0, Ordering::Relaxed);
+    fn test_cleanup_hook(host_session_id: HostSessionId) {
+        TEST_CLEANUP_RUNTIME_ID.store(host_session_id.0, Ordering::Relaxed);
     }
 
     impl RuntimeIngressHandler for TestIngressHandler {
         /// Count one ingress service call.
-        fn service_runtime_ingress(&self) -> RuntimeResult<()> {
+        fn service_session_ingress(&self) -> RuntimeResult<()> {
             self.service_count.fetch_add(1, Ordering::Relaxed);
             Ok(())
         }
@@ -295,17 +313,17 @@ mod tests {
     #[test]
     fn test_register_queue_resolves_by_runtime_id() {
         let _guard = test_lock();
-        let runtime_id = next_host_runtime_id();
+        let runtime_id = HostSessionRegistry::allocate_session_id();
         let queue = Arc::new(HostQueue::new(runtime_id));
-        let registration = HostRuntimeRegistry::register_queue(
+        let registration = HostSessionRegistry::register_queue(
             Platform::Android,
             runtime_id,
             Arc::clone(&queue),
             None,
         );
 
-        let resolved_queue = HostRuntimeRegistry::queue_for_runtime(
-            registration.host_runtime_id(),
+        let resolved_queue = HostSessionRegistry::queue_for_session(
+            registration.host_session_id(),
             Platform::Android,
         )
         .unwrap();
@@ -318,9 +336,9 @@ mod tests {
     #[test]
     fn test_register_queue_rejects_duplicate_runtime_id() {
         let _guard = test_lock();
-        let runtime_id = next_host_runtime_id();
+        let runtime_id = HostSessionRegistry::allocate_session_id();
         let queue = Arc::new(HostQueue::new(runtime_id));
-        let registration = HostRuntimeRegistry::register_queue(
+        let registration = HostSessionRegistry::register_queue(
             Platform::Android,
             runtime_id,
             Arc::clone(&queue),
@@ -330,7 +348,7 @@ mod tests {
 
         // duplicate ids must fail loudly instead of replacing live registrations
         let duplicate_registration = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            HostRuntimeRegistry::register_queue(
+            HostSessionRegistry::register_queue(
                 Platform::Android,
                 runtime_id,
                 Arc::clone(&duplicate_queue),
@@ -346,9 +364,9 @@ mod tests {
     #[test]
     fn test_drop_registration_unregisters_runtime_id() {
         let _guard = test_lock();
-        let runtime_id = next_host_runtime_id();
+        let runtime_id = HostSessionRegistry::allocate_session_id();
         let queue = Arc::new(HostQueue::new(runtime_id));
-        let registration = HostRuntimeRegistry::register_queue(
+        let registration = HostSessionRegistry::register_queue(
             Platform::MacOS,
             runtime_id,
             Arc::clone(&queue),
@@ -357,23 +375,23 @@ mod tests {
 
         drop(registration);
 
-        let resolved_queue = HostRuntimeRegistry::queue_for_runtime(runtime_id, Platform::MacOS);
+        let resolved_queue = HostSessionRegistry::queue_for_session(runtime_id, Platform::MacOS);
         assert!(resolved_queue.is_err());
     }
 
     #[test]
     fn test_queue_for_runtime_rejects_platform_mismatch() {
         let _guard = test_lock();
-        let runtime_id = next_host_runtime_id();
+        let runtime_id = HostSessionRegistry::allocate_session_id();
         let queue = Arc::new(HostQueue::new(runtime_id));
-        let registration = HostRuntimeRegistry::register_queue(
+        let registration = HostSessionRegistry::register_queue(
             Platform::Windows,
             runtime_id,
             Arc::clone(&queue),
             None,
         );
 
-        let resolved_queue = HostRuntimeRegistry::queue_for_runtime(runtime_id, Platform::Android);
+        let resolved_queue = HostSessionRegistry::queue_for_session(runtime_id, Platform::Android);
         assert!(resolved_queue.is_err());
 
         drop(registration);
@@ -383,9 +401,9 @@ mod tests {
     fn test_drop_registration_runs_cleanup_hook() {
         let _guard = test_lock();
         TEST_CLEANUP_RUNTIME_ID.store(0, Ordering::Relaxed);
-        let runtime_id = next_host_runtime_id();
+        let runtime_id = HostSessionRegistry::allocate_session_id();
         let queue = Arc::new(HostQueue::new(runtime_id));
-        let registration = HostRuntimeRegistry::register_queue(
+        let registration = HostSessionRegistry::register_queue(
             Platform::Android,
             runtime_id,
             Arc::clone(&queue),
@@ -401,22 +419,22 @@ mod tests {
     #[test]
     fn test_service_runtime_ingress_notifies_registered_runtime() {
         let _guard = test_lock();
-        let runtime_id = next_host_runtime_id();
+        let runtime_id = HostSessionRegistry::allocate_session_id();
         let service_count = Arc::new(AtomicU64::new(0));
         let handler: Arc<dyn RuntimeIngressHandler> = Arc::new(TestIngressHandler {
             service_count: Arc::clone(&service_count),
         });
 
         let queue = Arc::new(HostQueue::new(runtime_id));
-        let registration = HostRuntimeRegistry::register_queue(
+        let registration = HostSessionRegistry::register_queue(
             Platform::Android,
             runtime_id,
             Arc::clone(&queue),
             None,
         );
 
-        HostRuntimeRegistry::register_runtime_ingress_handler(runtime_id, &handler).unwrap();
-        HostRuntimeRegistry::service_runtime_ingress(runtime_id).unwrap();
+        HostSessionRegistry::register_session_ingress_handler(runtime_id, &handler).unwrap();
+        HostSessionRegistry::service_session_ingress(runtime_id).unwrap();
 
         let service_count = service_count.load(Ordering::Relaxed);
         assert_eq!(service_count, 1);
@@ -427,14 +445,14 @@ mod tests {
     #[test]
     fn test_dispatch_host_event_notifies_registered_runtime() {
         let _guard = test_lock();
-        let runtime_id = next_host_runtime_id();
+        let runtime_id = HostSessionRegistry::allocate_session_id();
         let callback_count = Arc::new(AtomicU64::new(0));
         let observer: Arc<dyn HostEventObserver> = Arc::new(TestHostEventObserver {
             callback_count: Arc::clone(&callback_count),
         });
 
         let queue = Arc::new(HostQueue::new(runtime_id));
-        let registration = HostRuntimeRegistry::register_queue(
+        let registration = HostSessionRegistry::register_queue(
             Platform::Android,
             runtime_id,
             Arc::clone(&queue),
@@ -442,9 +460,10 @@ mod tests {
         );
 
         queue.register_observer_and_snapshot(&observer);
-        HostRuntimeRegistry::dispatch_host_event(
+        HostSessionRegistry::dispatch_host_event(
             runtime_id,
             &HostEvent::Lifecycle(HostLifecycleEvent {
+                source_kind: HostLifecycleSourceKind::Application,
                 state: HostLifecycleState::Running,
             }),
         )
@@ -460,8 +479,8 @@ mod tests {
     #[test]
     fn test_service_all_runtime_ingress_notifies_all_registered_runtimes() {
         let _guard = test_lock();
-        let first_runtime_id = next_host_runtime_id();
-        let second_runtime_id = next_host_runtime_id();
+        let first_runtime_id = HostSessionRegistry::allocate_session_id();
+        let second_runtime_id = HostSessionRegistry::allocate_session_id();
         let first_service_count = Arc::new(AtomicU64::new(0));
         let second_service_count = Arc::new(AtomicU64::new(0));
 
@@ -474,24 +493,24 @@ mod tests {
 
         let first_queue = Arc::new(HostQueue::new(first_runtime_id));
         let second_queue = Arc::new(HostQueue::new(second_runtime_id));
-        let first_registration = HostRuntimeRegistry::register_queue(
+        let first_registration = HostSessionRegistry::register_queue(
             Platform::Android,
             first_runtime_id,
             Arc::clone(&first_queue),
             None,
         );
-        let second_registration = HostRuntimeRegistry::register_queue(
+        let second_registration = HostSessionRegistry::register_queue(
             Platform::Android,
             second_runtime_id,
             Arc::clone(&second_queue),
             None,
         );
 
-        HostRuntimeRegistry::register_runtime_ingress_handler(first_runtime_id, &first_handler)
+        HostSessionRegistry::register_session_ingress_handler(first_runtime_id, &first_handler)
             .unwrap();
-        HostRuntimeRegistry::register_runtime_ingress_handler(second_runtime_id, &second_handler)
+        HostSessionRegistry::register_session_ingress_handler(second_runtime_id, &second_handler)
             .unwrap();
-        HostRuntimeRegistry::service_all_runtime_ingress().unwrap();
+        HostSessionRegistry::service_all_session_ingress().unwrap();
 
         let first_service_count = first_service_count.load(Ordering::Relaxed);
         let second_service_count = second_service_count.load(Ordering::Relaxed);

@@ -10,13 +10,13 @@ mod test;
 mod unsupported;
 
 #[cfg(all(not(test), target_os = "linux"))]
-pub(crate) use linux::*;
+pub(crate) use linux::{request_capabilities, submit_contact_request};
 #[cfg(all(test, target_os = "linux"))]
-pub(crate) use test::*;
+pub(crate) use test::{request_capabilities, submit_contact_request};
 #[cfg(any(
     all(not(test), not(target_os = "linux")),
     all(test, not(target_os = "linux"))
 ))]
-pub(crate) use unsupported::*;
+pub(crate) use unsupported::{request_capabilities, submit_contact_request};
 
-pub(crate) use capability::*;
+pub(crate) use capability::desktop_capabilities;

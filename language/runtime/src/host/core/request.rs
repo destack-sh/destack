@@ -1,5 +1,8 @@
+use serde::{Deserialize, Serialize};
+
+use crate::diagnostic::RuntimeError;
 use crate::host::Platform;
-use crate::host::core::registry::HostRuntimeId;
+use crate::host::core::registry::HostSessionId;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{
     BackgroundStatusValue, BackgroundTaskDescriptorValue, BackgroundTaskOptionsValue,
@@ -16,11 +19,15 @@ use crate::platform::os::{
 use crate::platform::{PlatformError, fs};
 use destack_workspace::{PlatformOsOptions, RuntimeAppIdentityDeclaration};
 
-/// Runtime scoped host request context.
+/// Stable runtime-session-scoped identifier for one outbound host request.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct HostRequestId(pub u64);
+
+/// Runtime-session-scoped context shared by host ingress and request submission.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct HostRequestContext {
+pub(crate) struct HostSessionContext {
     /// Process-global routing id for the active host session.
-    pub(crate) host_runtime_id: HostRuntimeId,
+    pub(crate) host_session_id: HostSessionId,
     /// Host platform for the active adapter.
     pub(crate) platform: Platform,
     /// Runtime OS options for host-backed service state.
@@ -31,7 +38,24 @@ pub(crate) struct HostRequestContext {
     pub(crate) is_process_main_context: bool,
 }
 
-/// Normalized outbound host command.
+/// Runtime-session-scoped context for one outbound host request.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct HostRequestContext {
+    /// Stable runtime-session-scoped identifier for this request submission.
+    pub(crate) request_id: HostRequestId,
+    /// Process-global routing id for the active host session.
+    pub(crate) host_session_id: HostSessionId,
+    /// Host platform for the active adapter.
+    pub(crate) platform: Platform,
+    /// Runtime OS options for host-backed service state.
+    pub(crate) os_options: PlatformOsOptions,
+    /// Runtime app identity for host-facing integration.
+    pub(crate) app_identity: RuntimeAppIdentityDeclaration,
+    /// Whether the caller already runs on the process main context.
+    pub(crate) is_process_main_context: bool,
+}
+
+/// Normalized outbound host command owned by the runtime layer.
 #[allow(dead_code)]
 #[allow(clippy::enum_variant_names)]
 #[derive(Debug, Clone)]
@@ -376,14 +400,32 @@ impl HostRequestOutcome {
             result,
         }
     }
+
+    /// Build one deferred host request outcome.
+    #[allow(dead_code)]
+    pub(crate) const fn deferred(result: HostRequestResult) -> Self {
+        Self {
+            completion: HostRequestCompletion::Deferred,
+            result,
+        }
+    }
+
+    /// Build one event-completing host request outcome.
+    #[allow(dead_code)]
+    pub(crate) const fn event_completing(result: HostRequestResult) -> Self {
+        Self {
+            completion: HostRequestCompletion::EventCompleting,
+            result,
+        }
+    }
 }
 
 /// Return one explicit host request result mismatch error.
 pub(crate) fn unexpected_request_result(
     operation: &'static str,
     expected: &'static str,
-) -> Box<crate::diagnostic::RuntimeError> {
-    crate::diagnostic::RuntimeError::from(PlatformError::generic(
+) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::generic(
         Some(PlatformErrorCode::IoInvalidData),
         format!("{operation} returned one unexpected host request result, expected {expected}"),
     ))

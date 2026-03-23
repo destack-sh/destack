@@ -1,3 +1,5 @@
+#[cfg(any(test, target_os = "netbsd"))]
+pub(crate) mod abi;
 #[cfg(target_os = "netbsd")]
 mod adapter;
 #[cfg(any(test, target_os = "netbsd"))]
@@ -7,5 +9,3 @@ mod tests;
 
 #[cfg(target_os = "netbsd")]
 pub(crate) use adapter::NetBsdHost;
-#[cfg(any(test, target_os = "netbsd"))]
-pub use ingress::*;

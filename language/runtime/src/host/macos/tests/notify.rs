@@ -1,11 +1,9 @@
 use std::sync::Arc;
 
-use crate::host::core::registry::next_host_runtime_id;
-use crate::host::core::{HostQueue, HostRuntimeRegistry};
-use crate::host::macos::ingress::notify::host_lifecycle_state_for_application_lifecycle;
-use crate::host::macos::{
-    MacosApplicationLifecycle, macos_notify_intent_open_url, macos_notify_location_sample,
-    macos_notify_permission_result,
+use crate::host::core::{HostQueue, HostSessionRegistry};
+use crate::host::macos::ingress::notify::{
+    MacosApplicationLifecycle, host_lifecycle_state_for_application_lifecycle,
+    macos_notify_intent_open_url, macos_notify_location_sample, macos_notify_permission_result,
 };
 use crate::host::{
     HostEvent, HostIntentEvent, HostIntentPayload, HostLifecycleState, HostLocationEvent,
@@ -44,11 +42,11 @@ fn test_map_application_lifecycle_to_destroyed() {
 
 #[test]
 fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() {
-    let runtime_id = next_host_runtime_id();
+    let runtime_id = HostSessionRegistry::allocate_session_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
     let registration =
-        HostRuntimeRegistry::register_queue(Platform::MacOS, runtime_id, Arc::clone(&queue), None);
-    let runtime_id = registration.host_runtime_id();
+        HostSessionRegistry::register_queue(Platform::MacOS, runtime_id, Arc::clone(&queue), None);
+    let runtime_id = registration.host_session_id();
 
     macos_notify_permission_result(runtime_id.0, "camera", true).unwrap();
 
@@ -56,6 +54,7 @@ fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() 
     assert_eq!(
         events.as_slice(),
         [HostEvent::Permission(HostPermissionEvent {
+            request_id: None,
             permission: "camera".to_string(),
             granted: true,
         })],
@@ -64,11 +63,11 @@ fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() 
 
 #[test]
 fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
-    let runtime_id = next_host_runtime_id();
+    let runtime_id = HostSessionRegistry::allocate_session_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
     let registration =
-        HostRuntimeRegistry::register_queue(Platform::MacOS, runtime_id, Arc::clone(&queue), None);
-    let runtime_id = registration.host_runtime_id();
+        HostSessionRegistry::register_queue(Platform::MacOS, runtime_id, Arc::clone(&queue), None);
+    let runtime_id = registration.host_session_id();
 
     macos_notify_intent_open_url(
         runtime_id.0,
@@ -91,11 +90,11 @@ fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
 
 #[test]
 fn test_notify_location_sample_enqueues_location_event_for_runtime_bridge() {
-    let runtime_id = next_host_runtime_id();
+    let runtime_id = HostSessionRegistry::allocate_session_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
     let registration =
-        HostRuntimeRegistry::register_queue(Platform::MacOS, runtime_id, Arc::clone(&queue), None);
-    let runtime_id = registration.host_runtime_id();
+        HostSessionRegistry::register_queue(Platform::MacOS, runtime_id, Arc::clone(&queue), None);
+    let runtime_id = registration.host_session_id();
     let sample = test_location_sample();
 
     macos_notify_location_sample(runtime_id.0, "watch-1", sample).unwrap();

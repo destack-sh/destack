@@ -5,14 +5,14 @@ use zbus::blocking::{Connection, Proxy};
 use zbus::zvariant::{OwnedObjectPath, OwnedValue, Value};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::app::document::pick::{
-    HOST_DOCUMENT_PICK_OPERATION, document_descriptor_value_from_path,
-    validate_document_pick_options, validated_document_extensions,
-};
 use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
 use crate::platform::core::{io_operation_error, pathbuf_from_file_uri};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{DocumentDescriptorValue, DocumentPickOptionsValue};
+use crate::platform::os::document::{
+    DOCUMENT_PICK_OPERATION, document_descriptor_value_from_path, validate_document_pick_options,
+    validated_document_extensions,
+};
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
 
 /// The desktop portal bus name.
@@ -78,7 +78,7 @@ fn pick_documents(
 
     let connection = Connection::session().map_err(|error| {
         io_operation_error(
-            HOST_DOCUMENT_PICK_OPERATION,
+            DOCUMENT_PICK_OPERATION,
             Some(PlatformErrorCode::IoInvalidData),
             format!("failed to connect to the desktop session bus: {error}"),
         )
@@ -91,7 +91,7 @@ fn pick_documents(
     )
     .map_err(|error| {
         io_operation_error(
-            HOST_DOCUMENT_PICK_OPERATION,
+            DOCUMENT_PICK_OPERATION,
             Some(PlatformErrorCode::IoInvalidData),
             format!("failed to bind the desktop portal file chooser: {error}"),
         )
@@ -106,14 +106,14 @@ fn pick_documents(
     )
     .map_err(|error| {
         io_operation_error(
-            HOST_DOCUMENT_PICK_OPERATION,
+            DOCUMENT_PICK_OPERATION,
             Some(PlatformErrorCode::IoInvalidData),
             format!("failed to bind the desktop portal request handle: {error}"),
         )
     })?;
     let mut responses = request_proxy.receive_signal("Response").map_err(|error| {
         io_operation_error(
-            HOST_DOCUMENT_PICK_OPERATION,
+            DOCUMENT_PICK_OPERATION,
             Some(PlatformErrorCode::IoInvalidData),
             format!("failed to subscribe to the desktop portal response signal: {error}"),
         )
@@ -126,7 +126,7 @@ fn pick_documents(
         )
         .map_err(|error| {
             io_operation_error(
-                HOST_DOCUMENT_PICK_OPERATION,
+                DOCUMENT_PICK_OPERATION,
                 Some(PlatformErrorCode::IoInvalidData),
                 format!("desktop portal OpenFile failed: {error}"),
             )
@@ -135,7 +135,7 @@ fn pick_documents(
     // the returned handle should match the predicted path when handle_token is honored
     if returned_request_path != request_path {
         return Err(io_operation_error(
-            HOST_DOCUMENT_PICK_OPERATION,
+            DOCUMENT_PICK_OPERATION,
             Some(PlatformErrorCode::IoInvalidData),
             format!(
                 "desktop portal returned one unexpected request handle: expected {}, got {}",
@@ -147,7 +147,7 @@ fn pick_documents(
 
     let response = responses.next().ok_or_else(|| {
         io_operation_error(
-            HOST_DOCUMENT_PICK_OPERATION,
+            DOCUMENT_PICK_OPERATION,
             Some(PlatformErrorCode::IoInvalidData),
             "desktop portal closed the request without one response",
         )
@@ -155,7 +155,7 @@ fn pick_documents(
     let (response_code, results): (u32, HashMap<String, OwnedValue>) =
         response.body().deserialize().map_err(|error| {
             io_operation_error(
-                HOST_DOCUMENT_PICK_OPERATION,
+                DOCUMENT_PICK_OPERATION,
                 Some(PlatformErrorCode::IoInvalidData),
                 format!("failed to decode the desktop portal response payload: {error}"),
             )
@@ -169,7 +169,7 @@ fn pick_documents(
     // any non-success response is a real backend failure
     if response_code != PORTAL_RESPONSE_SUCCESS {
         return Err(io_operation_error(
-            HOST_DOCUMENT_PICK_OPERATION,
+            DOCUMENT_PICK_OPERATION,
             Some(PlatformErrorCode::IoInvalidData),
             format!("desktop portal document picker failed with response code {response_code}"),
         ));
@@ -203,7 +203,7 @@ fn portal_handle_token(context: &HostRequestContext) -> String {
 
     format!(
         "destack_document_pick_{}_{}",
-        context.host_runtime_id.0, timestamp
+        context.host_session_id.0, timestamp
     )
 }
 
@@ -214,7 +214,7 @@ fn portal_request_path(
 ) -> RuntimeResult<OwnedObjectPath> {
     let unique_name = connection.unique_name().ok_or_else(|| {
         io_operation_error(
-            HOST_DOCUMENT_PICK_OPERATION,
+            DOCUMENT_PICK_OPERATION,
             Some(PlatformErrorCode::IoInvalidData),
             "desktop session bus did not expose one unique connection name",
         )
@@ -236,7 +236,7 @@ fn portal_request_path_for_unique_name(
 
     OwnedObjectPath::try_from(request_path.clone()).map_err(|error| {
         io_operation_error(
-            HOST_DOCUMENT_PICK_OPERATION,
+            DOCUMENT_PICK_OPERATION,
             Some(PlatformErrorCode::IoInvalidData),
             format!("desktop portal request path is invalid: {request_path}: {error}"),
         )
@@ -262,7 +262,7 @@ fn portal_open_file_options(
         let filters = Value::from(filters);
         let filters = OwnedValue::try_from(filters).map_err(|error| {
             io_operation_error(
-                HOST_DOCUMENT_PICK_OPERATION,
+                DOCUMENT_PICK_OPERATION,
                 Some(PlatformErrorCode::IoInvalidData),
                 format!("failed to encode desktop portal document filters: {error}"),
             )
@@ -312,14 +312,14 @@ fn descriptors_from_portal_results(
 ) -> RuntimeResult<Vec<DocumentDescriptorValue>> {
     let uris_value = results.remove("uris").ok_or_else(|| {
         io_operation_error(
-            HOST_DOCUMENT_PICK_OPERATION,
+            DOCUMENT_PICK_OPERATION,
             Some(PlatformErrorCode::IoInvalidData),
             "desktop portal response did not include any selected uris",
         )
     })?;
     let uris = Vec::<String>::try_from(uris_value).map_err(|error| {
         io_operation_error(
-            HOST_DOCUMENT_PICK_OPERATION,
+            DOCUMENT_PICK_OPERATION,
             Some(PlatformErrorCode::IoInvalidData),
             format!("desktop portal uris payload was malformed: {error}"),
         )
@@ -330,7 +330,7 @@ fn descriptors_from_portal_results(
     for uri in uris {
         let path = pathbuf_from_file_uri(&uri, "uris").map_err(|error| {
             io_operation_error(
-                HOST_DOCUMENT_PICK_OPERATION,
+                DOCUMENT_PICK_OPERATION,
                 Some(PlatformErrorCode::IoInvalidData),
                 format!("desktop portal returned one unsupported document uri: {error}"),
             )

@@ -4,13 +4,13 @@ use destack_vm::{ExternalCallContext, StringHandle};
 use destack_workspace::RuntimeOptions;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::app::notification::with_notification_test_mode;
 use crate::platform::os::abi_generated::{
     NotificationCategoryValue, NotificationDeliveredEventValue, NotificationEventMetadataValue,
     NotificationEventOpenOptionsValue, NotificationEventValue, NotificationImmediateTriggerValue,
     NotificationRequestValue, NotificationScheduledDescriptorValue,
     NotificationTimeIntervalTriggerValue, NotificationTriggerValue,
 };
+use crate::platform::os::notification::with_notification_test_mode;
 use crate::platform::os::tests::{HarnessContext, HarnessValue, with_configured_harness_context};
 use crate::platform::os::{
     NotificationCategory, NotificationCategoryVm, NotificationEvent, NotificationEventVm,

@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use destack_artifact::Platform;
 use destack_workspace::{
@@ -6,33 +7,37 @@ use destack_workspace::{
 };
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::app::ingress::service_app_ingress;
 use crate::host::bootstrap::{default_compile_target_parts, host_options_for_target};
 use crate::host::core::adapter::{HostAdapter, HostPollOutcome};
-use crate::host::core::event::{HostEvent, HostLifecycleEvent, HostLifecycleState};
 use crate::host::core::queue::HostQueue;
 use crate::host::core::registry::{
-    HostCleanup, HostRegistrationGuard, HostRuntimeId, HostRuntimeRegistry, next_host_runtime_id,
+    HostCleanup, HostSessionId, HostSessionRegistrationGuard, HostSessionRegistry,
 };
-use crate::host::core::request::{HostRequest, HostRequestContext, HostRequestOutcome};
+use crate::host::core::request::{
+    HostRequest, HostRequestContext, HostRequestId, HostRequestOutcome, HostSessionContext,
+};
+#[cfg(test)]
+use crate::host::core::without_native_ingress;
 use crate::host::operation::HostOperation;
 use crate::host::policy::require_declared_request;
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilityId, PlatformCapabilitySet};
 use crate::runtime::poller::PollerWakeHandle;
 use crate::runtime::world::RuntimeId;
 
-/// Runtime-scoped host session.
+/// Runtime-scoped attachment between one runtime session, one host adapter, and its host modules.
 pub struct HostSession {
     /// Active host adapter for this runtime session.
     adapter: Arc<dyn HostAdapter>,
-    /// Shared host queue for this runtime instance.
+    /// Shared ingress queue for this runtime instance.
     queue: Arc<HostQueue>,
     /// Shared registration guard for host ingress routing.
-    registration_guard: HostRegistrationGuard,
+    registration_guard: HostSessionRegistrationGuard,
     /// Logical runtime id used by the world/runtime layer.
     runtime_id: RuntimeId,
     /// Process-global routing id used for host ingress routing and queue servicing.
-    host_runtime_id: HostRuntimeId,
+    host_session_id: HostSessionId,
+    /// Session-scoped request id allocator for outbound host requests.
+    next_host_request_id: AtomicU64,
     /// Static host capability set reported by the adapter.
     adapter_capabilities: PlatformCapabilitySet,
     /// Resolved host integration options for this runtime target.
@@ -41,8 +46,6 @@ pub struct HostSession {
     os_options: PlatformOsOptions,
     /// Resolved target app declaration for request availability checks.
     app_declaration: RuntimeAppDeclaration,
-    /// Whether adapter-native ambient ingress should be serviced.
-    is_native_ingress_enabled: bool,
 }
 
 impl std::fmt::Debug for HostSession {
@@ -50,10 +53,10 @@ impl std::fmt::Debug for HostSession {
         f.debug_struct("HostSession")
             .field("platform", &self.platform())
             .field("runtime_id", &self.runtime_id)
-            .field("host_runtime_id", &self.host_runtime_id)
+            .field("host_session_id", &self.host_session_id)
             .field(
                 "registration_runtime_id",
-                &self.registration_guard.host_runtime_id(),
+                &self.registration_guard.host_session_id(),
             )
             .field("adapter_capability_count", &self.adapter_capabilities.len())
             .field(
@@ -64,7 +67,6 @@ impl std::fmt::Debug for HostSession {
                 "event_queue_capacity",
                 &self.host_options.event_queue_capacity,
             )
-            .field("is_native_ingress_enabled", &self.is_native_ingress_enabled)
             .finish()
     }
 }
@@ -79,35 +81,33 @@ impl HostSession {
         os_options: PlatformOsOptions,
         app_declaration: RuntimeAppDeclaration,
     ) -> Self {
-        Self::new_with_options_and_native_ingress(
+        Self::new_with_options_inner(
             adapter,
             cleanup,
             runtime_id,
             host_options,
             os_options,
             app_declaration,
-            true,
         )
     }
 
     /// Create one host session from one explicit adapter and host options.
-    pub(crate) fn new_with_options_and_native_ingress(
+    fn new_with_options_inner(
         adapter: Arc<dyn HostAdapter>,
         cleanup: Option<HostCleanup>,
         runtime_id: RuntimeId,
         host_options: PlatformHostOptions,
         os_options: PlatformOsOptions,
         app_declaration: RuntimeAppDeclaration,
-        is_native_ingress_enabled: bool,
     ) -> Self {
         let platform = adapter.platform();
-        let host_runtime_id = next_host_runtime_id();
-        let queue = Arc::new(HostQueue::new(host_runtime_id));
+        let host_session_id = HostSessionRegistry::allocate_session_id();
+        let queue = Arc::new(HostQueue::new(host_session_id));
 
         // register host ingress routing before this host starts serving callers
-        let registration_guard = HostRuntimeRegistry::register_queue(
+        let registration_guard = HostSessionRegistry::register_queue(
             platform,
-            host_runtime_id,
+            host_session_id,
             Arc::clone(&queue),
             cleanup,
         );
@@ -118,23 +118,18 @@ impl HostSession {
             .and_then(|capacity| usize::try_from(capacity).ok());
         queue.configure_capacity(queue_capacity);
 
-        // seed one initializing lifecycle event for the new runtime
-        queue.enqueue(HostEvent::Lifecycle(HostLifecycleEvent {
-            state: HostLifecycleState::Initializing,
-        }));
-
         let adapter_capabilities = adapter.static_capabilities();
         Self {
             adapter,
             queue,
             registration_guard,
             runtime_id,
-            host_runtime_id,
+            host_session_id,
+            next_host_request_id: AtomicU64::new(1),
             adapter_capabilities,
             host_options,
             os_options,
             app_declaration,
-            is_native_ingress_enabled,
         }
     }
 
@@ -157,7 +152,7 @@ impl HostSession {
     }
 
     /// Create one host session from runtime options without native ambient ingress.
-    #[cfg(any(test, feature = "execution"))]
+    #[cfg(test)]
     pub(crate) fn from_runtime_options_without_native_ingress(
         options: &RuntimeOptions,
         runtime_id: RuntimeId,
@@ -167,15 +162,15 @@ impl HostSession {
         let host_options = host_options_for_target(platform, options);
         let os_options = options.os.clone();
         let app_declaration = options.app.clone();
+        let adapter = without_native_ingress(adapter);
 
-        Self::new_with_options_and_native_ingress(
+        Self::new_with_options_inner(
             adapter,
             cleanup,
             runtime_id,
             host_options,
             os_options,
             app_declaration,
-            false,
         )
     }
 
@@ -198,7 +193,7 @@ impl HostSession {
 
     /// Return the dynamic session capabilities reported by the active adapter.
     pub fn session_capabilities(&self) -> PlatformCapabilitySet {
-        self.adapter.session_capabilities(self.host_runtime_id)
+        self.adapter.session_capabilities(self.host_session_id)
     }
 
     /// Return whether adapter and session wiring report one host capability id.
@@ -212,7 +207,7 @@ impl HostSession {
         self.has_host_capability_id(capability.id())
     }
 
-    /// Submit one normalized host request through the active session.
+    /// Submit one normalized runtime-owned host request through the active session.
     pub(crate) fn submit_request(&self, request: HostRequest) -> RuntimeResult<HostRequestOutcome> {
         // request declaration
         require_declared_request(self.platform(), &self.app_declaration, &request)?;
@@ -231,7 +226,7 @@ impl HostSession {
         operation.decode_outcome(outcome)
     }
 
-    /// Poll host events using the active host.
+    /// Poll queued host ingress events using the active host session.
     pub fn poll_events(&self, timeout_nanos: Option<u64>) -> RuntimeResult<HostPollOutcome> {
         // drain the queued host event stream directly
         let events = self.queue.poll_events(timeout_nanos)?;
@@ -249,20 +244,20 @@ impl HostSession {
         self.queue.poll_wake_handle()
     }
 
-    /// Return the runtime id used for host ingress routing.
+    /// Return the logical runtime id for this host session.
     pub const fn runtime_id(&self) -> RuntimeId {
         self.runtime_id
     }
 
     /// Return the process-global host routing id used for callback registration.
-    pub(crate) const fn host_runtime_id(&self) -> HostRuntimeId {
-        self.host_runtime_id
+    pub(crate) const fn host_session_id(&self) -> HostSessionId {
+        self.host_session_id
     }
 
     /// Build one host request context for this session.
-    fn host_request_context(&self) -> HostRequestContext {
-        HostRequestContext {
-            host_runtime_id: self.host_runtime_id,
+    fn host_session_context(&self) -> HostSessionContext {
+        HostSessionContext {
+            host_session_id: self.host_session_id,
             platform: self.platform(),
             os_options: self.os_options.clone(),
             app_identity: self.app_declaration.identity.clone(),
@@ -270,24 +265,55 @@ impl HostSession {
         }
     }
 
+    /// Build one host request context for this session.
+    fn host_request_context(&self) -> HostRequestContext {
+        let session_context = self.host_session_context();
+
+        HostRequestContext {
+            request_id: self.allocate_request_id(),
+            host_session_id: session_context.host_session_id,
+            platform: session_context.platform,
+            os_options: session_context.os_options,
+            app_identity: session_context.app_identity,
+            is_process_main_context: session_context.is_process_main_context,
+        }
+    }
+
+    /// Allocate one fresh request id for this host session.
+    fn allocate_request_id(&self) -> HostRequestId {
+        let request_id = self.next_host_request_id.fetch_add(1, Ordering::Relaxed);
+
+        HostRequestId(request_id)
+    }
+
     /// Return whether the current execution context is the process main context.
     pub fn is_process_main_context(&self) -> bool {
         self.adapter.is_process_main_context()
     }
-    /// Service host-owned ingress for this runtime session.
+
+    /// Service host-owned native ingress for this runtime session.
+    pub fn service_native_ingress(&self) -> RuntimeResult<()> {
+        self.adapter.process_native_ingress()?;
+
+        Ok(())
+    }
+
+    /// Service runtime-owned ingress for this runtime session.
+    pub fn service_runtime_ingress(&self) -> RuntimeResult<()> {
+        // session context
+        let session_context = self.host_session_context();
+
+        // adapter-owned runtime ingress
+        self.adapter.process_runtime_ingress(&session_context)?;
+
+        // queue-owned ingress
+        HostSessionRegistry::service_session_ingress(self.host_session_id)
+    }
+
+    /// Service host-owned and runtime-owned ingress for this runtime session.
     pub fn service_ingress(&self) -> RuntimeResult<()> {
-        // service immediately ready adapter ingress
-        if self.is_native_ingress_enabled {
-            self.adapter.process_native_ingress()?;
-        }
-
-        let request_context = self.host_request_context();
-
-        // service app-owned ingress for this runtime
-        service_app_ingress(&request_context)?;
-
-        // service queue-owned runtime ingress handlers for this session
-        HostRuntimeRegistry::service_runtime_ingress(self.host_runtime_id)
+        self.service_native_ingress()?;
+        self.service_runtime_ingress()
     }
 }
 
@@ -319,7 +345,7 @@ mod tests {
         HostAdapter, HostCleanup, HostRequest, HostRequestContext, HostRequestOutcome, HostSession,
         Platform, PlatformHostOptions, RuntimeId, RuntimeResult,
     };
-    use crate::host::core::{HostRequestResult, HostRuntimeId};
+    use crate::host::core::{HostRequestResult, HostSessionId};
     use crate::platform::os::abi_generated::DocumentPickOptionsValue;
     use crate::platform::os::{NotificationPermissionState, Permission, PermissionState};
     use crate::runtime::capability::PlatformCapabilitySet;
@@ -345,7 +371,7 @@ mod tests {
         }
 
         /// Return one empty session capability set for focused request tests.
-        fn session_capabilities(&self, _runtime_id: HostRuntimeId) -> PlatformCapabilitySet {
+        fn session_capabilities(&self, _runtime_id: HostSessionId) -> PlatformCapabilitySet {
             PlatformCapabilitySet::new()
         }
 

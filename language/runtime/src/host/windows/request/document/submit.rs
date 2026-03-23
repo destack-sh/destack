@@ -12,16 +12,15 @@ use windows::Win32::UI::Shell::{
 use windows::core::{Error as WindowsError, HRESULT, PCWSTR};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::app::document::pick::{
-    HOST_DOCUMENT_PICK_OPERATION, document_descriptor_value_from_path,
-    validate_document_pick_options, validated_document_content_types,
-    validated_document_extensions,
-};
 use crate::host::core::HostRequestContext;
 use crate::platform::PlatformError;
 use crate::platform::core::{io_operation_error, not_supported, wide_from_str};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{DocumentDescriptorValue, DocumentPickOptionsValue};
+use crate::platform::os::document::{
+    DOCUMENT_PICK_OPERATION, document_descriptor_value_from_path, validate_document_pick_options,
+    validated_document_content_types, validated_document_extensions,
+};
 
 /// Windows common-dialog cancellation status code.
 const WINDOWS_DIALOG_CANCELLED: HRESULT = HRESULT(0x800704C7u32 as i32);
@@ -76,12 +75,12 @@ fn normalized_options(
         .iter()
         .any(|content_type| content_type != "*/*")
     {
-        return Err(not_supported(HOST_DOCUMENT_PICK_OPERATION));
+        return Err(not_supported(DOCUMENT_PICK_OPERATION));
     }
 
     // windows common dialogs cannot mix folder picking with file-type filters
     if options.allow_directories && !extensions.is_empty() {
-        return Err(not_supported(HOST_DOCUMENT_PICK_OPERATION));
+        return Err(not_supported(DOCUMENT_PICK_OPERATION));
     }
 
     Ok(WindowsDocumentPickOptions {
@@ -107,7 +106,7 @@ fn initialize_sta_com() -> RuntimeResult<WindowsComApartment> {
     }
 
     Err(io_operation_error(
-        HOST_DOCUMENT_PICK_OPERATION,
+        DOCUMENT_PICK_OPERATION,
         Some(PlatformErrorCode::IoInvalidData),
         format!("CoInitializeEx failed with status {}", status.0),
     ))
@@ -142,7 +141,7 @@ fn dialog_filters(extensions: &[String]) -> RuntimeResult<Option<WindowsFileDial
 fn create_file_open_dialog() -> RuntimeResult<IFileOpenDialog> {
     unsafe { CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER) }.map_err(|error| {
         io_operation_error(
-            HOST_DOCUMENT_PICK_OPERATION,
+            DOCUMENT_PICK_OPERATION,
             Some(PlatformErrorCode::IoInvalidData),
             format!(
                 "CoCreateInstance(FileOpenDialog) failed with status {}",
@@ -197,7 +196,7 @@ fn pick_results(dialog: &IFileOpenDialog) -> RuntimeResult<Vec<DocumentDescripto
             unsafe { item.GetDisplayName(SIGDN_FILESYSPATH) }.map_err(windows_dialog_error)?;
         let path = unsafe { display_name.to_string() }.map_err(|error| {
             io_operation_error(
-                HOST_DOCUMENT_PICK_OPERATION,
+                DOCUMENT_PICK_OPERATION,
                 Some(PlatformErrorCode::IoInvalidData),
                 format!("picker returned one invalid utf16 path: {error}"),
             )
@@ -221,7 +220,7 @@ fn windows_dialog_error(error: WindowsError) -> Box<RuntimeError> {
         Some(PlatformErrorCode::IoInvalidData),
         None,
         None,
-        Some(HOST_DOCUMENT_PICK_OPERATION.to_string()),
+        Some(DOCUMENT_PICK_OPERATION.to_string()),
         None,
         format!(
             "windows document picker failed with status {}",
@@ -259,6 +258,7 @@ pub(crate) fn pick_documents(
 #[cfg(test)]
 mod tests {
     use super::normalized_options;
+    use crate::platform::diagnostic::PlatformErrorCode;
     use crate::platform::os::abi_generated::DocumentPickOptionsValue;
 
     /// Reject MIME-only document filters that the Windows picker cannot express natively.
@@ -274,9 +274,6 @@ mod tests {
         let error = normalized_options(&options)
             .expect_err("windows picker should reject MIME-only filters without native lowering");
 
-        assert_eq!(
-            error.code,
-            Some(crate::platform::diagnostic::PlatformErrorCode::NotSupported)
-        );
+        assert_eq!(error.code, Some(PlatformErrorCode::NotSupported));
     }
 }

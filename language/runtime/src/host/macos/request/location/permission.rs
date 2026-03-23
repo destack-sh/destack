@@ -5,9 +5,9 @@ use objc2_core_location::{CLAuthorizationStatus, CLLocationManager};
 use objc2_foundation::{NSDate, NSDefaultRunLoopMode, NSRunLoop};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::apple::execution::with_process_main_context_marker_if_needed;
-use crate::host::core::HostRuntimeId;
-use crate::host::macos::macos_notify_permission_result;
+use crate::host::apple::core::execution::with_process_main_context_marker_if_needed;
+use crate::host::core::HostSessionId;
+use crate::host::macos::ingress::notify::macos_notify_permission_result;
 use crate::platform::PlatformError;
 use crate::platform::core::io_operation_error;
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -34,7 +34,7 @@ pub(super) enum LocationPermissionRequest {
 /// Ensure Core Location authorization is present for one live request.
 pub(super) fn ensure_location_authorized(
     manager: &CLLocationManager,
-    host_runtime_id: HostRuntimeId,
+    host_session_id: HostSessionId,
     request_kind: LocationPermissionRequest,
     mtm: MainThreadMarker,
     operation: &'static str,
@@ -52,7 +52,7 @@ pub(super) fn ensure_location_authorized(
     }
 
     let delegate =
-        MacosLocationManagerDelegate::new(mtm, host_runtime_id, None, false, authorization_status);
+        MacosLocationManagerDelegate::new(mtm, host_session_id, None, false, authorization_status);
 
     unsafe {
         manager.setDelegate(Some(delegate.as_protocol()));
@@ -79,7 +79,7 @@ pub(super) fn ensure_location_authorized(
 
 /// Request one macOS location permission on the process main thread.
 pub(super) fn request_location_permission_on_main(
-    host_runtime_id: HostRuntimeId,
+    host_session_id: HostSessionId,
     permission: Permission,
     request_kind: LocationPermissionRequest,
 ) -> RuntimeResult<PermissionState> {
@@ -87,7 +87,7 @@ pub(super) fn request_location_permission_on_main(
         let manager = unsafe { CLLocationManager::new() };
         let initial_status = unsafe { manager.authorizationStatus() };
         let delegate =
-            MacosLocationManagerDelegate::new(mtm, host_runtime_id, None, false, initial_status);
+            MacosLocationManagerDelegate::new(mtm, host_session_id, None, false, initial_status);
 
         unsafe {
             manager.setDelegate(Some(delegate.as_protocol()));
@@ -110,7 +110,7 @@ pub(super) fn request_location_permission_on_main(
         }
 
         macos_notify_permission_result(
-            host_runtime_id.0,
+            host_session_id.0,
             location_permission_name_for_permission(permission),
             matches!(permission_state, PermissionState::Granted),
         )?;

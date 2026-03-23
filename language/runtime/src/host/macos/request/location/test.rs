@@ -1,5 +1,5 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRuntimeId};
+use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostSessionId};
 pub(crate) use crate::host::macos::tests::{MacosLocationHooks, set_macos_location_test_hooks};
 use crate::host::macos::tests::{
     request_location_permission as request_location_permission_from_tests,
@@ -25,6 +25,6 @@ pub(crate) fn request_location_permission(
 }
 
 /// Remove one macOS runtime from the active location test lane.
-pub(crate) fn unregister_location_runtime(host_runtime_id: HostRuntimeId) {
-    unregister_location_runtime_from_tests(host_runtime_id);
+pub(crate) fn unregister_location_runtime(host_session_id: HostSessionId) {
+    unregister_location_runtime_from_tests(host_session_id);
 }

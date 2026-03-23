@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
-use crate::host::core::registry::next_host_runtime_id;
-use crate::host::core::{HostQueue, HostRuntimeRegistry};
-use crate::host::windows::ingress::notify::host_lifecycle_state_for_windows_application;
-use crate::host::windows::{
-    WindowsApplicationLifecycle, windows_notify_intent_open_url, windows_notify_location_sample,
+use crate::host::core::{HostQueue, HostSessionRegistry};
+use crate::host::windows::ingress::notify::{
+    WindowsApplicationLifecycle, host_lifecycle_state_for_windows_application,
+    windows_notify_intent_open_url, windows_notify_location_sample,
     windows_notify_permission_result,
 };
 use crate::host::{
@@ -51,15 +50,15 @@ fn test_map_windows_lifecycle_to_destroyed() {
 
 #[test]
 fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() {
-    let runtime_id = next_host_runtime_id();
+    let runtime_id = HostSessionRegistry::allocate_session_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
-    let registration = HostRuntimeRegistry::register_queue(
+    let registration = HostSessionRegistry::register_queue(
         Platform::Windows,
         runtime_id,
         Arc::clone(&queue),
         None,
     );
-    let runtime_id = registration.host_runtime_id();
+    let runtime_id = registration.host_session_id();
 
     windows_notify_permission_result(runtime_id.0, "camera", true).unwrap();
 
@@ -67,6 +66,7 @@ fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() 
     assert_eq!(
         events.as_slice(),
         [HostEvent::Permission(HostPermissionEvent {
+            request_id: None,
             permission: "camera".to_string(),
             granted: true,
         })],
@@ -75,15 +75,15 @@ fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() 
 
 #[test]
 fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
-    let runtime_id = next_host_runtime_id();
+    let runtime_id = HostSessionRegistry::allocate_session_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
-    let registration = HostRuntimeRegistry::register_queue(
+    let registration = HostSessionRegistry::register_queue(
         Platform::Windows,
         runtime_id,
         Arc::clone(&queue),
         None,
     );
-    let runtime_id = registration.host_runtime_id();
+    let runtime_id = registration.host_session_id();
 
     windows_notify_intent_open_url(
         runtime_id.0,
@@ -106,15 +106,15 @@ fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
 
 #[test]
 fn test_notify_location_sample_enqueues_location_event_for_runtime_bridge() {
-    let runtime_id = next_host_runtime_id();
+    let runtime_id = HostSessionRegistry::allocate_session_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
-    let registration = HostRuntimeRegistry::register_queue(
+    let registration = HostSessionRegistry::register_queue(
         Platform::Windows,
         runtime_id,
         Arc::clone(&queue),
         None,
     );
-    let runtime_id = registration.host_runtime_id();
+    let runtime_id = registration.host_session_id();
     let sample = LocationSampleValue {
         latitude_degrees: 1.0,
         longitude_degrees: 2.0,

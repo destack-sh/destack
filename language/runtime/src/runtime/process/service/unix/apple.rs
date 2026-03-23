@@ -1,6 +1,6 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::apple::execution::call_process_main_context_if_needed;
-use crate::host::apple::message::is_process_main_context;
+use crate::host::apple::core::execution::call_process_main_context_if_needed;
+use crate::host::apple::core::message::is_process_main_context;
 
 use super::super::executor::host::HostExecutor;
 

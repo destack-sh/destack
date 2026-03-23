@@ -1,16 +1,13 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::app::background::submit_background_request;
-use crate::host::app::media::submit_media_request;
-use crate::host::app::notification::submit_notification_request;
 use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
-use crate::host::unix::{submit_unix_request, unix_request_capabilities};
+use crate::host::unix::request;
 use crate::platform::core::not_supported;
 use crate::platform::os::{Permission, PermissionEntry, PermissionState};
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
 
 /// Return dynamic macOS request capabilities.
 pub(crate) fn request_capabilities() -> PlatformCapabilitySet {
-    let mut capabilities = unix_request_capabilities();
+    let mut capabilities = request::request_capabilities();
     capabilities.extend_capabilities([
         PlatformCapability::OsBackgroundControl,
         PlatformCapability::OsBackgroundRead,
@@ -41,12 +38,12 @@ pub(crate) fn submit_request(
     request: HostRequest,
 ) -> RuntimeResult<HostRequestOutcome> {
     // service shared desktop background requests first
-    if let Some(outcome) = submit_background_request(context, &request)? {
+    if let Some(outcome) = super::background::submit_background_request(context, &request)? {
         return Ok(outcome);
     }
 
     // then service shared desktop media requests
-    if let Some(outcome) = submit_media_request(context, &request)? {
+    if let Some(outcome) = super::media::submit_media_request(context, &request)? {
         return Ok(outcome);
     }
 
@@ -56,7 +53,7 @@ pub(crate) fn submit_request(
     }
 
     // then service shared desktop notification requests
-    if let Some(outcome) = submit_notification_request(context, &request)? {
+    if let Some(outcome) = super::notification::submit_notification_request(context, &request)? {
         return Ok(outcome);
     }
 
@@ -95,7 +92,7 @@ pub(crate) fn submit_request(
                 HostRequestResult::PermissionEntries(entries),
             ))
         }
-        _ => submit_unix_request(context, request),
+        _ => request::submit_request(context, request),
     }
 }
 
@@ -157,7 +154,7 @@ fn request_permission_entries(
         // partition selectors by family first
         for permission in permissions {
             match permission {
-                crate::platform::os::Permission::CalendarRead | Permission::CalendarWrite => {
+                Permission::CalendarRead | Permission::CalendarWrite => {
                     calendar_permissions.push(*permission);
                 }
                 Permission::ContactsRead | Permission::ContactsWrite => {
@@ -205,10 +202,7 @@ fn request_permission_entries(
 
             for permission in location_permissions {
                 let state = match (permission, selected_state) {
-                    (
-                        crate::platform::os::Permission::Location,
-                        crate::platform::os::PermissionState::Limited,
-                    ) => crate::platform::os::PermissionState::Granted,
+                    (Permission::Location, PermissionState::Limited) => PermissionState::Granted,
                     _ => selected_state,
                 };
                 entries.push(PermissionEntry { permission, state });
