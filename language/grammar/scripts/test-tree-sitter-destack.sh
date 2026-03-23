@@ -16,7 +16,7 @@ ensure_dependencies() {
 	# install the grammar package dependencies
 	(
 		cd "${package_directory}"
-		npm ci
+		npm ci --workspaces=false
 	)
 }
 
