@@ -1044,6 +1044,18 @@ impl Compiler {
         })
     }
 
+    /// Report one declared type diagnostic and poison the local type result.
+    fn report_declared_type_error(&self, error: AnalyzeError) -> AnalyzeResult<Option<Type>> {
+        self.error(error);
+        Ok(Some(Type::Error))
+    }
+
+    /// Report one declared type diagnostic and poison the concrete type result.
+    fn report_declared_concrete_type_error(&self, error: AnalyzeError) -> AnalyzeResult<Type> {
+        self.error(error);
+        Ok(Type::Error)
+    }
+
     /// Resolve one fixed-size array type from a type-index expression.
     fn resolve_declared_array_sized_type(
         &self,
@@ -1058,7 +1070,7 @@ impl Compiler {
             self.evaluate_integer_static_literal(&mut ctx.reborrow(), index)?;
         if let Some(value) = integer_array_size {
             if value < 0 {
-                return Err(AnalyzeError::InvalidArraySize {
+                return self.report_declared_concrete_type_error(AnalyzeError::InvalidArraySize {
                     node: index
                         .into_global_any(ctx.module.id)
                         .into_anchored(Some(ctx.profile)),
@@ -1322,7 +1334,7 @@ impl Compiler {
                 if is_user_module {
                     // disallow explicit any
                     if ctx.options.no_any && matches!(value, TypeLiteral::Any) {
-                        return Err(AnalyzeError::AnyTypeDisabled {
+                        return self.report_declared_type_error(AnalyzeError::AnyTypeDisabled {
                             node: expression_id
                                 .into_global_any(ctx.module.id)
                                 .into_anchored(Some(ctx.profile)),
@@ -1331,22 +1343,26 @@ impl Compiler {
 
                     // disallow explicit unknown
                     if ctx.options.no_unknown && matches!(value, TypeLiteral::Unknown) {
-                        return Err(AnalyzeError::UnknownTypeDisabled {
-                            node: expression_id
-                                .into_global_any(ctx.module.id)
-                                .into_anchored(Some(ctx.profile)),
-                        });
+                        return self.report_declared_type_error(
+                            AnalyzeError::UnknownTypeDisabled {
+                                node: expression_id
+                                    .into_global_any(ctx.module.id)
+                                    .into_anchored(Some(ctx.profile)),
+                            },
+                        );
                     }
 
                     // disallow imprecise primitives
                     if ctx.options.no_imprecise_primitives
                         && matches!(value, TypeLiteral::Primitive(PrimitiveType::Number))
                     {
-                        return Err(AnalyzeError::ImprecisePrimitiveDisabled {
-                            node: expression_id
-                                .into_global_any(ctx.module.id)
-                                .into_anchored(Some(ctx.profile)),
-                        });
+                        return self.report_declared_type_error(
+                            AnalyzeError::ImprecisePrimitiveDisabled {
+                                node: expression_id
+                                    .into_global_any(ctx.module.id)
+                                    .into_anchored(Some(ctx.profile)),
+                            },
+                        );
                     }
                 }
 
@@ -1792,7 +1808,7 @@ impl Compiler {
                             value: TypeLiteral::Void
                         }
                     ) {
-                        return Err(AnalyzeError::VoidInTuple {
+                        return self.report_declared_type_error(AnalyzeError::VoidInTuple {
                             node: value_id
                                 .into_global_any(ctx.module.id)
                                 .into_anchored(Some(ctx.profile)),
@@ -1851,7 +1867,7 @@ impl Compiler {
                             value: TypeLiteral::Void
                         }
                     ) {
-                        return Err(AnalyzeError::VoidInTuple {
+                        return self.report_declared_type_error(AnalyzeError::VoidInTuple {
                             node: value_id
                                 .into_global_any(ctx.module.id)
                                 .into_anchored(Some(ctx.profile)),
@@ -1882,7 +1898,7 @@ impl Compiler {
             }
             // sequence expression (comma operator)
             Expression::SequenceExpression { .. } => {
-                return Err(AnalyzeError::UnsupportedConstruct {
+                return self.report_declared_type_error(AnalyzeError::UnsupportedConstruct {
                     node: expression_id
                         .into_global_any(ctx.module.id)
                         .into_anchored(Some(ctx.profile)),
@@ -1951,11 +1967,13 @@ impl Compiler {
                                 if ctx.module.language_type.is_declaration() {
                                     continue;
                                 }
-                                return Err(AnalyzeError::UnsupportedConstruct {
-                                    node: property_id
-                                        .into_global_any(ctx.module.id)
-                                        .into_anchored(Some(ctx.profile)),
-                                });
+                                return self.report_declared_type_error(
+                                    AnalyzeError::UnsupportedConstruct {
+                                        node: property_id
+                                            .into_global_any(ctx.module.id)
+                                            .into_anchored(Some(ctx.profile)),
+                                    },
+                                );
                             };
 
                             let ty = if let Some(value_id) = value {
@@ -2030,11 +2048,13 @@ impl Compiler {
                                 if ctx.module.language_type.is_declaration() {
                                     continue;
                                 }
-                                return Err(AnalyzeError::UnsupportedConstruct {
-                                    node: property_id
-                                        .into_global_any(ctx.module.id)
-                                        .into_anchored(Some(ctx.profile)),
-                                });
+                                return self.report_declared_type_error(
+                                    AnalyzeError::UnsupportedConstruct {
+                                        node: property_id
+                                            .into_global_any(ctx.module.id)
+                                            .into_anchored(Some(ctx.profile)),
+                                    },
+                                );
                             };
 
                             let ty = self.resolve_declared_function_signature_type(
@@ -2061,11 +2081,13 @@ impl Compiler {
                         }
                         Property::Spread { .. } => {
                             // #Incomplete: spread properties into ctx.types
-                            return Err(AnalyzeError::UnsupportedConstruct {
-                                node: property_id
-                                    .into_global_any(ctx.module.id)
-                                    .into_anchored(Some(ctx.profile)),
-                            });
+                            return self.report_declared_type_error(
+                                AnalyzeError::UnsupportedConstruct {
+                                    node: property_id
+                                        .into_global_any(ctx.module.id)
+                                        .into_anchored(Some(ctx.profile)),
+                                },
+                            );
                         }
                     };
 
@@ -2097,7 +2119,7 @@ impl Compiler {
                             value: TypeLiteral::Void
                         }
                     ) {
-                        return Err(AnalyzeError::VoidInArray {
+                        return self.report_declared_type_error(AnalyzeError::VoidInArray {
                             node: left
                                 .into_global_any(ctx.module.id)
                                 .into_anchored(Some(ctx.profile)),
@@ -2105,15 +2127,21 @@ impl Compiler {
                     }
 
                     // require a literal length for array ctx.types
-                    let value = self
-                        .evaluate_integer_static_literal(&mut ctx.reborrow(), right)?
-                        .ok_or_else(|| AnalyzeError::InvalidArraySize {
-                            node: right
-                                .into_global_any(ctx.module.id)
-                                .into_anchored(Some(ctx.profile)),
-                        })?;
+                    let value =
+                        match self.evaluate_integer_static_literal(&mut ctx.reborrow(), right)? {
+                            Some(value) => value,
+                            None => {
+                                return self.report_declared_type_error(
+                                    AnalyzeError::InvalidArraySize {
+                                        node: right
+                                            .into_global_any(ctx.module.id)
+                                            .into_anchored(Some(ctx.profile)),
+                                    },
+                                );
+                            }
+                        };
                     if value < 0 {
-                        return Err(AnalyzeError::InvalidArraySize {
+                        return self.report_declared_type_error(AnalyzeError::InvalidArraySize {
                             node: right
                                 .into_global_any(ctx.module.id)
                                 .into_anchored(Some(ctx.profile)),
@@ -2146,7 +2174,7 @@ impl Compiler {
                             value: TypeLiteral::Void
                         }
                     ) {
-                        return Err(AnalyzeError::VoidInArray {
+                        return self.report_declared_type_error(AnalyzeError::VoidInArray {
                             node: left
                                 .into_global_any(ctx.module.id)
                                 .into_anchored(Some(ctx.profile)),
@@ -2169,7 +2197,7 @@ impl Compiler {
             && !self.expression_has_explicit_ownership(ctx.tree, expression_id)
             && self.type_is_implicit_managed(ctx.module_type_view(), &ty)
         {
-            return Err(AnalyzeError::ImplicitManagedTypeDisabled {
+            return self.report_declared_type_error(AnalyzeError::ImplicitManagedTypeDisabled {
                 node: expression_id
                     .into_global_any(ctx.module.id)
                     .into_anchored(Some(ctx.profile)),

@@ -3692,6 +3692,31 @@ class A extends B {
         test.check_has_diagnostic("EA214");
     }
 
+    /// Reject reserved intrinsic names as TypeScript type alias identifiers.
+    #[test]
+    fn test_reject_reserved_typescript_type_alias_identifiers() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            r#"
+type undefined = any;
+type any = any;
+type string = any;
+"#,
+        );
+
+        test.apply_destack_config(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+
+        test.analyze_module(module_id);
+        test.compile();
+
+        // each reserved alias name should raise EA214
+        test.check_diagnostic_count("EA214", 3);
+    }
+
     /// Reject try expressions without catch or finally clauses.
     #[test]
     fn test_reject_try_without_catch_or_finally_in_validate() {

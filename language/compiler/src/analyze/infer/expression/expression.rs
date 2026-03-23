@@ -4323,8 +4323,18 @@ impl Compiler {
                 .into_global_any(ctx.module.id)
                 .into_anchored(Some(ctx.profile)),
         };
+        self.report_infer_type_error(ctx.types, expression_id.into_any(), error)
+    }
+
+    /// Report one infer diagnostic and return an error type id for the source node.
+    pub(crate) fn report_infer_type_error(
+        &self,
+        types: &mut TypeTable,
+        node_id: LocalNodeIdAny,
+        error: AnalyzeError,
+    ) -> LocalTypeId {
         self.error(error);
-        ctx.types.insert_type_from(Type::Error, expression_id)
+        types.insert_type_from_any(Type::Error, node_id)
     }
 
     /// Resolve export name and module id for a remote dependency item.
