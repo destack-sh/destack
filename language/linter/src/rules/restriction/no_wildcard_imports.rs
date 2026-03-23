@@ -43,7 +43,13 @@ impl LintRule for NoWildcardImports {
             // check for namespace/wildcard imports (like `import * as foo`)
             for item_id in items {
                 let item = ctx.tree.get(*item_id);
-                if item.mode == ast::DependencyMode::Namespace {
+                if matches!(
+                    item,
+                    ast::DependencyItem::Item {
+                        mode: ast::DependencyMode::Namespace,
+                        ..
+                    }
+                ) {
                     let severity = ctx.get_effective_severity(meta, node_id);
                     if !severity.is_enabled() {
                         continue;

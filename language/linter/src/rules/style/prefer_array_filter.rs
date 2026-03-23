@@ -470,13 +470,18 @@ impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
         else {
             return None;
         };
-        if *name != self.for_each_name {
+        if *name != Some(self.for_each_name) {
             return None;
         }
         let member_span = self.ctx.get_span(*left);
         let member_text = self.ctx.get_span_text(member_span);
-        let receiver_text =
-            member_receiver_text(self.ctx, *receiver_expression_id, member_text, *name, false)?;
+        let receiver_text = member_receiver_text(
+            self.ctx,
+            *receiver_expression_id,
+            member_text,
+            (*name)?,
+            false,
+        )?;
 
         // read condition text for predicate callback expression
         let condition_text = self

@@ -126,8 +126,8 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         else {
             return;
         };
-        let is_replace = *name == self.replace_name;
-        let is_replace_all = *name == self.replace_all_name;
+        let is_replace = *name == Some(self.replace_name);
+        let is_replace_all = *name == Some(self.replace_all_name);
         if !is_replace && !is_replace_all {
             return;
         }

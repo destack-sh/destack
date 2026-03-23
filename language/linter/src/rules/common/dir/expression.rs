@@ -155,6 +155,7 @@ pub fn argument_expression_id(
             label: _,
             value,
         } => Some(*value),
+        dir::Argument::Error { value } => Some(*value),
     }
 }
 

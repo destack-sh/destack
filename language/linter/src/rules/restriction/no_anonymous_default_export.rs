@@ -95,13 +95,15 @@ impl LintRule for NoAnonymousDefaultExport {
                 let item = ctx.tree.get(*item_id);
 
                 // keep only default export items with values
-                if item.mode != DependencyMode::Default || item.value.is_none() {
-                    continue;
-                }
-                let Some(item_value) = item.value else {
+                let ast::DependencyItem::Item {
+                    mode: DependencyMode::Default,
+                    value: Some(item_value),
+                    ..
+                } = item
+                else {
                     continue;
                 };
-                let value_id = expression_unwrap_parenthesized_syntax(ctx.tree, item_value);
+                let value_id = expression_unwrap_parenthesized_syntax(ctx.tree, *item_value);
                 let value = ctx.tree.get(value_id);
 
                 // skip named or call expression exports

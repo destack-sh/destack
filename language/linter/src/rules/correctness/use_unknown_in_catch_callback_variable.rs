@@ -430,6 +430,7 @@ fn ast_parameter_type_expression_id(
         | ast::Parameter::Pattern { ty, .. }
         | ast::Parameter::VariadicNamed { ty, .. }
         | ast::Parameter::VariadicPattern { ty, .. } => *ty,
+        ast::Parameter::Error => None,
     }
 }
 

@@ -144,7 +144,10 @@ impl NodeVisitor for CallbackVisitor<'_> {
         }
 
         // resolve argument expression value
-        let value_expression_id = argument_value_expression_id(argument);
+        let Some(value_expression_id) = argument_value_expression_id(argument) else {
+            walk_argument(self, tree, argument_id, argument);
+            return;
+        };
         if !self.expression_is_callback_function(tree, value_expression_id) {
             walk_argument(self, tree, argument_id, argument);
             return;
@@ -169,12 +172,13 @@ impl NodeVisitor for CallbackVisitor<'_> {
 }
 
 /// Return the expression id for one argument value.
-fn argument_value_expression_id(argument: &Argument) -> LocalNodeId<Expression> {
+fn argument_value_expression_id(argument: &Argument) -> Option<LocalNodeId<Expression>> {
     match argument {
         Argument::Named { value, .. }
         | Argument::Labeled { value, .. }
         | Argument::Positional { value, .. }
-        | Argument::Spread { value, .. } => *value,
+        | Argument::Spread { value, .. } => Some(*value),
+        Argument::Error => None,
     }
 }
 

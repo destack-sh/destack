@@ -153,7 +153,10 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
         let (left_expression_id, method_name, is_private, method_text_span) = match expression {
             dir::Expression::Member { left, name, .. } => {
                 // skip helper names: this expression is itself not a method reference target
-                if *name == self.bind_name || *name == self.call_name || *name == self.apply_name {
+                if *name == Some(self.bind_name)
+                    || *name == Some(self.call_name)
+                    || *name == Some(self.apply_name)
+                {
                     return None;
                 }
 
@@ -161,7 +164,10 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
             }
             dir::Expression::PrivateMember { left, name, .. } => {
                 // skip helper names: this expression is itself not a method reference target
-                if *name == self.bind_name || *name == self.call_name || *name == self.apply_name {
+                if *name == Some(self.bind_name)
+                    || *name == Some(self.call_name)
+                    || *name == Some(self.apply_name)
+                {
                     return None;
                 }
 
@@ -187,7 +193,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
             self.ctx,
             left_expression_id,
             &method_text,
-            method_name,
+            method_name?,
             is_private,
         )?;
         if method_text.is_empty() || left_text.is_empty() {
@@ -323,9 +329,9 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
                     return true;
                 }
                 dir::Expression::Member { left, name, .. } if *left == current_id => {
-                    if *name == self.bind_name
-                        || *name == self.call_name
-                        || *name == self.apply_name
+                    if *name == Some(self.bind_name)
+                        || *name == Some(self.call_name)
+                        || *name == Some(self.apply_name)
                     {
                         current_id = parent_id;
                         continue;
@@ -334,9 +340,9 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
                     return true;
                 }
                 dir::Expression::PrivateMember { left, name, .. } if *left == current_id => {
-                    if *name == self.bind_name
-                        || *name == self.call_name
-                        || *name == self.apply_name
+                    if *name == Some(self.bind_name)
+                        || *name == Some(self.call_name)
+                        || *name == Some(self.apply_name)
                     {
                         current_id = parent_id;
                         continue;

@@ -278,9 +278,7 @@ fn expression_name_hint(
         dir::Expression::LocalReference { path, .. }
         | dir::Expression::ModuleReference { path, .. }
         | dir::Expression::GlobalReference { path, .. } => path.last_segment(),
-        dir::Expression::Member { name, .. } | dir::Expression::PrivateMember { name, .. } => {
-            Some(*name)
-        }
+        dir::Expression::Member { name, .. } | dir::Expression::PrivateMember { name, .. } => *name,
         dir::Expression::Cast { value, .. } | dir::Expression::OwnershipCast { value, .. } => {
             expression_name_hint(tree, *value)
         }
@@ -469,6 +467,7 @@ fn parameter_name_for_signature_parameter(
         }
         dir::Parameter::Pattern { pattern, .. }
         | dir::Parameter::VariadicPattern { pattern, .. } => pattern_name_hint(tree, *pattern),
+        dir::Parameter::Error { .. } => None,
     }
 }
 

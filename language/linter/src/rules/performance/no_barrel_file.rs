@@ -137,7 +137,10 @@ fn export_is_value_reexport(
 
     items.iter().any(|item_id| {
         let item = ctx.tree.get(*item_id);
-        item.kind != Some(ast::DependencyKind::Type)
+        match item {
+            ast::DependencyItem::Item { kind, .. } => *kind != Some(ast::DependencyKind::Type),
+            ast::DependencyItem::Error => true,
+        }
     })
 }
 

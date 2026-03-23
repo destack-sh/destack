@@ -3,7 +3,9 @@ use std::collections::HashSet;
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{collect_pattern_value_binding_symbols, is_any_type, is_infer_var_type};
+use crate::rules::common::{
+    collect_pattern_value_binding_symbols, is_any_type, is_error_type, is_infer_var_type,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -173,7 +175,10 @@ fn should_report_declarator(
         };
 
         // enforce this lint guard
-        if is_infer_var_type(ctx.types, type_id) || is_any_type(ctx.types, type_id) {
+        if is_infer_var_type(ctx.types, type_id)
+            || is_any_type(ctx.types, type_id)
+            || is_error_type(ctx.types, type_id)
+        {
             return true;
         }
     }
@@ -211,7 +216,7 @@ fn should_report_parameter(
     let Some(type_id) = ctx.types.get_value_type_id(symbol_id) else {
         return true;
     };
-    if is_infer_var_type(ctx.types, type_id) {
+    if is_infer_var_type(ctx.types, type_id) || is_error_type(ctx.types, type_id) {
         return true;
     }
 

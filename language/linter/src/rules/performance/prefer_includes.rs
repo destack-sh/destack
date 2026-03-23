@@ -270,7 +270,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         else {
             return;
         };
-        if *name != self.test_name {
+        if *name != Some(self.test_name) {
             return;
         }
         if static_arguments
@@ -369,9 +369,9 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         {
             return None;
         }
-        let method = if *name == self.index_of_name {
+        let method = if *name == Some(self.index_of_name) {
             IncludesMethod::IndexOf
-        } else if *name == self.last_index_of_name {
+        } else if *name == Some(self.last_index_of_name) {
             IncludesMethod::LastIndexOf
         } else {
             return None;

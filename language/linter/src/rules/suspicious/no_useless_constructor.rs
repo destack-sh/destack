@@ -275,7 +275,8 @@ fn constructor_argument_binding(
             modifiers: _,
             label: _,
             value: _,
-        } => return None,
+        }
+        | dir::Argument::Error { .. } => return None,
     };
 
     let value_symbol = expression_target_symbol(ctx.tree, value_expression_id)?;

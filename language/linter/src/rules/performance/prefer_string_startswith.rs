@@ -228,7 +228,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         else {
             return;
         };
-        if *name != self.test_name {
+        if *name != Some(self.test_name) {
             return;
         }
         if static_arguments
@@ -318,7 +318,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         else {
             return None;
         };
-        if *name != self.index_of_name {
+        if *name != Some(self.index_of_name) {
             return None;
         }
         if static_arguments

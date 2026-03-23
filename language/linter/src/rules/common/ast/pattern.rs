@@ -19,6 +19,7 @@ pub fn parameter_default_expression_id(
     match parameter {
         ast::Parameter::Named { default, .. } | ast::Parameter::Pattern { default, .. } => *default,
         ast::Parameter::VariadicNamed { .. } | ast::Parameter::VariadicPattern { .. } => None,
+        ast::Parameter::Error => None,
     }
 }
 

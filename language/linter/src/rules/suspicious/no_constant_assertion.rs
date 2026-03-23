@@ -155,13 +155,16 @@ fn is_assert_call(ctx: &LintAstContext<'_>, callee_id: ast::LocalNodeId<Expressi
         }
 
         // member call: console.assert(...), Debug.assert(...)
-        Expression::Member { name, .. } => {
+        Expression::Member {
+            name: Some(name), ..
+        } => {
             let member_name = ctx.strings.get(*name);
             matches!(
                 member_name.as_ref(),
                 "assert" | "ok" | "strictEqual" | "deepEqual"
             )
         }
+        Expression::Member { name: None, .. } => false,
 
         _ => false,
     }

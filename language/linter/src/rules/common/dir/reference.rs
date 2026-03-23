@@ -65,7 +65,7 @@ pub fn expression_is_new_target(
     else {
         return false;
     };
-    if *name != target_name {
+    if *name != Some(target_name) {
         return false;
     }
 
@@ -297,7 +297,9 @@ pub fn expression_static_property_access(
         static_arguments: _,
     } = expression
     {
-        return Some((*left, *name));
+        let name = (*name)?;
+
+        return Some((*left, name));
     }
 
     // match bracket member access with static string keys
@@ -454,7 +456,9 @@ pub fn parent_is_receiver_helper(
                 static_arguments: _,
             }
             if *left == expression_id
-                && (*name == bind_name || *name == call_name || *name == apply_name)
+                && (*name == Some(bind_name)
+                    || *name == Some(call_name)
+                    || *name == Some(apply_name))
     )
 }
 
@@ -495,7 +499,9 @@ pub fn call_like_invocation_is_receiver_bound(
                 name,
                 static_arguments: _,
             }
-            if *name == bind_name || *name == call_name || *name == apply_name
+            if *name == Some(bind_name)
+                || *name == Some(call_name)
+                || *name == Some(apply_name)
     );
 
     // non helper callees are safe by construction
@@ -524,7 +530,9 @@ fn expression_reference_path_base(
             name,
             static_arguments: _,
         } => {
-            members.push(*name);
+            let name = (*name)?;
+
+            members.push(name);
             expression_reference_path_base(tree, *left, members)
         }
         dir::Expression::This => Some(ReferenceBase::This),
@@ -610,11 +618,12 @@ pub fn expression_method_call(
     else {
         return None;
     };
+    let name = (*name)?;
 
     Some(MethodCallInfo {
         call_id: expression_id,
         receiver_id: *left,
-        method_name: *name,
+        method_name: name,
     })
 }
 

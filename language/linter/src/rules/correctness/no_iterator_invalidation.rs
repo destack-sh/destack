@@ -116,7 +116,10 @@ impl<'a, 'b> IteratorInvalidationVisitor<'a, 'b> {
 
         // check if the method is a mutating method
         let method_name = {
-            let s = self.ctx.program.strings.get(*name);
+            let Some(name) = *name else {
+                return;
+            };
+            let s = self.ctx.program.strings.get(name);
             s.as_ref().to_string()
         };
         if !MUTATING_METHODS.contains(&method_name.as_str()) {

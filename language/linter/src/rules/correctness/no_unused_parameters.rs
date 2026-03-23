@@ -185,6 +185,7 @@ impl LintRule for NoUnusedParameters {
                         );
                     }
                 }
+                dir::Parameter::Error { .. } => continue,
             }
         }
     }

@@ -171,7 +171,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         else {
             return None;
         };
-        if *name != self.slice_name {
+        if *name != Some(self.slice_name) {
             return None;
         }
 
@@ -261,7 +261,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         else {
             return;
         };
-        if *name != self.test_name {
+        if *name != Some(self.test_name) {
             return;
         }
         if static_arguments
@@ -455,7 +455,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         let dir::Expression::Member { left, name, .. } = member_expression else {
             return false;
         };
-        if *name != self.length_name {
+        if *name != Some(self.length_name) {
             return false;
         }
 
@@ -524,7 +524,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         let dir::Expression::Member { left, name, .. } = expression else {
             return false;
         };
-        if *name != self.length_name {
+        if *name != Some(self.length_name) {
             return false;
         }
 

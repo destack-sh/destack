@@ -303,12 +303,12 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         };
         match match_info.kind {
             ArraySomeKind::FindIndex => {
-                if *name != self.find_index_name && *name != self.find_last_index_name {
+                if *name != Some(self.find_index_name) && *name != Some(self.find_last_index_name) {
                     return None;
                 }
             }
             ArraySomeKind::Find => {
-                if *name != self.find_name && *name != self.find_last_name {
+                if *name != Some(self.find_name) && *name != Some(self.find_last_name) {
                     return None;
                 }
             }
@@ -324,8 +324,13 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         // derive receiver text from member expression text
         let member_span = self.ctx.get_span(*left);
         let member_text = self.ctx.get_span_text(member_span);
-        let receiver_text =
-            member_receiver_text(self.ctx, *receiver_expression_id, member_text, *name, false)?;
+        let receiver_text = member_receiver_text(
+            self.ctx,
+            *receiver_expression_id,
+            member_text,
+            (*name)?,
+            false,
+        )?;
 
         // preserve callback and optional this-arg source range
         let first_argument_id = *dynamic_arguments.first()?;
@@ -361,7 +366,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         let dir::Expression::Member { left, name, .. } = expression else {
             return false;
         };
-        if *name != self.length_name {
+        if *name != Some(self.length_name) {
             return false;
         }
 
@@ -385,7 +390,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         let dir::Expression::Member { left, name, .. } = member_expression else {
             return false;
         };
-        if *name != self.filter_name {
+        if *name != Some(self.filter_name) {
             return false;
         }
 
@@ -417,7 +422,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         let dir::Expression::Member { left, name, .. } = member_expression else {
             return false;
         };
-        if *name != self.find_index_name && *name != self.find_last_index_name {
+        if *name != Some(self.find_index_name) && *name != Some(self.find_last_index_name) {
             return false;
         }
 
@@ -446,7 +451,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         let dir::Expression::Member { left, name, .. } = member_expression else {
             return false;
         };
-        if *name != self.find_name && *name != self.find_last_name {
+        if *name != Some(self.find_name) && *name != Some(self.find_last_name) {
             return false;
         }
 

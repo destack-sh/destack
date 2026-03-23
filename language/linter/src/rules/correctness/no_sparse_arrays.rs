@@ -45,7 +45,9 @@ impl LintRule for NoSparseArrays {
 
             // check for holes (stub expressions in elements)
             for element_id in elements {
-                let value_id = argument_value_expression_id(ctx.tree, *element_id);
+                let Some(value_id) = argument_value_expression_id(ctx.tree, *element_id) else {
+                    continue;
+                };
 
                 // resolve value
                 let value = ctx.tree.get(value_id);
