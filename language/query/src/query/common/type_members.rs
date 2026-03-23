@@ -425,7 +425,7 @@ fn resolve_local_symbol_members(
         }
     }
 
-    // fallback: look for scope based members (for classes, interfaces with methods)
+    // secondary path: use the owned scope when no instance type exists
     let Some(owned_scope_id) = owned_scope_for_symbol(symbols, symbol_id) else {
         return members;
     };
