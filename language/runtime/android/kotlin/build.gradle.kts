@@ -1,5 +1,6 @@
 plugins {
     id("com.android.library")
+    id("org.jlleitschuh.gradle.ktlint") version "12.1.2"
 }
 
 android {
@@ -24,6 +25,7 @@ android {
     }
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -38,6 +40,16 @@ android {
 }
 
 dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     implementation("androidx.activity:activity:1.12.4")
     testImplementation("junit:junit:4.13.2")
+}
+
+ktlint {
+    android.set(true)
+    ignoreFailures.set(false)
+
+    filter {
+        exclude("**/build/**")
+    }
 }

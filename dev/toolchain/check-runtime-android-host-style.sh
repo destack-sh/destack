@@ -25,7 +25,7 @@ find_android_gradle_command() {
 
 java_command="$(runtime_java_path || true)"
 if [ -z "${java_command}" ]; then
-	echo "missing java: install one jdk or jre to run android host checks"
+	echo "missing java: install one jdk or jre to run android host style checks"
 	exit 1
 fi
 
@@ -53,13 +53,11 @@ fi
 if [ "${gradle_command}" = "./gradlew" ]; then
 	(
 		cd "${repo_root}/language/runtime/android"
-		./gradlew :kotlin:ktlintCheck :kotlin:lintDebug :kotlin:assembleDebug :kotlin:testDebugUnitTest
+		./gradlew :kotlin:ktlintCheck :kotlin:lintDebug
 	)
 else
 	"${gradle_command}" \
 		-p "${repo_root}/language/runtime/android" \
 		:kotlin:ktlintCheck \
-		:kotlin:lintDebug \
-		:kotlin:assembleDebug \
-		:kotlin:testDebugUnitTest
+		:kotlin:lintDebug
 fi
