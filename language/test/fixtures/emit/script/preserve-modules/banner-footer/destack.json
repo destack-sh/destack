@@ -1,14 +1,15 @@
 {
-  "name": "script-preserve-modules-include-roots",
+  "name": "script-preserve-modules-banner-footer",
   "targets": {
     "library": {
       "emit": "js",
-      "include": ["src/**/*.js"],
+      "entry": ["src/application.ts"],
       "outDir": "dist/library",
       "bundle": {
-        "preserveModules": true,
-        "preserveModulesRoot": "src",
+        "mode": "preserveModules",
         "output": {
+          "banner": "/* banner */",
+          "footer": "/* footer */",
           "sourcemap": "external",
           "manifest": true
         }

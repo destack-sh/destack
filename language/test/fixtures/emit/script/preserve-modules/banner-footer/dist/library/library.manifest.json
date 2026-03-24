@@ -1,0 +1,17 @@
+{
+  "files": [
+    {
+      "path": "src/application.js",
+      "type": "chunk",
+      "loader": "js",
+      "input": "src/application.ts",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "src/application.map",
+      "type": "asset",
+      "loader": "map"
+    }
+  ]
+}

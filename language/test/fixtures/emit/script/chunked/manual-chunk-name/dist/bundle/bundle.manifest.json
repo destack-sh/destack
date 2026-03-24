@@ -1,0 +1,52 @@
+{
+  "files": [
+    {
+      "path": "application.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "application",
+      "input": "src/application.ts",
+      "isEntry": true,
+      "isDynamicEntry": false,
+      "imports": [
+        "./vendor.js"
+      ]
+    },
+    {
+      "path": "application.js.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "dashboard.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "dashboard",
+      "input": "src/dashboard.ts",
+      "isEntry": true,
+      "isDynamicEntry": false,
+      "imports": [
+        "./vendor.js"
+      ]
+    },
+    {
+      "path": "dashboard.js.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
+      "path": "vendor.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "vendor",
+      "input": "src/shared-value.ts",
+      "isEntry": false,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "vendor.js.map",
+      "type": "asset",
+      "loader": "map"
+    }
+  ]
+}

@@ -7,6 +7,7 @@
       "outDir": "dist/library",
       "bundle": {
         "preserveModules": true,
+        "preserveModulesRoot": "src",
         "output": {
           "sourcemap": "external",
           "manifest": true

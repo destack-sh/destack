@@ -1,7 +1,7 @@
 {
   "files": [
     {
-      "path": "src/application.js",
+      "path": "application.js",
       "type": "chunk",
       "loader": "js",
       "input": "src/application.js",
@@ -12,12 +12,12 @@
       ]
     },
     {
-      "path": "src/application.map",
+      "path": "application.map",
       "type": "asset",
       "loader": "map"
     },
     {
-      "path": "src/shared-value.js",
+      "path": "shared-value.js",
       "type": "chunk",
       "loader": "js",
       "input": "src/shared-value.js",
@@ -25,7 +25,7 @@
       "isDynamicEntry": false
     },
     {
-      "path": "src/shared-value.map",
+      "path": "shared-value.map",
       "type": "asset",
       "loader": "map"
     }
