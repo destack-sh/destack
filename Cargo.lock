@@ -1945,6 +1945,7 @@ dependencies = [
  "indexmap",
  "parking_lot",
  "postcard",
+ "regex",
  "rustc-hash 2.1.1",
  "schemars",
  "serde",

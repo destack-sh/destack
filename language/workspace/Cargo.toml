@@ -39,6 +39,7 @@ dashmap = { workspace = true }
 filetime = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 parking_lot = { workspace = true }
+regex = { workspace = true }
 rustc-hash = { workspace = true }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive", "rc"] }

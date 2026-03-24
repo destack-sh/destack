@@ -37,6 +37,11 @@ impl LintRule for NoExplicitAny {
             if !matches!(expression, ast::Expression::TypeLiteral(TypeLiteral::Any)) {
                 continue;
             }
+            if ctx.options.ignore_explicit_any_in_rest_args
+                && any_is_in_rest_parameter_type(ctx, node_id)
+            {
+                continue;
+            }
 
             // resolve effective lint severity
             let severity = ctx.get_effective_severity(meta, node_id);
@@ -65,6 +70,32 @@ impl LintRule for NoExplicitAny {
             ctx.report(diagnostic);
         }
     }
+}
+
+/// Return true when one `any` node belongs to a variadic parameter type annotation.
+fn any_is_in_rest_parameter_type(
+    ctx: &LintAstContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    let mut current_id = expression_id.id;
+
+    while let Some(parent_id) = ctx.parents.get_by_id(current_id) {
+        if ctx.tree.get_node_type(parent_id) != ast::NodeType::Parameter {
+            current_id = parent_id;
+            continue;
+        }
+
+        let parameter_id = ast::LocalNodeId::<ast::Parameter>::new(parent_id);
+        let parameter = ctx.tree.get(parameter_id);
+        return matches!(
+            parameter,
+            ast::Parameter::VariadicNamed { ty, .. }
+                | ast::Parameter::VariadicPattern { ty, .. }
+                if ty.is_some()
+        );
+    }
+
+    false
 }
 
 #[cfg(test)]
@@ -191,5 +222,45 @@ type Payload = { value: any, items: any[] }
 type Payload = { value: unknown, items: unknown[] };
 "#,
             );
+    }
+
+    #[test]
+    fn test_flags_rest_parameter_any_by_default() {
+        let test = TestProgram::for_rule_without_prelude(NoExplicitAny);
+        let result = test.lint_ast(
+            "no_explicit_any/test_flags_rest_parameter_any_by_default.ts",
+            r#"
+function foo(...values: any[]) {}
+"#,
+        );
+        test.result(result).assert_lint("no-explicit-any");
+    }
+
+    #[test]
+    fn test_allows_rest_parameter_any_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(NoExplicitAny).with_options(|options| {
+            options.ignore_explicit_any_in_rest_args = true;
+        });
+        let result = test.lint_ast(
+            "no_explicit_any/test_allows_rest_parameter_any_when_enabled.ts",
+            r#"
+function foo(...values: any[]) {}
+"#,
+        );
+        test.result(result).assert_no_lint("no-explicit-any");
+    }
+
+    #[test]
+    fn test_allows_generic_rest_parameter_any_when_enabled() {
+        let test = TestProgram::for_rule_without_prelude(NoExplicitAny).with_options(|options| {
+            options.ignore_explicit_any_in_rest_args = true;
+        });
+        let result = test.lint_ast(
+            "no_explicit_any/test_allows_generic_rest_parameter_any_when_enabled.ts",
+            r#"
+function foo(...values: Array<any>) {}
+"#,
+        );
+        test.result(result).assert_no_lint("no-explicit-any");
     }
 }

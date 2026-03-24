@@ -1,5 +1,6 @@
 use destack_ast as ast;
-use destack_workspace::LintSeverity;
+use destack_source::Span;
+use destack_workspace::{LintSeverity, WarningCommentLocation};
 
 use crate::rules::common::{comment_contains_warning_term, is_directive_comment};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
@@ -32,56 +33,108 @@ impl LintRule for NoWarningComments {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
         let warning_terms = &ctx.options.warning_comment_terms;
+        let warning_location = ctx.options.warning_comment_location;
+        let warning_decoration = &ctx.options.warning_comment_decoration;
 
         // iterate over all comment trivia records
         for trivia in ctx.tree.comment_trivia().iter().copied() {
             let comment_text = ast::normalize_comment_payload(ctx.get_span_text(trivia.span));
+            let comment_text = comment_text.into_owned();
             if is_directive_comment(&comment_text)
-                && comment_contains_warning_term(&comment_text, "no-warning-comments")
+                && comment_contains_warning_term(
+                    &comment_text,
+                    "no-warning-comments",
+                    destack_workspace::WarningCommentLocation::Anywhere,
+                    &[],
+                )
             {
                 continue;
             }
 
-            // check for warning terms in the comment
-            for term in warning_terms {
-                if comment_contains_warning_term(&comment_text, term) {
-                    let severity = ctx.get_effective_severity(meta, trivia.comment);
-                    if !severity.is_enabled() {
-                        break;
-                    }
-                    let mut diagnostic = LintDiagnostic::new(
-                        NO_WARNING_COMMENTS.id,
-                        NO_WARNING_COMMENTS.code,
-                        NO_WARNING_COMMENTS.category,
-                        severity,
-                        format!("warning comment contains `{term}`"),
-                        ctx.module.file_id,
-                        trivia.span,
-                    )
-                    .with_label("resolve before committing");
+            report_warning_comment(
+                ctx,
+                meta,
+                trivia.comment,
+                trivia.span,
+                &comment_text,
+                warning_terms,
+                warning_location,
+                warning_decoration,
+            );
+        }
 
-                    // compute fixes only when requested by the runner
-                    if ctx.compute_fixes
-                        && let Some(fix) = warning_comment_fix(ctx, trivia.span)
-                    {
-                        diagnostic = diagnostic.with_fix(fix);
-                    }
-
-                    ctx.report(diagnostic);
-                    break; // only report once per comment
-                }
-            }
+        // docs are modeled as dedicated ast::Doc nodes, not comment trivia
+        for doc_id in ctx.tree.iter_nodes::<ast::Doc>() {
+            let span = ctx.tree.get_span(doc_id);
+            let comment_text = ast::normalize_comment_payload(ctx.get_span_text(span));
+            let comment_text = comment_text.into_owned();
+            report_warning_comment(
+                ctx,
+                meta,
+                doc_id,
+                span,
+                &comment_text,
+                warning_terms,
+                warning_location,
+                warning_decoration,
+            );
         }
     }
 }
 
-/// Build a safe fix by removing one warning comment.
+/// Report one warning comment diagnostic when the text matches configured terms.
+fn report_warning_comment<T: ast::Node>(
+    ctx: &mut LintAstContext<'_>,
+    meta: &LintMeta,
+    node_id: ast::LocalNodeId<T>,
+    span: Span,
+    comment_text: &str,
+    warning_terms: &[String],
+    warning_location: WarningCommentLocation,
+    warning_decoration: &[String],
+) {
+    // report at most once per comment span
+    for term in warning_terms {
+        if !comment_contains_warning_term(comment_text, term, warning_location, warning_decoration)
+        {
+            continue;
+        }
+
+        let severity = ctx.get_effective_severity(meta, node_id);
+        if !severity.is_enabled() {
+            break;
+        }
+
+        let mut diagnostic = LintDiagnostic::new(
+            NO_WARNING_COMMENTS.id,
+            NO_WARNING_COMMENTS.code,
+            NO_WARNING_COMMENTS.category,
+            severity,
+            format!("warning comment contains `{term}`"),
+            ctx.module.file_id,
+            span,
+        )
+        .with_label("resolve before committing");
+
+        // compute fixes only when requested by the runner
+        if ctx.compute_fixes
+            && let Some(fix) = warning_comment_fix(ctx, span)
+        {
+            diagnostic = diagnostic.with_fix(fix);
+        }
+
+        ctx.report(diagnostic);
+        break;
+    }
+}
+
+/// Build a suggestion by removing one warning comment.
 fn warning_comment_fix(
     ctx: &LintAstContext<'_>,
     comment_span: destack_source::Span,
 ) -> Option<LintFix> {
     let edits = ctx.edit_builder().delete(comment_span).into_edits();
-    Some(LintFix::safe("Remove warning comment").with_edits(edits))
+    Some(LintFix::suggestion("Remove warning comment").with_edits(edits))
 }
 
 #[cfg(test)]
@@ -110,7 +163,7 @@ const value = 1 // TODO: remove temporary path
         );
         test.result(result)
             .assert_lint("no-warning-comments")
-            .assert_safe_fixed(
+            .assert_suggested_fixed(
                 r#"
 const value = 1;
 "#,
@@ -125,6 +178,18 @@ const value = 1;
             "// FIXME: broken",
         );
         test.result(result).assert_lint("no-warning-comments");
+    }
+
+    #[test]
+    fn test_reports_doc_comment_once() {
+        let test = TestProgram::for_rule_without_prelude(NoWarningComments);
+        let result = test.lint_ast(
+            "no_warning_comments/test_reports_doc_comment_once.ts",
+            "/** TODO: document this */",
+        );
+        test.result(result)
+            .assert_lint("no-warning-comments")
+            .assert_lint_count("no-warning-comments", 1);
     }
 
     #[test]
@@ -169,7 +234,7 @@ const value = 1
         );
         test.result(result)
             .assert_lint("no-warning-comments")
-            .assert_safe_fixed(
+            .assert_suggested_fixed(
                 r#"
 const value = 1;
 "#,
@@ -209,6 +274,52 @@ const value = 1;
             "no_warning_comments/test_does_not_skip_non_directive_comment_with_rule_name.ts",
             r#"
 // this mentions no-warning-comments but still has TODO
+const value = 1;
+"#,
+        );
+        test.result(result).assert_no_lint("no-warning-comments");
+    }
+
+    #[test]
+    fn test_detects_warning_term_anywhere_when_enabled() {
+        let test =
+            TestProgram::for_rule_without_prelude(NoWarningComments).with_options(|options| {
+                options.warning_comment_location =
+                    destack_workspace::WarningCommentLocation::Anywhere;
+            });
+        let result = test.lint_ast(
+            "no_warning_comments/test_detects_warning_term_anywhere_when_enabled.ts",
+            r#"
+// this mentions no-warning-comments but still has TODO
+const value = 1;
+"#,
+        );
+        test.result(result).assert_lint("no-warning-comments");
+    }
+
+    #[test]
+    fn test_allows_warning_term_after_decoration_by_default() {
+        let test = TestProgram::for_rule_without_prelude(NoWarningComments);
+        let result = test.lint_ast(
+            "no_warning_comments/test_allows_warning_term_after_decoration_by_default.ts",
+            r#"
+/* *** TODO: finish this */
+const value = 1;
+"#,
+        );
+        test.result(result).assert_no_lint("no-warning-comments");
+    }
+
+    #[test]
+    fn test_detects_warning_term_after_configured_decoration() {
+        let test =
+            TestProgram::for_rule_without_prelude(NoWarningComments).with_options(|options| {
+                options.warning_comment_decoration = vec![String::from("*")];
+            });
+        let result = test.lint_ast(
+            "no_warning_comments/test_detects_warning_term_after_configured_decoration.ts",
+            r#"
+/* *** TODO: finish this */
 const value = 1;
 "#,
         );

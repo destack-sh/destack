@@ -385,7 +385,7 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 | `LR027` | `no-struct` | Destack | AST | ✓ | No | None | Disallow struct declarations (prefer classes) |
 | `LR028` | `no-ternary` | ESLint | AST | ✓ | No | None | Disallow ternary operators |
 | `LR029` | `no-unused-modules` | Import | DIR | ✓ | No | None | Disallow exports that are never imported by any module |
-| `LR030` | `no-warning-comments` | ESLint | AST | ✓ | Always | Safe | Disallow specified warning terms in comments (TODO, FIXME, etc.) |
+| `LR030` | `no-warning-comments` | ESLint | AST | ✓ | Always | Suggestion | Disallow specified warning terms in comments (TODO, FIXME, etc.) |
 | `LR031` | `no-wildcard-imports` | Destack | AST | ✓ | Sometimes | Unsafe | Disallow wildcard imports |
 | `LR032` | `strict-boolean-expressions` | TS-ESLint | DIR | ✓ | No | None | Disallow truthy/falsy coercion in conditions |
 | `LR010` | `no-delete` | Destack | AST | ✓ | Sometimes | Unsafe | Disallow the `delete` operator |

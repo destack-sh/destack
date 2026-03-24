@@ -237,16 +237,37 @@ pub fn has_doc_terminal_punctuation(line: &str) -> bool {
     without_parenthesis.ends_with(['.', '!', '?', ':'])
 }
 
-/// Return true when one comment contains one warning term using word boundaries.
-pub fn comment_contains_warning_term(comment: &str, term: &str) -> bool {
+/// Return true when one comment contains one warning term with the configured policy.
+pub fn comment_contains_warning_term(
+    comment: &str,
+    term: &str,
+    location: WarningCommentLocation,
+    decoration: &[String],
+) -> bool {
     let term = term.trim();
     if term.is_empty() {
         return false;
     }
 
-    // normalize one lowercase term and comment buffer
     let term_lower = term.to_ascii_lowercase();
     let comment_lower = comment.to_ascii_lowercase();
+
+    if location == WarningCommentLocation::Start {
+        let comment_lower = comment_lower.trim_start_matches(|character: char| {
+            character.is_ascii_whitespace()
+                || decoration.iter().any(|item| {
+                    let mut item_characters = item.chars();
+                    matches!(
+                        (item_characters.next(), item_characters.next()),
+                        (Some(item_character), None) if item_character == character
+                    )
+                })
+        });
+
+        return comment_lower.starts_with(term_lower.as_str())
+            && warning_term_has_suffix_boundary(comment_lower, term_lower.as_str());
+    }
+
     let starts_with_word = term_lower
         .chars()
         .next()
@@ -281,6 +302,22 @@ pub fn comment_contains_warning_term(comment: &str, term: &str) -> bool {
     }
 
     false
+}
+
+/// Return true when a start-matched warning term has a valid trailing boundary.
+fn warning_term_has_suffix_boundary(comment: &str, term: &str) -> bool {
+    let ends_with_word = term
+        .chars()
+        .last()
+        .is_some_and(is_warning_term_word_character);
+    if !ends_with_word {
+        return true;
+    }
+
+    comment[term.len()..]
+        .chars()
+        .next()
+        .is_none_or(|character| !is_warning_term_word_character(character))
 }
 
 /// Return true when one character counts as a warning term word character.
@@ -414,9 +451,16 @@ mod tests {
     fn test_comment_contains_warning_term_matches_whole_word() {
         assert!(comment_contains_warning_term(
             "TODO: finish this path",
-            "todo"
+            "todo",
+            WarningCommentLocation::Anywhere,
+            &[],
         ));
-        assert!(comment_contains_warning_term("fixme!", "fixme"));
+        assert!(comment_contains_warning_term(
+            "fixme!",
+            "fixme",
+            WarningCommentLocation::Anywhere,
+            &[],
+        ));
     }
 
     /// Skip warning terms that only appear as substrings.
@@ -424,8 +468,44 @@ mod tests {
     fn test_comment_contains_warning_term_skips_substring() {
         assert!(!comment_contains_warning_term(
             "TodoMVC integration",
-            "todo"
+            "todo",
+            WarningCommentLocation::Anywhere,
+            &[],
         ));
-        assert!(!comment_contains_warning_term("prefixfixmesuffix", "fixme"));
+        assert!(!comment_contains_warning_term(
+            "prefixfixmesuffix",
+            "fixme",
+            WarningCommentLocation::Anywhere,
+            &[],
+        ));
+    }
+
+    /// Match warning terms only at the configured start position.
+    #[test]
+    fn test_comment_contains_warning_term_at_start() {
+        assert!(comment_contains_warning_term(
+            "   TODO: finish this path",
+            "todo",
+            WarningCommentLocation::Start,
+            &[],
+        ));
+        assert!(!comment_contains_warning_term(
+            "please TODO this later",
+            "todo",
+            WarningCommentLocation::Start,
+            &[],
+        ));
+    }
+
+    /// Match warning terms after configured decoration characters.
+    #[test]
+    fn test_comment_contains_warning_term_after_decoration() {
+        assert!(comment_contains_warning_term(
+            "*** TODO: finish this path",
+            "todo",
+            WarningCommentLocation::Start,
+            &[String::from("*")],
+        ));
     }
 }
+use destack_workspace::WarningCommentLocation;
