@@ -96,6 +96,11 @@ impl Compiler {
             return Ok(Some(self.program.modules.module_format(module.id)));
         }
 
+        // external targets do not carry one local runtime format
+        if let ModuleTarget::External(_) = target {
+            return Ok(None);
+        }
+
         // binding targets may span declarations from multiple modules
         let ModuleTarget::Binding(specifier) = target else {
             return Ok(None);

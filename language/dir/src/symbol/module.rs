@@ -30,6 +30,8 @@ pub enum ModuleTarget {
     Module(ModuleId),
     /// A module binding declared by `declare module "name"`.
     Binding(StringId),
+    /// An external module specifier preserved for link.
+    External(StringId),
 }
 
 impl ModuleTarget {
@@ -38,7 +40,7 @@ impl ModuleTarget {
     pub fn module_id(self) -> Option<ModuleId> {
         match self {
             Self::Module(module_id) => Some(module_id),
-            Self::Binding(_) => None,
+            Self::Binding(_) | Self::External(_) => None,
         }
     }
 }

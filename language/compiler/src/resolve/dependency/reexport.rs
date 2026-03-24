@@ -237,6 +237,15 @@ impl Compiler {
                     .map_err(ResolveError::from)?;
                 Ok((dir.namespace_scope.into_global(module_id), Some(module_id)))
             }
+            ModuleTarget::External(_) => {
+                let dir = self
+                    .require_artifact_dir_prepared(origin_module_id, profile)
+                    .map_err(ResolveError::from)?;
+                Ok((
+                    dir.namespace_scope.into_global(origin_module_id),
+                    Some(origin_module_id),
+                ))
+            }
             ModuleTarget::Binding(specifier) => {
                 // load the module bindings for this specifier
                 let bindings =
@@ -358,6 +367,7 @@ impl Compiler {
                     cache.as_deref_mut(),
                 )
             }
+            ModuleTarget::External(_) => Ok(None),
             ModuleTarget::Binding(specifier) => {
                 // load bindings for the specifier
                 let bindings =
@@ -1048,6 +1058,10 @@ impl Compiler {
             }
 
             return Ok(true);
+        }
+
+        if let ModuleTarget::External(_) = target {
+            return Ok(false);
         }
 
         Ok(false)

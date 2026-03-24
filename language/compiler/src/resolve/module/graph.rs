@@ -70,6 +70,7 @@ impl Compiler {
                         dependencies.push(binding.module_id);
                     }
                 }
+                ModuleTarget::External(_) => {}
             }
         }
 

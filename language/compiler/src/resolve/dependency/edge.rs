@@ -7,7 +7,7 @@ use destack_ast::StringId;
 use destack_builtin::resolve_profile_builtin_library_name;
 use destack_dir::{DependencyKind, DependencySource, ModuleResolution, ModuleTarget};
 use destack_source::ModuleId;
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{Module, ProfileId, Target};
 
 /// The uncached result of resolving one import edge.
 struct ImportResolutionResult {
@@ -78,6 +78,50 @@ impl BuiltinNamespace {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Return whether one specifier is package-like instead of local.
+    fn is_externalizable_package_dependency_specifier(specifier: &str) -> bool {
+        !specifier.starts_with('.') && !specifier.starts_with('/') && !specifier.contains(':')
+    }
+
+    /// Return whether one selected target explicitly externalizes a specifier.
+    fn target_externalizes_dependency_specifier(&self, target: &Target, specifier: &str) -> bool {
+        let dependency = &target.bundle.dependency;
+
+        dependency
+            .external
+            .iter()
+            .any(|candidate| candidate == specifier)
+            || dependency
+                .never_bundle
+                .iter()
+                .any(|candidate| candidate == specifier)
+    }
+
+    /// Return one explicit external module target when target policy preserves the package.
+    fn externalized_package_import_target(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        target: StringId,
+    ) -> ResolveResult<Option<ModuleTarget>> {
+        let specifier = self.program.strings.get(target);
+        if !Self::is_externalizable_package_dependency_specifier(&specifier) {
+            return Ok(None);
+        }
+
+        let Some((_, selected_target)) =
+            self.target_policy_for_module_profile(module.id, profile)?
+        else {
+            return Ok(None);
+        };
+
+        if self.target_externalizes_dependency_specifier(&selected_target, &specifier) {
+            return Ok(Some(ModuleTarget::External(target)));
+        }
+
+        Ok(None)
+    }
+
     /// Resolve one reference-lib directive target to a module target.
     fn resolve_reference_lib_target(
         &self,
@@ -644,6 +688,16 @@ impl Compiler {
                 self.resolve_binding_import_target(module, profile, resolve_target, kind)?
         {
             return Ok(ImportResolutionResult { target, cache });
+        }
+
+        // explicit external package policy preserves unresolved package specifiers for link
+        if let Some(target) =
+            self.externalized_package_import_target(module, profile, resolve_target)?
+        {
+            return Ok(ImportResolutionResult {
+                target,
+                cache: ModuleResolution::from_target(target),
+            });
         }
 
         // only user modules get bare node builtin compatibility
