@@ -316,6 +316,48 @@ import "./source_side_effect.ds";
         test.result(diagnostics).assert_no_lint("no-unused-imports");
     }
 
+    /// Treat namespace imports referenced through members as used.
+    #[test]
+    fn test_allows_used_namespace_import() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedImports);
+        let diagnostics = test.lint_module_dir_with_modules(
+            test_modules! {
+                "no_unused_imports/source_namespace.ds" => r#"
+export const value = 1;
+"#,
+                "no_unused_imports/consumer_namespace.ds" => r#"
+import * as sourceModule from "./source_namespace.ds";
+
+const output = sourceModule.value;
+"#,
+            },
+            "no_unused_imports/consumer_namespace.ds",
+        );
+
+        test.result(diagnostics).assert_no_lint("no-unused-imports");
+    }
+
+    /// Report unused namespace imports.
+    #[test]
+    fn test_flags_unused_namespace_import() {
+        let test = TestProgram::for_rule_without_prelude(NoUnusedImports);
+        let diagnostics = test.lint_module_dir_with_modules(
+            test_modules! {
+                "no_unused_imports/source_unused_namespace.ds" => r#"
+export const value = 1;
+"#,
+                "no_unused_imports/consumer_unused_namespace.ds" => r#"
+import * as sourceModule from "./source_unused_namespace.ds";
+"#,
+            },
+            "no_unused_imports/consumer_unused_namespace.ds",
+        );
+
+        test.result(diagnostics)
+            .assert_lint("no-unused-imports")
+            .assert_lint_count("no-unused-imports", 1);
+    }
+
     /// Safely remove an entire single-binding import.
     #[test]
     fn test_fix_single_binding_import() {

@@ -348,6 +348,20 @@ let items = [1, 2, 3];
     }
 
     #[test]
+    fn test_flags_delete_tuple_element() {
+        let test = TestProgram::for_rule_without_prelude(NoArrayDelete);
+        let result = test.lint_dir(
+            "no_array_delete/test_flags_delete_tuple_element.ds",
+            r#"
+let items: [int32, int32, int32] = [1, 2, 3];
+delete items[0];
+"#,
+        );
+        test.check_clean();
+        test.result(result).assert_lint("no-array-delete");
+    }
+
+    #[test]
     fn test_fix_rewrites_sequence_index_delete_array_element() {
         let test = TestProgram::for_rule_without_prelude(NoArrayDelete);
         let result = test.lint_dir(

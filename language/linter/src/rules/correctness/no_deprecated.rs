@@ -364,4 +364,45 @@ legacyModule.legacy();
         let result = test.lint_module(user_module, LintLevel::Dir);
         test.result(result).assert_lint("no-deprecated");
     }
+
+    /// Flag deprecated symbols that are re-exported through another module.
+    #[test]
+    fn test_flags_reexported_deprecated_import_usage() {
+        let test = TestProgram::for_rule_with_prelude(NoDeprecated);
+        let legacy_module = test.add_module(
+            "no_deprecated/reexported_legacy.ds",
+            r#"
+@deprecated("use stable()")
+export function legacy(): int32 {
+    return 1;
+}
+"#,
+        );
+        let bridge_module = test.add_module(
+            "no_deprecated/reexport_bridge.ds",
+            r#"
+export { legacy } from "./reexported_legacy.ds"
+"#,
+        );
+        let user_module = test.add_module(
+            "no_deprecated/reexport_user.ds",
+            r#"
+import { legacy } from "./reexport_bridge.ds"
+
+legacy();
+"#,
+        );
+
+        test.import_module(legacy_module);
+        test.import_module(bridge_module);
+        test.import_module(user_module);
+        test.enqueue_profile_resolution_once();
+        test.analyze_module(legacy_module);
+        test.analyze_module(bridge_module);
+        test.analyze_module(user_module);
+        test.compile();
+
+        let result = test.lint_module(user_module, LintLevel::Dir);
+        test.result(result).assert_lint("no-deprecated");
+    }
 }
