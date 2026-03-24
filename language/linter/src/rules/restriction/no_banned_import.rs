@@ -266,6 +266,16 @@ fn matching_target(
                 });
             }
         }
+        dir::ModuleTarget::External(specifier) => {
+            let binding_text = ctx.program.strings.get(specifier);
+            if let Some(pattern) = matching_pattern(binding_text.as_ref(), patterns) {
+                return Some(MatchedTarget {
+                    pattern,
+                    target: binding_text.to_string(),
+                    surface: TargetSurface::ResolvedBindingSpecifier,
+                });
+            }
+        }
     }
 
     None
