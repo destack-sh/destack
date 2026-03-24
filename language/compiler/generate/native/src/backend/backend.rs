@@ -3,18 +3,15 @@ use std::sync::Arc;
 
 use cranelift_codegen::isa::TargetIsa;
 use cranelift_codegen::settings::{self, Configurable};
-use destack_artifact::{
-    ArtifactStore, BinaryArtifact, EmitFormat, ObjectArtifact, WasmArtifact, WasmInterface,
-};
+use destack_artifact::EmitFormat;
 use destack_codegen_lib::CodegenBackend;
 use destack_core::StringPool;
 use destack_mir as mir;
-use destack_source::ModuleId;
-use destack_workspace::{Program, Target, TargetId};
+use destack_workspace::Target;
 use target_lexicon::Triple;
 
 use crate::lower::{ModuleLowerOutput, ModuleLowerer};
-use crate::{CodegenCraneliftError, CodegenCraneliftResult, CodegenCraneliftWarning};
+use crate::{CodegenCraneliftError, CodegenCraneliftResult};
 
 /// Cranelift-based code generation backend.
 ///
@@ -173,61 +170,4 @@ impl CodegenBackend for CodegenCraneliftBackend {
     fn supports_target(&self, target: &Target) -> bool {
         target.uses_native_generate_pipeline()
     }
-}
-
-/// Generate one binary artifact for a module using Cranelift.
-pub fn generate_artifact(
-    program: Arc<Program>,
-    artifacts: Arc<ArtifactStore>,
-    module_id: ModuleId,
-    target: &Target,
-) -> CodegenCraneliftResult<(
-    BinaryArtifact,
-    Vec<CodegenCraneliftWarning>,
-    Vec<CodegenCraneliftError>,
-)> {
-    // validate target
-    match target.emit {
-        EmitFormat::Wasm | EmitFormat::Native => {}
-        other => {
-            return Err(CodegenCraneliftError::UnsupportedTarget {
-                triple: format!("{other:?}"),
-                message: Some("expected Wasm or Native".to_string()),
-            });
-        }
-    }
-
-    // create backend
-    let backend = CodegenCraneliftBackend::new(target)?;
-
-    // get module and its MIR
-    // compile
-    let module_ref = program.modules.get(module_id);
-    let module = module_ref.as_ref();
-    let name = module.uri.last_segment().unwrap_or("module");
-    let profile_id = program.default_profile_id_for_module(module_id);
-    let target_id = TargetId::new(module.package_id, target.name.clone());
-    let compile_output =
-        if let Some(mir) = artifacts.mir_optimized(module_id, profile_id, &target_id) {
-            backend.compile_module(&mir.tree, &mir.strings, name)?
-        } else if let Some(mir) = artifacts.mir_base(module_id, profile_id, &target_id) {
-            backend.compile_module(&mir.tree, &mir.strings, name)?
-        } else {
-            panic!("codegen requires committed MIR artifact");
-        };
-
-    let artifact = match target.emit {
-        EmitFormat::Native => BinaryArtifact::Object(ObjectArtifact {
-            bytes: Arc::from(compile_output.bytes),
-            debug: Vec::new(),
-        }),
-        EmitFormat::Wasm => BinaryArtifact::Wasm(WasmArtifact {
-            bytes: Arc::from(compile_output.bytes),
-            interface: WasmInterface::default(),
-            source_map: None,
-        }),
-        _ => unreachable!(),
-    };
-
-    Ok((artifact, compile_output.warnings, compile_output.errors))
 }

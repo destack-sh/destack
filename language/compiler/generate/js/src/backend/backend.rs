@@ -1,23 +1,17 @@
 //! JS codegen backend implementation.
 
-use std::path::Path;
-use std::sync::Arc;
-
 use destack_artifact::{
-    ArtifactStore, DynamicScriptDependency, DynamicScriptDependencyTarget, EmitFormat,
-    OutputContent, OutputFile, ScriptArtifact, ScriptDeclaration, ScriptDependencyKind,
-    ScriptDependencyTarget, ScriptLanguage, ScriptLinkage, SourceMapArtifact,
-    StaticScriptDependency, StaticScriptDependencyUsage,
+    DynamicScriptDependency, DynamicScriptDependencyTarget, ScriptDependencyKind,
+    ScriptDependencyTarget, ScriptLinkage, SourceMapArtifact, StaticScriptDependency,
+    StaticScriptDependencyUsage,
 };
 use destack_codegen_lib::CodegenBackend;
 use destack_js::{
     self as js, DependencyKind, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
     Path as ScriptPath, ScalarLiteral, ScriptModule, Statement,
 };
-use destack_source::{FileType, ModuleId};
-use destack_workspace::{ProfileId, Program, Target};
-
-use crate::{CodegenJsError, CodegenJsResult};
+use destack_source::ModuleId;
+use destack_workspace::{Program, Target};
 
 /// JavaScript/TypeScript codegen backend.
 #[derive(Debug, Default)]
@@ -222,7 +216,7 @@ fn is_import_receiver(strings: &destack_core::StringPool, expression: &Expressio
 }
 
 /// Collect linkage metadata for one generated script module.
-fn collect_script_linkage(module: &ScriptModule) -> ScriptLinkage {
+pub(crate) fn collect_script_linkage(module: &ScriptModule) -> ScriptLinkage {
     let mut collector = ScriptLinkageCollector {
         linkage: ScriptLinkage::default(),
         strings: module.strings.clone(),
@@ -237,170 +231,29 @@ fn collect_script_linkage(module: &ScriptModule) -> ScriptLinkage {
     collector.into_linkage()
 }
 
+/// Return one stable package-relative source path when possible.
+fn module_source_map_path(program: &Program, module: &destack_workspace::Module) -> String {
+    // prefer package-relative filesystem paths
+    if let Some(path) = &module.path {
+        let package = program.packages.get(module.package_id);
+        let package = package.read();
+        let relative = package
+            .path
+            .as_ref()
+            .and_then(|package_path| path.strip_prefix(package_path).ok())
+            .unwrap_or(path);
+        let relative = relative.to_string_lossy().replace('\\', "/");
+
+        return relative;
+    }
+
+    module.uri.to_string()
+}
+
 /// Build one minimal source map payload for a generated script module.
-fn default_script_map(module: &destack_workspace::Module) -> SourceMapArtifact {
-    SourceMapArtifact::empty(module.uri.to_string())
-}
-
-/// Render one generated script artifact into output files.
-pub fn render_artifact(
+pub(crate) fn default_script_map(
+    program: &Program,
     module: &destack_workspace::Module,
-    artifact: &ScriptArtifact,
-    target: &Target,
-    package_dir: &Path,
-    root_dir: Option<&Path>,
-) -> CodegenJsResult<Vec<OutputFile>> {
-    let plan = crate::plan_module_output(module, target, package_dir, root_dir)?;
-    let emit = crate::emit::ModuleEmitOutput {
-        module: artifact.module.clone(),
-        warnings: Vec::new(),
-        errors: Vec::new(),
-    };
-    let emit = crate::bundle_module_output(&plan, emit)?;
-    let emit = crate::minify_module_output(&plan, emit)?;
-    let warnings = emit.warnings;
-    let errors = emit.errors;
-    let mut entries = Vec::new();
-
-    // code files
-    for file in &plan.files {
-        if file.file_type == FileType::TypeScriptDeclaration {
-            continue;
-        }
-
-        let content = match file.file_type {
-            FileType::JavaScript => {
-                let code = crate::print_script_module(target, file.file_type, &emit.module)?;
-                OutputContent::javascript(code)
-            }
-            FileType::TypeScript => {
-                let code = crate::print_script_module(target, file.file_type, &emit.module)?;
-                OutputContent::typescript(code)
-            }
-            FileType::Html => {
-                let code = crate::print_script_module(target, file.file_type, &emit.module)?;
-                OutputContent::html(crate::wrap_html_document(&code))
-            }
-            FileType::SourceMap => {
-                let map = artifact
-                    .source_map
-                    .clone()
-                    .unwrap_or_else(|| default_script_map(module));
-                OutputContent::source_map(&map).map_err(|error| CodegenJsError::Internal {
-                    message: format!("failed to serialize source map: {error}"),
-                })?
-            }
-            other => {
-                return Err(CodegenJsError::Internal {
-                    message: format!("unsupported file type: {other:?}"),
-                });
-            }
-        };
-
-        entries.push(OutputFile {
-            uri: file.uri.clone(),
-            content,
-            source: None,
-        });
-    }
-
-    // declarations
-    if let Some(declaration) = &artifact.declaration {
-        for file in &plan.files {
-            if file.file_type != FileType::TypeScriptDeclaration {
-                continue;
-            }
-
-            entries.push(OutputFile {
-                uri: file.uri.clone(),
-                content: OutputContent::declaration(declaration.text.clone()),
-                source: None,
-            });
-        }
-    }
-
-    if !warnings.is_empty() {
-        return Err(CodegenJsError::Internal {
-            message: "unexpected warnings while rendering script artifact".to_string(),
-        });
-    }
-
-    if let Some(error) = errors.into_iter().next() {
-        return Err(error);
-    }
-
-    Ok(entries)
-}
-
-/// Generate one script artifact for a module.
-pub fn generate_artifact(
-    program: Arc<Program>,
-    artifacts: Arc<ArtifactStore>,
-    module_id: ModuleId,
-    target: &Target,
-    profile: ProfileId,
-) -> CodegenJsResult<(
-    ScriptArtifact,
-    Vec<crate::CodegenJsWarning>,
-    Vec<CodegenJsError>,
-)> {
-    // validate target
-    if !target.uses_js_generate_pipeline() {
-        return Err(CodegenJsError::UnsupportedTarget {
-            format: format!("{:?}", target.emit),
-            message: Some("expected JS, TS, or HTML".to_string()),
-        });
-    }
-
-    // get module
-    let module_ref = program.modules.get(module_id);
-    let module = module_ref.as_ref();
-    let ast = artifacts
-        .ast(module_id)
-        .unwrap_or_else(|| panic!("missing committed AST artifact for {module_id:?}"));
-    let dir = artifacts
-        .dir_analyzed(module_id, profile)
-        .unwrap_or_else(|| panic!("missing committed dir artifact for {module_id:?}"));
-    let dir_tree = &dir.tree;
-    let dir_roots = dir.roots.as_ref().clone();
-    let symbols = &dir.symbols;
-    let types = &dir.types;
-
-    // emit one lowered JavaScript module tree
-    let emit = crate::emit_module(&module, &ast, dir_tree, &dir_roots, symbols, types, target)?;
-    let warnings = emit.warnings;
-    let errors = emit.errors;
-
-    // current JS generation only knows that a declaration output exists
-    let declaration = if target.declaration && matches!(target.emit, EmitFormat::Js) {
-        Some(ScriptDeclaration::default())
-    } else {
-        None
-    };
-
-    let language = match target.emit {
-        EmitFormat::Js | EmitFormat::Html => ScriptLanguage::JavaScript,
-        EmitFormat::Ts => ScriptLanguage::TypeScript,
-        _ => {
-            return Err(CodegenJsError::UnsupportedTarget {
-                format: format!("{:?}", target.emit),
-                message: Some("expected JS, TS, or HTML".to_string()),
-            });
-        }
-    };
-
-    let linkage = collect_script_linkage(&emit.module);
-
-    let artifact = ScriptArtifact {
-        language,
-        module: emit.module,
-        linkage,
-        declaration,
-        source_map: target
-            .emits_source_maps()
-            .then(|| default_script_map(module)),
-        has_top_level_side_effects: true,
-    };
-
-    Ok((artifact, warnings, errors))
+) -> SourceMapArtifact {
+    SourceMapArtifact::empty(module_source_map_path(program, module))
 }

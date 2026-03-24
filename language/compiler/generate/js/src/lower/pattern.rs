@@ -28,7 +28,7 @@ impl ModuleLowerer<'_> {
                 symbol: _,
             } => {
                 let mutability = mutability.map(|m| self.lower_mutability(m));
-                let name = self.strings.intern_from(&self.ast.strings, *name);
+                let name = self.strings.intern_from(self.source_strings, *name);
                 let pattern = Pattern::Binding { mutability, name };
                 self.tree
                     .insert_from_source(pattern, self.module.id, pattern_id)
@@ -57,7 +57,7 @@ impl ModuleLowerer<'_> {
                 default,
             } => {
                 let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
-                let name = self.strings.intern_from(&self.ast.strings, *name);
+                let name = self.strings.intern_from(self.source_strings, *name);
                 let pattern = pattern
                     .map(|pattern| self.lower_pattern(pattern))
                     .transpose()?;
@@ -116,8 +116,8 @@ impl ModuleLowerer<'_> {
                 symbol: _,
             } => {
                 let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
-                let name = self.strings.intern_from(&self.ast.strings, *name);
-                let alias = self.strings.intern_from(&self.ast.strings, *alias);
+                let name = self.strings.intern_from(self.source_strings, *name);
+                let alias = self.strings.intern_from(self.source_strings, *alias);
                 let default = default
                     .map(|default| {
                         self.lower_expression(default).expect_node::<Expression>(
